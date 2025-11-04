@@ -5232,7 +5232,8 @@ namespace pcit::panther{
 				instr.interface_def.ident,
 				this->source.getID(),
 				this->symbol_proc_id,
-				interface_attrs.value().is_pub
+				interface_attrs.value().is_pub,
+				interface_attrs.value().is_polymorphic
 			)
 		);
 
@@ -5268,10 +5269,29 @@ namespace pcit::panther{
 
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
-		sema_to_pir.lowerInterface(current_interface_id);
+		if(current_interface.isPolymorphic){
+			for(const sema::Func::ID method_id : current_interface.methods){
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+				const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
+
+				for(const BaseType::Function::ReturnParam& return_param : method_type.returnParams){
+					if(this->context.getTypeManager().isTypeDeducer(return_param.typeID)){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
+							method_id,
+							"Method of a polymorphic interface cannot return type deducers"
+						);
+						return Result::ERROR;
+					}
+				}
+			}
+
+
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
+			sema_to_pir.lowerInterface(current_interface_id);
+		}
 
 		this->propagate_finished_def();
 
@@ -5551,10 +5571,47 @@ namespace pcit::panther{
 
 						if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
 
+						// params
 						for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
 							if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){ continue; }
 						}
-						if(target_method_type.returnParams != overload_sema_type.returnParams){ continue; }
+
+						// return params
+						if(target_method_type.returnParams != overload_sema_type.returnParams){
+							if(target_method_type.returnParams.size() != overload_sema_type.returnParams.size()){
+								continue;
+							}
+
+
+							bool return_params_matched = true;
+							for(size_t i = 0; i < target_method_type.returnParams.size(); i+=1){
+								const TypeInfo::ID target_ret_param_type_id = 
+									target_method_type.returnParams[i].typeID.asTypeID();
+
+								const TypeInfo::ID overload_ret_param_type_id = 
+									overload_sema_type.returnParams[i].typeID.asTypeID();
+
+								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+								if(this->context.getTypeManager().isTypeDeducer(target_ret_param_type_id) == false){
+									return_params_matched = false;
+									break;
+								}
+
+								const bool deducer_match_failed = this->extract_deducers(
+									target_ret_param_type_id, overload_ret_param_type_id
+								).isError();
+
+								if(deducer_match_failed){
+									return_params_matched = false;
+									break;
+								}
+							}
+
+							if(return_params_matched == false){ continue; }
+						}
+
+						// error params
 						if(target_method_type.errorParams != overload_sema_type.errorParams){ continue; }
 					}
 
@@ -5629,22 +5686,24 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_interface_impl_constexpr_pir() -> Result {
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
-		const BaseType::ID current_type_base_type_id =
-			BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>());
+		if(info.target_interface.isPolymorphic){
+			const BaseType::ID current_type_base_type_id =
+				BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>());
+
+			const BaseType::Interface::Impl& interface_impl = [&](){
+				const auto lock = std::scoped_lock(info.target_interface.implsLock);
+				return info.target_interface.impls.at(current_type_base_type_id);
+			}();
 
 
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
+			auto sema_to_pir = SemaToPIR(
+				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
+			);
 
-		const BaseType::Interface::Impl& interface_impl = [&](){
-			const auto lock = std::scoped_lock(info.target_interface.implsLock);
-			return info.target_interface.impls.at(current_type_base_type_id);
-		}();
-
-		sema_to_pir.lowerInterfaceVTableConstexpr(
-			info.target_interface_id, current_type_base_type_id, interface_impl.methods
-		);
+			sema_to_pir.lowerInterfaceVTableConstexpr(
+				info.target_interface_id, current_type_base_type_id, interface_impl.methods
+			);
+		}
 
 		this->propagate_finished_pir_def();
 
@@ -6813,6 +6872,21 @@ namespace pcit::panther{
 							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
 						),
 					}
+				);
+			}
+
+		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
+				);
+
+				const sema::Expr extract_this = sema::Expr(
+					this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+				);
+
+				sema_args.emplace_back(
+					sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
 				);
 			}
 		}
@@ -16072,9 +16146,32 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Invalid user type base");
 		}
 
-		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
 
 		if(this->check_type_qualifiers(instr.ast_type.qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
+
+		// check for non-polymorphic interface pointers
+		if(
+			base_type.baseTypeID().kind() == BaseType::Kind::INTERFACE
+			&& instr.ast_type.qualifiers.empty() == false
+			&& instr.ast_type.qualifiers.back().isPtr
+		){
+			const BaseType::Interface& base_type_interface =
+				this->context.getTypeManager().getInterface(base_type.baseTypeID().interfaceID());
+
+			if(base_type_interface.isPolymorphic == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_PTR,
+					instr.ast_type,
+					"Interfaces that are non-polymorphic are not allowed",
+					Diagnostic::Info(
+						"Interface was declared here:", this->get_location(base_type.baseTypeID().interfaceID())
+					)
+				);
+				return Result::ERROR;
+			}
+		}
 
 		this->return_type(
 			instr.output,
@@ -16800,8 +16897,19 @@ namespace pcit::panther{
 			}
 
 
+			const sema::FakeTermInfo::ValueCategory value_category = [&](){
+				const TypeInfo& lhs_type_info =
+					this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
+
+				if(lhs_type_info.qualifiers().back().isReadOnly){
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+				}else{
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+				}
+			}();
+
 			const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
-				TermInfo::convertValueCategory(lhs.value_category),
+				value_category,
 				TermInfo::convertValueStage(lhs.value_stage),
 				TermInfo::convertValueState(lhs.value_state),
 				lhs.type_id.as<TypeInfo::ID>(),
@@ -23106,6 +23214,7 @@ namespace pcit::panther{
 		const AST::InterfaceDef& interface_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<InterfaceAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_polymorphic = Attribute(*this, "polymorphic");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(interface_def.attributeBlock);
@@ -23149,6 +23258,18 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "polymorphic"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #polymorphic does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_polymorphic.set(attribute.attribute).isError()){ return evo::resultError; }
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
@@ -23159,8 +23280,7 @@ namespace pcit::panther{
 			}
 		}
 
-
-		return InterfaceAttrs(attr_pub.is_set());
+		return InterfaceAttrs(attr_pub.is_set(), attr_polymorphic.is_set());
 	}
 
 

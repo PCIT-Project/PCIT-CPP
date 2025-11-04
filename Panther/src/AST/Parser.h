@@ -118,10 +118,12 @@ namespace pcit::panther{
 			
 			enum class TypeKind{
 				EXPLICIT,
-				EXPLICIT_MAYBE_DEDUCER,
+				EXPLICIT_MAYBE_DEDUCER, // included named deducers
+				EXPLICIT_MAYBE_ANONYMOUS_DEDUCER,
 				AS_TYPE,
 				TEMPLATE_ARG,
-				TEMPLATE_ARG_MAYBE_DEDUCER,
+				TEMPLATE_ARG_MAYBE_DEDUCER, // included named deducers
+				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER,
 			};
 			template<TypeKind KIND>
 			EVO_NODISCARD auto parse_type() -> Result;
@@ -136,11 +138,13 @@ namespace pcit::panther{
 
 			enum class TermKind{
 				EXPLICIT_TYPE,
-				EXPLICIT_TYPE_MAYBE_DEDUCER,
+				EXPLICIT_TYPE_MAYBE_DEDUCER, // included named deducers
+				EXPLICIT_TYPE_MAYBE_ANONYMOUS_DEDUCER,
 				AS_TYPE,
 				EXPR,
 				TEMPLATE_ARG,
-				TEMPLATE_ARG_MAYBE_DEDUCER,
+				TEMPLATE_ARG_MAYBE_DEDUCER, // included named deducers
+				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER,
 			};
 			template<TermKind TERM_KIND>
 			EVO_NODISCARD auto parse_term() -> Result; 
@@ -160,7 +164,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_template_pack() -> Result;
 
 			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDef::Param>>;
+
+			template<bool ALLOW_RETURN_DEDUCERS>
 			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>>;
+			
 			EVO_NODISCARD auto parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>>;
 			EVO_NODISCARD auto parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>>;
 			EVO_NODISCARD auto parse_array_init() -> evo::Result<evo::SmallVector<AST::Node>>;

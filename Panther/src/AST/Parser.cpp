@@ -278,7 +278,7 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		evo::Result<evo::SmallVector<AST::FuncDef::Return>> returns = this->parse_func_returns();
+		evo::Result<evo::SmallVector<AST::FuncDef::Return>> returns = this->parse_func_returns<!MUST_HAVE_BODY>();
 		if(returns.isError()){ return Result::Code::ERROR; }
 
 		evo::Result<evo::SmallVector<AST::FuncDef::Return>> error_returns = this->parse_func_error_returns();
@@ -1467,15 +1467,33 @@ namespace pcit::panther{
 				return Result(AST::Node(AST::Kind::PRIMITIVE_TYPE, base_type_token_id));
 
 			}else if(is_type_deducer){
-				if constexpr(KIND != TypeKind::EXPLICIT_MAYBE_DEDUCER && KIND != TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER){
+				if constexpr(
+					KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+					|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER
+				){
+					if(this->reader[this->reader.peek()].kind() == Token::Kind::DEDUCER){
+						this->context.emitError(
+							Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+							Diagnostic::Location::get(this->reader.peek(), this->source),
+							"Named type deducers are not allowed here"
+						);
+						return Result(Result::Code::ERROR);
+					}
+
+					return Result(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+
+				}else if constexpr(
+					KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER || KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+				){
+					return Result(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+
+				}else{
 					this->context.emitError(
 						Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
 						Diagnostic::Location::get(this->reader.peek(), this->source),
 						"Type deducers are not allowed here"
 					);
 					return Result(Result::Code::ERROR);
-				}else{
-					return Result(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
 				}
 
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_TYPE){
@@ -1647,6 +1665,9 @@ namespace pcit::panther{
 				}else if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
 					return this->parse_term<TermKind::EXPLICIT_TYPE_MAYBE_DEDUCER>();
 
+				}else if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER){
+					return this->parse_term<TermKind::EXPLICIT_TYPE_MAYBE_ANONYMOUS_DEDUCER>();
+
 				}else if constexpr(KIND == TypeKind::AS_TYPE){
 					return this->parse_term<TermKind::AS_TYPE>();
 
@@ -1655,6 +1676,9 @@ namespace pcit::panther{
 
 				}else if constexpr(KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER){
 					return this->parse_term<TermKind::TEMPLATE_ARG_MAYBE_DEDUCER>();
+
+				}else if constexpr(KIND == TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER){
+					return this->parse_term<TermKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER>();
 
 				}else{
 					static_assert(false, "Unknown TypeKind");
@@ -2159,6 +2183,13 @@ namespace pcit::panther{
 								|| TERM_KIND == TermKind::TEMPLATE_ARG_MAYBE_DEDUCER
 							){
 								return this->parse_type<TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER>();
+
+							}else if constexpr(
+								TERM_KIND == TermKind::EXPLICIT_TYPE_MAYBE_ANONYMOUS_DEDUCER
+								|| TERM_KIND == TermKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER
+							){
+								return this->parse_type<TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER>();
+
 							}else{
 								return this->parse_type<TypeKind::TEMPLATE_ARG>();
 							}
@@ -2662,11 +2693,17 @@ namespace pcit::panther{
 	}
 
 
+	template<bool ALLOW_RETURN_DEDUCERS>
 	auto Parser::parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>> {
 		auto returns = evo::SmallVector<AST::FuncDef::Return>();
 
+		static constexpr TypeKind RETURN_TYPE_KIND = ALLOW_RETURN_DEDUCERS
+			? TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+			: TypeKind::EXPLICIT;
+			
+
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
-			const Result type = this->parse_type<TypeKind::EXPLICIT>();
+			const Result type = this->parse_type<RETURN_TYPE_KIND>();
 			if(this->check_result(type, "Return type in function definition").isError()){ return evo::resultError; }	
 
 			returns.emplace_back(std::nullopt, type.value());
@@ -2708,7 +2745,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 			
-			const Result type = this->parse_type<TypeKind::EXPLICIT>();
+			const Result type = this->parse_type<RETURN_TYPE_KIND>();
 			if(this->check_result(type, "type in function return parameter definition").isError()){
 				return evo::resultError;
 			}

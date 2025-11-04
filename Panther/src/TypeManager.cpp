@@ -1232,7 +1232,8 @@ namespace pcit::panther{
 			lookup_type.identTokenID,
 			lookup_type.sourceID,
 			lookup_type.symbolProcID,
-			lookup_type.isPub
+			lookup_type.isPub,
+			lookup_type.isPolymorphic
 		);
 
 		return BaseType::ID(BaseType::Kind::INTERFACE, new_interface.get());

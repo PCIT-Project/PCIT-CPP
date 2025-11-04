@@ -55,10 +55,12 @@ namespace pcit::panther{
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
 			const auto interface_id = BaseType::Interface::ID(i);
+			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+			
+			if(interface.isPolymorphic == false){ continue; }
 
 			this->lowerInterface(interface_id);
 
-			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
 			for(const auto& [target_type_id, impl] : interface.impls){
 				this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
 			}
@@ -242,10 +244,11 @@ namespace pcit::panther{
 		}
 
 		bool is_implicit_rvo = false;
-		auto return_params = evo::SmallVector<pir::Expr>();
+		auto return_params = evo::SmallVector<SemaToPIRData::FuncInfo::ReturnParam>();
 		if(func_type.hasNamedReturns()){
 			for(const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
-				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+				const pir::Type reference_type = this->get_type<false>(return_param.typeID.asTypeID());
+				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())), reference_type);
 
 				auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -257,9 +260,7 @@ namespace pcit::panther{
 				};
 
 				if(func_type.returnParams.size() == 1 && func_type.hasErrorReturn() == false){
-					attributes.emplace_back(
-						pir::Parameter::Attribute::PtrRVO(this->get_type<false>(return_param.typeID.asTypeID()))
-					);
+					attributes.emplace_back(pir::Parameter::Attribute::PtrRVO(reference_type));
 				}
 
 				if(this->data.getConfig().useReadableNames){
@@ -276,7 +277,10 @@ namespace pcit::panther{
 			}
 
 		}else if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
-			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+			return_params.emplace_back(
+				this->agent.createParamExpr(uint32_t(params.size())),
+				this->get_type<false>(func_type.returnParams[0].typeID.asTypeID())
+			);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -298,7 +302,10 @@ namespace pcit::panther{
 		}else if(func.isClangFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
 			is_implicit_rvo = true;
 
-			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())));
+			return_params.emplace_back(
+				this->agent.createParamExpr(uint32_t(params.size())),
+				this->get_type<false>(func_type.returnParams[0].typeID.asTypeID())
+			);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -554,6 +561,8 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lowerInterface(BaseType::Interface::ID interface_id) -> void {
 		const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+
+		evo::debugAssert(interface.isPolymorphic, "Only polymorphic interfaces can be lowered");
 
 		auto error_return_types = evo::SmallVector<std::optional<pir::Type>>();
 		error_return_types.reserve(interface.methods.size());
@@ -899,6 +908,11 @@ namespace pcit::panther{
 	auto SemaToPIR::lower_interface_vtable_impl(
 		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
+		evo::debugAssert(
+			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
+			"Only polymorphic interfaces can have vtables"
+		);
+
 		std::string vtable_name = [&](){
 			switch(type.kind()){
 				case BaseType::Kind::PRIMITIVE:
@@ -1436,7 +1450,7 @@ namespace pcit::panther{
 								this->output_defers_for_scope_level<false>(scope_level);
 							}
 
-							this->agent.createStore(this->current_func_info->return_params.front(), ret_value);
+							this->agent.createStore(this->current_func_info->return_params.front().expr, ret_value);
 						}
 
 						this->agent.createRet(this->agent.createBoolean(false));
@@ -1445,7 +1459,7 @@ namespace pcit::panther{
 						if(return_stmt.value.has_value()){
 							if(this->current_func_info->isImplicitRVO){
 								this->get_expr_store(
-									*return_stmt.value, this->current_func_info->return_params.front()
+									*return_stmt.value, this->current_func_info->return_params.front().expr
 								);
 
 								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
@@ -4217,7 +4231,7 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
 						this->agent.createParamExpr(sema_return_param.abiIndex),
-						*this->current_func_info->params[sema_return_param.index].reference_type
+						this->current_func_info->return_params[sema_return_param.index].reference_type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -4232,7 +4246,7 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations[0],
 						this->agent.createParamExpr(sema_return_param.abiIndex),
-						current_func.getParameters()[sema_return_param.index].getType()
+						this->module.createPtrType()
 					);
 					return std::nullopt;
 

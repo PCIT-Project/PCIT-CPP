@@ -72,11 +72,16 @@ namespace pcit::panther{
 					EVO_NODISCARD auto is_copy() const -> bool { return this->reference_type.has_value() == false; }
 				};
 
+				struct ReturnParam{
+					pir::Expr expr;
+					pir::Type reference_type;
+				};
+
 				evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
 				pir::Type return_type;
 				bool isImplicitRVO;
 				evo::SmallVector<Param> params;
-				evo::SmallVector<pir::Expr> return_params; // only used if they are out params
+				evo::SmallVector<ReturnParam> return_params; // only used if they are out params
 				std::optional<pir::Expr> error_return_param;
 				std::optional<pir::Type> error_return_type;
 			};

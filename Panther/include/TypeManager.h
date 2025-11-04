@@ -749,6 +749,7 @@ namespace pcit::panther{
 			SourceID sourceID;
 			SymbolProcID symbolProcID;
 			bool isPub;
+			bool isPolymorphic;
 
 			evo::SmallVector<sema::FuncID> methods{};
 
