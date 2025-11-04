@@ -10,25 +10,25 @@ interface Iterator = {
 
 type Array = struct {
 	type ArrIter = struct {
-		func new = (arr: Array*) #rt -> (output: ArrIter) {
+		func new = (arr: Array*) -> (output: ArrIter) {
 			output.arr = copy arr;
 			output.index = 0;
 			return...;
 		}
 
-		func next = (this mut) #rt -> Void {
+		func next = (this mut) -> Void {
 			this.index += 1;
 		}
 
-		func get = (this mut) #rt -> Int* {
+		func get = (this mut) -> Int* {
 			return this.arr[this.index];
 		}
 
-		func get = (this) #rt -> Int*| {
+		func get = (this) -> Int*| {
 			return this.arr[this.index];
 		}
 
-		func atEnd = (this) #rt -> Bool {
+		func atEnd = (this) -> Bool {
 			return this.index >= 3;
 		}
 
@@ -89,3 +89,29 @@ func entry = () #entry -> UI8 {
 
 	return sum_arr(array.iter()) as UI8;
 }
+
+
+
+//////////////////////////////////////////////////////////////////////
+// contexpr special member check
+
+type NonTrivial = struct {
+	func copy = (this) #rt -> (output: This) {
+		return...;
+	}
+}
+
+
+func in_test = (nt: NonTrivial in) -> Void {
+	var foo: NonTrivial = forward nt;
+}
+
+func non_trivial_test = () -> Void {
+	var nt = new NonTrivial();
+	// var nt2 = new NonTrivial();
+
+	// nt = copy nt2;
+
+	in_test(move nt);
+}
+

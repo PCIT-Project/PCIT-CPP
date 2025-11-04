@@ -404,7 +404,7 @@ namespace pcit::panther{
 				ERROR,
 			};
 			template<AutoDeleteMode AUTO_DELETE_MODE>
-			auto add_auto_delete_calls() -> void;
+			auto add_auto_delete_calls() -> evo::Result<>;
 
 
 			enum class SpecialMemberKind{
@@ -413,9 +413,11 @@ namespace pcit::panther{
 				MOVE,
 			};
 			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
-			EVO_NODISCARD auto get_special_member_stmt_dependents(
-				TypeInfo::ID type_info_id, std::unordered_set<sema::Func::ID>& dependent_funcs
-			) -> void;
+			EVO_NODISCARD auto get_special_member_stmt_dependents_and_check_constexpr(
+				TypeInfo::ID type_info_id,
+				std::unordered_set<sema::Func::ID>& dependent_funcs,
+				const auto& location
+			) ->evo::Result<>;
 
 
 			EVO_NODISCARD auto currently_in_func() const -> bool;
@@ -895,6 +897,10 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_location(Diagnostic::Location::None) const -> Diagnostic::Location {
 				return Diagnostic::Location::NONE;
+			}
+
+			EVO_NODISCARD auto get_location(const Diagnostic::Location& location) const -> Diagnostic::Location {
+				return location;
 			}
 
 			EVO_NODISCARD auto get_location(const sema::ScopeLevel::ModuleInfo& module_info) const

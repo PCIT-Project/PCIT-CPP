@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.180.2"></a>
+## v0.0.180.2
+
+### Panther
+- Fixed constexpr checking of `delete`, `copy`, and `move` 
+- Fixed race condition of lowering function that calls constexpr assignment `copy` or assignment `move`, `forward`, and assignment `forward`
+
+
+<!---------------------------------->
 <a name="v0.0.180.1"></a>
 ## v0.0.180.1
 
