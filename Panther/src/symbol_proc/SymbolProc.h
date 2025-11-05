@@ -1306,7 +1306,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto detect_circular_dependency(
 				ID id, class Context& context, DependencyKind initial_dependency_kind
-			) const -> bool;
+			) const -> evo::Result<>;
 
 			auto emit_diagnostic_on_circular_dependency(
 				ID id, class Context& constext, DependencyKind initial_dependency_kind

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.181.1"></a>
+## v0.0.181.1
+
+### Panther
+- Fixed race condiiton in circular dependency detection
+
+
+<!---------------------------------->
 <a name="v0.0.181.0"></a>
 ## v0.0.181.0
 

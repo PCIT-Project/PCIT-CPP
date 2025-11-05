@@ -23419,7 +23419,10 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void {
+	auto SemanticAnalyzer::propagate_finished_impl(
+		const evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
+		evo::SmallVector<SymbolProc::ID, 256>& symbol_procs_to_put_in_work_queue
+	) -> void {
 		for(const SymbolProc::ID& waited_on_id : waited_on_by_list){
 			SymbolProc& waited_on = this->context.symbol_proc_manager.getSymbolProc(waited_on_id);
 			const auto lock = std::scoped_lock(waited_on.waiting_for_lock);
@@ -23439,8 +23442,7 @@ namespace pcit::panther{
 				if(waited_on.hasErroredNoLock()){ continue; }
 
 				if(waited_on.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
-					waited_on.setStatusInQueue();
-					this->context.add_task_to_work_manager(waited_on_id);
+					symbol_procs_to_put_in_work_queue.emplace_back(waited_on_id);
 				}
 			}
 		}
@@ -23448,45 +23450,80 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::propagate_finished_decl() -> void {
+		auto symbol_procs_to_put_in_work_queue = evo::SmallVector<SymbolProc::ID, 256>();
+
 		const auto lock = std::scoped_lock(this->symbol_proc.decl_waited_on_lock);
 
 		this->symbol_proc.decl_done = true;
-		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by);
+		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
 	}
 
 
 	auto SemanticAnalyzer::propagate_finished_def() -> void {
+		auto symbol_procs_to_put_in_work_queue = evo::SmallVector<SymbolProc::ID, 256>();
+
 		const auto lock = std::scoped_lock(this->symbol_proc.def_waited_on_lock);
 
 		this->symbol_proc.def_done = true;
-		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
+		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
 	}
 
 
 
 	auto SemanticAnalyzer::propagate_finished_decl_def() -> void {
+		auto symbol_procs_to_put_in_work_queue = evo::SmallVector<SymbolProc::ID, 256>();
+
 		const auto lock = std::scoped_lock(this->symbol_proc.decl_waited_on_lock, this->symbol_proc.def_waited_on_lock);
 
 		this->symbol_proc.decl_done = true;
 		this->symbol_proc.def_done = true;
 
-		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by);
-		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by);
+		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
+		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
 	}
 
 
 	auto SemanticAnalyzer::propagate_finished_pir_decl() -> void {
+		auto symbol_procs_to_put_in_work_queue = evo::SmallVector<SymbolProc::ID, 256>();
+
 		const auto lock = std::scoped_lock(this->symbol_proc.pir_decl_waited_on_lock);
 
 		this->symbol_proc.pir_decl_done = true;
-		this->propagate_finished_impl(this->symbol_proc.pir_decl_waited_on_by);
+		this->propagate_finished_impl(this->symbol_proc.pir_decl_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
 	}
 
 	auto SemanticAnalyzer::propagate_finished_pir_def() -> void {
+		auto symbol_procs_to_put_in_work_queue = evo::SmallVector<SymbolProc::ID, 256>();
+
 		const auto lock = std::scoped_lock(this->symbol_proc.pir_def_waited_on_lock);
 
 		this->symbol_proc.pir_def_done = true;
-		this->propagate_finished_impl(this->symbol_proc.pir_def_waited_on_by);
+		this->propagate_finished_impl(this->symbol_proc.pir_def_waited_on_by, symbol_procs_to_put_in_work_queue);
+
+		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
+	}
+
+
+	auto SemanticAnalyzer::put_propogated_symbol_procs_into_work_queue(evo::ArrayProxy<SymbolProc::ID> symbol_procs)
+	-> void {
+		for(SymbolProc::ID symbol_proc_to_add_id : symbol_procs){
+			SymbolProc& symbol_proc_to_add = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_to_add_id);
+
+			if(symbol_proc_to_add.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
+				symbol_proc_to_add.setStatusInQueue();
+				this->context.add_task_to_work_manager(symbol_proc_to_add_id);
+			}
+		}	
 	}
 
 

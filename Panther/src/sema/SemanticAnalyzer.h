@@ -718,12 +718,18 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// propogate finished
 
-			auto propagate_finished_impl(const evo::SmallVector<SymbolProc::ID>& waited_on_by_list) -> void;
+			auto propagate_finished_impl(
+				const evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
+				evo::SmallVector<SymbolProc::ID, 256>& symbol_procs_to_put_in_work_queue
+			) -> void;
+
 			auto propagate_finished_decl() -> void;
 			auto propagate_finished_def() -> void;
 			auto propagate_finished_decl_def() -> void;
 			auto propagate_finished_pir_decl() -> void;
 			auto propagate_finished_pir_def() -> void;
+
+			auto put_propogated_symbol_procs_into_work_queue(evo::ArrayProxy<SymbolProc::ID> symbol_procs) -> void;
 
 
 

@@ -43,7 +43,7 @@ namespace pcit::panther{
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
-		if(this->detect_circular_dependency(id, context, DependencyKind::DEF) == false){
+		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
@@ -98,7 +98,7 @@ namespace pcit::panther{
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
-		if(this->detect_circular_dependency(id, context, DependencyKind::DEF) == false){
+		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
@@ -140,7 +140,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProc::detect_circular_dependency(ID id, Context& context, DependencyKind initial_dependency_kind) const
-	-> bool {
+	-> evo::Result<> {
 		auto visited_queue = std::queue<ID>();
 
 		{
@@ -158,7 +158,7 @@ namespace pcit::panther{
 
 			if(visited_id == id){
 				this->emit_diagnostic_on_circular_dependency(id, context, initial_dependency_kind);
-				return false;
+				return evo::resultError;
 			}
 
 
@@ -170,7 +170,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 
