@@ -123,18 +123,18 @@ namespace pcit::panther{
 
 					this->symbol_proc.nextInstruction();
 					
-					if(this->symbol_proc.setStatusSuspended()){
-						if(this->scope.getCurrentObjectScope().is<sema::Func::ID>()){
-							sema::Func& sema_func = this->context.sema_buffer.funcs[
-								this->scope.getCurrentObjectScope().as<sema::Func::ID>()
-							];
+					this->symbol_proc.setStatusSuspended();
 
-							sema_func.status = sema::Func::Status::SUSPENDED;
-						}
+					if(this->scope.getCurrentObjectScope().is<sema::Func::ID>()){
+						sema::Func& sema_func = this->context.sema_buffer.funcs[
+							this->scope.getCurrentObjectScope().as<sema::Func::ID>()
+						];
 
-						this->context.symbol_proc_manager.symbol_proc_suspended();
-						return;
+						sema_func.status = sema::Func::Status::SUSPENDED;
 					}
+
+					this->context.symbol_proc_manager.symbol_proc_suspended();
+					return;
 				} break;
 			}
 		}
@@ -8715,6 +8715,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
 	-> Result {
 		SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
+
+		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 		sub_symbol_proc.sema_scope_id = 
 			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);

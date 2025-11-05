@@ -326,10 +326,6 @@ namespace pcit::panther{
 				);
 			}
 
-			for(const Diagnostic::Info& info : diagnostic.infos){
-				print_info(printer, &rel_dir, &context, info, 1);
-			}
-
 
 			if(diagnostic.level == Diagnostic::Level::FATAL){
 				printer.printFatal(
@@ -338,6 +334,10 @@ namespace pcit::panther{
 					"\tGuidelines for creating issues: "
 						"https://github.com/PCIT-Project/PCIT-CPP/blob/main/CONTRIBUTING.md#issues\n"
 				);
+			}
+
+			for(const Diagnostic::Info& info : diagnostic.infos){
+				print_info(printer, &rel_dir, &context, info, 1);
 			}
 		};
 	}

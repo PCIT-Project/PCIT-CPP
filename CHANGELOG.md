@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.181.2"></a>
+## v0.0.181.2
+
+### Panther
+- Fixed stall when there's a local function inside a function that is templated entirely based on an interface paramter
+
+
+<!---------------------------------->
 <a name="v0.0.181.1"></a>
 ## v0.0.181.1
 

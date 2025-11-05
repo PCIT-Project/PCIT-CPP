@@ -1,11 +1,7 @@
-
-
-interface Iterator = {
-	func next = (this mut) #rt -> Void;
-	func get = (this mut) #rt -> $$*mut;
-	func get = (this) #rt -> $$*;
-	func atEnd = (this) #rt -> Bool;
+interface ConstIterable = {
+	func createIterator = (this) #rt -> $$;
 }
+
 
 interface ConstIterator = {
 	func next = (this mut) #rt -> Void;
@@ -15,7 +11,9 @@ interface ConstIterator = {
 
 
 type Array = struct {
-	func new = (data: [Int:3] in) -> (output: This) {
+	def LENGTH: USize = 4;
+
+	func new = (data: [Int:LENGTH] in) -> (output: This) {
 		output._data = forward data;
 		return...;
 	}
@@ -29,55 +27,23 @@ type Array = struct {
 	}
 
 
-	func iter = (this mut) #rt -> ArrIter {
-		return new ArrIter(&this);
-	}
 
-	func iter = (this) #rt -> ConstArrIter {
+	func createConstIterator = (this) #rt -> ConstArrIter {
 		return new ConstArrIter(&this);
 	}
 
 
-	var _data: [Int:3];
+	impl ConstIterable {
+		createIterator = createConstIterator,
+	}
+
+
+
+	var _data: [Int:LENGTH];
 
 
 	///////////////////////////////////
 	// iters
-
-	type ArrIter = struct {
-		func new = (arr: Array*mut) -> (output: ArrIter) {
-			output.arr = copy arr;
-			output.index = 0;
-			return...;
-		}
-
-		func next = (this mut) -> Void {
-			this.index += 1;
-		}
-
-		func get = (this mut) -> Int*mut {
-			return this.arr[this.index];
-		}
-
-		func get = (this) -> Int* {
-			return this.arr[this.index];
-		}
-
-		func atEnd = (this) -> Bool {
-			return this.index >= 3;
-		}
-
-		impl Iterator{
-			next  = next,
-			get   = get,
-			get   = get,
-			atEnd = atEnd,
-		}
-
-
-		var arr: Array*mut;
-		var index: USize;
-	}
 
 	type ConstArrIter = struct {
 		func new = (arr: Array*) -> (output: ConstArrIter) {
@@ -86,24 +52,15 @@ type Array = struct {
 			return...;
 		}
 
-		func next = (this mut) -> Void {
-			this.index += 1;
-		}
-
-		func get = (this) -> Int* {
-			return this.arr[this.index];
-		}
-
-		func atEnd = (this) -> Bool {
-			return this.index >= 3;
-		}
+		func next  = (this mut) -> Void { this.index += 1; }
+		func get   = (this) -> Int* { return this.arr[this.index]; }
+		func atEnd = (this) -> Bool { return this.index >= LENGTH; }
 
 		impl ConstIterator{
 			next  = next,
 			get   = get,
 			atEnd = atEnd,
 		}
-
 
 		var arr: Array*;
 		var index: USize;
@@ -113,26 +70,20 @@ type Array = struct {
 
 
 
-func sum_arr = (iter: ConstIterator in) #rt -> (count: Int) {
-	count = 0;
 
-	while(iter.atEnd() == false){
-		defer{ iter.next(); }
-		count += iter.get().*;
+func sum_arr = (iterable: ConstIterable) #rt -> Int {
+	func sum_arr_impl = (iter: ConstIterator in) -> (count: Int) {
+		count = 0;
+
+		while(iter.atEnd() == false){
+			defer{ iter.next(); }
+			count += iter.get().*;
+		}
+
+		return...;
 	}
 
-	return...;
-}
-
-func sum_arr = (iter: Iterator in) #rt -> (count: Int) {
-	count = 0;
-
-	while(iter.atEnd() == false){
-		defer{ iter.next(); }
-		count += iter.get().*;
-	}
-
-	return...;
+	return sum_arr_impl(iterable.createIterator());
 }
 
 
@@ -140,11 +91,9 @@ func sum_arr = (iter: Iterator in) #rt -> (count: Int) {
 
 
 func entry = () #entry -> UI8 {
-	var array = new Array(new [Int:3][1, 2, 3]);
+	var array = new Array(new [Int:Array.LENGTH][1, 2, 3, 4]);
 
-	const arr_ptr: Array*? = &array;
-
-	return sum_arr(array.iter()) as UI8;
+	return sum_arr(array) as UI8;
 }
 
 

@@ -1196,7 +1196,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isReadyToBeAddedToWorkQueue() const -> bool {
 				return this->isWaiting() == false
 					&& this->isTemplateSubSymbol() == false
-					&& this->is_sub_symbol == false;
+					&& this->is_local_symbol == false;
 			}
 
 			// this should be called after starting to wait
@@ -1250,7 +1250,7 @@ namespace pcit::panther{
 			}
 
 			// returns if actually suspended
-			auto setStatusSuspended() -> bool {
+			auto setStatusSuspended() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
 					const Status current_status = this->status.load();
 					evo::debugAssert(
@@ -1260,12 +1260,7 @@ namespace pcit::panther{
 					);
 				#endif
 
-				if(this->should_suspend.exchange(true)){
-					this->status = Status::SUSPENDED;
-					return true;
-				}else{
-					return false;
-				}
+				this->status = Status::SUSPENDED;
 			}
 
 			auto setStatusPassedOnByWhenCond() -> void { this->status = Status::PASSED_ON_BY_WHEN_COND; }
@@ -1275,7 +1270,6 @@ namespace pcit::panther{
 
 
 			auto unsuspendIfNeeded() -> bool {
-				this->should_suspend = false;
 				Status expected = Status::SUSPENDED;
 				const bool was_suspended = this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
 				return was_suspended;
@@ -1315,7 +1309,7 @@ namespace pcit::panther{
 		private:
 			AST::Node ast_node;
 			SourceID source_id;
-			std::string_view ident; // size 0 if it symbol doesn't have an ident
+			std::string_view ident; // empty if symbol doesn't have an ident
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
 
@@ -1439,7 +1433,7 @@ namespace pcit::panther{
 
 
 			size_t inst_index = 0;
-			bool is_sub_symbol = false;
+			bool is_local_symbol = false;
 			std::atomic<bool> decl_done = false;
 			std::atomic<bool> def_done = false;
 			std::atomic<bool> pir_lower_done = false;
@@ -1447,10 +1441,10 @@ namespace pcit::panther{
 			std::atomic<bool> pir_def_done = false;
 
 			std::atomic<Status> status = Status::WAITING; // if changing this, probably get the lock `waiting_for_lock`
-			std::atomic<bool> should_suspend = true;
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
+			friend class Context;
 	};
 
 
