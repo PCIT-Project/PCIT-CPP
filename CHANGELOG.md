@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.182.0"></a>
+## v0.0.182.0
+
+### Panther
+- Added interface return types for non-polymorphic interfaces
+- Added checking for interface return and error return types
+- Fixed crashing when declaring an interface impl of a method that returns void
+- Fixed race condition in expression `as` interface pointer
+
+
+<!---------------------------------->
 <a name="v0.0.181.2"></a>
 ## v0.0.181.2
 

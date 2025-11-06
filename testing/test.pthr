@@ -1,5 +1,8 @@
+
+
 interface ConstIterable = {
-	func createIterator = (this) #rt -> $$;
+	func createIterator = (this) #rt -> ConstIterator;
+	func size = (this) #rt -> USize;
 }
 
 
@@ -26,6 +29,10 @@ type Array = struct {
 		return this._data[index];
 	}
 
+	func size = (this) -> USize {
+		return LENGTH;
+	}
+
 
 
 	func createConstIterator = (this) #rt -> ConstArrIter {
@@ -35,6 +42,7 @@ type Array = struct {
 
 	impl ConstIterable {
 		createIterator = createConstIterator,
+		size           = size,
 	}
 
 
@@ -95,5 +103,4 @@ func entry = () #entry -> UI8 {
 
 	return sum_arr(array) as UI8;
 }
-
 

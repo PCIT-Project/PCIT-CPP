@@ -3097,17 +3097,17 @@ namespace pcit::panther{
 
 			const AST::FuncDef::Return& ast_return_param = instr.func_def.returns[i];
 
-			if(i == 0){
-				if(type_id.isVoid() && ast_return_param.ident.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
-						*ast_return_param.ident,
-						"A function return parameter that is type `Void` cannot be named"
-					);
-					return Result::ERROR;
-				}
-			}else{
-				if(type_id.isVoid()){
+			if(type_id.isVoid()){
+				if(i == 0){
+					if(ast_return_param.ident.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
+							*ast_return_param.ident,
+							"A function return parameter that is type `Void` cannot be named"
+						);
+						return Result::ERROR;
+					}
+				}else{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_return_param.type,
@@ -3115,7 +3115,36 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
+
+			}else{
+				if(this->type_is_non_polymorphic_interface(type_id.asTypeID())){
+					if(instr.func_def.block.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+							ast_return_param.type,
+							"Invalid return type"
+						);
+						return Result::ERROR;
+					}
+
+					if(
+						this->scope.inObjectScope() == false
+						|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
+						|| this->context.getTypeManager().getInterface(
+								this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
+							).isPolymorphic 
+
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+							ast_return_param.type,
+							"Invalid return type"
+						);
+						return Result::ERROR;
+					}
+				}
 			}
+
 
 			return_params.emplace_back(ast_return_param.ident, type_id);
 		}
@@ -3129,23 +3158,51 @@ namespace pcit::panther{
 
 			const AST::FuncDef::Return& ast_error_return_param = instr.func_def.errorReturns[i];
 
-			if(i == 0){
-				if(type_id.isVoid() && ast_error_return_param.ident.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
-						*ast_error_return_param.ident,
-						"A function error return parameter that is type `Void` cannot be named"
-					);
-					return Result::ERROR;
-				}
-			}else{
-				if(type_id.isVoid()){
+			if(type_id.isVoid()){
+				if(i == 0){
+					if(ast_error_return_param.ident.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
+							*ast_error_return_param.ident,
+							"A function error return parameter that is type `Void` cannot be named"
+						);
+						return Result::ERROR;
+					}
+				}else{
 					this->emit_error(
 						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
 						ast_error_return_param.type,
 						"Only the first function error return parameter can be type `Void`"
 					);
 					return Result::ERROR;
+				}
+
+			}else{
+				if(this->type_is_non_polymorphic_interface(type_id.asTypeID())){
+					if(instr.func_def.block.has_value()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+							ast_error_return_param.type,
+							"Invalid error return type"
+						);
+						return Result::ERROR;
+					}
+
+					if(
+						this->scope.inObjectScope() == false
+						|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
+						|| this->context.getTypeManager().getInterface(
+								this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
+							).isPolymorphic 
+
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+							ast_error_return_param.type,
+							"Invalid error return type"
+						);
+						return Result::ERROR;
+					}
 				}
 			}
 
@@ -5585,9 +5642,17 @@ namespace pcit::panther{
 								continue;
 							}
 
-
 							bool return_params_matched = true;
 							for(size_t i = 0; i < target_method_type.returnParams.size(); i+=1){
+								if(target_method_type.returnParams[i].typeID.isVoid()){
+									return_params_matched = overload_sema_type.returnParams[i].typeID.isVoid();
+									break;
+
+								}else if(overload_sema_type.returnParams[i].typeID.isVoid()){
+									return_params_matched = false;
+									break;
+								}
+
 								const TypeInfo::ID target_ret_param_type_id = 
 									target_method_type.returnParams[i].typeID.asTypeID();
 
@@ -5595,6 +5660,25 @@ namespace pcit::panther{
 									overload_sema_type.returnParams[i].typeID.asTypeID();
 
 								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+								//////////////////
+								// interface
+
+								if(info.target_interface.isPolymorphic == false){
+									const evo::Expected<bool, Result> interface_match_result =
+										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
+
+									if(interface_match_result.has_value() == false){
+										return interface_match_result.error();
+									}
+										
+									if(interface_match_result.value()){ continue; }
+								}
+
+
+								//////////////////
+								// deducer
 
 								if(this->context.getTypeManager().isTypeDeducer(target_ret_param_type_id) == false){
 									return_params_matched = false;
@@ -5615,7 +5699,67 @@ namespace pcit::panther{
 						}
 
 						// error params
-						if(target_method_type.errorParams != overload_sema_type.errorParams){ continue; }
+						if(target_method_type.errorParams != overload_sema_type.errorParams){
+							if(target_method_type.errorParams.size() != overload_sema_type.errorParams.size()){
+								continue;
+							}
+
+							bool error_params_matched = true;
+							for(size_t i = 0; i < target_method_type.errorParams.size(); i+=1){
+								if(target_method_type.errorParams[i].typeID.isVoid()){
+									error_params_matched = overload_sema_type.errorParams[i].typeID.isVoid();
+									break;
+									
+								}else if(overload_sema_type.errorParams[i].typeID.isVoid()){
+									error_params_matched = false;
+									break;
+								}
+
+								const TypeInfo::ID target_ret_param_type_id = 
+									target_method_type.errorParams[i].typeID.asTypeID();
+
+								const TypeInfo::ID overload_ret_param_type_id = 
+									overload_sema_type.errorParams[i].typeID.asTypeID();
+
+								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+								//////////////////
+								// interface
+
+								if(info.target_interface.isPolymorphic == false){
+									const evo::Expected<bool, Result> interface_match_result =
+										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
+
+									if(interface_match_result.has_value() == false){
+										return interface_match_result.error();
+									}
+										
+									if(interface_match_result.value()){ continue; }
+								}
+
+
+								//////////////////
+								// deducer
+
+								if(this->context.getTypeManager().isTypeDeducer(target_ret_param_type_id) == false){
+									error_params_matched = false;
+									break;
+								}
+
+								const bool deducer_match_failed = this->extract_deducers(
+									target_ret_param_type_id, overload_ret_param_type_id
+								).isError();
+
+								if(deducer_match_failed){
+									error_params_matched = false;
+									break;
+								}
+							}
+
+							if(error_params_matched == false){ continue; }
+						}
+
 					}
 
 					if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
@@ -5629,7 +5773,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
 						method_init.method,
-						"This type has no method that has the correct signature",
+						"No overload has correct signature in interface impl",
 						Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
 					);
 					return Result::ERROR;
@@ -14240,7 +14384,7 @@ namespace pcit::panther{
 			this->context.getTypeManager().getStruct(from_type_info.baseTypeID().structID());
 
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<false>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
 			from_struct.namespacedMembers, "impl"
 		);
 
@@ -21568,6 +21712,59 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
+	-> evo::Expected<bool, Result> {
+		const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
+		const TypeInfo& match_type = this->context.getTypeManager().getTypeInfo(match_type_id);
+
+		if(interface_type_info.qualifiers().empty() == false){ return false; }
+		if(match_type.qualifiers().empty() == false){ return false; }
+
+		if(interface_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){ return false; }
+
+		const BaseType::Interface& interface_type =
+			this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
+
+		const auto impl_exists = [&]() -> bool {
+			const auto lock = std::scoped_lock(interface_type.implsLock);
+			return interface_type.impls.contains(match_type.baseTypeID());
+		};
+
+		if(impl_exists()){ return true; }
+
+		if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+
+
+		const BaseType::Struct& match_struct =
+			this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
+
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
+			match_struct.namespacedMembers, "impl"
+		);
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				return false;
+			} break;
+
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return evo::Unexpected(Result::NEED_TO_WAIT);
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
+			} break;
+		}
+
+		return impl_exists();
+	}
+
+
 
 	auto SemanticAnalyzer::extract_deducers(TypeInfo::VoidableID deducer_id, TypeInfo::VoidableID got_type_id)
 	-> evo::Result<evo::SmallVector<DeducedTerm>> {
@@ -22660,6 +22857,118 @@ namespace pcit::panther{
 			evo::debugFatalBreak("Unknown BaseType");
 		}
 	}
+
+
+	auto SemanticAnalyzer::type_is_non_polymorphic_interface(TypeInfo::ID type_id) -> bool {
+		return this->type_is_non_polymorphic_interface(this->context.getTypeManager().getTypeInfo(type_id));
+	}
+
+	auto SemanticAnalyzer::type_is_non_polymorphic_interface(const TypeInfo& type_info) -> bool {
+		if(type_info.qualifiers().empty() == false){
+			if(type_info.qualifiers().back().isPtr){
+				return false;
+			}else{
+				evo::debugAssert(type_info.qualifiers().back().isOptional, "Unknown type qualifier");
+				return this->type_is_non_polymorphic_interface(type_info.copyWithPoppedQualifier());
+			}
+		}
+
+		switch(type_info.baseTypeID().kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return false;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
+				return this->type_is_non_polymorphic_interface(array_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				const BaseType::ArrayDeducer& array_deducer_type = 
+					this->context.getTypeManager().getArrayDeducer(type_info.baseTypeID().arrayDeducerID());
+				return this->type_is_non_polymorphic_interface(array_deducer_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& array_ref_type =
+					this->context.getTypeManager().getArrayRef(type_info.baseTypeID().arrayRefID());
+				return this->type_is_non_polymorphic_interface(array_ref_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type =
+					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
+				return this->type_is_non_polymorphic_interface(*alias_type.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type =
+					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
+				return this->type_is_non_polymorphic_interface(*distinct_alias_type.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				return false;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				return false;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				const BaseType::StructTemplateDeducer& struct_template_deducer_type =
+					this->context.getTypeManager().getStructTemplateDeducer(
+						type_info.baseTypeID().structTemplateDeducerID()
+					);
+
+				for(const BaseType::StructTemplate::Arg& arg : struct_template_deducer_type.args){
+					if(arg.is<TypeInfo::VoidableID>() == false){ continue; }
+					if(arg.as<TypeInfo::VoidableID>().isVoid()){ continue; }
+
+					if(this->type_is_non_polymorphic_interface(arg.as<TypeInfo::VoidableID>().asTypeID())){
+						return true;
+					}
+				}
+
+				return false;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				return false;
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				const BaseType::Interface& interface_type =
+					this->context.getTypeManager().getInterface(type_info.baseTypeID().interfaceID());
+				return interface_type.isPolymorphic == false;
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				return false;
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown base type kind");
+	}
+
+
 
 
 	template<bool IS_CONSTEXPR>
