@@ -105,6 +105,7 @@ namespace pcit::panther{
 			// sema
 
 			// types
+			SEMA_INVALID_TYPE,
 			SEMA_VOID_WITH_QUALIFIERS,
 			SEMA_INVALID_TYPE_QUALIFIERS,
 			SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
@@ -113,7 +114,7 @@ namespace pcit::panther{
 			SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
 			SEMA_ARRAY_ELEM_TYPE_VOID,
 			SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT,
-			SEMA_NON_POLYMORPHIC_INTERFACE_PTR,
+			SEMA_NON_POLYMORPHIC_INTERFACE_REF,
 
 			// idents
 			SEMA_IDENT_NOT_IN_SCOPE,
@@ -152,7 +153,6 @@ namespace pcit::panther{
 			SEMA_DEREF_ARG_NOT_PTR,
 			SEMA_UNWRAP_ARG_NOT_OPTIONAL,
 			SEMA_DELETE_ARG_INVALID,
-
 
 			// type checking
 			SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
@@ -284,6 +284,7 @@ namespace pcit::panther{
 			SEMA_AS_INVALID_FROM,
 			SEMA_AS_INVALID_TO,
 			SEMA_AS_POINTER_CONVERSION,
+			SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF,
 
 			// math infix
 			SEMA_MATH_INFIX_INVALID_LHS,
@@ -312,7 +313,6 @@ namespace pcit::panther{
 			SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD,
 			SEMA_UNION_ACCESSOR_IS_VOID,
 			SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS,
-
 
 			// enum
 			SEMA_ENUM_INVALID_UNDERLYING_TYPE,
@@ -455,6 +455,8 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::PolyInterfaceRefType& type, const class Source& src)
+					-> Location;
 				EVO_NODISCARD static auto get(const AST::Type& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TypeIDConverter& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
@@ -682,6 +684,7 @@ namespace pcit::panther{
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order
+				case Code::SEMA_INVALID_TYPE:
 				case Code::SEMA_VOID_WITH_QUALIFIERS:
 				case Code::SEMA_INVALID_TYPE_QUALIFIERS:
 				case Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL:
@@ -690,7 +693,7 @@ namespace pcit::panther{
 				case Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED:
 				case Code::SEMA_ARRAY_ELEM_TYPE_VOID:
 				case Code::SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT:
-				case Code::SEMA_NON_POLYMORPHIC_INTERFACE_PTR:
+				case Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF:
 				case Code::SEMA_IDENT_NOT_IN_SCOPE:
 				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
 				case Code::SEMA_INTRINSIC_DOESNT_EXIST:
@@ -828,6 +831,7 @@ namespace pcit::panther{
 				case Code::SEMA_AS_INVALID_FROM:
 				case Code::SEMA_AS_INVALID_TO:
 				case Code::SEMA_AS_POINTER_CONVERSION:
+				case Code::SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF:
 				case Code::SEMA_MATH_INFIX_INVALID_LHS:
 				case Code::SEMA_MATH_INFIX_INVALID_RHS:
 				case Code::SEMA_MATH_INFIX_NO_MATCHING_OP:

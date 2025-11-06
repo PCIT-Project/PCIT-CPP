@@ -53,6 +53,7 @@ namespace pcit::panther{
 			ENUM,
 			TYPE_DEDUCER,
 			INTERFACE,
+			POLY_INTERFACE_REF,
 			INTERFACE_IMPL_INSTANTIATION,
 		};
 
@@ -130,6 +131,11 @@ namespace pcit::panther{
 				return InterfaceID(this->_id);
 			}
 
+			EVO_NODISCARD auto polyInterfaceRefID() const -> PolyInterfaceRefID {
+				evo::debugAssert(this->kind() == Kind::POLY_INTERFACE_REF, "not a poly interface ref");
+				return PolyInterfaceRefID(this->_id);
+			}
+
 			EVO_NODISCARD auto interfaceImplInstantiationID() const -> InterfaceImplInstantiationID {
 				evo::debugAssert(
 					this->kind() == Kind::INTERFACE_IMPL_INSTANTIATION, "not an interface impl instantiation"
@@ -160,6 +166,7 @@ namespace pcit::panther{
 			explicit ID(EnumID id)                       : _kind(Kind::ENUM),                         _id(id.get()) {}
 			explicit ID(TypeDeducerID id)                : _kind(Kind::TYPE_DEDUCER),                 _id(id.get()) {}
 			explicit ID(InterfaceID id)                  : _kind(Kind::INTERFACE),                    _id(id.get()) {}
+			explicit ID(PolyInterfaceRefID id)           : _kind(Kind::POLY_INTERFACE_REF),           _id(id.get()) {}
 			explicit ID(InterfaceImplInstantiationID id) : _kind(Kind::INTERFACE_IMPL_INSTANTIATION), _id(id.get()) {}
 
 
@@ -764,10 +771,20 @@ namespace pcit::panther{
 		};
 
 
+		struct PolyInterfaceRef{
+			using ID = PolyInterfaceRefID;
+			
+			Interface::ID interfaceID;
+			bool isMut;
+
+			EVO_NODISCARD auto operator==(const PolyInterfaceRef&) const -> bool = default;
+		};
+
+
 		struct InterfaceImplInstantiation{
 			using ID = InterfaceImplInstantiationID;
 			
-			InterfaceID interfacedID;
+			Interface::ID interfacedID;
 			TypeInfoID implInstantiationTypeID;
 
 			EVO_NODISCARD auto operator==(const InterfaceImplInstantiation&) const -> bool = default;
@@ -816,20 +833,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto isPointer() const -> bool {
 				return this->qualifiers().empty() == false && this->qualifiers().back().isPtr;
-			}
-
-			EVO_NODISCARD auto isNormalPointer() const -> bool {
-				return this->isPointer() && this->base_type.kind() != BaseType::Kind::INTERFACE;
-			}
-
-			EVO_NODISCARD auto isInterfacePointer() const -> bool {
-				return this->_qualifiers.size() == 1
-					&& this->isPointer()
-					&& this->base_type.kind() == BaseType::Kind::INTERFACE;
-			}
-
-			EVO_NODISCARD auto isInterface() const -> bool {
-				return this->_qualifiers.empty() && this->base_type.kind() == BaseType::Kind::INTERFACE;
 			}
 
 
@@ -961,6 +964,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
 			EVO_NODISCARD auto createInterfaceImpl() -> BaseType::Interface::Impl&;
+
+			EVO_NODISCARD auto getPolyInterfaceRef(BaseType::PolyInterfaceRef::ID id) const
+				-> const BaseType::PolyInterfaceRef&;
+			EVO_NODISCARD auto getOrCreatePolyInterfaceRef(BaseType::PolyInterfaceRef&& lookup_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation::ID id) const
 				-> const BaseType::InterfaceImplInstantiation&;
@@ -1146,6 +1153,9 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
 			mutable evo::SpinLock interfaces_lock{};
 			core::SyncLinearStepAlloc<BaseType::Interface::Impl, uint64_t> interface_impls{};
+
+			core::LinearStepAlloc<BaseType::PolyInterfaceRef, BaseType::PolyInterfaceRef::ID> poly_interface_refs{};
+			mutable evo::SpinLock poly_interface_refs_lock{};
 
 			core::LinearStepAlloc<BaseType::InterfaceImplInstantiation, BaseType::InterfaceImplInstantiation::ID>
 				interface_impl_instantiations{};

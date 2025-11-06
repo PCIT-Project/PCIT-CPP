@@ -237,7 +237,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
 
 			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto operator_as_interface_ptr(
+			EVO_NODISCARD auto operator_as_poly_interface_ref(
 				const Instruction::As<IS_CONSTEXPR>& instr,
 				const TermInfo& from_expr,
 				const TypeInfo& from_type_info,
@@ -257,6 +257,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
+			EVO_NODISCARD auto instr_poly_interface_ref_type(const Instruction::PolyInterfaceRefType& instr) -> Result;
 			EVO_NODISCARD auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;
 			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
@@ -313,7 +314,7 @@ namespace pcit::panther{
 				const TermInfo& lhs,
 				TypeInfo::ID actual_lhs_type_id,
 				const TypeInfo& actual_lhs_type,
-				bool is_pointer
+				bool is_ref
 			) -> Result;
 
 

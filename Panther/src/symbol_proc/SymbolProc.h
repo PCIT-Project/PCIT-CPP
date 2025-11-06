@@ -848,6 +848,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct PolyInterfaceRefType{
+			const AST::PolyInterfaceRefType& poly_interface_ref_type;
+			SymbolProcTermInfoID interface;
+			SymbolProcTermInfoID output;
+		};
+
 		struct TypeIDConverter{
 			const AST::TypeIDConverter& type_id_converter;
 			SymbolProcTermInfoID expr;
@@ -1062,6 +1068,7 @@ namespace pcit::panther{
 			PRIMITIVE_TYPE_NEEDS_DEF,
 			ARRAY_TYPE,
 			ARRAY_REF,
+			POLY_INTERFACE_REF_TYPE,
 			TYPE_ID_CONVERTER,
 			USER_TYPE,
 			BASE_TYPE_IDENT,

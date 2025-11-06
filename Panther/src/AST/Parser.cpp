@@ -1412,7 +1412,7 @@ namespace pcit::panther{
 			default: return Result::Code::WRONG_TYPE;
 		}
 
-		const Result base_type = [&]() {
+		const Result base_type_res = [&]() {
 			if(is_primitive){
 				const Token::ID base_type_token_id = this->reader.next();
 
@@ -1681,13 +1681,48 @@ namespace pcit::panther{
 			}
 		}();
 
-		if(base_type.code() == Result::Code::ERROR){
+		if(base_type_res.code() == Result::Code::ERROR){
 			return Result::Code::ERROR;
-		}else if(base_type.code() == Result::Code::WRONG_TYPE){
+		}else if(base_type_res.code() == Result::Code::WRONG_TYPE){
 			if(this->reader.peek() != start_location){
 				this->reader.go_back(start_location);
 			}
 			return Result::Code::WRONG_TYPE;
+		}
+
+
+		AST::Node base_type = base_type_res.value();
+
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("^")){
+			if constexpr(KIND == TypeKind::AS_TYPE){
+				// make sure exprs like `a as Int ^ b` gets parsed like `(a as Int) ^ b`
+				switch(this->reader[this->reader.peek()].kind()){
+					case Token::Kind::IDENT:
+					case Token::lookupKind("("):
+					case Token::Kind::LITERAL_BOOL:
+					case Token::Kind::LITERAL_INT:
+					case Token::Kind::LITERAL_FLOAT:
+					case Token::Kind::LITERAL_STRING:
+					case Token::Kind::LITERAL_CHAR:
+					case Token::Kind::KEYWORD_NEW: 
+					case Token::lookupKind("{"): {
+						// do nothing
+					} break;
+
+					default: {
+						base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, false);
+						this->reader.skip();
+					} break;
+				}
+
+			}else{
+				base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, false);
+				this->reader.skip();
+			}
+
+		}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("^mut")){
+			base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, true);
+			this->reader.skip();
 		}
 
 
@@ -1743,7 +1778,9 @@ namespace pcit::panther{
 					case Token::Kind::LITERAL_INT:
 					case Token::Kind::LITERAL_FLOAT:
 					case Token::Kind::LITERAL_STRING:
-					case Token::Kind::LITERAL_CHAR: {
+					case Token::Kind::LITERAL_CHAR:
+					case Token::Kind::KEYWORD_NEW: 
+					case Token::lookupKind("{"): {
 						qualifiers.pop_back();
 						this->reader.go_back(potential_backup_location);
 					} break;
@@ -1752,14 +1789,14 @@ namespace pcit::panther{
 
 			// just an ident
 			if constexpr(KIND == TypeKind::TEMPLATE_ARG){
-				if(base_type.value().kind() == AST::Kind::IDENT && qualifiers.empty()){
+				if(base_type.kind() == AST::Kind::IDENT && qualifiers.empty()){
 					this->reader.go_back(start_location);
 					return Result::Code::WRONG_TYPE;
 				}
 			}
 		}
 
-		return this->source.ast_buffer.createType(base_type.value(), std::move(qualifiers));
+		return this->source.ast_buffer.createType(base_type, std::move(qualifiers));
 	}
 
 

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.183.0"></a>
+## v0.0.183.0
+
+### Panther
+- Added polymorphic interface references
+	- Replaces interface pointers
+- Added checking in semantic analysis that base type is valid
+
+
+<!---------------------------------->
 <a name="v0.0.182.0"></a>
 ## v0.0.182.0
 

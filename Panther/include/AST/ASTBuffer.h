@@ -434,6 +434,20 @@ namespace pcit::panther{
 				return this->array_types[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createPolyInterfaceRefType(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index =
+					this->poly_interface_ref_types.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::POLY_INTERFACE_REF_TYPE, node_index);
+			}
+			EVO_NODISCARD auto getPolyInterfaceRefType(const AST::Node& node) const
+			-> const AST::PolyInterfaceRefType& {
+				evo::debugAssert(
+					node.kind() == AST::Kind::POLY_INTERFACE_REF_TYPE, "Node is not an PolyInterfaceRefType"
+				);
+				return this->poly_interface_ref_types[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createType(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->types.emplace_back(std::forward<decltype(args)>(args)...);
@@ -518,6 +532,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
 
 			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};
+			core::LinearStepAlloc<AST::PolyInterfaceRefType, uint32_t> poly_interface_ref_types{};
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};
 

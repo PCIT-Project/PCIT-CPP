@@ -389,6 +389,7 @@ namespace pcit::panther{
 			case AST::Kind::INFIX:         case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
 			case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::DESIGNATED_INIT_NEW:
 			case AST::Kind::TRY_ELSE:      case AST::Kind::DEDUCER:          case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::POLY_INTERFACE_REF_TYPE:
 			case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
 			case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
 			case AST::Kind::INTRINSIC:     case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
@@ -1390,6 +1391,23 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case AST::Kind::POLY_INTERFACE_REF_TYPE: {
+				const AST::PolyInterfaceRefType& poly_interface_ref_type =
+					ast_buffer.getPolyInterfaceRefType(ast_type_base);
+
+				const evo::Result<SymbolProc::TermInfoID> interface =
+					this->analyze_type_base<NEEDS_DEF>(poly_interface_ref_type.interface);
+				if(interface.isError()){ return evo::resultError; }
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					this->context.symbol_proc_manager.createPolyInterfaceRefType(
+						poly_interface_ref_type, interface.value(), new_term_info_id
+					)
+				);
+				return new_term_info_id;
+			} break;
+
 			case AST::Kind::DEDUCER: {
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
@@ -1520,12 +1538,12 @@ namespace pcit::panther{
 				return evo::resultError;
 			} break;
 
-			case AST::Kind::ALIAS_DEF:             return this->analyze_local_alias(ast_buffer.getAliasDef(stmt));
-			case AST::Kind::DISTINCT_ALIAS_DEF:    evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DEF");
-			case AST::Kind::STRUCT_DEF:            return this->analyze_local_struct(stmt);
-			case AST::Kind::UNION_DEF:             return this->analyze_local_union(stmt);
-			case AST::Kind::ENUM_DEF:              return this->analyze_local_enum(stmt);
-			case AST::Kind::INTERFACE_DEF:         return this->analyze_local_interface(stmt);
+			case AST::Kind::ALIAS_DEF:              return this->analyze_local_alias(ast_buffer.getAliasDef(stmt));
+			case AST::Kind::DISTINCT_ALIAS_DEF:     evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DEF");
+			case AST::Kind::STRUCT_DEF:             return this->analyze_local_struct(stmt);
+			case AST::Kind::UNION_DEF:              return this->analyze_local_union(stmt);
+			case AST::Kind::ENUM_DEF:               return this->analyze_local_enum(stmt);
+			case AST::Kind::INTERFACE_DEF:          return this->analyze_local_interface(stmt);
 			case AST::Kind::INTERFACE_IMPL:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::RETURN:                 return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:                  return this->analyze_error(ast_buffer.getError(stmt));
@@ -1552,6 +1570,7 @@ namespace pcit::panther{
 			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::POLY_INTERFACE_REF_TYPE: evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPEID_CONVERTER:       evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ATTRIBUTE_BLOCK:        evo::debugFatalBreak("Invalid statment");

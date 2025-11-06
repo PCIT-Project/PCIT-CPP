@@ -198,6 +198,10 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, InterfaceID>::UniqueID; 
 	};
 
+	struct PolyInterfaceRefID : public core::UniqueID<uint32_t, struct PolyInterfaceRefID> {
+		using core::UniqueID<uint32_t, PolyInterfaceRefID>::UniqueID; 
+	};
+
 	struct InterfaceImplInstantiationID : public core::UniqueID<uint32_t, struct InterfaceImplInstantiationID> {
 		using core::UniqueID<uint32_t, InterfaceImplInstantiationID>::UniqueID; 
 	};
@@ -384,6 +388,19 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::BaseType::InterfaceID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::PolyInterfaceRefID>{
+		static constexpr auto init(panther::BaseType::PolyInterfaceRefID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::PolyInterfaceRefID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -648,6 +665,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::BaseType::InterfaceID>::Optional;
 			using pcit::core::Optional<pcit::panther::BaseType::InterfaceID>::operator=;
+	};
+	
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::PolyInterfaceRefID>{
+		auto operator()(const pcit::panther::BaseType::PolyInterfaceRefID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::BaseType::PolyInterfaceRefID>
+		: public pcit::core::Optional<pcit::panther::BaseType::PolyInterfaceRefID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::PolyInterfaceRefID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::PolyInterfaceRefID>::operator=;
 	};
 
 

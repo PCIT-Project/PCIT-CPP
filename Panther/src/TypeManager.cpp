@@ -800,6 +800,25 @@ namespace pcit::panther{
 				return std::string(token_buffer[interface_info.identTokenID].getString());
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				const BaseType::PolyInterfaceRef::ID poly_interface_ref_id = base_type_id.polyInterfaceRefID();
+				const BaseType::PolyInterfaceRef& poly_interface_ref_info =
+					this->getPolyInterfaceRef(poly_interface_ref_id);
+
+
+				std::string interface_str =
+					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), source_manager);
+
+				if(poly_interface_ref_info.isMut){
+					interface_str += "^mut";
+				}else{
+					interface_str += "^";
+				}
+
+				return interface_str;
+			} break;
+
+
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
 					this->getInterfaceImplInstantiation(base_type_id.interfaceImplInstantiationID());
@@ -1253,6 +1272,33 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// poly interface ref
+
+	auto TypeManager::getPolyInterfaceRef(BaseType::PolyInterfaceRef::ID id) const
+	-> const BaseType::PolyInterfaceRef& {
+		const auto lock = std::scoped_lock(this->poly_interface_refs_lock);
+		return this->poly_interface_refs[id];
+	}
+
+
+	auto TypeManager::getOrCreatePolyInterfaceRef(BaseType::PolyInterfaceRef&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->poly_interface_refs_lock);
+
+		for(uint32_t i = 0; i < this->poly_interface_refs.size(); i+=1){
+			if(this->poly_interface_refs[BaseType::PolyInterfaceRef::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::POLY_INTERFACE_REF, i);
+			}
+		}
+
+		const BaseType::PolyInterfaceRef::ID new_poly_interface_ref =
+			this->poly_interface_refs.emplace_back(std::move(lookup_type));
+		return BaseType::ID(BaseType::Kind::POLY_INTERFACE_REF, new_poly_interface_ref.get());
+	}
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// interface impl instantiation
 
 	auto TypeManager::getInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation::ID id) const
@@ -1370,18 +1416,10 @@ namespace pcit::panther{
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID(), include_padding); }
 
-
-		if(type_info.qualifiers().back().isOptional){
-			if(type_info.qualifiers().back().isPtr){
-				return this->numBytesOfPtr();
-			}else{
-				return add_padding_bytes_if_needed(this->numBytes(type_info.baseTypeID(), false) + 1, include_padding);
-			}
-			
-		}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-			return this->numBytesOfPtr() * 2;
-		}else{
+		if(type_info.qualifiers().back().isPtr){
 			return this->numBytesOfPtr();
+		}else{
+			return add_padding_bytes_if_needed(this->numBytes(type_info.baseTypeID(), false) + 1, include_padding);
 		}
 	}
 
@@ -1559,6 +1597,10 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Cannot get size of type deducer");
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return this->numBytesOfPtr() * 2;
+			} break;
+
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
 					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
@@ -1590,19 +1632,12 @@ namespace pcit::panther{
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBits(type_info.baseTypeID(), include_padding); }
 
-		if(type_info.qualifiers().back().isOptional){
-			if(type_info.qualifiers().back().isPtr){
-				return this->numBitsOfPtr();
-			}else{
-				return add_padding_bits_if_needed(
-					this->numBytes(type_info.baseTypeID(), false) * 8 + 1, include_padding
-				);
-			}
-			
-		}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-			return this->numBitsOfPtr() * 2;
-		}else{
+		if(type_info.qualifiers().back().isPtr){
 			return this->numBitsOfPtr();
+		}else{
+			return add_padding_bits_if_needed(
+				this->numBytes(type_info.baseTypeID(), false) * 8 + 1, include_padding
+			);
 		}
 	}
 
@@ -1752,6 +1787,10 @@ namespace pcit::panther{
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return this->numBitsOfPtr() * 2;
+			} break;
+
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
 					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());
@@ -1856,6 +1895,10 @@ namespace pcit::panther{
 				return false;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return false;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -1943,6 +1986,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return false;
 			} break;
 
@@ -2038,6 +2085,10 @@ namespace pcit::panther{
 				return false;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return false;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2125,6 +2176,10 @@ namespace pcit::panther{
 				return false;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return false;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2206,6 +2261,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return true;
 			} break;
 
@@ -2293,6 +2352,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return true;
 			} break;
 
@@ -2384,6 +2447,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2467,6 +2534,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return true;
 			} break;
 
@@ -2558,6 +2629,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2646,6 +2721,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2729,6 +2808,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return true;
 			} break;
 
@@ -2820,6 +2903,10 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return true;
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE: {
@@ -2894,6 +2981,10 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ENUM: {
 				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return false;
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
@@ -3154,15 +3245,10 @@ namespace pcit::panther{
 		if(type_info.qualifiers().empty()){ return this->getUnderlyingType(type_info.baseTypeID()); }
 		
 		if(type_info.qualifiers().back().isPtr){
-			if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-				return id;
-
-			}else{
-				return TypeManager::getTypeRawPtr();
-			}
+			return TypeManager::getTypeRawPtr();
+		}else{
+			return id;
 		}
-
-		return id;
 	}
 
 	// TODO(PERF): optimize this function
@@ -3173,7 +3259,7 @@ namespace pcit::panther{
 			case BaseType::Kind::FUNCTION:      return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ARRAY:         return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ARRAY_DEDUCER: evo::debugFatalBreak("Cannot get underlying type of this kind");
-			case BaseType::Kind::ARRAY_REF:      return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY_REF:     return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
@@ -3196,9 +3282,9 @@ namespace pcit::panther{
 				const BaseType::Enum& enum_type = this->getEnum(id.enumID());
 				return this->getUnderlyingType(BaseType::ID(enum_type.underlyingTypeID));
 			} break;
-			case BaseType::Kind::TYPE_DEDUCER:    evo::debugFatalBreak("Cannot get underlying type of this kind");
-			case BaseType::Kind::INTERFACE:       evo::debugFatalBreak("Cannot get underlying type of this kind");
-
+			case BaseType::Kind::TYPE_DEDUCER:       evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::INTERFACE:          evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::POLY_INTERFACE_REF: return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
 					this->getInterfaceImplInstantiation(id.interfaceImplInstantiationID());

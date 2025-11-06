@@ -935,7 +935,7 @@ namespace pcit::panther{
 				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::POLY_INTERFACE_REF:      case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -1804,7 +1804,7 @@ namespace pcit::panther{
 				const sema::Null& null_value = this->context.getSemaBuffer().getNull(expr.nullID());
 				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(*null_value.targetTypeID);
 
-				if(target_type_info.isNormalPointer()){
+				if(target_type_info.isPointer()){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createNullptr();
 
@@ -1824,41 +1824,7 @@ namespace pcit::panther{
 						return std::nullopt;
 					}
 
-				}else if(target_type_info.isInterfacePointer()){
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-
-						return this->agent.createLoad(interface_ptr_alloca, interface_ptr_type, this->name("NULL"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-
-						return interface_ptr_alloca;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							store_locations[0], interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-
-				}else{
+				}else if(target_type_info.isOptionalNotPointer()){
 					const pir::Type optional_type = this->get_type<false>(*null_value.targetTypeID);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -1887,6 +1853,40 @@ namespace pcit::panther{
 						);
 						this->agent.createStore(calc_ptr, this->agent.createBoolean(false));
 
+						return std::nullopt;
+
+					}else{
+						return std::nullopt;
+					}
+
+				}else{
+					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+						);
+						this->agent.createStore(calc_ptr, this->agent.createNullptr());
+
+						return this->agent.createLoad(interface_ptr_alloca, interface_ptr_type, this->name("NULL"));
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+						);
+						this->agent.createStore(calc_ptr, this->agent.createNullptr());
+
+						return interface_ptr_alloca;
+
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							store_locations[0], interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+						);
+						this->agent.createStore(calc_ptr, this->agent.createNullptr());
 						return std::nullopt;
 
 					}else{
@@ -2357,7 +2357,7 @@ namespace pcit::panther{
 					const TypeInfo& target_type_info =
 						this->context.getTypeManager().getTypeInfo(optional_null_check.targetTypeID);
 
-					if(target_type_info.isNormalPointer()){
+					if(target_type_info.isPointer()){
 						const pir::Expr lhs = this->get_expr_register(optional_null_check.expr);
 
 						if(optional_null_check.equal){
@@ -2370,25 +2370,7 @@ namespace pcit::panther{
 							);
 						}
 
-					}else if(target_type_info.isInterfacePointer()){
-						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
-
-						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							lhs, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-
-						if(optional_null_check.equal){
-							return this->agent.createIEq(
-								calc_ptr, this->agent.createNullptr(), this->name("OPT_IS_NULL")
-							);
-						}else{
-							return this->agent.createINeq(
-								calc_ptr, this->agent.createNullptr(), this->name("OPT_ISNT_NULL")
-							);
-						}
-
-					}else{
+					}else if(target_type_info.isOptionalNotPointer()){
 						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
 
 						const pir::Type target_type = this->get_type<false>(optional_null_check.targetTypeID);
@@ -2404,6 +2386,24 @@ namespace pcit::panther{
 						}else{
 							return this->agent.createINeq(
 								flag, this->agent.createBoolean(false), this->name("OPT_ISNT_NULL")
+							);
+						}
+
+					}else{
+						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
+
+						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+						const pir::Expr calc_ptr = this->agent.createCalcPtr(
+							lhs, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+						);
+
+						if(optional_null_check.equal){
+							return this->agent.createIEq(
+								calc_ptr, this->agent.createNullptr(), this->name("OPT_IS_NULL")
+							);
+						}else{
+							return this->agent.createINeq(
+								calc_ptr, this->agent.createNullptr(), this->name("OPT_ISNT_NULL")
 							);
 						}
 					}
@@ -2434,7 +2434,7 @@ namespace pcit::panther{
 				const TypeInfo& target_type_info =
 					this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID);
 
-				if(target_type_info.isNormalPointer()){
+				if(target_type_info.isPointer()){
 					EVO_DEFER([&](){
 						this->agent.createStore(
 							this->get_expr_pointer(optional_extract.expr), this->agent.createNullptr()
@@ -2457,7 +2457,29 @@ namespace pcit::panther{
 						return std::nullopt;
 					}
 
-				}else if(target_type_info.isInterfacePointer()){
+				}else if(target_type_info.isOptionalNotPointer()){
+					const pir::Expr lhs = this->get_expr_pointer(optional_extract.expr);
+					const pir::Type target_type = this->get_type<false>(optional_extract.targetTypeID);
+
+					const pir::Expr held_value = this->agent.createCalcPtr(
+						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".EXTRACT_OPT.value")
+					);
+					const pir::Expr flag = this->agent.createCalcPtr(
+						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".EXTRACT_OPT.flag")
+					);
+
+					const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID)
+							.copyWithPoppedQualifier()
+					);
+					const std::optional<pir::Expr> output = 
+						this->expr_move<MODE>(held_value, held_type_id, true, store_locations);
+
+					this->agent.createStore(flag, this->agent.createBoolean(false));
+
+					return output;
+
+				}else{
 					EVO_DEFER([&](){
 						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
 						const pir::Expr calc_ptr = this->agent.createCalcPtr(
@@ -2484,28 +2506,6 @@ namespace pcit::panther{
 					}else{
 						return std::nullopt;
 					}
-
-				}else{
-					const pir::Expr lhs = this->get_expr_pointer(optional_extract.expr);
-					const pir::Type target_type = this->get_type<false>(optional_extract.targetTypeID);
-
-					const pir::Expr held_value = this->agent.createCalcPtr(
-						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".EXTRACT_OPT.value")
-					);
-					const pir::Expr flag = this->agent.createCalcPtr(
-						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".EXTRACT_OPT.flag")
-					);
-
-					const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID)
-							.copyWithPoppedQualifier()
-					);
-					const std::optional<pir::Expr> output = 
-						this->expr_move<MODE>(held_value, held_type_id, true, store_locations);
-
-					this->agent.createStore(flag, this->agent.createBoolean(false));
-
-					return output;
 				}
 			} break;
 
@@ -2900,7 +2900,7 @@ namespace pcit::panther{
 						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
 						this->name(".MAKE_INTERFACE_PTR.VALUE")
 					);
-					this->get_expr_store(make_interface_ptr.expr, value_ptr);
+					this->agent.createStore(value_ptr, this->get_expr_pointer(make_interface_ptr.expr));
 
 					const pir::Expr vtable_ptr = this->agent.createCalcPtr(
 						target,
@@ -4691,6 +4691,10 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Not deletable");
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
 					this->context.getTypeManager().getInterfaceImplInstantiation(
@@ -5114,6 +5118,10 @@ namespace pcit::panther{
 
 				case BaseType::Kind::INTERFACE: {
 					evo::debugFatalBreak("Not copyable");
+				} break;
+
+				case BaseType::Kind::POLY_INTERFACE_REF: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 
 				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
@@ -5554,6 +5562,10 @@ namespace pcit::panther{
 
 				case BaseType::Kind::INTERFACE: {
 					evo::debugFatalBreak("Not movable");
+				} break;
+
+				case BaseType::Kind::POLY_INTERFACE_REF: {
+					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
 				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
@@ -6602,7 +6614,8 @@ namespace pcit::panther{
 
 				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::INTERFACE:               case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
 					evo::debugFatalBreak("Invalid type to compare");
 				} break;
 			}
@@ -8238,7 +8251,6 @@ namespace pcit::panther{
 	auto SemaToPIR::get_type(TypeInfo::ID type_id) -> pir::Type {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
 
-		if(type_info.isInterfacePointer()){ return this->data.getInterfacePtrType(this->module); }
 		if(type_info.isPointer()){ return this->module.createPtrType(); }
 
 		if(type_info.isOptionalNotPointer()){
@@ -8415,6 +8427,10 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Cannot get type of interface");
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return this->data.getInterfacePtrType(this->module);
 			} break;
 
 			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {

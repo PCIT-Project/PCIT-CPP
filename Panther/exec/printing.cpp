@@ -1393,6 +1393,14 @@ namespace pthr{
 						this->printer.printMagenta("]");
 					} break;
 
+					case panther::AST::Kind::POLY_INTERFACE_REF_TYPE: {
+						const panther::AST::PolyInterfaceRefType& poly_interface_ref_types =
+							this->ast_buffer.getPolyInterfaceRefType(base_type);
+						
+						this->print_base_type(poly_interface_ref_types.interface);
+						this->printer.printMagenta("^");
+					} break;
+
 					// TODO(FUTURE): print this properly
 					case panther::AST::Kind::TYPEID_CONVERTER: {
 						this->printer.printMagenta("Type(");
@@ -1554,21 +1562,21 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
-					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
-					case panther::AST::Kind::ALIAS_DEF:        case panther::AST::Kind::DISTINCT_ALIAS_DEF:
-					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
-					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
-					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
-					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
-					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:                    case panther::AST::Kind::VAR_DEF:
+					case panther::AST::Kind::FUNC_DEF:                case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::ALIAS_DEF:               case panther::AST::Kind::DISTINCT_ALIAS_DEF:
+					case panther::AST::Kind::STRUCT_DEF:              case panther::AST::Kind::UNION_DEF:
+					case panther::AST::Kind::ENUM_DEF:                case panther::AST::Kind::INTERFACE_DEF:
+					case panther::AST::Kind::INTERFACE_IMPL:          case panther::AST::Kind::RETURN:
+					case panther::AST::Kind::ERROR:                   case panther::AST::Kind::UNREACHABLE:
+					case panther::AST::Kind::BREAK:                   case panther::AST::Kind::CONTINUE:
+					case panther::AST::Kind::DELETE:                  case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL:        case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::DEFER:                   case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:            case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::POLY_INTERFACE_REF_TYPE: case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK:         case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::DEDUCER:                 case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

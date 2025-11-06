@@ -65,6 +65,7 @@ namespace pcit::panther::AST{
 		TRY_ELSE,
 
 		ARRAY_TYPE,
+		POLY_INTERFACE_REF_TYPE,
 		TYPE,
 		TYPEID_CONVERTER,
 
@@ -420,6 +421,12 @@ namespace pcit::panther::AST{
 		std::optional<Node> terminator;
 		std::optional<bool> refIsMut; // only has value if is array ref
 	};
+
+	struct PolyInterfaceRefType{
+		Node interface;
+		bool isMut;
+	};
+
 
 	struct Type{
 		struct Qualifier{

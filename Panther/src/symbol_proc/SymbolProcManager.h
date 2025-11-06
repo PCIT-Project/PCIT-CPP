@@ -2366,6 +2366,26 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// PolyInterfaceRefType
+
+			EVO_NODISCARD auto createPolyInterfaceRefType(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::POLY_INTERFACE_REF_TYPE,
+					this->poly_interface_ref_types.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getPolyInterfaceRefType(Instruction instr) const
+			-> const Instruction::PolyInterfaceRefType& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::POLY_INTERFACE_REF_TYPE, "Not a PolyInterfaceRefType"
+				);
+				return this->poly_interface_ref_types[instr._index];
+			}
+
+
+
+			//////////////////
 			// TypeIDConverter
 
 			EVO_NODISCARD auto createTypeIDConverter(auto&&... args) -> Instruction {
@@ -2769,6 +2789,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayType, uint32_t> array_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint32_t> array_refs{};
+			core::SyncLinearStepAlloc<Instruction::PolyInterfaceRefType, uint32_t> poly_interface_ref_types{};
 			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint32_t> type_id_converters{};
 			core::SyncLinearStepAlloc<Instruction::UserType, uint32_t> user_types{};
 			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint32_t> base_type_idents{};
