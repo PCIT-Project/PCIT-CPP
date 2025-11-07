@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.184.0"></a>
+## v0.0.184.0
+
+### Panther
+- Added support for matching interfaces for non-polymorphic interface method return values for more types
+	- Types with any qualifiers
+	- Arrays
+	- Array references
+- Fixed ephemeral values not properly being considered as mutable
+- Fixed instantiation of a function with a interface inline-template parameter failing due to semantic analysis attempting to extract deducers
+
+
+<!---------------------------------->
 <a name="v0.0.183.0"></a>
 ## v0.0.183.0
 
@@ -26,7 +39,7 @@
 ## v0.0.181.2
 
 ### Panther
-- Fixed stall when there's a local function inside a function that is templated entirely based on an interface paramter
+- Fixed stall when there's a local function inside a function that is templated entirely based on an interface parameter
 
 
 <!---------------------------------->
@@ -34,7 +47,7 @@
 ## v0.0.181.1
 
 ### Panther
-- Fixed race condiiton in circular dependency detection
+- Fixed race condition in circular dependency detection
 
 
 <!---------------------------------->
@@ -71,7 +84,7 @@
 - Added polymorphic/non-polymorphic interfaces
 - Fixed crashing when calling an interface method statement
 - Fixed crashing or incorrect lowering when lowering use of return parameters
-- Fixed interface pointer accessors not computing mutablility properly
+- Fixed interface pointer accessors not computing mutability properly
 
 
 <!---------------------------------->
@@ -212,7 +225,7 @@
 ### Panther
 - Added infix operator overloading
 - Added composite assignment operator overloading
-- Fixed race condition sometimes causing crashing when errors in semantic analysis occured
+- Fixed race condition sometimes causing crashing when errors in semantic analysis occurred
 
 ### PCIT_core
 - `SpinLock` moved into Evo
@@ -332,7 +345,7 @@
 
 ### Panther
 - Added tagged unions
-	- Added comparason of the tag
+	- Added comparison of the tag
 - Fixed ouptut parameter of constructors of types with no members not counting as initialized
 
 ### PIR

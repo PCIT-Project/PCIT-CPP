@@ -457,7 +457,9 @@ namespace pcit::panther{
 
 
 		EVO_NODISCARD constexpr auto is_mutable() const -> bool {
-			return this->value_category == ValueCategory::CONCRETE_MUT
+			return this->value_category == ValueCategory::EPHEMERAL
+				|| this->value_category == ValueCategory::EPHEMERAL_FLUID
+			    || this->value_category == ValueCategory::CONCRETE_MUT
 				|| this->value_category == ValueCategory::FORWARDABLE;
 		}
 

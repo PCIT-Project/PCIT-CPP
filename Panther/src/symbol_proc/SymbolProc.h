@@ -259,7 +259,7 @@ namespace pcit::panther{
 
 
 
-		struct FuncDeclExtractDeducersIfNeeded{
+		struct FuncDeclExtractDeducers{
 			SymbolProcTypeID param_type;
 			size_t param_index;
 		};
@@ -943,7 +943,7 @@ namespace pcit::panther{
 			ENUM_DECL,
 			ENUM_ADD_ENUMERATORS,
 			ENUM_DEF,
-			FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED,
+			FUNC_DECL_EXTRACT_DEDUCERS,
 			FUNC_DECL_INSTANTIATION,
 			FUNC_DECL,
 			FUNC_PRE_BODY,

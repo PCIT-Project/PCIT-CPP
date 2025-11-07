@@ -204,9 +204,9 @@ namespace pcit::panther{
 			case Instruction::Kind::ENUM_DEF:
 				return this->instr_enum_def();
 
-			case Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED:
-				return this->instr_func_decl_extract_deducers_if_needed(
-					this->context.symbol_proc_manager.getFuncDeclExtractDeducersIfNeeded(instr)
+			case Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS:
+				return this->instr_func_decl_extract_deducers(
+					this->context.symbol_proc_manager.getFuncDeclExtractDeducers(instr)
 				);
 
 			case Instruction::Kind::FUNC_DECL_INSTANTIATION:
@@ -2739,9 +2739,8 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_func_decl_extract_deducers_if_needed(
-		const Instruction::FuncDeclExtractDeducersIfNeeded& instr
-	) -> Result {
+	auto SemanticAnalyzer::instr_func_decl_extract_deducers(const Instruction::FuncDeclExtractDeducers& instr)
+	-> Result {
 		evo::debugAssert(
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation != nullptr,
 			"Should only use this instruction if is a function instantiation"
@@ -8110,8 +8109,6 @@ namespace pcit::panther{
 			);
 			return Result::ERROR;
 		}
-
-
 
 
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
@@ -16466,30 +16463,6 @@ namespace pcit::panther{
 
 		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
 
-		// TODO(NOW): remove
-		// check for non-polymorphic interface pointers
-		// if(
-		// 	base_type.baseTypeID().kind() == BaseType::Kind::INTERFACE
-		// 	&& instr.ast_type.qualifiers.empty() == false
-		// 	&& instr.ast_type.qualifiers.back().isPtr
-		// ){
-		// 	const BaseType::Interface& base_type_interface =
-		// 		this->context.getTypeManager().getInterface(base_type.baseTypeID().interfaceID());
-
-		// 	if(base_type_interface.isPolymorphic == false){
-		// 		this->emit_error(
-		// 			Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF,
-		// 			instr.ast_type,
-		// 			"Interfaces that are non-polymorphic are not allowed",
-		// 			Diagnostic::Info(
-		// 				"Interface was declared here:", this->get_location(base_type.baseTypeID().interfaceID())
-		// 			)
-		// 		);
-		// 		return Result::ERROR;
-		// 	}
-		// }
-
-
 		this->return_type(
 			instr.output,
 			TypeInfo::VoidableID(
@@ -21852,51 +21825,92 @@ namespace pcit::panther{
 		const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
 		const TypeInfo& match_type = this->context.getTypeManager().getTypeInfo(match_type_id);
 
-		if(interface_type_info.qualifiers().empty() == false){ return false; }
-		if(match_type.qualifiers().empty() == false){ return false; }
+		if(interface_type_info.qualifiers() != match_type.qualifiers()){ return false; }
 
-		if(interface_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){ return false; }
+		switch(interface_type_info.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY: {
+				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return false; }
 
-		const BaseType::Interface& interface_type =
-			this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
+				const BaseType::Array& interface_array_type = 
+					this->context.getTypeManager().getArray(interface_type_info.baseTypeID().arrayID());
 
-		const auto impl_exists = [&]() -> bool {
-			const auto lock = std::scoped_lock(interface_type.implsLock);
-			return interface_type.impls.contains(match_type.baseTypeID());
-		};
-
-		if(impl_exists()){ return true; }
-
-		if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+				const BaseType::Array& match_array_type = 
+					this->context.getTypeManager().getArray(match_type.baseTypeID().arrayID());
 
 
-		const BaseType::Struct& match_struct =
-			this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
+				if(interface_array_type.dimensions != match_array_type.dimensions){ return false; }
+				if(interface_array_type.terminator != match_array_type.terminator){ return false; }
 
-
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
-			match_struct.namespacedMembers, "impl"
-		);
-
-		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-				return false;
+				return this->interface_matches(
+					interface_array_type.elementTypeID, match_array_type.elementTypeID
+				);
 			} break;
 
-			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-				return evo::Unexpected(Result::ERROR);
+			case BaseType::Kind::ARRAY_REF: {
+				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return false; }
+
+				const BaseType::ArrayRef& interface_array_ref_type = 
+					this->context.getTypeManager().getArrayRef(interface_type_info.baseTypeID().arrayRefID());
+
+				const BaseType::ArrayRef& match_array_ref_type = 
+					this->context.getTypeManager().getArrayRef(match_type.baseTypeID().arrayRefID());
+
+				if(interface_array_ref_type.isMut != match_array_ref_type.isMut){ return false; }
+				if(interface_array_ref_type.terminator != match_array_ref_type.terminator){ return false; }
+
+				return this->interface_matches(
+					interface_array_ref_type.elementTypeID, match_array_ref_type.elementTypeID
+				);
 			} break;
 
-			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-				return evo::Unexpected(Result::NEED_TO_WAIT);
+			case BaseType::Kind::INTERFACE: {
+				const BaseType::Interface& interface_type =
+					this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
+
+				const auto impl_exists = [&]() -> bool {
+					const auto lock = std::scoped_lock(interface_type.implsLock);
+					return interface_type.impls.contains(match_type.baseTypeID());
+				};
+
+				if(impl_exists()){ return true; }
+
+				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+
+
+				const BaseType::Struct& match_struct =
+					this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
+
+
+				const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
+					match_struct.namespacedMembers, "impl"
+				);
+
+				switch(wait_on_symbol_proc_result){
+					case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+						return false;
+					} break;
+
+					case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED:
+					case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+						return evo::Unexpected(Result::ERROR);
+					} break;
+
+					case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+						return evo::Unexpected(Result::NEED_TO_WAIT);
+					} break;
+
+					case WaitOnSymbolProcResult::SEMAS_READY: {
+						// do nothing...
+					} break;
+				}
+
+				return impl_exists();
 			} break;
 
-			case WaitOnSymbolProcResult::SEMAS_READY: {
-				// do nothing...
+			default: {
+				return interface_type_info.baseTypeID() == match_type.baseTypeID();
 			} break;
 		}
-
-		return impl_exists();
 	}
 
 

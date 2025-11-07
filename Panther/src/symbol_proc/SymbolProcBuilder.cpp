@@ -218,9 +218,12 @@ namespace pcit::panther{
 			if(param_type.isError()){ return evo::resultError; }
 			types.emplace_back(param_type.value());
 
-			if(symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i].has_value()){
+			if(
+				symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i].has_value()
+				&& this->is_deducer(*param.type)
+			){
 				this->add_instruction(
-					this->context.symbol_proc_manager.createFuncDeclExtractDeducersIfNeeded(param_type.value(), i)
+					this->context.symbol_proc_manager.createFuncDeclExtractDeducers(param_type.value(), i)
 				);
 			}
 

@@ -82,9 +82,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_enum_add_enumerators(const Instruction::EnumAddEnumerators& instr) -> Result;
 			EVO_NODISCARD auto instr_enum_def() -> Result;
 
-			EVO_NODISCARD auto instr_func_decl_extract_deducers_if_needed(
-				const Instruction::FuncDeclExtractDeducersIfNeeded& instr
-			) -> Result;
+			EVO_NODISCARD auto instr_func_decl_extract_deducers(const Instruction::FuncDeclExtractDeducers& instr)
+				-> Result;
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result;

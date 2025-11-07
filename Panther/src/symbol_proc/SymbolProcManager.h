@@ -343,22 +343,21 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// FuncDeclExtractDeducersIfNeeded
+			// FuncDeclExtractDeducers
 
-			EVO_NODISCARD auto createFuncDeclExtractDeducersIfNeeded(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createFuncDeclExtractDeducers(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED,
-					this->func_decl_extract_deducers_if_neededs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS,
+					this->func_decl_extract_deducerss.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getFuncDeclExtractDeducersIfNeeded(Instruction instr) const
-			-> const Instruction::FuncDeclExtractDeducersIfNeeded& {
+			EVO_NODISCARD auto getFuncDeclExtractDeducers(Instruction instr) const
+			-> const Instruction::FuncDeclExtractDeducers& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS_IF_NEEDED,
-					"Not a FuncDeclExtractDeducersIfNeeded"
+					instr.kind() == Instruction::Kind::FUNC_DECL_EXTRACT_DEDUCERS, "Not a FuncDeclExtractDeducers"
 				);
-				return this->func_decl_extract_deducers_if_neededs[instr._index];
+				return this->func_decl_extract_deducerss[instr._index];
 			}
 
 
@@ -2641,8 +2640,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint32_t> union_add_fieldss{};
 			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint32_t> enum_decls{};
 			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerators, uint32_t> enum_add_enumeratorss{};
-			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducersIfNeeded, uint32_t>
-				func_decl_extract_deducers_if_neededs{};
+			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducers, uint32_t> func_decl_extract_deducerss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
 			core::SyncLinearStepAlloc<Instruction::FuncPreBody, uint32_t> func_pre_bodys{};
