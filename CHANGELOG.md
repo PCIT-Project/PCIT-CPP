@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.184.2"></a>
+## v0.0.184.2
+
+### Panther
+- Fixed template type parameter not including qualifiers in some cases
+
+
+<!---------------------------------->
 <a name="v0.0.184.1"></a>
 ## v0.0.184.1
 

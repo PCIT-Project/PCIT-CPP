@@ -6137,7 +6137,7 @@ namespace pcit::panther{
 			if(this->type_check<true, true>(
 				current_func_type.returnParams.front().typeID.asTypeID(),
 				return_value_term,
-				"Return",
+				"Return statement",
 				instr.return_stmt.value.as<AST::Node>()
 			).ok == false){
 				return Result::ERROR;
@@ -16453,15 +16453,18 @@ namespace pcit::panther{
 			} break;
 		}
 
-		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-		qualifiers.reserve(instr.ast_type.qualifiers.size());
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
+
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
+			base_type.qualifiers().begin(), base_type.qualifiers().end()
+		);
+		qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
 		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
 			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
 		}
 
 		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
-		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
 
 		this->return_type(
 			instr.output,

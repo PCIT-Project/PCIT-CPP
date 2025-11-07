@@ -64,7 +64,7 @@ type Array = struct {
 
 		func next = (this mut) -> Void {
 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
-			this.current = @bitCast<{USize, Int*}>(new_address);
+			this.current = std_exp.bitCast<{Int*}>(new_address);
 		}
 
 		func get = (this) -> Int* { return copy this.current; }
