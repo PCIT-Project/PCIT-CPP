@@ -14838,7 +14838,7 @@ namespace pcit::panther{
 								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
 								instr.infix.lhs,
 								std::format(
-									"Infix [{}] of this type is invalid :(",
+									"Infix [{}] of this type is invalid",
 									this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 								),
 								std::move(infos)
@@ -20625,13 +20625,19 @@ namespace pcit::panther{
 			bool any_waiting_or_ready = false;
 			
 			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
-				const SymbolProc::ID instantiation_symbol_proc_id = 
-					*instantiation_info.instantiation.symbolProcID.load();
+				std::optional<SymbolProc::ID> loaded_instantiation_symbol_proc_id =
+					instantiation_info.instantiation.symbolProcID.load();
+
+				while(loaded_instantiation_symbol_proc_id.has_value() == false){ // wait for it to be ready
+					std::this_thread::yield();
+					loaded_instantiation_symbol_proc_id = instantiation_info.instantiation.symbolProcID.load();
+				}
+
 				SymbolProc& instantiation_symbol_proc =
-					this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+					this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
 
 				SymbolProc::WaitOnResult wait_on_result = instantiation_symbol_proc.waitOnDeclIfNeeded(
-					this->symbol_proc_id, this->context, instantiation_symbol_proc_id
+					this->symbol_proc_id, this->context, *loaded_instantiation_symbol_proc_id
 				);
 
 

@@ -1,6 +1,8 @@
+def std_exp = @import("std_exp/std_exp.pthr");
+
 
 interface ConstIterable = {
-	func createIterator = (this) #rt -> [ConstIterator:1];
+	func createIterator = (this) #rt -> ConstIterator;
 	func size = (this) #rt -> USize;
 }
 
@@ -34,8 +36,8 @@ type Array = struct {
 
 
 
-	func createConstIterator = (this) #rt -> [ConstArrIter:1] {
-		return new [ConstArrIter:1][new ConstArrIter(&this)];
+	func createConstIterator = (this) #rt -> ConstArrIter {
+		return new ConstArrIter(&this);
 	}
 
 
@@ -55,13 +57,21 @@ type Array = struct {
 	type ConstArrIter = struct {
 		func new = (arr: Array*) -> (output: ConstArrIter) {
 			output.arr = copy arr;
-			output.index = 0;
+			output.current = arr[0];
+			output.last = arr[arr.size() - 1];
 			return...;
 		}
 
-		func next  = (this mut) -> Void { this.index += 1; }
-		func get   = (this) -> Int* { return this.arr[this.index]; }
-		func atEnd = (this) -> Bool { return this.index >= LENGTH; }
+		func next = (this mut) -> Void {
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+			this.current = @bitCast<{USize, Int*}>(new_address);
+		}
+
+		func get = (this) -> Int* { return copy this.current; }
+
+		func atEnd = (this) -> Bool {
+			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+		}
 
 		impl ConstIterator{
 			next  = next,
@@ -70,7 +80,8 @@ type Array = struct {
 		}
 
 		var arr: Array*;
-		var index: USize;
+		var current: Int*;
+		var last: Int*;
 	}
 }
 
@@ -90,7 +101,7 @@ func sum_arr = (iterable: ConstIterable) #rt -> Int {
 		return...;
 	}
 
-	return sum_arr_impl(move iterable.createIterator()[0].*);
+	return sum_arr_impl(iterable.createIterator());
 }
 
 
