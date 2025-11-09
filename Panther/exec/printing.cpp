@@ -937,9 +937,15 @@ namespace pthr{
 								this->print_ident(method.method);
 
 								this->indenter.print_end();
-								this->print_minor_header("Target");
-								this->printer.print(" ");
-								this->print_ident(method.value);
+								if(method.value.is<panther::Token::ID>()){
+									this->print_minor_header("Target");
+									this->printer.print(" ");
+									this->print_ident(method.value.as<panther::Token::ID>());
+								}else{
+									this->print_func_def(
+										this->ast_buffer.getFuncDef(method.value.as<panther::AST::Node>())
+									);
+								}
 
 								this->indenter.pop();
 							}

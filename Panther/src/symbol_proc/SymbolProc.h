@@ -593,6 +593,9 @@ namespace pcit::panther{
 			SymbolProcTermInfoID to;
 		};
 
+		struct WaitOnSubSymbolProcDecl{
+			SymbolProcID symbol_proc_id;
+		};
 
 		struct WaitOnSubSymbolProcDef{
 			SymbolProcID symbol_proc_id;
@@ -1001,6 +1004,7 @@ namespace pcit::panther{
 			// misc expr
 			TYPE_TO_TERM,
 			REQUIRE_THIS_DEF,
+			WAIT_ON_SUB_SYMBOL_PROC_DECL,
 			WAIT_ON_SUB_SYMBOL_PROC_DEF,
 			FUNC_CALL_EXPR_CONSTEXPR_ERRORS,
 			FUNC_CALL_EXPR_CONSTEXPR,

@@ -1,13 +1,13 @@
 def std_exp = @import("std_exp/std_exp.pthr");
 
 
-interface ConstIterable = {
-	func createIterator = (this) #rt -> ConstIterator;
+interface Iterable = {
+	func createIterator = (this) #rt -> Iterator;
 	func size = (this) #rt -> USize;
 }
 
 
-interface ConstIterator = {
+interface Iterator = {
 	func next = (this mut) #rt -> Void;
 	func get = (this) #rt -> $$*;
 	func atEnd = (this) #rt -> Bool;
@@ -36,14 +36,13 @@ type Array = struct {
 
 
 
-	func createConstIterator = (this) #rt -> ConstArrIter {
-		return new ConstArrIter(&this);
-	}
 
+	impl Iterable {
+		createIterator = (this) -> ArrIter {
+			return new ArrIter(&this);
+		},
 
-	impl ConstIterable {
-		createIterator = createConstIterator,
-		size           = size,
+		size = size,
 	}
 
 
@@ -54,29 +53,25 @@ type Array = struct {
 	///////////////////////////////////
 	// iters
 
-	type ConstArrIter = struct {
-		func new = (arr: Array*) -> (output: ConstArrIter) {
+	type ArrIter = struct {
+		func new = (arr: Array*) -> (output: ArrIter) {
 			output.arr = copy arr;
 			output.current = arr[0];
 			output.last = arr[arr.size() - 1];
 			return...;
 		}
 
-		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
-			this.current = std_exp.bitCast<{Int*}>(new_address);
-		}
+		impl Iterator{
+			next = (this mut) -> Void {
+				const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+				this.current = std_exp.bitCast<{Int*}>(new_address);
+			},
 
-		func get = (this) -> Int* { return copy this.current; }
+			get = (this) -> Int* { return copy this.current; },
 
-		func atEnd = (this) -> Bool {
-			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-		}
-
-		impl ConstIterator{
-			next  = next,
-			get   = get,
-			atEnd = atEnd,
+			atEnd = (this) -> Bool {
+				return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+			},
 		}
 
 		var arr: Array*;
@@ -89,8 +84,8 @@ type Array = struct {
 
 
 
-func sum_arr = (iterable: ConstIterable) #rt -> Int {
-	func sum_arr_impl = (iter: ConstIterator in) -> (count: Int) {
+func sum_arr = (iterable: Iterable) #rt -> Int {
+	func sum_arr_impl = (iter: Iterator in) -> (count: Int) {
 		count = 0;
 
 		while(iter.atEnd() == false){

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.185.0"></a>
+## v0.0.185.0
+
+### Panther
+- Added interface impl inline function definition
+
+
+<!---------------------------------->
 <a name="v0.0.184.2"></a>
 ## v0.0.184.2
 

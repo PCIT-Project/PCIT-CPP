@@ -791,19 +791,25 @@ namespace pcit::panther{
 		}
 
 
-		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
-			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
-			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
-			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+		if(
+			this->is_child_symbol() == false
+			|| this->get_parent_symbol().symbol_proc.ast_node.kind() != AST::Kind::INTERFACE_IMPL
+		){ // prevent impl inline func defs from being added to wait on and symbol namespace
+			if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+				SymbolProcInfo& parent_symbol = this->get_parent_symbol();
 
-			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
-		}
+				parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+				current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
 
-		if(this->symbol_namespaces.back() != nullptr){
-			this->symbol_namespaces.back()->emplace(
-				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
-			);
+				this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+			}
+
+			if(this->symbol_namespaces.back() != nullptr){
+				this->symbol_namespaces.back()->emplace(
+					current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+				);
+			}
 		}
 
 		return evo::Result<>();
@@ -1158,7 +1164,22 @@ namespace pcit::panther{
 		);
 
 		for(const AST::InterfaceImpl::Method& method : interface_impl.methods){
-			this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplMethodLookup(method.value));
+			if(method.value.is<Token::ID>()){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createInterfaceImplMethodLookup(method.value.as<Token::ID>())
+				);
+
+			}else{
+				const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(method.value.as<AST::Node>());
+				if(func_symbol_proc_id.isError()){ return evo::resultError; }
+
+				this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+				this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDecl(func_symbol_proc_id.value())
+				);
+			}
 		}
 
 		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplDef(interface_impl));

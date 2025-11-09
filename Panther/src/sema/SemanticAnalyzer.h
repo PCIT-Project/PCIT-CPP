@@ -152,6 +152,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_require_this_def() -> Result;
+			EVO_NODISCARD auto instr_wait_on_sub_symbol_proc_decl(const Instruction::WaitOnSubSymbolProcDecl& instr)
+				-> Result;
 			EVO_NODISCARD auto instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
 				-> Result;
 

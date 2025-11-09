@@ -259,7 +259,7 @@ namespace pcit::panther::AST{
 	struct InterfaceImpl{
 		struct Method{
 			Token::ID method;
-			Token::ID value;
+			evo::Variant<Token::ID, Node> value;
 		};
 
 		Node target;

@@ -382,6 +382,11 @@ namespace pcit::panther{
 			case Instruction::Kind::REQUIRE_THIS_DEF:
 				return this->instr_require_this_def();
 
+			case Instruction::Kind::WAIT_ON_SUB_SYMBOL_PROC_DECL:
+				return this->instr_wait_on_sub_symbol_proc_decl(
+					this->context.symbol_proc_manager.getWaitOnSubSymbolProcDecl(instr)
+				);
+
 			case Instruction::Kind::WAIT_ON_SUB_SYMBOL_PROC_DEF:
 				return this->instr_wait_on_sub_symbol_proc_def(
 					this->context.symbol_proc_manager.getWaitOnSubSymbolProcDef(instr)
@@ -3238,13 +3243,19 @@ namespace pcit::panther{
 			instr.instantiation_id
 		);
 
-		if(func_attrs.value().is_entry){
-			this->context.entry = created_func_id;
-		}
-
-
 		if(func_info.instantiation != nullptr){
 			func_info.instantiation->funcID = created_func_id;
+
+		}else if(
+			this->symbol_proc.parent != nullptr
+			&& this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>()
+		){
+			this->symbol_proc.parent->extra_info.as<SymbolProc::InterfaceImplInfo>().targets.emplace_back(
+				TermInfo::ValueCategory::FUNCTION, TermInfo::FuncOverloadList{created_func_id}
+			);
+
+		}else if(func_attrs.value().is_entry){
+			this->context.entry = created_func_id;
 		}
 
 
@@ -8858,6 +8869,38 @@ namespace pcit::panther{
 		}else{
 			return Result::SUCCESS;
 		}
+	}
+
+
+	auto SemanticAnalyzer::instr_wait_on_sub_symbol_proc_decl(const Instruction::WaitOnSubSymbolProcDecl& instr)
+	-> Result {
+		SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
+
+		this->context.symbol_proc_manager.num_procs_not_done += 1;
+
+		sub_symbol_proc.sema_scope_id = 
+			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+
+
+		{
+			const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
+			sub_symbol_proc.setStatusInQueue();
+			this->context.add_task_to_work_manager(instr.symbol_proc_id);
+		}
+
+
+		const SymbolProc::WaitOnResult wait_on_result = 
+			sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
+
+		switch(wait_on_result){
+			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+		}
+
+		evo::unreachable();
 	}
 
 

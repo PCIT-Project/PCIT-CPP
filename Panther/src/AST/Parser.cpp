@@ -715,13 +715,52 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-			const Result method_value = this->parse_ident();
-			if(this->check_result(method_value, "method value in interface impl").isError()){
-				return Result::Code::ERROR;
+
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::IDENT: {
+					methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), this->reader.next());
+				} break;
+
+				case Token::lookupKind("("): {
+					evo::Result<evo::SmallVector<AST::FuncDef::Param>> params = this->parse_func_params();
+					if(params.isError()){ return Result::Code::ERROR; }
+
+
+					const Result attribute_block = this->parse_attribute_block();
+					if(attribute_block.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+
+					if(this->expect_token(Token::lookupKind("->"), "in function definition").isError()){
+						return Result::Code::ERROR;
+					}
+
+					evo::Result<evo::SmallVector<AST::FuncDef::Return>> returns = this->parse_func_returns<false>();
+					if(returns.isError()){ return Result::Code::ERROR; }
+
+					evo::Result<evo::SmallVector<AST::FuncDef::Return>> error_returns =
+						this->parse_func_error_returns();
+					if(error_returns.isError()){ return Result::Code::ERROR; }
+
+					const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+
+					const AST::Node created_func_def_node = this->source.ast_buffer.createFuncDef(
+						ASTBuffer::getIdent(method_ident.value()),
+						std::nullopt,
+						std::move(params.value()),
+						attribute_block.value(),
+						std::move(returns.value()),
+						std::move(error_returns.value()),
+						block.value()
+					);
+
+					methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), created_func_def_node);
+				} break;
+
+				default: {
+					this->expected_but_got("method value in interface impl", this->reader.peek());
+					return Result::Code::ERROR;
+				} break;
 			}
-
-
-			methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), ASTBuffer::getIdent(method_value.value()));
 
 
 			// check if ending or should continue

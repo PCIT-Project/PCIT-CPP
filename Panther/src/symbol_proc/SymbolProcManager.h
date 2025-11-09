@@ -1197,6 +1197,27 @@ namespace pcit::panther{
 			}
 
 
+
+			//////////////////
+			// WaitOnSubSymbolProcDecl
+
+			EVO_NODISCARD auto createWaitOnSubSymbolProcDecl(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::WAIT_ON_SUB_SYMBOL_PROC_DECL,
+					this->wait_on_sub_symbol_proc_decls.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getWaitOnSubSymbolProcDecl(Instruction instr) const
+			-> const Instruction::WaitOnSubSymbolProcDecl& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::WAIT_ON_SUB_SYMBOL_PROC_DECL, "Not a WaitOnSubSymbolProcDecl"
+				);
+				return this->wait_on_sub_symbol_proc_decls[instr._index];
+			}
+
+
+
 			//////////////////
 			// WaitOnSubSymbolProcDef
 
@@ -2688,6 +2709,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint32_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TryElseBegin, uint32_t> try_else_begins{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
+			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDecl, uint32_t> wait_on_sub_symbol_proc_decls{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};
 
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, true>, uint32_t>
