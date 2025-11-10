@@ -758,7 +758,9 @@ namespace pcit::panther{
 				this->symbol_proc_id
 			);
 
-			if(this->add_ident_to_scope(var_ident, instr.var_def, new_sema_var).isError()){ return Result::ERROR; }
+			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
+				return Result::ERROR;
+			}
 
 			this->symbol_proc.extra_info.emplace<SymbolProc::NonLocalVarInfo>(new_sema_var);
 
@@ -784,7 +786,7 @@ namespace pcit::panther{
 			}();
 
 			if(this->add_ident_to_scope(
-				var_ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
+				var_ident, instr.var_def.ident, false, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
 			).isError()){
 				return Result::ERROR;
 			}
@@ -957,6 +959,7 @@ namespace pcit::panther{
 			const evo::Result<> add_ident_result = this->add_ident_to_scope(
 				var_ident,
 				instr.var_def,
+				true,
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
 				var_attrs.value().is_pub
@@ -979,6 +982,7 @@ namespace pcit::panther{
 			const evo::Result<> add_ident_result = this->add_ident_to_scope(
 				var_ident,
 				instr.var_def,
+				true,
 				value_term_info.type_id.as<ClangSource::ID>(),
 				instr.var_def.ident,
 				var_attrs.value().is_pub
@@ -1122,7 +1126,9 @@ namespace pcit::panther{
 				this->symbol_proc_id
 			);
 
-			if(this->add_ident_to_scope(var_ident, instr.var_def, new_sema_var).isError()){ return Result::ERROR; }
+			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
+				return Result::ERROR;
+			}
 
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
@@ -1174,7 +1180,7 @@ namespace pcit::panther{
 			}
 
 			if(this->add_ident_to_scope(
-				var_ident, instr.var_def.ident, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
+				var_ident, instr.var_def.ident, false, sema::ScopeLevel::MemberVarFlag{}, instr.var_def.ident
 			).isError()){
 				return Result::ERROR;
 			}
@@ -1342,7 +1348,7 @@ namespace pcit::panther{
 		this->symbol_proc.extra_info.emplace<SymbolProc::AliasInfo>(created_alias.aliasID());
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.alias_def, created_alias.aliasID()).isError()){
+		if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.aliasID()).isError()){
 			return Result::ERROR;
 		}
 
@@ -1413,7 +1419,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_INSTANTIATION == false){
 			const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_def.ident].getString();
-			if(this->add_ident_to_scope(ident_str, instr.struct_def, created_struct.structID()).isError()){
+			if(this->add_ident_to_scope(ident_str, instr.struct_def, true, created_struct.structID()).isError()){
 				return Result::ERROR;
 			}
 		}
@@ -2384,7 +2390,7 @@ namespace pcit::panther{
 		);
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.struct_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.struct_def, new_templated_struct).isError()){
+		if(this->add_ident_to_scope(ident_str, instr.struct_def, true, new_templated_struct).isError()){
 			return Result::ERROR;
 		}
 
@@ -2423,7 +2429,7 @@ namespace pcit::panther{
 
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.union_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.union_def, created_union.unionID()).isError()){
+		if(this->add_ident_to_scope(ident_str, instr.union_def, true, created_union.unionID()).isError()){
 			return Result::ERROR;
 		}
 
@@ -2515,7 +2521,7 @@ namespace pcit::panther{
 
 			const std::string_view ident_str = this->source.getTokenBuffer()[ast_field.ident].getString();
 			if(this->add_ident_to_scope(
-				ident_str, ast_field.ident, sema::ScopeLevel::UnionFieldFlag{}, ast_field.ident, uint32_t(i)
+				ident_str, ast_field.ident, true, sema::ScopeLevel::UnionFieldFlag{}, ast_field.ident, uint32_t(i)
 			).isError()){
 				return Result::ERROR;
 			}
@@ -2622,7 +2628,7 @@ namespace pcit::panther{
 
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.enum_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.enum_def, created_enum.enumID()).isError()){
+		if(this->add_ident_to_scope(ident_str, instr.enum_def, true, created_enum.enumID()).isError()){
 			return Result::ERROR;
 		}
 
@@ -3084,7 +3090,7 @@ namespace pcit::panther{
 			const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
 			if(this->add_ident_to_scope(
-				name_token.getString(), instr.func_def, new_templated_func
+				name_token.getString(), instr.func_def, true, new_templated_func
 			).isError()){
 				return Result::ERROR;
 			}
@@ -3269,10 +3275,36 @@ namespace pcit::panther{
 						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
 					){ // add to scope if not inline-def interface impl method
 						const std::string_view ident_str = name_token.getString();
-						if(this->add_ident_to_scope(
-							ident_str, instr.func_def, created_func_id, this->context).isError()
-						){
-							return Result::ERROR;
+
+						const bool include_shadow_checks = [&]() -> bool {
+							if(this->scope.inObjectScope() == false){ return true; }
+
+							const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
+								this->scope.getCurrentObjectScope();
+
+							return current_object_scope.is<BaseType::Struct::ID>() == false
+								&& current_object_scope.is<BaseType::Union::ID>() == false
+								&& current_object_scope.is<BaseType::Enum::ID>() == false
+								&& current_object_scope.is<BaseType::Interface::ID>() == false;
+						}();
+
+						if(include_shadow_checks){
+							if(this->add_ident_to_scope(
+								ident_str, instr.func_def, true, created_func_id, this->context
+							).isError()){
+								return Result::ERROR;
+							}
+						}else{
+							if(this->add_ident_to_scope(
+								ident_str,
+								instr.func_def,
+								false,
+								sema::ScopeLevel::MethodOverloadFlag{},
+								created_func_id,
+								this->context
+							).isError()){
+								return Result::ERROR;
+							}
 						}
 					}
 				} break;
@@ -4651,7 +4683,7 @@ namespace pcit::panther{
 			].getString();
 
 			if(this->add_ident_to_scope(
-				param_name, param, this->context.sema_buffer.createParam(i, abi_index)
+				param_name, param, true, this->context.sema_buffer.createParam(i, abi_index)
 			).isError()){
 				return Result::ERROR;
 			}
@@ -4668,7 +4700,7 @@ namespace pcit::panther{
 				const sema::ReturnParam::ID created_return_param_id =
 					this->context.sema_buffer.createReturnParam(i, abi_index);
 
-				if(this->add_ident_to_scope(return_param_name, return_param, created_return_param_id).isError()){
+				if(this->add_ident_to_scope(return_param_name, return_param, true, created_return_param_id).isError()){
 					return Result::ERROR;
 				}
 
@@ -4744,6 +4776,7 @@ namespace pcit::panther{
 				if(this->add_ident_to_scope(
 					this->source.getTokenBuffer()[*error_return_param.ident].getString(),
 					error_return_param,
+					true, 
 					created_error_return_param_id
 				).isError()){
 					return Result::ERROR;
@@ -5169,13 +5202,39 @@ namespace pcit::panther{
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
 		if(name_token.kind() == Token::Kind::IDENT){
-			const std::string_view name = name_token.getString();
+			const std::string_view ident_str = name_token.getString();
 			const sema::TemplatedFunc::ID templated_func_id =
 				this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>().templated_func_id;
 
-			if(this->add_ident_to_scope(name, instr.func_def, templated_func_id).isError()){
-				return Result::ERROR;
+
+			const bool include_shadow_checks = [&]() -> bool {
+				if(this->scope.inObjectScope() == false){ return true; }
+
+				const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
+					this->scope.getCurrentObjectScope();
+
+				return current_object_scope.is<BaseType::Struct::ID>() == false
+					&& current_object_scope.is<BaseType::Union::ID>() == false
+					&& current_object_scope.is<BaseType::Enum::ID>() == false
+					&& current_object_scope.is<BaseType::Interface::ID>() == false;
+			}();
+
+			if(include_shadow_checks){
+				if(this->add_ident_to_scope(ident_str, instr.func_def, true, templated_func_id).isError()){
+					return Result::ERROR;
+				}
+			}else{
+				if(this->add_ident_to_scope(
+					ident_str,
+					instr.func_def,
+					false,
+					sema::ScopeLevel::MethodOverloadFlag{},
+					templated_func_id
+				).isError()){
+					return Result::ERROR;
+				}
 			}
+
 
 			this->propagate_finished_decl_def();
 
@@ -5317,7 +5376,7 @@ namespace pcit::panther{
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.interface_def.ident].getString();
 		if(this->add_ident_to_scope(
-			ident_str, instr.interface_def, created_interface_type_id.interfaceID()
+			ident_str, instr.interface_def, true, created_interface_type_id.interfaceID()
 		).isError()){
 			return Result::ERROR;
 		}
@@ -5909,6 +5968,7 @@ namespace pcit::panther{
 			const evo::Result<> add_ident_result = this->add_ident_to_scope(
 				var_ident,
 				instr.var_def,
+				true,
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
 				false
@@ -6014,7 +6074,7 @@ namespace pcit::panther{
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_def, new_sema_var).isError()){ return Result::ERROR; }
+		if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){ return Result::ERROR; }
 
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
@@ -6058,7 +6118,7 @@ namespace pcit::panther{
 		);
 
 		const std::string_view alias_ident = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
-		if(this->add_ident_to_scope(alias_ident, instr.alias_def.ident, created_alias_id.aliasID()).isError()){
+		if(this->add_ident_to_scope(alias_ident, instr.alias_def.ident, true, created_alias_id.aliasID()).isError()){
 			return Result::ERROR;
 		}
 
@@ -8718,7 +8778,7 @@ namespace pcit::panther{
 			except_params.emplace_back(except_param_id);
 
 			if(this->add_ident_to_scope(
-				except_param_ident_str, instr.try_else.exceptParams[i], except_param_id
+				except_param_ident_str, instr.try_else.exceptParams[i], true, except_param_id
 			).isError()){
 				return Result::ERROR;
 			}
@@ -12244,7 +12304,9 @@ namespace pcit::panther{
 			);
 			except_params.emplace_back(sema::Expr(except_param_id));
 
-			if(this->add_ident_to_scope(except_param_ident_str, instr.except_params[i], except_param_id).isError()){
+			if(this->add_ident_to_scope(
+				except_param_ident_str, instr.except_params[i], true, except_param_id
+			).isError()){
 				return Result::ERROR;
 			}
 
@@ -12427,7 +12489,9 @@ namespace pcit::panther{
 				const sema::BlockExprOutput::ID block_expr_output = 
 					this->context.sema_buffer.createBlockExprOutput(uint32_t(i), instr.label, output_type.asTypeID());
 
-				if(this->add_ident_to_scope(ident_str, *instr.block.outputs[i].ident, block_expr_output).isError()){
+				if(this->add_ident_to_scope(
+					ident_str, *instr.block.outputs[i].ident, true, block_expr_output
+				).isError()){
 					return Result::ERROR;
 				}
 
@@ -13250,6 +13314,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							true,
 							sema::ScopeLevel::TemplateTypeParamFlag{},
 							arg.as<TypeInfo::VoidableID>(),
 							ast_template_pack.params[i].ident
@@ -13286,6 +13351,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							true,
 							sema::ScopeLevel::TemplateExprParamFlag{},
 							expr_type_id,
 							arg.as<sema::Expr>(),
@@ -18774,7 +18840,10 @@ namespace pcit::panther{
 
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id));
+				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
+
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()){
+				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
 				if(!variables_in_scope){
@@ -21388,6 +21457,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							template_source.getTokenBuffer()[template_param_names[i]].getString(),
 							template_param_names[i],
+							true,
 							sema::ScopeLevel::TemplateTypeParamFlag{},
 							instantiation_arg.as<TypeInfo::VoidableID>(),
 							template_param_names[i]
@@ -21418,6 +21488,7 @@ namespace pcit::panther{
 							instantiation_sema_scope,
 							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
+							true,
 							sema::ScopeLevel::TemplateExprParamFlag{},
 							expr_type_id,
 							instantiation_arg.as<sema::Expr>(),
@@ -22281,6 +22352,7 @@ namespace pcit::panther{
 					this->add_ident_to_scope(
 						this->source.getTokenBuffer()[deduced_term.tokenID].getString(),
 						deduced_term.tokenID,
+						true,
 						sema::ScopeLevel::DeducedTypeFlag{},
 						deduced_term.value.as<TypeInfo::VoidableID>(),
 						deduced_term.tokenID
@@ -22294,6 +22366,7 @@ namespace pcit::panther{
 					this->add_ident_to_scope(
 						this->source.getTokenBuffer()[deduced_term.tokenID].getString(),
 						deduced_term.tokenID,
+						true,
 						sema::ScopeLevel::DeducedExprFlag{},
 						deduced_term.value.as<DeducedTerm::Expr>().type_id,
 						deduced_term.value.as<DeducedTerm::Expr>().expr,
@@ -24862,6 +24935,7 @@ namespace pcit::panther{
 		sema::ScopeManager::Scope& target_scope,
 		std::string_view ident_str,
 		const auto& ast_node,
+		bool include_shadow_checks,
 		auto&&... ident_id_info
 	) -> evo::Result<> {
 		sema::ScopeLevel& current_scope_level = 
@@ -24882,10 +24956,13 @@ namespace pcit::panther{
 
 
 					const Diagnostic::Location first_ident_location = [&]() -> Diagnostic::Location {
-						if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-							return first_decl_ident_id.front().visit([&](const auto& func_id) -> Diagnostic::Location {
-								return this->get_location(func_id);	
-							});
+						if constexpr(
+							std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()
+							|| std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()
+						){
+							return first_decl_ident_id.funcs.front().visit(
+								[&](const auto& func_id) -> Diagnostic::Location { return this->get_location(func_id); }
+							);
 
 						}else{
 							return this->get_location(first_decl_ident_id);
@@ -24915,7 +24992,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		if(current_scope_level.doesShadowingChecks()){
+		if(include_shadow_checks && current_scope_level.doesShadowingChecks()){
 			for(auto iter = std::next(target_scope.begin()); iter != target_scope.end(); ++iter){
 				sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(*iter);
 				if(scope_level.disallowIdentForShadowing(ident_str, add_ident_result.value()) == false){
@@ -24946,7 +25023,10 @@ namespace pcit::panther{
 
 			static constexpr bool IS_FUNC_OVERLOAD_COLLISION = 
 				std::is_same<std::remove_cvref_t<std::decay_t<decltype(redef_id)>>, pcit::panther::AST::FuncDef>() 
-				&& std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()
+				&& 	(
+						std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()
+						|| std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()
+					)
 				&& !IS_SHADOWING;
 
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -24954,7 +25034,7 @@ namespace pcit::panther{
 			if constexpr(IS_FUNC_OVERLOAD_COLLISION){
 				const sema::Func& attempted_decl_func = this->context.getSemaBuffer().getFunc(*attempted_decl_func_id);
 
-				for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>& overload_id : first_decl_ident_id){
+				for(const sema::ScopeLevel::Overload& overload_id : first_decl_ident_id.funcs){
 					if(overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
 					const sema::Func& overload = this->context.sema_buffer.getFunc(overload_id.as<sema::Func::ID>());
@@ -24967,19 +25047,22 @@ namespace pcit::panther{
 					}
 				}
 				
-			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-				first_decl_ident_id.front().visit([&](const auto& func_id) -> void {
-					if(first_decl_ident_id.size() == 1){
+			}else if constexpr(
+				std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()
+				|| std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()
+			){
+				first_decl_ident_id.funcs.front().visit([&](const auto& func_id) -> void {
+					if(first_decl_ident_id.funcs.size() == 1){
 						infos.emplace_back("First defined here:", this->get_location(func_id));
 
-					}else if(first_decl_ident_id.size() == 2){
+					}else if(first_decl_ident_id.funcs.size() == 2){
 						infos.emplace_back(
 							"First defined here (and 1 other place):", this->get_location(func_id)
 						);
 					}else{
 						infos.emplace_back(
 							std::format(
-								"First defined here (and {} other places):", first_decl_ident_id.size() - 1
+								"First defined here (and {} other places):", first_decl_ident_id.funcs.size() - 1
 							),
 							this->get_location(func_id)
 						);

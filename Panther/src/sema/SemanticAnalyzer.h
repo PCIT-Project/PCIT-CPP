@@ -837,10 +837,14 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto add_ident_to_scope(
-				std::string_view ident_str, const auto& ast_node, auto&&... ident_id_info
+				std::string_view ident_str, const auto& ast_node, bool include_shadow_checks, auto&&... ident_id_info
 			) -> evo::Result<> {
 				return this->add_ident_to_scope(
-					this->scope, ident_str, ast_node, std::forward<decltype(ident_id_info)>(ident_id_info)...
+					this->scope,
+					ident_str,
+					ast_node,
+					include_shadow_checks,
+					std::forward<decltype(ident_id_info)>(ident_id_info)...
 				);
 			}
 
@@ -848,6 +852,7 @@ namespace pcit::panther{
 				sema::ScopeManager::Scope& target_scope,
 				std::string_view ident_str,
 				const auto& ast_node,
+				bool include_shadow_checks,
 				auto&&... ident_id_info
 			) -> evo::Result<>;
 

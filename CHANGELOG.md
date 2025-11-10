@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.186.1"></a>
+## v0.0.186.1
+
+### Panther
+- Fixed shadowing checks for member variables and methods
+
+
+<!---------------------------------->
 <a name="v0.0.186.0"></a>
 ## v0.0.186.0
 

@@ -96,12 +96,14 @@ namespace pcit::panther::sema{
 		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){
 			IdentID& new_ident_id = this->ids.emplace(ident, IdentID()).first->second;
-			new_ident_id.as<FuncOverloadList>().emplace_back(evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id));
+			new_ident_id.as<FuncOverloadList>().funcs.emplace_back(
+				evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+			);
 			return &new_ident_id;
 
 		}else{
 			if(ident_find->second.is<FuncOverloadList>()){
-				FuncOverloadList& overload_list = ident_find->second.as<FuncOverloadList>();
+				OverloadList& overload_list = ident_find->second.as<FuncOverloadList>().funcs;
 
 				const sema::Func& new_sema = context.getSemaBuffer().getFunc(id);
 				
@@ -122,6 +124,48 @@ namespace pcit::panther::sema{
 		}
 	}
 
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, MethodOverloadFlag, sema::FuncID id, const Context& context)
+	-> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+
+		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){
+			IdentID& new_ident_id = this->ids.emplace(ident, IdentID(MethodOverloadList())).first->second;
+			new_ident_id.as<MethodOverloadList>().funcs.emplace_back(
+				evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+			);
+			return &new_ident_id;
+
+		}else{
+			if(ident_find->second.is<MethodOverloadList>()){
+				OverloadList& overload_list = ident_find->second.as<MethodOverloadList>().funcs;
+
+				const sema::Func& new_sema = context.getSemaBuffer().getFunc(id);
+				
+				for(const evo::Variant<sema::FuncID, sema::TemplatedFuncID>& overload : overload_list){
+					if(overload.is<sema::TemplatedFuncID>()){ continue; };
+
+					const sema::Func& overload_sema = context.getSemaBuffer().getFunc(overload.as<sema::FuncID>());
+					if(overload_sema.instanceID != std::numeric_limits<uint32_t>::max()){ continue; }
+
+					if(new_sema.isEquivalentOverload(overload_sema, context)){ return evo::Unexpected(false); }
+				}
+
+				overload_list.emplace_back(evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id));
+				return &ident_find->second;
+			}else{
+				return evo::Unexpected(false);
+			}
+		}
+	}
+
+
+
+
 	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedFuncID id) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
@@ -130,12 +174,14 @@ namespace pcit::panther::sema{
 		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
 		if(ident_find == this->ids.end()){
 			IdentID& new_ident_id = this->ids.emplace(ident, IdentID()).first->second;
-			new_ident_id.as<FuncOverloadList>().emplace_back(evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id));
+			new_ident_id.as<FuncOverloadList>().funcs.emplace_back(
+				evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+			);
 			return &new_ident_id;
 
 		}else{
 			if(ident_find->second.is<FuncOverloadList>()){
-				ident_find->second.as<FuncOverloadList>().emplace_back(
+				ident_find->second.as<FuncOverloadList>().funcs.emplace_back(
 					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
 				);
 				return &ident_find->second;
@@ -144,6 +190,33 @@ namespace pcit::panther::sema{
 			}
 		}
 	}
+
+
+	auto ScopeLevel::addIdent(std::string_view ident, MethodOverloadFlag, sema::TemplatedFuncID id) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
+
+		const std::unordered_map<std::string_view, IdentID>::iterator ident_find = this->ids.find(ident);
+		if(ident_find == this->ids.end()){
+			IdentID& new_ident_id = this->ids.emplace(ident, IdentID(MethodOverloadList())).first->second;
+			new_ident_id.as<MethodOverloadList>().funcs.emplace_back(
+				evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+			);
+			return &new_ident_id;
+
+		}else{
+			if(ident_find->second.is<MethodOverloadList>()){
+				ident_find->second.as<MethodOverloadList>().funcs.emplace_back(
+					evo::Variant<sema::FuncID, sema::TemplatedFuncID>(id)
+				);
+				return &ident_find->second;
+			}else{
+				return evo::Unexpected(false);
+			}
+		}
+	}
+
 
 
 	auto ScopeLevel::addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult {
@@ -315,7 +388,8 @@ namespace pcit::panther::sema{
 
 		const auto find = this->ids.find(ident);
 		if(find != this->ids.end()){
-			return find->second.is<MemberVar>(); // done this way as you can't shadow a member var
+			// make sure you can't shadow a member var or method
+			return find->second.is<MemberVar>() || find->second.is<MethodOverloadList>();
 		}
 
 		this->disallowed_idents_for_shadowing.emplace(ident, id);

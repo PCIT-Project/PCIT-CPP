@@ -2,6 +2,7 @@ def std_exp = @import("std_exp/std_exp.pthr");
 
 
 
+
 type Array = struct {
 	def LENGTH: USize = 3;
 
@@ -18,8 +19,12 @@ type Array = struct {
 		return this._data[index];
 	}
 
-	func size = (this) -> USize {
-		return LENGTH;
+	func data = (this) -> Int* { return this[0]; }
+	func size = (this) -> USize { return LENGTH; }
+
+
+	func as = (this) -> [Int:*] {
+		return new [Int:*](this.data(), this.size());
 	}
 
 
@@ -172,7 +177,9 @@ func inc_attr = (iterable: @pthr.MutIterable mut) -> Void {
 func entry = () #entry -> UI8 {
 	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
 
-	inc_attr(array);
+	var arr_ref: [Int:*] = array as [Int:*];
+
+	// inc_attr(arr_ref);
 
 	return sum_arr(array) as UI8;
 }

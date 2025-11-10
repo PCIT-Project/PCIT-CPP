@@ -116,10 +116,21 @@ namespace pcit::panther::sema{
 				uint32_t field_index;
 			};
 
-			using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
+			using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
+			using OverloadList = evo::SmallVector<Overload>;
+
+			struct FuncOverloadList{
+				OverloadList funcs;
+			};
+
+			struct MethodOverloadFlag{};
+			struct MethodOverloadList{
+				OverloadList funcs;
+			};
 
 			using IdentID = evo::Variant<
 				FuncOverloadList,
+				MethodOverloadList,
 				sema::VarID,
 				sema::GlobalVarID,
 				sema::ParamID,
@@ -235,7 +246,12 @@ namespace pcit::panther::sema{
 
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::FuncID id, const class panther::Context& context)
 				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, MethodOverloadFlag, sema::FuncID id, const class panther::Context& context
+			) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedFuncID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, MethodOverloadFlag, sema::TemplatedFuncID id)
+				-> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult;
