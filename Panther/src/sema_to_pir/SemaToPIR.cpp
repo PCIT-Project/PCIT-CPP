@@ -596,15 +596,15 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::lowerInterfaceVTable(
-		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
-		return this->lower_interface_vtable_impl<false>(interface_id, type, funcs);
+		return this->lower_interface_vtable_impl<false>(interface_id, type_id, funcs);
 	}
 
 	auto SemaToPIR::lowerInterfaceVTableConstexpr(
-		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
-		return this->lower_interface_vtable_impl<true>(interface_id, type, funcs);
+		return this->lower_interface_vtable_impl<true>(interface_id, type_id, funcs);
 	}
 
 
@@ -906,7 +906,7 @@ namespace pcit::panther{
 
 	template<bool IS_CONSTEXPR>
 	auto SemaToPIR::lower_interface_vtable_impl(
-		BaseType::Interface::ID interface_id, BaseType::ID type, const evo::SmallVector<sema::Func::ID>& funcs
+		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
 		evo::debugAssert(
 			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
@@ -914,21 +914,37 @@ namespace pcit::panther{
 		);
 
 		std::string vtable_name = [&](){
-			switch(type.kind()){
+			const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+
+			if(type_info.qualifiers().empty() == false){
+				return std::format("PTHR.vtable.i{}.qt{}", interface_id.get(), type_id.get());
+			}
+
+			switch(type_info.baseTypeID().kind()){
 				case BaseType::Kind::PRIMITIVE:
-					return std::format("PTHR.vtable.i{}.p{}", interface_id.get(), type.primitiveID().get());
+					return std::format(
+						"PTHR.vtable.i{}.p{}", interface_id.get(), type_info.baseTypeID().primitiveID().get()
+					);
 
 				case BaseType::Kind::ARRAY:
-					return std::format("PTHR.vtable.i{}.a{}", interface_id.get(), type.arrayID().get());
+					return std::format(
+						"PTHR.vtable.i{}.a{}", interface_id.get(), type_info.baseTypeID().arrayID().get()
+					);
 
 				case BaseType::Kind::DISTINCT_ALIAS:
-					return std::format("PTHR.vtable.i{}.t{}", interface_id.get(), type.distinctAliasID().get());
+					return std::format(
+						"PTHR.vtable.i{}.da{}", interface_id.get(), type_info.baseTypeID().distinctAliasID().get()
+					);
 
 				case BaseType::Kind::STRUCT:
-					return std::format("PTHR.vtable.i{}.s{}", interface_id.get(), type.structID().get());
+					return std::format(
+						"PTHR.vtable.i{}.s{}", interface_id.get(), type_info.baseTypeID().structID().get()
+					);
 
 				case BaseType::Kind::UNION:
-					return std::format("PTHR.vtable.i{}.u{}", interface_id.get(), type.unionID().get());
+					return std::format(
+						"PTHR.vtable.i{}.u{}", interface_id.get(), type_info.baseTypeID().unionID().get()
+					);
 
 				case BaseType::Kind::DUMMY:                   case BaseType::Kind::FUNCTION:
 				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::ARRAY_REF:
@@ -975,7 +991,7 @@ namespace pcit::panther{
 			true
 		);
 
-		this->data.create_vtable(Data::VTableID(interface_id, type), vtable);
+		this->data.create_vtable(Data::VTableID(interface_id, type_id), vtable);
 	}
 
 
@@ -8492,10 +8508,9 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(BaseType::Interface::ID interface_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
-			const Source& source = this->context.getSourceManager()[interface_type.sourceID];
 
 			return std::format(
-				"PTHR.i{}.{}", interface_id.get(), source.getTokenBuffer()[interface_type.identTokenID].getString()
+				"PTHR.i{}.{}", interface_id.get(), interface_type.getName(this->context.getSourceManager())
 			);
 
 		}else{

@@ -484,17 +484,34 @@ namespace pcit::panther{
 
 				EVO_NODISCARD static auto get(BaseType::Alias::ID alias_id, const class Context& context)
 					-> Location;
+				EVO_NODISCARD static auto get(const BaseType::Alias& alias_type, const class Context& context)
+					-> Location;
+
+				EVO_NODISCARD static auto get(
+					BaseType::DistinctAlias::ID distinct_alias_id, const class Context& context
+				) -> Location;
+				EVO_NODISCARD static auto get(
+					const BaseType::DistinctAlias& distinct_alias_type, const class Context& context
+				) -> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Struct::ID struct_id, const class Context& context)
+					-> Location;
+				EVO_NODISCARD static auto get(const BaseType::Struct& struct_type, const class Context& context)
 					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Union::ID union_id, const class Context& context)
 					-> Location;
+				EVO_NODISCARD static auto get(const BaseType::Union& union_type, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Enum::ID enum_id, const class Context& context)
 					-> Location;
+				EVO_NODISCARD static auto get(const BaseType::Enum& enum_type, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Interface::ID interface_id, const class Context& context)
+					-> Location;
+				EVO_NODISCARD static auto get(const BaseType::Interface& interface_type, const class Context& context)
 					-> Location;
 		
 			private:

@@ -1,11 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.186.0"></a>
+## v0.0.186.0
+
+### Panther
+- Added builtin iterating interfaces:
+	- `@pthr.Iterable` and `@pthr.Iterator`
+	- `@pthr.MutIterable` and `@pthr.MutIterator`
+	- `@pthr.RTIterable` and `@pthr.RTIterator`
+	- `@pthr.MutRTIterable` and `@pthr.MutRTIterator`
+- Fixed automatic dereference of struct methods and indexers not properly considering if the pointer is `mut` or not
+- Fixed interface impl inline-defined function definitions being added to namespace
+
+
+<!---------------------------------->
 <a name="v0.0.185.0"></a>
 ## v0.0.185.0
 
 ### Panther
-- Added interface impl inline function definition
+- Added interface impl inline-defined function definition
 
 
 <!---------------------------------->

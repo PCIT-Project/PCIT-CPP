@@ -2304,8 +2304,7 @@ namespace pcit::panther{
 						break;
 
 					}else{
-						if(this->assert_token(Token::lookupKind("[")).isError()){ return Result::Code::ERROR; }
-
+						const Token::ID open_bracket = this->reader.next();
 
 						auto indices = evo::SmallVector<AST::Node>();
 						while(true){
@@ -2337,7 +2336,8 @@ namespace pcit::panther{
 							}
 						}
 
-						output = this->source.ast_buffer.createIndexer(output.value(), std::move(indices));
+						output =
+							this->source.ast_buffer.createIndexer(output.value(), std::move(indices), open_bracket);
 					}
 				} break;
 

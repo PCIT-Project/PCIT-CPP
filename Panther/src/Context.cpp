@@ -1992,31 +1992,37 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// pthr
 
-		BuiltinModule& builtin_module = this->source_manager[BuiltinModule::ID::PTHR];
+		BuiltinModule& pthr_module = this->source_manager[BuiltinModule::ID::PTHR];
+
+		const BuiltinModule::StringID pthr_module_this_string = pthr_module.createString("this");
+
+
+		//////////////////
+		// ProjectWarningSettings
 
 		{
 			auto project_warning_settings_members = evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					builtin_module.createString("methodCallOnNonMethod"),
+					pthr_module.createString("methodCallOnNonMethod"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					builtin_module.createString("deleteMovedFromExpr"),
+					pthr_module.createString("deleteMovedFromExpr"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					builtin_module.createString("deleteTriviallyDeletableType"),
+					pthr_module.createString("deleteTriviallyDeletableType"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					builtin_module.createString("constexprIfCond"),
+					pthr_module.createString("constexprIfCond"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
@@ -2032,7 +2038,7 @@ namespace pcit::panther{
 			const BaseType::ID project_warning_settings_type = this->type_manager.getOrCreateStruct(
 				BaseType::Struct(
 					BuiltinModule::ID::PTHR,
-					builtin_module.createString("ProjectWarningSettings"),
+					pthr_module.createString("ProjectWarningSettings"),
 					std::nullopt,
 					std::numeric_limits<uint32_t>::max(),
 					std::move(project_warning_settings_members),
@@ -2048,20 +2054,756 @@ namespace pcit::panther{
 
 			sema_to_pir.lowerStruct(project_warning_settings_type.structID());
 
-			builtin_module.createSymbol("ProjectWarningSettings", project_warning_settings_type);
+			pthr_module.createSymbol("ProjectWarningSettings", project_warning_settings_type);
 		}
+
+
+		//////////////////
+		// ProjectID
 
 		{
 			const BaseType::ID project_id = this->type_manager.getOrCreateAlias(
 				BaseType::Alias(
 					BuiltinModule::ID::PTHR,
-					builtin_module.createString("ProjectID"),
+					pthr_module.createString("ProjectID"),
 					std::optional<TypeInfo::ID>(TypeManager::getTypeUI32()),
 					false
 				)
 			);
 
-			builtin_module.createSymbol("ProjectID", project_id);
+			pthr_module.createSymbol("ProjectID", project_id);
+		}
+
+
+
+		//////////////////
+		// Iterator
+
+		const BaseType::ID iterator_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Iterator"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("Iterator", iterator_id);
+
+		{
+			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_id));
+
+			BaseType::Interface& iterator_type = this->type_manager.getInterface(iterator_id.interfaceID());
+
+
+			// func next = (this mut) #rt -> Void;
+			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID next_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("next"),
+				std::string(),
+				next_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(next_func_id);
+
+
+			// func get = (this) #rt -> $$*;
+			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
+				)
+			);
+
+			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID get_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("get"),
+				std::string(),
+				get_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(get_func_id);
+
+
+
+			// func atEnd = (this) #rt -> Bool;
+			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID at_end_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("atEnd"),
+				std::string(),
+				at_end_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(at_end_func_id);
+		}
+
+
+		//////////////////
+		// Iterable
+
+		const BaseType::ID iterable_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Iterable"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("Iterable", iterable_id);
+
+		{
+			const TypeInfo::ID iterable_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_id));
+
+			BaseType::Interface& iterable_type = this->type_manager.getInterface(iterable_id.interfaceID());
+
+
+			// func createIterator = (this) #rt -> @pthr.Iterator;
+			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(
+							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_id))
+						)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID create_iterator_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("createIterator"),
+				std::string(),
+				create_iterator_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterable_type.methods.emplace_back(create_iterator_func_id);
+		}
+
+
+		//////////////////
+		// MutIterator
+
+		const BaseType::ID mut_iterator_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("MutIterator"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("MutIterator", mut_iterator_id);
+
+		{
+			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_id));
+
+			BaseType::Interface& iterator_type = this->type_manager.getInterface(mut_iterator_id.interfaceID());
+
+
+			// func next = (this mut) #rt -> Void;
+			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID next_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("next"),
+				std::string(),
+				next_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				true,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(next_func_id);
+
+
+			// func get = (this) #rt -> $$*mut;
+			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createMutPtr()}
+				)
+			);
+
+			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID get_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("get"),
+				std::string(),
+				get_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				true,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(get_func_id);
+
+
+
+			// func atEnd = (this) #rt -> Bool;
+			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID at_end_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("atEnd"),
+				std::string(),
+				at_end_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				true,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterator_type.methods.emplace_back(at_end_func_id);
+		}
+
+
+		//////////////////
+		// MutIterable
+
+		const BaseType::ID mut_iterable_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("MutIterable"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("MutIterable", mut_iterable_id);
+
+		{
+			const TypeInfo::ID iterable_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterable_id));
+
+			BaseType::Interface& iterable_type = this->type_manager.getInterface(mut_iterable_id.interfaceID());
+
+
+			// func createIterator = (this) #rt -> @pthr.MutIterator;
+			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(
+							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_id))
+						)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID create_iterator_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("createIterator"),
+				std::string(),
+				create_iterator_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				true,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			iterable_type.methods.emplace_back(create_iterator_func_id);
+		}
+
+
+
+		//////////////////
+		// RTIterator
+
+		const BaseType::ID rt_iterator_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("RTIterator"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("RTIterator", rt_iterator_id);
+
+		{
+			const TypeInfo::ID rt_iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(rt_iterator_id));
+
+			BaseType::Interface& rt_iterator_type = this->type_manager.getInterface(rt_iterator_id.interfaceID());
+
+
+			// func next = (this mut) #rt -> Void;
+			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID next_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("next"),
+				std::string(),
+				next_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(next_func_id);
+
+
+			// func get = (this) #rt -> $$*;
+			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
+				)
+			);
+
+			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID get_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("get"),
+				std::string(),
+				get_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(get_func_id);
+
+
+
+			// func atEnd = (this) #rt -> Bool;
+			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID at_end_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("atEnd"),
+				std::string(),
+				at_end_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(at_end_func_id);
+		}
+
+
+		//////////////////
+		// RTIterable
+
+		const BaseType::ID rt_iterable_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("RTIterable"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("RTIterable", rt_iterable_id);
+
+		{
+			const TypeInfo::ID rt_iterable_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(rt_iterable_id));
+
+			BaseType::Interface& rt_iterable_type = this->type_manager.getInterface(rt_iterable_id.interfaceID());
+
+
+			// func createIterator = (this) #rt -> @pthr.RTIterator;
+			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterable_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(
+							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(rt_iterator_id))
+						)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID create_iterator_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("createIterator"),
+				std::string(),
+				create_iterator_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterable_type.methods.emplace_back(create_iterator_func_id);
+		}
+
+
+		//////////////////
+		// MutRTIterator
+
+		const BaseType::ID mut_rt_iterator_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("MutRTIterator"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("MutRTIterator", mut_rt_iterator_id);
+
+		{
+			const TypeInfo::ID rt_iterator_type_id =
+				this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_rt_iterator_id));
+
+			BaseType::Interface& rt_iterator_type = this->type_manager.getInterface(mut_rt_iterator_id.interfaceID());
+
+
+			// func next = (this mut) #rt -> Void;
+			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID next_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("next"),
+				std::string(),
+				next_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(next_func_id);
+
+
+			// func get = (this) #rt -> $$*mut;
+			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createMutPtr()}
+				)
+			);
+
+			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID get_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("get"),
+				std::string(),
+				get_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(get_func_id);
+
+
+
+			// func atEnd = (this) #rt -> Bool;
+			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID at_end_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("atEnd"),
+				std::string(),
+				at_end_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterator_type.methods.emplace_back(at_end_func_id);
+		}
+
+
+		//////////////////
+		// MutRTIterable
+
+		const BaseType::ID mut_rt_iterable_id = this->type_manager.getOrCreateInterface(
+			BaseType::Interface(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("MutRTIterable"),
+				std::nullopt,
+				false,
+				false
+			)
+		);
+
+		pthr_module.createSymbol("MutRTIterable", mut_rt_iterable_id);
+
+		{
+			const TypeInfo::ID rt_iterable_type_id =
+				this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_rt_iterable_id));
+
+			BaseType::Interface& rt_iterable_type = this->type_manager.getInterface(mut_rt_iterable_id.interfaceID());
+
+
+			// func createIterator = (this) #rt -> @pthr.MutRTIterator;
+			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(rt_iterable_type_id, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(
+							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_rt_iterator_id))
+						)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			const sema::Func::ID create_iterator_func_id = this->sema_buffer.createFunc(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("createIterator"),
+				std::string(),
+				create_iterator_type_id.funcID(),
+				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				std::nullopt,
+				1,
+				false,
+				false,
+				false,
+				false
+			);
+
+			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+
+			rt_iterable_type.methods.emplace_back(create_iterator_func_id);
 		}
 	}
 

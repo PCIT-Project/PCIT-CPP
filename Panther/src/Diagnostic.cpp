@@ -189,7 +189,7 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const AST::Indexer& indexer, const Source& src) -> Location {
-		return Location::get(indexer.target, src);
+		return Location::get(indexer.openBracket, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::TemplatedExpr& templated_expr, const Source& src) -> Location {
@@ -300,6 +300,9 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<NameType, sema::Func::CompilerCreatedOpOverload>()){
 				return Location::get(name.parentName, context.getSourceManager()[func.sourceID.as<Source::ID>()]);
 
+			}else if constexpr(std::is_same<NameType, BuiltinModule::StringID>()){
+				return Location::BUILTIN;
+
 			}else{
 				static_assert(false, "Unknown name kind");
 			}
@@ -316,69 +319,99 @@ namespace pcit::panther{
 
 
 	auto Diagnostic::Location::get(BaseType::Alias::ID alias_id, const Context& context) -> Location {
-		const BaseType::Alias& alias_def = context.getTypeManager().getAlias(alias_id);
-
-		if(alias_def.isPTHRSourceType()){
+		return Location::get(context.getTypeManager().getAlias(alias_id), context);
+	}
+	auto Diagnostic::Location::get(const BaseType::Alias& alias_type, const Context& context) -> Location {
+		if(alias_type.isPTHRSourceType()){
 			return Location::get(
-				alias_def.name.as<Token::ID>(), context.getSourceManager()[alias_def.sourceID.as<Source::ID>()]
+				alias_type.name.as<Token::ID>(), context.getSourceManager()[alias_type.sourceID.as<Source::ID>()]
 			);
-		}else if(alias_def.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[alias_def.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(alias_def.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(alias_type.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[alias_type.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(alias_type.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
 		}
+	}
+
+
+	auto Diagnostic::Location::get(BaseType::DistinctAlias::ID distinct_alias_id, const Context& context) -> Location {
+		return Location::get(context.getTypeManager().getDistinctAlias(distinct_alias_id), context);
+	}
+	auto Diagnostic::Location::get(const BaseType::DistinctAlias& distinct_alias_type, const Context& context)
+	-> Location {
+		return Location::get(
+			distinct_alias_type.identTokenID, context.getSourceManager()[distinct_alias_type.sourceID]
+		);
 	}
 
 
 	auto Diagnostic::Location::get(BaseType::Struct::ID struct_id, const Context& context) -> Location {
-		const BaseType::Struct& struct_def = context.getTypeManager().getStruct(struct_id);
+		return Location::get(context.getTypeManager().getStruct(struct_id), context);
 
-		if(struct_def.isPTHRSourceType()){
+	}
+	auto Diagnostic::Location::get(const BaseType::Struct& struct_type, const Context& context) -> Location {
+		if(struct_type.isPTHRSourceType()){
 			return Location::get(
-				struct_def.name.as<Token::ID>(), context.getSourceManager()[struct_def.sourceID.as<Source::ID>()]
+				struct_type.name.as<Token::ID>(), context.getSourceManager()[struct_type.sourceID.as<Source::ID>()]
 			);
-		}else if(struct_def.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[struct_def.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(struct_def.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(struct_type.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[struct_type.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(struct_type.name.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
 		}
 	}
 
-	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
-		const BaseType::Union& union_def = context.getTypeManager().getUnion(union_id);
 
-		if(union_def.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[union_def.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(union_def.location.as<ClangSource::DeclInfoID>()).location;
+	auto Diagnostic::Location::get(BaseType::Union::ID union_id, const Context& context) -> Location {
+		return Location::get(context.getTypeManager().getUnion(union_id), context);
+	}
+	auto Diagnostic::Location::get(const BaseType::Union& union_type, const Context& context) -> Location {
+		if(union_type.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[union_type.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(union_type.location.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::get(
-				union_def.location.as<Token::ID>(), context.getSourceManager()[union_def.sourceID.as<Source::ID>()]
+				union_type.location.as<Token::ID>(), context.getSourceManager()[union_type.sourceID.as<Source::ID>()]
 			);
 		}
 	}
+
 
 	auto Diagnostic::Location::get(BaseType::Enum::ID enum_id, const Context& context) -> Location {
-		const BaseType::Enum& enum_def = context.getTypeManager().getEnum(enum_id);
-
-		if(enum_def.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[enum_def.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(enum_def.location.as<ClangSource::DeclInfoID>()).location;
+		return Location::get(context.getTypeManager().getEnum(enum_id), context);
+	}
+	auto Diagnostic::Location::get(const BaseType::Enum& enum_type, const Context& context) -> Location {
+		if(enum_type.isClangType()){
+			const ClangSource& clang_source = context.getSourceManager()[enum_type.sourceID.as<ClangSource::ID>()];
+			return clang_source.getDeclInfo(enum_type.location.as<ClangSource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::get(
-				enum_def.location.as<Token::ID>(), context.getSourceManager()[enum_def.sourceID.as<Source::ID>()]
+				enum_type.location.as<Token::ID>(), context.getSourceManager()[enum_type.sourceID.as<Source::ID>()]
 			);
 		}
 	}
 
+
 	auto Diagnostic::Location::get(BaseType::Interface::ID interface_id, const Context& context) -> Location {
-		const BaseType::Interface& interface_def = context.getTypeManager().getInterface(interface_id);
-		return Location::get(interface_def.identTokenID, context.getSourceManager()[interface_def.sourceID]);
+		return Diagnostic::Location::get(context.getTypeManager().getInterface(interface_id), context);
+	}
+
+	auto Diagnostic::Location::get(const BaseType::Interface& interface_type, const Context& context) -> Location {
+		if(interface_type.sourceID.is<SourceID>()){
+			return Location::get(
+				interface_type.name.as<Token::ID>(),
+				context.getSourceManager()[interface_type.sourceID.as<Source::ID>()]
+			);
+			
+		}else{
+			return Location::BUILTIN;
+		}
 	}
 
 

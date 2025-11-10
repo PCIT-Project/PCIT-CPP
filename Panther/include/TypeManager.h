@@ -730,16 +730,14 @@ namespace pcit::panther{
 
 
 
-		// TODO(FUTURE): is `.sourceID` ever actually used (outside of operator==),
-		// 		and can this `identTokenID` be "inlined" into ID?
 		struct TypeDeducer{
 			using ID = TypeDeducerID;
 
-			Token::ID identTokenID;
-			SourceID sourceID;
+			std::optional<SourceID> sourceID; // nullopt if builtin
+			std::optional<Token::ID> identTokenID; // nullopt if builtin
 
 			EVO_NODISCARD auto operator==(const TypeDeducer& rhs) const -> bool {
-				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
+				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
 			}
 		};
 
@@ -752,21 +750,23 @@ namespace pcit::panther{
 				evo::SmallVector<sema::FuncID> methods;
 			};
 			
-			Token::ID identTokenID;
-			SourceID sourceID;
-			SymbolProcID symbolProcID;
+			evo::Variant<SourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, BuiltinModuleStringID> name;
+			std::optional<SymbolProcID> symbolProcID; // nullopt if builtin
 			bool isPub;
 			bool isPolymorphic;
 
 			evo::SmallVector<sema::FuncID> methods{};
 
-			std::unordered_map<BaseType::ID, const Impl&> impls{};
+			std::unordered_map<TypeInfoID, const Impl&> impls{};
 			mutable evo::SpinLock implsLock{};
 
 			std::atomic<bool> defCompleted = false;
 
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+
 			EVO_NODISCARD auto operator==(const Interface& rhs) const -> bool {
-				return this->identTokenID == rhs.identTokenID && this->sourceID == rhs.sourceID;
+				return this->sourceID == rhs.sourceID && this->name == rhs.name;
 			}
 		};
 
@@ -810,6 +810,15 @@ namespace pcit::panther{
 					evo::debugAssert(is_mut || is_ptr, "mut must be a pointer");
 					evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
 				}
+
+
+				static auto createPtr()            -> Qualifier { return Qualifier(true, false, false, false); }
+				static auto createMutPtr()         -> Qualifier { return Qualifier(true, true, false, false);  }
+				static auto createUninitPtr()      -> Qualifier { return Qualifier(true, false, true, false);  }
+				static auto createOptionalPtr()    -> Qualifier { return Qualifier(true, false, false, true);  }
+				static auto createOptionalMutPtr() -> Qualifier { return Qualifier(true, true, false, true);   }
+				static auto createOptional()       -> Qualifier { return Qualifier(false, false, false, true); }
+
 
 				EVO_NODISCARD auto operator==(const Qualifier& rhs) const -> bool {
 					return (std::bit_cast<uint8_t>(*this) & 0b1111) == (std::bit_cast<uint8_t>(rhs) & 0b1111);

@@ -2905,9 +2905,9 @@ namespace pcit::panther{
 							param_type_info.baseTypeID().interfaceID()
 						);
 
-						const TypeInfo& arg_type_info = this->context.getTypeManager().getTypeInfo(
-							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
-						);
+						const TypeInfo::ID arg_type_info_id =
+							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
+						const TypeInfo& arg_type_info = this->context.getTypeManager().getTypeInfo(arg_type_info_id);
 
 						if(arg_type_info.qualifiers().empty() == false){
 							func_info.instantiation->errored_reason = 
@@ -2922,12 +2922,10 @@ namespace pcit::panther{
 						}
 
 						const auto lock = std::scoped_lock(param_interface.implsLock);
-						if(param_interface.impls.contains(arg_type_info.baseTypeID()) == false){
+						if(param_interface.impls.contains(arg_type_info_id) == false){
 							func_info.instantiation->errored_reason = 
 								sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
-									i,
-									param_type_id.asTypeID(),
-									*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
+									i, param_type_id.asTypeID(), arg_type_info_id
 								};
 
 							this->propagate_finished_decl();
@@ -3266,9 +3264,16 @@ namespace pcit::panther{
 
 			switch(name_token.kind()){
 				case Token::Kind::IDENT: {
-					const std::string_view ident_str = name_token.getString();
-					if(this->add_ident_to_scope(ident_str, instr.func_def, created_func_id, this->context).isError()){
-						return Result::ERROR;
+					if(
+						this->symbol_proc.parent == nullptr
+						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+					){ // add to scope if not inline-def interface impl method
+						const std::string_view ident_str = name_token.getString();
+						if(this->add_ident_to_scope(
+							ident_str, instr.func_def, created_func_id, this->context).isError()
+						){
+							return Result::ERROR;
+						}
 					}
 				} break;
 
@@ -5302,8 +5307,8 @@ namespace pcit::panther{
 
 		const BaseType::ID created_interface_type_id = this->context.type_manager.getOrCreateInterface(
 			BaseType::Interface(
-				instr.interface_def.ident,
 				this->source.getID(),
+				instr.interface_def.ident,
 				this->symbol_proc_id,
 				interface_attrs.value().is_pub,
 				interface_attrs.value().is_polymorphic
@@ -5539,8 +5544,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result {
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
-		const Source& target_source = this->context.getSourceManager()[info.target_interface.sourceID];
-
 		info.interface_impl.methods.reserve(info.target_interface.methods.size());
 
 		const auto interface_has_member = [&](std::string_view ident) -> bool {
@@ -5611,10 +5614,7 @@ namespace pcit::panther{
 							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
 							method_init.method,
 							std::format("This interface has no method \"{}\"", method_init_name),
-							Diagnostic::Info(
-								"Interface was declared here:",
-								Diagnostic::Location::get(info.target_interface.identTokenID, target_source)
-							)
+							Diagnostic::Info("Interface was declared here:", this->get_location(info.target_interface))
 						);
 						return Result::ERROR;
 					}
@@ -5802,7 +5802,10 @@ namespace pcit::panther{
 		{
 			const auto lock = std::scoped_lock(info.target_interface.implsLock);
 			info.target_interface.impls.emplace(
-				BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()), info.interface_impl
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+				),
+				info.interface_impl
 			);
 		}
 
@@ -5847,12 +5850,13 @@ namespace pcit::panther{
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
 		if(info.target_interface.isPolymorphic){
-			const BaseType::ID current_type_base_type_id =
-				BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>());
+			const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+			);
 
 			const BaseType::Interface::Impl& interface_impl = [&](){
 				const auto lock = std::scoped_lock(info.target_interface.implsLock);
-				return info.target_interface.impls.at(current_type_base_type_id);
+				return info.target_interface.impls.at(current_type_id);
 			}();
 
 
@@ -5861,7 +5865,7 @@ namespace pcit::panther{
 			);
 
 			sema_to_pir.lowerInterfaceVTableConstexpr(
-				info.target_interface_id, current_type_base_type_id, interface_impl.methods
+				info.target_interface_id, current_type_id, interface_impl.methods
 			);
 		}
 
@@ -12663,6 +12667,10 @@ namespace pcit::panther{
 						actual_target_type.copyWithPoppedQualifier()
 					);
 
+					target.value_category = actual_target_type.qualifiers().back().isMut
+						? TermInfo::ValueCategory::CONCRETE_MUT
+						: TermInfo::ValueCategory::CONCRETE_CONST;
+
 					target.type_id = target_deref_type_id;
 
 					target.getExpr() = sema::Expr(
@@ -14403,7 +14411,7 @@ namespace pcit::panther{
 
 		const auto impl_exists = [&]() -> bool {
 			const auto lock = std::scoped_lock(target_interface.implsLock);
-			return target_interface.impls.contains(from_type_info.baseTypeID());
+			return target_interface.impls.contains(from_expr.type_id.as<TypeInfo::ID>());
 		};
 
 
@@ -14418,7 +14426,7 @@ namespace pcit::panther{
 			}
 
 			const sema::MakeInterfacePtr::ID make_interface_ptr_id = this->context.sema_buffer.createMakeInterfacePtr(
-				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_type_info.baseTypeID()
+				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_expr.type_id.as<TypeInfo::ID>()
 			);
 
 			this->return_term_info(instr.output,
@@ -14485,7 +14493,7 @@ namespace pcit::panther{
 			}
 
 			const sema::MakeInterfacePtr::ID make_interface_ptr_id = this->context.sema_buffer.createMakeInterfacePtr(
-				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_type_info.baseTypeID()
+				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_expr.type_id.as<TypeInfo::ID>()
 			);
 
 			this->return_term_info(instr.output,
@@ -16656,7 +16664,7 @@ namespace pcit::panther{
 									core::GenericValue('\0')
 								)
 							),
-							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier(true, false, false, false)}
+							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
 						)
 					),
 					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
@@ -16767,7 +16775,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result {
 		const BaseType::ID new_type_deducer = this->context.type_manager.getOrCreateTypeDeducer(
-			BaseType::TypeDeducer(instr.type_deducer_token, this->source.getID())
+			BaseType::TypeDeducer(this->source.getID(), instr.type_deducer_token)
 		);
 
 		this->return_term_info(instr.output,
@@ -17201,12 +17209,12 @@ namespace pcit::panther{
 
 
 		// make sure def of target interface completed
-		if(target_interface.defCompleted.load() == false){
+		if(target_interface.defCompleted.load() == false && target_interface.symbolProcID.has_value()){
 			SymbolProc& target_interface_symbol_proc =
-				this->context.symbol_proc_manager.getSymbolProc(target_interface.symbolProcID);
+				this->context.symbol_proc_manager.getSymbolProc(*target_interface.symbolProcID);
 
 			const SymbolProc::WaitOnResult wait_on_result = target_interface_symbol_proc.waitOnDefIfNeeded(
-				this->symbol_proc_id, this->context, target_interface.symbolProcID
+				this->symbol_proc_id, this->context, *target_interface.symbolProcID
 			);
 				
 			switch(wait_on_result){
@@ -17267,9 +17275,7 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(
-				this->context.getTypeManager().getTypeInfo(*impl_instantiation_type_id).baseTypeID()
-			);
+			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(*impl_instantiation_type_id);
 
 			auto func_overload_list = TermInfo::FuncOverloadList();
 			for(size_t i = 0; const sema::Func::ID method_id : target_interface.methods){
@@ -17569,8 +17575,12 @@ namespace pcit::panther{
 					TypeInfo(actual_lhs_type.baseTypeID())
 				);
 
+				const sema::FakeTermInfo::ValueCategory value_category = actual_lhs_type.qualifiers().back().isMut
+					? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
+					: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+
 				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
+					value_category,
 					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
 					resultant_type_id,
@@ -21921,7 +21931,7 @@ namespace pcit::panther{
 
 				const auto impl_exists = [&]() -> bool {
 					const auto lock = std::scoped_lock(interface_type.implsLock);
-					return interface_type.impls.contains(match_type.baseTypeID());
+					return interface_type.impls.contains(match_type_id);
 				};
 
 				if(impl_exists()){ return true; }
@@ -22015,14 +22025,18 @@ namespace pcit::panther{
 				const BaseType::TypeDeducer& type_deducer = 
 					type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
 
-				const Token& type_deducer_token = this->source.getTokenBuffer()[type_deducer.identTokenID];
+				if(type_deducer.sourceID.has_value() == false){
+					return output;
+				}
+
+				const Token& type_deducer_token = this->source.getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
 					return output;
 				}
 
 				if(deducer.qualifiers().empty()){
-					output.emplace_back(got_type_id, type_deducer.identTokenID);
+					output.emplace_back(got_type_id, *type_deducer.identTokenID);
 				}else{
 					auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
@@ -22034,7 +22048,7 @@ namespace pcit::panther{
 						this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(got_type.baseTypeID(), std::move(qualifiers))
 						),
-						type_deducer.identTokenID
+						*type_deducer.identTokenID
 					);
 				}
 			} break;
@@ -22223,22 +22237,24 @@ namespace pcit::panther{
 								deducer_arg_deducer_type_info.baseTypeID().typeDeducerID()
 							);
 
+						if(deducer_arg_deducer.sourceID.has_value()){
+							const Token& deducer_token =
+								this->source.getTokenBuffer()[*deducer_arg_deducer.identTokenID];
 
-						const Token& deducer_token = this->source.getTokenBuffer()[deducer_arg_deducer.identTokenID];
+							if(deducer_token.kind() == Token::Kind::DEDUCER){
+								const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
 
-						if(deducer_token.kind() == Token::Kind::DEDUCER){
-							const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
-
-							output.emplace_back(
-								DeducedTerm::Expr(
-									arg_type_id,
-									this->generic_value_to_sema_expr(
-										got_arg.as<core::GenericValue>(),
-										this->context.getTypeManager().getTypeInfo(arg_type_id)
-									)
-								),
-								deducer_arg_deducer.identTokenID
-							);
+								output.emplace_back(
+									DeducedTerm::Expr(
+										arg_type_id,
+										this->generic_value_to_sema_expr(
+											got_arg.as<core::GenericValue>(),
+											this->context.getTypeManager().getTypeInfo(arg_type_id)
+										)
+									),
+									*deducer_arg_deducer.identTokenID
+								);
+							}
 						}
 
 					}else{

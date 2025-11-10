@@ -166,6 +166,17 @@ namespace pcit::panther{
 	}
 
 
+	auto BaseType::Interface::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->sourceID.is<SourceID>()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
+
 
 
 
@@ -779,8 +790,12 @@ namespace pcit::panther{
 				const BaseType::TypeDeducer::ID type_deducer_id = base_type_id.typeDeducerID();
 				const BaseType::TypeDeducer& type_deducer = this->getTypeDeducer(type_deducer_id);
 
+				if(type_deducer.sourceID.has_value() == false){
+					return "$$";
+				}
+
 				const Token& token =
-					source_manager[type_deducer.sourceID].getTokenBuffer()[type_deducer.identTokenID];
+					source_manager[*type_deducer.sourceID].getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(token.kind() == Token::Kind::DEDUCER){
 					return std::format("${}", token.getString());
@@ -796,8 +811,7 @@ namespace pcit::panther{
 				const BaseType::Interface::ID interface_id = base_type_id.interfaceID();
 				const BaseType::Interface& interface_info = this->getInterface(interface_id);
 
-				const TokenBuffer& token_buffer = source_manager[interface_info.sourceID].getTokenBuffer();
-				return std::string(token_buffer[interface_info.identTokenID].getString());
+				return std::string(interface_info.getName(source_manager));
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
@@ -1248,8 +1262,8 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Interface::ID new_interface = this->interfaces.emplace_back(
-			lookup_type.identTokenID,
 			lookup_type.sourceID,
+			lookup_type.name,
 			lookup_type.symbolProcID,
 			lookup_type.isPub,
 			lookup_type.isPolymorphic

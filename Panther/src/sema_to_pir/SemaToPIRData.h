@@ -24,7 +24,7 @@ namespace pcit::panther{
 	
 	struct SemaToPIRDataVTableID{
 		BaseType::Interface::ID interface_id;
-		BaseType::ID impl_id;
+		TypeInfo::ID impl_id;
 
 		EVO_NODISCARD auto operator==(const SemaToPIRDataVTableID&) const -> bool = default;
 	};
@@ -40,7 +40,7 @@ namespace std{
 	struct hash<pcit::panther::SemaToPIRDataVTableID>{
 		auto operator()(const pcit::panther::SemaToPIRDataVTableID& key) const noexcept -> size_t {
 			return evo::hashCombine(
-				std::hash<uint32_t>{}(key.interface_id.get()), std::hash<pcit::panther::BaseType::ID>{}(key.impl_id)
+				std::hash<uint32_t>{}(key.interface_id.get()), std::hash<pcit::panther::TypeInfo::ID>{}(key.impl_id)
 			);
 		};
 	};

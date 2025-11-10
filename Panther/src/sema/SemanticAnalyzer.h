@@ -977,10 +977,13 @@ namespace pcit::panther{
 				return Diagnostic::Location::get(var, this->source, this->context);
 			}
 
-			EVO_NODISCARD auto get_location(const sema::ParamID& param) const -> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = param;
-				evo::unimplemented();
+			EVO_NODISCARD auto get_location(sema::ParamID param_id) const -> Diagnostic::Location {
+				const sema::Param& param = this->context.getSemaBuffer().getParam(param_id);
+
+				const AST::FuncDef& current_ast_func =
+					this->source.getASTBuffer().getFuncDef(this->symbol_proc.ast_node);
+
+				return this->get_location(current_ast_func.params[param.index].name);
 			}
 
 			EVO_NODISCARD auto get_location(sema::ReturnParam::ID return_param_id) const -> Diagnostic::Location {
@@ -1024,38 +1027,55 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Didn't find a scope that is a block expression");
 			}
 
-			EVO_NODISCARD auto get_location(const sema::ExceptParamID& except_param) const -> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = except_param;
-				evo::unimplemented();
+			EVO_NODISCARD auto get_location(sema::ExceptParamID except_param_id) const -> Diagnostic::Location {
+				const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(except_param_id);
+				return this->get_location(except_param.ident);
 			}
 
 
 			EVO_NODISCARD auto get_location(BaseType::Alias::ID alias_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(alias_id, this->context);
 			}
+			EVO_NODISCARD auto get_location(const BaseType::Alias& alias_type) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(alias_type, this->context);
+			}
 
 			EVO_NODISCARD auto get_location(BaseType::DistinctAlias::ID distinct_alias_id) const
 			-> Diagnostic::Location {
-				// TODO(FUTURE): 
-				std::ignore = distinct_alias_id;
-				evo::unimplemented();
+				return Diagnostic::Location::get(distinct_alias_id, this->context);
+			}
+			EVO_NODISCARD auto get_location(const BaseType::DistinctAlias& distinct_alias_type) const
+			-> Diagnostic::Location {
+				return Diagnostic::Location::get(distinct_alias_type, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(BaseType::Struct::ID struct_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(struct_id, this->context);
 			}
+			EVO_NODISCARD auto get_location(const BaseType::Struct& struct_type) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(struct_type, this->context);
+			}
 
 			EVO_NODISCARD auto get_location(BaseType::Union::ID union_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(union_id, this->context);
+			}
+			EVO_NODISCARD auto get_location(const BaseType::Union& union_type) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(union_type, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(BaseType::Enum::ID enum_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(enum_id, this->context);
 			}
+			EVO_NODISCARD auto get_location(const BaseType::Enum& enum_type) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(enum_type, this->context);
+			}
 
 			EVO_NODISCARD auto get_location(BaseType::Interface::ID interface_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(interface_id, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(const BaseType::Interface& interface_type) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(interface_type, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(sema::TemplatedStruct::ID templated_struct_id) const

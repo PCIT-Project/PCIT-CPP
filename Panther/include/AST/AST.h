@@ -344,6 +344,7 @@ namespace pcit::panther::AST{
 	struct Indexer{
 		Node target;
 		evo::SmallVector<Node> indices;
+		Token::ID openBracket;
 	};
 
 	struct TemplatePack{

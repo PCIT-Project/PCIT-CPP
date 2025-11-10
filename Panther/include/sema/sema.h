@@ -263,7 +263,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		BaseType::Interface::ID interfaceID;
-		BaseType::ID implTypeID;
+		TypeInfo::ID implTypeID;
 	};
 
 	struct InterfacePtrExtractThis{
@@ -563,7 +563,7 @@ namespace pcit::panther::sema{
 		};
 
 		struct Param{
-			evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> ident;
 			std::optional<Expr> defaultValue;
 		};
 
@@ -574,14 +574,14 @@ namespace pcit::panther::sema{
 			DEF_DONE,
 		};
 
-		evo::Variant<SourceID, ClangSourceID> sourceID;
-		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload> name;
+		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
+		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
 		std::string clangMangledName; // empty if not clang type
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
-		uint32_t minNumArgs; // TODO(PERF): make sure this optimization actually improves perf
-		bool isPub; // meaningless if is Clang type
+		uint32_t minNumArgs;
+		bool isPub; // meaningless if is Clang or builtin type
 		bool isConstexpr;
 		bool isExport; // always true if is clang type
 		bool hasInParam; // always false if is clang type
@@ -597,6 +597,8 @@ namespace pcit::panther::sema{
 		std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
 
 		EVO_NODISCARD auto isClangFunc() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+		EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
+		
 		EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 		EVO_NODISCARD auto getParamName(
 			const Param& param, const class panther::SourceManager& source_manager

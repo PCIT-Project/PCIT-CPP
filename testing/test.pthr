@@ -1,21 +1,9 @@
 def std_exp = @import("std_exp/std_exp.pthr");
 
 
-interface Iterable = {
-	func createIterator = (this) #rt -> Iterator;
-	func size = (this) #rt -> USize;
-}
-
-
-interface Iterator = {
-	func next = (this mut) #rt -> Void;
-	func get = (this) #rt -> $$*;
-	func atEnd = (this) #rt -> Bool;
-}
-
 
 type Array = struct {
-	def LENGTH: USize = 4;
+	def LENGTH: USize = 3;
 
 	func new = (data: [Int:LENGTH] in) -> (output: This) {
 		output._data = forward data;
@@ -36,13 +24,29 @@ type Array = struct {
 
 
 
-
-	impl Iterable {
+	impl @pthr.Iterable {
 		createIterator = (this) -> ArrIter {
 			return new ArrIter(&this);
 		},
+	}
 
-		size = size,
+
+	impl @pthr.MutIterable {
+		createIterator = (this mut) -> MutArrIter {
+			return new MutArrIter(&this);
+		},
+	}
+
+	impl @pthr.RTIterable {
+		createIterator = (this) #rt -> ArrIter {
+			return new ArrIter(&this);
+		},
+	}
+
+	impl @pthr.MutRTIterable {
+		createIterator = (this mut) #rt -> MutArrIter {
+			return new MutArrIter(&this);
+		},
 	}
 
 
@@ -61,35 +65,86 @@ type Array = struct {
 			return...;
 		}
 
-		impl Iterator{
-			next = (this mut) -> Void {
-				const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
-				this.current = std_exp.bitCast<{Int*}>(new_address);
-			},
+		func next = (this mut) -> Void {
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+			this.current = std_exp.bitCast<{Int*}>(new_address);
+		}
 
-			get = (this) -> Int* { return copy this.current; },
+		func get = (this) -> Int* { return copy this.current; }
 
-			atEnd = (this) -> Bool {
-				return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-			},
+		func atEnd = (this) -> Bool {
+			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+		}
+
+
+		impl @pthr.Iterator {
+			next = next,
+			get = get,
+			atEnd = atEnd,
+		}
+
+		impl @pthr.RTIterator {
+			next = next,
+			get = get,
+			atEnd = atEnd,
 		}
 
 		var arr: Array*;
 		var current: Int*;
 		var last: Int*;
 	}
+
+
+	type MutArrIter = struct {
+		func new = (arr: Array*mut) -> (output: MutArrIter) {
+			output.arr = copy arr;
+			output.current = arr[0];
+			output.last = arr[arr.size() - 1];
+			return...;
+		}
+
+		func next = (this mut) -> Void {
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+			this.current = std_exp.bitCast<{Int*mut}>(new_address);
+		}
+
+		func get = (this) -> Int*mut { return copy this.current; }
+
+		func atEnd = (this) -> Bool {
+			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+		}
+
+
+		impl @pthr.MutIterator {
+			next = next,
+			get = get,
+			atEnd = atEnd,
+		}
+
+		impl @pthr.MutRTIterator {
+			next = next,
+			get = get,
+			atEnd = atEnd,
+		}
+
+		var arr: Array*mut;
+		var current: Int*mut;
+		var last: Int*mut;
+	}
+
 }
 
 
 
 
 
-func sum_arr = (iterable: Iterable) #rt -> Int {
-	func sum_arr_impl = (iter: Iterator in) -> (count: Int) {
+func sum_arr = (iterable: @pthr.Iterable) -> Int {
+	func sum_arr_impl = (iter: @pthr.Iterator in) -> (count: Int) {
 		count = 0;
 
 		while(iter.atEnd() == false){
 			defer{ iter.next(); }
+
 			count += iter.get().*;
 		}
 
@@ -101,10 +156,23 @@ func sum_arr = (iterable: Iterable) #rt -> Int {
 
 
 
+func inc_attr = (iterable: @pthr.MutIterable mut) -> Void {
+	var iter = iterable.createIterator();
+
+	while(iter.atEnd() == false){
+		defer{ iter.next(); }
+
+		iter.get().* += 1;
+	}
+}
+
+
 
 
 func entry = () #entry -> UI8 {
-	var array = new Array(new [Int:Array.LENGTH][1, 2, 3, 4]);
+	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
+
+	inc_attr(array);
 
 	return sum_arr(array) as UI8;
 }
