@@ -1608,7 +1608,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of type deducer");
+				evo::debugFatalBreak("Cannot get size of interface");
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
@@ -1798,7 +1798,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugAssert("Cannot get size of type deducer");
+				evo::debugAssert("Cannot get size of interface");
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {

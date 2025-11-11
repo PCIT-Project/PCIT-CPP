@@ -129,6 +129,7 @@ namespace pcit::panther{
 
 	auto SemaToPIR::lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID {
 		return *this->lower_func_decl(func_id);
+
 	}
 
 	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> void {

@@ -250,8 +250,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getDeletedSpecialMethod(instr)
 				);
 
+			case Instruction::Kind::INTERFACE_PREPARE:
+				return this->instr_interface_prepare(this->context.symbol_proc_manager.getInterfacePrepare(instr));
+
 			case Instruction::Kind::INTERFACE_DECL:
-				return this->instr_interface_decl(this->context.symbol_proc_manager.getInterfaceDecl(instr));
+				return this->instr_interface_decl();
 
 			case Instruction::Kind::INTERFACE_DEF:
 				return this->instr_interface_def();
@@ -261,6 +264,11 @@ namespace pcit::panther{
 
 			case Instruction::Kind::INTERFACE_IMPL_DECL:
 				return this->instr_interface_impl_decl(this->context.symbol_proc_manager.getInterfaceImplDecl(instr));
+
+			case Instruction::Kind::INTERFACE_IN_DEF_IMPL_DECL:
+				return this->instr_interface_in_def_impl_decl(
+					this->context.symbol_proc_manager.getInterfaceInDefImplDecl(instr)
+				);
 
 			case Instruction::Kind::INTERFACE_IMPL_METHOD_LOOKUP:
 				return this->instr_interface_impl_method_lookup(
@@ -2907,35 +2915,25 @@ namespace pcit::panther{
 
 				}else{
 					if(param_type_is_interface){
-						const BaseType::Interface& param_interface = this->context.getTypeManager().getInterface(
-							param_type_info.baseTypeID().interfaceID()
-						);
-
 						const TypeInfo::ID arg_type_info_id =
 							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
-						const TypeInfo& arg_type_info = this->context.getTypeManager().getTypeInfo(arg_type_info_id);
 
-						if(arg_type_info.qualifiers().empty() == false){
-							func_info.instantiation->errored_reason = 
-								sema::TemplatedFunc::Instantiation::ErroredReasonArgTypeMismatch{
-									i,
-									param_type_id.asTypeID(),
-									*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
-								};
+						const evo::Expected<bool, Result> interface_match_result = 
+							this->interface_matches(param_type_id.asTypeID(), arg_type_info_id);
 
-							this->propagate_finished_decl();
-							return Result::FINISHED_EARLY;
-						}
+						if(interface_match_result.has_value()){
+							if(interface_match_result.value() == false){
+								func_info.instantiation->errored_reason = 
+									sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
+										i, param_type_id.asTypeID(), arg_type_info_id
+									};
 
-						const auto lock = std::scoped_lock(param_interface.implsLock);
-						if(param_interface.impls.contains(arg_type_info_id) == false){
-							func_info.instantiation->errored_reason = 
-								sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
-									i, param_type_id.asTypeID(), arg_type_info_id
-								};
+								this->propagate_finished_decl();
+								return Result::FINISHED_EARLY;
+							}
 
-							this->propagate_finished_decl();
-							return Result::FINISHED_EARLY;
+						}else{
+							return interface_match_result.error();
 						}
 					}
 				}
@@ -3047,12 +3045,34 @@ namespace pcit::panther{
 						std::is_same<TypeScope, BaseType::Struct::ID>() 
 						|| std::is_same<TypeScope, BaseType::Union::ID>()
 						|| std::is_same<TypeScope, BaseType::Enum::ID>()
-						|| std::is_same<TypeScope, BaseType::Interface::ID>()
 					){
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
 						);
+
 						params.emplace_back(this_type, type_param_kind, false);
+
+					}else if constexpr(std::is_same<TypeScope, BaseType::Interface::ID>()){
+						const TypeInfo::ID this_type = [&]() -> TypeInfo::ID {
+							if(
+								this->symbol_proc.parent != nullptr
+								&& this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>()
+							){
+								const SymbolProc::InterfaceImplInfo& impl_info = 
+									this->symbol_proc.parent->extra_info.as<SymbolProc::InterfaceImplInfo>();
+
+								return impl_info.type_info.as<TypeInfo::ID>();
+
+							}else{
+								return this->context.type_manager.getOrCreateTypeInfo(
+									TypeInfo(BaseType::ID(type_scope))
+								);
+							}
+						}();
+
+
+						params.emplace_back(this_type, type_param_kind, false);
+
 					}else{
 						evo::debugFatalBreak("Invalid type object scope");
 					}
@@ -4519,7 +4539,6 @@ namespace pcit::panther{
 					current_struct.indexerOverloads.emplace_back(created_func_id);
 				} break;
 			}
-
 		}
 
 
@@ -4541,6 +4560,27 @@ namespace pcit::panther{
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
 		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+
+		//////////////////
+		// check valid interface method default impl
+
+		if(
+			this->symbol_proc.parent == nullptr
+			|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+		){
+			if(
+				this->scope.getCurrentInterfaceScopeIfExists().has_value() && current_func.isMethod(this->context)
+			){
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.func_def,
+					"Interface methods with [this] parameter with default implementation are unimplemented"
+				);
+				return Result::ERROR;
+			}
+		}
+
 
 
 		//////////////////
@@ -4819,11 +4859,17 @@ namespace pcit::panther{
 		}
 
 
-		{
+		{ // add to interface method if it's a default method
 			const std::optional<sema::ScopeManager::Scope::ObjectScope> current_interface_scope = 
 				this->scope.getCurrentInterfaceScopeIfExists();
 
-			if(current_interface_scope.has_value()){
+			if(
+				current_interface_scope.has_value()
+				&&  (
+						this->symbol_proc.parent == nullptr
+						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+					)
+			){
 				BaseType::Interface& current_interface = this->context.type_manager.getInterface(
 					current_interface_scope->as<BaseType::Interface::ID>()
 				);
@@ -5358,7 +5404,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_interface_decl(const Instruction::InterfaceDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_interface_prepare(const Instruction::InterfacePrepare& instr) -> Result {
 		const evo::Result<InterfaceAttrs> interface_attrs = this->analyze_interface_attrs(
 			instr.interface_def, instr.attribute_params_info
 		);
@@ -5389,22 +5435,17 @@ namespace pcit::panther{
 			this->symbol_proc_id
 		);
 
-		this->propagate_finished_decl();
 
 		return Result::SUCCESS;
 	}
 
 
 
-	auto SemanticAnalyzer::instr_interface_def() -> Result {
+	auto SemanticAnalyzer::instr_interface_decl() -> Result {
 		BaseType::Interface::ID current_interface_id =
 			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
 
 		BaseType::Interface& current_interface = this->context.type_manager.getInterface(current_interface_id);
-
-		current_interface.defCompleted = true;
-
-		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
 		if(current_interface.isPolymorphic){
 			for(const sema::Func::ID method_id : current_interface.methods){
@@ -5429,6 +5470,21 @@ namespace pcit::panther{
 			);
 			sema_to_pir.lowerInterface(current_interface_id);
 		}
+
+		this->propagate_finished_decl();
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_interface_def() -> Result {
+		BaseType::Interface::ID current_interface_id =
+			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+
+		this->context.type_manager.getInterface(current_interface_id).defCompleted = true;
+
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
 		this->propagate_finished_def();
 
@@ -5523,7 +5579,41 @@ namespace pcit::panther{
 		BaseType::Interface::Impl& interface_impl = this->context.type_manager.createInterfaceImpl();
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
-			target_interface_id, target_interface, current_struct, interface_impl
+			target_interface_id,
+			target_interface,
+			SymbolProc::InterfaceImplInfo::ParentTypeInfo(
+				*current_struct.namespacedMembers, *current_struct.scopeLevel, current_struct.sourceID.as<Source::ID>()
+			),
+			interface_impl
+		);
+
+		this->propagate_finished_decl();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_interface_in_def_impl_decl(const Instruction::InterfaceInDefImplDecl& instr)
+	-> Result {
+		const TypeInfo::VoidableID target_type_id = this->get_type(instr.target);
+
+		if(target_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
+				instr.interface_impl.target,
+				"Interface impl target is not an interface"
+			);
+			return Result::ERROR;
+		}
+
+		const BaseType::Interface::ID target_interface_id =
+			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
+
+		BaseType::Interface::Impl& interface_impl = this->context.type_manager.createInterfaceImpl();
+
+		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
+			target_interface_id, target_interface, target_type_id.asTypeID(), interface_impl
 		);
 
 		this->propagate_finished_decl();
@@ -5539,7 +5629,8 @@ namespace pcit::panther{
 		const std::string_view target_ident_str = this->source.getTokenBuffer()[instr.method_name].getString();
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<false>(
-			info.current_struct.namespacedMembers, target_ident_str
+			&info.type_info.as<SymbolProc::InterfaceImplInfo::ParentTypeInfo>().namespaced_members,
+			target_ident_str
 		);
 
 		switch(wait_on_symbol_proc_result){
@@ -5570,10 +5661,12 @@ namespace pcit::panther{
 			this->analyze_expr_ident_in_scope_level<false, false>(
 				instr.method_name,
 				target_ident_str,
-				*info.current_struct.scopeLevel,
+				info.type_info.as<SymbolProc::InterfaceImplInfo::ParentTypeInfo>().scope_level,
 				true,
 				true,
-				&this->context.getSourceManager()[info.current_struct.sourceID.as<Source::ID>()]
+				&this->context.getSourceManager()[
+					info.type_info.as<SymbolProc::InterfaceImplInfo::ParentTypeInfo>().source_id
+				]
 			);
 
 
@@ -5855,17 +5948,20 @@ namespace pcit::panther{
 			}
 		}
 
-
-
-
 		{
+			const TypeInfo::ID target_type_id = [&](){
+				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+					);
+					
+				}else{
+					return info.type_info.as<TypeInfo::ID>();
+				}
+			}();
+
 			const auto lock = std::scoped_lock(info.target_interface.implsLock);
-			info.target_interface.impls.emplace(
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
-				),
-				info.interface_impl
-			);
+			info.target_interface.impls.emplace(target_type_id, info.interface_impl);
 		}
 
 		this->propagate_finished_def();
@@ -5909,9 +6005,16 @@ namespace pcit::panther{
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
 		if(info.target_interface.isPolymorphic){
-			const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
-				TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
-			);
+			const TypeInfo::ID current_type_id = [&](){
+				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+					);
+					
+				}else{
+					return info.type_info.as<TypeInfo::ID>();
+				}
+			}();
 
 			const BaseType::Interface::Impl& interface_impl = [&](){
 				const auto lock = std::scoped_lock(info.target_interface.implsLock);
@@ -22000,6 +22103,34 @@ namespace pcit::panther{
 				const BaseType::Interface& interface_type =
 					this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
 
+				
+				if(interface_type.symbolProcID.has_value()){
+					SymbolProc& interface_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
+
+					const SymbolProc::WaitOnResult wait_on_result = interface_symbol_proc.waitOnDefIfNeeded(
+						this->symbol_proc_id, this->context, *interface_type.symbolProcID
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED:
+							break;
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return evo::Unexpected(Result::NEED_TO_WAIT);
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return evo::Unexpected(Result::ERROR);
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return evo::Unexpected(Result::ERROR);
+					}
+				}
+
+
 				const auto impl_exists = [&]() -> bool {
 					const auto lock = std::scoped_lock(interface_type.implsLock);
 					return interface_type.impls.contains(match_type_id);
@@ -24092,8 +24223,6 @@ namespace pcit::panther{
 		this->symbol_proc.def_done = true;
 
 		this->propagate_finished_impl(this->symbol_proc.decl_waited_on_by, symbol_procs_to_put_in_work_queue);
-
-		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);
 		this->propagate_finished_impl(this->symbol_proc.def_waited_on_by, symbol_procs_to_put_in_work_queue);
 
 		this->put_propogated_symbol_procs_into_work_queue(symbol_procs_to_put_in_work_queue);

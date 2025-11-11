@@ -1113,20 +1113,43 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createInterfaceDecl(
+			this->context.symbol_proc_manager.createInterfacePrepare(
 				interface_def, std::move(attribute_params_info.value())
 			)
 		);
 
 		this->symbol_scopes.emplace_back(nullptr);
+
+		// methods
 		this->symbol_namespaces.emplace_back(nullptr);
 		for(const AST::Node& method : interface_def.methods){
 			if(this->analyze_local_func(method).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
+
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceDecl());
+
+		// impls
+		if(interface_def.impls.empty() == false){
+			this->symbol_namespaces.emplace_back(nullptr);
+			for(const AST::Node& impl : interface_def.impls){
+				const evo::Result<SymbolProc::ID> impl_symbol_proc_id = this->build(impl);
+				if(impl_symbol_proc_id.isError()){ return evo::resultError; }
+
+				this->context.symbol_proc_manager.getSymbolProc(impl_symbol_proc_id.value()).is_local_symbol = true;
+				this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(impl_symbol_proc_id.value())
+				);
+			}
+			this->symbol_namespaces.pop_back();
+		}
+
 		this->symbol_scopes.pop_back();
 
 		this->add_instruction(this->context.symbol_proc_manager.createInterfaceDef());
+
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 		
@@ -1158,18 +1181,20 @@ namespace pcit::panther{
 
 		if(target.isError()){ return evo::resultError; }
 
+		const bool in_def = this->get_parent_symbol().symbol_proc.ast_node.kind() == AST::Kind::INTERFACE_DEF;
 
-		this->add_instruction(
-			this->context.symbol_proc_manager.createInterfaceImplDecl(interface_impl, target.value())
-		);
+		if(in_def){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createInterfaceInDefImplDecl(interface_impl, target.value())
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createInterfaceImplDecl(interface_impl, target.value())
+			);
+		}
 
 		for(const AST::InterfaceImpl::Method& method : interface_impl.methods){
-			if(method.value.is<Token::ID>()){
-				this->add_instruction(
-					this->context.symbol_proc_manager.createInterfaceImplMethodLookup(method.value.as<Token::ID>())
-				);
-
-			}else{
+			if(in_def || method.value.is<AST::Node>()){
 				const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(method.value.as<AST::Node>());
 				if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
@@ -1178,6 +1203,11 @@ namespace pcit::panther{
 
 				this->add_instruction(
 					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDecl(func_symbol_proc_id.value())
+				);
+				
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createInterfaceImplMethodLookup(method.value.as<Token::ID>())
 				);
 			}
 		}

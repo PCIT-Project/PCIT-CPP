@@ -1,187 +1,32 @@
-def std_exp = @import("std_exp/std_exp.pthr");
+// def std_exp = @import("std_exp/std_exp.pthr");
 
 
+interface Shape = {
+	func area = (this) -> USize;
 
-
-type Array = struct {
-	def LENGTH: USize = 3;
-
-	func new = (data: [Int:LENGTH] in) -> (output: This) {
-		output._data = forward data;
-		return...;
-	}
-
-	func [] = (this, index: USize) -> Int* {
-		return this._data[index];
-	}
-
-	func [] = (this mut, index: USize) -> Int*mut {
-		return this._data[index];
-	}
-
-	func data = (this) -> Int* { return this[0]; }
-	func size = (this) -> USize { return LENGTH; }
-
-
-	func as = (this) -> [Int:*] {
-		return new [Int:*](this.data(), this.size());
-	}
-
-
-
-	impl @pthr.Iterable {
-		createIterator = (this) -> ArrIter {
-			return new ArrIter(&this);
-		},
-	}
-
-
-	impl @pthr.MutIterable {
-		createIterator = (this mut) -> MutArrIter {
-			return new MutArrIter(&this);
-		},
-	}
-
-	impl @pthr.RTIterable {
-		createIterator = (this) #rt -> ArrIter {
-			return new ArrIter(&this);
-		},
-	}
-
-	impl @pthr.MutRTIterable {
-		createIterator = (this mut) #rt -> MutArrIter {
-			return new MutArrIter(&this);
-		},
-	}
-
-
-
-	var _data: [Int:LENGTH];
-
-
-	///////////////////////////////////
-	// iters
-
-	type ArrIter = struct {
-		func new = (arr: Array*) -> (output: ArrIter) {
-			output.arr = copy arr;
-			output.current = arr[0];
-			output.last = arr[arr.size() - 1];
-			return...;
-		}
-
-		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
-			this.current = std_exp.bitCast<{Int*}>(new_address);
-		}
-
-		func get = (this) -> Int* { return copy this.current; }
-
-		func atEnd = (this) -> Bool {
-			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-		}
-
-
-		impl @pthr.Iterator {
-			next = next,
-			get = get,
-			atEnd = atEnd,
-		}
-
-		impl @pthr.RTIterator {
-			next = next,
-			get = get,
-			atEnd = atEnd,
-		}
-
-		var arr: Array*;
-		var current: Int*;
-		var last: Int*;
-	}
-
-
-	type MutArrIter = struct {
-		func new = (arr: Array*mut) -> (output: MutArrIter) {
-			output.arr = copy arr;
-			output.current = arr[0];
-			output.last = arr[arr.size() - 1];
-			return...;
-		}
-
-		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
-			this.current = std_exp.bitCast<{Int*mut}>(new_address);
-		}
-
-		func get = (this) -> Int*mut { return copy this.current; }
-
-		func atEnd = (this) -> Bool {
-			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-		}
-
-
-		impl @pthr.MutIterator {
-			next = next,
-			get = get,
-			atEnd = atEnd,
-		}
-
-		impl @pthr.MutRTIterator {
-			next = next,
-			get = get,
-			atEnd = atEnd,
-		}
-
-		var arr: Array*mut;
-		var current: Int*mut;
-		var last: Int*mut;
-	}
-
-}
-
-
-
-
-
-func sum_arr = (iterable: @pthr.Iterable) -> Int {
-	func sum_arr_impl = (iter: @pthr.Iterator in) -> (count: Int) {
-		count = 0;
-
-		while(iter.atEnd() == false){
-			defer{ iter.next(); }
-
-			count += iter.get().*;
-		}
-
-		return...;
-	}
-
-	return sum_arr_impl(iterable.createIterator());
-}
-
-
-
-func inc_attr = (iterable: @pthr.MutIterable mut) -> Void {
-	var iter = iterable.createIterator();
-
-	while(iter.atEnd() == false){
-		defer{ iter.next(); }
-
-		iter.get().* += 1;
+	impl Rectangle {
+		area = (this) -> USize { return this.width * this.height; }
 	}
 }
 
 
+
+type Rectangle = struct {
+	var width: USize;
+	var height: USize;
+}
+
+
+
+func get_area = (shape: Shape) -> USize {
+	return shape.area();
+}
 
 
 func entry = () #entry -> UI8 {
-	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
-
-	var arr_ref: [Int:*] = array as [Int:*];
-
-	// inc_attr(arr_ref);
-
-	return sum_arr(array) as UI8;
+	var rect = new Rectangle{width = 2, height = 4};
+	
+	return get_area(rect) as UI8;
 }
 
 
@@ -189,41 +34,185 @@ func entry = () #entry -> UI8 {
 
 
 
-// interface Poly = #polymorphic {
-// 	func get_num = (this) -> UI8;
-// 	func increase_num = (this mut) -> Void;
-// }
 
-// type Thing = struct {
-// 	func get_num = (this) -> UI8 {
-// 		return copy this.num;
+// type Array = struct {
+// 	def LENGTH: USize = 3;
+
+// 	func new = (data: [Int:LENGTH] in) -> (output: This) {
+// 		output._data = forward data;
+// 		return...;
 // 	}
 
-// 	func increase_num = (this mut) -> Void {
-// 		this.num = 14;
+// 	func [] = (this, index: USize) -> Int* {
+// 		return this._data[index];
 // 	}
 
-// 	impl Poly{
-// 		get_num      = get_num,
-// 		increase_num = increase_num,
+// 	func [] = (this mut, index: USize) -> Int*mut {
+// 		return this._data[index];
 // 	}
 
-// 	var num: UI8 = 12;
+// 	func data = (this) -> Int* { return this[0]; }
+// 	func size = (this) -> USize { return LENGTH; }
+
+
+// 	func as = (this) -> [Int:*] {
+// 		return new [Int:*](this.data(), this.size());
+// 	}
+
+
+
+// 	impl @pthr.Iterable {
+// 		createIterator = (this) -> ArrIter {
+// 			return new ArrIter(&this);
+// 		},
+// 	}
+
+
+// 	impl @pthr.MutIterable {
+// 		createIterator = (this mut) -> MutArrIter {
+// 			return new MutArrIter(&this);
+// 		},
+// 	}
+
+// 	impl @pthr.RTIterable {
+// 		createIterator = (this) #rt -> ArrIter {
+// 			return new ArrIter(&this);
+// 		},
+// 	}
+
+// 	impl @pthr.MutRTIterable {
+// 		createIterator = (this mut) #rt -> MutArrIter {
+// 			return new MutArrIter(&this);
+// 		},
+// 	}
+
+
+
+// 	var _data: [Int:LENGTH];
+
+
+// 	///////////////////////////////////
+// 	// iters
+
+// 	type ArrIter = struct {
+// 		func new = (arr: Array*) -> (output: ArrIter) {
+// 			output.arr = copy arr;
+// 			output.current = arr[0];
+// 			output.last = arr[arr.size() - 1];
+// 			return...;
+// 		}
+
+// 		func next = (this mut) -> Void {
+// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+// 			this.current = std_exp.bitCast<{Int*}>(new_address);
+// 		}
+
+// 		func get = (this) -> Int* { return copy this.current; }
+
+// 		func atEnd = (this) -> Bool {
+// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+// 		}
+
+
+// 		impl @pthr.Iterator {
+// 			next = next,
+// 			get = get,
+// 			atEnd = atEnd,
+// 		}
+
+// 		impl @pthr.RTIterator {
+// 			next = next,
+// 			get = get,
+// 			atEnd = atEnd,
+// 		}
+
+// 		var arr: Array*;
+// 		var current: Int*;
+// 		var last: Int*;
+// 	}
+
+
+// 	type MutArrIter = struct {
+// 		func new = (arr: Array*mut) -> (output: MutArrIter) {
+// 			output.arr = copy arr;
+// 			output.current = arr[0];
+// 			output.last = arr[arr.size() - 1];
+// 			return...;
+// 		}
+
+// 		func next = (this mut) -> Void {
+// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+// 			this.current = std_exp.bitCast<{Int*mut}>(new_address);
+// 		}
+
+// 		func get = (this) -> Int*mut { return copy this.current; }
+
+// 		func atEnd = (this) -> Bool {
+// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+// 		}
+
+
+// 		impl @pthr.MutIterator {
+// 			next = next,
+// 			get = get,
+// 			atEnd = atEnd,
+// 		}
+
+// 		impl @pthr.MutRTIterator {
+// 			next = next,
+// 			get = get,
+// 			atEnd = atEnd,
+// 		}
+
+// 		var arr: Array*mut;
+// 		var current: Int*mut;
+// 		var last: Int*mut;
+// 	}
+
 // }
 
 
-// func get_poly_num = (poly: Poly^mut) -> UI8 {
-// 	return poly.get_num();
+
+
+
+// func sum_arr = (iterable: @pthr.Iterable) -> Int {
+// 	func sum_arr_impl = (iter: @pthr.Iterator in) -> (count: Int) {
+// 		count = 0;
+
+// 		while(iter.atEnd() == false){
+// 			defer{ iter.next(); }
+
+// 			count += iter.get().*;
+// 		}
+
+// 		return...;
+// 	}
+
+// 	return sum_arr_impl(iterable.createIterator());
 // }
+
+
+
+// func inc_attr = (iterable: @pthr.MutIterable mut) -> Void {
+// 	var iter = iterable.createIterator();
+
+// 	while(iter.atEnd() == false){
+// 		defer{ iter.next(); }
+
+// 		iter.get().* += 1;
+// 	}
+// }
+
+
 
 
 // func entry = () #entry -> UI8 {
-// 	var foo = new Thing();
-// 	var bar = new Thing();
+// 	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
 
-// 	var poly: Poly^mut = foo as Poly^mut;
-// 	poly.increase_num();
+// 	var arr_ref: [Int:*] = array as [Int:*];
 
-// 	poly = bar as Poly^mut;
-// 	return get_poly_num(poly);
+// 	// inc_attr(arr_ref);
+
+// 	return sum_arr(array) as UI8;
 // }
+

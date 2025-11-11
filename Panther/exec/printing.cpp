@@ -671,7 +671,7 @@ namespace pthr{
 					this->printer.print(" ");
 					this->print_ident(struct_def.ident);
 
-					this->indenter.print_arrow();
+					this->indenter.set_arrow();
 					this->print_template_pack(struct_def.templatePack);
 
 					this->indenter.set_arrow();
@@ -870,7 +870,7 @@ namespace pthr{
 					this->print_ident(interface_def.ident);
 
 
-					this->indenter.print_end();
+					this->indenter.print_arrow();
 					this->print_minor_header("Methods");
 					{
 						this->indenter.push();
@@ -891,7 +891,28 @@ namespace pthr{
 
 						this->indenter.pop();
 					}
-					this->printer.println();
+
+					this->indenter.print_end();
+					this->print_minor_header("Impls");
+					{
+						this->indenter.push();
+
+						this->printer.println();
+
+						for(size_t i = 0; const panther::AST::Node& impl : interface_def.impls){
+							if(i + 1 < interface_def.impls.size()){
+								this->indenter.set_arrow();
+							}else{
+								this->indenter.set_end();
+							}
+
+							this->print_interface_impl(this->ast_buffer.getInterfaceImpl(impl));
+
+							i += 1;
+						}
+
+						this->indenter.pop();
+					}
 
 					this->indenter.pop();
 				}
@@ -937,21 +958,23 @@ namespace pthr{
 								this->print_ident(method.method);
 
 								this->indenter.print_end();
+								this->print_minor_header("Target");
 								if(method.value.is<panther::Token::ID>()){
-									this->print_minor_header("Target");
 									this->printer.print(" ");
 									this->print_ident(method.value.as<panther::Token::ID>());
 								}else{
+									this->indenter.push();
+									this->printer.println();
 									this->print_func_def(
 										this->ast_buffer.getFuncDef(method.value.as<panther::AST::Node>())
 									);
+									this->indenter.pop();
 								}
 
 								this->indenter.pop();
 							}
 
 
-							
 							i += 1;
 						}
 

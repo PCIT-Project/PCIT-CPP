@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.187.0"></a>
+## v0.0.187.0
+
+### Panther
+- Added interface impl within the definition of an interface
+
+### pthr
+- Fixed various formatting issues when printing the AST
+
+
+<!---------------------------------->
 <a name="v0.0.186.1"></a>
 ## v0.0.186.1
 

@@ -396,7 +396,7 @@ namespace pcit::panther{
 
 
 
-		struct InterfaceDecl{
+		struct InterfacePrepare{
 			const AST::InterfaceDef& interface_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
@@ -409,6 +409,11 @@ namespace pcit::panther{
 
 
 		struct InterfaceImplDecl{
+			const AST::InterfaceImpl& interface_impl;
+			SymbolProcTypeID target;
+		};
+
+		struct InterfaceInDefImplDecl{
 			const AST::InterfaceImpl& interface_impl;
 			SymbolProcTypeID target;
 		};
@@ -958,10 +963,12 @@ namespace pcit::panther{
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
 			DELETED_SPECIAL_METHOD,
+			INTERFACE_PREPARE,
 			INTERFACE_DECL,
 			INTERFACE_DEF,
 			INTERFACE_FUNC_DEF,
 			INTERFACE_IMPL_DECL,
+			INTERFACE_IN_DEF_IMPL_DECL,
 			INTERFACE_IMPL_METHOD_LOOKUP,
 			INTERFACE_IMPL_DEF,
 			INTERFACE_IMPL_CONSTEXPR_PIR,
@@ -1420,9 +1427,15 @@ namespace pcit::panther{
 			};
 
 			struct InterfaceImplInfo{
+				struct ParentTypeInfo{
+					SymbolProcNamespace& namespaced_members;
+					sema::ScopeLevel& scope_level;
+					SourceID source_id;
+				};
+
 				BaseType::Interface::ID target_interface_id;
 				BaseType::Interface& target_interface;
-				const BaseType::Struct& current_struct;
+				evo::Variant<ParentTypeInfo, TypeInfo::ID> type_info;
 				BaseType::Interface::Impl& interface_impl;
 				evo::SmallVector<TermInfo> targets{};
 			};

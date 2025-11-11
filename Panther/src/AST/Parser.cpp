@@ -54,7 +54,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_def<true>();
 			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_def();
 			case Token::Kind::KEYWORD_INTERFACE:   return this->parse_interface_def();
-			case Token::Kind::KEYWORD_IMPL:        return this->parse_interface_impl();
+			case Token::Kind::KEYWORD_IMPL:        return this->parse_interface_impl<true>();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
 			case Token::Kind::KEYWORD_UNREACHABLE: return this->parse_unreachable();
@@ -659,21 +659,40 @@ namespace pcit::panther{
 
 
 		auto methods = evo::SmallVector<AST::Node>();
+		auto impls = evo::SmallVector<AST::Node>();
 
 		while(this->reader[this->reader.peek()].kind() != Token::lookupKind("}")){
-			if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_FUNC){
-				this->expected_but_got(
-					"interface method definition or end of interface definition", this->reader.peek()
-				);
-				return Result::Code::ERROR;
-			}
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::KEYWORD_FUNC: {
+					const Result method = this->parse_func_def<false>();
+					if(this->check_result(
+						method, "interface method definition, impl, or end of interface definition"
+					).isError()){
+						return Result::Code::ERROR;
+					}
 
-			const Result method = this->parse_func_def<false>();
-			if(this->check_result(method, "interface method definition or end of interface definition").isError()){
-				return Result::Code::ERROR;
-			}
+					methods.emplace_back(method.value());
+				} break;
 
-			methods.emplace_back(method.value());
+				case Token::Kind::KEYWORD_IMPL: {
+					const Result impl_res = this->parse_interface_impl<false>();
+
+					if(this->check_result(
+						impl_res, "interface method definition, impl, or end of interface definition"
+					).isError()){
+						return Result::Code::ERROR;
+					}
+
+					impls.emplace_back(impl_res.value());
+				} break;
+
+				default: {
+					this->expected_but_got(
+						"interface method definition, impl, or end of interface definition", this->reader.peek()
+					);
+					return Result::Code::ERROR;
+				} break;
+			}
 		}
 
 		if(this->expect_token(Token::lookupKind("}"), "at end of interface definition").isError()){
@@ -681,12 +700,13 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createInterfaceDef(
-			ASTBuffer::getIdent(ident.value()), attributes.value(), std::move(methods)
+			ASTBuffer::getIdent(ident.value()), attributes.value(), std::move(methods), std::move(impls)
 		);
 	}
 
 
 	// TODO(FUTURE): check EOF
+	template<bool ALLOW_METHOD_IDENTS>
 	auto Parser::parse_interface_impl() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result::Code::ERROR; }
 
@@ -718,7 +738,20 @@ namespace pcit::panther{
 
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::IDENT: {
-					methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), this->reader.next());
+					if constexpr(ALLOW_METHOD_IDENTS){
+						methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), this->reader.next());
+					}else{
+						this->expected_but_got(
+							"method value in interface impl",
+							this->reader.peek(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"Method identitiers are only allowed if the impl is defined within the target type"
+								)
+							}
+						);
+						return Result::Code::ERROR;
+					}
 				} break;
 
 				case Token::lookupKind("("): {

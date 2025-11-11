@@ -103,10 +103,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result;
 			EVO_NODISCARD auto instr_deleted_special_method(const Instruction::DeletedSpecialMethod& instr) -> Result;
 
-			EVO_NODISCARD auto instr_interface_decl(const Instruction::InterfaceDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_prepare(const Instruction::InterfacePrepare& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_decl() -> Result;
 			EVO_NODISCARD auto instr_interface_def() -> Result;
 			EVO_NODISCARD auto instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_impl_decl(const Instruction::InterfaceImplDecl& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_in_def_impl_decl(const Instruction::InterfaceInDefImplDecl& instr)
+				-> Result;
 			EVO_NODISCARD auto instr_interface_impl_method_lookup(const Instruction::InterfaceImplMethodLookup& instr)
 				-> Result;
 			EVO_NODISCARD auto instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result;

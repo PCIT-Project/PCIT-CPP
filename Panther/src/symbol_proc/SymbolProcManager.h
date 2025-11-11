@@ -554,20 +554,27 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// InterfaceDecl
+			// InterfacePrepare
 
-			EVO_NODISCARD auto createInterfaceDecl(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createInterfacePrepare(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::INTERFACE_DECL,
-					this->interface_decls.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::INTERFACE_PREPARE,
+					this->interface_prepares.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getInterfaceDecl(Instruction instr) const -> const Instruction::InterfaceDecl& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::INTERFACE_DECL, "Not a InterfaceDecl");
-				return this->interface_decls[instr._index];
+			EVO_NODISCARD auto getInterfacePrepare(Instruction instr) const -> const Instruction::InterfacePrepare& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::INTERFACE_PREPARE, "Not a InterfacePrepare");
+				return this->interface_prepares[instr._index];
 			}
 
+
+			//////////////////
+			// InterfaceDecl
+
+			EVO_NODISCARD auto createInterfaceDecl() -> Instruction {
+				return Instruction(Instruction::Kind::INTERFACE_DECL, 0);
+			}
 
 
 			//////////////////
@@ -609,6 +616,24 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getInterfaceImplDecl(Instruction instr) const -> const Instruction::InterfaceImplDecl& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::INTERFACE_IMPL_DECL, "Not a InterfaceImplDecl");
 				return this->interface_impl_decls[instr._index];
+			}
+
+			//////////////////
+			// InterfaceInDefImplDecl
+
+			EVO_NODISCARD auto createInterfaceInDefImplDecl(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::INTERFACE_IN_DEF_IMPL_DECL,
+					this->interface_in_def_impl_decls.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getInterfaceInDefImplDecl(Instruction instr) const
+			-> const Instruction::InterfaceInDefImplDecl& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::INTERFACE_IN_DEF_IMPL_DECL, "Not a InterfaceInDefImplDecl"
+				);
+				return this->interface_in_def_impl_decls[instr._index];
 			}
 
 
@@ -2675,9 +2700,10 @@ namespace pcit::panther{
 				template_func_set_param_is_deducers{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint32_t> template_func_ends{};
 			core::SyncLinearStepAlloc<Instruction::DeletedSpecialMethod, uint32_t> deleted_special_methods{};
-			core::SyncLinearStepAlloc<Instruction::InterfaceDecl, uint32_t> interface_decls{};
+			core::SyncLinearStepAlloc<Instruction::InterfacePrepare, uint32_t> interface_prepares{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint32_t> interface_func_defs{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint32_t> interface_impl_decls{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceInDefImplDecl, uint32_t> interface_in_def_impl_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplMethodLookup, uint32_t> interface_impl_method_lookups{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDef, uint32_t> interface_impl_defs{};
 			core::SyncLinearStepAlloc<Instruction::LocalVar, uint32_t> local_vars{};

@@ -253,6 +253,7 @@ namespace pcit::panther::AST{
 		Token::ID ident;
 		Node attributeBlock;
 		evo::SmallVector<Node> methods; // Nodes are all FuncDef
+		evo::SmallVector<Node> impls; // Nodes are all InterfaceImpl
 	};
 
 
