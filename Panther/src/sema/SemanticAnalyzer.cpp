@@ -868,21 +868,68 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
-				
-				if(this->type_check<true, true>(
-					var_type_id, value_term_info, "Variable definition", *instr.var_def.value
-				).ok == false){
-					return Result::ERROR;
+
+				if(this->context.getTypeManager().isNonPolymorphicInterface(var_type_id)){
+					const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
+						var_type_id, value_term_info.type_id.as<TypeInfo::ID>()
+					);
+
+					if(interface_match_result.has_value()){
+						if(interface_match_result.value() == false){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(
+								value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
+							);
+							this->diagnostic_print_type_info(var_type_id, infos, "Target type:     ");
+							this->emit_error(
+								Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
+								*instr.var_def.value,
+								"Interface deducer not able to deduce type",
+								std::move(infos)
+							);
+							return Result::ERROR;
+						}
+
+					}else{
+						return interface_match_result.error();
+					}
+
+					const sema::GlobalVar::ID sema_var_id = this->symbol_proc.extra_info
+						.as<SymbolProc::NonLocalVarInfo>()
+						.sema_id.as<sema::GlobalVar::ID>();
+
+					sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+
+					sema_var.typeID = value_term_info.type_id.as<TypeInfo::ID>();
+
+				}else{
+					if(this->type_check<true, true>(
+						var_type_id, value_term_info, "Variable definition", *instr.var_def.value
+					).ok == false){
+						return Result::ERROR;
+					}
 				}
 			}
 
-		}else if(is_global){
-			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_GLOBAL_LIFETIME_VAR_WITHOUT_VALUE,
-				instr.var_def,
-				"Varibales with global lifetime must be declared with a value"
-			);
-			return Result::ERROR;
+		}else{
+			if(is_global){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_GLOBAL_LIFETIME_VAR_WITHOUT_VALUE,
+					instr.var_def,
+					"Variables with global lifetime must be declared with a value"
+				);
+				return Result::ERROR;
+
+			}else{
+				if(this->context.getTypeManager().isNonPolymorphicInterface(var_type_id)){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_MEMBER_INVALID_TYPE,
+						*instr.var_def.type,
+						"Struct member variable cannot have a type that's a deducer without a value"
+					);
+					return Result::ERROR;
+				}
+			}
 		}
 
 
@@ -2896,8 +2943,9 @@ namespace pcit::panther{
 				}
 
 
-				// TODO(PERF): only calculate these as needed
-				const bool param_type_is_interface = param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE;
+				const bool param_type_is_interface =
+					this->context.getTypeManager().isNonPolymorphicInterface(param_type_id.asTypeID());
+
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
@@ -3148,7 +3196,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(this->type_is_non_polymorphic_interface(type_id.asTypeID())){
+				if(this->context.getTypeManager().isNonPolymorphicInterface(type_id.asTypeID())){
 					if(instr.func_def.block.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
@@ -3209,7 +3257,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(this->type_is_non_polymorphic_interface(type_id.asTypeID())){
+				if(this->context.getTypeManager().isNonPolymorphicInterface(type_id.asTypeID())){
 					if(instr.func_def.block.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
@@ -3225,7 +3273,6 @@ namespace pcit::panther{
 						|| this->context.getTypeManager().getInterface(
 								this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
 							).isPolymorphic 
-
 					){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
@@ -5453,11 +5500,14 @@ namespace pcit::panther{
 				const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 				for(const BaseType::Function::ReturnParam& return_param : method_type.returnParams){
-					if(this->context.getTypeManager().isTypeDeducer(return_param.typeID)){
+					if(
+						this->context.getTypeManager().isTypeDeducer(return_param.typeID)
+						|| this->context.getTypeManager().isNonPolymorphicInterface(return_param.typeID)
+					){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
 							method_id,
-							"Method of a polymorphic interface cannot return type deducers"
+							"Method of a polymorphic interface cannot return type or interface deducers"
 						);
 						return Result::ERROR;
 					}
@@ -6091,6 +6141,19 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+			if(
+				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
+				|| this->context.getTypeManager().isNonPolymorphicInterface(this->get_type(*instr.type_id))
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
+					*instr.var_def.value,
+					"Cannot define a variable with an initializer value without an explicit type",
+					Diagnostic::Info("Note: the type of the variable cannot be deduced from this value")
+				);
+				return Result::ERROR;
+			}
+
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
 			if(instr.type_id.has_value() == false){
 				this->emit_error(
@@ -6099,6 +6162,19 @@ namespace pcit::panther{
 					"Cannot define a variable with a value [null] value without an explicit type"
 				);
 				return Result::ERROR;
+			}
+
+			if(
+				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
+				|| this->context.getTypeManager().isNonPolymorphicInterface(this->get_type(*instr.type_id))
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
+					*instr.var_def.value,
+					"Cannot define a variable with a value [null] value without an explicit type",
+					Diagnostic::Info("Note: the type of the variable cannot be deduced from this value")
+				);
+				return Result::ERROR;	
 			}
 
 		}else if(value_term_info.is_ephemeral() == false){
@@ -6134,7 +6210,33 @@ namespace pcit::panther{
 			}
 
 
-			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
+			if(this->context.getTypeManager().isNonPolymorphicInterface(got_type_info_id.asTypeID())){
+				const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
+					got_type_info_id.asTypeID(), value_term_info.type_id.as<TypeInfo::ID>()
+				);
+
+				if(interface_match_result.has_value()){
+					if(interface_match_result.value() == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(
+							value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
+						);
+						this->diagnostic_print_type_info(got_type_info_id.asTypeID(), infos, "Target type:     ");
+						this->emit_error(
+							Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
+							*instr.var_def.value,
+							"Interface deducer not able to deduce type",
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+
+				}else{
+					return interface_match_result.error();
+				}
+
+				
+			}else if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
 				const TypeCheckInfo type_check_info = this->type_check<true, true>(
 					got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_def.value
 				);
@@ -13105,11 +13207,15 @@ namespace pcit::panther{
 				if(arg_term_info.value_category == TermInfo::ValueCategory::TYPE){
 					const TypeInfo::VoidableID arg_type_voidable_id = arg_term_info.type_id.as<TypeInfo::VoidableID>();
 
-					if(this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)){
+					if(
+						this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)
+						|| this->context.getTypeManager().isNonPolymorphicInterface(arg_type_voidable_id)
+					){
 						instantiation_lookup_args.emplace_back(arg_type_voidable_id);
 						is_deducer = true;
 						continue;
 					}
+
 
 					if(struct_template.params[i].isExpr()){
 						const ASTBuffer& ast_buffer = this->source.getASTBuffer();
@@ -13251,7 +13357,10 @@ namespace pcit::panther{
 
 				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
 
-				if(this->context.getTypeManager().isTypeDeducer(type_id)){
+				if(
+					this->context.getTypeManager().isTypeDeducer(type_id)
+					|| this->context.getTypeManager().isNonPolymorphicInterface(type_id)
+				){
 					instantiation_lookup_args.emplace_back(type_id);
 					is_deducer = true;
 					continue;
@@ -19156,9 +19265,8 @@ namespace pcit::panther{
 
 					}else{
 						if(
-							this->context.getTypeManager().getTypeInfo(param.typeID).baseTypeID().kind()
-								== BaseType::Kind::INTERFACE
-							|| this->context.getTypeManager().isTypeDeducer(param.typeID)
+							this->context.getTypeManager().isTypeDeducer(param.typeID)
+							|| this->context.getTypeManager().isNonPolymorphicInterface(param.typeID)
 						){
 							return *func_info.instantiation_param_arg_types[param_index];
 						}else{
@@ -22056,6 +22164,20 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::interface_matches(TypeInfo::VoidableID interface_type_id, TypeInfo::VoidableID match_type_id)
+	-> evo::Expected<bool, Result> {
+		if(interface_type_id.isVoid()){
+			return match_type_id.isVoid();
+
+		}else if(match_type_id.isVoid()){
+			return false;
+
+		}else{
+			return this->interface_matches(interface_type_id.asTypeID(), match_type_id.asTypeID());
+		}
+	}
+
 	auto SemanticAnalyzer::interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
 	-> evo::Expected<bool, Result> {
 		const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
@@ -22097,6 +22219,54 @@ namespace pcit::panther{
 				return this->interface_matches(
 					interface_array_ref_type.elementTypeID, match_array_ref_type.elementTypeID
 				);
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+
+				const BaseType::StructTemplateDeducer& interface_struct_template =
+					this->context.getTypeManager().getStructTemplateDeducer(
+						interface_type_info.baseTypeID().structTemplateDeducerID()
+					);
+
+				const BaseType::Struct& match_struct_type = 
+					this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
+
+				if(match_struct_type.templateID.has_value() == false){ return false; }
+				if(interface_struct_template.structTemplateID != *match_struct_type.templateID){ return false; }
+
+
+				const BaseType::StructTemplate& match_struct_template =
+					this->context.getTypeManager().getStructTemplate(*match_struct_type.templateID);
+
+
+				const evo::SmallVector<BaseType::StructTemplate::Arg> match_template_args =
+					match_struct_template.getInstantiationArgs(match_struct_type.instantiation);
+
+				for(size_t i = 0; i < interface_struct_template.args.size(); i+=1){
+					const BaseType::StructTemplate::Arg& interface_arg = interface_struct_template.args[i];
+					const BaseType::StructTemplate::Arg& match_arg = match_template_args[i];
+
+					if(match_arg.is<TypeInfo::VoidableID>()){
+						const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
+							interface_arg.as<TypeInfo::VoidableID>(), match_arg.as<TypeInfo::VoidableID>()
+						);
+
+						if(interface_match_result.has_value()){
+							if(interface_match_result.value() == false){ return false; }
+
+						}else{
+							return evo::Unexpected(interface_match_result.error());
+						}
+
+					}else{
+						if(interface_arg.as<core::GenericValue>() != match_arg.as<core::GenericValue>()){
+							return false;
+						}
+					}
+				}
+
+				return true;
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
@@ -23284,119 +23454,6 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::type_is_non_polymorphic_interface(TypeInfo::ID type_id) -> bool {
-		return this->type_is_non_polymorphic_interface(this->context.getTypeManager().getTypeInfo(type_id));
-	}
-
-	auto SemanticAnalyzer::type_is_non_polymorphic_interface(const TypeInfo& type_info) -> bool {
-		if(type_info.qualifiers().empty() == false){
-			if(type_info.qualifiers().back().isPtr){
-				return false;
-			}else{
-				evo::debugAssert(type_info.qualifiers().back().isOptional, "Unknown type qualifier");
-				return this->type_is_non_polymorphic_interface(type_info.copyWithPoppedQualifier());
-			}
-		}
-
-		switch(type_info.baseTypeID().kind()){
-			case BaseType::Kind::DUMMY: {
-				evo::debugFatalBreak("Invalid type");
-			} break;
-
-			case BaseType::Kind::PRIMITIVE: {
-				return false;
-			} break;
-
-			case BaseType::Kind::FUNCTION: {
-				return false;
-			} break;
-
-			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array_type =
-					this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
-				return this->type_is_non_polymorphic_interface(array_type.elementTypeID);
-			} break;
-
-			case BaseType::Kind::ARRAY_DEDUCER: {
-				const BaseType::ArrayDeducer& array_deducer_type = 
-					this->context.getTypeManager().getArrayDeducer(type_info.baseTypeID().arrayDeducerID());
-				return this->type_is_non_polymorphic_interface(array_deducer_type.elementTypeID);
-			} break;
-
-			case BaseType::Kind::ARRAY_REF: {
-				const BaseType::ArrayRef& array_ref_type =
-					this->context.getTypeManager().getArrayRef(type_info.baseTypeID().arrayRefID());
-				return this->type_is_non_polymorphic_interface(array_ref_type.elementTypeID);
-			} break;
-
-			case BaseType::Kind::ALIAS: {
-				const BaseType::Alias& alias_type =
-					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
-				return this->type_is_non_polymorphic_interface(*alias_type.aliasedType.load());
-			} break;
-
-			case BaseType::Kind::DISTINCT_ALIAS: {
-				const BaseType::DistinctAlias& distinct_alias_type =
-					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
-				return this->type_is_non_polymorphic_interface(*distinct_alias_type.underlyingType.load());
-			} break;
-
-			case BaseType::Kind::STRUCT: {
-				return false;
-			} break;
-
-			case BaseType::Kind::STRUCT_TEMPLATE: {
-				return false;
-			} break;
-
-			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				const BaseType::StructTemplateDeducer& struct_template_deducer_type =
-					this->context.getTypeManager().getStructTemplateDeducer(
-						type_info.baseTypeID().structTemplateDeducerID()
-					);
-
-				for(const BaseType::StructTemplate::Arg& arg : struct_template_deducer_type.args){
-					if(arg.is<TypeInfo::VoidableID>() == false){ continue; }
-					if(arg.as<TypeInfo::VoidableID>().isVoid()){ continue; }
-
-					if(this->type_is_non_polymorphic_interface(arg.as<TypeInfo::VoidableID>().asTypeID())){
-						return true;
-					}
-				}
-
-				return false;
-			} break;
-
-			case BaseType::Kind::UNION: {
-				return false;
-			} break;
-
-			case BaseType::Kind::ENUM: {
-				return false;
-			} break;
-
-			case BaseType::Kind::TYPE_DEDUCER: {
-				return false;
-			} break;
-
-			case BaseType::Kind::INTERFACE: {
-				const BaseType::Interface& interface_type =
-					this->context.getTypeManager().getInterface(type_info.baseTypeID().interfaceID());
-				return interface_type.isPolymorphic == false;
-			} break;
-
-			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return false;
-			} break;
-
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-				return false;
-			} break;
-		}
-
-		evo::debugFatalBreak("Unknown base type kind");
-	}
-
 
 
 
@@ -24388,6 +24445,11 @@ namespace pcit::panther{
 					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
 
 
+					evo::debugAssert(
+						type_manager.isNonPolymorphicInterface(actual_expected_type_id) == false,
+						"non-polymorphic interface deducers shouldn't be checked with this func"
+					);
+
 					if(type_manager.isTypeDeducer(actual_expected_type_id)){
 						evo::Result<evo::SmallVector<DeducedTerm>> extracted_deducers
 							= this->extract_deducers(actual_expected_type_id, actual_got_type_id);
@@ -24414,7 +24476,6 @@ namespace pcit::panther{
 
 						return TypeCheckInfo::success(false, std::move(extracted_deducers.value()));
 					}
-
 
 					if(expected_type.baseTypeID() != got_type.baseTypeID()){
 						if(

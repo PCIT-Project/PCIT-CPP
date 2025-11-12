@@ -589,6 +589,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
 
 
+			EVO_NODISCARD auto interface_matches(
+				TypeInfo::VoidableID interface_type_id, TypeInfo::VoidableID match_type_id
+			) -> evo::Expected<bool, Result>;
+
 			EVO_NODISCARD auto interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
 				-> evo::Expected<bool, Result>;
 
@@ -643,9 +647,6 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto type_is_comparable(TypeInfo::ID type_id) -> bool;
 			EVO_NODISCARD auto type_is_comparable(const TypeInfo& type_info) -> bool;
-
-			EVO_NODISCARD auto type_is_non_polymorphic_interface(TypeInfo::ID type_id) -> bool;
-			EVO_NODISCARD auto type_is_non_polymorphic_interface(const TypeInfo& type_info) -> bool;
 
 
 			template<bool IS_CONSTEXPR>

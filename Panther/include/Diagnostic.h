@@ -328,6 +328,7 @@ namespace pcit::panther{
 			SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
 			SEMA_ARRAY_DOESNT_HAVE_MEMBER,
 			SEMA_PREFIX_NO_MATCHING_OP,
+			SEMA_STRUCT_MEMBER_INVALID_TYPE,
 
 
 			//////////////////
@@ -878,6 +879,7 @@ namespace pcit::panther{
 				case Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS:
 				case Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER:
 				case Code::SEMA_PREFIX_NO_MATCHING_OP:
+				case Code::SEMA_STRUCT_MEMBER_INVALID_TYPE:
 					return "Sxx";
 
 				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:

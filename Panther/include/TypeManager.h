@@ -655,7 +655,7 @@ namespace pcit::panther{
 
 
 
-		struct StructTemplateDeducer{
+		struct StructTemplateDeducer{ // args may be deducers or interfaces 
 			using ID = StructTemplateDeducerID;
 
 			SourceID instantiationSourceID;
@@ -1001,6 +1001,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::VoidableID id) const -> bool;
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isTypeDeducer(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isNonPolymorphicInterface(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isNonPolymorphicInterface(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isNonPolymorphicInterface(BaseType::ID id) const -> bool;
 
 
 			///////////////////////////////////

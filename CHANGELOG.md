@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.0"></a>
+## v0.0.188.0
+
+### Panther
+- Added non-polymorphic interface deducers for variables
+- Fixed non-polymorphic interface deducers that have the interface as a struct parameter
+- Fixed checking that variables that cannot be defined without explicit types also doesn't have a deducer type
+
+
+<!---------------------------------->
 <a name="v0.0.187.0"></a>
 ## v0.0.187.0
 
