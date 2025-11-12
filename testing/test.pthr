@@ -28,6 +28,11 @@ var global_rect: $$ = new Rectangle<{Int}>{width = 2, height = 4};
 func entry = () #entry -> UI8 {
 	var rect: Rectangle<{DoesNothing}> = new Rectangle<{Thing}>{width = 2, height = 4};
 
+
+	_ = {->bel:DoesNothing
+		return->bel new Thing();
+	};
+
 	return get_area(rect) as UI8;
 }
 

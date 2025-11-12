@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.1"></a>
+## v0.0.188.1
+
+### Panther
+- Fixed missing checking for block expression return parameter being a non-polymorphic interface deducer
+
+
+<!---------------------------------->
 <a name="v0.0.188.0"></a>
 ## v0.0.188.0
 

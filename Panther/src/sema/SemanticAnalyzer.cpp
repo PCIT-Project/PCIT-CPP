@@ -12174,11 +12174,20 @@ namespace pcit::panther{
 			return this->union_designated_init_new(instr, target_type_id.asTypeID());
 
 		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-				instr.designated_init_new.type,
-				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
-			);
+			if(this->context.getTypeManager().isNonPolymorphicInterface(target_type_info.baseTypeID())){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
+					instr.designated_init_new.type,
+					"Designated initializer operator [new] cannot accept a type that's not a struct or a union",
+					Diagnostic::Info("Note: the gotten type is a non-polymorphic interface deducer")
+				);
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
+					instr.designated_init_new.type,
+					"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
+				);
+			}
 			return Result::ERROR;
 		}
 
@@ -12681,6 +12690,15 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 					instr.block.outputs[i].typeID,
 					"Block expression output cannot be type `Void`"
+				);
+				return Result::ERROR;
+			}
+
+			if(this->context.getTypeManager().isNonPolymorphicInterface(output_type.asTypeID())){
+				this->emit_error(
+					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_DEDUCER_TYPE,
+					instr.block.outputs[i].typeID,
+					"Block expression output cannot be a non-polymorphic interface deducer"
 				);
 				return Result::ERROR;
 			}
