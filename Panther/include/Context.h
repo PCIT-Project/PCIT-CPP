@@ -350,6 +350,33 @@ namespace pcit::panther{
 				});
 			}
 
+			auto add_task_to_work_manager(SymbolProc::ID symbol_proc_id) -> void {
+				if(this->hasHitFailCondition()){ return; }
+
+				evo::debugAssert(
+					this->symbol_proc_manager.getSymbolProc(symbol_proc_id).status == SymbolProc::Status::IN_QUEUE,
+					"Invalid status to add to work manager"
+				);
+
+				this->work_manager.visit([&](auto& work_manager) -> void {
+					using WorkManager = std::decay_t<decltype(work_manager)>;
+
+					if constexpr(std::is_same<WorkManager, std::monostate>()){
+						evo::debugFatalBreak("Cannot add task to work manager as none is running");
+
+					}else if constexpr(std::is_same<WorkManager, core::ThreadQueue<Task>>()){
+						work_manager.addTask(symbol_proc_id);
+
+					}else if constexpr(std::is_same<WorkManager, core::SingleThreadedWorkQueue<Task>>()){
+						work_manager.addTask(symbol_proc_id);
+
+					}else{
+						static_assert(false, "Unsupported work manager");
+					}
+				});
+			}
+
+
 			auto clear_work_queue_if_needed() -> void {
 				this->work_manager.visit([&](auto& work_manager) -> void {
 					using WorkManager = std::decay_t<decltype(work_manager)>;

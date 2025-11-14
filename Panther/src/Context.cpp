@@ -511,83 +511,12 @@ namespace pcit::panther{
 			#if defined(PCIT_CONFIG_DEBUG)
 				evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
 				auto symbol_proc_list = std::vector<const SymbolProc*>();
+
 				for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
-					switch(symbol_proc.status.load()){
-						case SymbolProc::Status::WAITING: {
-							if(symbol_proc.is_local_symbol){
-								evo::log::warning(
-									"Symbol Proc {} ({}): WAITING - is local symbol",
-									symbol_proc_list.size(),
-									symbol_proc.ident
-								);
-
-							}else if(symbol_proc.waiting_for.empty()){
-								evo::log::warning(
-									"Symbol Proc {} ({}): WAITING - waiting for NONE",
-									symbol_proc_list.size(),
-									symbol_proc.ident
-								);
-								
-							}else{
-								auto waiting_on_string = std::string();
-								for(SymbolProc::ID waiting_for_id : symbol_proc.waiting_for){
-									waiting_on_string += std::format("{}, ", waiting_for_id.get());
-								}
-
-								waiting_on_string.pop_back();
-								waiting_on_string.pop_back();
-
-								evo::log::warning(
-									"Symbol Proc {} ({}): WAITING - waiting for {} ({})",
-									symbol_proc_list.size(),
-									symbol_proc.ident,
-									symbol_proc.waiting_for.size(),
-									waiting_on_string
-								);
-							}
-						} break;
-
-						case SymbolProc::Status::SUSPENDED: {
-							evo::log::trace(
-								"Symbol Proc {} ({}): SUSPENDED", symbol_proc_list.size(), symbol_proc.ident
-							);
-						} break;
-
-						case SymbolProc::Status::IN_QUEUE: {
-							evo::log::error(
-								"Symbol Proc {} ({}): IN_QUEUE", symbol_proc_list.size(), symbol_proc.ident
-							);
-						} break;
-
-						case SymbolProc::Status::WORKING: {
-							evo::log::error(
-								"Symbol Proc {} ({}): WORKING", symbol_proc_list.size(), symbol_proc.ident
-							);
-						} break;
-
-						case SymbolProc::Status::PASSED_ON_BY_WHEN_COND: {
-							evo::log::trace(
-								"Symbol Proc {} ({}): PASSED_ON_BY_WHEN_COND",
-								symbol_proc_list.size(),
-								symbol_proc.ident
-							);
-						} break;
-
-						case SymbolProc::Status::ERRORED: {
-							evo::log::trace(
-								"Symbol Proc {} ({}): ERRORED", symbol_proc_list.size(), symbol_proc.ident
-							);
-						} break;
-
-						case SymbolProc::Status::DONE: {
-							evo::log::trace(
-								"Symbol Proc {} ({}): DONE", symbol_proc_list.size(), symbol_proc.ident
-							);
-						} break;
-					}
-
 					symbol_proc_list.emplace_back(&symbol_proc);
 				}
+
+				this->symbol_proc_manager.debug_dump();
 
 				// Prevent escape from breakpoint
 				while(true){
@@ -1726,16 +1655,12 @@ namespace pcit::panther{
 			// TODO(PERF): better waiting
 			while(lookup_source_id.has_value() == false){
 				std::this_thread::yield();
-				std::this_thread::yield();
-				std::this_thread::yield();
 				lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
 			}
 
 			const Source& lookup_source = this->source_manager[lookup_source_id.value()];
 
 			while(lookup_source.is_ready_for_sema == false){
-				std::this_thread::yield();
-				std::this_thread::yield();
 				std::this_thread::yield();
 			}
 

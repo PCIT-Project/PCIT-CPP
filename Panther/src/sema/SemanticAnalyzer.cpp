@@ -111,9 +111,10 @@ namespace pcit::panther{
 				case Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
 
+					this->symbol_proc.nextInstruction();
+					
 					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
 
-					this->symbol_proc.nextInstruction();
 					this->symbol_proc.setStatusWaiting();
 					return;
 				} break;
@@ -1489,19 +1490,24 @@ namespace pcit::panther{
 		created_struct_ref.scopeLevel = &this->get_current_scope_level();
 
 
-		for(const SymbolProc::ID& member_stmt_id : struct_info.stmts){
+		for(SymbolProc::ID member_stmt_id : struct_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
+
 
 			member_stmt.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
 				*this->symbol_proc.sema_scope_id
 			);
 
 			if(member_stmt.ast_node.kind() == AST::Kind::FUNC_DEF){
+				evo::debugAssert(member_stmt.isDeclDone() == false, "Decl already completed for struct member");
+
 				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.decl_waited_on_lock);
 				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
 				member_stmt.decl_waited_on_by.emplace_back(this->symbol_proc_id);
 
 			}else{
+				evo::debugAssert(member_stmt.isDefDone() == false, "Def already completed for struct member");
+
 				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.def_waited_on_lock);
 				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
 				member_stmt.def_waited_on_by.emplace_back(this->symbol_proc_id);
@@ -9145,6 +9151,8 @@ namespace pcit::panther{
 	-> Result {
 		SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
 
+		evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
+
 		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 		sub_symbol_proc.sema_scope_id = 
@@ -9176,6 +9184,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
 	-> Result {
 		SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
+
+		evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
 
 		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
@@ -24235,7 +24245,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::propagate_finished_impl(
-		const evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
+		evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
 		evo::SmallVector<SymbolProc::ID, 256>& symbol_procs_to_put_in_work_queue
 	) -> void {
 		for(const SymbolProc::ID& waited_on_id : waited_on_by_list){
@@ -24261,6 +24271,8 @@ namespace pcit::panther{
 				}
 			}
 		}
+
+		waited_on_by_list.clear();
 	}
 
 

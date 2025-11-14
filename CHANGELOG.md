@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.2"></a>
+## v0.0.188.2
+
+### Panther
+- Fixed race condition in semantic analysis
+
+
+<!---------------------------------->
 <a name="v0.0.188.1"></a>
 ## v0.0.188.1
 

@@ -55,6 +55,8 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
+		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
+
 		this->decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
@@ -74,6 +76,8 @@ namespace pcit::panther{
 		if(this->pir_decl_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+
+		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->pir_decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
@@ -110,6 +114,8 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
+		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
+
 		this->def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
@@ -130,6 +136,8 @@ namespace pcit::panther{
 		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+
+		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->pir_def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);

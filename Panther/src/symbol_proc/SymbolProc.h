@@ -1147,12 +1147,20 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getASTNode() const -> AST::Node { return this->ast_node; }
 			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
 			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
+			EVO_NODISCARD auto isLocalSymbol() const -> bool { return this->is_local_symbol; }
 
 
 			EVO_NODISCARD auto getInstruction() const -> const Instruction& {
 				return this->instructions[this->inst_index];
 			}
-			auto nextInstruction() -> void { this->inst_index += 1; }
+			auto nextInstruction() -> void {
+				evo::debugAssert(this->isAtEnd() == false, "Symbol proc is already at end");
+				evo::debugAssert(
+					this->isTemplateSubSymbol() == false, "Cannot get next instruction of template sub-symbol"
+				);
+				this->inst_index += 1;
+			}
+
 			auto setInstructionIndex(InstructionIndex new_index) -> void { this->inst_index = size_t(new_index.get()); }
 
 			EVO_NODISCARD auto isAtEnd() const -> bool {
@@ -1460,13 +1468,13 @@ namespace pcit::panther{
 			bool is_local_symbol = false;
 			std::atomic<bool> decl_done = false;
 			std::atomic<bool> def_done = false;
-			std::atomic<bool> pir_lower_done = false;
 			std::atomic<bool> pir_decl_done = false;
 			std::atomic<bool> pir_def_done = false;
 
 			std::atomic<Status> status = Status::WAITING; // if changing this, probably get the lock `waiting_for_lock`
 
 			friend class SymbolProcBuilder;
+			friend class SymbolProcManager;
 			friend class SemanticAnalyzer;
 			friend class Context;
 	};

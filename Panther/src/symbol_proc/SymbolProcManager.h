@@ -2662,6 +2662,11 @@ namespace pcit::panther{
 				#endif
 			}
 
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				auto debug_dump() -> void;
+			#endif
+
 	
 		private:
 			core::SyncLinearStepAlloc<SymbolProc, SymbolProc::ID> symbol_procs{};
@@ -2853,6 +2858,7 @@ namespace pcit::panther{
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
 			friend class SymbolProc;
+			friend class Context;
 	};
 
 

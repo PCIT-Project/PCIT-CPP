@@ -732,7 +732,7 @@ namespace pcit::panther{
 			// propogate finished
 
 			auto propagate_finished_impl(
-				const evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
+				evo::SmallVector<SymbolProc::ID>& waited_on_by_list,
 				evo::SmallVector<SymbolProc::ID, 256>& symbol_procs_to_put_in_work_queue
 			) -> void;
 
