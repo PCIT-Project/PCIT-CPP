@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.3"></a>
+## v0.0.188.3
+
+### Panther
+- Fixed missing checks for interface impl redeclaration
+
+
+<!---------------------------------->
 <a name="v0.0.188.2"></a>
 ## v0.0.188.2
 

@@ -1279,8 +1279,8 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::createInterfaceImpl() -> BaseType::Interface::Impl& {
-		return this->interface_impls[this->interface_impls.emplace_back()];
+	auto TypeManager::createInterfaceImpl(const AST::InterfaceImpl& ast_node) -> BaseType::Interface::Impl& {
+		return this->interface_impls[this->interface_impls.emplace_back(ast_node)];
 	}
 
 

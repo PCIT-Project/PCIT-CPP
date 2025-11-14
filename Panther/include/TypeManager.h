@@ -747,6 +747,7 @@ namespace pcit::panther{
 			using ID = InterfaceID;
 
 			struct Impl{
+				const AST::InterfaceImpl& astInterfaceImpl;
 				evo::SmallVector<sema::FuncID> methods;
 			};
 			
@@ -972,7 +973,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getInterface(BaseType::Interface::ID id)       ->       BaseType::Interface&;
 			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
-			EVO_NODISCARD auto createInterfaceImpl() -> BaseType::Interface::Impl&;
+			EVO_NODISCARD auto createInterfaceImpl(const AST::InterfaceImpl& ast_node) -> BaseType::Interface::Impl&;
 
 			EVO_NODISCARD auto getPolyInterfaceRef(BaseType::PolyInterfaceRef::ID id) const
 				-> const BaseType::PolyInterfaceRef&;

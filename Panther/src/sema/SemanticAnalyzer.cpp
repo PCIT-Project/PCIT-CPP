@@ -5632,7 +5632,8 @@ namespace pcit::panther{
 		const BaseType::Struct::ID current_struct_id = this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>();
 		const BaseType::Struct& current_struct = this->context.getTypeManager().getStruct(current_struct_id);
 
-		BaseType::Interface::Impl& interface_impl = this->context.type_manager.createInterfaceImpl();
+		BaseType::Interface::Impl& interface_impl =
+			this->context.type_manager.createInterfaceImpl(instr.interface_impl);
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 			target_interface_id,
@@ -5666,7 +5667,8 @@ namespace pcit::panther{
 			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
-		BaseType::Interface::Impl& interface_impl = this->context.type_manager.createInterfaceImpl();
+		BaseType::Interface::Impl& interface_impl =
+			this->context.type_manager.createInterfaceImpl(instr.interface_impl);
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 			target_interface_id, target_interface, target_type_id.asTypeID(), interface_impl
@@ -6017,6 +6019,20 @@ namespace pcit::panther{
 			}();
 
 			const auto lock = std::scoped_lock(info.target_interface.implsLock);
+
+			const auto find_old_impl = info.target_interface.impls.find(target_type_id);
+			if(find_old_impl != info.target_interface.impls.end()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INTERFACE_IMPL_ALREADY_EXISTS,
+					instr.interface_impl,
+					"Interface impl for this interface and type already exists",
+					Diagnostic::Info(
+						"Previously defined here:", this->get_location(find_old_impl->second.astInterfaceImpl)
+					)
+				);
+				return Result::ERROR;
+			}
+
 			info.target_interface.impls.emplace(target_type_id, info.interface_impl);
 		}
 
