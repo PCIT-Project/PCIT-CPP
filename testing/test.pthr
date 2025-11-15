@@ -4,12 +4,8 @@
 interface Shape = {
 	func area = (this) -> USize;
 
-	impl Rectangle<{Thing}> {
-		area = (this) -> USize { return 0; }
-	}
-
-	impl Rectangle<{Thing}> {
-		area = (this) -> USize { return 0; }
+	impl Rectangle<{Int}> {
+		area = (this) -> USize { return this.width * this.height; }
 	}
 }
 
@@ -17,21 +13,20 @@ interface Shape = {
 
 type Rectangle = struct <{TYPE_FOR_SAKE_OF_TYPE_TEMPLATE: Type}> {
 	var width: USize;
+	var height: USize;
 }
+
 
 
 
 func entry = () #entry -> UI8 {
-	var rect = new Rectangle<{Thing}>{width = 2};
+	var rect = new Rectangle<{Int}>{width = 2, height = 4};
 
-	return 0;
+	var rect_shape: Shape* = &rect;
+
+	return rect_shape.area() as UI8;
 }
 
-
-
-type Thing = struct {
-
-}
 
 
 

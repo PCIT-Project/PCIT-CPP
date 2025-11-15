@@ -589,12 +589,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
 
 
-			EVO_NODISCARD auto interface_matches(
-				TypeInfo::VoidableID interface_type_id, TypeInfo::VoidableID match_type_id
-			) -> evo::Expected<bool, Result>;
-
+			// success of returned expected is the generated type (or nullopt if interface doesn't match) 
+			// error of returned expected should just be the returned Result of the current instruction
 			EVO_NODISCARD auto interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
-				-> evo::Expected<bool, Result>;
+				-> evo::Expected<std::optional<TypeInfo::ID>, Result>;
 
 
 			struct DeducedTerm{
@@ -792,6 +790,12 @@ namespace pcit::panther{
 					TypeCheckInfo(bool _ok, bool ric, evo::SmallVector<DeducedTerm>&& _deduced_terms)
 						: ok(_ok), requires_implicit_conversion(ric), deduced_terms(std::move(_deduced_terms)) {}
 			};
+
+
+			auto type_qualifiers_check(
+				evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifers,
+				evo::ArrayProxy<TypeInfo::Qualifier> got_qualifers
+			) -> evo::Result<bool>; // bool is if is implicit conversion to optional
 
 			template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
 			EVO_NODISCARD auto type_check(

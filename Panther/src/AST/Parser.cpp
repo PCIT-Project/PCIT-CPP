@@ -775,6 +775,7 @@ namespace pcit::panther{
 					if(error_returns.isError()){ return Result::Code::ERROR; }
 
 					const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+					if(this->check_result(block, "block in interface impl").isError()){ return Result::Code::ERROR; }
 
 					const AST::Node created_func_def_node = this->source.ast_buffer.createFuncDef(
 						ASTBuffer::getIdent(method_ident.value()),

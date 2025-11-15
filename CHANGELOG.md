@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.4"></a>
+## v0.0.188.4
+
+### Panther
+- Fixed method calls on interfaces deducers only working properly if the method has the same name
+- Fixed interface deducers with qualifiers
+- Fixed interface deducer method call when doing automatic dereference
+- Fixed crashing when there is a parsing error in an interface impl
+
+
+<!---------------------------------->
 <a name="v0.0.188.3"></a>
 ## v0.0.188.3
 
@@ -461,7 +472,7 @@
 ## v0.0.166.1
 
 ### Panther
-- Fixed template instantiation on interfaces only working properly if the method has the same name
+- Fixed method calls on template instantiation on interfaces only working properly if the method has the same name
 
 
 <!---------------------------------->

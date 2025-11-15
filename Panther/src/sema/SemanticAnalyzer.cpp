@@ -871,12 +871,11 @@ namespace pcit::panther{
 				}
 
 				if(this->context.getTypeManager().isNonPolymorphicInterface(var_type_id)){
-					const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
-						var_type_id, value_term_info.type_id.as<TypeInfo::ID>()
-					);
+					const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
+						this->interface_matches(var_type_id, value_term_info.type_id.as<TypeInfo::ID>());
 
 					if(interface_match_result.has_value()){
-						if(interface_match_result.value() == false){
+						if(interface_match_result.value().has_value() == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(
 								value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
@@ -889,6 +888,7 @@ namespace pcit::panther{
 								std::move(infos)
 							);
 							return Result::ERROR;
+
 						}
 
 					}else{
@@ -901,7 +901,7 @@ namespace pcit::panther{
 
 					sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
 
-					sema_var.typeID = value_term_info.type_id.as<TypeInfo::ID>();
+					sema_var.typeID = *interface_match_result.value();
 
 				}else{
 					if(this->type_check<true, true>(
@@ -2955,6 +2955,7 @@ namespace pcit::panther{
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
+				auto interface_impl_instantiation_type = std::optional<TypeInfo::ID>();
 
 				if(func_info.instantiation == nullptr){
 					if(param_type_is_interface || param_type_is_deducer){
@@ -2972,11 +2973,11 @@ namespace pcit::panther{
 						const TypeInfo::ID arg_type_info_id =
 							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
 
-						const evo::Expected<bool, Result> interface_match_result = 
+						const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result = 
 							this->interface_matches(param_type_id.asTypeID(), arg_type_info_id);
 
 						if(interface_match_result.has_value()){
-							if(interface_match_result.value() == false){
+							if(interface_match_result.value().has_value() == false){
 								func_info.instantiation->errored_reason = 
 									sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
 										i, param_type_id.asTypeID(), arg_type_info_id
@@ -2989,6 +2990,8 @@ namespace pcit::panther{
 						}else{
 							return interface_match_result.error();
 						}
+
+						interface_impl_instantiation_type = *interface_match_result.value();
 					}
 				}
 
@@ -5889,14 +5892,14 @@ namespace pcit::panther{
 								// interface
 
 								if(info.target_interface.isPolymorphic == false){
-									const evo::Expected<bool, Result> interface_match_result =
+									const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
 										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
 
 									if(interface_match_result.has_value() == false){
 										return interface_match_result.error();
 									}
 										
-									if(interface_match_result.value()){ continue; }
+									if(interface_match_result.value().has_value()){ continue; }
 								}
 
 
@@ -5951,14 +5954,14 @@ namespace pcit::panther{
 								// interface
 
 								if(info.target_interface.isPolymorphic == false){
-									const evo::Expected<bool, Result> interface_match_result =
+									const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
 										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
 
 									if(interface_match_result.has_value() == false){
 										return interface_match_result.error();
 									}
 										
-									if(interface_match_result.value()){ continue; }
+									if(interface_match_result.value().has_value()){ continue; }
 								}
 
 
@@ -6221,6 +6224,8 @@ namespace pcit::panther{
 		}
 
 
+		auto interface_impl_instantiation_type = std::optional<TypeInfo::ID>();
+
 		if(instr.type_id.has_value()){
 			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
 
@@ -6233,12 +6238,11 @@ namespace pcit::panther{
 
 
 			if(this->context.getTypeManager().isNonPolymorphicInterface(got_type_info_id.asTypeID())){
-				const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
-					got_type_info_id.asTypeID(), value_term_info.type_id.as<TypeInfo::ID>()
-				);
+				const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
+					this->interface_matches(got_type_info_id.asTypeID(), value_term_info.type_id.as<TypeInfo::ID>());
 
 				if(interface_match_result.has_value()){
-					if(interface_match_result.value() == false){
+					if(interface_match_result.value().has_value() == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(
 							value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
@@ -6257,6 +6261,7 @@ namespace pcit::panther{
 					return interface_match_result.error();
 				}
 
+				interface_impl_instantiation_type = *interface_match_result.value();
 				
 			}else if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
 				const TypeCheckInfo type_check_info = this->type_check<true, true>(
@@ -6282,6 +6287,10 @@ namespace pcit::panther{
 		}
 
 		const std::optional<TypeInfo::ID> type_id = [&]() -> std::optional<TypeInfo::ID> {
+			if(interface_impl_instantiation_type.has_value()){
+				return interface_impl_instantiation_type;
+			}
+
 			if(value_term_info.type_id.is<TypeInfo::ID>()){
 				return std::optional<TypeInfo::ID>(value_term_info.type_id.as<TypeInfo::ID>());
 			}
@@ -11487,7 +11496,7 @@ namespace pcit::panther{
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.postfix.lhs,
+				instr.postfix,
 				"Argument of operator [.*] must be initialized"
 			);
 			return Result::ERROR;
@@ -11497,7 +11506,7 @@ namespace pcit::panther{
 		if(target.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix.lhs,
+				instr.postfix,
 				"Argument of operator [.*] must be a pointer"
 			);
 			return Result::ERROR;
@@ -11508,7 +11517,7 @@ namespace pcit::panther{
 		if(target_type.isPointer() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix.lhs,
+				instr.postfix,
 				"Argument of operator [.*] must be a pointer"
 			);
 			return Result::ERROR;
@@ -11517,7 +11526,7 @@ namespace pcit::panther{
 		if(target_type.isOptional()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix.lhs,
+				instr.postfix,
 				"Argument of operator [.*] must be a non-optional pointer",
 				Diagnostic::Info("Did you mean \".?.*\" instead?")
 			);
@@ -17620,12 +17629,28 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+			const TypeInfo::ID this_type_id = [&](){
+				if(actual_lhs_type.qualifiers().empty()){
+					return actual_lhs_type_id;
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(actual_lhs_type.copyWithPoppedQualifier());
+				}
+			}();
+
+			const sema::Expr this_expr = [&](){
+				if(actual_lhs_type.qualifiers().empty()){
+					return lhs.getExpr();
+				}else{
+					return sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), this_type_id));
+				}
+			}();
+
 			const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
 				TermInfo::convertValueCategory(lhs.value_category),
 				TermInfo::convertValueStage(lhs.value_stage),
 				TermInfo::convertValueState(lhs.value_state),
-				actual_lhs_type_id,
-				lhs.getExpr()
+				this_type_id,
+				this_expr
 			);
 
 			this->return_term_info(instr.output,
@@ -18762,7 +18787,7 @@ namespace pcit::panther{
 				);
 
 			}else{
-				// trivially deletable
+				// trivial
 				return evo::Result<>();
 			}
 		}
@@ -18774,12 +18799,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::PRIMITIVE: {
-				// trivially deletable
+				// trivial
 				return evo::Result<>();
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				// trivially deletable
+				// trivial
 				return evo::Result<>();
 			} break;
 
@@ -18793,7 +18818,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				// trivially deletable
+				// trivial
 				return evo::Result<>();
 			} break;
 
@@ -18924,6 +18949,22 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Not a valid type to for value");
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				// trivial
+				return evo::Result<>();
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
+					this->context.getTypeManager().getInterfaceImplInstantiation(
+						type_info.baseTypeID().interfaceImplInstantiationID()
+					);
+
+				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
+					interface_impl_instantiation.implInstantiationTypeID, dependent_funcs, location
+				);
 			} break;
 		}
 
@@ -22209,29 +22250,24 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::interface_matches(TypeInfo::VoidableID interface_type_id, TypeInfo::VoidableID match_type_id)
-	-> evo::Expected<bool, Result> {
-		if(interface_type_id.isVoid()){
-			return match_type_id.isVoid();
 
-		}else if(match_type_id.isVoid()){
-			return false;
-
-		}else{
-			return this->interface_matches(interface_type_id.asTypeID(), match_type_id.asTypeID());
-		}
-	}
 
 	auto SemanticAnalyzer::interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
-	-> evo::Expected<bool, Result> {
+	-> evo::Expected<std::optional<TypeInfo::ID>, Result> {
 		const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
 		const TypeInfo& match_type = this->context.getTypeManager().getTypeInfo(match_type_id);
 
-		if(interface_type_info.qualifiers() != match_type.qualifiers()){ return false; }
-
 		switch(interface_type_info.baseTypeID().kind()){
 			case BaseType::Kind::ARRAY: {
-				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return false; }
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return std::optional<TypeInfo::ID>();
+				}
+
+				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
+					return std::optional<TypeInfo::ID>();
+				}
 
 				const BaseType::Array& interface_array_type = 
 					this->context.getTypeManager().getArray(interface_type_info.baseTypeID().arrayID());
@@ -22240,8 +22276,12 @@ namespace pcit::panther{
 					this->context.getTypeManager().getArray(match_type.baseTypeID().arrayID());
 
 
-				if(interface_array_type.dimensions != match_array_type.dimensions){ return false; }
-				if(interface_array_type.terminator != match_array_type.terminator){ return false; }
+				if(interface_array_type.dimensions != match_array_type.dimensions){
+					return std::optional<TypeInfo::ID>();
+				}
+				if(interface_array_type.terminator != match_array_type.terminator){
+					return std::optional<TypeInfo::ID>();
+				}
 
 				return this->interface_matches(
 					interface_array_type.elementTypeID, match_array_type.elementTypeID
@@ -22249,7 +22289,13 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return false; }
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return std::optional<TypeInfo::ID>();
+				}
+
+				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return std::optional<TypeInfo::ID>(); }
 
 				const BaseType::ArrayRef& interface_array_ref_type = 
 					this->context.getTypeManager().getArrayRef(interface_type_info.baseTypeID().arrayRefID());
@@ -22257,8 +22303,12 @@ namespace pcit::panther{
 				const BaseType::ArrayRef& match_array_ref_type = 
 					this->context.getTypeManager().getArrayRef(match_type.baseTypeID().arrayRefID());
 
-				if(interface_array_ref_type.isMut != match_array_ref_type.isMut){ return false; }
-				if(interface_array_ref_type.terminator != match_array_ref_type.terminator){ return false; }
+				if(interface_array_ref_type.isMut != match_array_ref_type.isMut){
+					return std::optional<TypeInfo::ID>();
+				}
+				if(interface_array_ref_type.terminator != match_array_ref_type.terminator){
+					return std::optional<TypeInfo::ID>();
+				}
 
 				return this->interface_matches(
 					interface_array_ref_type.elementTypeID, match_array_ref_type.elementTypeID
@@ -22266,7 +22316,13 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return std::optional<TypeInfo::ID>();
+				}
+
+				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return std::optional<TypeInfo::ID>(); }
 
 				const BaseType::StructTemplateDeducer& interface_struct_template =
 					this->context.getTypeManager().getStructTemplateDeducer(
@@ -22276,8 +22332,10 @@ namespace pcit::panther{
 				const BaseType::Struct& match_struct_type = 
 					this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
 
-				if(match_struct_type.templateID.has_value() == false){ return false; }
-				if(interface_struct_template.structTemplateID != *match_struct_type.templateID){ return false; }
+				if(match_struct_type.templateID.has_value() == false){ return std::optional<TypeInfo::ID>(); }
+				if(interface_struct_template.structTemplateID != *match_struct_type.templateID){
+					return std::optional<TypeInfo::ID>();
+				}
 
 
 				const BaseType::StructTemplate& match_struct_template =
@@ -22292,32 +22350,61 @@ namespace pcit::panther{
 					const BaseType::StructTemplate::Arg& match_arg = match_template_args[i];
 
 					if(match_arg.is<TypeInfo::VoidableID>()){
-						const evo::Expected<bool, Result> interface_match_result = this->interface_matches(
-							interface_arg.as<TypeInfo::VoidableID>(), match_arg.as<TypeInfo::VoidableID>()
-						);
+						if(interface_arg.as<TypeInfo::VoidableID>().isVoid()){
+							if(match_arg.as<TypeInfo::VoidableID>().isVoid()){
+								continue;
+							}else{
+								return std::optional<TypeInfo::ID>();
+							}
 
-						if(interface_match_result.has_value()){
-							if(interface_match_result.value() == false){ return false; }
+						}else if(match_arg.as<TypeInfo::VoidableID>().isVoid()){
+							return std::optional<TypeInfo::ID>();
 
 						}else{
-							return evo::Unexpected(interface_match_result.error());
+							const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result = 
+								this->interface_matches(
+									interface_arg.as<TypeInfo::VoidableID>().asTypeID(),
+									match_arg.as<TypeInfo::VoidableID>().asTypeID()
+								);
+
+							if(interface_match_result.has_value()){
+								if(interface_match_result.value().has_value() == false){
+									return std::optional<TypeInfo::ID>();
+								}
+
+							}else{
+								return evo::Unexpected(interface_match_result.error());
+							}
 						}
 
 					}else{
 						if(interface_arg.as<core::GenericValue>() != match_arg.as<core::GenericValue>()){
-							return false;
+							return std::optional<TypeInfo::ID>();
 						}
 					}
 				}
 
-				return true;
+				return std::optional<TypeInfo::ID>(match_type_id);
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
+
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					// if there are qualifiers, didn't match
+					// Allows for qualified type that implement the interface to pass
+					if(interface_type_info.qualifiers().empty() == false){ return std::optional<TypeInfo::ID>(); }
+					
+				}else{
+					// remove matching qualifiers
+					match_type_id = this->context.type_manager.getOrCreateTypeInfo(TypeInfo(match_type.baseTypeID()));
+				}
+
+
 				const BaseType::Interface& interface_type =
 					this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
 
-				
 				if(interface_type.symbolProcID.has_value()){
 					SymbolProc& interface_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
@@ -22350,9 +22437,24 @@ namespace pcit::panther{
 					return interface_type.impls.contains(match_type_id);
 				};
 
-				if(impl_exists()){ return true; }
+				if(impl_exists()){
+					return std::optional<TypeInfo::ID>(
+						this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->context.type_manager.getOrCreateInterfaceImplInstantiation(
+									BaseType::InterfaceImplInstantiation(
+										interface_type_info.baseTypeID().interfaceID(), match_type_id
+									)
+								),
+								evo::SmallVector<TypeInfo::Qualifier>(
+									interface_type_info.qualifiers().begin(), interface_type_info.qualifiers().end()
+								)
+							)
+						)
+					);
+				}
 
-				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return std::optional<TypeInfo::ID>(); }
 
 
 				const BaseType::Struct& match_struct =
@@ -22365,7 +22467,7 @@ namespace pcit::panther{
 
 				switch(wait_on_symbol_proc_result){
 					case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-						return false;
+						return std::optional<TypeInfo::ID>();
 					} break;
 
 					case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED:
@@ -22382,11 +22484,32 @@ namespace pcit::panther{
 					} break;
 				}
 
-				return impl_exists();
+				if(impl_exists()){
+					return std::optional<TypeInfo::ID>(
+						this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->context.type_manager.getOrCreateInterfaceImplInstantiation(
+									BaseType::InterfaceImplInstantiation(
+										interface_type_info.baseTypeID().interfaceID(), match_type_id
+									)
+								),
+								evo::SmallVector<TypeInfo::Qualifier>(
+									interface_type_info.qualifiers().begin(), interface_type_info.qualifiers().end()
+								)
+							)
+						)
+					);
+				}else{
+					return std::optional<TypeInfo::ID>();
+				}
 			} break;
 
 			default: {
-				return interface_type_info.baseTypeID() == match_type.baseTypeID();
+				if(interface_type_info.baseTypeID() == match_type.baseTypeID()){
+					return std::optional<TypeInfo::ID>(match_type_id);
+				}else{
+					return std::optional<TypeInfo::ID>();
+				}
 			} break;
 		}
 	}
@@ -24432,6 +24555,46 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// error handling / diagnostics
 
+
+	auto SemanticAnalyzer::type_qualifiers_check(
+		evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifers,
+		evo::ArrayProxy<TypeInfo::Qualifier> got_qualifers
+	) -> evo::Result<bool> {
+		bool is_implicit_conversion_to_optional = false;
+
+		if(expected_qualifers.size() != got_qualifers.size()){
+			if(
+				expected_qualifers.size() == got_qualifers.size() + 1
+				&& expected_qualifers.back().isOptional
+				&& expected_qualifers.back().isPtr == false
+			){
+				is_implicit_conversion_to_optional = true;
+			}else{
+				return evo::resultError;
+			}
+		}
+
+		for(size_t i = 0; i < got_qualifers.size(); i+=1){
+			const TypeInfo::Qualifier& expected_qualifier = expected_qualifers[i];
+			const TypeInfo::Qualifier& got_qualifier      = got_qualifers[i];
+
+			if(expected_qualifier.isPtr != got_qualifier.isPtr){
+				return evo::resultError;
+			}
+			if(expected_qualifier.isMut && got_qualifier.isMut == false){
+				return evo::resultError;
+			}
+			if(expected_qualifier.isUninit != got_qualifier.isUninit){
+				return evo::resultError;
+			}
+			if(expected_qualifier.isOptional == false && got_qualifier.isOptional){
+				return evo::resultError;
+			}
+		}
+
+		return is_implicit_conversion_to_optional;
+	}
+
 	template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id,
@@ -24554,62 +24717,19 @@ namespace pcit::panther{
 					}
 
 
-					if(expected_type.qualifiers().size() != got_type.qualifiers().size()){
-						const bool is_optional_conversion = 
-							expected_type.qualifiers().size() == got_type.qualifiers().size() + 1
-							&& expected_type.isOptionalNotPointer();
-						
-						if(is_optional_conversion){
-							is_implicit_conversion_to_optional = true;
+					const evo::Result<bool> qualifiers_check_result = 
+						this->type_qualifiers_check(expected_type.qualifiers(), got_type.qualifiers());
 
-						}else{
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
+					if(qualifiers_check_result.isError()){
+						if constexpr(MAY_EMIT_ERROR){
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+							);
 						}
+						return TypeCheckInfo::fail();
 					}
 
-					// check qualifiers
-					for(size_t i = 0; i < got_type.qualifiers().size(); i+=1){
-						const TypeInfo::Qualifier& expected_qualifier = expected_type.qualifiers()[i];
-						const TypeInfo::Qualifier& got_qualifier      = got_type.qualifiers()[i];
-
-						if(expected_qualifier.isPtr != got_qualifier.isPtr){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
-						if(expected_qualifier.isMut && got_qualifier.isMut == false){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
-						if(expected_qualifier.isUninit != got_qualifier.isUninit){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();	
-						}
-						if(expected_qualifier.isOptional == false && got_qualifier.isOptional){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
-					}
+					is_implicit_conversion_to_optional = qualifiers_check_result.value();
 				}
 
 				if constexpr(MAY_IMPLICITLY_CONVERT){
