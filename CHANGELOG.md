@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.188.5"></a>
+## v0.0.188.5
+
+### Panther
+- Fixed type deducers and interface deducers in the same type
+
+
+<!---------------------------------->
 <a name="v0.0.188.4"></a>
 ## v0.0.188.4
 

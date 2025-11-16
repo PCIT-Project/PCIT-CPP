@@ -736,6 +736,10 @@ namespace pcit::panther{
 			std::optional<SourceID> sourceID; // nullopt if builtin
 			std::optional<Token::ID> identTokenID; // nullopt if builtin
 
+			EVO_NODISCARD auto isAnonymous() const -> bool {
+				return this->sourceID.has_value() == false;
+			}
+
 			EVO_NODISCARD auto operator==(const TypeDeducer& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
 			}
@@ -1004,9 +1008,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTypeDeducer(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isNonPolymorphicInterface(TypeInfo::VoidableID id) const -> bool;
-			EVO_NODISCARD auto isNonPolymorphicInterface(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isNonPolymorphicInterface(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(BaseType::ID id) const -> bool;
+
+			EVO_NODISCARD auto isInterfaceDeducer(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isInterfaceDeducer(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isInterfaceDeducer(BaseType::ID id) const -> bool;
 
 
 			///////////////////////////////////

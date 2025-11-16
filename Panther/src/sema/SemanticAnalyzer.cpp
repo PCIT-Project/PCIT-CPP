@@ -870,43 +870,14 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->context.getTypeManager().isNonPolymorphicInterface(var_type_id)){
-					const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
-						this->interface_matches(var_type_id, value_term_info.type_id.as<TypeInfo::ID>());
+				TypeCheckInfo type_check_info = this->type_check<true, true>(
+					var_type_id, value_term_info, "Variable definition", *instr.var_def.value
+				);
 
-					if(interface_match_result.has_value()){
-						if(interface_match_result.value().has_value() == false){
-							auto infos = evo::SmallVector<Diagnostic::Info>();
-							this->diagnostic_print_type_info(
-								value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
-							);
-							this->diagnostic_print_type_info(var_type_id, infos, "Target type:     ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
-								*instr.var_def.value,
-								"Interface deducer not able to deduce type",
-								std::move(infos)
-							);
-							return Result::ERROR;
-
-						}
-
+				if(type_check_info.ok == false){
+					if(type_check_info.special_result_from_interface_match.has_value()){
+						return type_check_info.extractSpecialResultFromInterfaceMatch();
 					}else{
-						return interface_match_result.error();
-					}
-
-					const sema::GlobalVar::ID sema_var_id = this->symbol_proc.extra_info
-						.as<SymbolProc::NonLocalVarInfo>()
-						.sema_id.as<sema::GlobalVar::ID>();
-
-					sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
-
-					sema_var.typeID = *interface_match_result.value();
-
-				}else{
-					if(this->type_check<true, true>(
-						var_type_id, value_term_info, "Variable definition", *instr.var_def.value
-					).ok == false){
 						return Result::ERROR;
 					}
 				}
@@ -922,7 +893,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 
 			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterface(var_type_id)){
+				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(var_type_id)){
 					this->emit_error(
 						Diagnostic::Code::SEMA_STRUCT_MEMBER_INVALID_TYPE,
 						*instr.var_def.type,
@@ -2820,24 +2791,36 @@ namespace pcit::panther{
 
 		const TypeInfo::VoidableID param_type = this->get_type(instr.param_type);
 
-		const evo::Result<evo::SmallVector<DeducedTerm>> deducers = this->extract_deducers(
+		const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 			param_type.asTypeID(),
 			*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[instr.param_index]
 		);
-		
-		if(deducers.isError()){
-			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
-			func_info.instantiation->errored_reason = 
-				sema::TemplatedFunc::Instantiation::ErroredReasonParamDeductionFailed(instr.param_index);
+		switch(deducer_match_output.outcome()){
+			case DeducerMatchOutput::Outcome::MATCH: {
+				if(this->add_deduced_terms_to_scope(deducer_match_output.deducedTerms()).isError()){
+					return Result::ERROR;
+				}else{
+					return Result::SUCCESS;
+				}
+			} break;
 
-			this->propagate_finished_decl();
-			return Result::FINISHED_EARLY;
+			case DeducerMatchOutput::Outcome::NO_MATCH: {
+				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+				func_info.instantiation->errored_reason = 
+					sema::TemplatedFunc::Instantiation::ErroredReasonParamDeductionFailed(instr.param_index);
+
+				this->propagate_finished_decl();
+				return Result::FINISHED_EARLY;
+			} break;
+
+			case DeducerMatchOutput::Outcome::RESULT: {
+				return deducer_match_output.result();
+			} break;
 		}
 
-		if(this->add_deduced_terms_to_scope(deducers.value()).isError()){ return Result::ERROR; }
-
-		return Result::SUCCESS;
+		evo::debugFatalBreak("Unknown deducer match outcome");
 	}
 
 
@@ -2850,15 +2833,15 @@ namespace pcit::panther{
 		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
 		switch(this->source.getTokenBuffer()[instr.func_def.name].kind()){
-			case Token::lookupKind("+"):    case Token::lookupKind("+%"):     case Token::lookupKind("+|"):
-			case Token::lookupKind("-"):    case Token::lookupKind("-%"):     case Token::lookupKind("-|"):
-			case Token::lookupKind("*"):    case Token::lookupKind("*%"):     case Token::lookupKind("*|"):
-			case Token::lookupKind("/"):    case Token::lookupKind("%"):      case Token::lookupKind("=="):
-			case Token::lookupKind("!="):   case Token::lookupKind("<"):      case Token::lookupKind("<="):
-			case Token::lookupKind(">"):    case Token::lookupKind(">="):     case Token::lookupKind("!"):
-			case Token::lookupKind("&&"):   case Token::lookupKind("||"):     case Token::lookupKind("<<"):
-			case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):     case Token::lookupKind("&"):
-			case Token::lookupKind("|"):    case Token::lookupKind("^"):      case Token::lookupKind("~"): {
+			case Token::lookupKind("+"):   case Token::lookupKind("+%"): case Token::lookupKind("+|"):
+			case Token::lookupKind("-"):   case Token::lookupKind("-%"): case Token::lookupKind("-|"):
+			case Token::lookupKind("*"):   case Token::lookupKind("*%"): case Token::lookupKind("*|"):
+			case Token::lookupKind("/"):   case Token::lookupKind("%"):  case Token::lookupKind("=="):
+			case Token::lookupKind("!="):  case Token::lookupKind("<"):  case Token::lookupKind("<="):
+			case Token::lookupKind(">"):   case Token::lookupKind(">="): case Token::lookupKind("!"):
+			case Token::lookupKind("&&"):  case Token::lookupKind("||"): case Token::lookupKind("<<"):
+			case Token::lookupKind("<<|"): case Token::lookupKind(">>"): case Token::lookupKind("&"):
+			case Token::lookupKind("|"):   case Token::lookupKind("^"):  case Token::lookupKind("~"): {
 				// do nothing...
 			} break;
 
@@ -2950,7 +2933,7 @@ namespace pcit::panther{
 
 
 				const bool param_type_is_interface =
-					this->context.getTypeManager().isNonPolymorphicInterface(param_type_id.asTypeID());
+					this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(param_type_id.asTypeID());
 
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
@@ -2973,11 +2956,16 @@ namespace pcit::panther{
 						const TypeInfo::ID arg_type_info_id =
 							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
 
-						const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result = 
-							this->interface_matches(param_type_id.asTypeID(), arg_type_info_id);
 
-						if(interface_match_result.has_value()){
-							if(interface_match_result.value().has_value() == false){
+						const DeducerMatchOutput deducer_match_output =
+							this->deducer_matches_and_extract(param_type_id.asTypeID(), arg_type_info_id);
+
+						switch(deducer_match_output.outcome()){
+							case DeducerMatchOutput::Outcome::MATCH: {
+								interface_impl_instantiation_type = deducer_match_output.resultantTypeID();
+							} break;
+
+							case DeducerMatchOutput::Outcome::NO_MATCH: {
 								func_info.instantiation->errored_reason = 
 									sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
 										i, param_type_id.asTypeID(), arg_type_info_id
@@ -2985,13 +2973,12 @@ namespace pcit::panther{
 
 								this->propagate_finished_decl();
 								return Result::FINISHED_EARLY;
-							}
+							} break;
 
-						}else{
-							return interface_match_result.error();
+							case DeducerMatchOutput::Outcome::RESULT: {
+								return deducer_match_output.result();
+							} break;
 						}
-
-						interface_impl_instantiation_type = *interface_match_result.value();
 					}
 				}
 
@@ -3205,7 +3192,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterface(type_id.asTypeID())){
+				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id.asTypeID())){
 					if(instr.func_def.block.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
@@ -3266,7 +3253,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterface(type_id.asTypeID())){
+				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id.asTypeID())){
 					if(instr.func_def.block.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
@@ -5511,7 +5498,7 @@ namespace pcit::panther{
 				for(const BaseType::Function::ReturnParam& return_param : method_type.returnParams){
 					if(
 						this->context.getTypeManager().isTypeDeducer(return_param.typeID)
-						|| this->context.getTypeManager().isNonPolymorphicInterface(return_param.typeID)
+						|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(return_param.typeID)
 					){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
@@ -5661,7 +5648,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
 				instr.interface_impl.target,
-				"Interface impl target is not an interface"
+				"Interface impl target cannot be `Void`"
 			);
 			return Result::ERROR;
 		}
@@ -5889,35 +5876,25 @@ namespace pcit::panther{
 
 
 								//////////////////
-								// interface
+								// deducers
 
-								if(info.target_interface.isPolymorphic == false){
-									const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
-										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
-
-									if(interface_match_result.has_value() == false){
-										return interface_match_result.error();
-									}
-										
-									if(interface_match_result.value().has_value()){ continue; }
-								}
-
-
-								//////////////////
-								// deducer
-
-								if(this->context.getTypeManager().isTypeDeducer(target_ret_param_type_id) == false){
-									return_params_matched = false;
-									break;
-								}
-
-								const bool deducer_match_failed = this->extract_deducers(
+								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 									target_ret_param_type_id, overload_ret_param_type_id
-								).isError();
+								);
 
-								if(deducer_match_failed){
-									return_params_matched = false;
-									break;
+								switch(deducer_match_output.outcome()){
+									case DeducerMatchOutput::Outcome::MATCH: {
+										continue;
+									} break;
+
+									case DeducerMatchOutput::Outcome::NO_MATCH: {
+										return_params_matched = false;
+										break;
+									} break;
+
+									case DeducerMatchOutput::Outcome::RESULT: {
+										return deducer_match_output.result();
+									} break;
 								}
 							}
 
@@ -5951,35 +5928,25 @@ namespace pcit::panther{
 
 
 								//////////////////
-								// interface
+								// deducers
 
-								if(info.target_interface.isPolymorphic == false){
-									const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
-										this->interface_matches(target_ret_param_type_id, overload_ret_param_type_id);
-
-									if(interface_match_result.has_value() == false){
-										return interface_match_result.error();
-									}
-										
-									if(interface_match_result.value().has_value()){ continue; }
-								}
-
-
-								//////////////////
-								// deducer
-
-								if(this->context.getTypeManager().isTypeDeducer(target_ret_param_type_id) == false){
-									error_params_matched = false;
-									break;
-								}
-
-								const bool deducer_match_failed = this->extract_deducers(
+								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 									target_ret_param_type_id, overload_ret_param_type_id
-								).isError();
+								);
 
-								if(deducer_match_failed){
-									error_params_matched = false;
-									break;
+								switch(deducer_match_output.outcome()){
+									case DeducerMatchOutput::Outcome::MATCH: {
+										continue;
+									} break;
+
+									case DeducerMatchOutput::Outcome::NO_MATCH: {
+										error_params_matched = false;
+										break;
+									} break;
+
+									case DeducerMatchOutput::Outcome::RESULT: {
+										return deducer_match_output.result();
+									} break;
 								}
 							}
 
@@ -6168,7 +6135,7 @@ namespace pcit::panther{
 
 			if(
 				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
-				|| this->context.getTypeManager().isNonPolymorphicInterface(this->get_type(*instr.type_id))
+				|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(this->get_type(*instr.type_id))
 			){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
@@ -6191,7 +6158,7 @@ namespace pcit::panther{
 
 			if(
 				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
-				|| this->context.getTypeManager().isNonPolymorphicInterface(this->get_type(*instr.type_id))
+				|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(this->get_type(*instr.type_id))
 			){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
@@ -6236,8 +6203,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-
-			if(this->context.getTypeManager().isNonPolymorphicInterface(got_type_info_id.asTypeID())){
+			// TODO(NOW): remove
+			/*if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(got_type_info_id.asTypeID())){
 				const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
 					this->interface_matches(got_type_info_id.asTypeID(), value_term_info.type_id.as<TypeInfo::ID>());
 
@@ -6263,12 +6230,20 @@ namespace pcit::panther{
 
 				interface_impl_instantiation_type = *interface_match_result.value();
 				
-			}else if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
-				const TypeCheckInfo type_check_info = this->type_check<true, true>(
+			}else */
+
+			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
+				TypeCheckInfo type_check_info = this->type_check<true, true>(
 					got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_def.value
 				);
 
-				if(type_check_info.ok == false){ return Result::ERROR; }
+				if(type_check_info.ok == false){
+					if(type_check_info.special_result_from_interface_match.has_value()){
+						return type_check_info.extractSpecialResultFromInterfaceMatch();
+					}else{
+						return Result::ERROR;
+					}
+				}
 
 				if(this->add_deduced_terms_to_scope(type_check_info.deduced_terms).isError()){ return Result::ERROR; }
 			}
@@ -12209,7 +12184,7 @@ namespace pcit::panther{
 			return this->union_designated_init_new(instr, target_type_id.asTypeID());
 
 		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			if(this->context.getTypeManager().isNonPolymorphicInterface(target_type_info.baseTypeID())){
+			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(target_type_info.baseTypeID())){
 				this->emit_error(
 					Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
 					instr.designated_init_new.type,
@@ -12729,7 +12704,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->context.getTypeManager().isNonPolymorphicInterface(output_type.asTypeID())){
+			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(output_type.asTypeID())){
 				this->emit_error(
 					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_DEDUCER_TYPE,
 					instr.block.outputs[i].typeID,
@@ -13262,7 +13237,7 @@ namespace pcit::panther{
 
 					if(
 						this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)
-						|| this->context.getTypeManager().isNonPolymorphicInterface(arg_type_voidable_id)
+						|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(arg_type_voidable_id)
 					){
 						instantiation_lookup_args.emplace_back(arg_type_voidable_id);
 						is_deducer = true;
@@ -13412,7 +13387,7 @@ namespace pcit::panther{
 
 				if(
 					this->context.getTypeManager().isTypeDeducer(type_id)
-					|| this->context.getTypeManager().isNonPolymorphicInterface(type_id)
+					|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id)
 				){
 					instantiation_lookup_args.emplace_back(type_id);
 					is_deducer = true;
@@ -19351,7 +19326,7 @@ namespace pcit::panther{
 					}else{
 						if(
 							this->context.getTypeManager().isTypeDeducer(param.typeID)
-							|| this->context.getTypeManager().isNonPolymorphicInterface(param.typeID)
+							|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(param.typeID)
 						){
 							return *func_info.instantiation_param_arg_types[param_index];
 						}else{
@@ -22252,330 +22227,115 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
-	-> evo::Expected<std::optional<TypeInfo::ID>, Result> {
-		const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
-		const TypeInfo& match_type = this->context.getTypeManager().getTypeInfo(match_type_id);
+	auto SemanticAnalyzer::type_implements_interface(
+		const BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+	) -> evo::Expected<bool, Result> {
+		if(interface_type.symbolProcID.has_value()){
+			SymbolProc& interface_symbol_proc =
+				this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
 
-		switch(interface_type_info.baseTypeID().kind()){
-			case BaseType::Kind::ARRAY: {
-				const evo::Result<bool> qualifiers_check_result =
-					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return std::optional<TypeInfo::ID>();
-				}
+			const SymbolProc::WaitOnResult wait_on_result = interface_symbol_proc.waitOnDefIfNeeded(
+				this->symbol_proc_id, this->context, *interface_type.symbolProcID
+			);
 
-				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
-					return std::optional<TypeInfo::ID>();
-				}
-
-				const BaseType::Array& interface_array_type = 
-					this->context.getTypeManager().getArray(interface_type_info.baseTypeID().arrayID());
-
-				const BaseType::Array& match_array_type = 
-					this->context.getTypeManager().getArray(match_type.baseTypeID().arrayID());
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING:                    return evo::Unexpected(Result::NEED_TO_WAIT);
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return evo::Unexpected(Result::ERROR);
+			}
+		}
 
 
-				if(interface_array_type.dimensions != match_array_type.dimensions){
-					return std::optional<TypeInfo::ID>();
-				}
-				if(interface_array_type.terminator != match_array_type.terminator){
-					return std::optional<TypeInfo::ID>();
-				}
+		{
+			const auto lock = std::scoped_lock(interface_type.implsLock);
+			if(interface_type.impls.contains(target_type_id)){ return true; }
+		}
 
-				return this->interface_matches(
-					interface_array_type.elementTypeID, match_array_type.elementTypeID
-				);
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+		if(target_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
+
+
+		const BaseType::Struct& target_struct =
+			this->context.getTypeManager().getStruct(target_type.baseTypeID().structID());
+
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
+			target_struct.namespacedMembers, "impl"
+		);
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_REF: {
-				const evo::Result<bool> qualifiers_check_result =
-					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return std::optional<TypeInfo::ID>();
-				}
-
-				if(match_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return std::optional<TypeInfo::ID>(); }
-
-				const BaseType::ArrayRef& interface_array_ref_type = 
-					this->context.getTypeManager().getArrayRef(interface_type_info.baseTypeID().arrayRefID());
-
-				const BaseType::ArrayRef& match_array_ref_type = 
-					this->context.getTypeManager().getArrayRef(match_type.baseTypeID().arrayRefID());
-
-				if(interface_array_ref_type.isMut != match_array_ref_type.isMut){
-					return std::optional<TypeInfo::ID>();
-				}
-				if(interface_array_ref_type.terminator != match_array_ref_type.terminator){
-					return std::optional<TypeInfo::ID>();
-				}
-
-				return this->interface_matches(
-					interface_array_ref_type.elementTypeID, match_array_ref_type.elementTypeID
-				);
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
 			} break;
 
-			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				const evo::Result<bool> qualifiers_check_result =
-					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return std::optional<TypeInfo::ID>();
-				}
-
-				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return std::optional<TypeInfo::ID>(); }
-
-				const BaseType::StructTemplateDeducer& interface_struct_template =
-					this->context.getTypeManager().getStructTemplateDeducer(
-						interface_type_info.baseTypeID().structTemplateDeducerID()
-					);
-
-				const BaseType::Struct& match_struct_type = 
-					this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
-
-				if(match_struct_type.templateID.has_value() == false){ return std::optional<TypeInfo::ID>(); }
-				if(interface_struct_template.structTemplateID != *match_struct_type.templateID){
-					return std::optional<TypeInfo::ID>();
-				}
-
-
-				const BaseType::StructTemplate& match_struct_template =
-					this->context.getTypeManager().getStructTemplate(*match_struct_type.templateID);
-
-
-				const evo::SmallVector<BaseType::StructTemplate::Arg> match_template_args =
-					match_struct_template.getInstantiationArgs(match_struct_type.instantiation);
-
-				for(size_t i = 0; i < interface_struct_template.args.size(); i+=1){
-					const BaseType::StructTemplate::Arg& interface_arg = interface_struct_template.args[i];
-					const BaseType::StructTemplate::Arg& match_arg = match_template_args[i];
-
-					if(match_arg.is<TypeInfo::VoidableID>()){
-						if(interface_arg.as<TypeInfo::VoidableID>().isVoid()){
-							if(match_arg.as<TypeInfo::VoidableID>().isVoid()){
-								continue;
-							}else{
-								return std::optional<TypeInfo::ID>();
-							}
-
-						}else if(match_arg.as<TypeInfo::VoidableID>().isVoid()){
-							return std::optional<TypeInfo::ID>();
-
-						}else{
-							const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result = 
-								this->interface_matches(
-									interface_arg.as<TypeInfo::VoidableID>().asTypeID(),
-									match_arg.as<TypeInfo::VoidableID>().asTypeID()
-								);
-
-							if(interface_match_result.has_value()){
-								if(interface_match_result.value().has_value() == false){
-									return std::optional<TypeInfo::ID>();
-								}
-
-							}else{
-								return evo::Unexpected(interface_match_result.error());
-							}
-						}
-
-					}else{
-						if(interface_arg.as<core::GenericValue>() != match_arg.as<core::GenericValue>()){
-							return std::optional<TypeInfo::ID>();
-						}
-					}
-				}
-
-				return std::optional<TypeInfo::ID>(match_type_id);
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return evo::Unexpected(Result::NEED_TO_WAIT);
 			} break;
 
-			case BaseType::Kind::INTERFACE: {
-				const evo::Result<bool> qualifiers_check_result =
-					this->type_qualifiers_check(interface_type_info.qualifiers(), match_type.qualifiers());
-
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					// if there are qualifiers, didn't match
-					// Allows for qualified type that implement the interface to pass
-					if(interface_type_info.qualifiers().empty() == false){ return std::optional<TypeInfo::ID>(); }
-					
-				}else{
-					// remove matching qualifiers
-					match_type_id = this->context.type_manager.getOrCreateTypeInfo(TypeInfo(match_type.baseTypeID()));
-				}
-
-
-				const BaseType::Interface& interface_type =
-					this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID());
-
-				if(interface_type.symbolProcID.has_value()){
-					SymbolProc& interface_symbol_proc =
-						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
-
-					const SymbolProc::WaitOnResult wait_on_result = interface_symbol_proc.waitOnDefIfNeeded(
-						this->symbol_proc_id, this->context, *interface_type.symbolProcID
-					);
-
-					switch(wait_on_result){
-						case SymbolProc::WaitOnResult::NOT_NEEDED:
-							break;
-
-						case SymbolProc::WaitOnResult::WAITING:
-							return evo::Unexpected(Result::NEED_TO_WAIT);
-
-						case SymbolProc::WaitOnResult::WAS_ERRORED:
-							return evo::Unexpected(Result::ERROR);
-
-						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-							evo::debugFatalBreak("Not possible");
-
-						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-							return evo::Unexpected(Result::ERROR);
-					}
-				}
-
-
-				const auto impl_exists = [&]() -> bool {
-					const auto lock = std::scoped_lock(interface_type.implsLock);
-					return interface_type.impls.contains(match_type_id);
-				};
-
-				if(impl_exists()){
-					return std::optional<TypeInfo::ID>(
-						this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(
-								this->context.type_manager.getOrCreateInterfaceImplInstantiation(
-									BaseType::InterfaceImplInstantiation(
-										interface_type_info.baseTypeID().interfaceID(), match_type_id
-									)
-								),
-								evo::SmallVector<TypeInfo::Qualifier>(
-									interface_type_info.qualifiers().begin(), interface_type_info.qualifiers().end()
-								)
-							)
-						)
-					);
-				}
-
-				if(match_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return std::optional<TypeInfo::ID>(); }
-
-
-				const BaseType::Struct& match_struct =
-					this->context.getTypeManager().getStruct(match_type.baseTypeID().structID());
-
-
-				const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
-					match_struct.namespacedMembers, "impl"
-				);
-
-				switch(wait_on_symbol_proc_result){
-					case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-						return std::optional<TypeInfo::ID>();
-					} break;
-
-					case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED:
-					case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-						return evo::Unexpected(Result::ERROR);
-					} break;
-
-					case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-						return evo::Unexpected(Result::NEED_TO_WAIT);
-					} break;
-
-					case WaitOnSymbolProcResult::SEMAS_READY: {
-						// do nothing...
-					} break;
-				}
-
-				if(impl_exists()){
-					return std::optional<TypeInfo::ID>(
-						this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(
-								this->context.type_manager.getOrCreateInterfaceImplInstantiation(
-									BaseType::InterfaceImplInstantiation(
-										interface_type_info.baseTypeID().interfaceID(), match_type_id
-									)
-								),
-								evo::SmallVector<TypeInfo::Qualifier>(
-									interface_type_info.qualifiers().begin(), interface_type_info.qualifiers().end()
-								)
-							)
-						)
-					);
-				}else{
-					return std::optional<TypeInfo::ID>();
-				}
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
 			} break;
+		}
 
-			default: {
-				if(interface_type_info.baseTypeID() == match_type.baseTypeID()){
-					return std::optional<TypeInfo::ID>(match_type_id);
-				}else{
-					return std::optional<TypeInfo::ID>();
-				}
-			} break;
+		{
+			const auto lock = std::scoped_lock(interface_type.implsLock);
+			return interface_type.impls.contains(target_type_id);
 		}
 	}
 
 
 
-	auto SemanticAnalyzer::extract_deducers(TypeInfo::VoidableID deducer_id, TypeInfo::VoidableID got_type_id)
-	-> evo::Result<evo::SmallVector<DeducedTerm>> {
-		if(deducer_id.isVoid()){
-			if(got_type_id.isVoid()){
-				return evo::SmallVector<DeducedTerm>();
-			}else{
-				return evo::resultError;
-			}
 
-		}else{
-			if(got_type_id.isVoid()){
-				return evo::resultError;
-			}else{
-				return this->extract_deducers(deducer_id.asTypeID(), got_type_id.asTypeID());
-			}
-		}
-	}
-
-
-	auto SemanticAnalyzer::extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-	-> evo::Result<evo::SmallVector<DeducedTerm>> {
+	auto SemanticAnalyzer::deducer_matches_and_extract(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+	-> DeducerMatchOutput {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		auto output = evo::SmallVector<DeducedTerm>();
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
 
 		const TypeInfo& deducer  = type_manager.getTypeInfo(deducer_id);
 		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
 
-		if(deducer.qualifiers().size() < got_type.qualifiers().size()){
-			for(size_t i = 0; i < deducer.qualifiers().size(); i+=1){
-				if(deducer.qualifiers()[i] != got_type.qualifiers()[i - got_type.qualifiers().size()]){
-					return evo::resultError;
-				}
-			}
-
-		}else if(deducer.qualifiers().size() == got_type.qualifiers().size()){
-			if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
-			
-		}else{ // deducer.qualifiers().size() > got_type.qualifiers().size()
-			return evo::resultError;
-		}
 
 
 		switch(deducer.baseTypeID().kind()){
 			case BaseType::Kind::TYPE_DEDUCER: {
+				if(deducer.qualifiers().size() < got_type.qualifiers().size()){
+					for(size_t i = 0; i < deducer.qualifiers().size(); i+=1){
+						if(deducer.qualifiers()[i] != got_type.qualifiers()[i - got_type.qualifiers().size()]){
+							return evo::resultError;
+						}
+					}
+
+				}else if(deducer.qualifiers().size() == got_type.qualifiers().size()){
+					if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+					
+				}else{ // deducer.qualifiers().size() > got_type.qualifiers().size()
+					return evo::resultError;
+				}
+
+
 				const BaseType::TypeDeducer& type_deducer = 
 					type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
 
-				if(type_deducer.sourceID.has_value() == false){
-					return output;
+				if(type_deducer.isAnonymous()){
+					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 				}
 
 				const Token& type_deducer_token = this->source.getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
-					return output;
+					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 				}
 
 				if(deducer.qualifiers().empty()){
-					output.emplace_back(got_type_id, *type_deducer.identTokenID);
+					deduced_terms.emplace_back(got_type_id, *type_deducer.identTokenID);
 				}else{
 					auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
@@ -22583,16 +22343,24 @@ namespace pcit::panther{
 						qualifiers.emplace_back(got_type.qualifiers()[i]);
 					}
 
-					output.emplace_back(
+					deduced_terms.emplace_back(
 						this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(got_type.baseTypeID(), std::move(qualifiers))
 						),
 						*type_deducer.identTokenID
 					);
 				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			case BaseType::Kind::ARRAY: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return evo::resultError;
+				}
+
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return evo::resultError; }
 
 				const BaseType::Array& deducer_array_type = 
@@ -22604,18 +22372,30 @@ namespace pcit::panther{
 				if(deducer_array_type.dimensions != got_array_type.dimensions){ return evo::resultError; }
 				if(deducer_array_type.terminator != got_array_type.terminator){ return evo::resultError; }
 
-				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
+				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_type.elementTypeID, got_array_type.elementTypeID
 				);
-				if(arr_deduced.isError()){ return evo::resultError; }
-
-				output.reserve(output.size() + arr_deduced.value().size());
-				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
-					output.emplace_back(arr_deduced_term);
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:    break;
+					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
+				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
+				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
+					deduced_terms.emplace_back(arr_deduced_term);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return evo::resultError;
+				}
+
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return evo::resultError; }
 
 				const BaseType::ArrayRef& deducer_array_ref_type = 
@@ -22627,18 +22407,30 @@ namespace pcit::panther{
 				if(deducer_array_ref_type.isMut != got_array_ref_type.isMut){ return evo::resultError; }
 				if(deducer_array_ref_type.terminator != got_array_ref_type.terminator){ return evo::resultError; }
 
-				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
+				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_ref_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
-				if(arr_deduced.isError()){ return evo::resultError; }
-
-				output.reserve(output.size() + arr_deduced.value().size());
-				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
-					output.emplace_back(arr_deduced_term);
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:    break;
+					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
+				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
+				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
+					deduced_terms.emplace_back(arr_deduced_term);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return evo::resultError;
+				}
+
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return evo::resultError; }
 
 				const BaseType::ArrayDeducer& deducer_array_deducer_type = 
@@ -22647,14 +22439,18 @@ namespace pcit::panther{
 				const BaseType::Array& got_array_type = 
 					this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
 
-				const evo::Result<evo::SmallVector<DeducedTerm>> arr_deduced = this->extract_deducers(
+				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_deducer_type.elementTypeID, got_array_type.elementTypeID
 				);
-				if(arr_deduced.isError()){ return evo::resultError; }
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:    break;
+					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
+				}
 
-				output.reserve(std::bit_ceil(output.size() + arr_deduced.value().size()));
-				for(const DeducedTerm& arr_deduced_term : arr_deduced.value()){
-					output.emplace_back(arr_deduced_term);
+				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
+				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
+					deduced_terms.emplace_back(arr_deduced_term);
 				}
 
 
@@ -22683,8 +22479,8 @@ namespace pcit::panther{
 								)
 							);
 
-							output.emplace_back(
-								DeducedTerm::Expr(TypeManager::getTypeUSize(), created_int_value),
+							deduced_terms.emplace_back(
+								DeducerMatchOutput::DeducedTerm::Expr(TypeManager::getTypeUSize(), created_int_value),
 								deducer_array_deducer_type.dimensions[i].as<Token::ID>()
 							);
 
@@ -22709,8 +22505,8 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[deducer_array_deducer_type.terminator.as<Token::ID>()];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
-						output.emplace_back(
-							DeducedTerm::Expr(
+						deduced_terms.emplace_back(
+							DeducerMatchOutput::DeducedTerm::Expr(
 								got_array_type.elementTypeID,
 								this->generic_value_to_sema_expr(
 									*got_array_type.terminator,
@@ -22726,9 +22522,17 @@ namespace pcit::panther{
 						);
 					}
 				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					return evo::resultError;
+				}
+
 				if(got_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return evo::resultError; }
 
 				const BaseType::StructTemplateDeducer& struct_template_deducer =
@@ -22756,14 +22560,35 @@ namespace pcit::panther{
 					const BaseType::StructTemplate::Arg& got_arg = got_template_args[i];
 
 					if(got_arg.is<TypeInfo::VoidableID>()){
-						const evo::Result<evo::SmallVector<DeducedTerm>> struct_deduced = this->extract_deducers(
-							deducer_arg.as<TypeInfo::VoidableID>(), got_arg.as<TypeInfo::VoidableID>()
-						);
-						if(struct_deduced.isError()){ return evo::resultError; }
+						if(deducer_arg.as<TypeInfo::VoidableID>().isVoid()){
+							if(got_arg.as<TypeInfo::VoidableID>().isVoid()){
+								continue;
+							}else{
+								return evo::resultError;
+							}
 
-						output.reserve(std::bit_ceil(output.size() + struct_deduced.value().size()));
-						for(const DeducedTerm& struct_deduced_term : struct_deduced.value()){
-							output.emplace_back(struct_deduced_term);
+						}else if(got_arg.as<TypeInfo::VoidableID>().isVoid()){
+							return evo::resultError;
+
+						}else{
+							const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+								deducer_arg.as<TypeInfo::VoidableID>().asTypeID(),
+								got_arg.as<TypeInfo::VoidableID>().asTypeID()
+							);
+
+							switch(deducer_match_output.outcome()){
+								case DeducerMatchOutput::Outcome::MATCH:    break;
+								case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+								case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
+							}
+
+							deduced_terms.reserve(
+								std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size())
+							);
+							using DeducedTerm = DeducerMatchOutput::DeducedTerm;
+							for(const DeducedTerm& param_deduced_term : deducer_match_output.deducedTerms()){
+								deduced_terms.emplace_back(param_deduced_term);
+							}
 						}
 
 					}else if(deducer_arg.is<TypeInfo::VoidableID>()){ // arg is deducer
@@ -22783,8 +22608,8 @@ namespace pcit::panther{
 							if(deducer_token.kind() == Token::Kind::DEDUCER){
 								const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
 
-								output.emplace_back(
-									DeducedTerm::Expr(
+								deduced_terms.emplace_back(
+									DeducerMatchOutput::DeducedTerm::Expr(
 										arg_type_id,
 										this->generic_value_to_sema_expr(
 											got_arg.as<core::GenericValue>(),
@@ -22802,19 +22627,68 @@ namespace pcit::panther{
 						}
 					}
 				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				TypeInfo::ID got_match_type_id = got_type_id;
+
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+					// if there are qualifiers, didn't match
+					// Allows for qualified type that implement the interface to pass
+					if(deducer.qualifiers().empty() == false){ return evo::resultError; }
+					
+				}else{
+					// remove matching qualifiers
+					got_match_type_id = this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID()));
+				}
+
+
+				const evo::Expected<bool, Result> implements_interface_res = this->type_implements_interface(
+					this->context.getTypeManager().getInterface(deducer.baseTypeID().interfaceID()), got_match_type_id
+				);
+
+				if(implements_interface_res.has_value()){
+					if(implements_interface_res.value()){
+						return DeducerMatchOutput(
+							std::move(deduced_terms),
+							this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									this->context.type_manager.getOrCreateInterfaceImplInstantiation(
+										BaseType::InterfaceImplInstantiation(
+											deducer.baseTypeID().interfaceID(), got_match_type_id
+										)
+									),
+									evo::SmallVector<TypeInfo::Qualifier>(
+										deducer.qualifiers().begin(), deducer.qualifiers().end()
+									)
+								)
+							)
+						);
+					}else{
+						return evo::resultError;
+					}
+
+				}else{
+					return implements_interface_res.error();
+				}
 			} break;
 
 			default: {
 				if(deducer.baseTypeID() != got_type.baseTypeID()){ return evo::resultError; }
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 		}
-
-		return output;
 	}
 
 
-	auto SemanticAnalyzer::add_deduced_terms_to_scope(evo::ArrayProxy<DeducedTerm> deduced_terms) -> evo::Result<> {
-		for(const DeducedTerm& deduced_term : deduced_terms){
+	auto SemanticAnalyzer::add_deduced_terms_to_scope(evo::ArrayProxy<DeducerMatchOutput::DeducedTerm> deduced_terms)
+	-> evo::Result<> {
+		for(const DeducerMatchOutput::DeducedTerm& deduced_term : deduced_terms){
 			if(deduced_term.value.is<TypeInfo::VoidableID>()){
 				if(
 					this->add_ident_to_scope(
@@ -22836,8 +22710,8 @@ namespace pcit::panther{
 						deduced_term.tokenID,
 						true,
 						sema::ScopeLevel::DeducedExprFlag{},
-						deduced_term.value.as<DeducedTerm::Expr>().type_id,
-						deduced_term.value.as<DeducedTerm::Expr>().expr,
+						deduced_term.value.as<DeducerMatchOutput::DeducedTerm::Expr>().type_id,
+						deduced_term.value.as<DeducerMatchOutput::DeducedTerm::Expr>().expr,
 						deduced_term.tokenID
 					).isError()
 				){
@@ -24653,37 +24527,39 @@ namespace pcit::panther{
 					const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
 					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
 
+					if(
+						type_manager.isTypeDeducer(actual_expected_type_id)
+						|| type_manager.isInterfaceDeducer(actual_expected_type_id)
+					){
+						DeducerMatchOutput deducer_match_output =
+							this->deducer_matches_and_extract(actual_expected_type_id, actual_got_type_id);
 
-					evo::debugAssert(
-						type_manager.isNonPolymorphicInterface(actual_expected_type_id) == false,
-						"non-polymorphic interface deducers shouldn't be checked with this func"
-					);
+						switch(deducer_match_output.outcome()){
+							case DeducerMatchOutput::Outcome::MATCH: {
+								got_expr.type_id = deducer_match_output.resultantTypeID();
+								return TypeCheckInfo::success(false, std::move(deducer_match_output.deducedTerms()));
+							} break;
 
-					if(type_manager.isTypeDeducer(actual_expected_type_id)){
-						evo::Result<evo::SmallVector<DeducedTerm>> extracted_deducers
-							= this->extract_deducers(actual_expected_type_id, actual_got_type_id);
+							case DeducerMatchOutput::Outcome::NO_MATCH: {
+								if constexpr(MAY_EMIT_ERROR){
+									// TODO(FUTURE): better messaging
+									auto infos = evo::SmallVector<Diagnostic::Info>();
+									this->diagnostic_print_type_info(expected_type_id, infos, "Deducer type:       ");
+									this->diagnostic_print_type_info(actual_got_type_id, infos, "Type of expression: ");
+									this->emit_error(
+										Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
+										location,
+										"Type deducer not able to deduce type",
+										std::move(infos)
+									);
+								}
+								return TypeCheckInfo::fail();
+							} break;
 
-						if(extracted_deducers.isError()){
-							if constexpr(MAY_EMIT_ERROR){
-								// TODO(FUTURE): better messaging
-								this->emit_error(
-									Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
-									location,
-									"Type deducer not able to deduce type",
-									Diagnostic::Info(
-										std::format(
-											"Type of expression: {}",
-											this->context.getTypeManager().printType(
-												actual_got_type_id, this->context.getSourceManager()
-											)
-										)
-									)
-								);
-							}
-							return TypeCheckInfo::fail();
+							case DeducerMatchOutput::Outcome::RESULT: {
+								return TypeCheckInfo::fail(deducer_match_output.result());
+							} break;
 						}
-
-						return TypeCheckInfo::success(false, std::move(extracted_deducers.value()));
 					}
 
 					if(expected_type.baseTypeID() != got_type.baseTypeID()){

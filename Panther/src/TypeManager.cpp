@@ -1409,20 +1409,20 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isNonPolymorphicInterface
+	// isNonPolymorphicInterfaceDeducer
 
-	auto TypeManager::isNonPolymorphicInterface(TypeInfo::VoidableID id) const -> bool {
+	auto TypeManager::isNonPolymorphicInterfaceDeducer(TypeInfo::VoidableID id) const -> bool {
 		if(id.isVoid()){ return false; }
-		return this->isNonPolymorphicInterface(id.asTypeID());
+		return this->isNonPolymorphicInterfaceDeducer(id.asTypeID());
 	}
 
 
-	auto TypeManager::isNonPolymorphicInterface(TypeInfo::ID id) const -> bool {
-		return this->isNonPolymorphicInterface(this->getTypeInfo(id).baseTypeID());
+	auto TypeManager::isNonPolymorphicInterfaceDeducer(TypeInfo::ID id) const -> bool {
+		return this->isNonPolymorphicInterfaceDeducer(this->getTypeInfo(id).baseTypeID());
 	}
 
 
-	auto TypeManager::isNonPolymorphicInterface(BaseType::ID id) const -> bool {
+	auto TypeManager::isNonPolymorphicInterfaceDeducer(BaseType::ID id) const -> bool {
 		switch(id.kind()){
 			case BaseType::Kind::DUMMY: {
 				evo::debugFatalBreak("Invalid type");
@@ -1438,27 +1438,27 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array_type = this->getArray(id.arrayID());
-				return this->isNonPolymorphicInterface(array_type.elementTypeID);
+				return this->isNonPolymorphicInterfaceDeducer(array_type.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
 				const BaseType::ArrayDeducer& array_deducer_type =  this->getArrayDeducer(id.arrayDeducerID());
-				return this->isNonPolymorphicInterface(array_deducer_type.elementTypeID);
+				return this->isNonPolymorphicInterfaceDeducer(array_deducer_type.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
 				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(id.arrayRefID());
-				return this->isNonPolymorphicInterface(array_ref_type.elementTypeID);
+				return this->isNonPolymorphicInterfaceDeducer(array_ref_type.elementTypeID);
 			} break;
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-				return this->isNonPolymorphicInterface(*alias_type.aliasedType.load());
+				return this->isNonPolymorphicInterfaceDeducer(*alias_type.aliasedType.load());
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
-				return this->isNonPolymorphicInterface(*distinct_alias_type.underlyingType.load());
+				return this->isNonPolymorphicInterfaceDeducer(*distinct_alias_type.underlyingType.load());
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1477,7 +1477,7 @@ namespace pcit::panther{
 					if(arg.is<TypeInfo::VoidableID>() == false){ continue; }
 					if(arg.as<TypeInfo::VoidableID>().isVoid()){ continue; }
 
-					if(this->isNonPolymorphicInterface(arg.as<TypeInfo::VoidableID>().asTypeID())){
+					if(this->isNonPolymorphicInterfaceDeducer(arg.as<TypeInfo::VoidableID>().asTypeID())){
 						return true;
 					}
 				}
@@ -1514,6 +1514,111 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown base type kind");
 	}
 
+
+	///////////////////////////////////
+	// isInterfaceDeducer
+
+	auto TypeManager::isInterfaceDeducer(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return false; }
+		return this->isInterfaceDeducer(id.asTypeID());
+	}
+
+
+	auto TypeManager::isInterfaceDeducer(TypeInfo::ID id) const -> bool {
+		return this->isInterfaceDeducer(this->getTypeInfo(id).baseTypeID());
+	}
+
+
+	auto TypeManager::isInterfaceDeducer(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: {
+				evo::debugFatalBreak("Invalid type");
+			} break;
+
+			case BaseType::Kind::PRIMITIVE: {
+				return false;
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type = this->getArray(id.arrayID());
+				return this->isInterfaceDeducer(array_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				const BaseType::ArrayDeducer& array_deducer_type =  this->getArrayDeducer(id.arrayDeducerID());
+				return this->isInterfaceDeducer(array_deducer_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(id.arrayRefID());
+				return this->isInterfaceDeducer(array_ref_type.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
+				return this->isInterfaceDeducer(*alias_type.aliasedType.load());
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
+				return this->isInterfaceDeducer(*distinct_alias_type.underlyingType.load());
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				return false;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				return false;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				const BaseType::StructTemplateDeducer& struct_template_deducer_type =
+					this->getStructTemplateDeducer(id.structTemplateDeducerID());
+
+				for(const BaseType::StructTemplate::Arg& arg : struct_template_deducer_type.args){
+					if(arg.is<TypeInfo::VoidableID>() == false){ continue; }
+					if(arg.as<TypeInfo::VoidableID>().isVoid()){ continue; }
+
+					if(this->isInterfaceDeducer(arg.as<TypeInfo::VoidableID>().asTypeID())){
+						return true;
+					}
+				}
+
+				return false;
+			} break;
+
+			case BaseType::Kind::UNION: {
+				return false;
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				return false;
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				return false;
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return false;
+			} break;
+
+			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				return false;
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown base type kind");
+	}
 
 
 

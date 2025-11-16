@@ -589,29 +589,93 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
 
 
+
 			// success of returned expected is the generated type (or nullopt if interface doesn't match) 
 			// error of returned expected should just be the returned Result of the current instruction
-			EVO_NODISCARD auto interface_matches(TypeInfo::ID interface_type_id, TypeInfo::ID match_type_id)
-				-> evo::Expected<std::optional<TypeInfo::ID>, Result>;
+			EVO_NODISCARD auto type_implements_interface(
+				const BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+			) -> evo::Expected<bool, Result>;
 
 
-			struct DeducedTerm{
-				struct Expr{
-					TypeInfo::ID type_id;
-					sema::Expr expr;
+
+			struct DeducerMatchOutput{
+				struct DeducedTerm{
+					struct Expr{
+						TypeInfo::ID type_id;
+						sema::Expr expr;
+					};
+
+					evo::Variant<TypeInfo::VoidableID, Expr> value;
+					Token::ID tokenID;
 				};
 
-				evo::Variant<TypeInfo::VoidableID, Expr> value;
-				Token::ID tokenID;
+				enum class Outcome{
+					MATCH,
+					NO_MATCH,
+					RESULT,
+				};
+
+				DeducerMatchOutput(evo::SmallVector<DeducedTerm>&& deduced_terms, TypeInfo::ID resultant_type_id) :
+					_result(),
+					_deduced_terms(std::move(deduced_terms)),
+					_resultant_type_id(resultant_type_id),
+					_outcome(Outcome::MATCH)
+				{}
+
+				DeducerMatchOutput(evo::ResultError_t) :
+					_result(),
+					_deduced_terms(),
+					_resultant_type_id(),
+					_outcome(Outcome::NO_MATCH)
+				{}
+
+				DeducerMatchOutput(Result result) :
+					_result(result),
+					_deduced_terms(),
+					_resultant_type_id(),
+					_outcome(Outcome::RESULT)
+				{}
+
+				EVO_NODISCARD auto outcome() const -> Outcome { return this->_outcome; }
+
+				EVO_NODISCARD auto result() const -> Result {
+					evo::debugAssert(this->outcome() == Outcome::RESULT, "Incorrect outcome");
+					return *this->_result;
+				}
+
+				EVO_NODISCARD auto deducedTerms() const&-> evo::ArrayProxy<DeducedTerm> {
+					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					return this->_deduced_terms;
+				}
+
+				EVO_NODISCARD auto deducedTerms() & -> evo::SmallVector<DeducedTerm> {
+					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					return this->_deduced_terms;
+				}
+
+				EVO_NODISCARD auto deducedTerms() && -> evo::SmallVector<DeducedTerm>&& {
+					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					return std::move(this->_deduced_terms);
+				}
+
+				EVO_NODISCARD auto resultantTypeID() const -> TypeInfo::ID {
+					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					return *this->_resultant_type_id;
+				}
+
+				private:
+					std::optional<Result> _result;
+					evo::SmallVector<DeducedTerm> _deduced_terms;
+					std::optional<TypeInfo::ID> _resultant_type_id;
+					Outcome _outcome;
 			};
 
-			EVO_NODISCARD auto extract_deducers(TypeInfo::VoidableID deducer_id, TypeInfo::VoidableID got_type_id)
-				-> evo::Result<evo::SmallVector<DeducedTerm>>;
+			EVO_NODISCARD auto deducer_matches_and_extract(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
+				-> DeducerMatchOutput;
 
-			EVO_NODISCARD auto extract_deducers(TypeInfo::ID deducer_id, TypeInfo::ID got_type_id)
-				-> evo::Result<evo::SmallVector<DeducedTerm>>;
-
-			EVO_NODISCARD auto add_deduced_terms_to_scope(evo::ArrayProxy<DeducedTerm> deduced_terms) -> evo::Result<>;
+			EVO_NODISCARD auto add_deduced_terms_to_scope(
+				evo::ArrayProxy<DeducerMatchOutput::DeducedTerm> deduced_terms
+			) -> evo::Result<>;
 
 
 			EVO_NODISCARD auto create_prefix_overload(
@@ -773,22 +837,55 @@ namespace pcit::panther{
 				bool ok;
 				bool requires_implicit_conversion; // value is undefined if .ok == false
 
-				evo::SmallVector<DeducedTerm> deduced_terms;
+				evo::SmallVector<DeducerMatchOutput::DeducedTerm> deduced_terms;
+				std::optional<Result> special_result_from_interface_match; // only set if should be checked
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					~TypeCheckInfo(){
+						evo::debugAssert(
+							this->special_result_from_interface_match.has_value() == false,
+							"If a special result from interface match has value, it should be checked and cleared"
+						);
+					}
+				#endif
 
 				public:
-					EVO_NODISCARD static auto fail() -> TypeCheckInfo { return TypeCheckInfo(false, false, {}); }
+					EVO_NODISCARD static auto fail() -> TypeCheckInfo {
+						return TypeCheckInfo(false, false, {}, std::nullopt);
+					}
+					EVO_NODISCARD static auto fail(Result result) -> TypeCheckInfo {
+						return TypeCheckInfo(false, false, {}, result);
+					}
+
 					EVO_NODISCARD static auto success(bool requires_implicit_conversion) -> TypeCheckInfo {
-						return TypeCheckInfo(true, requires_implicit_conversion, {});
+						return TypeCheckInfo(true, requires_implicit_conversion, {}, std::nullopt);
 					}
 					EVO_NODISCARD static auto success(
-						bool requires_implicit_conversion, evo::SmallVector<DeducedTerm>&& deduced_terms
+						bool requires_implicit_conversion,
+						evo::SmallVector<DeducerMatchOutput::DeducedTerm>&& deduced_terms
 					) -> TypeCheckInfo {
-						return TypeCheckInfo(true, requires_implicit_conversion, std::move(deduced_terms));
+						return TypeCheckInfo(
+							true, requires_implicit_conversion, std::move(deduced_terms), std::nullopt
+						);
+					}
+
+					auto extractSpecialResultFromInterfaceMatch() -> Result {
+						const Result output = *this->special_result_from_interface_match;
+						this->special_result_from_interface_match.reset();
+						return output;
 					}
 
 				private:
-					TypeCheckInfo(bool _ok, bool ric, evo::SmallVector<DeducedTerm>&& _deduced_terms)
-						: ok(_ok), requires_implicit_conversion(ric), deduced_terms(std::move(_deduced_terms)) {}
+					TypeCheckInfo(
+						bool _ok,
+						bool ric,
+						evo::SmallVector<DeducerMatchOutput::DeducedTerm>&& _deduced_terms,
+						std::optional<Result> _special_result_from_interface_match
+					) : ok(_ok),
+						requires_implicit_conversion(ric),
+						deduced_terms(std::move(_deduced_terms)),
+						special_result_from_interface_match(_special_result_from_interface_match)
+					{}
 			};
 
 
