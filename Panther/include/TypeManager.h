@@ -752,7 +752,32 @@ namespace pcit::panther{
 
 			struct Impl{
 				const AST::InterfaceImpl& astInterfaceImpl;
-				evo::SmallVector<sema::FuncID> methods;
+				evo::SmallVector<sema::FuncID> methods{}; // may only access if instantiatingSymbolProc is nullopt 
+				                                          // 	or waited on def
+				
+				// need to wait on def if not nullopt
+				mutable std::atomic<std::optional<SymbolProcID>> instantiatingSymbolProc;
+			};
+
+			struct DeducerImpl{
+				TypeInfoID deducerTypeID;
+				AST::Node astInterfaceImpl;
+				evo::SmallVector<SymbolProcID> methods{};
+
+				SymbolProcID symbolProcID;
+
+				DeducerImpl(TypeInfoID deducer_type_id, AST::Node ast_interface_impl, SymbolProcID symbol_proc_id) :
+					deducerTypeID(deducer_type_id), astInterfaceImpl(ast_interface_impl), symbolProcID(symbol_proc_id) {
+					evo::debugAssert(this->astInterfaceImpl.kind() == AST::Kind::INTERFACE_IMPL, "Incorrect node kind");
+				}
+
+				// only returns `true` the first time called
+				EVO_NODISCARD auto needsToBeCompiled() const -> bool {
+					return this->_needs_to_be_compiled.exchange(false);
+				}
+
+				private:
+					mutable std::atomic<bool> _needs_to_be_compiled = true;
 			};
 			
 			evo::Variant<SourceID, BuiltinModuleID> sourceID;
@@ -765,6 +790,9 @@ namespace pcit::panther{
 
 			std::unordered_map<TypeInfoID, const Impl&> impls{};
 			mutable evo::SpinLock implsLock{};
+
+			evo::SmallVector<const DeducerImpl*> deducerImpls{}; // TODO(PERF): make StepVector?
+			mutable evo::SpinLock deducerImplsLock{}; // only needed until `defCompleted == true`
 
 			std::atomic<bool> defCompleted = false;
 
@@ -978,6 +1006,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
 			EVO_NODISCARD auto createInterfaceImpl(const AST::InterfaceImpl& ast_node) -> BaseType::Interface::Impl&;
+			EVO_NODISCARD auto createInterfaceDeducerImpl(
+				const TypeInfo::ID deducer_type_id, AST::Node ast_node, SymbolProcID symbol_proc_id
+			) -> BaseType::Interface::DeducerImpl&;
 
 			EVO_NODISCARD auto getPolyInterfaceRef(BaseType::PolyInterfaceRef::ID id) const
 				-> const BaseType::PolyInterfaceRef&;
@@ -1176,6 +1207,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::Interface, BaseType::Interface::ID> interfaces{};
 			mutable evo::SpinLock interfaces_lock{};
 			core::SyncLinearStepAlloc<BaseType::Interface::Impl, uint64_t> interface_impls{};
+			core::SyncLinearStepAlloc<BaseType::Interface::DeducerImpl, uint64_t> interface_deducer_impls{};
 
 			core::LinearStepAlloc<BaseType::PolyInterfaceRef, BaseType::PolyInterfaceRef::ID> poly_interface_refs{};
 			mutable evo::SpinLock poly_interface_refs_lock{};

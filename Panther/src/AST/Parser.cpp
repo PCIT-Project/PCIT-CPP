@@ -710,7 +710,7 @@ namespace pcit::panther{
 	auto Parser::parse_interface_impl() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result::Code::ERROR; }
 
-		const Result target = this->parse_type<TypeKind::EXPLICIT>();
+		const Result target = this->parse_type<TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER>();
 		if(this->check_result(target, "interface impl target").isError()){ return Result::Code::ERROR; }
 
 		if(this->expect_token(Token::lookupKind("{"), "after target interface in interface impl").isError()){

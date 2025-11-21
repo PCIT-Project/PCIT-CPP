@@ -271,9 +271,19 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getInterfaceInDefImplDecl(instr)
 				);
 
+			case Instruction::Kind::INTERFACE_DEDUCER_IMPL_INSTANTIATION_DECL:
+				return this->instr_interface_deducer_impl_instantiation_decl(
+					this->context.symbol_proc_manager.getInterfaceDeducerImplInstantiationDecl(instr)
+				);
+
 			case Instruction::Kind::INTERFACE_IMPL_METHOD_LOOKUP:
 				return this->instr_interface_impl_method_lookup(
 					this->context.symbol_proc_manager.getInterfaceImplMethodLookup(instr)
+				);
+
+			case Instruction::Kind::INTERFACE_IN_DEF_IMPL_METHOD:
+				return this->instr_interface_in_def_impl_method(
+					this->context.symbol_proc_manager.getInterfaceInDefImplMethod(instr)
 				);
 
 			case Instruction::Kind::INTERFACE_IMPL_DEF:
@@ -5631,7 +5641,7 @@ namespace pcit::panther{
 			SymbolProc::InterfaceImplInfo::ParentTypeInfo(
 				*current_struct.namespacedMembers, *current_struct.scopeLevel, current_struct.sourceID.as<Source::ID>()
 			),
-			interface_impl
+			&interface_impl
 		);
 
 		this->propagate_finished_decl();
@@ -5657,17 +5667,53 @@ namespace pcit::panther{
 			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
-		BaseType::Interface::Impl& interface_impl =
-			this->context.type_manager.createInterfaceImpl(instr.interface_impl);
+		if(
+			this->context.getTypeManager().isTypeDeducer(target_type_id.asTypeID())
+			|| this->context.getTypeManager().isInterfaceDeducer(target_type_id.asTypeID())
+		){
+			BaseType::Interface::DeducerImpl& interface_deudcer_impl =
+				this->context.type_manager.createInterfaceDeducerImpl(
+					target_type_id.asTypeID(), instr.interface_impl_node, this->symbol_proc_id
+				);
 
-		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
-			target_interface_id, target_interface, target_type_id.asTypeID(), interface_impl
-		);
+			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
+				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_deudcer_impl
+			);
+
+		}else{
+			BaseType::Interface::Impl& interface_impl =
+				this->context.type_manager.createInterfaceImpl(instr.interface_impl);
+
+			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
+				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
+			);
+		}
+
 
 		this->propagate_finished_decl();
 
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_interface_deducer_impl_instantiation_decl(
+		const Instruction::InterfaceDeducerImplInstantiationDecl& instr
+	) -> Result {
+		const BaseType::Interface::ID target_interface_id =
+			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
+
+
+		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
+			target_interface_id, target_interface, instr.instantiation_type_id, &instr.created_impl
+		);
+
+
+		this->propagate_finished_decl();
+
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_interface_impl_method_lookup(const Instruction::InterfaceImplMethodLookup& instr)
@@ -5741,304 +5787,60 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::instr_interface_in_def_impl_method(const Instruction::InterfaceInDefImplMethod& instr)
+	-> Result {
+		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
+
+		if(info.interface_impl.is<BaseType::Interface::Impl*>()){ // in non-deducer impl
+			SymbolProc& sub_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id);
+
+			evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
+
+			this->context.symbol_proc_manager.num_procs_not_done += 1;
+
+			sub_symbol_proc.sema_scope_id = 
+				this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+
+
+			{
+				const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
+				sub_symbol_proc.setStatusInQueue();
+				this->context.add_task_to_work_manager(instr.symbol_proc_id);
+			}
+
+
+			const SymbolProc::WaitOnResult wait_on_result = 
+				sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+			}
+
+			evo::unreachable();
+
+		}else{ // in deducer impl
+			info.interface_impl.as<BaseType::Interface::DeducerImpl*>()->methods.emplace_back(instr.symbol_proc_id);
+
+			this->context.symbol_proc_manager.getSymbolProc(instr.symbol_proc_id).setStatusInDefDeducerImplMethod();
+				
+			return Result::SUCCESS;
+		}
+	}
+
+
+
 	auto SemanticAnalyzer::instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result {
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
-		info.interface_impl.methods.reserve(info.target_interface.methods.size());
-
-		const auto interface_has_member = [&](std::string_view ident) -> bool {
-			for(const sema::Func::ID method_id : info.target_interface.methods){
-				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-				const std::string_view target_method_name = method.getName(this->context.getSourceManager());
-				if(target_method_name == ident){ return true; }
-			}
-
-			return false;
-		};
-
-		size_t method_init_i = 0;
-		for(sema::Func::ID target_method_id : info.target_interface.methods){
-			const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
-			const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
-
-			if(method_init_i >= instr.interface_impl.methods.size()){
-				if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
-					info.interface_impl.methods.emplace_back(target_method_id);
-					continue;
-				}
-
-				if(instr.interface_impl.methods.empty()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-						instr.interface_impl,
-						std::format("Method \"{}\" was not set in interface impl", target_method_name)
-					);
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-						instr.interface_impl,
-						std::format("Method \"{}\" was not set in interface impl", target_method_name),
-						Diagnostic::Info(
-							std::format("Method listing for \"{}\" should go after this one", target_method_name),
-							this->get_location(instr.interface_impl.methods[method_init_i - 1].method)
-						)
-					);
-				}
-
-				return Result::ERROR;
-
-				
-			}else{
-				const AST::InterfaceImpl::Method& method_init = instr.interface_impl.methods[method_init_i];
-
-				const std::string_view method_init_name = this->source.getTokenBuffer()[method_init.method].getString();
-
-				if(target_method_name != method_init_name){
-					if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
-						info.interface_impl.methods.emplace_back(target_method_id);
-						continue;
-					}
-
-					if(interface_has_member(method_init_name)){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-							instr.interface_impl,
-							std::format("Method \"{}\" was not set in interface impl", target_method_name),
-							Diagnostic::Info(
-								std::format("Method listing for \"{}\" should go before this one", target_method_name),
-								this->get_location(method_init.method)
-							)
-						);
-					}else{
-						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
-							method_init.method,
-							std::format("This interface has no method \"{}\"", method_init_name),
-							Diagnostic::Info("Interface was declared here:", this->get_location(info.target_interface))
-						);
-						return Result::ERROR;
-					}
-
-					return Result::ERROR;
-				}
-
-				// find if of the overloads any match
-				bool found_overload = false;
-				using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
-				for(const Overload& overload : info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()){
-					if(overload.is<sema::TemplatedFunc::ID>()){ continue; }
-
-					const sema::Func& overload_sema =
-						this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
-
-					if(target_method.typeID != overload_sema.typeID){
-						if(target_method.isMethod(this->context) == false){ continue; }
-						if(overload_sema.isMethod(this->context) == false){ continue; }
-
-						const BaseType::Function& target_method_type = 
-							this->context.getTypeManager().getFunction(target_method.typeID);
-
-						const BaseType::Function& overload_sema_type = 
-							this->context.getTypeManager().getFunction(overload_sema.typeID);
-
-
-						if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
-
-						// params
-						for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
-							if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){ continue; }
-						}
-
-						// return params
-						if(target_method_type.returnParams != overload_sema_type.returnParams){
-							if(target_method_type.returnParams.size() != overload_sema_type.returnParams.size()){
-								continue;
-							}
-
-							bool return_params_matched = true;
-							for(size_t i = 0; i < target_method_type.returnParams.size(); i+=1){
-								if(target_method_type.returnParams[i].typeID.isVoid()){
-									return_params_matched = overload_sema_type.returnParams[i].typeID.isVoid();
-									break;
-
-								}else if(overload_sema_type.returnParams[i].typeID.isVoid()){
-									return_params_matched = false;
-									break;
-								}
-
-								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.returnParams[i].typeID.asTypeID();
-
-								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.returnParams[i].typeID.asTypeID();
-
-								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-								//////////////////
-								// deducers
-
-								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-									target_ret_param_type_id, overload_ret_param_type_id
-								);
-
-								switch(deducer_match_output.outcome()){
-									case DeducerMatchOutput::Outcome::MATCH: {
-										continue;
-									} break;
-
-									case DeducerMatchOutput::Outcome::NO_MATCH: {
-										return_params_matched = false;
-										break;
-									} break;
-
-									case DeducerMatchOutput::Outcome::RESULT: {
-										return deducer_match_output.result();
-									} break;
-								}
-							}
-
-							if(return_params_matched == false){ continue; }
-						}
-
-						// error params
-						if(target_method_type.errorParams != overload_sema_type.errorParams){
-							if(target_method_type.errorParams.size() != overload_sema_type.errorParams.size()){
-								continue;
-							}
-
-							bool error_params_matched = true;
-							for(size_t i = 0; i < target_method_type.errorParams.size(); i+=1){
-								if(target_method_type.errorParams[i].typeID.isVoid()){
-									error_params_matched = overload_sema_type.errorParams[i].typeID.isVoid();
-									break;
-
-								}else if(overload_sema_type.errorParams[i].typeID.isVoid()){
-									error_params_matched = false;
-									break;
-								}
-
-								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.errorParams[i].typeID.asTypeID();
-
-								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.errorParams[i].typeID.asTypeID();
-
-								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-								//////////////////
-								// deducers
-
-								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-									target_ret_param_type_id, overload_ret_param_type_id
-								);
-
-								switch(deducer_match_output.outcome()){
-									case DeducerMatchOutput::Outcome::MATCH: {
-										continue;
-									} break;
-
-									case DeducerMatchOutput::Outcome::NO_MATCH: {
-										error_params_matched = false;
-										break;
-									} break;
-
-									case DeducerMatchOutput::Outcome::RESULT: {
-										return deducer_match_output.result();
-									} break;
-								}
-							}
-
-							if(error_params_matched == false){ continue; }
-						}
-
-					}
-
-					if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
-
-					info.interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
-					found_overload = true;
-					break;
-				}
-
-				if(found_overload == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
-						method_init.method,
-						"No overload has correct signature in interface impl",
-						Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
-					);
-					return Result::ERROR;
-				}
-
-				method_init_i += 1;
-			}
-		}
-
-		{
-			const TypeInfo::ID target_type_id = [&](){
-				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
-					return this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
-					);
-					
-				}else{
-					return info.type_info.as<TypeInfo::ID>();
-				}
-			}();
-
-			const auto lock = std::scoped_lock(info.target_interface.implsLock);
-
-			const auto find_old_impl = info.target_interface.impls.find(target_type_id);
-			if(find_old_impl != info.target_interface.impls.end()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_IMPL_ALREADY_EXISTS,
-					instr.interface_impl,
-					"Interface impl for this interface and type already exists",
-					Diagnostic::Info(
-						"Previously defined here:", this->get_location(find_old_impl->second.astInterfaceImpl)
-					)
-				);
-				return Result::ERROR;
-			}
-
-			info.target_interface.impls.emplace(target_type_id, info.interface_impl);
-		}
-
-		this->propagate_finished_def();
-
-
-		bool any_waiting = false;
-		for(const sema::Func::ID method_id : info.interface_impl.methods){
-			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-
-			if(method.isConstexpr == false){ continue; }
-
-			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
-
-			const SymbolProc::WaitOnResult wait_on_result = method_symbol_proc.waitOnPIRDeclIfNeeded(
-				this->symbol_proc_id, this->context, *method.symbolProcID
-			);
-
-			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
-				case SymbolProc::WaitOnResult::WAITING:                   any_waiting = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     evo::debugFatalBreak("Shouldn't be possible");
-			}
-		}
-
-		if(any_waiting){
-			if(this->symbol_proc.shouldContinueRunning()){
-				return Result::SUCCESS;
-			}else{
-				return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			}
-
+		if(info.interface_impl.is<BaseType::Interface::Impl*>()){
+			return this->impl_instr_interface_impl_def_non_deducer(instr);
 		}else{
-			return Result::SUCCESS;
+			return this->impl_instr_interface_impl_def_deducer();
 		}
 	}
 
@@ -6058,7 +5860,7 @@ namespace pcit::panther{
 				}
 			}();
 
-			const BaseType::Interface::Impl& interface_impl = [&](){
+			const BaseType::Interface::Impl& interface_impl = [&]() -> const BaseType::Interface::Impl& {
 				const auto lock = std::scoped_lock(info.target_interface.implsLock);
 				return info.target_interface.impls.at(current_type_id);
 			}();
@@ -6202,35 +6004,6 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
-
-			// TODO(NOW): remove
-			/*if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(got_type_info_id.asTypeID())){
-				const evo::Expected<std::optional<TypeInfo::ID>, Result> interface_match_result =
-					this->interface_matches(got_type_info_id.asTypeID(), value_term_info.type_id.as<TypeInfo::ID>());
-
-				if(interface_match_result.has_value()){
-					if(interface_match_result.value().has_value() == false){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						this->diagnostic_print_type_info(
-							value_term_info.type_id.as<TypeInfo::ID>(), infos, "Expression type: "
-						);
-						this->diagnostic_print_type_info(got_type_info_id.asTypeID(), infos, "Target type:     ");
-						this->emit_error(
-							Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
-							*instr.var_def.value,
-							"Interface deducer not able to deduce type",
-							std::move(infos)
-						);
-						return Result::ERROR;
-					}
-
-				}else{
-					return interface_match_result.error();
-				}
-
-				interface_impl_instantiation_type = *interface_match_result.value();
-				
-			}else */
 
 			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
 				TypeCheckInfo type_check_info = this->type_check<true, true>(
@@ -13510,10 +13283,8 @@ namespace pcit::panther{
 				this->context, this->context.source_manager[sema_templated_struct.symbolProc.source_id]
 			);
 
-			sema::ScopeManager& scope_manager = this->context.sema_buffer.scope_manager;
-
 			const sema::ScopeManager::Scope::ID instantiation_sema_scope_id = 
-				scope_manager.copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
+				this->context.sema_buffer.scope_manager.copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
 
 
 			///////////////////////////////////
@@ -13534,9 +13305,10 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// add instantiation args to scope
 
-			sema::ScopeManager::Scope& instantiation_sema_scope = scope_manager.getScope(instantiation_sema_scope_id);
+			sema::ScopeManager::Scope& instantiation_sema_scope =
+				this->context.sema_buffer.scope_manager.getScope(instantiation_sema_scope_id);
 
-			instantiation_sema_scope.pushLevel(scope_manager.createLevel());
+			instantiation_sema_scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
 
 			const AST::StructDef& struct_template_decl = 
 				this->source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
@@ -17515,7 +17287,7 @@ namespace pcit::panther{
 
 
 		// make sure def of target interface completed
-		if(target_interface.defCompleted.load() == false && target_interface.symbolProcID.has_value()){
+		if(target_interface.defCompleted == false && target_interface.symbolProcID.has_value()){
 			SymbolProc& target_interface_symbol_proc =
 				this->context.symbol_proc_manager.getSymbolProc(*target_interface.symbolProcID);
 
@@ -17582,6 +17354,38 @@ namespace pcit::panther{
 
 		}else{
 			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(*impl_instantiation_type_id);
+
+			{ // wait on instantiating symbol proc if needed
+				const std::optional<SymbolProcID> instantiating_symbol_proc_id =
+					interface_impl.instantiatingSymbolProc.load();
+
+				if(instantiating_symbol_proc_id.has_value()){
+					SymbolProc& target_impl_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(*instantiating_symbol_proc_id);
+
+					const SymbolProc::WaitOnResult wait_on_result = target_impl_symbol_proc.waitOnDefIfNeeded(
+						this->symbol_proc_id, this->context, *instantiating_symbol_proc_id
+					);
+						
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED:
+							break;
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return Result::NEED_TO_WAIT;
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return Result::ERROR;
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+							evo::debugFatalBreak("Should be impossible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return Result::ERROR;
+					}
+				}
+			}
+
 
 			auto func_overload_list = TermInfo::FuncOverloadList();
 			for(size_t i = 0; const sema::Func::ID method_id : target_interface.methods){
@@ -22228,8 +22032,11 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::type_implements_interface(
-		const BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+		BaseType::Interface& interface_type, TypeInfo::ID target_type_id
 	) -> evo::Expected<bool, Result> {
+		//////////////////
+		// wait for definition of interface
+
 		if(interface_type.symbolProcID.has_value()){
 			SymbolProc& interface_symbol_proc =
 				this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
@@ -22248,13 +22055,104 @@ namespace pcit::panther{
 		}
 
 
+		//////////////////
+		// check if the type impl exists yet
 		{
 			const auto lock = std::scoped_lock(interface_type.implsLock);
 			if(interface_type.impls.contains(target_type_id)){ return true; }
 		}
 
+
+		//////////////////
+		// check if the type impl exists as a deducer
+
+		auto deducer_matches = evo::SmallVector<const BaseType::Interface::DeducerImpl*>();
+
+		for(const BaseType::Interface::DeducerImpl* deducer_impl : interface_type.deducerImpls){
+			const DeducerMatchOutput deducer_match_output =
+				this->deducer_matches_and_extract(deducer_impl->deducerTypeID, target_type_id);
+
+			switch(deducer_match_output.outcome()){
+				break; case DeducerMatchOutput::Outcome::MATCH:   deducer_matches.emplace_back(deducer_impl);
+				break; case DeducerMatchOutput::Outcome::NO_MATCH:// do nothing...
+				break; case DeducerMatchOutput::Outcome::RESULT:  return evo::Unexpected(deducer_match_output.result());
+			}
+		}
+
+
+		if(deducer_matches.empty() == false){
+			if(deducer_matches.size() == 1){
+				const BaseType::Interface::DeducerImpl& deducer_match = *deducer_matches[0];
+
+				if(deducer_match.needsToBeCompiled()){
+					SymbolProc& parent_interface_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
+
+					const auto copy_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+						*this->context.symbol_proc_manager.getSymbolProc(deducer_match.symbolProcID).sema_scope_id
+					);
+
+					BaseType::Interface::Impl& created_impl = this->context.type_manager.createInterfaceImpl(
+						this->context.source_manager[interface_type.sourceID.as<Source::ID>()]
+							.getASTBuffer().getInterfaceImpl(deducer_match.astInterfaceImpl)
+					);
+
+
+					auto symbol_proc_builder = SymbolProcBuilder(
+						this->context, this->context.source_manager[interface_type.sourceID.as<Source::ID>()]
+					);
+					const SymbolProc::ID created_symbol_proc_id = symbol_proc_builder.buildInterfaceImplDeducer(
+						deducer_match,
+						created_impl,
+						parent_interface_symbol_proc,
+						copy_scope_id,
+						target_type_id
+					);
+					SymbolProc& created_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(created_symbol_proc_id);
+
+
+					created_impl.instantiatingSymbolProc = std::optional<SymbolProc::ID>(created_symbol_proc_id);
+
+					{
+						const auto lock = std::scoped_lock(interface_type.implsLock);
+						interface_type.impls.emplace(target_type_id, created_impl);
+					}
+
+					created_symbol_proc.setStatusInQueue();
+					this->context.add_task_to_work_manager(created_symbol_proc_id);
+				}
+
+				return true;
+
+			}else{
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				this->diagnostic_print_type_info(target_type_id, infos, "This target type: ");
+
+				infos.emplace_back("This interface:", this->get_location(interface_type));
+
+				for(const BaseType::Interface::DeducerImpl* deducer_match : deducer_matches){
+					infos.emplace_back("Matches with this impl:", this->get_location(deducer_match->astInterfaceImpl));
+				}
+
+				this->emit_error(
+					Diagnostic::Code::SEMA_INTERFACE_MULTIPLE_DEDUCER_IMPLS_MATCH,
+					Diagnostic::Location::NONE, // TODO(FUTURE): location?
+					"Interface has multiple deducer multiple impls that match this type",
+					std::move(infos)
+				);
+				return evo::Unexpected(Result::ERROR);
+			}
+		}
+
+
+		//////////////////
+		// check if the type impl exists in the definition of the type
+
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
+		if(target_type.qualifiers().empty() == false){ return false; }
 		if(target_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
 
 
@@ -22649,7 +22547,7 @@ namespace pcit::panther{
 
 
 				const evo::Expected<bool, Result> implements_interface_res = this->type_implements_interface(
-					this->context.getTypeManager().getInterface(deducer.baseTypeID().interfaceID()), got_match_type_id
+					this->context.type_manager.getInterface(deducer.baseTypeID().interfaceID()), got_match_type_id
 				);
 
 				if(implements_interface_res.has_value()){
@@ -23625,6 +23523,343 @@ namespace pcit::panther{
 		return Result::ERROR;
 	}
 
+
+
+
+	auto SemanticAnalyzer::impl_instr_interface_impl_def_non_deducer(const Instruction::InterfaceImplDef& instr)
+	-> Result {
+		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
+
+		BaseType::Interface::Impl& interface_impl = *info.interface_impl.as<BaseType::Interface::Impl*>();
+
+		interface_impl.methods.reserve(info.target_interface.methods.size());
+
+		const auto interface_has_member = [&](std::string_view ident) -> bool {
+			for(const sema::Func::ID method_id : info.target_interface.methods){
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+				const std::string_view target_method_name = method.getName(this->context.getSourceManager());
+				if(target_method_name == ident){ return true; }
+			}
+
+			return false;
+		};
+
+		size_t method_init_i = 0;
+		for(sema::Func::ID target_method_id : info.target_interface.methods){
+			const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
+			const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
+
+			if(method_init_i >= instr.interface_impl.methods.size()){
+				if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
+					interface_impl.methods.emplace_back(target_method_id);
+					continue;
+				}
+
+				if(instr.interface_impl.methods.empty()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+						instr.interface_impl,
+						std::format("Method \"{}\" was not set in interface impl", target_method_name)
+					);
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+						instr.interface_impl,
+						std::format("Method \"{}\" was not set in interface impl", target_method_name),
+						Diagnostic::Info(
+							std::format("Method listing for \"{}\" should go after this one", target_method_name),
+							this->get_location(instr.interface_impl.methods[method_init_i - 1].method)
+						)
+					);
+				}
+
+				return Result::ERROR;
+
+				
+			}else{
+				const AST::InterfaceImpl::Method& method_init = instr.interface_impl.methods[method_init_i];
+
+				const std::string_view method_init_name = this->source.getTokenBuffer()[method_init.method].getString();
+
+				if(target_method_name != method_init_name){
+					if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
+						interface_impl.methods.emplace_back(target_method_id);
+						continue;
+					}
+
+					if(interface_has_member(method_init_name)){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+							instr.interface_impl,
+							std::format("Method \"{}\" was not set in interface impl", target_method_name),
+							Diagnostic::Info(
+								std::format("Method listing for \"{}\" should go before this one", target_method_name),
+								this->get_location(method_init.method)
+							)
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
+							method_init.method,
+							std::format("This interface has no method \"{}\"", method_init_name),
+							Diagnostic::Info("Interface was declared here:", this->get_location(info.target_interface))
+						);
+						return Result::ERROR;
+					}
+
+					return Result::ERROR;
+				}
+
+				// find if of the overloads any match
+				bool found_overload = false;
+				using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
+				for(const Overload& overload : info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()){
+					if(overload.is<sema::TemplatedFunc::ID>()){ continue; }
+
+					const sema::Func& overload_sema =
+						this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
+
+					if(target_method.typeID != overload_sema.typeID){
+						if(target_method.isMethod(this->context) == false){ continue; }
+						if(overload_sema.isMethod(this->context) == false){ continue; }
+
+						const BaseType::Function& target_method_type = 
+							this->context.getTypeManager().getFunction(target_method.typeID);
+
+						const BaseType::Function& overload_sema_type = 
+							this->context.getTypeManager().getFunction(overload_sema.typeID);
+
+
+						if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
+
+						// params
+						for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
+							if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){ continue; }
+						}
+
+						// return params
+						if(target_method_type.returnParams != overload_sema_type.returnParams){
+							if(target_method_type.returnParams.size() != overload_sema_type.returnParams.size()){
+								continue;
+							}
+
+							bool return_params_matched = true;
+							for(size_t i = 0; i < target_method_type.returnParams.size(); i+=1){
+								if(target_method_type.returnParams[i].typeID.isVoid()){
+									return_params_matched = overload_sema_type.returnParams[i].typeID.isVoid();
+									break;
+
+								}else if(overload_sema_type.returnParams[i].typeID.isVoid()){
+									return_params_matched = false;
+									break;
+								}
+
+								const TypeInfo::ID target_ret_param_type_id = 
+									target_method_type.returnParams[i].typeID.asTypeID();
+
+								const TypeInfo::ID overload_ret_param_type_id = 
+									overload_sema_type.returnParams[i].typeID.asTypeID();
+
+								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+								//////////////////
+								// deducers
+
+								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+									target_ret_param_type_id, overload_ret_param_type_id
+								);
+
+								switch(deducer_match_output.outcome()){
+									case DeducerMatchOutput::Outcome::MATCH: {
+										continue;
+									} break;
+
+									case DeducerMatchOutput::Outcome::NO_MATCH: {
+										return_params_matched = false;
+										break;
+									} break;
+
+									case DeducerMatchOutput::Outcome::RESULT: {
+										return deducer_match_output.result();
+									} break;
+								}
+							}
+
+							if(return_params_matched == false){ continue; }
+						}
+
+						// error params
+						if(target_method_type.errorParams != overload_sema_type.errorParams){
+							if(target_method_type.errorParams.size() != overload_sema_type.errorParams.size()){
+								continue;
+							}
+
+							bool error_params_matched = true;
+							for(size_t i = 0; i < target_method_type.errorParams.size(); i+=1){
+								if(target_method_type.errorParams[i].typeID.isVoid()){
+									error_params_matched = overload_sema_type.errorParams[i].typeID.isVoid();
+									break;
+
+								}else if(overload_sema_type.errorParams[i].typeID.isVoid()){
+									error_params_matched = false;
+									break;
+								}
+
+								const TypeInfo::ID target_ret_param_type_id = 
+									target_method_type.errorParams[i].typeID.asTypeID();
+
+								const TypeInfo::ID overload_ret_param_type_id = 
+									overload_sema_type.errorParams[i].typeID.asTypeID();
+
+								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+								//////////////////
+								// deducers
+
+								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+									target_ret_param_type_id, overload_ret_param_type_id
+								);
+
+								switch(deducer_match_output.outcome()){
+									case DeducerMatchOutput::Outcome::MATCH: {
+										continue;
+									} break;
+
+									case DeducerMatchOutput::Outcome::NO_MATCH: {
+										error_params_matched = false;
+										break;
+									} break;
+
+									case DeducerMatchOutput::Outcome::RESULT: {
+										return deducer_match_output.result();
+									} break;
+								}
+							}
+
+							if(error_params_matched == false){ continue; }
+						}
+
+					}
+
+					if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
+
+					interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
+					found_overload = true;
+					break;
+				}
+
+				if(found_overload == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
+						method_init.method,
+						"No overload has correct signature in interface impl",
+						Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
+					);
+					return Result::ERROR;
+				}
+
+				method_init_i += 1;
+			}
+		}
+
+
+		const BaseType::Interface::Impl* old_impl = nullptr;
+
+		{
+			const TypeInfo::ID target_type_id = [&](){
+				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+					);
+					
+				}else{
+					return info.type_info.as<TypeInfo::ID>();
+				}
+			}();
+
+			const auto lock = std::scoped_lock(info.target_interface.implsLock);
+
+			const auto find_old_impl = info.target_interface.impls.find(target_type_id);
+
+			if(find_old_impl == info.target_interface.impls.end()){
+				info.target_interface.impls.emplace(target_type_id, interface_impl);
+
+			}else{
+				if(find_old_impl->second.instantiatingSymbolProc.load().has_value()){
+					old_impl = &find_old_impl->second;
+					
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_IMPL_ALREADY_EXISTS,
+						instr.interface_impl,
+						"Interface impl for this interface and type already exists",
+						Diagnostic::Info(
+							"Previously defined here:", this->get_location(find_old_impl->second.astInterfaceImpl)
+						)
+					);
+					return Result::ERROR;
+				}
+			}
+		}
+
+		this->propagate_finished_def();
+
+		if(old_impl != nullptr){
+			old_impl->instantiatingSymbolProc = std::optional<SymbolProc::ID>();
+		}
+
+
+
+		bool any_waiting = false;
+		for(const sema::Func::ID method_id : interface_impl.methods){
+			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+
+			if(method.isConstexpr == false){ continue; }
+
+			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
+
+			const SymbolProc::WaitOnResult wait_on_result = method_symbol_proc.waitOnPIRDeclIfNeeded(
+				this->symbol_proc_id, this->context, *method.symbolProcID
+			);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
+				case SymbolProc::WaitOnResult::WAITING:                   any_waiting = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     evo::debugFatalBreak("Shouldn't be possible");
+			}
+		}
+
+		if(any_waiting){
+			if(this->symbol_proc.shouldContinueRunning()){
+				return Result::SUCCESS;
+			}else{
+				return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			}
+
+		}else{
+			return Result::SUCCESS;
+		}
+	}
+
+
+	auto SemanticAnalyzer::impl_instr_interface_impl_def_deducer() -> Result {
+		const SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
+
+		const BaseType::Interface::DeducerImpl* deducer_impl =
+			info.interface_impl.as<BaseType::Interface::DeducerImpl*>();
+
+		{
+			const auto lock = std::scoped_lock(info.target_interface.deducerImplsLock);
+			info.target_interface.deducerImpls.emplace_back(deducer_impl);
+		}
+
+		this->propagate_finished_def();
+		return Result::SUCCESS;
+	}
 
 
 

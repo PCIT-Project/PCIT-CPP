@@ -415,11 +415,22 @@ namespace pcit::panther{
 
 		struct InterfaceInDefImplDecl{
 			const AST::InterfaceImpl& interface_impl;
+			AST::Node interface_impl_node;
 			SymbolProcTypeID target;
+		};
+
+		struct InterfaceDeducerImplInstantiationDecl{
+			const AST::InterfaceImpl& interface_impl;
+			TypeInfo::ID instantiation_type_id;
+			BaseType::Interface::Impl& created_impl;
 		};
 
 		struct InterfaceImplMethodLookup{
 			Token::ID method_name;
+		};
+
+		struct InterfaceInDefImplMethod{
+			SymbolProcID symbol_proc_id;
 		};
 
 		struct InterfaceImplDef{
@@ -969,7 +980,9 @@ namespace pcit::panther{
 			INTERFACE_FUNC_DEF,
 			INTERFACE_IMPL_DECL,
 			INTERFACE_IN_DEF_IMPL_DECL,
+			INTERFACE_DEDUCER_IMPL_INSTANTIATION_DECL,
 			INTERFACE_IMPL_METHOD_LOOKUP,
+			INTERFACE_IN_DEF_IMPL_METHOD,
 			INTERFACE_IMPL_DEF,
 			INTERFACE_IMPL_CONSTEXPR_PIR,
 
@@ -1129,6 +1142,7 @@ namespace pcit::panther{
 			enum class Status{
 				WAITING,
 				SUSPENDED,
+				IN_DEF_DEDUCER_IMPL_METHOD,
 				IN_QUEUE,
 				WORKING,
 				PASSED_ON_BY_WHEN_COND,
@@ -1275,7 +1289,6 @@ namespace pcit::panther{
 				this->status = Status::WORKING;
 			}
 
-			// returns if actually suspended
 			auto setStatusSuspended() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
 					const Status current_status = this->status.load();
@@ -1289,12 +1302,25 @@ namespace pcit::panther{
 				this->status = Status::SUSPENDED;
 			}
 
+			auto setStatusInDefDeducerImplMethod() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WAITING,
+						"Can only set `IN_DEF_DEDUCER_IMPL_METHOD` if status is `WAITING` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				this->status = Status::IN_DEF_DEDUCER_IMPL_METHOD;
+			}
+
 			auto setStatusPassedOnByWhenCond() -> void { this->status = Status::PASSED_ON_BY_WHEN_COND; }
 			auto setStatusErrored() -> void { this->status = Status::ERRORED; }
 			auto setStatusDone() -> void { this->status = Status::DONE; }
 
 
-
+			// returns `true` if unsuspended
 			auto unsuspendIfNeeded() -> bool {
 				Status expected = Status::SUSPENDED;
 				const bool was_suspended = this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
@@ -1444,7 +1470,7 @@ namespace pcit::panther{
 				BaseType::Interface::ID target_interface_id;
 				BaseType::Interface& target_interface;
 				evo::Variant<ParentTypeInfo, TypeInfo::ID> type_info;
-				BaseType::Interface::Impl& interface_impl;
+				evo::Variant<BaseType::Interface::Impl*, BaseType::Interface::DeducerImpl*> interface_impl;
 				evo::SmallVector<TermInfo> targets{};
 			};
 

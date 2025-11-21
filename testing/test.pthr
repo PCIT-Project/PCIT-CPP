@@ -4,7 +4,11 @@
 interface Shape = {
 	func area = (this) -> USize;
 
-	impl Rectangle<{Int, UI8}> {
+	impl Rectangle<{DoNothing, $$}> {
+		area = (this) -> USize { return this.width * this.height; }
+	}
+
+	impl Rectangle<{DoNothing, Byte}> {
 		area = (this) -> USize { return this.width * this.height; }
 	}
 }

@@ -29,7 +29,7 @@ namespace pcit::panther{
 			? &this->symbol_proc_infos.back().symbol_proc
 			: nullptr;
 
-		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			stmt, this->source.getID(), symbol_ident.value(), parent_symbol
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
@@ -106,9 +106,8 @@ namespace pcit::panther{
 		uint32_t instantiation_id
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::StructDef& struct_def = ast_buffer.getStructDef(template_symbol_proc.ast_node);
 
-		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
 			template_symbol_proc.source_id,
 			template_symbol_proc.ident,
@@ -123,6 +122,8 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// build struct def
+
+		const AST::StructDef& struct_def = ast_buffer.getStructDef(template_symbol_proc.ast_node);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 			this->analyze_attributes(ast_buffer.getAttributeBlock(struct_def.attributeBlock));
@@ -171,9 +172,8 @@ namespace pcit::panther{
 		evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
-		const AST::FuncDef& func_def = ast_buffer.getFuncDef(template_symbol_proc.ast_node);
 
-		SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
 			template_symbol_proc.source_id,
 			template_symbol_proc.ident,
@@ -192,6 +192,8 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// build func def
+
+		const AST::FuncDef& func_def = ast_buffer.getFuncDef(template_symbol_proc.ast_node);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 			this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
@@ -317,6 +319,102 @@ namespace pcit::panther{
 
 		this->symbol_proc_infos.pop_back();
 
+
+		return symbol_proc_id;
+	}
+
+
+
+	auto SymbolProcBuilder::buildInterfaceImplDeducer(
+		const BaseType::Interface::DeducerImpl& deducer_impl,
+		BaseType::Interface::Impl& created_impl,
+		SymbolProc& parent_interface_symbol_proc,
+		sema::ScopeManager::Scope::ID sema_scope_id,
+		TypeInfo::ID instantiation_type_id
+	) -> SymbolProc::ID {
+		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+			deducer_impl.astInterfaceImpl, this->source.getID(), "impl", &parent_interface_symbol_proc
+		);
+		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
+
+		symbol_proc.sema_scope_id = sema_scope_id;
+
+		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
+
+
+		///////////////////////////////////
+		// build interface impl deducer
+
+		const AST::InterfaceImpl& ast_interface_impl =
+			this->source.getASTBuffer().getInterfaceImpl(deducer_impl.astInterfaceImpl);
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createInterfaceDeducerImplInstantiationDecl(
+				ast_interface_impl, instantiation_type_id, created_impl
+			)
+		);
+
+
+		for(SymbolProc::ID deducer_impl_method_id : deducer_impl.methods){
+			const SymbolProc& deducer_impl_method =
+				this->context.symbol_proc_manager.getSymbolProc(deducer_impl_method_id);
+
+			SymbolProc::ID deducer_method_cloned_symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
+				deducer_impl_method.ast_node,
+				deducer_impl_method.source_id,
+				deducer_impl_method.ident,
+				&symbol_proc
+			);
+
+			SymbolProc& deducer_method_cloned_symbol_proc =
+				this->context.symbol_proc_manager.getSymbolProc(deducer_method_cloned_symbol_proc_id);
+
+			deducer_method_cloned_symbol_proc.instructions = deducer_impl_method.instructions;
+
+			deducer_method_cloned_symbol_proc.term_infos.resize(deducer_impl_method.term_infos.size());
+			deducer_method_cloned_symbol_proc.type_ids.resize(deducer_impl_method.type_ids.size());
+			deducer_method_cloned_symbol_proc.struct_instantiations.resize(
+				deducer_impl_method.struct_instantiations.size()
+			);
+
+			std::construct_at(&deducer_method_cloned_symbol_proc.extra_info, deducer_impl_method.extra_info);
+
+			deducer_method_cloned_symbol_proc.is_local_symbol = true;
+			
+
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
+			this->add_instruction(
+				this->context.symbol_proc_manager.createInterfaceInDefImplMethod(deducer_method_cloned_symbol_proc_id)
+			);
+		}
+
+		// for(const AST::InterfaceImpl::Method& method : ast_interface_impl.methods){
+		// 	const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(method.value.as<AST::Node>());
+		// 	// if(func_symbol_proc_id.isError()){ return evo::resultError; }
+		// 	evo::debugAssert(func_symbol_proc_id.isSuccess(), "Pretty sure this should never fail");
+
+		// 	this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		// 	this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
+		// 	this->add_instruction(
+		// 		this->context.symbol_proc_manager.createInterfaceInDefImplMethod(func_symbol_proc_id.value())
+		// 	);
+		// }
+
+
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplDef(ast_interface_impl));
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplConstexprPIR());
+
+
+		///////////////////////////////////
+		// done
+
+		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
+		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);
+		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
+
+		this->symbol_proc_infos.pop_back();
 
 		return symbol_proc_id;
 	}
@@ -1185,7 +1283,7 @@ namespace pcit::panther{
 
 		if(in_def){
 			this->add_instruction(
-				this->context.symbol_proc_manager.createInterfaceInDefImplDecl(interface_impl, target.value())
+				this->context.symbol_proc_manager.createInterfaceInDefImplDecl(interface_impl, stmt, target.value())
 			);
 		}else{
 			this->add_instruction(
@@ -1202,7 +1300,7 @@ namespace pcit::panther{
 				this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 				this->add_instruction(
-					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDecl(func_symbol_proc_id.value())
+					this->context.symbol_proc_manager.createInterfaceInDefImplMethod(func_symbol_proc_id.value())
 				);
 				
 			}else{

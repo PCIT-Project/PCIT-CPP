@@ -1283,6 +1283,14 @@ namespace pcit::panther{
 		return this->interface_impls[this->interface_impls.emplace_back(ast_node)];
 	}
 
+	auto TypeManager::createInterfaceDeducerImpl(
+		const TypeInfo::ID deducer_type_id, AST::Node ast_node, SymbolProcID symbol_proc_id
+	) -> BaseType::Interface::DeducerImpl& {
+		return this->interface_deducer_impls[
+			this->interface_deducer_impls.emplace_back(deducer_type_id, ast_node, symbol_proc_id)
+		];
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////

@@ -110,7 +110,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_interface_impl_decl(const Instruction::InterfaceImplDecl& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_in_def_impl_decl(const Instruction::InterfaceInDefImplDecl& instr)
 				-> Result;
+			EVO_NODISCARD auto instr_interface_deducer_impl_instantiation_decl(
+				const Instruction::InterfaceDeducerImplInstantiationDecl& instr
+			) -> Result;
 			EVO_NODISCARD auto instr_interface_impl_method_lookup(const Instruction::InterfaceImplMethodLookup& instr)
+				-> Result;
+			EVO_NODISCARD auto instr_interface_in_def_impl_method(const Instruction::InterfaceInDefImplMethod& instr)
 				-> Result;
 			EVO_NODISCARD auto instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_impl_constexpr_pir() -> Result;
@@ -593,7 +598,7 @@ namespace pcit::panther{
 			// success of returned expected is the generated type (or nullopt if interface doesn't match) 
 			// error of returned expected should just be the returned Result of the current instruction
 			EVO_NODISCARD auto type_implements_interface(
-				const BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+				BaseType::Interface& interface_type, TypeInfo::ID target_type_id
 			) -> evo::Expected<bool, Result>;
 
 
@@ -715,6 +720,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto union_designated_init_new(
 				const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr, TypeInfo::ID target_type_info_id
 			) -> Result;
+
+
+
+			EVO_NODISCARD auto impl_instr_interface_impl_def_non_deducer(const Instruction::InterfaceImplDef& instr)
+				-> Result;
+			EVO_NODISCARD auto impl_instr_interface_impl_def_deducer() -> Result;
 
 
 			///////////////////////////////////

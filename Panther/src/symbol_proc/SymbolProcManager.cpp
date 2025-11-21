@@ -141,6 +141,10 @@ namespace pcit::panther{
 						print_field("Status", "SUSPENDED");
 					} break;
 
+					case SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD: {
+						print_field("Status", "IN_DEF_DEDUCER_IMPL_METHOD");
+					} break;
+
 					case SymbolProc::Status::IN_QUEUE: {
 						print_field("Status", "IN_QUEUE");
 					} break;
@@ -162,9 +166,15 @@ namespace pcit::panther{
 					} break;
 				}
 
-				print_field(
-					"Instruction Index", std::format("{}/{}", symbol_proc.inst_index, symbol_proc.instructions.size())
-				);
+				if(symbol_proc.isTemplateSubSymbol()){
+					print_field_gray("Instruction Index", "(TEMPLATE SUB SYMBOL)");
+				}else{
+					print_field(
+						"Instruction Index", 
+						std::format("{}/{}", symbol_proc.inst_index, symbol_proc.instructions.size())
+					);
+				}
+
 				print_field("Decl Done", symbol_proc.decl_done.load());
 				print_field("Def Done", symbol_proc.def_done.load());
 				print_field("PIR Decl Done", symbol_proc.pir_decl_done.load());

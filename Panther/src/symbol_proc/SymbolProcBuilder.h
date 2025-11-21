@@ -46,6 +46,14 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
 			) -> evo::Result<SymbolProc::ID>;
 
+			EVO_NODISCARD auto buildInterfaceImplDeducer(
+				const BaseType::Interface::DeducerImpl& deducer_impl,
+				BaseType::Interface::Impl& created_impl,
+				SymbolProc& parent_interface_symbol_proc,
+				sema::ScopeManager::Scope::ID sema_scope_id,
+				TypeInfo::ID instantiation_type_id
+			) -> SymbolProc::ID;
+
 		private:
 			EVO_NODISCARD auto get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view>;
 

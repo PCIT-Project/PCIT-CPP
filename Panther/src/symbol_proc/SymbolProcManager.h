@@ -618,6 +618,7 @@ namespace pcit::panther{
 				return this->interface_impl_decls[instr._index];
 			}
 
+
 			//////////////////
 			// InterfaceInDefImplDecl
 
@@ -634,6 +635,26 @@ namespace pcit::panther{
 					instr.kind() == Instruction::Kind::INTERFACE_IN_DEF_IMPL_DECL, "Not a InterfaceInDefImplDecl"
 				);
 				return this->interface_in_def_impl_decls[instr._index];
+			}
+
+
+			//////////////////
+			// InterfaceDeducerImplInstantiationDecl
+
+			EVO_NODISCARD auto createInterfaceDeducerImplInstantiationDecl(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::INTERFACE_DEDUCER_IMPL_INSTANTIATION_DECL,
+					this->interface_deducer_impl_instantiation_decls.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getInterfaceDeducerImplInstantiationDecl(Instruction instr) const
+			-> const Instruction::InterfaceDeducerImplInstantiationDecl& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::INTERFACE_DEDUCER_IMPL_INSTANTIATION_DECL,\
+					"Not a InterfaceDeducerImplInstantiationDecl"
+				);
+				return this->interface_deducer_impl_instantiation_decls[instr._index];
 			}
 
 
@@ -656,6 +677,28 @@ namespace pcit::panther{
 				);
 				return this->interface_impl_method_lookups[instr._index];
 			}
+
+
+
+			//////////////////
+			// InterfaceInDefImplMethod
+
+			EVO_NODISCARD auto createInterfaceInDefImplMethod(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::INTERFACE_IN_DEF_IMPL_METHOD,
+					this->interface_in_def_impl_method.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getInterfaceInDefImplMethod(Instruction instr) const
+			-> const Instruction::InterfaceInDefImplMethod& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::INTERFACE_IN_DEF_IMPL_METHOD,
+					"Not a InterfaceInDefImplMethod"
+				);
+				return this->interface_in_def_impl_method[instr._index];
+			}
+
 
 
 
@@ -2709,7 +2752,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint32_t> interface_func_defs{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint32_t> interface_impl_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceInDefImplDecl, uint32_t> interface_in_def_impl_decls{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceDeducerImplInstantiationDecl, uint32_t>
+				interface_deducer_impl_instantiation_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplMethodLookup, uint32_t> interface_impl_method_lookups{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceInDefImplMethod, uint32_t> interface_in_def_impl_method{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDef, uint32_t> interface_impl_defs{};
 			core::SyncLinearStepAlloc<Instruction::LocalVar, uint32_t> local_vars{};
 			core::SyncLinearStepAlloc<Instruction::LocalAlias, uint32_t> local_aliass{};
