@@ -46,6 +46,7 @@ namespace pcit::panther::sema{
 			BLOCK_SCOPE,
 			CONDITIONAL,
 			WHILE,
+			FOR,
 			DEFER,
 		};
 
@@ -68,6 +69,7 @@ namespace pcit::panther::sema{
 			: _kind(Kind::BLOCK_SCOPE), value{.block_scope_id = block_scope_id} {}
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
+		explicit Stmt(ForID for_id)              : _kind(Kind::FOR),         value{.for_id = for_id}               {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
@@ -155,6 +157,11 @@ namespace pcit::panther::sema{
 			return this->value.while_id;
 		}
 
+		EVO_NODISCARD auto forID() const -> ForID {
+			evo::debugAssert(this->kind() == Kind::FOR, "not an for");
+			return this->value.for_id;
+		}
+
 		EVO_NODISCARD auto deferID() const -> DeferID {
 			evo::debugAssert(this->kind() == Kind::DEFER, "not an defer");
 			return this->value.defer_id;
@@ -184,6 +191,7 @@ namespace pcit::panther::sema{
 				BlockScopeID block_scope_id;
 				ConditionalID cond_id;
 				WhileID while_id;
+				ForID for_id;
 				DeferID defer_id;
 			} value;
 	};

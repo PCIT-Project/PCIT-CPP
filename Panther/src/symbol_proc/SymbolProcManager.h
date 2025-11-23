@@ -1016,6 +1016,39 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginFor
+
+			EVO_NODISCARD auto createBeginFor(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_FOR,
+					this->begin_fors.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getBeginFor(Instruction instr) const -> const Instruction::BeginFor& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_FOR, "Not a BeginFor");
+				return this->begin_fors[instr._index];
+			}
+
+
+
+			//////////////////
+			// EndFor
+
+			EVO_NODISCARD auto createEndFor(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_FOR,
+					this->end_fors.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndFor(Instruction instr) const -> const Instruction::EndFor& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_FOR, "Not a EndFor");
+				return this->end_fors[instr._index];
+			}
+
+
+			//////////////////
 			// BeginDefer
 
 			EVO_NODISCARD auto createBeginDefer(auto&&... args) -> Instruction {
@@ -2772,6 +2805,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndLocalWhenCond, uint32_t> end_local_when_conds{};
 			core::SyncLinearStepAlloc<Instruction::BeginWhile, uint32_t> begin_whiles{};
 			core::SyncLinearStepAlloc<Instruction::EndWhile, uint32_t> end_whiles{};
+			core::SyncLinearStepAlloc<Instruction::BeginFor, uint32_t> begin_fors{};
+			core::SyncLinearStepAlloc<Instruction::EndFor, uint32_t> end_fors{};
 			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint32_t> begin_defers{};
 			core::SyncLinearStepAlloc<Instruction::EndDefer, uint32_t> end_defers{};
 			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint32_t> begin_stmt_blocks{};

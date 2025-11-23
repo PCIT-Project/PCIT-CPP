@@ -80,6 +80,9 @@ namespace pcit::panther{
 			PARSER_ENUM_WITH_NO_ENUMERATORS,
 			PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
 			PARSER_MULTI_DIM_ARR_WITH_TERMINATOR,
+			PARSER_FOR_NO_ITERABLES,
+			PARSER_FOR_NUM_ITERABLES_NEQ_NUM_PARAMS,
+			PARSER_INVALID_KIND_FOR_A_FOR_PARAM,
 
 
 			//////////////////
@@ -319,6 +322,13 @@ namespace pcit::panther{
 			// enum
 			SEMA_ENUM_INVALID_UNDERLYING_TYPE,
 
+			// for
+			SEMA_FOR_INDEX_NOT_INTEGRAL,
+			SEMA_FOR_INVALID_ITERABLE,
+			SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
+			SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE,
+			SEMA_FOR_INVALID_PARAM_TYPE,
+
 
 			// block expr
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
@@ -444,6 +454,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const AST::WhenConditional& when_cond, const class Source& src)
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::While& while_loop, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::For& for_loop, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Defer& defer, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Block& block, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncCall& func_call, const class Source& src) -> Location;
@@ -666,28 +677,32 @@ namespace pcit::panther{
 				case Code::TOK_FILE_LOCATION_LIMIT_OOB:             return "T15";
 				// case Code::TOK_DOUBLE_UNDERSCORE_NOT_ALLOWED:       return "T16";
 
-				case Code::PARSER_UNKNOWN_STMT_START:                   return "P1";
-				case Code::PARSER_INCORRECT_STMT_CONTINUATION:          return "P2";
-				case Code::PARSER_UNEXPECTED_EOF:                       return "P3";
-				case Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM:        return "P4";
-				case Code::PARSER_OOO_DEFAULT_VALUE_PARAM:              return "P5";
-				case Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE:        return "P6";
-				case Code::PARSER_ASSUMED_TOKEN_NOT_PRESET:             return "P7";
-				case Code::PARSER_EMPTY_MULTI_ASSIGN:                   return "P8";
-				case Code::PARSER_EMPTY_FUNC_RETURN_BLOCK:              return "P9";
-				case Code::PARSER_INVALID_NEW_EXPR:                     return "P10";
-				case Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE:            return "P11";
-				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:              return "P12";
-				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:            return "P13";
-				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:       return "P14";
-				case Code::PARSER_INVALID_DELETED_SPECIAL_METHOD:       return "P15";
-				case Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT:      return "P16";
-				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:            return "P17";
-				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:       return "P18";
-				case Code::PARSER_UNION_WITH_NO_FIELDS:                 return "P19";
-				case Code::PARSER_ENUM_WITH_NO_ENUMERATORS:             return "P20";
-				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:    return "P21";
-				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:        return "P22";
+				case Code::PARSER_UNKNOWN_STMT_START:
+				case Code::PARSER_INCORRECT_STMT_CONTINUATION:
+				case Code::PARSER_UNEXPECTED_EOF:
+				case Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM:
+				case Code::PARSER_OOO_DEFAULT_VALUE_PARAM:
+				case Code::PARSER_DEREFERENCE_OR_UNWRAP_ON_TYPE:
+				case Code::PARSER_ASSUMED_TOKEN_NOT_PRESET:
+				case Code::PARSER_EMPTY_MULTI_ASSIGN:
+				case Code::PARSER_EMPTY_FUNC_RETURN_BLOCK:
+				case Code::PARSER_INVALID_NEW_EXPR:
+				case Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE:
+				case Code::PARSER_TOO_MANY_ATTRIBUTE_ARGS:
+				case Code::PARSER_EMPTY_ERROR_RETURN_PARAMS:
+				case Code::PARSER_TEMPLATE_PARAMETER_BLOCK_EMPTY:
+				case Code::PARSER_INVALID_DELETED_SPECIAL_METHOD:
+				case Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT:
+				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:
+				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:
+				case Code::PARSER_UNION_WITH_NO_FIELDS:
+				case Code::PARSER_ENUM_WITH_NO_ENUMERATORS:
+				case Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH:
+				case Code::PARSER_MULTI_DIM_ARR_WITH_TERMINATOR:
+				case Code::PARSER_FOR_NO_ITERABLES:
+				case Code::PARSER_FOR_NUM_ITERABLES_NEQ_NUM_PARAMS:
+				case Code::PARSER_INVALID_KIND_FOR_A_FOR_PARAM:
+					return "Px";
 
 				// TODO(FUTURE): give individual codes and put in correct order
 				case Code::SYMBOL_PROC_INVALID_STMT:
@@ -877,6 +892,11 @@ namespace pcit::panther{
 				case Code::SEMA_UNION_ACCESSOR_IS_VOID:
 				case Code::SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS:
 				case Code::SEMA_ENUM_INVALID_UNDERLYING_TYPE:
+				case Code::SEMA_FOR_INDEX_NOT_INTEGRAL:
+				case Code::SEMA_FOR_INVALID_ITERABLE:
+				case Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS:
+				case Code::SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE:
+				case Code::SEMA_FOR_INVALID_PARAM_TYPE:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_DEDUCER_TYPE:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:

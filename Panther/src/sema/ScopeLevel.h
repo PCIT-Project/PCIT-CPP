@@ -138,6 +138,7 @@ namespace pcit::panther::sema{
 				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
 				sema::ExceptParamID,
+				sema::ForParamID,
 				ModuleInfo,
 				ClangModuleInfo,
 				BaseType::AliasID,
@@ -156,7 +157,7 @@ namespace pcit::panther::sema{
 			>;
 
 			using NoLabelNode = std::monostate;
-			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID, sema::WhileID>;
+			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID, sema::WhileID, sema::ForID>;
 
 			using ValueStateID = evo::Variant<
 				sema::VarID,
@@ -165,6 +166,7 @@ namespace pcit::panther::sema{
 				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
 				sema::ExceptParamID,
+				sema::ForParamID,
 				ReturnParamAccessorValueStateID,
 				OpDeleteThisAccessorValueStateID
 			>;
@@ -259,6 +261,7 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ErrorReturnParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ExceptParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ForParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)
 				-> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, ClangSourceID id, Token::ID location, bool is_pub)

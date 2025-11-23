@@ -172,6 +172,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// for param
+
+			EVO_NODISCARD auto createForParam(auto&&... args) -> sema::ForParam::ID {
+				return this->for_params.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getForParam(sema::ForParam::ID id) const -> const sema::ForParam& {
+				return this->for_params[id];
+			}
+
+
+			///////////////////////////////////
 			// func calls
 
 			EVO_NODISCARD auto createFuncCall(auto&&... args) -> sema::FuncCall::ID {
@@ -325,6 +337,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getWhile(sema::While::ID id) const -> const sema::While& {
 				return this->whiles[id];
+			}
+
+
+			///////////////////////////////////
+			// fors
+
+			EVO_NODISCARD auto createFor(auto&&... args) -> sema::For::ID {
+				return this->fors.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getFor(sema::For::ID id) const -> const sema::For& {
+				return this->fors[id];
 			}
 
 
@@ -877,6 +901,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ErrorReturnParam, sema::ErrorReturnParam::ID> error_return_params{};
 			core::SyncLinearStepAlloc<sema::BlockExprOutput, sema::BlockExprOutput::ID> block_expr_outputs{};
 			core::SyncLinearStepAlloc<sema::ExceptParam, sema::ExceptParam::ID> except_params{};
+			core::SyncLinearStepAlloc<sema::ForParam, sema::ForParam::ID> for_params{};
 
 			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
 			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
@@ -891,6 +916,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::BlockScope, sema::BlockScope::ID> block_scopes{};
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
+			core::SyncLinearStepAlloc<sema::For, sema::For::ID> fors{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
 			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
 			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};

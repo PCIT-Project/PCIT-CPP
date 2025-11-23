@@ -54,6 +54,7 @@ namespace pcit::panther{
 			case AST::Kind::CONDITIONAL:       return Location::get(ast_buffer.getConditional(node), src);
 			case AST::Kind::WHEN_CONDITIONAL:  return Location::get(ast_buffer.getWhenConditional(node), src);
 			case AST::Kind::WHILE:             return Location::get(ast_buffer.getWhile(node), src);
+			case AST::Kind::FOR:               return Location::get(ast_buffer.getFor(node), src);
 			case AST::Kind::DEFER:             return Location::get(ast_buffer.getDefer(node), src);
 			case AST::Kind::UNREACHABLE:       return Location::get(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::BLOCK:             return Location::get(ast_buffer.getBlock(node), src);
@@ -174,6 +175,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::While& while_loop, const Source& src) -> Location {
 		return Location::get(while_loop.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::For& for_loop, const Source& src) -> Location {
+		return Location::get(for_loop.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Defer& defer, const Source& src) -> Location {

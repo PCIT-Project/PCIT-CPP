@@ -351,6 +351,12 @@ namespace pcit::panther{
 			case Instruction::Kind::END_WHILE:
 				return this->instr_end_while(this->context.symbol_proc_manager.getEndWhile(instr));
 
+			case Instruction::Kind::BEGIN_FOR:
+				return this->instr_begin_for(this->context.symbol_proc_manager.getBeginFor(instr));
+
+			case Instruction::Kind::END_FOR:
+				return this->instr_end_for(this->context.symbol_proc_manager.getEndFor(instr));
+
 			case Instruction::Kind::BEGIN_DEFER:
 				return this->instr_begin_defer(this->context.symbol_proc_manager.getBeginDefer(instr));
 
@@ -6944,6 +6950,357 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_end_while(const Instruction::EndWhile& instr) -> Result {
+		if(this->add_auto_delete_calls<AutoDeleteMode::NORMAL>().isError()){ return Result::ERROR; }
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_begin_for(const Instruction::BeginFor& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
+
+		const bool in_constexpr_func = this->get_current_func().isConstexpr;
+
+
+		auto index_type_id = std::optional<TypeInfo::ID>();
+		if(instr.for_stmt.index.has_value()){
+			const TypeInfo::VoidableID got_index_type_id = this->get_type(instr.types[0]);
+
+			if(this->context.getTypeManager().isIntegral(got_index_type_id) == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INDEX_NOT_INTEGRAL,
+					instr.for_stmt.index->type,
+					"Index of [for] loop must be integral"
+				);
+			}
+
+			index_type_id = got_index_type_id.asTypeID();
+		}
+
+
+
+		BaseType::Interface* interface_iterable        = nullptr;
+		BaseType::Interface* interface_iterator        = nullptr;
+		BaseType::Interface* interface_mut_iterable    = nullptr;
+		BaseType::Interface* interface_mut_iterator    = nullptr;
+		BaseType::Interface* interface_iterable_rt     = nullptr;
+		BaseType::Interface* interface_iterator_rt     = nullptr;
+		BaseType::Interface* interface_mut_iterable_rt = nullptr;
+		BaseType::Interface* interface_mut_iterator_rt = nullptr;
+		{
+			const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+
+			const auto get_interface = [&](std::string_view interface_name) -> BaseType::Interface* {
+				const std::optional<BuiltinModule::Symbol> symbol_find = pthr_module.getSymbol(interface_name);
+
+				evo::debugAssert(symbol_find.has_value(), "Module @pthr does not have symbol \"{}\"", interface_name);
+				evo::debugAssert(
+					symbol_find->as<BaseType::ID>().kind() == BaseType::Kind::INTERFACE,
+					"`@pthr.{}` is not an interface",
+					interface_name
+				);
+
+				return &this->context.type_manager.getInterface(symbol_find->as<BaseType::ID>().interfaceID());
+			};
+
+
+			interface_iterable     = get_interface("Iterable");
+			interface_iterator     = get_interface("Iterator");
+			interface_mut_iterable = get_interface("MutIterable");
+			interface_mut_iterator = get_interface("MutIterator");
+
+			if(in_constexpr_func == false){
+				interface_iterable_rt     = get_interface("IterableRT");
+				interface_iterator_rt     = get_interface("IteratorRT");
+				interface_mut_iterable_rt = get_interface("MutIterableRT");
+				interface_mut_iterator_rt = get_interface("MutIteratorRT");
+			}
+		}
+
+
+		struct InterfaceToCheck{
+			BaseType::Interface& interface;
+			BaseType::Interface& iterator_interface;
+		};
+
+		auto iterables = evo::SmallVector<sema::For::Iterable>();
+		auto param_type_ids = evo::SmallVector<TypeInfo::ID>();
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
+
+		for(size_t i = 0; SymbolProc::TermInfoID iterable_id : instr.iterables){
+			EVO_DEFER([&](){ i += 1; });
+
+			const TermInfo& iterable = this->get_term_info(iterable_id);
+
+			if(
+				iterable.value_state != TermInfo::ValueState::INIT
+				&& iterable.value_state != TermInfo::ValueState::NOT_APPLICABLE
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+					instr.for_stmt.iterables[i],
+					"Iterable in [for] loop must be initialized"
+				);
+				return Result::ERROR;
+			}
+
+
+			if(iterable.type_id.is<TypeInfo::ID>() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
+					instr.for_stmt.iterables[i],
+					"Invalid iterable in [for] loop"
+				);
+				return Result::ERROR;
+			}
+
+
+			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 4>();
+
+			if(instr.for_stmt.values[i].isMut){
+				if(iterable.is_mutable() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
+						instr.for_stmt.iterables[i],
+						"Iterable in [for] loop is not mutable",
+						Diagnostic::Info(
+							"Required to be mutable by value parameter",
+							this->get_location(instr.for_stmt.values[i].ident)
+						)
+					);
+					return Result::ERROR;
+				}
+
+				if(in_constexpr_func){
+					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+				}else{
+					interfaces_to_check.emplace_back(*interface_mut_iterable_rt, *interface_mut_iterator_rt);
+					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+				}
+			}else{
+				if(in_constexpr_func){
+					interfaces_to_check.emplace_back(*interface_iterable, *interface_iterator);
+					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+				}else{
+					interfaces_to_check.emplace_back(*interface_iterable_rt, *interface_iterator_rt);
+					interfaces_to_check.emplace_back(*interface_mut_iterable_rt, *interface_mut_iterator_rt);
+					interfaces_to_check.emplace_back(*interface_iterable, *interface_iterator);
+					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+				}
+			}
+
+
+			const InterfaceToCheck* selected_interface = nullptr;
+			for(const InterfaceToCheck& interface_to_check : interfaces_to_check){
+				const evo::Expected<bool, Result> implements_result = 
+					this->type_implements_interface(interface_to_check.interface, iterable.type_id.as<TypeInfo::ID>());
+
+				if(implements_result.has_value()){
+					if(implements_result.value()){
+						selected_interface = &interface_to_check;
+						break;
+
+					}else{
+						continue;
+					}
+					
+				}else{
+					return implements_result.error();
+				}
+			}
+
+			if(selected_interface == nullptr){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				for(const InterfaceToCheck& interface_to_check : interfaces_to_check){
+					infos.emplace_back(
+						std::format(
+							"Possible interface: @pthr.{}",
+							interface_to_check.interface.getName(this->context.getSourceManager())
+						)
+					);
+				}
+
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE,
+					instr.for_stmt.iterables[i],
+					"Iterable in [for] loop does not implement any of the possible interface in this context",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+			//////////////////
+			// get iterator impls
+
+			const BaseType::Interface::Impl& iterable_impl = [&]() -> const BaseType::Interface::Impl& {
+				const auto lock = std::scoped_lock(selected_interface->interface.implsLock);
+				return selected_interface->interface.impls.at(iterable.type_id.as<TypeInfo::ID>());
+			}();
+
+			const sema::Func& create_iterator_func = this->context.getSemaBuffer().getFunc(iterable_impl.methods[0]);
+			const BaseType::Function& create_iterator_func_type =
+				this->context.getTypeManager().getFunction(create_iterator_func.typeID);
+			const TypeInfo::ID created_iterator_type_id = create_iterator_func_type.returnParams[0].typeID.asTypeID();
+
+			const BaseType::Interface::Impl& iterator_impl = [&]() -> const BaseType::Interface::Impl& {
+				const auto lock = std::scoped_lock(selected_interface->iterator_interface.implsLock);
+				return selected_interface->iterator_interface.impls.at(created_iterator_type_id);
+			}();
+
+
+			//////////////////
+			// check param type
+
+			const sema::Func& get_func = this->context.getSemaBuffer().getFunc(iterator_impl.methods[1]);
+			const BaseType::Function& get_func_type =
+				this->context.getTypeManager().getFunction(get_func.typeID);
+			const TypeInfo::ID get_func_ret_type = get_func_type.returnParams[0].typeID.asTypeID();
+
+
+			const TypeInfo::ID iterator_get_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				this->context.getTypeManager().getTypeInfo(get_func_ret_type).copyWithPoppedQualifier()
+			);
+
+			const TypeInfo::VoidableID got_type_id =
+				this->get_type(instr.types[i + size_t(instr.for_stmt.index.has_value())]);
+
+
+
+
+			if(got_type_id == iterator_get_type_id){
+				param_type_ids.emplace_back(got_type_id.asTypeID());
+
+			}else{
+				const auto for_param_type_mismatch = [&]() -> void {
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					this->diagnostic_print_type_info(iterator_get_type_id, infos, "Expected type: ");
+					this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
+					this->emit_error(
+						Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
+						instr.for_stmt.values[i].type,
+						"Invalid [for] loop value parameter type",
+						std::move(infos)
+					);
+				};
+
+				if(got_type_id.isVoid()){
+					for_param_type_mismatch();
+					return Result::ERROR;
+				}
+
+				if(
+					this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false
+					&& this->context.getTypeManager().isInterfaceDeducer(got_type_id.asTypeID()) == false
+				){
+					for_param_type_mismatch();
+					return Result::ERROR;
+				}
+
+				DeducerMatchOutput deducer_match_output = 
+					this->deducer_matches_and_extract(got_type_id.asTypeID(), iterator_get_type_id);
+
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH: {
+						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						param_type_ids.emplace_back(deducer_match_output.resultantTypeID());
+					} break;
+
+					case DeducerMatchOutput::Outcome::NO_MATCH: {
+						for_param_type_mismatch();
+						return Result::ERROR;
+					} break;
+
+					case DeducerMatchOutput::Outcome::RESULT: {
+						return deducer_match_output.result();
+					} break;
+				}
+			}
+
+			
+
+
+			//////////////////
+			// iterable passed
+
+			if(this->get_current_func().isConstexpr){
+				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+				evo::debugAssert(iterable_impl.methods.size() == 1, "Unexpected num methods of Iterable interface");
+				evo::debugAssert(iterator_impl.methods.size() == 3, "Unexpected num methods of Iterator interface");
+
+				func_info.dependent_funcs.emplace(iterable_impl.methods[0]);
+				func_info.dependent_funcs.emplace(iterator_impl.methods[0]);
+				func_info.dependent_funcs.emplace(iterator_impl.methods[1]);
+				func_info.dependent_funcs.emplace(iterator_impl.methods[2]);
+			}
+
+			iterables.emplace_back(iterable.getExpr(), iterable_impl, iterator_impl);
+		}
+
+
+
+		const AST::Block& for_block = this->source.getASTBuffer().getBlock(instr.for_stmt.block);
+
+
+		const sema::For::ID sema_for_id = this->context.sema_buffer.createFor(
+			std::move(iterables), for_block.label, index_type_id.has_value()
+		);
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_id);
+
+		sema::For& sema_for = this->context.sema_buffer.fors[sema_for_id];
+		if(for_block.label.has_value()){
+			this->push_scope_level(sema_for.block, *for_block.label, sema_for_id);
+		}else{
+			this->push_scope_level(&sema_for.block);
+		}
+
+
+		if(index_type_id.has_value()){
+			const std::string_view index_ident_str =
+				this->source.getTokenBuffer()[instr.for_stmt.index->ident].getString();
+
+			const sema::ForParam::ID created_sema_id =
+				this->context.sema_buffer.createForParam(instr.for_stmt.index->ident, *index_type_id, true, false);
+
+			if(this->add_ident_to_scope(index_ident_str, instr.for_stmt.index->ident, true, created_sema_id).isError()){
+				return Result::ERROR;
+			}
+
+			sema_for.params.emplace_back(instr.for_stmt.index->ident, *index_type_id, sema::Expr(created_sema_id));
+		}
+
+
+		for(size_t i = 0; i < instr.for_stmt.values.size(); i+=1){
+			const Token::ID value_ident_tok_id = instr.for_stmt.values[i].ident;
+
+			const std::string_view index_ident_str =
+				this->source.getTokenBuffer()[value_ident_tok_id].getString();
+
+			const sema::ForParam::ID created_sema_id = this->context.sema_buffer.createForParam(
+				value_ident_tok_id, param_type_ids[i], false, instr.for_stmt.values[i].isMut
+			);
+
+			if(this->add_ident_to_scope(index_ident_str, value_ident_tok_id, true, created_sema_id).isError()){
+				return Result::ERROR;
+			}
+
+			sema_for.params.emplace_back(value_ident_tok_id, param_type_ids[i], sema::Expr(created_sema_id));
+		}
+
+		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){
+			return Result::ERROR;
+		}
+
+
+		this->get_current_scope_level().setIsLoopMainScope();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_for(const Instruction::EndFor& instr) -> Result {
 		if(this->add_auto_delete_calls<AutoDeleteMode::NORMAL>().isError()){ return Result::ERROR; }
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
@@ -19220,6 +19577,22 @@ namespace pcit::panther{
 					)
 				);
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ForParam::ID>()){
+				const sema::Func& current_func = this->get_current_func();
+
+				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(ident_id);
+				return ReturnType(
+					TermInfo(
+						for_param.isMut
+							? TermInfo::ValueCategory::CONCRETE_MUT
+							: TermInfo::ValueCategory::CONCRETE_CONST,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id),
+						for_param.typeID,
+						sema::Expr(ident_id)
+					)
+				);
+
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
 				if constexpr(PUB_REQUIRED){
 					if(ident_id.isPub == false){
@@ -19637,6 +20010,9 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::EXCEPT_PARAM:
 				return this->set_ident_value_state(target.exceptParamID(), value_state);
+
+			case sema::Expr::Kind::FOR_PARAM:
+				return this->set_ident_value_state(target.forParamID(), value_state);
 
 			case sema::Expr::Kind::VAR:
 				return this->set_ident_value_state(target.varID(), value_state);
@@ -22270,7 +22646,7 @@ namespace pcit::panther{
 				if(deducer_array_type.dimensions != got_array_type.dimensions){ return evo::resultError; }
 				if(deducer_array_type.terminator != got_array_type.terminator){ return evo::resultError; }
 
-				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_type.elementTypeID, got_array_type.elementTypeID
 				);
 				switch(deducer_match_output.outcome()){
@@ -22279,11 +22655,7 @@ namespace pcit::panther{
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
 
-				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
-				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
-					deduced_terms.emplace_back(arr_deduced_term);
-				}
-
+				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
@@ -22305,7 +22677,7 @@ namespace pcit::panther{
 				if(deducer_array_ref_type.isMut != got_array_ref_type.isMut){ return evo::resultError; }
 				if(deducer_array_ref_type.terminator != got_array_ref_type.terminator){ return evo::resultError; }
 
-				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_ref_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
 				switch(deducer_match_output.outcome()){
@@ -22314,11 +22686,7 @@ namespace pcit::panther{
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
 
-				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
-				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
-					deduced_terms.emplace_back(arr_deduced_term);
-				}
-
+				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
@@ -22337,7 +22705,7 @@ namespace pcit::panther{
 				const BaseType::Array& got_array_type = 
 					this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
 
-				const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_deducer_type.elementTypeID, got_array_type.elementTypeID
 				);
 				switch(deducer_match_output.outcome()){
@@ -22346,11 +22714,7 @@ namespace pcit::panther{
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
 
-				deduced_terms.reserve(std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size()));
-				for(const DeducerMatchOutput::DeducedTerm& arr_deduced_term : deducer_match_output.deducedTerms()){
-					deduced_terms.emplace_back(arr_deduced_term);
-				}
-
+				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 
 				if(deducer_array_deducer_type.dimensions.size() != got_array_type.dimensions.size()){
 					return evo::resultError;
@@ -22469,7 +22833,7 @@ namespace pcit::panther{
 							return evo::resultError;
 
 						}else{
-							const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+							DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 								deducer_arg.as<TypeInfo::VoidableID>().asTypeID(),
 								got_arg.as<TypeInfo::VoidableID>().asTypeID()
 							);
@@ -22480,13 +22844,7 @@ namespace pcit::panther{
 								case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 							}
 
-							deduced_terms.reserve(
-								std::bit_ceil(deduced_terms.size() + deducer_match_output.deducedTerms().size())
-							);
-							using DeducedTerm = DeducerMatchOutput::DeducedTerm;
-							for(const DeducedTerm& param_deduced_term : deducer_match_output.deducedTerms()){
-								deduced_terms.emplace_back(param_deduced_term);
-							}
+							deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 						}
 
 					}else if(deducer_arg.is<TypeInfo::VoidableID>()){ // arg is deducer
@@ -25280,14 +25638,20 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::diagnostic_print_type_info(
-		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
+		TypeInfo::VoidableID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
 	) const -> void {
-		auto initial_type_str = std::string();
-		initial_type_str += message;
-		initial_type_str += this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
-		infos.emplace_back(std::move(initial_type_str));
+		if(type_id.isVoid()){
+			infos.emplace_back(std::format("{}Void", message));
 
-		this->diagnostic_print_type_info_impl(type_id, infos, message);
+		}else{
+			auto initial_type_str = std::string();
+			initial_type_str += message;
+			initial_type_str +=
+				this->context.getTypeManager().printType(type_id.asTypeID(), this->context.getSourceManager());
+			infos.emplace_back(std::move(initial_type_str));
+
+			this->diagnostic_print_type_info_impl(type_id.asTypeID(), infos, message);
+		}
 	}
 
 

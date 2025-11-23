@@ -476,6 +476,28 @@ namespace pcit::panther::sema{
 		StmtBlock block{};
 	};
 
+	struct For{
+		using ID = ForID;
+
+		struct Iterable{
+			Expr expr;
+			const BaseType::Interface::Impl& iterableImpl;
+			const BaseType::Interface::Impl& iteratorImpl;
+		};
+
+		struct Param{
+			Token::ID ident;
+			TypeInfo::ID typeID;
+			Expr expr;
+		};
+		
+		evo::SmallVector<Iterable> iterables;
+		std::optional<Token::ID> label;
+		bool hasIndex;
+		evo::SmallVector<Param> params{};
+		StmtBlock block{};
+	};
+
 	struct Defer{
 		using ID = DeferID;
 
@@ -521,6 +543,16 @@ namespace pcit::panther::sema{
 		Token::ID ident;
 		uint32_t index;
 		TypeInfo::ID typeID;
+	};
+
+
+	struct ForParam{
+		using ID = ForParamID;
+		
+		Token::ID ident;
+		TypeInfo::ID typeID;
+		bool isIndex;
+		bool isMut;
 	};
 
 

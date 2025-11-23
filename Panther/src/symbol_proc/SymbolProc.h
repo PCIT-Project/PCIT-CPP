@@ -521,6 +521,17 @@ namespace pcit::panther{
 		};
 
 
+		struct BeginFor{
+			const AST::For& for_stmt;
+			evo::SmallVector<SymbolProcTermInfoID> iterables;
+			evo::SmallVector<SymbolProcTypeID> types;
+		};
+
+		struct EndFor{
+			Token::ID close_brace;
+		};
+
+
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
 		};
@@ -1006,6 +1017,8 @@ namespace pcit::panther{
 			END_LOCAL_WHEN_COND,
 			BEGIN_WHILE,
 			END_WHILE,
+			BEGIN_FOR,
+			END_FOR,
 			BEGIN_DEFER,
 			END_DEFER,
 			BEGIN_STMT_BLOCK,

@@ -231,7 +231,7 @@ namespace pcit::panther{
 
 
 			struct DeferItem{
-				sema::Defer::ID defer_id;
+				evo::Variant<sema::Defer::ID, std::function<void()>> defer_item;
 				bool error_only;
 			};
 

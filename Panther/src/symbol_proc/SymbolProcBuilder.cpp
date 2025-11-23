@@ -482,19 +482,19 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:        case AST::Kind::ERROR:            case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:      case AST::Kind::DELETE:           case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:         case AST::Kind::DEFER:            case AST::Kind::UNREACHABLE:
-			case AST::Kind::BLOCK:         case AST::Kind::FUNC_CALL:        case AST::Kind::INDEXER:
-			case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:   case AST::Kind::PREFIX:
-			case AST::Kind::INFIX:         case AST::Kind::POSTFIX:          case AST::Kind::MULTI_ASSIGN:
-			case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:   case AST::Kind::DESIGNATED_INIT_NEW:
-			case AST::Kind::TRY_ELSE:      case AST::Kind::DEDUCER:          case AST::Kind::ARRAY_TYPE:
-			case AST::Kind::POLY_INTERFACE_REF_TYPE:
-			case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
-			case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
-			case AST::Kind::INTRINSIC:     case AST::Kind::LITERAL:          case AST::Kind::UNINIT:
-			case AST::Kind::ZEROINIT:      case AST::Kind::THIS:             case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:                  case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:                 case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:                    case AST::Kind::DEFER:
+			case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:                  case AST::Kind::FUNC_CALL:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:          case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:                  case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:                    case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:               case AST::Kind::DEDUCER:
+			case AST::Kind::ARRAY_TYPE:          case AST::Kind::POLY_INTERFACE_REF_TYPE:case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK:        case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:                  case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:                 case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:                case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1706,6 +1706,7 @@ namespace pcit::panther{
 			case AST::Kind::CONDITIONAL:            return this->analyze_conditional(ast_buffer.getConditional(stmt));
 			case AST::Kind::WHEN_CONDITIONAL:       return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
 			case AST::Kind::WHILE:                  return this->analyze_while(ast_buffer.getWhile(stmt));
+			case AST::Kind::FOR:                    return this->analyze_for(ast_buffer.getFor(stmt));
 			case AST::Kind::DEFER:                  return this->analyze_defer(ast_buffer.getDefer(stmt));
 			case AST::Kind::BLOCK:                  return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
 			case AST::Kind::FUNC_CALL:              return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
@@ -2075,6 +2076,52 @@ namespace pcit::panther{
 
 		return evo::Result<>();
 	}
+
+
+	auto SymbolProcBuilder::analyze_for(const AST::For& for_stmt) -> evo::Result<> {
+		auto iterables = evo::SmallVector<SymbolProc::TermInfoID>();
+		iterables.reserve(for_stmt.iterables.size());
+		for(const AST::Node& iterable : for_stmt.iterables){
+			const evo::Result<SymbolProc::TermInfoID> iterable_term = this->analyze_expr<false>(iterable);
+			if(iterable_term.isError()){ return evo::resultError; }
+
+			iterables.emplace_back(iterable_term.value());
+		}
+
+
+		auto types = evo::SmallVector<SymbolProc::TypeID>();
+		types.reserve(size_t(for_stmt.index.has_value()) + for_stmt.values.size());
+
+		if(for_stmt.index.has_value()){
+			const evo::Result<SymbolProc::TypeID> index_type =
+				this->analyze_type<true>(this->source.getASTBuffer().getType(for_stmt.index->type));
+			if(index_type.isError()){ return evo::resultError; }
+
+			types.emplace_back(index_type.value());
+		}
+
+		for(const AST::For::Param& value : for_stmt.values){
+			const evo::Result<SymbolProc::TypeID> value_type =
+				this->analyze_type<true>(this->source.getASTBuffer().getType(value.type));
+			if(value_type.isError()){ return evo::resultError; }
+
+			types.emplace_back(value_type.value());
+		}
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createBeginFor(for_stmt, std::move(iterables), std::move(types))
+		);
+
+		const AST::Block& block = this->source.getASTBuffer().getBlock(for_stmt.block);
+		for(const AST::Node& stmt : block.statements){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
+
+		return evo::Result<>();
+	}
+
 
 
 	auto SymbolProcBuilder::analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<> {

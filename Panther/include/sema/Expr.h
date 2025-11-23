@@ -83,6 +83,7 @@ namespace pcit::panther::sema{
 			ERROR_RETURN_PARAM,
 			BLOCK_EXPR_OUTPUT,
 			EXCEPT_PARAM,
+			FOR_PARAM,
 
 			VAR,
 			GLOBAL_VAR,
@@ -157,6 +158,7 @@ namespace pcit::panther::sema{
 		explicit Expr(ErrorReturnParamID id)   : _kind(Kind::ERROR_RETURN_PARAM),   value{.error_return_param = id}  {};
 		explicit Expr(BlockExprOutputID id)    : _kind(Kind::BLOCK_EXPR_OUTPUT),    value{.block_expr_output = id}   {};
 		explicit Expr(ExceptParamID id)        : _kind(Kind::EXCEPT_PARAM),         value{.except_param = id}        {};
+		explicit Expr(ForParamID id)           : _kind(Kind::FOR_PARAM),            value{.for_param = id}           {};
 
 		explicit Expr(VarID id)                : _kind(Kind::VAR),                  value{.var = id}                 {};
 		explicit Expr(GlobalVarID id)          : _kind(Kind::GLOBAL_VAR),           value{.global_var = id}          {};
@@ -375,6 +377,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::EXCEPT_PARAM, "not an except param");
 			return this->value.except_param;
 		}
+		EVO_NODISCARD auto forParamID() const -> ForParamID {
+			evo::debugAssert(this->kind() == Kind::FOR_PARAM, "not a for param");
+			return this->value.for_param;
+		}
 
 		EVO_NODISCARD auto varID() const -> VarID {
 			evo::debugAssert(this->kind() == Kind::VAR, "not a var");
@@ -454,6 +460,7 @@ namespace pcit::panther::sema{
 				SameTypeCmpID same_type_cmp;
 
 				ExceptParamID except_param;
+				ForParamID for_param;
 				ParamID param;
 				ReturnParamID return_param;
 				ErrorReturnParamID error_return_param;

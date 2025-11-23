@@ -318,6 +318,10 @@ namespace pthr{
 						this->print_while(this->ast_buffer.getWhile(stmt));
 					} break;
 
+					case panther::AST::Kind::FOR: {
+						this->print_for(this->ast_buffer.getFor(stmt));
+					} break;
+
 					case panther::AST::Kind::DEFER: {
 						this->print_defer(this->ast_buffer.getDefer(stmt));
 					} break;
@@ -411,11 +415,15 @@ namespace pthr{
 					this->indenter.push();
 
 					this->indenter.print_arrow();
-					this->print_minor_header("Identifier");
+					this->print_minor_header("Name");
 					this->printer.print(" ");
 					const panther::Token::Kind name_kind = this->source.getTokenBuffer()[func_def.name].kind();
 					if(name_kind == panther::Token::Kind::IDENT){
 						this->print_ident(func_def.name);
+
+					}else if(name_kind == panther::Token::lookupKind("[")){
+						this->printer.printMagenta("[]\n");
+						
 					}else{
 						this->printer.printMagenta("{}\n", name_kind);
 					}
@@ -1212,6 +1220,103 @@ namespace pthr{
 			}
 
 
+			auto print_for(const panther::AST::For& for_loop) -> void {
+				this->indenter.print();
+				this->print_major_header("For Loop");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Iterables");
+					this->indenter.push();
+					this->printer.println();
+					for(size_t i = 0; const panther::AST::Node& iterable : for_loop.iterables){
+						if(i + 1 < for_loop.iterables.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+
+						this->print_major_header(std::format("Iterable {}", i));
+						this->indenter.push();
+						this->print_expr(iterable);
+						this->indenter.pop();
+						i += 1;
+					}
+					this->indenter.pop();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Index");
+					if(for_loop.index.has_value()){
+						this->printer.println();
+						{
+							this->indenter.push();
+								
+							this->indenter.print_arrow();
+							this->print_minor_header("Identifier");
+							this->printer.print(" ");
+							this->print_ident(for_loop.index->ident);
+
+							this->indenter.print_end();
+							this->print_minor_header("Type");
+							this->printer.print(" ");
+							this->print_type(this->source.getASTBuffer().getType(for_loop.index->type));
+							this->printer.println();
+
+							this->indenter.pop();
+						}
+					}else{
+						this->printer.printGray("{DISCARDED}\n");
+					}
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Values");
+					this->printer.println();
+					{
+						this->indenter.push();
+						for(size_t i = 0; const panther::AST::For::Param& value : for_loop.values){
+							if(i + 1 < for_loop.values.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							this->print_major_header(std::format("Value {}", i));
+							{
+								this->indenter.push();
+									
+								this->indenter.print_arrow();
+								this->print_minor_header("Identifier");
+								this->printer.print(" ");
+								this->print_ident(value.ident);
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Type");
+								this->printer.print(" ");
+								this->print_type(this->source.getASTBuffer().getType(value.type));
+								this->printer.println();
+
+								this->indenter.print_end();
+								this->print_minor_header("Kind");
+								this->printer.printMagenta(value.isMut ? " mut\n" : " read\n");
+
+								this->indenter.pop();
+							}
+							i += 1;
+						}
+						this->indenter.pop();
+					}
+
+					this->indenter.print_end();
+					this->print_minor_header("Block");
+					this->print_block(this->source.getASTBuffer().getBlock(for_loop.block));
+
+					this->indenter.pop();
+				}
+			}
+
+
 			auto print_defer(const panther::AST::Defer& defer_stmt) -> void {
 				this->indenter.print();
 				this->print_major_header("Defer");
@@ -1591,21 +1696,22 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:                    case panther::AST::Kind::VAR_DEF:
-					case panther::AST::Kind::FUNC_DEF:                case panther::AST::Kind::DELETED_SPECIAL_METHOD:
-					case panther::AST::Kind::ALIAS_DEF:               case panther::AST::Kind::DISTINCT_ALIAS_DEF:
-					case panther::AST::Kind::STRUCT_DEF:              case panther::AST::Kind::UNION_DEF:
-					case panther::AST::Kind::ENUM_DEF:                case panther::AST::Kind::INTERFACE_DEF:
-					case panther::AST::Kind::INTERFACE_IMPL:          case panther::AST::Kind::RETURN:
-					case panther::AST::Kind::ERROR:                   case panther::AST::Kind::UNREACHABLE:
-					case panther::AST::Kind::BREAK:                   case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::DELETE:                  case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL:        case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::DEFER:                   case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:            case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::POLY_INTERFACE_REF_TYPE: case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:         case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::DEDUCER:                 case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
+					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::ALIAS_DEF:        case panther::AST::Kind::DISTINCT_ALIAS_DEF:
+					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
+					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
+					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
+					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
+					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
+					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::FOR:              case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::POLY_INTERFACE_REF_TYPE:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

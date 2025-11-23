@@ -88,13 +88,17 @@ namespace pcit::panther{
 	// is aliased as TypeInfo::VoidableID
 	class TypeInfoVoidableID{
 		public:
-			TypeInfoVoidableID(TypeInfoID type_id) : id(type_id) {};
+			TypeInfoVoidableID(TypeInfoID type_id) : id(type_id) {}; // purposely not explicit
 			~TypeInfoVoidableID() = default;
 
 			EVO_NODISCARD static auto Void() -> TypeInfoVoidableID { return TypeInfoVoidableID(); };
 
-			EVO_NODISCARD auto operator==(const TypeInfoVoidableID& rhs) const -> bool {
+			EVO_NODISCARD auto operator==(TypeInfoVoidableID rhs) const -> bool {
 				return this->id == rhs.id;
+			};
+
+			EVO_NODISCARD auto operator==(TypeInfoID rhs) const -> bool {
+				return this->id == rhs;
 			};
 
 			EVO_NODISCARD auto asTypeID() const -> const TypeInfoID& {

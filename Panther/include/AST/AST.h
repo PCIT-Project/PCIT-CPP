@@ -42,6 +42,7 @@ namespace pcit::panther::AST{
 		CONDITIONAL,
 		WHEN_CONDITIONAL,
 		WHILE,
+		FOR,
 		DEFER,
 		BREAK,
 		CONTINUE,
@@ -311,6 +312,23 @@ namespace pcit::panther::AST{
 	struct While{
 		Token::ID keyword;
 		Node cond;
+		Node block;
+	};
+
+	struct For{
+		struct Param{
+			Token::ID ident;
+			Node type;
+			bool isMut; // is false if param is index
+
+			Param(Token::ID _ident, Node _type) : ident(_ident), type(_type), isMut(false) {};
+			Param(Token::ID _ident, Node _type, bool is_mut) : ident(_ident), type(_type), isMut(is_mut) {};
+		};
+
+		Token::ID keyword;
+		evo::SmallVector<Node> iterables;
+		std::optional<Param> index; // nullopt means `_`
+		evo::SmallVector<Param> values;
 		Node block;
 	};
 

@@ -64,6 +64,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_IF:          return this->parse_conditional<false>();
 			case Token::Kind::KEYWORD_WHEN:        return this->parse_conditional<true>();
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
+			case Token::Kind::KEYWORD_FOR:         return this->parse_for();
 			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
@@ -1064,6 +1065,208 @@ namespace pcit::panther{
 		if(this->check_result(block, "statement block in while loop").isError()){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createWhile(start_location, cond.value(), block.value());
+	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_for() -> Result {
+		const Token::ID keyword = this->reader.peek();
+		if(this->assert_token(Token::Kind::KEYWORD_FOR).isError()){ return Result::Code::ERROR; }
+
+
+		//////////////////
+		// iterables
+
+		auto iterables = evo::SmallVector<AST::Node>();
+
+		if(this->expect_token(Token::lookupKind("("), "at beginning of for loop iterables block").isError()){
+			return Result::Code::ERROR;
+		}
+
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+				if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
+				break;
+			}
+
+			const Result expr_result = this->parse_expr();
+			if(this->check_result(expr_result, "iterable expression in for loop iterables block").isError()){
+				return Result::Code::ERROR;
+			}
+
+			iterables.emplace_back(expr_result.value());
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind(")")){
+					this->expected_but_got(
+						"[,] at end of iterable expression or [)] at end of for loop iterables block",
+						this->reader.peek(-1)
+					);
+					return Result::Code::ERROR;
+				}
+
+				break;
+			}
+		}
+
+		if(iterables.empty()){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_FOR_NO_ITERABLES,
+				Diagnostic::Location::get(this->reader.peek(-1), this->source),
+				"For loop must have at least 1 iterable expression"
+			);
+			return Result::Code::ERROR;
+		}
+
+
+		//////////////////
+		// parameters
+
+		if(this->expect_token(Token::lookupKind("["), "at beginning of for loop parameters block").isError()){
+			return Result::Code::ERROR;
+		}
+
+		auto index = std::optional<AST::For::Param>();
+
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+			this->reader.skip();
+
+		}else{
+			const Result ident = this->parse_ident();
+			if(this->check_result(ident, "identifier or `_` in for loop index parameter").isError()){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token(Token::lookupKind(":"), "after for loop index parameter identifier").isError()){
+				return Result::Code::ERROR;
+			}
+
+			const Result type = this->parse_type<TypeKind::EXPLICIT>();
+			if(this->check_result(type, "type of for loop index parameter").isError()){ return Result::Code::ERROR; }
+
+			index = AST::For::Param(ASTBuffer::getIdent(ident.value()), type.value());
+		}
+
+		if(this->expect_token(Token::lookupKind(";"), "after for loop index parameter").isError()){
+			return Result::Code::ERROR;
+		}
+
+
+		auto values = evo::SmallVector<AST::For::Param>();
+		values.reserve(iterables.size());
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
+				if(this->assert_token(Token::lookupKind("]")).isError()){ return Result::Code::ERROR; }
+				break;
+			}
+
+
+			const Result param_ident = this->parse_ident();
+			if(this->check_result(param_ident, "identifier in for loop value parameter").isError()){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token(Token::lookupKind(":"), "after for loop value parameter identifier").isError()){
+				return Result::Code::ERROR;
+			}
+
+			const Result param_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+			if(this->check_result(param_type, "type after [:] in for loop value parameter definition").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			bool is_mut = false;
+
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::KEYWORD_READ: {
+					// do nothing...
+				} break;
+
+				case Token::Kind::KEYWORD_MUT: {
+					this->reader.skip();
+					is_mut = true;
+				} break;
+
+				case Token::Kind::KEYWORD_IN: {
+					this->context.emitError(
+						Diagnostic::Code::PARSER_INVALID_KIND_FOR_A_FOR_PARAM,
+						Diagnostic::Location::get(this->reader.peek(), this->source),
+						"For value parameters cannot have the kind [in]"
+					);
+					return Result::Code::ERROR;
+				} break;
+
+				default: {
+					// do nothing...
+				} break;
+			}
+
+
+			values.emplace_back(ASTBuffer::getIdent(param_ident.value()), param_type.value(), is_mut);
+
+
+			// check if ending or should continue
+			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_arg_next_token_kind != Token::lookupKind(",")){
+				if(after_arg_next_token_kind != Token::lookupKind("]")){
+					this->expected_but_got(
+						"[,] at end of for loop parameter or []] at end of for loop parameter block",
+						this->reader.peek(-1)
+					);
+					return Result::Code::ERROR;
+				}
+
+				break;
+			}
+		}
+
+
+		//////////////////
+		// checking of iterables / values
+
+		if(iterables.size() != values.size()){
+			const Diagnostic::Location location = [&]() -> Diagnostic::Location {
+				if(iterables.size() < values.size()){
+					return Diagnostic::Location::get(values[iterables.size()].ident, this->source);
+
+				}else if(values.empty()){
+					return Diagnostic::Location::get(this->reader.peek(-1), this->source);
+
+				}else{
+					return Diagnostic::Location::get(values.back().ident, this->source);
+				}
+			}();
+
+			this->context.emitError(
+				Diagnostic::Code::PARSER_FOR_NUM_ITERABLES_NEQ_NUM_PARAMS,
+				location,
+				"For loop mismatching number of iterables and value parameters",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(std::format("Number of iterables: {}", iterables.size())),
+					Diagnostic::Info(std::format("Number of values:    {}", values.size()))
+				}
+			);
+
+			return Result::Code::ERROR;
+		}
+
+
+		//////////////////
+		// block
+
+		const Result block = this->parse_block(BlockLabelRequirement::OPTIONAL);
+		if(this->check_result(block, "statement block in for loop").isError()){ return Result::Code::ERROR; }
+
+
+		//////////////////
+		// done
+
+		return this->source.ast_buffer.createFor(
+			keyword, std::move(iterables), index, std::move(values), block.value()
+		);
 	}
 
 

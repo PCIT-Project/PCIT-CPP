@@ -94,6 +94,7 @@ namespace pcit::panther{
 			auto analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<>;
 			auto analyze_when_cond(const AST::WhenConditional& when_stmt) -> evo::Result<>;
 			auto analyze_while(const AST::While& while_stmt) -> evo::Result<>;
+			auto analyze_for(const AST::For& for_stmt) -> evo::Result<>;
 			auto analyze_defer(const AST::Defer& defer_stmt) -> evo::Result<>;
 			auto analyze_stmt_block(const AST::Block& stmt_block) -> evo::Result<>;
 			auto analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<>;

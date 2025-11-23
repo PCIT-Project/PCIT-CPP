@@ -126,6 +126,7 @@ namespace pcit::panther{
 				KEYWORD_ELSE,
 				KEYWORD_WHEN,
 				KEYWORD_WHILE,
+				KEYWORD_FOR,
 				KEYWORD_DEFER,
 				KEYWORD_ERROR_DEFER,
 
@@ -504,6 +505,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_ELSE:           return "else";
 					break; case Kind::KEYWORD_WHEN:           return "when";
 					break; case Kind::KEYWORD_WHILE:          return "while";
+					break; case Kind::KEYWORD_FOR:            return "for";
 					break; case Kind::KEYWORD_DEFER:          return "defer";
 					break; case Kind::KEYWORD_ERROR_DEFER:    return "errorDefer";
 

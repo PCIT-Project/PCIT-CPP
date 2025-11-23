@@ -141,6 +141,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_while(const Instruction::BeginWhile& instr) -> Result;
 			EVO_NODISCARD auto instr_end_while(const Instruction::EndWhile& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_for(const Instruction::BeginFor& instr) -> Result;
+			EVO_NODISCARD auto instr_end_for(const Instruction::EndFor& instr) -> Result;
 			EVO_NODISCARD auto instr_end_while() -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer(const Instruction::EndDefer& instr) -> Result;
@@ -923,7 +925,7 @@ namespace pcit::panther{
 			) -> void;
 
 			auto diagnostic_print_type_info(
-				TypeInfo::ID type_id,
+				TypeInfo::VoidableID type_id,
 				evo::SmallVector<Diagnostic::Info>& infos,
 				std::string_view message
 			) const -> void;
@@ -1153,6 +1155,11 @@ namespace pcit::panther{
 				return this->get_location(except_param.ident);
 			}
 
+			EVO_NODISCARD auto get_location(sema::ForParamID for_param_id) const -> Diagnostic::Location {
+				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(for_param_id);
+				return this->get_location(for_param.ident);
+			}
+
 
 			EVO_NODISCARD auto get_location(BaseType::Alias::ID alias_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(alias_id, this->context);
@@ -1232,6 +1239,9 @@ namespace pcit::panther{
 						return this->get_location(id);
 
 					}else if constexpr(std::is_same<IDType, sema::ExceptParam::ID>()){
+						return this->get_location(id);
+
+					}else if constexpr(std::is_same<IDType, sema::ForParam::ID>()){
 						return this->get_location(id);
 
 					}else if constexpr(std::is_same<IDType, sema::ReturnParamAccessorValueStateID>()){

@@ -20,6 +20,20 @@
 
 
 namespace pcit::panther{
+
+	EVO_NODISCARD static auto remove_alloca_from_name(std::string_view str) -> std::string {
+		const size_t alloca_loc = str.find(".ALLOCA");
+
+		if(alloca_loc == std::string_view::npos){ return std::string(str); }
+
+		auto output = std::string(str.substr(0, alloca_loc));
+		output += str.substr(alloca_loc + evo::stringSize(".ALLOCA"));
+		return output;
+	}
+
+
+
+
 	
 
 	auto SemaToPIR::lower() -> void {
@@ -1731,6 +1745,205 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 			} break;
 
+			case sema::Stmt::Kind::FOR: {
+				const sema::For& for_stmt = this->context.getSemaBuffer().getFor(stmt.forID());
+
+				auto index = std::optional<pir::Expr>();
+				auto index_type = std::optional<pir::Type>();
+				auto value_params = evo::SmallVector<pir::Expr>();
+
+				if(for_stmt.hasIndex){
+					index_type = this->get_type<false>(for_stmt.params[0].typeID);
+
+					index = this->agent.createAlloca(
+						*index_type,
+						this->name(
+							"FOR_PARAM_INDEX.{}.ALLOCA",
+							this->current_source->getTokenBuffer()[for_stmt.params[0].ident].getString()
+						)
+					);
+
+					this->local_func_exprs.emplace(for_stmt.params[0].expr, *index);
+
+
+					this->agent.createStore(
+						*index, this->agent.createNumber(*index_type, core::GenericInt(index_type->getWidth(), 0))
+					);
+
+					for(size_t i = 1; i < for_stmt.params.size(); i+=1){
+						const pir::Expr pir_expr = this->agent.createAlloca(
+							this->module.createPtrType(),
+							this->name(
+								"FOR_PARAM.{}.ALLOCA",
+								this->current_source->getTokenBuffer()[for_stmt.params[i].ident].getString()
+							)
+						);
+
+						value_params.emplace_back(pir_expr);
+						this->local_func_exprs.emplace(for_stmt.params[i].expr, pir_expr);
+					}
+
+				}else{
+					for(const sema::For::Param& param : for_stmt.params){
+						const pir::Expr pir_expr = this->agent.createAlloca(
+							this->module.createPtrType(),
+							this->name(
+								"FOR_PARAM.{}.ALLOCA", this->current_source->getTokenBuffer()[param.ident].getString()
+							)
+						);
+
+						value_params.emplace_back(pir_expr);
+						this->local_func_exprs.emplace(param.expr, pir_expr);
+					}
+				}
+
+
+				auto iterator_type_ids = evo::SmallVector<TypeInfo::ID>();
+				auto iterator_allocas = evo::SmallVector<pir::Expr>();
+				iterator_allocas.reserve(for_stmt.iterables.size());
+				for(const sema::For::Iterable& iterable : for_stmt.iterables){
+					const sema::Func& create_iterable_func =
+						this->context.getSemaBuffer().getFunc(iterable.iterableImpl.methods[0]);
+
+					const BaseType::Function& create_iterable_func_type =
+						this->context.getTypeManager().getFunction(create_iterable_func.typeID);
+
+					const TypeInfo::ID iterator_type_id = create_iterable_func_type.returnParams[0].typeID.asTypeID();
+					iterator_type_ids.emplace_back(iterator_type_id);
+					
+					const pir::Expr iterator_alloca = this->agent.createAlloca(
+						this->get_type<true>(iterator_type_id), this->name("FOR.iterator_{}", iterator_allocas.size())
+					);
+
+					const Data::FuncInfo& create_iterable_func_info = 
+						this->data.get_func(iterable.iterableImpl.methods[0]);
+
+
+					if(create_iterable_func_info.isImplicitRVO){
+						this->create_call_void(
+							create_iterable_func_info.pir_ids[0],
+							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr), iterator_alloca}
+						);
+
+					}else{
+						const pir::Expr iterator_value = this->create_call(
+							create_iterable_func_info.pir_ids[0],
+							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr)}
+						);
+						this->agent.createStore(iterator_alloca, iterator_value);
+					}
+
+					iterator_allocas.emplace_back(iterator_alloca);
+				}
+
+
+				const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("FOR.COND"));
+				const pir::BasicBlock::ID body_block = this->agent.createBasicBlock(this->name("FOR.BODY"));
+				const pir::BasicBlock::ID end_block  = this->agent.createBasicBlock(this->name("FOR.END"));
+
+
+				this->agent.createJump(cond_block);
+
+				this->agent.setTargetBasicBlock(cond_block);
+
+				static constexpr size_t ITERATOR_NEXT   = 0;
+				static constexpr size_t ITERATOR_GET    = 1;
+				static constexpr size_t ITERATOR_AT_END = 2;
+
+				{
+					const Data::FuncInfo& at_end_func_info = 
+						this->data.get_func(for_stmt.iterables[0].iteratorImpl.methods[ITERATOR_AT_END]);
+
+					const pir::Expr cond_value = this->create_call(
+						at_end_func_info.pir_ids[0],
+						evo::SmallVector<pir::Expr>{iterator_allocas[0]},
+						this->name("FOR.at_end")
+					);
+
+					this->agent.createBranch(cond_value, end_block, body_block);
+				}
+
+
+				this->agent.setTargetBasicBlock(body_block);
+
+				if(for_stmt.label.has_value()){
+					const std::string_view label = 
+						this->current_source->getTokenBuffer()[*for_stmt.label].getString();
+					this->push_scope_level(label, evo::SmallVector<pir::Expr>(), cond_block, end_block, true);
+				}else{
+					this->push_scope_level("", evo::SmallVector<pir::Expr>(), cond_block, end_block, true);
+				}
+
+				if(for_stmt.hasIndex){
+					const bool index_type_is_unsigned =
+						this->context.getTypeManager().isUnsignedIntegral(for_stmt.params[0].typeID);
+
+					this->get_current_scope_level().defers.emplace_back(
+						[this, index, index_type, index_type_is_unsigned]() -> void {
+							const pir::Expr index_load =
+								this->agent.createLoad(*index, *index_type, this->name("FOR.index"));
+
+							const pir::Expr index_inc = this->agent.createAdd(
+								index_load,
+								this->agent.createNumber(*index_type, core::GenericInt(index_type->getWidth(), 1)),
+								!index_type_is_unsigned,
+								index_type_is_unsigned,
+								this->name("FOR.index_inc")
+							);
+
+							this->agent.createStore(*index, index_inc);
+						},
+						false
+					);
+				}
+
+				for(size_t i = 0; const sema::For::Iterable& iterable : for_stmt.iterables){
+					//////////////////
+					// get
+
+					const Data::FuncInfo& get_func_info =
+						this->data.get_func(iterable.iteratorImpl.methods[ITERATOR_GET]);
+
+					const pir::Expr get_value = this->create_call(
+						get_func_info.pir_ids[0],
+						evo::SmallVector<pir::Expr>{iterator_allocas[i]},
+						this->name("FOR.GET_{}", i)
+					);
+
+					this->agent.createStore(value_params[i], get_value);
+
+
+					//////////////////
+					// next
+
+					const Data::FuncInfo& next_func_info =
+						this->data.get_func(iterable.iteratorImpl.methods[ITERATOR_NEXT]);
+
+					this->get_current_scope_level().defers.emplace_back(
+						[this, pir_func = next_func_info.pir_ids[0], iterator_alloca = iterator_allocas[i]]() -> void {
+							this->create_call_void(pir_func, evo::SmallVector<pir::Expr>{iterator_alloca});
+						},
+						false
+					);
+				}
+
+				for(const sema::Stmt& block_stmt : for_stmt.block){
+					this->lower_stmt(block_stmt);
+				}
+
+				if(for_stmt.block.isTerminated() == false){
+					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->agent.createJump(cond_block);
+				}
+
+				this->pop_scope_level();
+				this->agent.setTargetBasicBlock(end_block);
+
+				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
+					this->delete_expr(iterator_alloca, iterator_type_ids[i]);
+				}
+			} break;
+
 			case sema::Stmt::Kind::DEFER: {
 				const sema::Defer& defer_stmt = this->context.getSemaBuffer().getDefer(stmt.deferID());
 				this->get_current_scope_level().defers.emplace_back(stmt.deferID(), defer_stmt.isErrorDefer);
@@ -2321,16 +2534,16 @@ namespace pcit::panther{
 
 				const pir::Expr target = [&](){
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
 						return store_locations[0];
 
 					}else{
-						return this->agent.createAlloca(target_type, ".DISCARD.CONVERSION_TO_OPTIONAL.alloca");
+						return this->agent.createAlloca(target_type, ".DISCARD.CONVERSION_TO_OPTIONAL.ALLOCA");
 					}
 				}();
 
@@ -3151,7 +3364,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr indexer_alloca = this->agent.createAlloca(
-						this->module.createPtrType(), this->name(".INDEXER.alloca")
+						this->module.createPtrType(), this->name(".INDEXER.ALLOCA")
 					);
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
@@ -3561,7 +3774,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr array_ref_indexer_alloca = this->agent.createAlloca(
-						this->module.createPtrType(), this->name(".ARRAY_REF_INDEXER.alloca")
+						this->module.createPtrType(), this->name(".ARRAY_REF_INDEXER.ALLOCA")
 					);
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
@@ -3691,7 +3904,7 @@ namespace pcit::panther{
 
 					const pir::Expr output_memory = [&](){
 						if constexpr(MODE == GetExprMode::REGISTER){
-							return this->agent.createAlloca(return_type, this->name(".ARRAY_REF_DIMENSIONS.alloca"));
+							return this->agent.createAlloca(return_type, this->name(".ARRAY_REF_DIMENSIONS.ALLOCA"));
 
 						}else if constexpr(MODE == GetExprMode::POINTER){
 							return this->agent.createAlloca(return_type, this->name("ARRAY_REF_DIMENSIONS"));
@@ -4382,17 +4595,86 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::FOR_PARAM: {
+				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(expr.forParamID());
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+					const pir::Alloca& for_param_alloca = this->agent.getAlloca(for_param_expr);
+
+					if(for_param.isIndex){
+						return this->agent.createLoad(
+							for_param_expr,
+							for_param_alloca.type,
+							this->name(remove_alloca_from_name(for_param_alloca.name))
+						);
+
+					}else{
+						const pir::Expr for_param_load = this->agent.createLoad(
+							for_param_expr,
+							this->module.createPtrType(),
+							this->name("." + remove_alloca_from_name(for_param_alloca.name))
+						);
+
+						return this->agent.createLoad(
+							for_param_load,
+							this->get_type<false>(for_param.typeID),
+							this->name(remove_alloca_from_name(for_param_alloca.name) + ".LOAD")
+						);
+					}
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+					const pir::Alloca& for_param_alloca = this->agent.getAlloca(for_param_expr);
+
+					if(for_param.isIndex){
+						return for_param_expr;
+					}else{
+						return this->agent.createLoad(
+							for_param_expr,
+							this->module.createPtrType(),
+							this->name(remove_alloca_from_name(for_param_alloca.name))
+						);
+					}
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+					const pir::Alloca& for_param_alloca = this->agent.getAlloca(for_param_expr);
+
+					if(for_param.isIndex){
+						this->agent.createMemcpy(store_locations[0], for_param_expr, for_param_alloca.type);
+					}else{
+						const pir::Expr for_param_load = this->agent.createLoad(
+							for_param_expr,
+							this->module.createPtrType(),
+							this->name("." + remove_alloca_from_name(for_param_alloca.name))
+						);
+
+						this->agent.createMemcpy(
+							store_locations[0], for_param_load, this->get_type<false>(for_param.typeID)
+						);
+					}
+
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
 			case sema::Expr::Kind::VAR: {
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
 
 					if(this->data.getConfig().useReadableNames){
 						const pir::Alloca& var_actual_alloca = this->agent.getAlloca(var_alloca);
-						std::string_view alloca_name = static_cast<std::string_view>(var_actual_alloca.name);
-						alloca_name.remove_suffix(sizeof(".ALLOCA") - 1);
 
 						return this->agent.createLoad(
-							var_alloca, this->agent.getAlloca(var_alloca).type, std::string(alloca_name)
+							var_alloca,
+							this->agent.getAlloca(var_alloca).type,
+							remove_alloca_from_name(var_actual_alloca.name)
 						);
 
 					}else{
@@ -4531,7 +4813,7 @@ namespace pcit::panther{
 
 				const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
 
-				const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".DELETE_ARR.i.alloca"));
+				const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".DELETE_ARR.i.ALLOCA"));
 				this->agent.createStore(
 					pir_i,
 					this->agent.createNumber(
@@ -4896,7 +5178,7 @@ namespace pcit::panther{
 
 					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
 
-					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".COPY_ARR.i.alloca"));
+					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".COPY_ARR.i.ALLOCA"));
 					this->agent.createStore(
 						pir_i,
 						this->agent.createNumber(
@@ -5055,7 +5337,7 @@ namespace pcit::panther{
 
 					const pir::Expr dst = [&](){
 						if constexpr(MODE == GetExprMode::REGISTER){
-							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY.alloca"));
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY.ALLOCA"));
 							
 						}else if constexpr(MODE == GetExprMode::POINTER){
 							return this->agent.createAlloca(union_pir_type, this->name("UNION_COPY"));
@@ -5064,7 +5346,7 @@ namespace pcit::panther{
 							return store_locations[0];
 
 						}else{
-							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY_DISCARD.alloca"));
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_COPY_DISCARD.ALLOCA"));
 						}
 					}();
 
@@ -5343,7 +5625,7 @@ namespace pcit::panther{
 
 					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
 
-					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".MOVE_ARR.i.alloca"));
+					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".MOVE_ARR.i.ALLOCA"));
 					this->agent.createStore(
 						pir_i,
 						this->agent.createNumber(
@@ -5499,7 +5781,7 @@ namespace pcit::panther{
 
 					const pir::Expr dst = [&](){
 						if constexpr(MODE == GetExprMode::REGISTER){
-							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE.alloca"));
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE.ALLOCA"));
 							
 						}else if constexpr(MODE == GetExprMode::POINTER){
 							return this->agent.createAlloca(union_pir_type, this->name("UNION_MOVE"));
@@ -5508,7 +5790,7 @@ namespace pcit::panther{
 							return store_locations[0];
 
 						}else{
-							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE_DISCARD.alloca"));
+							return this->agent.createAlloca(union_pir_type, this->name(".UNION_MOVE_DISCARD.ALLOCA"));
 						}
 					}();
 
@@ -5959,7 +6241,7 @@ namespace pcit::panther{
 					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
 
 					const pir::Expr pir_i = this->agent.createAlloca(
-						usize_type, this->name(is_equal ? ".EQ.arr.i.alloca" : ".NEQ.arr.i.alloca")
+						usize_type, this->name(is_equal ? ".EQ.arr.i.ALLOCA" : ".NEQ.arr.i.ALLOCA")
 					);
 					this->agent.createStore(
 						pir_i,
@@ -6233,7 +6515,7 @@ namespace pcit::panther{
 					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
 
 					const pir::Expr pir_i = this->agent.createAlloca(
-						usize_type, this->name(is_equal ? ".EQ.ARR_REF.i.alloca" : ".NEQ.ARR_REF.i.alloca")
+						usize_type, this->name(is_equal ? ".EQ.ARR_REF.i.ALLOCA" : ".NEQ.ARR_REF.i.ALLOCA")
 					);
 					this->agent.createStore(
 						pir_i,
@@ -8242,8 +8524,9 @@ namespace pcit::panther{
 			case sema::Expr::Kind::UNION_TAG_CMP:          case sema::Expr::Kind::SAME_TYPE_CMP:
 			case sema::Expr::Kind::PARAM:                  case sema::Expr::Kind::RETURN_PARAM:
 			case sema::Expr::Kind::ERROR_RETURN_PARAM:     case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:           case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:             case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::EXCEPT_PARAM:           case sema::Expr::Kind::FOR_PARAM:
+			case sema::Expr::Kind::VAR:                    case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}
@@ -8719,10 +9002,16 @@ namespace pcit::panther{
 				}		
 			}
 
-			const sema::Defer& sema_defer = this->context.getSemaBuffer().getDefer(defer_item.defer_id);
+			if(defer_item.defer_item.is<sema::Defer::ID>()){
+				const sema::Defer& sema_defer =
+					this->context.getSemaBuffer().getDefer(defer_item.defer_item.as<sema::Defer::ID>());
 
-			for(const sema::Stmt& stmt : sema_defer.block){
-				this->lower_stmt(stmt);
+				for(const sema::Stmt& stmt : sema_defer.block){
+					this->lower_stmt(stmt);
+				}
+
+			}else{
+				defer_item.defer_item.as<std::function<void()>>()();
 			}
 		}
 	}
