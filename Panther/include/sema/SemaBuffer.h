@@ -714,6 +714,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// array ref data
+
+			EVO_NODISCARD auto createArrayRefData(auto&&... args) -> sema::ArrayRefData::ID {
+				return this->array_ref_data.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getArrayRefData(sema::ArrayRefData::ID id) const -> const sema::ArrayRefData& {
+				return this->array_ref_data[id];
+			}
+
+
+			///////////////////////////////////
 			// union designated init new
 
 			EVO_NODISCARD auto createUnionDesignatedInitNew(auto&&... args) -> sema::UnionDesignatedInitNew::ID {
@@ -953,6 +965,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
 			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
 			core::SyncLinearStepAlloc<sema::ArrayRefDimensions, sema::ArrayRefDimensions::ID> array_ref_dimensions{};
+			core::SyncLinearStepAlloc<sema::ArrayRefData, sema::ArrayRefData::ID> array_ref_data{};
 			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
 				union_designated_init_news{};
 			core::SyncLinearStepAlloc<sema::UnionTagCmp, sema::UnionTagCmp::ID> union_tag_cmps{};

@@ -9742,19 +9742,36 @@ namespace pcit::panther{
 					);
 				}
 
-				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+				const TypeInfo::ID return_type_id = call_type.returnParams[0].typeID.asTypeID();
 
 
 				const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-					std::move(values), this->context.getTypeManager().getTypeInfo(return_type).baseTypeID()
+					std::move(values), this->context.getTypeManager().getTypeInfo(return_type_id).baseTypeID()
 				);
 				
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					TermInfo::convertValueStage(fake_term_info.valueStage),
 					TermInfo::ValueState::NOT_APPLICABLE,
-					return_type,
+					return_type_id,
 					sema::Expr(created_aggregate_value)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA: {
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				const TypeInfo::ID return_type_id = call_type.returnParams[0].typeID.asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type_id,
+					sema::Expr(this->context.sema_buffer.createAddrOf(fake_term_info.expr))
 				);
 				return Result::SUCCESS;
 			} break;
@@ -9795,6 +9812,29 @@ namespace pcit::panther{
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_type,
 					sema::Expr(created_array_ref_dimensions)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA: {
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+				const sema::ArrayRefData::ID created_array_ref_data =
+					this->context.sema_buffer.createArrayRefData(fake_term_info.expr, array_ref_type_id);
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::convertValueStage(fake_term_info.valueStage),
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type,
+					sema::Expr(created_array_ref_data)
 				);
 				return Result::SUCCESS;
 			} break;
@@ -18522,6 +18562,47 @@ namespace pcit::panther{
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "data"){
+			const BaseType::Array& array_type =
+				this->context.getTypeManager().getArray(actual_lhs_type.baseTypeID().arrayID());
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, return_type_id)
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
 		}
 
 
@@ -18628,6 +18709,48 @@ namespace pcit::panther{
 				TermInfo::ValueStage::CONSTEXPR,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "data"){
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(actual_lhs_type.baseTypeID().arrayRefID());
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type =
+					this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<BaseType::Function::ReturnParam>{
+								BaseType::Function::ReturnParam(std::nullopt, return_type_id)
+							},
+							evo::SmallVector<BaseType::Function::ReturnParam>()
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA),
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;
@@ -20091,9 +20214,9 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:
 			case sema::Expr::Kind::INIT_ARRAY_REF:                case sema::Expr::Kind::ARRAY_REF_INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:     case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:                 case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::ARRAY_REF_DATA:                case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:                 case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::GLOBAL_VAR:                    case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}

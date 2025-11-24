@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.191.0"></a>
+## v0.0.191.0
+
+### Panther
+- Added builtin-type methods
+	- Array `.data()`
+	- Array reference `.data()`
+
+
+<!---------------------------------->
 <a name="v0.0.190.0"></a>
 ## v0.0.190.0
 

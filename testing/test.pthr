@@ -18,7 +18,9 @@ type Array = struct {
 		return this._data[index];
 	}
 
-	func data = (this) -> Int* { return this[0]; }
+	func data = (this) -> Int* { return this._data.data(); }
+	func data = (this mut) -> Int*mut { return this._data.data(); }
+
 	func size = (this) -> USize { return LENGTH; }
 
 
@@ -64,7 +66,7 @@ type Array = struct {
 	type ArrIter = struct {
 		func new = (arr: Array*) -> (output: ArrIter) {
 			output.arr = copy arr;
-			output.current = arr[0];
+			output.current = arr.data();
 			output.last = arr[arr.size() - 1];
 			return...;
 		}
@@ -102,7 +104,7 @@ type Array = struct {
 	type MutArrIter = struct {
 		func new = (arr: Array*mut) -> (output: MutArrIter) {
 			output.arr = copy arr;
-			output.current = arr[0];
+			output.current = arr.data();
 			output.last = arr[arr.size() - 1];
 			return...;
 		}
@@ -160,6 +162,10 @@ func entry = () #entry -> UI8 {
 		num += i as Int;
 	}
 
-	return sum_arr(array) as UI8; // 9
+
+	// return sum_arr(array) as UI8; // 9
+
+	var arr_ref: [Int:*] = array as [Int:*];
+	return (arr_ref.data() == array.data()) as UI8;
 }
 

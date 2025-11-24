@@ -79,8 +79,10 @@ namespace pcit::panther{
 				OPT_EXTRACT,
 				ARRAY_SIZE,
 				ARRAY_DIMENSIONS,
+				ARRAY_DATA,
 				ARRAY_REF_SIZE,
 				ARRAY_REF_DIMENSIONS,
+				ARRAY_REF_DATA,
 			};
 
 			TypeInfo::ID typeID;

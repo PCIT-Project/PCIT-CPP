@@ -74,6 +74,7 @@ namespace pcit::panther::sema{
 			ARRAY_REF_INDEXER,
 			ARRAY_REF_SIZE,
 			ARRAY_REF_DIMENSIONS,
+			ARRAY_REF_DATA,
 			UNION_DESIGNATED_INIT_NEW,
 			UNION_TAG_CMP,
 			SAME_TYPE_CMP,
@@ -147,6 +148,7 @@ namespace pcit::panther::sema{
 		explicit Expr(ArrayRefIndexerID id)    : _kind(Kind::ARRAY_REF_INDEXER),    value{.array_ref_indexer = id}   {};
 		explicit Expr(ArrayRefSizeID id)       : _kind(Kind::ARRAY_REF_SIZE),       value{.array_ref_size = id}      {};
 		explicit Expr(ArrayRefDimensionsID id) : _kind(Kind::ARRAY_REF_DIMENSIONS), value{.array_ref_dimensions = id}{};
+		explicit Expr(ArrayRefDataID id)       : _kind(Kind::ARRAY_REF_DATA),       value{.array_ref_data = id}      {};
 		explicit Expr(UnionDesignatedInitNewID id)
 			: _kind(Kind::UNION_DESIGNATED_INIT_NEW), value{.union_designated_init_new = id} {};
 		explicit Expr(UnionTagCmpID id)        : _kind(Kind::UNION_TAG_CMP),        value{.union_tag_cmp = id}       {};
@@ -343,6 +345,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::ARRAY_REF_DIMENSIONS, "not an array ref dimensions");
 			return this->value.array_ref_dimensions;
 		}
+		EVO_NODISCARD auto arrayRefDataID() const -> ArrayRefDataID {
+			evo::debugAssert(this->kind() == Kind::ARRAY_REF_DATA, "not an array ref data");
+			return this->value.array_ref_data;
+		}
 		EVO_NODISCARD auto unionDesignatedInitNewID() const -> UnionDesignatedInitNewID {
 			evo::debugAssert(this->kind() == Kind::UNION_DESIGNATED_INIT_NEW, "not a union designated init new");
 			return this->value.union_designated_init_new;
@@ -455,6 +461,7 @@ namespace pcit::panther::sema{
 				ArrayRefIndexerID array_ref_indexer;
 				ArrayRefSizeID array_ref_size;
 				ArrayRefDimensionsID array_ref_dimensions;
+				ArrayRefDataID array_ref_data;
 				UnionDesignatedInitNewID union_designated_init_new;
 				UnionTagCmpID union_tag_cmp;
 				SameTypeCmpID same_type_cmp;

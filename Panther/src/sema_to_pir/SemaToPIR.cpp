@@ -3962,6 +3962,61 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::ARRAY_REF_DATA: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const sema::ArrayRefData& array_ref_data =
+						this->context.getSemaBuffer().getArrayRefData(expr.arrayRefDataID());
+
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(array_ref_data.targetTypeID);
+
+
+					const pir::Type pir_array_ref_type =
+						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+
+
+					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_data.target);
+
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr data_value = this->agent.createCalcPtr(
+							target_array_ref,
+							pir_array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF_DATA")
+						);
+
+						return this->agent.createLoad(
+							data_value, this->module.createPtrType(), this->name("ARRAY_REF_DATA")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->agent.createCalcPtr(
+							target_array_ref,
+							pir_array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name("ARRAY_REF_DATA")
+						);
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						const pir::Expr data_value = this->agent.createCalcPtr(
+							target_array_ref,
+							pir_array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".ARRAY_REF_DATA")
+						);
+
+						this->agent.createStore(store_locations[0], data_value);
+						return std::nullopt;
+					}
+				}
+			} break;
+
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: {
 				const sema::UnionDesignatedInitNew& union_designated_init_new = 
 					this->context.getSemaBuffer().getUnionDesignatedInitNew(expr.unionDesignatedInitNewID());
@@ -8504,29 +8559,29 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:           case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                   case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:    case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                  case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:               case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:            case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:          case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:             case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:     case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:         case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE: case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:      case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:   case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:          case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::PARAM:                  case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:     case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:           case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                    case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:                   case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                     case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:                  case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:               case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:             case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:    case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
+			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:    case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:              case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:         case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:                 case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:                case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}
