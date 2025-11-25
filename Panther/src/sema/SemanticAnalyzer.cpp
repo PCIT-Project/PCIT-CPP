@@ -10347,6 +10347,24 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID: {
+				this->return_term_info(
+					instr.output,
+					constexpr_intrinsic_evaluator.arrayElementTypeID(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID: {
+				this->return_term_info(
+					instr.output,
+					constexpr_intrinsic_evaluator.arrayRefElementTypeID(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
 				this->return_term_info(
 					instr.output,

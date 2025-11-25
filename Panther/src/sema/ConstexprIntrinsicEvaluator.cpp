@@ -31,6 +31,41 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ConstexprIntrinsicEvaluator::arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo {
+		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
+		evo::debugAssert(type_info.qualifiers().empty(), "Should have no qualifiers");
+		const BaseType::Array& array_type = this->type_manager.getArray(type_info.baseTypeID().arrayID());
+
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeTypeID(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt::create<uint32_t>(array_type.elementTypeID.get()),
+				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
+			))
+		);
+	}
+
+	auto ConstexprIntrinsicEvaluator::arrayRefElementTypeID(TypeInfo::ID type_id) -> TermInfo {
+		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
+		evo::debugAssert(type_info.qualifiers().empty(), "Should have no qualifiers");
+		const BaseType::ArrayRef& array_ref_type = this->type_manager.getArrayRef(type_info.baseTypeID().arrayRefID());
+
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeTypeID(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt::create<uint32_t>(array_ref_type.elementTypeID.get()),
+				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
+			))
+		);
+	}
+
+
 	
 	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
@@ -61,6 +96,7 @@ namespace pcit::panther{
 			))
 		);
 	}
+
 
 
 	///////////////////////////////////

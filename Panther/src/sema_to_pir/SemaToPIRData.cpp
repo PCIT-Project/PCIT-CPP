@@ -57,7 +57,7 @@ namespace pcit::panther{
 			}
 
 			this->array_ref_type[num_dimensions - 1] = module.createStructType(
-				std::format("PTHR.aray_ref.d{}", num_dimensions),
+				std::format("PTHR.array_ref.d{}", num_dimensions),
 				std::move(member_types),
 				false
 			);

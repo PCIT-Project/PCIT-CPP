@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.193.0"></a>
+## v0.0.193.0
+
+### Panther
+- Added `@arrayElementTypeID` and `@arrayRefElementTypeID`
+
+
+<!---------------------------------->
 <a name="v0.0.192.1"></a>
 ## v0.0.192.1
 

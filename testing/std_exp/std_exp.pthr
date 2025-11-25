@@ -12,8 +12,3 @@ func numBytes = <{T: Type, INCLUDE_PADDING: Bool}> () #pub -> USize {
 func sizeOf = <{T: Type}> () #pub -> USize {
 	return @numBytes<{T, true}>();
 }
-
-
-type Struct = struct <{T: Type}> {
-	
-}

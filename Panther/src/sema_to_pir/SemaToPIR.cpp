@@ -7142,6 +7142,14 @@ namespace pcit::panther{
 				evo::debugFatalBreak("@getTypeID is constexpr evaluated");
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID: {
+				evo::debugFatalBreak("@arrayElementTypeID is constexpr evaluated");
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID: {
+				evo::debugFatalBreak("@arrayRefElementTypeID is constexpr evaluated");
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
 				evo::debugFatalBreak("@numBytes is constexpr evaluated");
 			} break;

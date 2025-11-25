@@ -32,6 +32,9 @@ namespace pcit::panther{
 			// type traits
 
 			EVO_NODISCARD auto getTypeID(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto arrayRefElementTypeID(TypeInfo::ID type_id) -> TermInfo;
+
 			EVO_NODISCARD auto numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			EVO_NODISCARD auto numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 
