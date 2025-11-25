@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.192.0"></a>
+## v0.0.192.0
+
+### Panther
+- Added `INCLUDE_PADDING` template parameter to `@numBytes` and `@numBits` 
+- Fixed crashing or incorrect behavior when instantiating a template that's in another file
+
+
+<!---------------------------------->
 <a name="v0.0.191.1"></a>
 ## v0.0.191.1
 

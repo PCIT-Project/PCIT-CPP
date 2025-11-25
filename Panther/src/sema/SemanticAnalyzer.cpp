@@ -10350,14 +10350,20 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.numBytes(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					constexpr_intrinsic_evaluator.numBytes(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().getBool()
+					)
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NUM_BITS: {
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.numBits(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					constexpr_intrinsic_evaluator.numBits(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<core::GenericValue>().getBool()
+					)
 				);
 			} break;
 
@@ -13676,9 +13682,10 @@ namespace pcit::panther{
 			struct_template.createOrLookupInstantiation(std::move(instantiation_lookup_args));
 
 		if(instantiation_info.needsToBeCompiled()){
-			auto symbol_proc_builder = SymbolProcBuilder(
-				this->context, this->context.source_manager[sema_templated_struct.symbolProc.source_id]
-			);
+			Source& instantiation_source = this->context.source_manager[sema_templated_struct.symbolProc.source_id];
+
+			auto symbol_proc_builder = SymbolProcBuilder(this->context, instantiation_source);
+
 
 			const sema::ScopeManager::Scope::ID instantiation_sema_scope_id = 
 				this->context.sema_buffer.scope_manager.copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
@@ -13708,9 +13715,9 @@ namespace pcit::panther{
 			instantiation_sema_scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
 
 			const AST::StructDef& struct_template_decl = 
-				this->source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
+				instantiation_source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
 
-			const AST::TemplatePack& ast_template_pack = this->source.getASTBuffer().getTemplatePack(
+			const AST::TemplatePack& ast_template_pack = instantiation_source.getASTBuffer().getTemplatePack(
 				*struct_template_decl.templatePack
 			);
 
@@ -13721,7 +13728,7 @@ namespace pcit::panther{
 					if(arg.is<TypeInfo::VoidableID>()){
 						return this->add_ident_to_scope(
 							instantiation_sema_scope,
-							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
+							instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
 							true,
 							sema::ScopeLevel::TemplateTypeParamFlag{},
@@ -13732,14 +13739,14 @@ namespace pcit::panther{
 					}else{
 						const TypeInfo::ID expr_type_id = [&]() -> TypeInfo::ID {
 							if(struct_template.params[i].typeID->isTemplateDeclInstantiation()){
-								const AST::StructDef& ast_struct = this->source.getASTBuffer().getStructDef(
+								const AST::StructDef& ast_struct = instantiation_source.getASTBuffer().getStructDef(
 									sema_templated_struct.symbolProc.ast_node
 								);
 								const AST::TemplatePack& ast_template_pack = 
-									this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+									instantiation_source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
 
 								const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-									this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+									instantiation_source.getASTBuffer().getType(ast_template_pack.params[i].type)
 								);
 
 								evo::debugAssert(
@@ -13758,7 +13765,7 @@ namespace pcit::panther{
 
 						return this->add_ident_to_scope(
 							instantiation_sema_scope,
-							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
+							instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
 							true,
 							sema::ScopeLevel::TemplateExprParamFlag{},
@@ -22043,7 +22050,7 @@ namespace pcit::panther{
 						const TypeInfo::ID expr_type_id = [&]() -> TypeInfo::ID {
 							if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
 								const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-									this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+									template_source.getASTBuffer().getType(ast_template_pack.params[i].type)
 								);
 
 								evo::debugAssert(resolved_type.isSuccess(), "Should have already checked not an error");
@@ -22060,7 +22067,7 @@ namespace pcit::panther{
 
 						return this->add_ident_to_scope(
 							instantiation_sema_scope,
-							this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
+							template_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
 							ast_template_pack.params[i].ident,
 							true,
 							sema::ScopeLevel::TemplateExprParamFlag{},

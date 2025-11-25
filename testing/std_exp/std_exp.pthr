@@ -3,3 +3,12 @@
 func bitCast = <{To: Type}> (from: $From) #pub -> To {
 	return @bitCast<{From, To}>(from);
 }
+
+
+func numBytes = <{T: Type, INCLUDE_PADDING: Bool}> () #pub -> USize {
+	return @numBytes<{T, INCLUDE_PADDING}>();
+}
+
+func sizeOf = <{T: Type}> () #pub -> USize {
+	return @numBytes<{T, true}>();
+}

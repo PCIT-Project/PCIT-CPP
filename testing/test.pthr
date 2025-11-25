@@ -72,7 +72,7 @@ type Array = struct {
 		}
 
 		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
 			this.current = std_exp.bitCast<{Int*}>(new_address);
 		}
 
@@ -110,7 +110,7 @@ type Array = struct {
 		}
 
 		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + @numBytes<{Int}>();
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
 			this.current = std_exp.bitCast<{Int*mut}>(new_address);
 		}
 
@@ -159,8 +159,7 @@ func entry = () #entry -> UI8 {
 	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
 
 	for(array) [i: USize; num: Int mut] {
-		// num += i as Int;
-		break;
+		num += std_exp.sizeOf<{Byte}>() as Int;
 	}
 
 	return sum_arr(array) as UI8; // 9

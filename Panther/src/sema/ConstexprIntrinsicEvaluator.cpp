@@ -32,27 +32,31 @@ namespace pcit::panther{
 	}
 
 	
-	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id) -> TermInfo {
+	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
-				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBytes(type_id)),
+				core::GenericInt(
+					unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBytes(type_id, include_padding)
+				),
 				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
 			))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::numBits(TypeInfo::ID type_id) -> TermInfo {
+	auto ConstexprIntrinsicEvaluator::numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
 			TermInfo::ValueStage::CONSTEXPR,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
-				core::GenericInt(unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBits(type_id)),
+				core::GenericInt(
+					unsigned(this->type_manager.numBitsOfPtr()), this->type_manager.numBits(type_id, include_padding)
+				),
 				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
 			))
 		);
