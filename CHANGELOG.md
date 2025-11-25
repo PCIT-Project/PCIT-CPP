@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.191.1"></a>
+## v0.0.191.1
+
+### Panther
+- Fixed lowering of `for` loop adding uncessesary calls to `iterator.next()` and incrementing the index on `break`, `return`, and `error`
+- Fixed `errorDefer` running on `break` and `continue`
+
+
+<!---------------------------------->
 <a name="v0.0.191.0"></a>
 ## v0.0.191.0
 
@@ -15,7 +24,7 @@
 ## v0.0.190.0
 
 ### Panther
-- Added for loops
+- Added `for` loops
 - Changed names of some builtin interfaces
 	- `@pthr.RTIterable` -> `@pthr.IterableRT`
 	- `@pthr.RTIterator` -> `@pthr.IteratorRT`

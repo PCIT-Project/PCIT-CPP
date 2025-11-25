@@ -551,7 +551,7 @@ namespace pcit::panther{
 
 			if(sema_func.isTerminated == false){
 				if(this->current_func_type->returnsVoid()){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->output_defers_for_scope_level<DeferTarget::RETURN>(this->scope_levels.back());
 					
 					if(this->current_func_type->hasErrorReturn()){
 						this->agent.createRet(this->agent.createBoolean(false));
@@ -1162,10 +1162,6 @@ namespace pcit::panther{
 					this->lower_stmt(else_block_stmt);
 				}
 
-				if(try_else.elseBlock.isTerminated() == false){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
-				}
-
 				this->pop_scope_level();
 
 				const pir::BasicBlock::ID if_error_block_end = this->agent.getTargetBasicBlock().getID();
@@ -1301,10 +1297,6 @@ namespace pcit::panther{
 
 				for(const sema::Stmt& else_block_stmt : try_else_interface.elseBlock){
 					this->lower_stmt(else_block_stmt);
-				}
-
-				if(try_else_interface.elseBlock.isTerminated() == false){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
 				}
 
 				this->pop_scope_level();
@@ -1458,7 +1450,7 @@ namespace pcit::panther{
 
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						if(scope_level.label != label){
-							this->output_defers_for_scope_level<false>(scope_level);
+							this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 							continue;
 						}
 
@@ -1466,7 +1458,7 @@ namespace pcit::panther{
 							this->agent.createStore(scope_level.label_output_locations[0], *ret_value);
 						}
 
-						this->output_defers_for_scope_level<false>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 
 						this->agent.createJump(*scope_level.end_block);
 						break;
@@ -1478,7 +1470,7 @@ namespace pcit::panther{
 							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
 
 							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-								this->output_defers_for_scope_level<false>(scope_level);
+								this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 							}
 
 							this->agent.createStore(this->current_func_info->return_params.front().expr, ret_value);
@@ -1494,7 +1486,7 @@ namespace pcit::panther{
 								);
 
 								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-									this->output_defers_for_scope_level<false>(scope_level);
+									this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 								}
 
 								this->agent.createRet();
@@ -1503,7 +1495,7 @@ namespace pcit::panther{
 								const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
 
 								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-									this->output_defers_for_scope_level<false>(scope_level);
+									this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 								}
 
 								this->agent.createRet(ret_value);
@@ -1511,7 +1503,7 @@ namespace pcit::panther{
 
 						}else{
 							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-								this->output_defers_for_scope_level<false>(scope_level);
+								this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 							}
 							this->agent.createRet();
 						}
@@ -1528,13 +1520,13 @@ namespace pcit::panther{
 						*this->current_func_info->error_return_param, this->get_expr_register(*error_stmt.value)
 					);
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::ERROR>(scope_level);
 					}
 					this->agent.createRet(this->agent.createBoolean(true));
 
 				}else{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::ERROR>(scope_level);
 					}
 					this->agent.createRet(this->agent.createBoolean(true));
 				}
@@ -1559,7 +1551,7 @@ namespace pcit::panther{
 						this->current_source->getTokenBuffer()[*break_stmt.label].getString();
 
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::BREAK>(scope_level);
 
 						if(scope_level.label == label){
 							this->agent.createJump(*scope_level.end_block);
@@ -1569,7 +1561,7 @@ namespace pcit::panther{
 					
 				}else{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::BREAK>(scope_level);
 
 						if(scope_level.is_loop){
 							this->agent.createJump(*scope_level.end_block);
@@ -1587,7 +1579,7 @@ namespace pcit::panther{
 						this->current_source->getTokenBuffer()[*continue_stmt.label].getString();
 
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::CONTINUE>(scope_level);
 
 						if(scope_level.label == label){
 							this->agent.createJump(*scope_level.begin_block);
@@ -1597,7 +1589,7 @@ namespace pcit::panther{
 					
 				}else{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-						this->output_defers_for_scope_level<true>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::CONTINUE>(scope_level);
 
 						if(scope_level.is_loop){
 							this->agent.createJump(*scope_level.begin_block);
@@ -1622,7 +1614,7 @@ namespace pcit::panther{
 				}
 
 				if(block_scope.block.isTerminated() == false){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 				}
 
 				this->pop_scope_level();
@@ -1649,7 +1641,7 @@ namespace pcit::panther{
 					}
 					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
 					if(then_terminated == false){
-						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					}
 					this->pop_scope_level();
 					if(then_terminated == false){
@@ -1670,7 +1662,7 @@ namespace pcit::panther{
 						this->lower_stmt(block_stmt);
 					}
 					if(then_terminated == false){
-						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					}
 					this->pop_scope_level();
 
@@ -1684,7 +1676,7 @@ namespace pcit::panther{
 						this->lower_stmt(block_stmt);
 					}
 					if(else_terminated == false){
-						this->output_defers_for_scope_level<false>(this->scope_levels.back());
+						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					}
 					this->pop_scope_level();
 
@@ -1737,7 +1729,7 @@ namespace pcit::panther{
 				}
 
 				if(while_stmt.block.isTerminated() == false){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					this->agent.createJump(cond_block);
 				}
 
@@ -1893,7 +1885,13 @@ namespace pcit::panther{
 
 							this->agent.createStore(*index, index_inc);
 						},
-						false
+						DeferItem::Targets{
+							.on_scope_end = true,
+							.on_return    = false,
+							.on_error     = false,
+							.on_continue  = true,
+							.on_break     = false,
+						}
 					);
 				}
 
@@ -1923,7 +1921,13 @@ namespace pcit::panther{
 						[this, pir_func = next_func_info.pir_ids[0], iterator_alloca = iterator_allocas[i]]() -> void {
 							this->create_call_void(pir_func, evo::SmallVector<pir::Expr>{iterator_alloca});
 						},
-						false
+						DeferItem::Targets{
+							.on_scope_end = true,
+							.on_return    = false,
+							.on_error     = false,
+							.on_continue  = true,
+							.on_break     = false,
+						}
 					);
 				}
 
@@ -1932,7 +1936,7 @@ namespace pcit::panther{
 				}
 
 				if(for_stmt.block.isTerminated() == false){
-					this->output_defers_for_scope_level<false>(this->scope_levels.back());
+					this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					this->agent.createJump(cond_block);
 				}
 
@@ -1946,7 +1950,16 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::DEFER: {
 				const sema::Defer& defer_stmt = this->context.getSemaBuffer().getDefer(stmt.deferID());
-				this->get_current_scope_level().defers.emplace_back(stmt.deferID(), defer_stmt.isErrorDefer);
+				this->get_current_scope_level().defers.emplace_back(
+					stmt.deferID(),
+					DeferItem::Targets{
+						.on_scope_end = true,
+						.on_return    = true,
+						.on_error     = defer_stmt.isErrorDefer,
+						.on_continue  = true,
+						.on_break     = true,
+					}
+				);
 			} break;
 		}
 	}
@@ -9047,15 +9060,28 @@ namespace pcit::panther{
 	}
 
 
-
-	template<bool INCLUDE_ERRORS>
+	template<SemaToPIR::DeferTarget TARGET>
 	auto SemaToPIR::output_defers_for_scope_level(const ScopeLevel& scope_level) -> void {
 		for(const DeferItem& defer_item : scope_level.defers | std::views::reverse){
-			if constexpr(INCLUDE_ERRORS == false){
-				if(defer_item.error_only){
-					continue;
-				}		
+			if constexpr(TARGET == DeferTarget::SCOPE_END){
+				if(defer_item.targets.on_scope_end == false){ continue; }
+
+			}else if constexpr(TARGET == DeferTarget::RETURN){
+				if(defer_item.targets.on_return == false){ continue; }
+
+			}else if constexpr(TARGET == DeferTarget::ERROR){
+				if(defer_item.targets.on_error == false){ continue; }
+				
+			}else if constexpr(TARGET == DeferTarget::CONTINUE){
+				if(defer_item.targets.on_continue == false){ continue; }
+				
+			}else if constexpr(TARGET == DeferTarget::BREAK){
+				if(defer_item.targets.on_break == false){ continue; }
+				
+			}else{
+				static_assert(false, "Unknown defer target");
 			}
+
 
 			if(defer_item.defer_item.is<sema::Defer::ID>()){
 				const sema::Defer& sema_defer =

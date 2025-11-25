@@ -159,13 +159,10 @@ func entry = () #entry -> UI8 {
 	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
 
 	for(array) [i: USize; num: Int mut] {
-		num += i as Int;
+		// num += i as Int;
+		break;
 	}
 
-
-	// return sum_arr(array) as UI8; // 9
-
-	var arr_ref: [Int:*] = array as [Int:*];
-	return (arr_ref.data() == array.data()) as UI8;
+	return sum_arr(array) as UI8; // 9
 }
 

@@ -231,8 +231,16 @@ namespace pcit::panther{
 
 
 			struct DeferItem{
+				struct Targets{
+					bool on_scope_end;
+					bool on_return; // includes implicit return
+					bool on_error;
+					bool on_continue;
+					bool on_break;
+				};
+
 				evo::Variant<sema::Defer::ID, std::function<void()>> defer_item;
-				bool error_only;
+				Targets targets;
 			};
 
 			struct ScopeLevel{
@@ -266,7 +274,15 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_current_scope_level() -> ScopeLevel&;
 
 
-			template<bool INCLUDE_ERRORS>
+			enum class DeferTarget{
+				SCOPE_END,
+				RETURN, // includes implicit return
+				ERROR,
+				CONTINUE,
+				BREAK,
+			};
+
+			template<DeferTarget TARGET>
 			auto output_defers_for_scope_level(const ScopeLevel& scope_level) -> void;
 
 	
