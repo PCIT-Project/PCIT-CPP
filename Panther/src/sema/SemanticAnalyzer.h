@@ -832,10 +832,11 @@ namespace pcit::panther{
 			auto return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void;
 
 			auto get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
-				-> evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>;
+				-> const SymbolProc::StructInstantiationInfo&;
 			auto return_struct_instantiation(
 				SymbolProc::StructInstantiationID instantiation_id,
-				const BaseType::StructTemplate::Instantiation& instantiation
+				const BaseType::StructTemplate::Instantiation& instantiation,
+				bool requires_pub
 			) -> void;
 			auto return_struct_instantiation(
 				SymbolProc::StructInstantiationID instantiation_id, BaseType::StructTemplateDeducer::ID deducer_id

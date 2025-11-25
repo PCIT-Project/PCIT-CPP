@@ -692,6 +692,7 @@ namespace pcit::panther{
 
 		template<bool WAIT_FOR_DEF>
 		struct TemplatedTermWait{
+			const AST::TemplatedExpr& templated_expr;
 			SymbolProcStructInstantiationID instantiation;
 			SymbolProcTermInfoID output;
 		};
@@ -1380,12 +1381,16 @@ namespace pcit::panther{
 
 			evo::StepVector<Instruction> instructions{};
 
+
+			struct StructInstantiationInfo{
+				evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID> id;
+				bool requires_pub;
+			};
+
 			// TODO(PERF): optimize the memory usage here?
 			evo::SmallVector<std::optional<TermInfo>> term_infos{};
 			evo::SmallVector<std::optional<TypeInfo::VoidableID>> type_ids{};
-			evo::SmallVector<
-				evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>
-			> struct_instantiations{};
+			evo::SmallVector<std::optional<StructInstantiationInfo>> struct_instantiations{};
 
 
 

@@ -37,12 +37,14 @@ namespace pcit::panther{
 			CLANG_MODULE,
 			BUILTIN_MODULE,
 			FUNCTION, // function, not func pointer
+			FUNCTION_PUB_REQUIRED, // same as FUNCTION, but requires pub checking
 			METHOD_CALL, // the expr is the 'this'
 			INTERFACE_CALL, // the expr is the interface ptr
 			INTRINSIC_FUNC,
 			TEMPLATE_INTRINSIC_FUNC, // uninstantiated
 			BUILTIN_TYPE_METHOD,
 			TEMPLATE_TYPE,  // uninstantiated
+			TEMPLATE_TYPE_PUB_REQUIRED, // same as TEMPLATE_TYPE, but requires pub checking
 			TYPE,
 			TEMPLATE_DECL_INSTANTIATION_TYPE,
 			EXCEPT_PARAM_PACK,
@@ -104,13 +106,13 @@ namespace pcit::panther{
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
 			BuiltinTypeMethod,              // BUILTIN_TYPE_METHOD
-			FuncOverloadList,               // FUNCTION|METHOD_CALL|INTERFACE_CALL
+			FuncOverloadList,               // FUNCTION|FUNCTION_PUB_REQUIRED|METHOD_CALL|INTERFACE_CALL
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			ClangSourceID,                  // CLANG_MODULE
 			BuiltinModuleID,                // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
-			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE
+			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
 			TemplateIntrinsicFunc::Kind,    // TEMPLATE_INTRINSIC_FUNC
 			TaggedUnionFieldAccessor        // TAGGED_UNION_FIELD_ACCESSOR
 		>;
@@ -268,7 +270,9 @@ namespace pcit::panther{
 						evo::debugAssert(this->type_id.is<BuiltinModuleID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::FUNCTION:
-						// evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
+						evo::debugFatalBreak("Incorrect TermInfo creation");
+
+					break; case ValueCategory::FUNCTION_PUB_REQUIRED:
 						evo::debugFatalBreak("Incorrect TermInfo creation");
 
 					break; case ValueCategory::METHOD_CALL:
@@ -287,6 +291,9 @@ namespace pcit::panther{
 						evo::debugAssert(this->type_id.is<BuiltinTypeMethod>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::TEMPLATE_TYPE:
+						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
+
+					break; case ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED:
 						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::TYPE:
@@ -313,8 +320,10 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::CLANG_MODULE
 					|| this->value_category == ValueCategory::BUILTIN_MODULE
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE
+					|| this->value_category == ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
+					|| this->value_category == ValueCategory::FUNCTION_PUB_REQUIRED
 					|| this->value_category == ValueCategory::TEMPLATE_INTRINSIC_FUNC
 					|| this->value_category == ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE
 					|| this->value_category == ValueCategory::TAGGED_UNION_FIELD_ACCESSOR
@@ -452,6 +461,7 @@ namespace pcit::panther{
 		EVO_NODISCARD constexpr auto is_const() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST 
 				|| this->value_category == ValueCategory::FUNCTION
+				|| this->value_category == ValueCategory::FUNCTION_PUB_REQUIRED
 				|| this->value_category == ValueCategory::METHOD_CALL
 				|| this->value_category == ValueCategory::BUILTIN_TYPE_METHOD
 				|| this->value_category == ValueCategory::INTERFACE_CALL;

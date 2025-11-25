@@ -162,6 +162,9 @@ func entry = () #entry -> UI8 {
 		num += std_exp.sizeOf<{Byte}>() as Int;
 	}
 
+
+	const foo = new std_exp.Struct<{Int}>();
+
 	return sum_arr(array) as UI8; // 9
 }
 

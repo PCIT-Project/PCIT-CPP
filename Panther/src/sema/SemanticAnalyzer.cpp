@@ -13301,7 +13301,10 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result {
 		const TermInfo& templated_type_term_info = this->get_term_info(instr.base);
 
-		if(templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE){
+		if(
+			templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE
+			&& templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS,
 				instr.templated_expr.base,
@@ -13313,6 +13316,8 @@ namespace pcit::panther{
 		const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.templated_structs[
 			templated_type_term_info.type_id.as<sema::TemplatedStruct::ID>()
 		];
+
+		Source& instantiation_source = this->context.source_manager[sema_templated_struct.symbolProc.source_id];
 
 		BaseType::StructTemplate& struct_template = 
 			this->context.type_manager.getStructTemplate(sema_templated_struct.templateID);
@@ -13451,7 +13456,10 @@ namespace pcit::panther{
 						ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
-					if(arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE){
+					if(
+						arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
+						|| arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+					){
 						this->emit_error(
 							Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
 							instr.templated_expr.args[i],
@@ -13555,7 +13563,7 @@ namespace pcit::panther{
 				}
 				
 			}else{
-				const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+				const ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
 				const AST::StructDef& ast_struct = ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 				const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
@@ -13576,7 +13584,8 @@ namespace pcit::panther{
 						instr.templated_expr.args[i],
 						"Expected an expression template argument, got a type",
 						Diagnostic::Info(
-							"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
+							"Parameter declared here:",
+							Diagnostic::Location::get(ast_template_pack.params[i].ident, instantiation_source)
 						)
 					);
 					return Result::ERROR;
@@ -13585,7 +13594,7 @@ namespace pcit::panther{
 				instantiation_args.emplace_back(type_id);
 
 				this->scope.addTemplateDeclInstantiationType(
-					this->source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), type_id
+					instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), type_id
 				);
 			}
 		}
@@ -13682,10 +13691,7 @@ namespace pcit::panther{
 			struct_template.createOrLookupInstantiation(std::move(instantiation_lookup_args));
 
 		if(instantiation_info.needsToBeCompiled()){
-			Source& instantiation_source = this->context.source_manager[sema_templated_struct.symbolProc.source_id];
-
 			auto symbol_proc_builder = SymbolProcBuilder(this->context, instantiation_source);
-
 
 			const sema::ScopeManager::Scope::ID instantiation_sema_scope_id = 
 				this->context.sema_buffer.scope_manager.copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
@@ -13806,7 +13812,11 @@ namespace pcit::panther{
 					return Result::ERROR; // not sure this is possible just in case
 			}
 
-			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
+			this->return_struct_instantiation(
+				instr.instantiation,
+				instantiation_info.instantiation,
+				templated_type_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+			);
 
 
 			instantiation_symbol_proc.setStatusInQueue();
@@ -13815,7 +13825,11 @@ namespace pcit::panther{
 			return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 
 		}else{
-			this->return_struct_instantiation(instr.instantiation, instantiation_info.instantiation);
+			this->return_struct_instantiation(
+				instr.instantiation,
+				instantiation_info.instantiation,
+				templated_type_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+			);
 
 			// TODO(FUTURE): better way of doing this?
 			while(instantiation_info.instantiation.symbolProcID.load().has_value() == false){
@@ -13848,25 +13862,37 @@ namespace pcit::panther{
 
 			evo::unreachable();
 		}
-		
 	}
 
 
 	template<bool WAIT_FOR_DEF>
 	auto SemanticAnalyzer::instr_templated_term_wait(const Instruction::TemplatedTermWait<WAIT_FOR_DEF>& instr)
 	-> Result {
-		using Instantiation =
-			evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID>;
+		const SymbolProc::StructInstantiationInfo instantiation = this->get_struct_instantiation(instr.instantiation);
 
-		const Instantiation instantiation = this->get_struct_instantiation(instr.instantiation);
-
-
-		if(instantiation.is<const BaseType::StructTemplate::Instantiation*>()){
+		if(instantiation.id.is<const BaseType::StructTemplate::Instantiation*>()){
 			const BaseType::StructTemplate::Instantiation& actual_instantiation = 
-				*instantiation.as<const BaseType::StructTemplate::Instantiation*>();
+				*instantiation.id.as<const BaseType::StructTemplate::Instantiation*>();
 
 			if(actual_instantiation.errored.load()){ return Result::ERROR; }
 			evo::debugAssert(actual_instantiation.structID.has_value(), "Should already be completed");
+
+			if(instantiation.requires_pub){
+				const BaseType::Struct& instantiated_struct =
+					this->context.getTypeManager().getStruct(*actual_instantiation.structID);
+
+				if(instantiated_struct.isPub == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+						instr.templated_expr.base,
+						"This struct template instantiation does not have the #pub attribute",
+						Diagnostic::Info(
+							"Struct template defined here:", this->get_location(*actual_instantiation.structID)
+						)
+					);
+					return Result::ERROR;
+				}
+			}
 
 			const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
 				TypeInfo(BaseType::ID(*actual_instantiation.structID))
@@ -13897,14 +13923,14 @@ namespace pcit::panther{
 
 		}else{
 			evo::debugAssert(
-				instantiation.is<BaseType::StructTemplateDeducer::ID>(), "Unknown struct instantiation kind"
+				instantiation.id.is<BaseType::StructTemplateDeducer::ID>(), "Unknown struct instantiation kind"
 			);
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::TYPE,
 				TypeInfo::VoidableID(
 					this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(instantiation.as<BaseType::StructTemplateDeducer::ID>()))
+						TypeInfo(BaseType::ID(instantiation.id.as<BaseType::StructTemplateDeducer::ID>()))
 					)
 				)
 			);
@@ -16959,7 +16985,7 @@ namespace pcit::panther{
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
 			} break;
 
-			case TermInfo::ValueCategory::TEMPLATE_TYPE: {
+			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
 					instr.ast_type.base,
@@ -19403,12 +19429,19 @@ namespace pcit::panther{
 
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
+				if constexpr(PUB_REQUIRED){
+					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED, ident_id.funcs));
+				}else{
+					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
+				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a method should never need pub");
 				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a non-local variable should never need pub");
+
 				if(!variables_in_scope){
 					// TODO(FUTURE): better messaging
 					this->emit_error(
@@ -19590,6 +19623,8 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Unknown or unsupported AST::VarDef::Kind");
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Param::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a param should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -19638,6 +19673,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ReturnParam::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a return param should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -19657,6 +19694,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ErrorReturnParam::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting an error return param should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -19675,6 +19714,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::BlockExprOutput::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a block expr output should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::BlockExprOutput& sema_block_expr_output =
@@ -19694,6 +19735,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ExceptParam::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting an except param should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(ident_id);
@@ -19708,6 +19751,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ForParam::ID>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a for param should never need pub");
+
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(ident_id);
@@ -19959,9 +20004,14 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
-				return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
+				if constexpr(PUB_REQUIRED){
+					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED, ident_id));
+				}else{
+					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
+				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a templated type param should never need pub");
 				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateExprParam>()){
@@ -19990,6 +20040,8 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MemberVar>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a member var should never need pub");
+
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 
 				const sema::Func& current_func = this->get_current_func();
@@ -20023,6 +20075,8 @@ namespace pcit::panther{
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::UnionField>()){
+				evo::debugAssert(PUB_REQUIRED == false, "Getting a union field should never need pub");
+
 				this->emit_error(
 					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 					ident,
@@ -21038,7 +21092,7 @@ namespace pcit::panther{
 		auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
 
 		switch(target_term_info.value_category){
-			case TermInfo::ValueCategory::FUNCTION: {
+			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
 				for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
 					if(func_overload.is<sema::Func::ID>()){
@@ -21658,6 +21712,73 @@ namespace pcit::panther{
 					return FuncCallImplData(
 						*instantiation_info.instantiation.funcID,
 						&this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID),
+						func_infos[selected_func_overload_index.value()].func_type
+					);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED: {
+				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
+					func_infos[selected_func_overload_index.value()].func_id;
+
+				if(selected_func_id.is<sema::Func::ID>()){
+					if(this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()).isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							func_call.target,
+							"Selected function overload does not have the #pub attribute",
+							Diagnostic::Info(
+								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
+							)
+						);
+						return evo::Unexpected(true);
+					}
+
+					return FuncCallImplData(
+						selected_func_id.as<sema::Func::ID>(),
+						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
+						func_infos[selected_func_overload_index.value()].func_type
+					);
+
+				}else{
+					evo::debugAssert(
+						selected_func_id.is<sema::TemplatedFunc::InstantiationInfo>(),
+						"Unsupported func id type for this value category"
+					);
+
+					const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+						selected_func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+					const SymbolProc::ID instantiation_symbol_proc_id = 
+						*instantiation_info.instantiation.symbolProcID.load();
+					SymbolProc& instantiation_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+
+					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+
+					if(sema_func.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							func_call.target,
+							"Selected function overload does not have the #pub attribute",
+							Diagnostic::Info(
+								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
+							)
+						);
+						return evo::Unexpected(true);
+					}
+
+					if(instantiation_symbol_proc.unsuspendIfNeeded()){
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+
+						sema_func.status = sema::Func::Status::NOT_DONE;
+
+						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
+					}
+
+					return FuncCallImplData(
+						*instantiation_info.instantiation.funcID,
+						&sema_func,
 						func_infos[selected_func_overload_index.value()].func_type
 					);
 				}
@@ -25115,36 +25236,34 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void {
-		this->symbol_proc.term_infos[symbol_proc_term_info_id.get()]
-			.emplace(std::forward<decltype(args)>(args)...);
+		this->symbol_proc.term_infos[symbol_proc_term_info_id.get()].emplace(std::forward<decltype(args)>(args)...);
 	}
 
 
 
 	auto SemanticAnalyzer::get_struct_instantiation(SymbolProc::StructInstantiationID instantiation_id)
-	-> evo::Variant<const BaseType::StructTemplate::Instantiation*, BaseType::StructTemplateDeducer::ID> {
-		const auto& output = this->symbol_proc.struct_instantiations[instantiation_id.get()];
-
+	-> const SymbolProc::StructInstantiationInfo& {
 		evo::debugAssert(
-			output.is<BaseType::StructTemplateDeducer::ID>()
-			|| output.as<const BaseType::StructTemplate::Instantiation*>() != nullptr,
+			this->symbol_proc.struct_instantiations[instantiation_id.get()].has_value(),
 			"Symbol proc struct instantiation wasn't set"
 		);
-
-		return output;
+		return *this->symbol_proc.struct_instantiations[instantiation_id.get()];
 	}
 
 	auto SemanticAnalyzer::return_struct_instantiation(
 		SymbolProc::StructInstantiationID instantiation_id,
-		const BaseType::StructTemplate::Instantiation& instantiation
+		const BaseType::StructTemplate::Instantiation& instantiation,
+		bool requires_pub
 	) -> void {
-		this->symbol_proc.struct_instantiations[instantiation_id.get()] = &instantiation;
+		this->symbol_proc.struct_instantiations[instantiation_id.get()] =
+			SymbolProc::StructInstantiationInfo(&instantiation, requires_pub);
 	}
 
 	auto SemanticAnalyzer::return_struct_instantiation(
 		SymbolProc::StructInstantiationID instantiation_id, BaseType::StructTemplateDeducer::ID deducer_id
 	) -> void {
-		this->symbol_proc.struct_instantiations[instantiation_id.get()] = deducer_id;
+		this->symbol_proc.struct_instantiations[instantiation_id.get()] =
+			SymbolProc::StructInstantiationInfo(deducer_id, false);
 	}
 
 
@@ -25687,6 +25806,9 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::FUNCTION:
 				evo::debugFatalBreak("FUNCTION should not be compared with this function");
 
+			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
+				evo::debugFatalBreak("FUNCTION_PUB_REQUIRED should not be compared with this function");
+
 			case TermInfo::ValueCategory::INTRINSIC_FUNC:
 				evo::debugFatalBreak("INTRINSIC_FUNC should not be compared with this function");
 
@@ -25695,6 +25817,9 @@ namespace pcit::panther{
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE:
 				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");
+
+			case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED:
+				evo::debugFatalBreak("TEMPLATE_TYPE_PUB_REQUIRED should not be compared with this function");
 
 			case TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR:
 				evo::debugFatalBreak("TAGGED_UNION_FIELD_ACCESSOR should not be compared with this function");

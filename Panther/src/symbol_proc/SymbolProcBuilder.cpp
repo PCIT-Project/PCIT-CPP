@@ -1608,13 +1608,13 @@ namespace pcit::panther{
 				if constexpr(NEEDS_DEF){
 					this->add_instruction(
 						this->context.symbol_proc_manager.createTemplatedTermWaitForDef(
-							created_struct_inst_id, created_base_term_info_id
+							templated_expr, created_struct_inst_id, created_base_term_info_id
 						)
 					);
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createTemplatedTermWaitForDecl(
-							created_struct_inst_id, created_base_term_info_id
+							templated_expr, created_struct_inst_id, created_base_term_info_id
 						)
 					);
 				}
@@ -2965,7 +2965,7 @@ namespace pcit::panther{
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createTemplatedTermWaitForDef(
-				created_struct_inst_id, created_base_term_info_id
+				templated_expr, created_struct_inst_id, created_base_term_info_id
 			)
 		);
 

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.192.1"></a>
+## v0.0.192.1
+
+### Panther
+- Fixed missing checking for `#pub` for functions and struct templates
+- Fixed crashing or incorrect behavior when instantiating a struct template that's in another file
+
+
+<!---------------------------------->
 <a name="v0.0.192.0"></a>
 ## v0.0.192.0
 
