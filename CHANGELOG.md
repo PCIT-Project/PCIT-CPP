@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.193.1"></a>
+## v0.0.193.1
+
+### Panther
+- Fixed crashing when defining a function using a polymorphic interface deducer parameter
+
+
+<!---------------------------------->
 <a name="v0.0.193.0"></a>
 ## v0.0.193.0
 

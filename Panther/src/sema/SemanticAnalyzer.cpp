@@ -2949,7 +2949,7 @@ namespace pcit::panther{
 
 
 				const bool param_type_is_interface =
-					this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(param_type_id.asTypeID());
+					this->context.getTypeManager().isInterfaceDeducer(param_type_id.asTypeID());
 
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
