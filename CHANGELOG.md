@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.193.2"></a>
+## v0.0.193.2
+
+### Panther
+- Fixed type comparasion of aliases with qualifiers or arrays / array references
+- Fixed semantic analysis disallowing indexer of pointer to array reference
+- Fixed race condition in semantic analysis when return parameters are aliases
+
+### Misc
+- Updated to Evo `v1.39.0`
+
+
+<!---------------------------------->
 <a name="v0.0.193.1"></a>
 ## v0.0.193.1
 
@@ -65,7 +78,7 @@
 	- `@pthr.MutRTIterable` -> `@pthr.MutIterableRT`
 	- `@pthr.MutRTIterator` -> `@pthr.MutIteratorRT`
 
-### misc
+### Misc
 - Updated to [Evo v1.37.0](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.37.0)
 
 
@@ -1965,7 +1978,7 @@ Removed dependency analysis and added the symbol proc stage in its place. Doing 
 - Added `move!` and `forward`
 - Added semantic analysis of global variables
 
-### misc
+### Misc
 - Updated README with the new domain for the website ([www.pcitproject.org](https://www.pcitproject.org/home/site.html))
 
 
@@ -1981,7 +1994,7 @@ Removed dependency analysis and added the symbol proc stage in its place. Doing 
 - Fixed various issues with `ThreadQueue`
 - Fixed race condition in `SyncLinearStepAlloc`
 
-### misc
+### Misc
 - Updated README to remove the word `compiled` from the Panther tagline
 - Fixed pthr_old not compiling
 
@@ -2006,7 +2019,7 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 - Added `ThreadQueue`
 - Fixed issue with `ThreadPool` never registering as finished working when it is given more data than it has workers
 
-### misc
+### Misc
 - Updated README to have correct path to main of `pthr`
 
 

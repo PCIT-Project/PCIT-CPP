@@ -1804,7 +1804,7 @@ namespace pcit::panther{
 					iterator_type_ids.emplace_back(iterator_type_id);
 					
 					const pir::Expr iterator_alloca = this->agent.createAlloca(
-						this->get_type<true>(iterator_type_id), this->name("FOR.iterator_{}", iterator_allocas.size())
+						this->get_type<false>(iterator_type_id), this->name("FOR.iterator_{}", iterator_allocas.size())
 					);
 
 					const Data::FuncInfo& create_iterable_func_info = 

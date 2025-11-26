@@ -10,6 +10,7 @@
 #include "./SemanticAnalyzer.h"
 
 #include <queue>
+#include <ranges>
 
 #include "../symbol_proc/SymbolProcBuilder.h"
 #include "./attributes.h"
@@ -3206,36 +3207,7 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
-
-			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id.asTypeID())){
-					if(instr.func_def.block.has_value()){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-							ast_return_param.type,
-							"Invalid return type"
-						);
-						return Result::ERROR;
-					}
-
-					if(
-						this->scope.inObjectScope() == false
-						|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
-						|| this->context.getTypeManager().getInterface(
-								this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
-							).isPolymorphic 
-
-					){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-							ast_return_param.type,
-							"Invalid return type"
-						);
-						return Result::ERROR;
-					}
-				}
 			}
-
 
 			return_params.emplace_back(ast_return_param.ident, type_id);
 		}
@@ -3268,32 +3240,6 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id.asTypeID())){
-					if(instr.func_def.block.has_value()){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-							ast_error_return_param.type,
-							"Invalid error return type"
-						);
-						return Result::ERROR;
-					}
-
-					if(
-						this->scope.inObjectScope() == false
-						|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
-						|| this->context.getTypeManager().getInterface(
-								this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
-							).isPolymorphic 
-					){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-							ast_error_return_param.type,
-							"Invalid error return type"
-						);
-						return Result::ERROR;
-					}
-				}
 			}
 
 			error_return_params.emplace_back(ast_error_return_param.ident, type_id);
@@ -4619,6 +4565,78 @@ namespace pcit::panther{
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
 		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+
+
+		//////////////////
+		// check return param types after type defs are known to be had
+
+		for(size_t i = 0; const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(return_param.typeID.isVoid()){ continue; }
+
+			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(return_param.typeID.asTypeID())){
+				if(instr.func_def.block.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+						instr.func_def.returns[i].type,
+						"Invalid return type"
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->scope.inObjectScope() == false
+					|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
+					|| this->context.getTypeManager().getInterface(
+							this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
+						).isPolymorphic 
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+						instr.func_def.returns[i].type,
+						"Invalid return type"
+					);
+					return Result::ERROR;
+				}
+			}
+		}
+
+
+		for(size_t i = 0; const BaseType::Function::ReturnParam& error_param : func_type.errorParams){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(error_param.typeID.isVoid()){ continue; }
+
+			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(error_param.typeID.asTypeID())){
+				if(instr.func_def.block.has_value()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+						instr.func_def.errorReturns[i].type,
+						"Invalid error return type"
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->scope.inObjectScope() == false
+					|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
+					|| this->context.getTypeManager().getInterface(
+							this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
+						).isPolymorphic 
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
+						instr.func_def.errorReturns[i].type,
+						"Invalid error return type"
+					);
+					return Result::ERROR;
+				}
+			}
+		}
+
+
 
 
 		//////////////////
@@ -13032,10 +13050,15 @@ namespace pcit::panther{
 								Diagnostic::Info("Optional values need to be unwrapped")
 							);
 						}else{
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(
+								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
+							);
 							this->emit_error(
 								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 								instr.indexer,
-								"Invalid target for indexer"
+								"Invalid target for indexer",
+								std::move(infos)
 							);
 						}
 						return Result::ERROR;
@@ -13065,21 +13088,30 @@ namespace pcit::panther{
 				is_arr_ref = true;
 
 				if(actual_target_type.qualifiers().empty() == false){
-					if(actual_target_type.isOptional()){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-							instr.indexer,
-							"Invalid target for indexer",
-							Diagnostic::Info("Optional values need to be unwrapped")
-						);
+					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isPointer()){
+						is_ptr = true;
 					}else{
-						this->emit_error(
-							Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-							instr.indexer,
-							"Invalid target for indexer"
-						);
+						if(actual_target_type.isOptional()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer",
+								Diagnostic::Info("Optional values need to be unwrapped")
+							);
+						}else{
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(
+								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
+							);
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
+								instr.indexer,
+								"Invalid target for indexer",
+								std::move(infos)
+							);
+						}
+						return Result::ERROR;
 					}
-					return Result::ERROR;
 				}
 
 				const BaseType::ArrayRef& target_array_ref_type =
@@ -13121,10 +13153,15 @@ namespace pcit::panther{
 								Diagnostic::Info("Optional values need to be unwrapped")
 							);
 						}else{
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_type_info(
+								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
+							);
 							this->emit_error(
 								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 								instr.indexer,
-								"Invalid target for indexer"
+								"Invalid target for indexer",
+								std::move(infos)
 							);
 						}
 						return Result::ERROR;
@@ -13271,33 +13308,33 @@ namespace pcit::panther{
 		);
 
 		const sema::Expr sema_indexer_expr = [&](){
+			const sema::Expr target_expr = [&]() -> sema::Expr {
+				if(is_ptr){
+					auto derefed_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+					derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
+					for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
+						derefed_qualifiers.emplace_back(actual_target_type.qualifiers()[i]);
+					}
+
+					const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(actual_target_type.baseTypeID(), std::move(derefed_qualifiers))
+					);
+
+					return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id));
+
+				}else{
+					return target.getExpr();
+				}
+			}();
+
 			if(is_arr_ref){
 				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
-					target.getExpr(),
-					actual_target_type.baseTypeID().arrayRefID(),
-					std::move(indices)
-				));
-
-			}else if(is_ptr){
-				auto derefed_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-				derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
-				for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
-					derefed_qualifiers.emplace_back(actual_target_type.qualifiers()[i]);
-				}
-
-				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(actual_target_type.baseTypeID(), std::move(derefed_qualifiers))
-				);
-
-				const sema::Deref::ID deref = this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id);
-
-				return sema::Expr(this->context.sema_buffer.createIndexer(
-					sema::Expr(deref), derefed_type_id, std::move(indices)
+					target_expr, actual_target_type.baseTypeID().arrayRefID(), std::move(indices)
 				));
 
 			}else{
 				return sema::Expr(this->context.sema_buffer.createIndexer(
-					target.getExpr(), target.type_id.as<TypeInfo::ID>(), std::move(indices)
+					target_expr, target.type_id.as<TypeInfo::ID>(), std::move(indices)
 				));
 			}
 		}();
@@ -20447,49 +20484,99 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		while(true){
+		BaseType::ID base_type_id = BaseType::ID::dummy();
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+
+		bool should_continue = true;
+		while(should_continue){
 			const TypeInfo& type_info = type_manager.getTypeInfo(type_id);
-			if(type_info.qualifiers().empty() == false){ return type_id; }
+
+			base_type_id = type_info.baseTypeID();
+
+			for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers() | std::views::reverse){
+				qualifiers.insert(qualifiers.begin(), qualifier);
+			}
 
 
-			if(type_info.baseTypeID().kind() == BaseType::Kind::ALIAS){
-				const BaseType::Alias& alias = type_manager.getAlias(type_info.baseTypeID().aliasID());
+			switch(base_type_id.kind()){
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type = type_manager.getArray(type_info.baseTypeID().arrayID());
 
-				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				type_id = *alias.aliasedType.load();
-
-			}else if(type_info.baseTypeID().kind() == BaseType::Kind::DISTINCT_ALIAS){
-				if constexpr(LOOK_THROUGH_DISTINCT_ALIAS){
-					const BaseType::DistinctAlias& distinct_alias = 
-						type_manager.getDistinctAlias(type_info.baseTypeID().distinctAliasID());
-
-					evo::debugAssert(
-						distinct_alias.underlyingType.load().has_value(),
-						"Definition of distinct alias was not completed"
+					base_type_id = this->context.type_manager.getOrCreateArray(
+						BaseType::Array(
+							this->get_actual_type<
+								LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION
+							>(array_type.elementTypeID),
+							evo::copy(array_type.dimensions),
+							evo::copy(array_type.terminator)
+						)
 					);
-					type_id = *distinct_alias.underlyingType.load();
 
-				}else{
-					return type_id;	
-				}
+					should_continue = false;
+				} break;
 
-			}else if(type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE_IMPL_INSTANTIATION){
-				if constexpr(LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION){
-					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
-						type_manager.getInterfaceImplInstantiation(
-							type_info.baseTypeID().interfaceImplInstantiationID()
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref_type =
+						type_manager.getArrayRef(type_info.baseTypeID().arrayRefID());
+
+					base_type_id = this->context.type_manager.getOrCreateArrayRef(
+						BaseType::ArrayRef(
+							this->get_actual_type<
+								LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION
+							>(array_ref_type.elementTypeID),
+							evo::copy(array_ref_type.dimensions),
+							evo::copy(array_ref_type.terminator),
+							array_ref_type.isMut
+						)
+					);
+
+					should_continue = false;
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias = type_manager.getAlias(type_info.baseTypeID().aliasID());
+
+					evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
+					type_id = *alias.aliasedType.load();
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					if constexpr(LOOK_THROUGH_DISTINCT_ALIAS){
+						const BaseType::DistinctAlias& distinct_alias = 
+							type_manager.getDistinctAlias(type_info.baseTypeID().distinctAliasID());
+
+						evo::debugAssert(
+							distinct_alias.underlyingType.load().has_value(),
+							"Definition of distinct alias was not completed"
 						);
+						type_id = *distinct_alias.underlyingType.load();
 
-					type_id = interface_impl_instantiation.implInstantiationTypeID;
+					}else{
+						should_continue = false;
+					}
+				} break;
 
-				}else{
-					return type_id;
-				}
+				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+					if constexpr(LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION){
+						const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
+							type_manager.getInterfaceImplInstantiation(
+								type_info.baseTypeID().interfaceImplInstantiationID()
+							);
 
-			}else{
-				return type_id;
+						type_id = interface_impl_instantiation.implInstantiationTypeID;
+
+					}else{
+						should_continue = false;
+					}
+				} break;
+
+				default: {
+					should_continue = false;
+				}break;
 			}
 		}
+
+		return this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type_id, std::move(qualifiers)));
 	}
 
 

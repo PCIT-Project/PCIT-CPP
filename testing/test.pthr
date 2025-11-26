@@ -1,250 +1,166 @@
-
-// func entry = () #entry -> UI8 {
-// 	return (@arrayRefElementTypeID<{[Int:*]}>() == @getTypeID<{Int}>()) as UI8;
-// }
-
-
-// def std_exp = @import("std_exp/std_exp.pthr");
+def std_exp = @import("std_exp/std_exp.pthr");
 
 
 
-// type Array = struct {
-// 	def LENGTH: USize = 3;
+type Array = struct {
+	def LENGTH: USize = 3;
 
-// 	func new = (data: [Int:LENGTH] in) -> (output: This) {
-// 		output._data = forward data;
-// 		return...;
-// 	}
-
-// 	func [] = (this, index: USize) -> Int* {
-// 		return this._data[index];
-// 	}
-
-// 	func [] = (this mut, index: USize) -> Int*mut {
-// 		return this._data[index];
-// 	}
-
-// 	func data = (this) -> Int* { return this._data.data(); }
-// 	func data = (this mut) -> Int*mut { return this._data.data(); }
-
-// 	func size = (this) -> USize { return LENGTH; }
-
-
-// 	func as = (this) -> [Int:*] {
-// 		return new [Int:*](this.data(), this.size());
-// 	}
-
-
-
-// 	impl @pthr.Iterable {
-// 		createIterator = (this) -> ArrIter {
-// 			return new ArrIter(&this);
-// 		},
-// 	}
-
-
-// 	impl @pthr.MutIterable {
-// 		createIterator = (this mut) -> MutArrIter {
-// 			return new MutArrIter(&this);
-// 		},
-// 	}
-
-// 	impl @pthr.IterableRT {
-// 		createIterator = (this) #rt -> ArrIter {
-// 			return new ArrIter(&this);
-// 		},
-// 	}
-
-// 	impl @pthr.MutIterableRT {
-// 		createIterator = (this mut) #rt -> MutArrIter {
-// 			return new MutArrIter(&this);
-// 		},
-// 	}
-
-
-
-// 	var _data: [Int:LENGTH];
-
-
-// 	///////////////////////////////////
-// 	// iters
-
-// 	type ArrIter = struct {
-// 		func new = (arr: Array*) -> (output: ArrIter) {
-// 			output.arr = copy arr;
-// 			output.current = arr.data();
-// 			output.last = arr[arr.size() - 1];
-// 			return...;
-// 		}
-
-// 		func next = (this mut) -> Void {
-// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-// 			this.current = std_exp.bitCast<{Int*}>(new_address);
-// 		}
-
-// 		func get = (this) -> Int* { return copy this.current; }
-
-// 		func atEnd = (this) -> Bool {
-// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-// 		}
-
-
-// 		impl @pthr.Iterator {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
-
-// 		impl @pthr.IteratorRT {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
-
-// 		var arr: Array*;
-// 		var current: Int*;
-// 		var last: Int*;
-// 	}
-
-
-// 	type MutArrIter = struct {
-// 		func new = (arr: Array*mut) -> (output: MutArrIter) {
-// 			output.arr = copy arr;
-// 			output.current = arr.data();
-// 			output.last = arr[arr.size() - 1];
-// 			return...;
-// 		}
-
-// 		func next = (this mut) -> Void {
-// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-// 			this.current = std_exp.bitCast<{Int*mut}>(new_address);
-// 		}
-
-// 		func get = (this) -> Int*mut { return copy this.current; }
-
-// 		func atEnd = (this) -> Bool {
-// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-// 		}
-
-
-// 		impl @pthr.MutIterator {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
-
-// 		impl @pthr.MutIteratorRT {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
-
-// 		var arr: Array*mut;
-// 		var current: Int*mut;
-// 		var last: Int*mut;
-// 	}
-
-// }
-
-
-
-
-// func sum_arr = (array: Array) -> (sum: Int) {
-// 	sum = 0;
-
-// 	for(array) [_; value: $$] {
-// 		sum += value;
-// 	}
-
-// 	return...;
-// }
-
-
-
-// func entry = () #entry -> UI8 {
-// 	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
-
-// 	for(array) [i: USize; num: Int mut] {
-// 		num += std_exp.sizeOf<{Byte}>() as Int;
-// 	}
-
-// 	return sum_arr(array) as UI8; // 9
-// }
-
-
-interface Shape = #polymorphic {
-	func area = (this) -> F32;
-	func num_sides = () -> UInt { return 0;	} // method with default
-}
-
-
-type Quad = struct {
-	var width: F32;
-	var height: F32;
-
-
-	func area = (this) -> F32 {
-		return this.width * this.height;
+	func new = (data: [Int:LENGTH] in) -> (output: This) {
+		output._data = forward data;
+		return...;
 	}
 
-	func num_sides = () -> UInt { return 4; }
-
-
-	// implementation of Shape for Quad
-	impl Shape{
-		area      = area, // defining with an existing method
-		num_sides = () -> UInt { return 4; }, // defining with an inline method
-	}
-}
-
-
-type Circle = struct {
-	var radius: F32;
-
-
-	func get_area = (this) -> F32 {
-		return 3.14 * this.radius * this.radius;
+	func [] = (this, index: USize) -> Int* {
+		return this._data[index];
 	}
 
-	func get_num_sides = () -> UInt { return 0; }
-
-
-	// Implementation of Shape for Circle
-	impl Shape{
-		area = get_area,// method names don't have to be the same
-		// using default for Shape.num_sides
+	func [] = (this mut, index: USize) -> Int*mut {
+		return this._data[index];
 	}
+
+	func data = (this) -> Int* { return this._data.data(); }
+	func data = (this mut) -> Int*mut { return this._data.data(); }
+
+	func size = (this) -> USize { return LENGTH; }
+
+
+	func as = (this) -> [Int:*] {
+		return new [Int:*](this.data(), this.size());
+	}
+
+
+
+	impl @pthr.Iterable {
+		createIterator = (this) -> ArrIter {
+			return new ArrIter(&this);
+		},
+	}
+
+
+	impl @pthr.MutIterable {
+		createIterator = (this mut) -> MutArrIter {
+			return new MutArrIter(&this);
+		},
+	}
+
+	impl @pthr.IterableRT {
+		createIterator = (this) #rt -> ArrIter {
+			return new ArrIter(&this);
+		},
+	}
+
+	impl @pthr.MutIterableRT {
+		createIterator = (this mut) #rt -> MutArrIter {
+			return new MutArrIter(&this);
+		},
+	}
+
+
+
+	var _data: [Int:LENGTH];
+
+
+	///////////////////////////////////
+	// iters
+
+	type ArrIter = struct {
+		func new = (arr: Array*) -> (output: ArrIter) {
+			output.arr = copy arr;
+			output.current = arr.data();
+			output.last = arr[arr.size() - 1];
+			return...;
+		}
+
+		func next = (this mut) -> Void {
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
+			this.current = std_exp.bitCast<{Int*}>(new_address);
+		}
+
+		func get = (this) -> Int* { return copy this.current; }
+
+		func atEnd = (this) -> Bool {
+			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+		}
+
+
+		impl @pthr.Iterator {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		impl @pthr.IteratorRT {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		var arr: Array*;
+		var current: Int*;
+		var last: Int*;
+	}
+
+
+	type MutArrIter = struct {
+		func new = (arr: Array*mut) -> (output: MutArrIter) {
+			output.arr = copy arr;
+			output.current = arr.data();
+			output.last = arr[arr.size() - 1];
+			return...;
+		}
+
+		func next = (this mut) -> Void {
+			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
+			this.current = std_exp.bitCast<{Int*mut}>(new_address);
+		}
+
+		func get = (this) -> Int*mut { return copy this.current; }
+
+		func atEnd = (this) -> Bool {
+			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
+		}
+
+
+		impl @pthr.MutIterator {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		impl @pthr.MutIteratorRT {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		var arr: Array*mut;
+		var current: Int*mut;
+		var last: Int*mut;
+	}
+
 }
 
 
 
-// this function becomes a template on the shape passed to it
-func get_shape_num_sides = (shape: Shape) -> UInt {
-	return shape.num_sides();
-}
 
+func sum_arr = (array: Array) -> (sum: Int) {
+	sum = 0;
 
-// runtime polymorphism (allowed becuase the interface has attribute #polymorphic)
-// \`shape\` is a struct of a pointer to the shape object and a pointer to a vtable
-func get_shape_area = (shape: Shape^) -> F32 {
-	return shape.area();
+	var array_ref = array as [Int:*];
+	var array_ref_iter = new std_exp.ArrayRefIter<{[Int:*]}>(&array_ref);
+
+	// for(array_ref_iter) [_; value: $$] {
+	// 	sum += value;
+	// }
+
+	return...;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	const quad = new Quad{
-		width  = 1.0,
-		height = 2.0,
-	};
-
-	const circle = new Circle{
-		radius = 2.0,
-	};
-
-	const num_sides_of_quad: UInt = get_shape_num_sides(quad);
-
-	const area_of_circle: F32 = get_shape_area(circle as Shape^);
+	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
 	
-	return 0;
+	return sum_arr(array) as UI8; // 6
 }
+

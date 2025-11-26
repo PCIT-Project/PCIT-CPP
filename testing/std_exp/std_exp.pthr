@@ -12,3 +12,44 @@ func numBytes = <{T: Type, INCLUDE_PADDING: Bool}> () #pub -> USize {
 func sizeOf = <{T: Type}> () #pub -> USize {
 	return @numBytes<{T, true}>();
 }
+
+
+
+type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+	type alias ELEM_TYPE = type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref: ARRAY_REF_TYPE*) -> (output: This) {
+		// output.arr_ref = copy arr_ref;
+		output.current = arr_ref.data();
+		output.last = arr_ref[/*arr_ref.size() -*/ 1];
+		return...;
+	}
+
+	func next = (this mut) -> Void {
+		const new_address: USize = bitCast<{USize}>(this.current) + sizeOf<{ELEM_TYPE}>();
+		this.current = bitCast<{ELEM_TYPE*}>(new_address);
+	}
+
+	func get = (this) -> ELEM_TYPE* { return copy this.current; }
+
+	func atEnd = (this) -> Bool {
+		return bitCast<{USize}>(this.current) >= bitCast<{USize}>(this.last);
+	}
+
+
+	impl @pthr.Iterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	impl @pthr.IteratorRT {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	// var arr_ref: ARRAY_REF_TYPE*;
+	var current: ELEM_TYPE*;
+	var last: ELEM_TYPE*;
+}
