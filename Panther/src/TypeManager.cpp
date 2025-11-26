@@ -997,7 +997,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.name, lookup_type.aliasedType.load(), lookup_type.isPub
+			lookup_type.sourceID, lookup_type.name, lookup_type.aliasedType, lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::ALIAS, new_alias.get());
 	}
@@ -1027,7 +1027,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.underlyingType.load(), lookup_type.isPub
+			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.underlyingType, lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, new_distinct_alias.get());
 	}
@@ -1461,12 +1461,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-				return this->isNonPolymorphicInterfaceDeducer(*alias_type.aliasedType.load());
+				return this->isNonPolymorphicInterfaceDeducer(alias_type.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
-				return this->isNonPolymorphicInterfaceDeducer(*distinct_alias_type.underlyingType.load());
+				return this->isNonPolymorphicInterfaceDeducer(distinct_alias_type.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1568,12 +1568,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-				return this->isInterfaceDeducer(*alias_type.aliasedType.load());
+				return this->isInterfaceDeducer(alias_type.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
-				return this->isInterfaceDeducer(*distinct_alias_type.underlyingType.load());
+				return this->isInterfaceDeducer(distinct_alias_type.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1767,16 +1767,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->numBytes(*alias.aliasedType.load(), include_padding);
+				return this->numBytes(alias.aliasedType, include_padding);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
-				const BaseType::DistinctAlias& type_def = this->getDistinctAlias(id.distinctAliasID());
-				evo::debugAssert(
-					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
-				);
-				return this->numBytes(*type_def.underlyingType.load(), include_padding);
+				const BaseType::DistinctAlias& distinct_alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->numBytes(distinct_alias.underlyingType, include_padding);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1965,16 +1961,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->numBits(*alias.aliasedType.load(), include_padding);
+				return this->numBits(alias.aliasedType, include_padding);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
-				const BaseType::DistinctAlias& type_def = this->getDistinctAlias(id.distinctAliasID());
-				evo::debugAssert(
-					type_def.underlyingType.load().has_value(), "Definition of distinct_alias was not completed"
-				);
-				return this->numBits(*type_def.underlyingType.load(), include_padding);
+				const BaseType::DistinctAlias& distinct_alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->numBits(distinct_alias.underlyingType, include_padding);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2106,12 +2098,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isDefaultInitializable(*alias.aliasedType.load());
+				return this->isDefaultInitializable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isDefaultInitializable(*alias.underlyingType.load());
+				return this->isDefaultInitializable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2200,12 +2192,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isNoErrorDefaultInitializable(*alias.aliasedType.load());
+				return this->isNoErrorDefaultInitializable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isNoErrorDefaultInitializable(*alias.underlyingType.load());
+				return this->isNoErrorDefaultInitializable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2296,12 +2288,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isConstexprDefaultInitializable(*alias.aliasedType.load());
+				return this->isConstexprDefaultInitializable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isConstexprDefaultInitializable(*alias.underlyingType.load());
+				return this->isConstexprDefaultInitializable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2388,12 +2380,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyDefaultInitializable(*alias.aliasedType.load());
+				return this->isTriviallyDefaultInitializable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyDefaultInitializable(*alias.underlyingType.load());
+				return this->isTriviallyDefaultInitializable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2474,12 +2466,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyDeletable(*alias.aliasedType.load());
+				return this->isTriviallyDeletable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyDeletable(*alias.underlyingType.load());
+				return this->isTriviallyDeletable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2562,12 +2554,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isConstexprDeletable(*alias.aliasedType.load(), sema_buffer);
+				return this->isConstexprDeletable(alias.aliasedType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isConstexprDeletable(*alias.underlyingType.load(), sema_buffer);
+				return this->isConstexprDeletable(alias.underlyingType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2656,12 +2648,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isCopyable(*alias.aliasedType.load());
+				return this->isCopyable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isCopyable(*alias.underlyingType.load());
+				return this->isCopyable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2745,12 +2737,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyCopyable(*alias.aliasedType.load());
+				return this->isTriviallyCopyable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyCopyable(*alias.underlyingType.load());
+				return this->isTriviallyCopyable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2835,12 +2827,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isConstexprCopyable(*alias.aliasedType.load(), sema_buffer);
+				return this->isConstexprCopyable(alias.aliasedType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isConstexprCopyable(*alias.underlyingType.load(), sema_buffer);
+				return this->isConstexprCopyable(alias.underlyingType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -2930,12 +2922,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isMovable(*alias.aliasedType.load());
+				return this->isMovable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isMovable(*alias.underlyingType.load());
+				return this->isMovable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -3019,12 +3011,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isTriviallyMovable(*alias.aliasedType.load());
+				return this->isTriviallyMovable(alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyMovable(*alias.underlyingType.load());
+				return this->isTriviallyMovable(alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -3109,12 +3101,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				return this->isConstexprMovable(*alias.aliasedType.load(), sema_buffer);
+				return this->isConstexprMovable(alias.aliasedType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& alias = this->getDistinctAlias(id.distinctAliasID());
-				return this->isConstexprMovable(*alias.underlyingType.load(), sema_buffer);
+				return this->isConstexprMovable(alias.underlyingType, sema_buffer);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -3202,12 +3194,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-				return this->isTriviallyComparable(*alias_type.aliasedType.load());
+				return this->isTriviallyComparable(alias_type.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyComparable(*distinct_alias_type.underlyingType.load());
+				return this->isTriviallyComparable(distinct_alias_type.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -3502,16 +3494,11 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY_REF:     return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
-				evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-				return this->getUnderlyingType(*alias.aliasedType.load());
+				return this->getUnderlyingType(alias.aliasedType);
 			} break;
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(id.distinctAliasID());
-				evo::debugAssert(
-					distinct_alias_info.underlyingType.load().has_value(),
-					"Definition of distinct_alias was not completed"
-				);
-				return this->getUnderlyingType(*distinct_alias_info.underlyingType.load());
+				return this->getUnderlyingType(distinct_alias_info.underlyingType);
 			} break;
 			case BaseType::Kind::STRUCT:          return this->getOrCreateTypeInfo(TypeInfo(id));
 			case BaseType::Kind::STRUCT_TEMPLATE: evo::debugFatalBreak("Cannot get underlying type of this kind");

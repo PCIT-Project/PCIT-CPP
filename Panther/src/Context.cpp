@@ -1235,7 +1235,7 @@ namespace pcit::panther{
 									source_clang_source.createDeclInfo(
 										alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
 									),
-									std::optional<TypeInfo::ID>(panther_type->asTypeID()),
+									panther_type->asTypeID(),
 									false
 								)
 							);
@@ -1991,7 +1991,7 @@ namespace pcit::panther{
 				BaseType::Alias(
 					BuiltinModule::ID::PTHR,
 					pthr_module.createString("ProjectID"),
-					std::optional<TypeInfo::ID>(TypeManager::getTypeUI32()),
+					TypeManager::getTypeUI32(),
 					false
 				)
 			);

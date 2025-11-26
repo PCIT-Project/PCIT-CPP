@@ -165,11 +165,8 @@ namespace pcit::panther{
 			case Instruction::Kind::WHEN_COND:
 				return this->instr_when_cond(this->context.symbol_proc_manager.getWhenCond(instr));
 
-			case Instruction::Kind::ALIAS_DECL:
-				return this->instr_alias_decl(this->context.symbol_proc_manager.getAliasDecl(instr));
-
-			case Instruction::Kind::ALIAS_DEF:
-				return this->instr_alias_def(this->context.symbol_proc_manager.getAliasDef(instr));
+			case Instruction::Kind::ALIAS:
+				return this->instr_alias(this->context.symbol_proc_manager.getAlias(instr));
 
 			case Instruction::Kind::STRUCT_DECL_INSTANTIATION:
 				return this->instr_struct_decl<true>(
@@ -1327,7 +1324,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_alias_decl(const Instruction::AliasDecl& instr) -> Result {
+	auto SemanticAnalyzer::instr_alias(const Instruction::Alias& instr) -> Result {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -1381,35 +1378,7 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// create
-
-		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
-			BaseType::Alias(
-				this->source.getID(), instr.alias_def.ident, std::optional<TypeInfoID>(), attr_pub.is_set()
-			)
-		);
-
-		this->symbol_proc.extra_info.emplace<SymbolProc::AliasInfo>(created_alias.aliasID());
-
-		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.aliasID()).isError()){
-			return Result::ERROR;
-		}
-
-		this->context.symbol_proc_manager.addTypeSymbolProc(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
-		);
-
-		this->propagate_finished_decl();
-		return Result::SUCCESS;
-	}
-
-
-
-	auto SemanticAnalyzer::instr_alias_def(const Instruction::AliasDef& instr) -> Result {
-		BaseType::Alias& alias_info = this->context.type_manager.getAlias(
-			this->symbol_proc.extra_info.as<SymbolProc::AliasInfo>().alias_id
-		);
+		// check type
 
 		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
 		if(aliased_type.isVoid()){
@@ -1422,11 +1391,28 @@ namespace pcit::panther{
 		}
 
 
-		alias_info.aliasedType = aliased_type.asTypeID();
+		///////////////////////////////////
+		// create
 
-		this->propagate_finished_def();
+		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
+			BaseType::Alias(
+				this->source.getID(), instr.alias_def.ident, aliased_type.asTypeID(), attr_pub.is_set()
+			)
+		);
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.aliasID()).isError()){
+			return Result::ERROR;
+		}
+
+		this->context.symbol_proc_manager.addTypeSymbolProc(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+		);
+
+		this->propagate_finished_decl_def();
 		return Result::SUCCESS;
-	};
+	}
+
 
 
 	template<bool IS_INSTANTIATION>
@@ -6120,7 +6106,7 @@ namespace pcit::panther{
 			BaseType::Alias(
 				this->source.getID(),
 				instr.alias_def.ident,
-				std::atomic<std::optional<TypeInfo::ID>>(aliased_type.asTypeID()),
+				aliased_type.asTypeID(),
 				false
 			)
 		);
@@ -19174,7 +19160,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
 
 				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					*alias_type.aliasedType.load(), dependent_funcs, location
+					alias_type.aliasedType, dependent_funcs, location
 				);
 			} break;
 
@@ -19183,7 +19169,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
 				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					*distinct_alias_type.underlyingType.load(), dependent_funcs, location
+					distinct_alias_type.underlyingType, dependent_funcs, location
 				);
 			} break;
 
@@ -19878,14 +19864,6 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
 
-				if constexpr(NEEDS_DEF){
-					if(alias.defCompleted() == false){
-						return ReturnType(
-							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
-						);
-					}
-				}
-
 				if constexpr(PUB_REQUIRED){
 					if(alias.isPub == false){
 						this->emit_error(
@@ -20535,9 +20513,7 @@ namespace pcit::panther{
 
 				case BaseType::Kind::ALIAS: {
 					const BaseType::Alias& alias = type_manager.getAlias(type_info.baseTypeID().aliasID());
-
-					evo::debugAssert(alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-					type_id = *alias.aliasedType.load();
+					type_id = alias.aliasedType;
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
@@ -20545,11 +20521,7 @@ namespace pcit::panther{
 						const BaseType::DistinctAlias& distinct_alias = 
 							type_manager.getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
-						evo::debugAssert(
-							distinct_alias.underlyingType.load().has_value(),
-							"Definition of distinct alias was not completed"
-						);
-						type_id = *distinct_alias.underlyingType.load();
+						type_id = distinct_alias.underlyingType;
 
 					}else{
 						should_continue = false;
@@ -22552,7 +22524,7 @@ namespace pcit::panther{
 				);
 
 				return this->generic_value_to_sema_expr(
-					value, this->context.getTypeManager().getTypeInfo(*alias_type.aliasedType.load())
+					value, this->context.getTypeManager().getTypeInfo(alias_type.aliasedType)
 				);
 			} break;
 
@@ -22562,7 +22534,7 @@ namespace pcit::panther{
 				);
 
 				return this->generic_value_to_sema_expr(
-					value, this->context.getTypeManager().getTypeInfo(*distinct_alias_type.underlyingType.load())
+					value, this->context.getTypeManager().getTypeInfo(distinct_alias_type.underlyingType)
 				);
 			} break;
 
@@ -24043,14 +24015,14 @@ namespace pcit::panther{
 					const BaseType::Alias& alias_type =
 						this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
 						
-					return this->type_is_comparable(*alias_type.aliasedType.load());
+					return this->type_is_comparable(alias_type.aliasedType);
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
 					const BaseType::DistinctAlias& distinct_alias_type =
 						this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 						
-					return this->type_is_comparable(*distinct_alias_type.underlyingType.load());
+					return this->type_is_comparable(distinct_alias_type.underlyingType);
 				} break;
 
 				case BaseType::Kind::STRUCT: {
@@ -26063,8 +26035,7 @@ namespace pcit::panther{
 				actual_expected_type.baseTypeID().aliasID()
 			);
 
-			evo::debugAssert(expected_alias.aliasedType.load().has_value(), "Definition of alias was not completed");
-			type_id = *expected_alias.aliasedType.load();
+			type_id = expected_alias.aliasedType;
 
 			auto alias_of_str = std::string();
 			alias_of_str.reserve(message.size());

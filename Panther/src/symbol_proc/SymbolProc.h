@@ -193,13 +193,9 @@ namespace pcit::panther{
 		};
 
 
-		struct AliasDecl{
+		struct Alias{
 			const AST::AliasDef& alias_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
-		};
-
-		struct AliasDef{
-			const AST::AliasDef& alias_def;
 			SymbolProcTypeID aliased_type;
 		};
 
@@ -961,8 +957,7 @@ namespace pcit::panther{
 			NON_LOCAL_VAR_DEF,
 			NON_LOCAL_VAR_DECL_DEF,
 			WHEN_COND,
-			ALIAS_DECL,
-			ALIAS_DEF,
+			ALIAS,
 			STRUCT_DECL_INSTANTIATION,
 			STRUCT_DECL,
 			STRUCT_DEF,

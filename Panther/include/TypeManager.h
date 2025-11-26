@@ -458,11 +458,9 @@ namespace pcit::panther{
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
-			std::atomic<std::optional<TypeInfoID>> aliasedType; // nullopt if only has decl completed
+			TypeInfoID aliasedType;
 			bool isPub; // meaningless if not pthr source type
 
-			EVO_NODISCARD auto defCompleted() const -> bool { return this->aliasedType.load().has_value(); }
-			
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
 			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
@@ -479,10 +477,8 @@ namespace pcit::panther{
 
 			SourceID sourceID;
 			Token::ID identTokenID;
-			std::atomic<std::optional<TypeInfoID>> underlyingType; // nullopt if only has decl completed
+			TypeInfoID underlyingType;
 			bool isPub;
-
-			EVO_NODISCARD auto defCompleted() const -> bool { return this->underlyingType.load().has_value(); }
 			
 			EVO_NODISCARD auto operator==(const DistinctAlias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;

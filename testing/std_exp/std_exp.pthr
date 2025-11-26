@@ -19,7 +19,7 @@ func sizeOf = <{T: Type}> () #pub -> USize {
 // array ref iter
 
 
-type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 	type alias ELEM_TYPE = type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
 
 	func new = (arr_ref_ptr: ARRAY_REF_TYPE*) -> (output: This) {

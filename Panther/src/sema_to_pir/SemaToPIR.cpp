@@ -4956,14 +4956,14 @@ namespace pcit::panther{
 				const BaseType::Alias& alias =
 					this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
-				this->delete_expr(expr, *alias.aliasedType.load());
+				this->delete_expr(expr, alias.aliasedType);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias =
 					this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
-				this->delete_expr(expr, *distinct_alias.underlyingType.load());
+				this->delete_expr(expr, distinct_alias.underlyingType);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -5328,14 +5328,14 @@ namespace pcit::panther{
 					const BaseType::Alias& alias =
 						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
-					this->delete_expr(expr, *alias.aliasedType.load());
+					this->delete_expr(expr, alias.aliasedType);
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
 					const BaseType::DistinctAlias& distinct_alias =
 						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
-					this->delete_expr(expr, *distinct_alias.underlyingType.load());
+					this->delete_expr(expr, distinct_alias.underlyingType);
 				} break;
 
 				case BaseType::Kind::STRUCT: {
@@ -5773,14 +5773,14 @@ namespace pcit::panther{
 					const BaseType::Alias& alias =
 						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
-					this->delete_expr(expr, *alias.aliasedType.load());
+					this->delete_expr(expr, alias.aliasedType);
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
 					const BaseType::DistinctAlias& distinct_alias =
 						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
-					this->delete_expr(expr, *distinct_alias.underlyingType.load());
+					this->delete_expr(expr, distinct_alias.underlyingType);
 				} break;
 
 				case BaseType::Kind::STRUCT: {
@@ -6734,7 +6734,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
 					return this->expr_cmp<MODE>(
-						*alias_type.aliasedType.load(), lhs, rhs, is_equal, store_locations
+						alias_type.aliasedType, lhs, rhs, is_equal, store_locations
 					);
 				} break;
 
@@ -6743,7 +6743,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
 					return this->expr_cmp<MODE>(
-						*distinct_alias_type.underlyingType.load(), lhs, rhs, is_equal, store_locations
+						distinct_alias_type.underlyingType, lhs, rhs, is_equal, store_locations
 					);
 				} break;
 
@@ -8754,13 +8754,13 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(base_type_id.aliasID());
-				return this->get_type<MAY_LOWER_DEPENDENCY>(*alias.aliasedType.load());
+				return this->get_type<MAY_LOWER_DEPENDENCY>(alias.aliasedType);
 			} break;
 			
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = 
 					this->context.getTypeManager().getDistinctAlias(base_type_id.distinctAliasID());
-				return this->get_type<MAY_LOWER_DEPENDENCY>(*distinct_alias_type.underlyingType.load());
+				return this->get_type<MAY_LOWER_DEPENDENCY>(distinct_alias_type.underlyingType);
 			} break;
 			
 			case BaseType::Kind::STRUCT: {

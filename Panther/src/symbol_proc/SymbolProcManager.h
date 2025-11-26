@@ -151,35 +151,17 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// AliasDecl
+			// Alias
 
-			EVO_NODISCARD auto createAliasDecl(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createAlias(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ALIAS_DECL,
-					this->alias_decls.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::ALIAS, this->aliases.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getAliasDecl(Instruction instr) const -> const Instruction::AliasDecl& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ALIAS_DECL, "Not a AliasDecl");
-				return this->alias_decls[instr._index];
-			}
-
-
-
-			//////////////////
-			// AliasDef
-
-			EVO_NODISCARD auto createAliasDef(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::ALIAS_DEF,
-					this->alias_defs.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			EVO_NODISCARD auto getAliasDef(Instruction instr) const -> const Instruction::AliasDef& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ALIAS_DEF, "Not a AliasDef");
-				return this->alias_defs[instr._index];
+			EVO_NODISCARD auto getAlias(Instruction instr) const -> const Instruction::Alias& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ALIAS, "Not a Alias");
+				return this->aliases[instr._index];
 			}
 
 
@@ -2758,8 +2740,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDef, uint32_t> non_local_var_defs{};
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDeclDef, uint32_t> non_local_var_decl_defs{};
 			core::SyncLinearStepAlloc<Instruction::WhenCond, uint32_t> when_conds{};
-			core::SyncLinearStepAlloc<Instruction::AliasDecl, uint32_t> alias_decls{};
-			core::SyncLinearStepAlloc<Instruction::AliasDef, uint32_t> alias_defs{};
+			core::SyncLinearStepAlloc<Instruction::Alias, uint32_t> aliases{};
 			core::SyncLinearStepAlloc<Instruction::StructDecl<true>, uint32_t> struct_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::StructDecl<false>, uint32_t> struct_decls{};
 			core::SyncLinearStepAlloc<Instruction::TemplateStruct, uint32_t> template_structs{};

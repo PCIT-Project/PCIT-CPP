@@ -67,8 +67,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_non_local_var_def(const Instruction::NonLocalVarDef& instr) -> Result;
 			EVO_NODISCARD auto instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result;
 			EVO_NODISCARD auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
-			EVO_NODISCARD auto instr_alias_decl(const Instruction::AliasDecl& instr) -> Result;
-			EVO_NODISCARD auto instr_alias_def(const Instruction::AliasDef& instr) -> Result;
+			EVO_NODISCARD auto instr_alias(const Instruction::Alias& instr) -> Result;
 
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result;

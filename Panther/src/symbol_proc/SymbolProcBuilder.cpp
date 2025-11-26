@@ -953,15 +953,16 @@ namespace pcit::panther{
 		);
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
-		this->add_instruction(
-			this->context.symbol_proc_manager.createAliasDecl(alias_def, std::move(attribute_params_info.value()))
-		);
 		
 		const evo::Result<SymbolProc::TypeID> aliased_type =
 			this->analyze_type<false>(ast_buffer.getType(alias_def.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
-		this->add_instruction(this->context.symbol_proc_manager.createAliasDef(alias_def, aliased_type.value()));
+		this->add_instruction(
+			this->context.symbol_proc_manager.createAlias(
+				alias_def, std::move(attribute_params_info.value()), aliased_type.value()
+			)
+		);
 
 
 		SymbolProcInfo& current_symbol = this->get_current_symbol();
