@@ -4024,7 +4024,7 @@ namespace pcit::panther{
 							this->name(".ARRAY_REF_DATA")
 						);
 
-						this->agent.createStore(store_locations[0], data_value);
+						this->agent.createMemcpy(store_locations[0], data_value, this->module.createPtrType());
 						return std::nullopt;
 					}
 				}

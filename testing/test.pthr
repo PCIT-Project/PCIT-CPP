@@ -36,7 +36,6 @@ type Array = struct {
 		},
 	}
 
-
 	impl @pthr.MutIterable {
 		createIterator = (this mut) -> MutArrIter {
 			return new MutArrIter(&this);
@@ -65,7 +64,6 @@ type Array = struct {
 
 	type ArrIter = struct {
 		func new = (arr: Array*) -> (output: ArrIter) {
-			output.arr = copy arr;
 			output.current = arr.data();
 			output.last = arr[arr.size() - 1];
 			return...;
@@ -95,7 +93,6 @@ type Array = struct {
 			atEnd = atEnd,
 		}
 
-		var arr: Array*;
 		var current: Int*;
 		var last: Int*;
 	}
@@ -103,7 +100,6 @@ type Array = struct {
 
 	type MutArrIter = struct {
 		func new = (arr: Array*mut) -> (output: MutArrIter) {
-			output.arr = copy arr;
 			output.current = arr.data();
 			output.last = arr[arr.size() - 1];
 			return...;
@@ -133,7 +129,6 @@ type Array = struct {
 			atEnd = atEnd,
 		}
 
-		var arr: Array*mut;
 		var current: Int*mut;
 		var last: Int*mut;
 	}
@@ -147,9 +142,15 @@ func sum_arr = (array: Array) -> (sum: Int) {
 	sum = 0;
 
 	var array_ref = array as [Int:*];
-	var array_ref_iter = new std_exp.ArrayRefIter<{[Int:*]}>(&array_ref);
+	var array_ref_iter: std_exp.ArrayRefIter<{[Int:*]}> = std_exp.createArrayRefIter<{[Int:*]}>(&array_ref);
 
-	// for(array_ref_iter) [_; value: $$] {
+	while(array_ref_iter.atEnd() == false){
+		sum += array_ref_iter.get().*;
+		array_ref_iter.next();
+	}
+
+
+	// for(array) [_; value: $$] {
 	// 	sum += value;
 	// }
 

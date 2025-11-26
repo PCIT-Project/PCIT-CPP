@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.193.3"></a>
+## v0.0.193.3
+
+### Panther
+- Fixed lowering of array reference `.data()` in some contexts
+
+
+<!---------------------------------->
 <a name="v0.0.193.2"></a>
 ## v0.0.193.2
 

@@ -15,13 +15,16 @@ func sizeOf = <{T: Type}> () #pub -> USize {
 
 
 
+//////////////////////////////////////////////////////////////////////
+// array ref iter
+
+
 type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
 	type alias ELEM_TYPE = type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
 
-	func new = (arr_ref: ARRAY_REF_TYPE*) -> (output: This) {
-		// output.arr_ref = copy arr_ref;
-		output.current = arr_ref.data();
-		output.last = arr_ref[/*arr_ref.size() -*/ 1];
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE*) -> (output: This) {
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
 		return...;
 	}
 
@@ -33,7 +36,7 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
 	func get = (this) -> ELEM_TYPE* { return copy this.current; }
 
 	func atEnd = (this) -> Bool {
-		return bitCast<{USize}>(this.current) >= bitCast<{USize}>(this.last);
+		return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
 	}
 
 
@@ -49,7 +52,11 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
 		atEnd = atEnd,
 	}
 
-	// var arr_ref: ARRAY_REF_TYPE*;
 	var current: ELEM_TYPE*;
 	var last: ELEM_TYPE*;
+}
+
+func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*) #pub 
+-> ArrayRefIter<{ARRAY_REF_TYPE}> {
+	return new ArrayRefIter<{ARRAY_REF_TYPE}>(arr_ref_ptr);
 }
