@@ -1791,7 +1791,9 @@ namespace pcit::panther{
 				const Token::ID open_bracket = this->reader.next();
 
 				const Result elem_type = [&](){
-					if constexpr(KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER){
+					if constexpr(
+						KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER || KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+					){
 						return this->parse_type<KIND>();
 					}else{
 						return this->parse_type<TypeKind::EXPLICIT>();
@@ -1846,9 +1848,9 @@ namespace pcit::panther{
 							is_mutable_ref = true;
 						} break;
 
-						case Token::Kind::DEDUCER: case Token::Kind::ANONYMOUS_DEDUCER: {
+						case Token::Kind::DEDUCER: {
 							if constexpr(
-								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER && KIND != TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER || KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
 							){
 								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
 							}else{
@@ -1856,6 +1858,23 @@ namespace pcit::panther{
 									Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
 									Diagnostic::Location::get(this->reader.peek(), this->source),
 									"Type deducers are not allowed here"
+								);
+								return Result(Result::Code::ERROR);
+							}
+						} break;
+
+						case Token::Kind::ANONYMOUS_DEDUCER: {
+							if constexpr(
+								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+								|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+								|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+							){
+								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+							}else{
+								this->context.emitError(
+									Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+									Diagnostic::Location::get(this->reader.peek(), this->source),
+									"Anonymous Type deducers are not allowed here"
 								);
 								return Result(Result::Code::ERROR);
 							}

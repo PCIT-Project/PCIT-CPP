@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.194.0"></a>
+## v0.0.194.0
+
+### Panther
+- Added function attribute `#builtin()`
+- Fixed race condition in semantic analysis of `as` from a struct
+- Fixed deducer impl not working with array / array reference types
+
+
+<!---------------------------------->
 <a name="v0.0.193.4"></a>
 ## v0.0.193.4
 

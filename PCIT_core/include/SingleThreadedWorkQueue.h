@@ -28,10 +28,6 @@ namespace pcit::core{
 			~SingleThreadedWorkQueue() = default;
 
 
-			auto emplaceTask(auto&&... args) -> void {
-				this->tasks.emplace_front(std::forward<decltype(args)>(args)...);
-			}
-
 			auto addTask(TASK&& task) -> void {
 				this->tasks.emplace_front(std::move(task));
 			}
@@ -43,6 +39,23 @@ namespace pcit::core{
 			auto addTask(auto&&... args) -> void {
 				this->tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
+
+
+
+			auto addPriorityTask(TASK&& task) -> void {
+				this->tasks.emplace_back(std::move(task));
+			}
+
+			auto addPriorityTask(const TASK& task) -> void {
+				this->tasks.emplace_back(task);
+			}
+
+			auto addPriorityTask(auto&&... args) -> void {
+				this->tasks.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+
+
 
 			auto run() -> evo::Result<> {
 				while(this->tasks.empty() == false){

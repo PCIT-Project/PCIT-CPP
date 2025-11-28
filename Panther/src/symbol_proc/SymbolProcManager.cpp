@@ -18,6 +18,18 @@
 namespace pcit::panther{
 
 
+	SymbolProcManager::SymbolProcManager(){
+		this->builtin_symbol_kind_lookup.reserve(this->builtin_symbols.size());
+
+		this->builtin_symbol_kind_lookup.emplace(
+			"array_ref.Iterable.createIterator", constevalLookupBuiltinSymbolKind("array_ref.Iterable.createIterator")
+		);
+	}
+
+
+
+
+
 	#if defined(PCIT_CONFIG_DEBUG)
 
 		static auto print_field(std::string_view field_name, auto&& value) -> void {

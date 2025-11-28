@@ -1172,6 +1172,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
 			EVO_NODISCARD auto isLocalSymbol() const -> bool { return this->is_local_symbol; }
 
+			EVO_NODISCARD auto isPriority() const -> bool { return this->is_always_priority; }
+
 
 			EVO_NODISCARD auto getInstruction() const -> const Instruction& {
 				return this->instructions[this->inst_index];
@@ -1353,6 +1355,15 @@ namespace pcit::panther{
 			auto waitOnPIRDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
 
 
+
+
+			enum class BuiltinSymbolKind{
+				ARRAY_REF_ITERABLE_CREATE_ITERATOR,
+
+				_MAX_
+			};
+
+
 		private:
 			enum class DependencyKind{
 				DECL,
@@ -1373,6 +1384,9 @@ namespace pcit::panther{
 			std::string_view ident; // empty if symbol doesn't have an ident
 									// 	(is when cond, func call, or operator function)
 			SymbolProc* parent; // nullptr means no parent
+
+			bool is_always_priority = false;
+			std::optional<BuiltinSymbolKind> builtin_symbol_proc_kind;
 
 			evo::StepVector<Instruction> instructions{};
 

@@ -14156,6 +14156,10 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+			if(this->currently_in_func() && this->get_current_func().isConstexpr){
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(find->second);
+			}
+
 			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
 				find->second, evo::SmallVector<sema::Expr>{expr.getExpr()}
 			);
@@ -25079,6 +25083,9 @@ namespace pcit::panther{
 				}
 				
 				if(attr_swapped.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "builtin"){
+				// do nothing (checked already in SymbolProc)
 
 			}else{
 				this->emit_error(

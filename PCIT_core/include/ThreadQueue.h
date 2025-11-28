@@ -70,19 +70,39 @@ namespace pcit::core{
 
 
 			auto addTask(TASK&& task) -> void {
-				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::move(task));
 			}
 
 			auto addTask(const TASK& task) -> void {
-				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(task);
 			}
 
 			auto addTask(auto&&... args) -> void {
-				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 				this->priv.tasks.emplace_front(std::forward<decltype(args)>(args)...);
 			}
+
+
+
+
+			auto addPriorityTask(TASK&& task) -> void {
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
+				this->priv.tasks.emplace_back(std::move(task));
+			}
+
+			auto addPriorityTask(const TASK& task) -> void {
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
+				this->priv.tasks.emplace_back(task);
+			}
+
+			auto addPriorityTask(auto&&... args) -> void {
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
+				this->priv.tasks.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+
 
 			// TODO(PERF): feel like there's a way to make this faster, but testing is needed
 			EVO_NODISCARD auto isWorking() const -> bool {
@@ -90,7 +110,7 @@ namespace pcit::core{
 					if(worker.is_working()){ return true; }
 				}
 
-				const auto lock = std::scoped_lock(/*this->priv.add_tasks_lock, */this->priv.tasks_lock);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
@@ -122,7 +142,7 @@ namespace pcit::core{
 
 
 			auto forceClearQueue() -> void {
-				const auto lock = std::scoped_lock(this->priv.tasks_lock/*, this->priv.add_tasks_lock*/);
+				const auto lock = std::scoped_lock(this->priv.tasks_lock);
 				this->priv.tasks.clear();
 			}
 
@@ -218,7 +238,6 @@ namespace pcit::core{
 
 					std::deque<TASK> tasks{};
 					mutable evo::SpinLock tasks_lock{};
-					// mutable evo::SpinLock add_tasks_lock{};
 
 					std::atomic<uint32_t> num_workers_running = 0;
 					bool task_failed = false;

@@ -166,6 +166,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_attributes(const AST::AttributeBlock& attribute_block)
 				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::AttributeParams>>;
 
+
+			EVO_NODISCARD auto analyze_priority_and_builtin_attribute(const AST::AttributeBlock& attribute_block)
+				-> evo::Result<>;
+
 			EVO_NODISCARD auto analyze_template_param_pack(const AST::TemplatePack& template_pack)
 				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>>;
 
@@ -174,6 +178,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto extract_deducer_names(const AST::Node& node) const 
 				-> evo::SmallVector<std::string_view>;
+
+
 
 
 
@@ -232,7 +238,7 @@ namespace pcit::panther{
 				bool is_template = false;
 
 				auto operator=(const SymbolProcInfo& rhs) -> SymbolProcInfo& {
-					std::destroy_at(this); // just in case destruction become non-trivial
+					static_assert(std::is_trivially_destructible<SymbolProcInfo>(), "requires destructor here");
 					std::construct_at(this, rhs);
 					return *this;
 				}

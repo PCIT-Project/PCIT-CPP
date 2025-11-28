@@ -102,6 +102,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
 			SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
 			SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR,
+			SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
 
 
 			//////////////////
@@ -719,6 +720,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD:
 				case Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR:
 				case Code::SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR:
+				case Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS:
 					return "SPx";
 
 				// TODO(FUTURE): give individual codes and put in correct order

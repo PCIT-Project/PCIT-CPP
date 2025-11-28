@@ -89,7 +89,7 @@ namespace pcit::panther{
 			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(FileToLoad& file_to_load : this->files_to_load){
-				local_work_manager.emplaceTask(std::move(file_to_load));
+				local_work_manager.addTask(std::move(file_to_load));
 			}
 
 			this->files_to_load.clear();
@@ -127,7 +127,7 @@ namespace pcit::panther{
 			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(FileToLoad& file_to_load : this->files_to_load){
-				local_work_manager.emplaceTask(std::move(file_to_load));
+				local_work_manager.addTask(std::move(file_to_load));
 			}
 
 			this->files_to_load.clear();
@@ -166,7 +166,7 @@ namespace pcit::panther{
 			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(FileToLoad& file_to_load : this->files_to_load){
-				local_work_manager.emplaceTask(std::move(file_to_load));
+				local_work_manager.addTask(std::move(file_to_load));
 			}
 
 			this->files_to_load.clear();
@@ -433,7 +433,12 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i += 1; });
 
 				if(symbol_proc.isReadyToBeAddedToWorkQueue()){
-					work_manager_inst.addTask(SymbolProc::ID(i));
+					if(symbol_proc.isPriority()){
+						work_manager_inst.addPriorityTask(SymbolProc::ID(i));
+					}else{
+						work_manager_inst.addTask(SymbolProc::ID(i));
+					}
+
 					this->symbol_proc_manager.getSymbolProc(SymbolProc::ID(i)).setStatusInQueue();
 				}
 			}
@@ -578,10 +583,10 @@ namespace pcit::panther{
 			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
 
 			for(CHeaderToLoad& c_header_to_load : this->c_headers_to_load){
-				local_work_manager.emplaceTask(std::move(c_header_to_load));
+				local_work_manager.addTask(std::move(c_header_to_load));
 			}
 			for(CPPHeaderToLoad& cpp_header_to_load : this->cpp_headers_to_load){
-				local_work_manager.emplaceTask(std::move(cpp_header_to_load));
+				local_work_manager.addTask(std::move(cpp_header_to_load));
 			}
 
 			this->files_to_load.clear();

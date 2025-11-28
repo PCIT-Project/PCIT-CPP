@@ -29,14 +29,14 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 	}
 
 	func next = (this mut) -> Void {
-		const new_address: USize = bitCast<{USize}>(this.current) + sizeOf<{ELEM_TYPE}>();
-		this.current = bitCast<{ELEM_TYPE*}>(new_address);
+		const new_address: USize = @bitCast<{ELEM_TYPE*, USize}>(this.current) + @numBytes<{ELEM_TYPE, true}>();
+		this.current = @bitCast<{USize, ELEM_TYPE*}>(new_address);
 	}
 
 	func get = (this) -> ELEM_TYPE* { return copy this.current; }
 
 	func atEnd = (this) -> Bool {
-		return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+		return @bitCast<{ELEM_TYPE*, USize}>(this.current) > @bitCast<{ELEM_TYPE*, USize}>(this.last);
 	}
 
 
@@ -56,7 +56,9 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 	var last: ELEM_TYPE*;
 }
 
-func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*) #pub 
+
+func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*) 
+#pub #builtin("array_ref.Iterable.createIterator")
 -> ArrayRefIter<{ARRAY_REF_TYPE}> {
 	return new ArrayRefIter<{ARRAY_REF_TYPE}>(arr_ref_ptr);
 }

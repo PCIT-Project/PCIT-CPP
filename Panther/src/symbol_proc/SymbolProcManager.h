@@ -14,6 +14,7 @@
 #include <PCIT_core.h>
 
 #include "./SymbolProc.h"
+#include "../sema/sema_ids.h"
 
 
 namespace pcit::panther{
@@ -24,7 +25,7 @@ namespace pcit::panther{
 			using Instruction = SymbolProc::Instruction;
 
 		public:
-			SymbolProcManager() = default;
+			SymbolProcManager();
 			~SymbolProcManager() = default;
 
 
@@ -2692,7 +2693,35 @@ namespace pcit::panther{
 
 
 
+			///////////////////////////////////
+			// builtin symbols
 
+
+			EVO_NODISCARD auto lookupBuiltinSymbolKind(std::string_view str)
+			-> evo::Result<SymbolProc::BuiltinSymbolKind> {
+				const auto find = this->builtin_symbol_kind_lookup.find(str);
+				if(find != this->builtin_symbol_kind_lookup.end()){ return find->second; }
+				return evo::resultError;
+			}
+
+			EVO_NODISCARD static consteval auto constevalLookupBuiltinSymbolKind(std::string_view str)
+			-> SymbolProc::BuiltinSymbolKind {
+				if(str == "array_ref.Iterable.createIterator"){
+					return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_CREATE_ITERATOR;
+				}
+
+				evo::debugFatalBreak("Unknown or unsupported builtin symbol str ({})", str);
+			}
+
+
+			struct BuiltinSymbol{
+				SymbolProc::ID symbol_proc_id;
+				std::atomic<std::optional<sema::TemplatedFuncID>> sema_id;
+			};
+
+			EVO_NODISCARD auto getBuiltinSymbol(SymbolProc::BuiltinSymbolKind kind) const -> const BuiltinSymbol& {
+				return this->builtin_symbols[size_t(kind)];
+			}
 
 		private:
 			EVO_NODISCARD auto create_symbol_proc(auto&&... args) -> SymbolProc::ID {
@@ -2734,6 +2763,10 @@ namespace pcit::panther{
 
 			std::atomic<size_t> num_procs_not_done = 0;
 			std::atomic<size_t> num_procs_suspended = 0;
+
+
+			std::array<BuiltinSymbol, evo::to_underlying(SymbolProc::BuiltinSymbolKind::_MAX_)> builtin_symbols{};
+			std::unordered_map<std::string_view, SymbolProc::BuiltinSymbolKind> builtin_symbol_kind_lookup{};
 
 
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDecl, uint32_t> non_local_var_decls{};

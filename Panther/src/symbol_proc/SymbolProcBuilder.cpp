@@ -612,6 +612,12 @@ namespace pcit::panther{
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
+		if(this->analyze_priority_and_builtin_attribute(
+			ast_buffer.getAttributeBlock(func_def.attributeBlock)
+		).isError()){
+			return evo::resultError;
+		}
+
 		current_symbol->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
 
 
@@ -636,6 +642,7 @@ namespace pcit::panther{
 
 			return false;
 		}();
+
 
 
 
@@ -3609,6 +3616,88 @@ namespace pcit::panther{
 	}
 
 
+	auto SymbolProcBuilder::analyze_priority_and_builtin_attribute(const AST::AttributeBlock& attribute_block)
+	-> evo::Result<> {
+		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "builtin"){
+				if(attribute.args.size() != 1){
+					if(attribute.args.empty()){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+							attribute.attribute,
+							"Attribute #builtin requires an argument"
+						);
+
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+							attribute.args[1],
+							"Attribute #builtin requires 1 argument"
+						);
+					}
+
+					return evo::resultError;
+				}
+
+				if(attribute.args[0].kind() != AST::Kind::LITERAL){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Attribute #builtin requires a string argument"
+					);
+					return evo::resultError;
+				}
+
+				const Token::ID arg_id = ASTBuffer::getLiteral(attribute.args[0]);
+				const Token& arg = this->source.getTokenBuffer()[arg_id];
+
+				if(arg.kind() != Token::Kind::LITERAL_STRING){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Attribute #builtin requires a string argument"
+					);
+					return evo::resultError;
+				}
+
+
+				const evo::Result<SymbolProc::BuiltinSymbolKind> lookup_symbol_kind
+					= this->context.symbol_proc_manager.lookupBuiltinSymbolKind(arg.getString());
+
+				if(lookup_symbol_kind.isError()){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Unknown builtin symbol kind"
+					);
+					return evo::resultError;
+				}
+
+
+				const SymbolProcInfo& current_symbol_proc = this->get_current_symbol();
+
+				this->context.symbol_proc_manager.builtin_symbols[size_t(lookup_symbol_kind.value())].symbol_proc_id =
+					current_symbol_proc.symbol_proc_id;
+
+				current_symbol_proc.symbol_proc.is_always_priority = true;
+
+				current_symbol_proc.symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
+
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					attribute.args[0],
+					"This builtin is currently unimplemented"
+				);
+				return evo::resultError;
+			}
+		}
+
+		return evo::Result<>();
+	}
+
+
 
 	auto SymbolProcBuilder::analyze_template_param_pack(const AST::TemplatePack& template_pack)
 	-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>> {
@@ -3755,6 +3844,7 @@ namespace pcit::panther{
 
 		return output;
 	}
+
 
 
 }
