@@ -3092,6 +3092,7 @@ namespace pcit::panther{
 						std::is_same<TypeScope, BaseType::Struct::ID>() 
 						|| std::is_same<TypeScope, BaseType::Union::ID>()
 						|| std::is_same<TypeScope, BaseType::Enum::ID>()
+						|| std::is_same<TypeScope, BaseType::Interface::ID>()
 					){
 						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(BaseType::ID(type_scope))
@@ -3099,29 +3100,14 @@ namespace pcit::panther{
 
 						params.emplace_back(this_type, type_param_kind, false);
 
-					}else if constexpr(std::is_same<TypeScope, BaseType::Interface::ID>()){
-						const TypeInfo::ID this_type = [&]() -> TypeInfo::ID {
-							if(
-								this->symbol_proc.parent != nullptr
-								&& this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>()
-							){
-								const SymbolProc::InterfaceImplInfo& impl_info = 
-									this->symbol_proc.parent->extra_info.as<SymbolProc::InterfaceImplInfo>();
+					}else if constexpr(std::is_same<TypeScope, sema::ScopeManager::Scope::InterfaceImplInfo>()){
+						params.emplace_back(type_scope.target_type_id, type_param_kind, false);
 
-								return impl_info.type_info.as<TypeInfo::ID>();
-
-							}else{
-								return this->context.type_manager.getOrCreateTypeInfo(
-									TypeInfo(BaseType::ID(type_scope))
-								);
-							}
-						}();
-
-
-						params.emplace_back(this_type, type_param_kind, false);
+					}else if constexpr(std::is_same<TypeScope, sema::Func::ID>()){
+						evo::debugFatalBreak("Invalid type object scope");
 
 					}else{
-						evo::debugFatalBreak("Invalid type object scope");
+						static_assert(false, "Unknown object scope");
 					}
 				});
 
@@ -3293,10 +3279,7 @@ namespace pcit::panther{
 							const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
 								this->scope.getCurrentObjectScope();
 
-							return current_object_scope.is<BaseType::Struct::ID>() == false
-								&& current_object_scope.is<BaseType::Union::ID>() == false
-								&& current_object_scope.is<BaseType::Enum::ID>() == false
-								&& current_object_scope.is<BaseType::Interface::ID>() == false;
+							return current_object_scope.is<sema::Func::ID>();
 						}();
 
 						if(include_shadow_checks){
@@ -5322,10 +5305,7 @@ namespace pcit::panther{
 				const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
 					this->scope.getCurrentObjectScope();
 
-				return current_object_scope.is<BaseType::Struct::ID>() == false
-					&& current_object_scope.is<BaseType::Union::ID>() == false
-					&& current_object_scope.is<BaseType::Enum::ID>() == false
-					&& current_object_scope.is<BaseType::Interface::ID>() == false;
+				return current_object_scope.is<sema::Func::ID>();
 			}();
 
 			if(include_shadow_checks){
@@ -5654,6 +5634,8 @@ namespace pcit::panther{
 			&interface_impl
 		);
 
+		this->push_scope_level();
+
 		this->propagate_finished_decl();
 
 		return Result::SUCCESS;
@@ -5690,12 +5672,18 @@ namespace pcit::panther{
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_deudcer_impl
 			);
 
+			this->push_scope_level();
+
 		}else{
 			BaseType::Interface::Impl& interface_impl =
 				this->context.type_manager.createInterfaceImpl(instr.interface_impl);
 
 			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
+			);
+
+			this->push_scope_level(
+				nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(target_type_id.asTypeID())
 			);
 		}
 
@@ -5718,6 +5706,8 @@ namespace pcit::panther{
 			target_interface_id, target_interface, instr.instantiation_type_id, &instr.created_impl
 		);
 
+
+		this->push_scope_level();
 
 		this->propagate_finished_decl();
 
@@ -16467,6 +16457,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				if(current_type_scope->is<sema::ScopeManager::Scope::InterfaceImplInfo>()){
+					this->return_type(instr.output,
+						current_type_scope->as<sema::ScopeManager::Scope::InterfaceImplInfo>().target_type_id
+					);
+					return Result::SUCCESS;
+				}
+
 				const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
 					TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
 				);
@@ -24494,6 +24491,8 @@ namespace pcit::panther{
 			}
 		}
 
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
+
 		this->propagate_finished_def();
 
 		if(old_impl != nullptr){
@@ -24546,6 +24545,8 @@ namespace pcit::panther{
 			const auto lock = std::scoped_lock(info.target_interface.deducerImplsLock);
 			info.target_interface.deducerImpls.emplace_back(deducer_impl);
 		}
+
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
 		this->propagate_finished_def();
 		return Result::SUCCESS;

@@ -165,3 +165,14 @@ func entry = () #entry -> UI8 {
 	return sum_arr(array) as UI8; // 6
 }
 
+
+
+
+
+interface DoNothing = {
+	func get_self = (this) -> $$;
+
+	impl Int {
+		get_self = (this) -> This { return copy this; },
+	}
+}

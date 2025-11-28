@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.195.0"></a>
+## v0.0.195.0
+
+### Panther
+- Added support for `This` inside an interface impl
+
+
+<!---------------------------------->
 <a name="v0.0.194.0"></a>
 ## v0.0.194.0
 

@@ -58,7 +58,7 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 
 
 func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*) 
-#pub #builtin("array_ref.Iterable.createIterator")
+#pub // #builtin("array_ref.Iterable.createIterator") 
 -> ArrayRefIter<{ARRAY_REF_TYPE}> {
 	return new ArrayRefIter<{ARRAY_REF_TYPE}>(arr_ref_ptr);
 }

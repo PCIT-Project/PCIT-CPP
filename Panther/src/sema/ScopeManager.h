@@ -28,12 +28,17 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
+					struct InterfaceImplInfo{
+						TypeInfo::ID target_type_id;
+					};
+
 					using ObjectScope = evo::Variant<
 						sema::Func::ID,
 						BaseType::Struct::ID,
 						BaseType::Union::ID,
 						BaseType::Enum::ID,
-						BaseType::Interface::ID
+						BaseType::Interface::ID,
+						InterfaceImplInfo
 					>;
 
 				public:
@@ -113,6 +118,11 @@ namespace pcit::panther::sema{
 						evo::debugAssert(this->inObjectScope(), "not in object scope");
 						return this->object_scopes.back().obj_scope;
 					}
+					EVO_NODISCARD auto getParentObjectScope() const -> const ObjectScope& {
+						evo::debugAssert(this->inObjectScope(), "not in object scope");
+						evo::debugAssert(this->object_scopes.size() >= 2, "no parent object scope");
+						return this->object_scopes[this->object_scopes.size() - 2].obj_scope;
+					}
 
 					EVO_NODISCARD auto getCurrentObjectScopeIndex() const -> uint32_t {
 						if(this->object_scopes.empty()){ return 0; }
@@ -132,6 +142,7 @@ namespace pcit::panther::sema{
 								|| iter->obj_scope.is<BaseType::Union::ID>()
 								|| iter->obj_scope.is<BaseType::Enum::ID>()
 								|| iter->obj_scope.is<BaseType::Interface::ID>()
+								|| iter->obj_scope.is<InterfaceImplInfo>()
 							){
 								return iter->obj_scope;
 							}
