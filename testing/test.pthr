@@ -1,178 +1,20 @@
-def std_exp = @import("std_exp/std_exp.pthr");
 
 
+interface DoNothing = {
+	func copy_this = (this) -> $$;
 
-type Array = struct {
-	def LENGTH: USize = 3;
-
-	func new = (data: [Int:LENGTH] in) -> (output: This) {
-		output._data = forward data;
-		return...;
+	impl $$ {
+		copy_this = (this) -> This { return copy this; },
 	}
-
-	func [] = (this, index: USize) -> Int* {
-		return this._data[index];
-	}
-
-	func [] = (this mut, index: USize) -> Int*mut {
-		return this._data[index];
-	}
-
-	func data = (this) -> Int* { return this._data.data(); }
-	func data = (this mut) -> Int*mut { return this._data.data(); }
-
-	func size = (this) -> USize { return LENGTH; }
-
-
-	func as = (this) -> [Int:*] {
-		return new [Int:*](this.data(), this.size());
-	}
-
-
-
-	impl @pthr.Iterable {
-		createIterator = (this) -> ArrIter {
-			return new ArrIter(&this);
-		},
-	}
-
-	impl @pthr.MutIterable {
-		createIterator = (this mut) -> MutArrIter {
-			return new MutArrIter(&this);
-		},
-	}
-
-	impl @pthr.IterableRT {
-		createIterator = (this) #rt -> ArrIter {
-			return new ArrIter(&this);
-		},
-	}
-
-	impl @pthr.MutIterableRT {
-		createIterator = (this mut) #rt -> MutArrIter {
-			return new MutArrIter(&this);
-		},
-	}
-
-
-
-	var _data: [Int:LENGTH];
-
-
-	///////////////////////////////////
-	// iters
-
-	type ArrIter = struct {
-		func new = (arr: Array*) -> (output: ArrIter) {
-			output.current = arr.data();
-			output.last = arr[arr.size() - 1];
-			return...;
-		}
-
-		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-			this.current = std_exp.bitCast<{Int*}>(new_address);
-		}
-
-		func get = (this) -> Int* { return copy this.current; }
-
-		func atEnd = (this) -> Bool {
-			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-		}
-
-
-		impl @pthr.Iterator {
-			next  = next,
-			get   = get,
-			atEnd = atEnd,
-		}
-
-		impl @pthr.IteratorRT {
-			next  = next,
-			get   = get,
-			atEnd = atEnd,
-		}
-
-		var current: Int*;
-		var last: Int*;
-	}
-
-
-	type MutArrIter = struct {
-		func new = (arr: Array*mut) -> (output: MutArrIter) {
-			output.current = arr.data();
-			output.last = arr[arr.size() - 1];
-			return...;
-		}
-
-		func next = (this mut) -> Void {
-			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-			this.current = std_exp.bitCast<{Int*mut}>(new_address);
-		}
-
-		func get = (this) -> Int*mut { return copy this.current; }
-
-		func atEnd = (this) -> Bool {
-			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-		}
-
-
-		impl @pthr.MutIterator {
-			next  = next,
-			get   = get,
-			atEnd = atEnd,
-		}
-
-		impl @pthr.MutIteratorRT {
-			next  = next,
-			get   = get,
-			atEnd = atEnd,
-		}
-
-		var current: Int*mut;
-		var last: Int*mut;
-	}
-
 }
 
-
-
-
-func sum_arr = (array: Array) -> (sum: Int) {
-	sum = 0;
-
-	var array_ref = array as [Int:*];
-	var array_ref_iter = std_exp.createArrayRefIter<{[Int:*]}>(&array_ref);
-
-	while(array_ref_iter.atEnd() == false){
-		sum += array_ref_iter.get().*;
-		array_ref_iter.next();
-	}
-
-
-	// for(array) [_; value: $$] {
-	// 	sum += value;
-	// }
-
-	return...;
-}
 
 
 
 func entry = () #entry -> UI8 {
-	var array = new Array(new [Int:Array.LENGTH][1, 2, 3]);
-	
-	return sum_arr(array) as UI8; // 6
+	const foo: Int = 12;
+	const dn_foo: DoNothing = copy foo;
+
+	return 0;
 }
 
-
-
-
-
-interface DoNothing = {
-	func get_self = (this) -> $$;
-
-	impl Int {
-		get_self = (this) -> This { return copy this; },
-	}
-}

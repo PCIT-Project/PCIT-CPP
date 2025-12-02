@@ -5682,9 +5682,7 @@ namespace pcit::panther{
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
 			);
 
-			this->push_scope_level(
-				nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(target_type_id.asTypeID())
-			);
+			this->push_scope_level(nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(target_type_id.asTypeID()));
 		}
 
 
@@ -5707,7 +5705,7 @@ namespace pcit::panther{
 		);
 
 
-		this->push_scope_level();
+		this->push_scope_level(nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(instr.instantiation_type_id));
 
 		this->propagate_finished_decl();
 

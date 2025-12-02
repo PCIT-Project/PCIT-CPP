@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.195.1"></a>
+## v0.0.195.1
+
+### Panther
+- Fixed  `This` not being allowed inside a deducer interface impl
+
+
+<!---------------------------------->
 <a name="v0.0.195.0"></a>
 ## v0.0.195.0
 
