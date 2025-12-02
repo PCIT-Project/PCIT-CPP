@@ -22787,7 +22787,11 @@ namespace pcit::panther{
 			if(deducer_matches.size() == 1){
 				const BaseType::Interface::DeducerImpl& deducer_match = *deducer_matches[0];
 
-				if(deducer_match.needsToBeCompiled()){
+				BaseType::Interface::DeducerImpl::NeedsToBeCompiledResult needs_to_be_compiled_result =
+					deducer_match.instantiationNeedsToBeCompiled(target_type_id);
+
+
+				if(needs_to_be_compiled_result.needsToBeCompiled){
 					SymbolProc& parent_interface_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
 
@@ -22822,8 +22826,13 @@ namespace pcit::panther{
 						interface_type.impls.emplace(target_type_id, created_impl);
 					}
 
+					needs_to_be_compiled_result.setAddedToImpl();
+
 					created_symbol_proc.setStatusInQueue();
 					this->context.add_task_to_work_manager(created_symbol_proc_id);
+
+				}else{
+					needs_to_be_compiled_result.waitForAddedToImpl();
 				}
 
 				return true;

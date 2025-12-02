@@ -15,6 +15,12 @@ func entry = () #entry -> UI8 {
 	const foo: Int = 12;
 	const dn_foo: DoNothing = copy foo;
 
+	const bar: I12 = 12;
+	const dn_bar: DoNothing = copy bar;
+
+	const foo_copy: Int = dn_foo.copy_this();
+	const bar_copy: I12 = dn_bar.copy_this();
+
 	return 0;
 }
 

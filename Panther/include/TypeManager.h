@@ -767,13 +767,53 @@ namespace pcit::panther{
 					evo::debugAssert(this->astInterfaceImpl.kind() == AST::Kind::INTERFACE_IMPL, "Incorrect node kind");
 				}
 
+				struct NeedsToBeCompiledResult{
+					bool needsToBeCompiled;
+
+					NeedsToBeCompiledResult(bool needs_to_be_compiled, std::atomic<bool>& _flag_ptr)
+						: needsToBeCompiled(needs_to_be_compiled), flag_ptr(_flag_ptr) {}
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						~NeedsToBeCompiledResult(){
+							evo::debugAssert(this->flag_ptr.load() == true, "Needs to wait");
+						}
+					#endif
+
+					auto waitForAddedToImpl() -> void {
+						while(this->flag_ptr.load() == false){
+							std::this_thread::yield();
+						}
+					}
+
+					auto setAddedToImpl() -> void {
+						this->flag_ptr = true;
+					}
+
+					private:
+						std::atomic<bool>& flag_ptr;
+				};
+
 				// only returns `true` the first time called
-				EVO_NODISCARD auto needsToBeCompiled() const -> bool {
-					return this->_needs_to_be_compiled.exchange(false);
+				EVO_NODISCARD auto instantiationNeedsToBeCompiled(TypeInfoID instantiation_id) const
+				-> NeedsToBeCompiledResult {
+					const auto lock = std::scoped_lock(this->instantiations_lock);
+
+					const auto instantiation_find = this->instantiations.find(instantiation_id);
+
+					if(instantiation_find == this->instantiations.end()){ // new instantiation
+						std::atomic<bool>& added_to_impl_flag = this->added_to_impl_flags.emplace_back(false);
+						this->instantiations.emplace(instantiation_id, added_to_impl_flag);
+						return NeedsToBeCompiledResult(true, added_to_impl_flag);
+
+					}else{
+						return NeedsToBeCompiledResult(false, instantiation_find->second);
+					}
 				}
 
 				private:
-					mutable std::atomic<bool> _needs_to_be_compiled = true;
+					mutable std::unordered_map<TypeInfoID, std::atomic<bool>&> instantiations{};
+					mutable evo::StepVector<std::atomic<bool>> added_to_impl_flags{}; 
+					mutable evo::SpinLock instantiations_lock{};
 			};
 			
 			evo::Variant<SourceID, BuiltinModuleID> sourceID;

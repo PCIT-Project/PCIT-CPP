@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.195.2"></a>
+## v0.0.195.2
+
+### Panther
+- Fixed unexpected behavior (such as crashing) when instantiating a deducer impl more than once
+
+
+<!---------------------------------->
 <a name="v0.0.195.1"></a>
 ## v0.0.195.1
 
