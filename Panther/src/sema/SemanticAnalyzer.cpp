@@ -13060,11 +13060,13 @@ namespace pcit::panther{
 			sema_block_expr.outputs.emplace_back(output_type.asTypeID(), instr.block.outputs[i].ident);
 
 			if(instr.block.outputs[i].ident.has_value()){
-				const std::string_view ident_str = 
-					this->source.getTokenBuffer()[*instr.block.outputs[i].ident].getString();
+				const Token::ID ident_token_id = *instr.block.outputs[i].ident;
 
-				const sema::BlockExprOutput::ID block_expr_output = 
-					this->context.sema_buffer.createBlockExprOutput(uint32_t(i), instr.label, output_type.asTypeID());
+				const std::string_view ident_str = this->source.getTokenBuffer()[ident_token_id].getString();
+
+				const sema::BlockExprOutput::ID block_expr_output = this->context.sema_buffer.createBlockExprOutput(
+					uint32_t(i), instr.label, ident_token_id, output_type.asTypeID()
+				);
 
 				if(this->add_ident_to_scope(
 					ident_str, *instr.block.outputs[i].ident, true, block_expr_output

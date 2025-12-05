@@ -9,11 +9,11 @@ func entry = () #entry -> UI8 {
 
 
 
-	var sum: Int = {->expr:(output:Int)
-		output = 0;
+	var sum: Int = {->expr:(sum:Int)
+		sum = 0;
 
 		for(arr) [_; value: Int] {
-			output += value;
+			sum += value;
 		}
 
 		return->expr ...;

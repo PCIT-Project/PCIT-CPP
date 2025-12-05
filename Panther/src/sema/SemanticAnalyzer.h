@@ -1132,22 +1132,7 @@ namespace pcit::panther{
 			-> Diagnostic::Location {
 				const sema::BlockExprOutput& block_expr_output =
 					this->context.getSemaBuffer().getBlockExprOutput(block_expr_output_id);
-
-				for(const sema::ScopeLevel::ID target_scope_level_id : this->scope){
-					const sema::ScopeLevel& target_scope_level = 
-						this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
-
-					if(target_scope_level.hasLabel() == false){ continue; }
-					if(target_scope_level.getLabelNode().is<sema::BlockExpr::ID>() == false){ continue; }
-
-					const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(
-						target_scope_level.getLabelNode().as<sema::BlockExpr::ID>()
-					);
-
-					return this->get_location(*block_expr.outputs[block_expr_output.index].ident);
-				}
-
-				evo::debugFatalBreak("Didn't find a scope that is a block expression");
+				return this->get_location(block_expr_output.ident);
 			}
 
 			EVO_NODISCARD auto get_location(sema::ExceptParamID except_param_id) const -> Diagnostic::Location {

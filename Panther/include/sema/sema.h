@@ -540,6 +540,7 @@ namespace pcit::panther::sema{
 
 		uint32_t index;
 		Token::ID label;
+		Token::ID ident;
 		TypeInfo::ID typeID;
 	};
 

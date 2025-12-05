@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.197.1"></a>
+## v0.0.197.1
+
+### Panther
+- Fixed crashing when getting location of a block expression output in some contexts
+
+
+<!---------------------------------->
 <a name="v0.0.197.0"></a>
 ## v0.0.197.0
 
