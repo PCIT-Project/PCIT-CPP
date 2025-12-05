@@ -85,6 +85,12 @@ namespace pcit::panther{
 					Source::ProjectConfig::ID projectID; // is index into projectConfigs
 				};
 
+				struct PantherDirectory{
+					std::string path;
+					Source::ProjectConfig::ID projectID; // is index into projectConfigs
+					bool isRecursive;
+				};
+
 				struct CLangFile{
 					std::string path;
 					bool addIncludesToPubApi;
@@ -95,10 +101,11 @@ namespace pcit::panther{
 
 				Output output         = Output::RUN;
 				NumThreads numThreads = NumThreads::single();
-				bool useStdLib        = true;
+				std::optional<Source::ProjectConfig::ID> stdLibProjectID{};
 
 				evo::StepVector<Source::ProjectConfig> projectConfigs{};
 				evo::StepVector<PantherFile> sourceFiles{};
+				evo::StepVector<PantherDirectory> sourceDirectories{};
 				evo::StepVector<CLangFile> cLangFiles{};
 			};
 

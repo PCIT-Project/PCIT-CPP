@@ -377,9 +377,10 @@ namespace pcit::panther{
 			FRONTEND_BUILD_SYSTEM_RETURNED_ERROR, // F2
 			FRONTEND_FILE_DOESNT_EXIST,           // F3
 			FRONTEND_DIRECTORY_DOESNT_EXIST,      // F4
-			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F5
-			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F6
-			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F7
+			FRONTEND_DIRECTORY_NOT_DIRECTORY,     // F5
+			FRONTEND_FAILED_TO_ADD_STD_LIB,       // F6
+			FRONTEND_FAILED_TO_OUTPUT_ASM,        // F7
+			FRONTEND_FAILED_TO_OUTPUT_OBJ,        // F8
 
 
 			//////////////////
@@ -934,9 +935,10 @@ namespace pcit::panther{
 				case Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR: return "F2";
 				case Code::FRONTEND_FILE_DOESNT_EXIST:           return "F3";
 				case Code::FRONTEND_DIRECTORY_DOESNT_EXIST:      return "F4";
-				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F5";
-				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F6";
-				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F7";
+				case Code::FRONTEND_DIRECTORY_NOT_DIRECTORY:     return "F5";
+				case Code::FRONTEND_FAILED_TO_ADD_STD_LIB:       return "F6";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_ASM:        return "F7";
+				case Code::FRONTEND_FAILED_TO_OUTPUT_OBJ:        return "F8";
 
 				case Code::CLANG: return "C";
 			}

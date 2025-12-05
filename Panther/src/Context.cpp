@@ -1053,7 +1053,7 @@ namespace pcit::panther{
 	auto Context::addSourceFile(const fs::path& path, Source::ProjectConfig::ID project_config_id)
 	-> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
+		// if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
 		const Source::ProjectConfig& project_config =
 			this->source_manager.getSourceProjectConfig(project_config_id);
@@ -1074,7 +1074,8 @@ namespace pcit::panther{
 		const Source::ProjectConfig& project_config =
 			this->source_manager.getSourceProjectConfig(project_config_id);
 
-		for(const fs::path& file_path : std::filesystem::directory_iterator(directory)){
+		const fs::path target_directory = normalize_path(directory, project_config.basePath);
+		for(const fs::path& file_path : std::filesystem::directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(
 					normalize_path(file_path, project_config.basePath), project_config_id
@@ -1095,7 +1096,8 @@ namespace pcit::panther{
 		const Source::ProjectConfig& project_config =
 			this->source_manager.getSourceProjectConfig(project_config_id);
 
-		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(directory)){
+		const fs::path target_directory = normalize_path(directory, project_config.basePath);
+		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(
 					normalize_path(file_path, project_config.basePath), project_config_id
@@ -1123,8 +1125,6 @@ namespace pcit::panther{
 				if(file_path.stem() == "build_config"){
 					this->source_manager.add_special_name_path("build", file_path);
 				}
-
-				this->files_to_load.emplace_back(file_path, project_config_id);
 			}
 		}
 
@@ -1897,45 +1897,42 @@ namespace pcit::panther{
 		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
 			jit_engine.registerFuncs({
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_set_num_threads",
+					"PTHR.BUILD.buildSetNumThreads",
 					[](Context* context, uint32_t num_threads){
 						context->build_system_config.numThreads = NumThreads(num_threads);
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_set_output",
+					"PTHR.BUILD.buildSetOutput",
 					[](Context* context, uint32_t output){
 						context->build_system_config.output = BuildSystemConfig::Output(output);
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_set_use_std_lib",
-					[](Context* context, bool use_std_lib){
-						context->build_system_config.useStdLib = use_std_lib;
+					"PTHR.BUILD.buildSetStdLibProject",
+					[](Context* context, ProjectID project_id){
+						context->build_system_config.stdLibProjectID = Source::ProjectConfig::ID(project_id);
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_create_project",
+					"PTHR.BUILD.buildCreateProject",
 					[](Context* context, StringView* base_path, Source::ProjectConfig::Warns* warns_settings)
 					-> ProjectID {
 						const ProjectID project_id = ProjectID(context->build_system_config.projectConfigs.size());
 
-						if(base_path->size == 0){
-							context->build_system_config.projectConfigs.emplace_back(
-								context->_config.workingDirectory, *warns_settings
-							);
-						}else{
-							context->build_system_config.projectConfigs.emplace_back(
-								std::filesystem::path(std::string_view(base_path->data, base_path->size)),
-								*warns_settings
-							);
-						}
+						context->build_system_config.projectConfigs.emplace_back(
+							normalize_path(
+								fs::path(std::string_view(base_path->data, base_path->size)),
+								context->getConfig().workingDirectory
+							),
+							*warns_settings
+						);
 
 						return project_id;
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_add_source_file",
+					"PTHR.BUILD.buildAddSourceFile",
 					[](Context* context, StringView* file_path, ProjectID project_id) -> void {
 						context->build_system_config.sourceFiles.emplace_back(
 							std::string(file_path->data, file_path->size), Source::ProjectConfig::ID(project_id)
@@ -1943,7 +1940,17 @@ namespace pcit::panther{
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_add_c_header_file",
+					"PTHR.BUILD.buildAddSourceDirectory",
+					[](Context* context, StringView* file_path, ProjectID project_id, bool is_recursive) -> void {
+						context->build_system_config.sourceDirectories.emplace_back(
+							std::string(file_path->data, file_path->size),
+							Source::ProjectConfig::ID(project_id),
+							is_recursive
+						);
+					}
+				),
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.BUILD.buildAddCHeaderFile",
 					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
 						context->build_system_config.cLangFiles.emplace_back(
 							std::string(file_path->data, file_path->size), add_includes_to_pub_api, false, true
@@ -1951,7 +1958,7 @@ namespace pcit::panther{
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.build_add_cpp_header_file",
+					"PTHR.BUILD.buildAddCPPHeaderFile",
 					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
 						context->build_system_config.cLangFiles.emplace_back(
 							std::string(file_path->data, file_path->size), add_includes_to_pub_api, true, true
@@ -3050,13 +3057,34 @@ namespace pcit::panther{
 			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
 			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
+
+
+		{
+			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+
+			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			);
+
+			const TypeInfo::ID created_func_type = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{
+					BaseType::Function::Param(project_id, BaseType::Function::Param::Kind::READ, true)
+				},
+				evo::SmallVector<BaseType::Function::ReturnParam>{
+					BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+				},
+				evo::SmallVector<BaseType::Function::ReturnParam>()
+			);
+
+			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PROJECT))] = 
+			IntrinsicFuncInfo{
+				.typeID = created_func_type,
+				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
+				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			};
+		}
+
 			
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB))] = 
-		IntrinsicFuncInfo{
-			.typeID = bool_arg_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
-		};
 
 
 
@@ -3137,11 +3165,45 @@ namespace pcit::panther{
 		}
 
 		{
+			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+
+			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			);
+
+
 			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true)
+						BaseType::Function::Param(project_id, BaseType::Function::Param::Kind::READ, true),
+						BaseType::Function::Param(
+							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
+						)
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>{
+						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
+					},
+					evo::SmallVector<BaseType::Function::ReturnParam>()
+				)
+			);
+
+			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY))] = 
+			IntrinsicFuncInfo{
+				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
+				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
+				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			};
+		}
+
+		{
+			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
+				BaseType::Function(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
+						BaseType::Function::Param(
+							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
+						)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())

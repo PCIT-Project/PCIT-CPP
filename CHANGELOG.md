@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.197.0"></a>
+## v0.0.197.0
+
+### Panther
+- Added `@buildAddSourceDirectory()`
+- Added `@buildSetStdLibProject()`
+- Removed `@buildSetUseStdLib()`
+- Fixed various issues with adding files and directories
+
+
+<!---------------------------------->
 <a name="v0.0.196.0"></a>
 ## v0.0.196.0
 

@@ -7,16 +7,17 @@ func entry = () #entry -> UI8 {
 
 	const arr_ref: [Int:*] = arr as [Int:*];
 
-	var sum: Int = 0;
 
 
-	// for(arr_ref) [i: USize; value: Int] {
-	// 	// value += i as Int;
-	// }
+	var sum: Int = {->expr:(output:Int)
+		output = 0;
 
-	for(arr) [_; value: Int] {
-		sum += value;
-	}
+		for(arr) [_; value: Int] {
+			output += value;
+		}
+
+		return->expr ...;
+	};
 
 	return sum as UI8;
 }

@@ -4,18 +4,22 @@ def build_exp = @import("std_exp/build.pthr");
 
 func entry = () #entry -> UI8 {
 	build_exp.setOutput(build.Output.RUN);
-	@buildSetNumThreads(12);
-	@buildSetUseStdLib(false);
+	build_exp.setNumThreads(12);
+	// build_exp.addDefaultStdLib();
 
-	const project = new build_exp.Project(new @pthr.ProjectWarningSettings{
-		methodCallOnNonMethod        = true,
-		deleteMovedFromExpr          = true,
-		deleteTriviallyDeletableType = true,
-		constexprIfCond              = true,
-	});
 
-	project.addSourceFile("test.pthr");
-	project.addSourceFile("std_exp/std_exp.pthr");
+	const main_project = new build_exp.Project(
+		"./".* as [Char:*],
+		new @pthr.ProjectWarningSettings{
+			methodCallOnNonMethod        = true,
+			deleteMovedFromExpr          = true,
+			deleteTriviallyDeletableType = true,
+			constexprIfCond              = true,
+		}
+	);
+	main_project.addSourceFile("test.pthr");
+	main_project.addSourceFile("std_exp/std_exp.pthr");
+
 	// @buildAddCHeaderFile("test.h", true);
 	
 	return 0;

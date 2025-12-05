@@ -41,15 +41,16 @@ namespace pcit::panther{
 		if(was_initialized){ return; }
 
 		intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
-			{"abort",                 Kind::ABORT},
-			{"breakpoint",            Kind::BREAKPOINT},
-			{"buildSetNumThreads",    Kind::BUILD_SET_NUM_THREADS},
-			{"buildSetOutput",        Kind::BUILD_SET_OUTPUT},
-			{"buildSetUseStdLib",     Kind::BUILD_SET_USE_STD_LIB},
-			{"buildCreateProject",    Kind::BUILD_CREATE_PROJECT},
-			{"buildAddSourceFile",    Kind::BUILD_ADD_SOURCE_FILE},
-			{"buildAddCHeaderFile",   Kind::BUILD_ADD_C_HEADER_FILE},
-			{"buildAddCPPHeaderFile", Kind::BUILD_ADD_CPP_HEADER_FILE},
+			{"abort",                   Kind::ABORT},
+			{"breakpoint",              Kind::BREAKPOINT},
+			{"buildSetNumThreads",      Kind::BUILD_SET_NUM_THREADS},
+			{"buildSetOutput",          Kind::BUILD_SET_OUTPUT},
+			{"buildSetStdLibProject",   Kind::BUILD_SET_STD_LIB_PROJECT},
+			{"buildCreateProject",      Kind::BUILD_CREATE_PROJECT},
+			{"buildAddSourceFile",      Kind::BUILD_ADD_SOURCE_FILE},
+			{"buildAddSourceDirectory", Kind::BUILD_ADD_SOURCE_DIRECTORY},
+			{"buildAddCHeaderFile",     Kind::BUILD_ADD_C_HEADER_FILE},
+			{"buildAddCPPHeaderFile",   Kind::BUILD_ADD_CPP_HEADER_FILE},
 		};
 
 		intrinsic_kinds_end = intrinsic_kinds.end();

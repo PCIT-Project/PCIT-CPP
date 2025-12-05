@@ -88,13 +88,14 @@ namespace pcit::panther{
 
 
 			struct JITBuildFuncs{
-				pir::ExternalFunction::ID build_set_num_threads     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_set_output          = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_set_use_std_lib     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_create_project      = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_add_source_file     = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_add_c_header_file   = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_add_cpp_header_file = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_num_threads      = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_output           = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_std_lib_project  = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_create_project       = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_add_source_file      = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_add_source_directory = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_add_c_header_file    = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_add_cpp_header_file  = pir::ExternalFunction::ID::dummy();
 			};
 
 			using VTableID = SemaToPIRDataVTableID;

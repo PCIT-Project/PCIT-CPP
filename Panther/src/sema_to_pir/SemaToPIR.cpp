@@ -8442,12 +8442,12 @@ namespace pcit::panther{
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_output, std::move(args));
 			} break;
 
-			case IntrinsicFunc::Kind::BUILD_SET_USE_STD_LIB: {
+			case IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PROJECT: {
 				auto args = evo::SmallVector<pir::Expr>();
 				args.emplace_back(get_context_ptr());
 				get_args(args);
 
-				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_use_std_lib, std::move(args));
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_std_lib_project, std::move(args));
 			} break;
 
 			case IntrinsicFunc::Kind::BUILD_CREATE_PROJECT: {
@@ -8464,6 +8464,14 @@ namespace pcit::panther{
 				get_args(args);
 
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_source_file, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_source_directory, std::move(args));
 			} break;
 
 			case IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE: {

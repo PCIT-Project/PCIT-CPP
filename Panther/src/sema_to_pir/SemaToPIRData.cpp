@@ -90,7 +90,7 @@ namespace pcit::panther{
 
 
 		this->jit_build_funcs.build_set_num_threads = create_func_decl(
-			"PTHR.BUILD.build_set_num_threads",
+			"PTHR.BUILD.buildSetNumThreads",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("num_threads", module.createIntegerType(32))
@@ -99,7 +99,7 @@ namespace pcit::panther{
 		);
 
 		this->jit_build_funcs.build_set_output = create_func_decl(
-			"PTHR.BUILD.build_set_output",
+			"PTHR.BUILD.buildSetOutput",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("output", module.createIntegerType(32))
@@ -107,17 +107,17 @@ namespace pcit::panther{
 			module.createVoidType()
 		);
 
-		this->jit_build_funcs.build_set_use_std_lib = create_func_decl(
-			"PTHR.BUILD.build_set_use_std_lib",
+		this->jit_build_funcs.build_set_std_lib_project = create_func_decl(
+			"PTHR.BUILD.buildSetStdLibProject",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
-				pir::Parameter("use_std_lib", module.createBoolType())
+				pir::Parameter("use_std_lib", module.createIntegerType(32))
 			},
 			module.createVoidType()
 		);
 
 		this->jit_build_funcs.build_create_project = create_func_decl(
-			"PTHR.BUILD.build_create_project",
+			"PTHR.BUILD.buildCreateProject",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("base_path", module.createPtrType()),
@@ -127,7 +127,7 @@ namespace pcit::panther{
 		);
 
 		this->jit_build_funcs.build_add_source_file = create_func_decl(
-			"PTHR.BUILD.build_add_source_file",
+			"PTHR.BUILD.buildAddSourceFile",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("file_path", module.createPtrType()),
@@ -136,8 +136,19 @@ namespace pcit::panther{
 			module.createVoidType()
 		);
 
+		this->jit_build_funcs.build_add_source_directory = create_func_decl(
+			"PTHR.BUILD.buildAddSourceDirectory",
+			{
+				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
+				pir::Parameter("file_path", module.createPtrType()),
+				pir::Parameter("project_id", module.createIntegerType(32)),
+				pir::Parameter("is_recursive", module.createBoolType()),
+			},
+			module.createVoidType()
+		);
+
 		this->jit_build_funcs.build_add_c_header_file = create_func_decl(
-			"PTHR.BUILD.build_add_c_header_file",
+			"PTHR.BUILD.buildAddCHeaderFile",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("file_path", module.createPtrType()),
@@ -147,7 +158,7 @@ namespace pcit::panther{
 		);
 
 		this->jit_build_funcs.build_add_cpp_header_file = create_func_decl(
-			"PTHR.BUILD.build_add_cpp_header_file",
+			"PTHR.BUILD.buildAddCPPHeaderFile",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("file_path", module.createPtrType()),
