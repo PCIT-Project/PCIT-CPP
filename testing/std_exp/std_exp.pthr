@@ -14,6 +14,41 @@ func sizeOf = <{T: Type}> () #pub -> USize {
 }
 
 
+//////////////////////////////////////////////////////////////////////
+// array iter
+
+
+impl [$$:$$] #builtin("array.Iterable") {
+	createIterator = (this) -> ArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*]}> {
+		return new ArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*]}>(
+			this as [type(@arrayElementTypeID<{This}>()):*]
+		);
+	},
+
+	createIterator = (this mut) -> MutArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*mut]}> {
+		return new MutArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*mut]}>(
+			this as [type(@arrayElementTypeID<{This}>()):*mut]
+		);
+	},
+}
+
+
+impl [$$:$$] #builtin("array.IterableRT") {
+	createIterator = (this) -> ArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*]}> {
+		return new ArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*]}>(
+			this as [type(@arrayElementTypeID<{This}>()):*]
+		);
+	},
+
+	createIterator = (this mut) -> MutArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*mut]}> {
+		return new MutArrayRefIter<{[type(@arrayElementTypeID<{This}>()):*mut]}>(
+			this as [type(@arrayElementTypeID<{This}>()):*mut]
+		);
+	},
+}
+
+
+
 
 //////////////////////////////////////////////////////////////////////
 // array ref iter
@@ -22,7 +57,7 @@ func sizeOf = <{T: Type}> () #pub -> USize {
 type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 	type alias ELEM_TYPE = type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
 
-	func new = (arr_ref_ptr: ARRAY_REF_TYPE*) -> (output: This) {
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
 		output.current = arr_ref_ptr.data();
 		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
 		return...;
@@ -57,10 +92,67 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
 }
 
 
-func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*) 
-#pub // #builtin("array_ref.Iterable.createIterator") 
--> ArrayRefIter<{ARRAY_REF_TYPE}> {
-	return new ArrayRefIter<{ARRAY_REF_TYPE}>(arr_ref_ptr);
+type MutArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> {
+	type alias ELEM_TYPE = type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
+		return...;
+	}
+
+	func next = (this mut) -> Void {
+		const new_address: USize = @bitCast<{ELEM_TYPE*mut, USize}>(this.current) + @numBytes<{ELEM_TYPE, true}>();
+		this.current = @bitCast<{USize, ELEM_TYPE*mut}>(new_address);
+	}
+
+	func get = (this) -> ELEM_TYPE*mut { return copy this.current; }
+
+	func atEnd = (this) -> Bool {
+		return @bitCast<{ELEM_TYPE*mut, USize}>(this.current) > @bitCast<{ELEM_TYPE*mut, USize}>(this.last);
+	}
+
+
+	impl @pthr.MutIterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	impl @pthr.MutIteratorRT {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	var current: ELEM_TYPE*mut;
+	var last: ELEM_TYPE*mut;
+}
+
+
+impl [$$:*] #builtin("arrayRef.IterableRef") {
+	createIterator = (this) -> ArrayRefIter<{This}> {
+		return new ArrayRefIter<{This}>(this);
+	},
+}
+
+impl [$$:*] #builtin("arrayRef.IterableRefRT") {
+	createIterator = (this) -> ArrayRefIter<{This}> {
+		return new ArrayRefIter<{This}>(this);
+	},
+}
+
+
+impl [$$:*mut] #builtin("arrayMutRef.IterableMutRef") {
+	createIterator = (this) -> MutArrayRefIter<{This}> {
+		return new MutArrayRefIter<{This}>(this);
+	},
+}
+
+impl [$$:*mut] #builtin("arrayMutRef.IterableMutRefRT") {
+	createIterator = (this) -> MutArrayRefIter<{This}> {
+		return new MutArrayRefIter<{This}>(this);
+	},
 }
 
 
@@ -69,135 +161,130 @@ func createArrayRefIter = <{ARRAY_REF_TYPE: Type}> (arr_ref_ptr: ARRAY_REF_TYPE*
 //////////////////////////////////////////////////////////////////////
 // array test
 
-// type Array = struct {
-// 	def LENGTH: USize = 3;
+type Array = struct #pub {
+	def LENGTH: USize = 3;
 
-// 	func new = (data: [Int:LENGTH] in) -> (output: This) {
-// 		output._data = forward data;
-// 		return...;
-// 	}
+	func new = (data: [Int:LENGTH] in) -> (output: This) {
+		output._data = forward data;
+		return...;
+	}
 
-// 	func [] = (this, index: USize) -> Int* {
-// 		return this._data[index];
-// 	}
+	func [] = (this, index: USize) -> Int* {
+		return this._data[index];
+	}
 
-// 	func [] = (this mut, index: USize) -> Int*mut {
-// 		return this._data[index];
-// 	}
+	func [] = (this mut, index: USize) -> Int*mut {
+		return this._data[index];
+	}
 
-// 	func data = (this) -> Int* { return this._data.data(); }
-// 	func data = (this mut) -> Int*mut { return this._data.data(); }
+	func data = (this) -> Int* { return this._data.data(); }
+	func data = (this mut) -> Int*mut { return this._data.data(); }
 
-// 	func size = (this) -> USize { return LENGTH; }
-
-
-// 	func as = (this) -> [Int:*] {
-// 		return new [Int:*](this.data(), this.size());
-// 	}
+	func size = (this) -> USize { return LENGTH; }
 
 
-
-// 	impl @pthr.Iterable {
-// 		createIterator = (this) -> ArrIter {
-// 			return new ArrIter(&this);
-// 		},
-// 	}
-
-// 	impl @pthr.MutIterable {
-// 		createIterator = (this mut) -> MutArrIter {
-// 			return new MutArrIter(&this);
-// 		},
-// 	}
-
-// 	impl @pthr.IterableRT {
-// 		createIterator = (this) #rt -> ArrIter {
-// 			return new ArrIter(&this);
-// 		},
-// 	}
-
-// 	impl @pthr.MutIterableRT {
-// 		createIterator = (this mut) #rt -> MutArrIter {
-// 			return new MutArrIter(&this);
-// 		},
-// 	}
+	func as = (this) -> [Int:*] {
+		return new [Int:*](this.data(), this.size());
+	}
 
 
 
-// 	var _data: [Int:LENGTH];
+	impl @pthr.Iterable {
+		createIterator = (this) -> ArrIter {
+			return new ArrIter(&this);
+		},
+
+		createIterator = (this mut) -> MutArrIter {
+			return new MutArrIter(&this);
+		},
+	}
+
+	impl @pthr.IterableRT {
+		createIterator = (this) -> ArrIter {
+			return new ArrIter(&this);
+		},
+
+		createIterator = (this mut) -> MutArrIter {
+			return new MutArrIter(&this);
+		},
+	}
 
 
-// 	///////////////////////////////////
-// 	// iters
-
-// 	type ArrIter = struct {
-// 		func new = (arr: Array*) -> (output: ArrIter) {
-// 			output.current = arr.data();
-// 			output.last = arr[arr.size() - 1];
-// 			return...;
-// 		}
-
-// 		func next = (this mut) -> Void {
-// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-// 			this.current = std_exp.bitCast<{Int*}>(new_address);
-// 		}
-
-// 		func get = (this) -> Int* { return copy this.current; }
-
-// 		func atEnd = (this) -> Bool {
-// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-// 		}
+	var _data: [Int:LENGTH];
 
 
-// 		impl @pthr.Iterator {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
+	///////////////////////////////////
+	// iters
 
-// 		impl @pthr.IteratorRT {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
+	type ArrIter = struct {
+		func new = (arr: Array*) -> (output: ArrIter) {
+			output.current = arr.data();
+			output.last = arr[arr.size() - 1];
+			return...;
+		}
 
-// 		var current: Int*;
-// 		var last: Int*;
-// 	}
+		func next = (this mut) -> Void {
+			const new_address: USize = bitCast<{USize}>(this.current) + sizeOf<{Int}>();
+			this.current = bitCast<{Int*}>(new_address);
+		}
 
+		func get = (this) -> Int* { return copy this.current; }
 
-// 	type MutArrIter = struct {
-// 		func new = (arr: Array*mut) -> (output: MutArrIter) {
-// 			output.current = arr.data();
-// 			output.last = arr[arr.size() - 1];
-// 			return...;
-// 		}
-
-// 		func next = (this mut) -> Void {
-// 			const new_address: USize = std_exp.bitCast<{USize}>(this.current) + std_exp.sizeOf<{Int}>();
-// 			this.current = std_exp.bitCast<{Int*mut}>(new_address);
-// 		}
-
-// 		func get = (this) -> Int*mut { return copy this.current; }
-
-// 		func atEnd = (this) -> Bool {
-// 			return std_exp.bitCast<{USize}>(this.current) > std_exp.bitCast<{USize}>(this.last);
-// 		}
+		func atEnd = (this) -> Bool {
+			return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+		}
 
 
-// 		impl @pthr.MutIterator {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
+		impl @pthr.Iterator {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
 
-// 		impl @pthr.MutIteratorRT {
-// 			next  = next,
-// 			get   = get,
-// 			atEnd = atEnd,
-// 		}
+		impl @pthr.IteratorRT {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
 
-// 		var current: Int*mut;
-// 		var last: Int*mut;
-// 	}
+		var current: Int*;
+		var last: Int*;
+	}
 
-// }
+
+	type MutArrIter = struct {
+		func new = (arr: Array*mut) -> (output: MutArrIter) {
+			output.current = arr.data();
+			output.last = arr[arr.size() - 1];
+			return...;
+		}
+
+		func next = (this mut) -> Void {
+			const new_address: USize = bitCast<{USize}>(this.current) + sizeOf<{Int}>();
+			this.current = bitCast<{Int*mut}>(new_address);
+		}
+
+		func get = (this) -> Int*mut { return copy this.current; }
+
+		func atEnd = (this) -> Bool {
+			return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+		}
+
+
+		impl @pthr.MutIterator {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		impl @pthr.MutIteratorRT {
+			next  = next,
+			get   = get,
+			atEnd = atEnd,
+		}
+
+		var current: Int*mut;
+		var last: Int*mut;
+	}
+
+}

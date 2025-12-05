@@ -535,6 +535,7 @@ namespace pcit::panther{
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;
 			friend class SymbolProc;
+			friend class SymbolProcManager;
 			friend class SemaToPIR;
 	};
 

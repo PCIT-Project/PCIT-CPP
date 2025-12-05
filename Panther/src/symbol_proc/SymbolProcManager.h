@@ -52,6 +52,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto numProcsSuspended() const -> size_t { return this->num_procs_suspended; }
 			EVO_NODISCARD auto numProcs() const -> size_t { return this->symbol_procs.size(); }
 
+			EVO_NODISCARD auto numBuiltinSymbolsWaitedOn() const -> size_t {
+				return this->num_builtin_symbols_waited_on.load();
+			}
+
 
 			auto addTypeSymbolProc(TypeInfo::ID type_info_id, SymbolProc::ID symbol_proc_id) -> void {
 				const auto lock = std::scoped_lock(this->type_symbol_procs_lock);
@@ -2706,22 +2710,52 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static consteval auto constevalLookupBuiltinSymbolKind(std::string_view str)
 			-> SymbolProc::BuiltinSymbolKind {
-				if(str == "array_ref.Iterable.createIterator"){
-					return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_CREATE_ITERATOR;
+				if(str == "array.Iterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
+				if(str == "array.IterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
+				if(str == "arrayRef.IterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
+				if(str == "arrayRef.IterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
+				if(str == "arrayMutRef.IterableMutRef"){
+					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF;
+				}
+				if(str == "arrayMutRef.IterableMutRefRT"){
+					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF_RT;
 				}
 
 				evo::debugFatalBreak("Unknown or unsupported builtin symbol str ({})", str);
 			}
 
 
-			struct BuiltinSymbol{
-				SymbolProc::ID symbol_proc_id;
-				std::atomic<std::optional<sema::TemplatedFuncID>> sema_id;
-			};
-
-			EVO_NODISCARD auto getBuiltinSymbol(SymbolProc::BuiltinSymbolKind kind) const -> const BuiltinSymbol& {
-				return this->builtin_symbols[size_t(kind)];
+			EVO_NODISCARD auto getBuiltinSymbol(SymbolProc::BuiltinSymbolKind kind) const -> SymbolProc::ID {
+				return *this->builtin_symbols[size_t(kind)].symbol_proc_id.load();
 			}
+
+			// error is previously defined symbol
+			EVO_NODISCARD auto setBuiltinSymbol(
+				SymbolProc::BuiltinSymbolKind kind, SymbolProc::ID symbol_proc_id, class Context& context
+			) -> evo::Expected<void, SymbolProc::ID>;
+
+			// returns true if needs to wait
+			EVO_NODISCARD auto waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				SymbolProc::BuiltinSymbolKind kind, SymbolProc::ID symbol_proc_id
+			) -> bool {
+				BuiltinSymbolInfo& builtin_symbol = this->builtin_symbols[size_t(kind)];
+
+				if(builtin_symbol.symbol_proc_id.load().has_value()){ return false; }
+
+				const auto lock = std::scoped_lock(builtin_symbol.waited_on_by_lock);
+
+				if(builtin_symbol.symbol_proc_id.load().has_value()){ return false; }
+
+				if(builtin_symbol.waited_on_by.empty()){
+					this->num_builtin_symbols_waited_on += 1;
+				}
+
+				builtin_symbol.waited_on_by.emplace_back(symbol_proc_id);
+				this->getSymbolProc(symbol_proc_id).is_waiting_for_builtin = true;
+
+				return true;
+			}
+
 
 		private:
 			EVO_NODISCARD auto create_symbol_proc(auto&&... args) -> SymbolProc::ID {
@@ -2765,7 +2799,15 @@ namespace pcit::panther{
 			std::atomic<size_t> num_procs_suspended = 0;
 
 
-			std::array<BuiltinSymbol, evo::to_underlying(SymbolProc::BuiltinSymbolKind::_MAX_)> builtin_symbols{};
+			struct BuiltinSymbolInfo{
+				std::atomic<std::optional<SymbolProc::ID>> symbol_proc_id{};
+
+				evo::SmallVector<SymbolProc::ID> waited_on_by{};
+				mutable evo::SpinLock waited_on_by_lock{};
+			};
+
+			std::array<BuiltinSymbolInfo, size_t(SymbolProc::BuiltinSymbolKind::_MAX_)> builtin_symbols{};
+			std::atomic<size_t> num_builtin_symbols_waited_on = 0;
 			std::unordered_map<std::string_view, SymbolProc::BuiltinSymbolKind> builtin_symbol_kind_lookup{};
 
 

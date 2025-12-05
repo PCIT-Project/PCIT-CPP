@@ -725,12 +725,11 @@ namespace pcit::panther{
 		};
 
 
-
 		struct TypeDeducer{
 			using ID = TypeDeducerID;
 
-			std::optional<SourceID> sourceID; // nullopt if builtin
-			std::optional<Token::ID> identTokenID; // nullopt if builtin
+			std::optional<SourceID> sourceID; // nullopt if anonymous
+			std::optional<Token::ID> identTokenID; // nullopt if anonymous
 
 			EVO_NODISCARD auto isAnonymous() const -> bool {
 				return this->sourceID.has_value() == false;

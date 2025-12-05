@@ -9,6 +9,7 @@
 
 #include "./SymbolProcManager.h"
 
+#include "../../include/Context.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -19,14 +20,60 @@ namespace pcit::panther{
 
 
 	SymbolProcManager::SymbolProcManager(){
-		this->builtin_symbol_kind_lookup.reserve(this->builtin_symbols.size());
+		this->builtin_symbol_kind_lookup.reserve(size_t(SymbolProc::BuiltinSymbolKind::_MAX_));
 
 		this->builtin_symbol_kind_lookup.emplace(
-			"array_ref.Iterable.createIterator", constevalLookupBuiltinSymbolKind("array_ref.Iterable.createIterator")
+			"array.Iterable", constevalLookupBuiltinSymbolKind("array.Iterable")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"array.IterableRT", constevalLookupBuiltinSymbolKind("array.IterableRT")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"arrayRef.IterableRef", constevalLookupBuiltinSymbolKind("arrayRef.IterableRef")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"arrayRef.IterableRefRT", constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"arrayMutRef.IterableMutRef", constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"arrayMutRef.IterableMutRefRT", constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT")
 		);
 	}
 
 
+	auto SymbolProcManager::setBuiltinSymbol(
+		SymbolProc::BuiltinSymbolKind kind, SymbolProc::ID symbol_proc_id, Context& context
+	) -> evo::Expected<void, SymbolProc::ID> {
+		BuiltinSymbolInfo& builtin_symbol = this->builtin_symbols[size_t(kind)];
+
+		const std::optional<SymbolProc::ID> exchange_value = 
+			this->builtin_symbols[size_t(kind)].symbol_proc_id.exchange(symbol_proc_id);
+
+		if(exchange_value.has_value()){ return evo::Unexpected(*exchange_value); }
+
+		const auto lock = std::scoped_lock(builtin_symbol.waited_on_by_lock);
+
+		if(builtin_symbol.waited_on_by.empty() == false){
+			this->num_builtin_symbols_waited_on -= 1;
+
+			for(SymbolProc::ID waited_on_by_id : builtin_symbol.waited_on_by){
+				SymbolProc& waited_on_by = this->getSymbolProc(waited_on_by_id);
+				if(waited_on_by.hasErroredNoLock()){ continue; }
+
+				if(waited_on_by.status != SymbolProc::Status::WORKING){ // prevent race condition
+					waited_on_by.is_waiting_for_builtin = false;
+					waited_on_by.setStatusInQueue();
+					context.add_task_to_work_manager(waited_on_by_id);
+				}
+			}
+
+			builtin_symbol.waited_on_by.clear();
+		}
+
+		return evo::Expected<void, SymbolProc::ID>();
+	}
 
 
 

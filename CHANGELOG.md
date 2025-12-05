@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.196.0"></a>
+## v0.0.196.0
+
+### Panther
+- Added interface impl attributes
+- Added interface impl `#builtin` for the following:
+	- `array.Iterable`
+	- `array.IterableRT`
+	- `arrayRef.IterableRef`
+	- `arrayRef.IterableRefRT`
+	- `arrayMutRef.IterableMutRef`
+	- `arrayMutRef.IterableMutRefRT`
+- Changed iterable model to `Iterable` and `MutIterable` to `Iterable`, `IterableRef`, and `IterableMutRef`
+- Fixed instantiating a deducer impl in another file
+- Fixed Array Reference `.data()` returning a const or mut pointer based on if the array reference value was mutable, not the type
+- Fixed type checking of `for` loop iterable value not working properly with type aliases
+
+
+<!---------------------------------->
 <a name="v0.0.195.2"></a>
 ## v0.0.195.2
 

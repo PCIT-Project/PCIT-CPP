@@ -265,6 +265,7 @@ namespace pcit::panther::AST{
 		};
 
 		Node target;
+		Node attributeBlock;
 		evo::SmallVector<Method> methods;
 	};
 

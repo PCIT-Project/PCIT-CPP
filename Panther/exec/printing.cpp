@@ -941,6 +941,9 @@ namespace pthr{
 					this->print_type(this->ast_buffer.getType(interface_impl.target));
 					this->printer.println();
 
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(interface_impl.attributeBlock));
+
 					this->indenter.print_end();
 					this->print_minor_header("Methods");
 					this->printer.println();

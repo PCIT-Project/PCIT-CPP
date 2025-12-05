@@ -488,7 +488,7 @@ namespace pcit::panther::sema{
 
 		struct Iterable{
 			Expr expr;
-			const BaseType::Interface::Impl& iterableImpl;
+			FuncID createIteratorFunc;
 			const BaseType::Interface::Impl& iteratorImpl;
 		};
 

@@ -714,6 +714,9 @@ namespace pcit::panther{
 		const Result target = this->parse_type<TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER>();
 		if(this->check_result(target, "interface impl target").isError()){ return Result::Code::ERROR; }
 
+		const Result impl_attributes = this->parse_attribute_block();
+		if(impl_attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
 		if(this->expect_token(Token::lookupKind("{"), "after target interface in interface impl").isError()){
 			return Result::Code::ERROR;
 		}
@@ -813,7 +816,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return this->source.ast_buffer.createInterfaceImpl(target.value(), std::move(methods));
+		return this->source.ast_buffer.createInterfaceImpl(target.value(), impl_attributes.value(), std::move(methods));
 	}
 
 

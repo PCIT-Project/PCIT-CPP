@@ -3,8 +3,8 @@ def build_exp = @import("std_exp/build.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(build.Output.PIR);
-	// @buildSetNumThreads(12);
+	build_exp.setOutput(build.Output.RUN);
+	@buildSetNumThreads(12);
 	@buildSetUseStdLib(false);
 
 	const project = new build_exp.Project(new @pthr.ProjectWarningSettings{
@@ -15,7 +15,7 @@ func entry = () #entry -> UI8 {
 	});
 
 	project.addSourceFile("test.pthr");
-	// project.addSourceFile("std_exp/std_exp.pthr");
+	project.addSourceFile("std_exp/std_exp.pthr");
 	// @buildAddCHeaderFile("test.h", true);
 	
 	return 0;

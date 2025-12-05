@@ -49,7 +49,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto buildInterfaceImplDeducer(
 				const BaseType::Interface::DeducerImpl& deducer_impl,
 				BaseType::Interface::Impl& created_impl,
-				SymbolProc& parent_interface_symbol_proc,
+				SymbolProc* parent_interface_symbol_proc,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				TypeInfo::ID instantiation_type_id
 			) -> SymbolProc::ID;

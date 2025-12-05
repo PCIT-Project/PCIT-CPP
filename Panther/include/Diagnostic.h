@@ -91,6 +91,7 @@ namespace pcit::panther{
 			SYMBOL_PROC_INVALID_STMT,
 			SYMBOL_PROC_INVALID_GLOBAL_STMT,
 			SYMBOL_PROC_INVALID_UNION_STMT,
+			SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL,
 			SYMBOL_PROC_INVALID_BASE_TYPE,
 			SYMBOL_PROC_INVALID_EXPR_KIND,
 			SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
@@ -366,6 +367,7 @@ namespace pcit::panther{
 			MISC_LLVM_ERROR,            // M4
 			MISC_STALL_DETECTED,        // M5
 			MISC_NO_ENTRY,              // M6
+			MISC_BUILTIN_NOT_DEFINED,   // M7
 
 
 			//////////////////
@@ -709,6 +711,7 @@ namespace pcit::panther{
 				case Code::SYMBOL_PROC_INVALID_STMT:
 				case Code::SYMBOL_PROC_INVALID_GLOBAL_STMT:
 				case Code::SYMBOL_PROC_INVALID_UNION_STMT:
+				case Code::SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL:
 				case Code::SYMBOL_PROC_INVALID_BASE_TYPE:
 				case Code::SYMBOL_PROC_INVALID_EXPR_KIND:
 				case Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS:
@@ -925,6 +928,7 @@ namespace pcit::panther{
 				case Code::MISC_LLVM_ERROR:            return "M4";
 				case Code::MISC_STALL_DETECTED:        return "M5";
 				case Code::MISC_NO_ENTRY:              return "M6";
+				case Code::MISC_BUILTIN_NOT_DEFINED:   return "M7";
 
 				case Code::FRONTEND_FAILED_TO_GET_REL_DIR:       return "F1";
 				case Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR: return "F2";

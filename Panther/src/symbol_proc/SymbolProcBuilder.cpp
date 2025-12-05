@@ -328,12 +328,12 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::buildInterfaceImplDeducer(
 		const BaseType::Interface::DeducerImpl& deducer_impl,
 		BaseType::Interface::Impl& created_impl,
-		SymbolProc& parent_interface_symbol_proc,
+		SymbolProc* parent_interface_symbol_proc,
 		sema::ScopeManager::Scope::ID sema_scope_id,
 		TypeInfo::ID instantiation_type_id
 	) -> SymbolProc::ID {
 		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
-			deducer_impl.astInterfaceImpl, this->source.getID(), "impl", &parent_interface_symbol_proc
+			deducer_impl.astInterfaceImpl, this->source.getID(), "impl", parent_interface_symbol_proc
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
 
@@ -1282,12 +1282,55 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::InterfaceImpl& interface_impl = ast_buffer.getInterfaceImpl(stmt);
 
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_impl.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+
 		const evo::Result<SymbolProc::TypeID> target = 
 			this->analyze_type<true>(this->source.getASTBuffer().getType(interface_impl.target));
 
 		if(target.isError()){ return evo::resultError; }
 
-		const bool in_def = this->get_parent_symbol().symbol_proc.ast_node.kind() == AST::Kind::INTERFACE_DEF;
+
+		bool in_def = false;
+
+		if(this->is_child_symbol()){
+			in_def = this->get_parent_symbol().symbol_proc.ast_node.kind() == AST::Kind::INTERFACE_DEF;
+
+		}else{
+			const SymbolProc& current_symbol_proc = this->get_current_symbol().symbol_proc;
+
+			if(current_symbol_proc.builtin_symbol_proc_kind.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL,
+					stmt,
+					"Invalid scope for interface impl"
+				);
+				return evo::resultError;
+			}
+
+			switch(*current_symbol_proc.builtin_symbol_proc_kind){
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"): {
+					in_def = true;
+				} break;
+
+				default: {
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL,
+						stmt,
+						"Invalid scope for interface impl"
+					);
+					return evo::resultError;
+				} break;
+			}
+		}
+
 
 		if(in_def){
 			this->add_instruction(
@@ -3602,6 +3645,89 @@ namespace pcit::panther{
 		auto attribute_params_info = evo::SmallVector<Instruction::AttributeParams>();
 
 		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			const std::string_view attribute_name = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_name == "builtin"){
+				if(attribute.args.size() != 1){
+					if(attribute.args.size() > 1){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+							attribute.args[1],
+							"Attribute `#builtin` only accepts 1 argument"
+						);
+						
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+							attribute.attribute,
+							"Attribute `#builtin` requires an argument"
+						);
+					}
+
+					return evo::resultError;
+				}
+
+				if(attribute.args[0].kind() != AST::Kind::LITERAL){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Attribute `#builtin` requires a string argument"
+					);
+					return evo::resultError;
+				}
+
+				const Token::ID attribute_arg_token_id = ASTBuffer::getLiteral(attribute.args[0]);
+				const Token& attribute_arg_token = this->source.getTokenBuffer()[attribute_arg_token_id];
+
+				if(attribute_arg_token.kind() != Token::Kind::LITERAL_STRING){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Attribute `#builtin` requires a string argument"
+					);
+					return evo::resultError;
+				}
+
+
+				evo::Result<SymbolProc::BuiltinSymbolKind> lookup_symbol_kind =
+					this->context.symbol_proc_manager.lookupBuiltinSymbolKind(attribute_arg_token.getString());
+
+				if(lookup_symbol_kind.isError()){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"Unknown builtin symbol kind"
+					);
+					return evo::resultError;
+				}
+
+				SymbolProc& current_symbol_proc = this->get_current_symbol().symbol_proc;
+				current_symbol_proc.is_always_priority = true;
+				current_symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
+
+				const evo::Expected<void, SymbolProc::ID> set_builtin_symbol_result = 
+					this->context.symbol_proc_manager.setBuiltinSymbol(
+						lookup_symbol_kind.value(), this->get_current_symbol().symbol_proc_id, this->context
+					);
+
+				if(set_builtin_symbol_result.has_value() == false){
+					const SymbolProc& previous_defined_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(set_builtin_symbol_result.error());
+
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
+						attribute.args[0],
+						"This builtin symbol kind was already defined",
+						Diagnostic::Info(
+							"First defined here:",
+							Diagnostic::Location::get(previous_defined_symbol_proc.ast_node, this->source)
+						)
+					);
+					return evo::resultError;
+				}
+			}
+
+
 			attribute_params_info.emplace_back();
 
 			for(const AST::Node& arg : attribute.args){
@@ -3677,12 +3803,7 @@ namespace pcit::panther{
 
 
 				const SymbolProcInfo& current_symbol_proc = this->get_current_symbol();
-
-				this->context.symbol_proc_manager.builtin_symbols[size_t(lookup_symbol_kind.value())].symbol_proc_id =
-					current_symbol_proc.symbol_proc_id;
-
 				current_symbol_proc.symbol_proc.is_always_priority = true;
-
 				current_symbol_proc.symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
 
 				this->emit_error(

@@ -103,7 +103,10 @@ namespace pcit::panther{
 				case Result::NEED_TO_WAIT: {
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
 
-					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
+					 // prevent race condition
+					if(this->symbol_proc.waiting_for.empty() && this->symbol_proc.is_waiting_for_builtin == false){
+						continue;
+					}
 					
 					this->symbol_proc.setStatusWaiting();
 					return;
@@ -114,7 +117,10 @@ namespace pcit::panther{
 
 					this->symbol_proc.nextInstruction();
 					
-					if(this->symbol_proc.waiting_for.empty()){ continue; } // prevent race condition
+					 // prevent race condition
+					if(this->symbol_proc.waiting_for.empty() && this->symbol_proc.is_waiting_for_builtin == false){
+						continue;
+					}
 
 					this->symbol_proc.setStatusWaiting();
 					return;
@@ -5655,9 +5661,50 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(this->symbol_proc.builtin_symbol_proc_kind.has_value()){
+			const BaseType::Interface::ID builtin_interface_id = [&]() -> BaseType::Interface::ID {
+				const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+
+				switch(*this->symbol_proc.builtin_symbol_proc_kind){
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"): {
+						return pthr_module.getSymbol("Iterable")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"): {
+						return pthr_module.getSymbol("IterableRT")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"): {
+						return pthr_module.getSymbol("IterableRef")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"): {
+						return pthr_module.getSymbol("IterableRefRT")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"): {
+						return pthr_module.getSymbol("IterableMutRef")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"): {
+						return pthr_module.getSymbol("IterableMutRefRT")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					default: {
+						evo::debugFatalBreak("Invalid builtin symbol kind");
+					} break;
+				}
+			}();
+
+			this->push_scope_level(nullptr, builtin_interface_id);
+		}
+
+
 		const BaseType::Interface::ID target_interface_id =
 			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
+
 
 		if(
 			this->context.getTypeManager().isTypeDeducer(target_type_id.asTypeID())
@@ -6973,14 +7020,16 @@ namespace pcit::panther{
 
 
 
-		BaseType::Interface* interface_iterable        = nullptr;
-		BaseType::Interface* interface_iterator        = nullptr;
-		BaseType::Interface* interface_mut_iterable    = nullptr;
-		BaseType::Interface* interface_mut_iterator    = nullptr;
-		BaseType::Interface* interface_iterable_rt     = nullptr;
-		BaseType::Interface* interface_iterator_rt     = nullptr;
-		BaseType::Interface* interface_mut_iterable_rt = nullptr;
-		BaseType::Interface* interface_mut_iterator_rt = nullptr;
+		BaseType::Interface* interface_iterable            = nullptr;
+		BaseType::Interface* interface_iterable_ref        = nullptr;
+		BaseType::Interface* interface_iterable_mut_ref    = nullptr;
+		BaseType::Interface* interface_iterator            = nullptr;
+		BaseType::Interface* interface_mut_iterator        = nullptr;
+		BaseType::Interface* interface_iterable_rt         = nullptr;
+		BaseType::Interface* interface_iterable_ref_rt     = nullptr;
+		BaseType::Interface* interface_iterable_mut_ref_rt = nullptr;
+		BaseType::Interface* interface_iterator_rt         = nullptr;
+		BaseType::Interface* interface_mut_iterator_rt     = nullptr;
 		{
 			const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
 
@@ -6998,23 +7047,33 @@ namespace pcit::panther{
 			};
 
 
-			interface_iterable     = get_interface("Iterable");
-			interface_iterator     = get_interface("Iterator");
-			interface_mut_iterable = get_interface("MutIterable");
-			interface_mut_iterator = get_interface("MutIterator");
+			interface_iterable         = get_interface("Iterable");
+			interface_iterable_ref     = get_interface("IterableRef");
+			interface_iterable_mut_ref = get_interface("IterableMutRef");
+			interface_iterator         = get_interface("Iterator");
+			interface_mut_iterator     = get_interface("MutIterator");
 
 			if(in_constexpr_func == false){
-				interface_iterable_rt     = get_interface("IterableRT");
-				interface_iterator_rt     = get_interface("IteratorRT");
-				interface_mut_iterable_rt = get_interface("MutIterableRT");
-				interface_mut_iterator_rt = get_interface("MutIteratorRT");
+				interface_iterable_rt         = get_interface("IterableRT");
+				interface_iterable_ref_rt     = get_interface("IterableRefRT");
+				interface_iterable_mut_ref_rt = get_interface("IterableMutRefRT");
+				interface_iterator_rt         = get_interface("IteratorRT");
+				interface_mut_iterator_rt     = get_interface("MutIteratorRT");
 			}
 		}
 
 
+		enum class InterfaceKind{
+			ITERABLE,
+			ITERABLE_REF,
+			ITERABLE_MUT_REF,
+		};
+
 		struct InterfaceToCheck{
 			BaseType::Interface& interface;
 			BaseType::Interface& iterator_interface;
+			BaseType::Interface* auxiliary_interface;
+			InterfaceKind kind;
 		};
 
 		auto iterables = evo::SmallVector<sema::For::Iterable>();
@@ -7049,37 +7108,84 @@ namespace pcit::panther{
 			}
 
 
-			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 4>();
+			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 6>();
 
 			if(instr.for_stmt.values[i].isMut){
-				if(iterable.is_mutable() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
-						instr.for_stmt.iterables[i],
-						"Iterable in [for] loop is not mutable",
-						Diagnostic::Info(
-							"Required to be mutable by value parameter",
-							this->get_location(instr.for_stmt.values[i].ident)
-						)
-					);
-					return Result::ERROR;
-				}
-
 				if(in_constexpr_func){
-					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+					interfaces_to_check.emplace_back(
+						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
+					);
 				}else{
-					interfaces_to_check.emplace_back(*interface_mut_iterable_rt, *interface_mut_iterator_rt);
-					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+					interfaces_to_check.emplace_back(
+						*interface_iterable_rt,
+						*interface_iterator_rt,
+						interface_mut_iterator_rt,
+						InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref_rt,
+						*interface_mut_iterator_rt,
+						nullptr,
+						InterfaceKind::ITERABLE_MUT_REF
+					);
+
+					interfaces_to_check.emplace_back(
+						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
+					);
 				}
 			}else{
 				if(in_constexpr_func){
-					interfaces_to_check.emplace_back(*interface_iterable, *interface_iterator);
-					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+					interfaces_to_check.emplace_back(
+						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_ref, *interface_iterator, nullptr, InterfaceKind::ITERABLE_REF
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
+					);
+
 				}else{
-					interfaces_to_check.emplace_back(*interface_iterable_rt, *interface_iterator_rt);
-					interfaces_to_check.emplace_back(*interface_mut_iterable_rt, *interface_mut_iterator_rt);
-					interfaces_to_check.emplace_back(*interface_iterable, *interface_iterator);
-					interfaces_to_check.emplace_back(*interface_mut_iterable, *interface_mut_iterator);
+					interfaces_to_check.emplace_back(
+						*interface_iterable_rt,
+						*interface_iterator_rt,
+						interface_mut_iterator_rt,
+						InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_ref_rt, *interface_iterator_rt, nullptr, InterfaceKind::ITERABLE_REF
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref_rt,
+						*interface_mut_iterator_rt,
+						nullptr,
+						InterfaceKind::ITERABLE_MUT_REF
+					);
+
+					interfaces_to_check.emplace_back(
+						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_ref, *interface_iterator, nullptr, InterfaceKind::ITERABLE_REF
+					);
+
+					interfaces_to_check.emplace_back( 
+						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
+					);
 				}
 			}
 
@@ -7123,6 +7229,26 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+
+			//////////////////
+			// check iterator mut (if not caught already)
+
+			if(selected_interface->kind == InterfaceKind::ITERABLE){
+				if(instr.for_stmt.values[i].isMut && iterable.is_mutable() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
+						instr.for_stmt.iterables[i],
+						"Iterable in [for] loop is not mutable",
+						Diagnostic::Info(
+							"Required to be mutable by value parameter",
+							this->get_location(instr.for_stmt.values[i].ident)
+						)
+					);
+					return Result::ERROR;
+				}
+			}
+
+
 			//////////////////
 			// get iterator impls
 
@@ -7130,6 +7256,27 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(selected_interface->interface.implsLock);
 				return selected_interface->interface.impls.at(iterable.type_id.as<TypeInfo::ID>());
 			}();
+
+			{ // check if impl def completed
+				const std::optional<SymbolProc::ID> instantiating_symbol_proc_id =
+					iterable_impl.instantiatingSymbolProc.load();
+
+				if(instantiating_symbol_proc_id.has_value()){
+					const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+						.getSymbolProc(*instantiating_symbol_proc_id)
+						.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *instantiating_symbol_proc_id);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+					}
+				}
+			}
+
+
 
 			const sema::Func& create_iterator_func = this->context.getSemaBuffer().getFunc(iterable_impl.methods[0]);
 			const BaseType::Function& create_iterator_func_type =
@@ -7161,35 +7308,39 @@ namespace pcit::panther{
 
 
 
+			const auto for_param_type_mismatch = [&]() -> void {
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(iterator_get_type_id, infos, "Expected type: ");
+				this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
+					instr.for_stmt.values[i].type,
+					"Invalid [for] loop value parameter type",
+					std::move(infos)
+				);
+			};
+
 			if(got_type_id == iterator_get_type_id){
 				param_type_ids.emplace_back(got_type_id.asTypeID());
 
+			}else if(got_type_id.isVoid()){
+				for_param_type_mismatch();
+				return Result::ERROR;
+
+			}else if(
+				const TypeInfo::ID got_actual_type = this->get_actual_type<false, false>(got_type_id.asTypeID());
+				got_actual_type == this->get_actual_type<false, false>(iterator_get_type_id)
+			){
+				param_type_ids.emplace_back(got_actual_type);
+
+			}else if(
+				this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false
+				&& this->context.getTypeManager().isInterfaceDeducer(got_type_id.asTypeID()) == false
+			){
+				for_param_type_mismatch();
+				return Result::ERROR;
+
 			}else{
-				const auto for_param_type_mismatch = [&]() -> void {
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					this->diagnostic_print_type_info(iterator_get_type_id, infos, "Expected type: ");
-					this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
-					this->emit_error(
-						Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
-						instr.for_stmt.values[i].type,
-						"Invalid [for] loop value parameter type",
-						std::move(infos)
-					);
-				};
-
-				if(got_type_id.isVoid()){
-					for_param_type_mismatch();
-					return Result::ERROR;
-				}
-
-				if(
-					this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false
-					&& this->context.getTypeManager().isInterfaceDeducer(got_type_id.asTypeID()) == false
-				){
-					for_param_type_mismatch();
-					return Result::ERROR;
-				}
-
 				DeducerMatchOutput deducer_match_output = 
 					this->deducer_matches_and_extract(got_type_id.asTypeID(), iterator_get_type_id);
 
@@ -7212,23 +7363,30 @@ namespace pcit::panther{
 
 			
 
-
 			//////////////////
 			// iterable passed
 
-			if(this->get_current_func().isConstexpr){
+			const size_t create_iterator_func_index = [&]() -> size_t {
+				if(selected_interface->kind == InterfaceKind::ITERABLE){
+					return size_t(instr.for_stmt.values[i].isMut);
+				}else{
+					return 0;
+				}
+			}();
+
+
+			if(in_constexpr_func){
 				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
-				evo::debugAssert(iterable_impl.methods.size() == 1, "Unexpected num methods of Iterable interface");
-				evo::debugAssert(iterator_impl.methods.size() == 3, "Unexpected num methods of Iterator interface");
-
-				func_info.dependent_funcs.emplace(iterable_impl.methods[0]);
+				func_info.dependent_funcs.emplace(iterable_impl.methods[create_iterator_func_index]);
 				func_info.dependent_funcs.emplace(iterator_impl.methods[0]);
 				func_info.dependent_funcs.emplace(iterator_impl.methods[1]);
 				func_info.dependent_funcs.emplace(iterator_impl.methods[2]);
 			}
 
-			iterables.emplace_back(iterable.getExpr(), iterable_impl, iterator_impl);
+			iterables.emplace_back(
+				iterable.getExpr(), iterable_impl.methods[create_iterator_func_index], iterator_impl
+			);
 		}
 
 
@@ -18794,7 +18952,7 @@ namespace pcit::panther{
 				const TypeInfo& arr_elem_type =
 					this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
 
-				if(lhs.is_mutable()){
+				if(array_ref_type.isMut){
 					return this->context.type_manager.getOrCreateTypeInfo(
 						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
 					);
@@ -22792,22 +22950,31 @@ namespace pcit::panther{
 
 
 				if(needs_to_be_compiled_result.needsToBeCompiled){
-					SymbolProc& parent_interface_symbol_proc =
-						this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
+					SymbolProc* parent_interface_symbol_proc = [&]() -> SymbolProc* {
+						if(interface_type.symbolProcID.has_value()){
+							return &this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
+						}else{
+							return nullptr;
+						}
+					}();
+
+
+					const SymbolProc& deducer_match_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(deducer_match.symbolProcID);
 
 					const auto copy_scope_id = this->context.sema_buffer.scope_manager.copyScope(
-						*this->context.symbol_proc_manager.getSymbolProc(deducer_match.symbolProcID).sema_scope_id
+						*deducer_match_symbol_proc.sema_scope_id
 					);
+
+
+					Source& deducer_match_source =
+						this->context.source_manager[deducer_match_symbol_proc.getSourceID()];
 
 					BaseType::Interface::Impl& created_impl = this->context.type_manager.createInterfaceImpl(
-						this->context.source_manager[interface_type.sourceID.as<Source::ID>()]
-							.getASTBuffer().getInterfaceImpl(deducer_match.astInterfaceImpl)
+						deducer_match_source.getASTBuffer().getInterfaceImpl(deducer_match.astInterfaceImpl)
 					);
 
-
-					auto symbol_proc_builder = SymbolProcBuilder(
-						this->context, this->context.source_manager[interface_type.sourceID.as<Source::ID>()]
-					);
+					auto symbol_proc_builder = SymbolProcBuilder(this->context, deducer_match_source);
 					const SymbolProc::ID created_symbol_proc_id = symbol_proc_builder.buildInterfaceImplDeducer(
 						deducer_match,
 						created_impl,
@@ -22860,44 +23027,137 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// check if the type impl exists in the definition of the type
+		// check specific base types
 
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
 		if(target_type.qualifiers().empty() == false){ return false; }
-		if(target_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return false; }
 
 
-		const BaseType::Struct& target_struct =
-			this->context.getTypeManager().getStruct(target_type.baseTypeID().structID());
+		switch(target_type.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY: {
+				if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
+
+				const std::string_view interface_name = this->context.getSourceManager()
+					[interface_type.sourceID.as<BuiltinModule::ID>()]
+					.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
-			target_struct.namespacedMembers, "impl"
-		);
+				if(interface_name == "Iterable"){
+					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"), this->symbol_proc_id
+					);
+					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+					return true;
 
-		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				}else if(interface_name == "IterableRT"){
+					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"), this->symbol_proc_id
+					);
+					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+					return true;
+
+				}else{
+					return false;
+				}
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				const BaseType::ArrayRef& array_ref_type =
+					this->context.getTypeManager().getArrayRef(target_type.baseTypeID().arrayRefID());
+
+				if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
+
+				const std::string_view interface_name = this->context.getSourceManager()
+					[interface_type.sourceID.as<BuiltinModule::ID>()]
+					.getString(interface_type.name.as<BuiltinModule::StringID>());
+
+				if(array_ref_type.isMut){
+					if(interface_name == "IterableMutRef"){
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"),
+								this->symbol_proc_id
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
+					}else if(interface_name == "IterableMutRefRT"){
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"),
+								this->symbol_proc_id
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
+					}else{
+						return false;
+					}
+				}else{
+					if(interface_name == "IterableRef"){
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"),
+								this->symbol_proc_id
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
+					}else if(interface_name == "IterableRefRT"){
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"),
+								this->symbol_proc_id
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
+					}else{
+						return false;
+					}
+				}
+			} break;
+
+			case BaseType::Kind::STRUCT: { // check if the type impl exists in the definition of the type
+				const BaseType::Struct& target_struct =
+					this->context.getTypeManager().getStruct(target_type.baseTypeID().structID());
+
+
+				const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
+					target_struct.namespacedMembers, "impl"
+				);
+
+				switch(wait_on_symbol_proc_result){
+					case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+						return false;
+					} break;
+
+					case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED:
+					case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+						return evo::Unexpected(Result::ERROR);
+					} break;
+
+					case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+						return evo::Unexpected(Result::NEED_TO_WAIT);
+					} break;
+
+					case WaitOnSymbolProcResult::SEMAS_READY: {
+						// do nothing...
+					} break;
+				}
+
+				{
+					const auto lock = std::scoped_lock(interface_type.implsLock);
+					return interface_type.impls.contains(target_type_id);
+				}
+			} break;
+
+			default: {
 				return false;
 			} break;
-
-			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-				return evo::Unexpected(Result::ERROR);
-			} break;
-
-			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-				return evo::Unexpected(Result::NEED_TO_WAIT);
-			} break;
-
-			case WaitOnSymbolProcResult::SEMAS_READY: {
-				// do nothing...
-			} break;
 		}
 
-		{
-			const auto lock = std::scoped_lock(interface_type.implsLock);
-			return interface_type.impls.contains(target_type_id);
-		}
 	}
 
 
@@ -22938,7 +23198,8 @@ namespace pcit::panther{
 					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 				}
 
-				const Token& type_deducer_token = this->source.getTokenBuffer()[*type_deducer.identTokenID];
+				const Source& deducer_source = this->context.source_manager[*type_deducer.sourceID];
+				const Token& type_deducer_token = deducer_source.getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
 					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
@@ -23056,6 +23317,10 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+
+				const Source& deducer_array_deducer_type_source =
+					this->context.getSourceManager()[deducer_array_deducer_type.sourceID];
+
 				for(size_t i = 0; i < deducer_array_deducer_type.dimensions.size(); i+=1){
 					if(deducer_array_deducer_type.dimensions[i].is<uint64_t>()){
 						if(deducer_array_deducer_type.dimensions[i].as<uint64_t>() != got_array_type.dimensions[i]){
@@ -23063,8 +23328,9 @@ namespace pcit::panther{
 						}
 
 					}else{
-						const Token& deducer_token = 
-							this->source.getTokenBuffer()[deducer_array_deducer_type.dimensions[i].as<Token::ID>()];
+						const Token& deducer_token = deducer_array_deducer_type_source.getTokenBuffer()[
+							deducer_array_deducer_type.dimensions[i].as<Token::ID>()
+						];
 
 						if(deducer_token.kind() == Token::Kind::DEDUCER){
 							const sema::Expr created_int_value = sema::Expr(
@@ -23081,11 +23347,6 @@ namespace pcit::panther{
 								DeducerMatchOutput::DeducedTerm::Expr(TypeManager::getTypeUSize(), created_int_value),
 								deducer_array_deducer_type.dimensions[i].as<Token::ID>()
 							);
-
-						}else{
-							evo::debugAssert(
-								deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown deducer kind"
-							);
 						}
 					}
 				}
@@ -23099,8 +23360,9 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const Token& deducer_token = 
-						this->source.getTokenBuffer()[deducer_array_deducer_type.terminator.as<Token::ID>()];
+					const Token& deducer_token = deducer_array_deducer_type_source.getTokenBuffer()[
+						deducer_array_deducer_type.terminator.as<Token::ID>()
+					];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
 						deduced_terms.emplace_back(
@@ -25213,11 +25475,7 @@ namespace pcit::panther{
 			waited_on.waiting_for.pop_back();
 
 			if(waited_on.waiting_for.empty() && waited_on.isTemplateSubSymbol() == false){
-				if(waited_on.hasErroredNoLock()){ continue; }
-
-				if(waited_on.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
-					symbol_procs_to_put_in_work_queue.emplace_back(waited_on_id);
-				}
+				symbol_procs_to_put_in_work_queue.emplace_back(waited_on_id);
 			}
 		}
 
@@ -25292,6 +25550,8 @@ namespace pcit::panther{
 	-> void {
 		for(SymbolProc::ID symbol_proc_to_add_id : symbol_procs){
 			SymbolProc& symbol_proc_to_add = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_to_add_id);
+
+			if(symbol_proc_to_add.hasErroredNoLock()){ continue; }
 
 			if(symbol_proc_to_add.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
 				symbol_proc_to_add.setStatusInQueue();

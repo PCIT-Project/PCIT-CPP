@@ -1358,7 +1358,12 @@ namespace pcit::panther{
 
 
 			enum class BuiltinSymbolKind{
-				ARRAY_REF_ITERABLE_CREATE_ITERATOR,
+				ARRAY_ITERABLE,
+				ARRAY_ITERABLE_RT,
+				ARRAY_REF_ITERABLE_REF,
+				ARRAY_REF_ITERABLE_REF_RT,
+				ARRAY_MUT_REF_ITERABLE_MUT_REF,
+				ARRAY_MUT_REF_ITERABLE_MUT_REF_RT,
 
 				_MAX_
 			};
@@ -1402,7 +1407,7 @@ namespace pcit::panther{
 			evo::SmallVector<std::optional<StructInstantiationInfo>> struct_instantiations{};
 
 
-
+			std::atomic<bool> is_waiting_for_builtin = false;
 			evo::SmallVector<ID> waiting_for{};
 			mutable evo::SpinLock waiting_for_lock{};
 

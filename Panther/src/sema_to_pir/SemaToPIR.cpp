@@ -1795,7 +1795,7 @@ namespace pcit::panther{
 				iterator_allocas.reserve(for_stmt.iterables.size());
 				for(const sema::For::Iterable& iterable : for_stmt.iterables){
 					const sema::Func& create_iterable_func =
-						this->context.getSemaBuffer().getFunc(iterable.iterableImpl.methods[0]);
+						this->context.getSemaBuffer().getFunc(iterable.createIteratorFunc);
 
 					const BaseType::Function& create_iterable_func_type =
 						this->context.getTypeManager().getFunction(create_iterable_func.typeID);
@@ -1808,7 +1808,7 @@ namespace pcit::panther{
 					);
 
 					const Data::FuncInfo& create_iterable_func_info = 
-						this->data.get_func(iterable.iterableImpl.methods[0]);
+						this->data.get_func(iterable.createIteratorFunc);
 
 
 					if(create_iterable_func_info.isImplicitRVO){

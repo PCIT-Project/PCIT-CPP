@@ -1,26 +1,23 @@
-
-
-interface DoNothing = {
-	func copy_this = (this) -> $$;
-
-	impl $$ {
-		copy_this = (this) -> This { return copy this; },
-	}
-}
-
+def std_exp = @import("std_exp/std_exp.pthr");
 
 
 
 func entry = () #entry -> UI8 {
-	const foo: Int = 12;
-	const dn_foo: DoNothing = copy foo;
+	const arr = new [Int:3][1, 2, 3];
 
-	const bar: I12 = 12;
-	const dn_bar: DoNothing = copy bar;
+	const arr_ref: [Int:*] = arr as [Int:*];
 
-	const foo_copy: Int = dn_foo.copy_this();
-	const bar_copy: I12 = dn_bar.copy_this();
+	var sum: Int = 0;
 
-	return 0;
+
+	// for(arr_ref) [i: USize; value: Int] {
+	// 	// value += i as Int;
+	// }
+
+	for(arr) [_; value: Int] {
+		sum += value;
+	}
+
+	return sum as UI8;
 }
 
