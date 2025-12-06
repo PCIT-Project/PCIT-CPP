@@ -5,7 +5,9 @@ def build_exp = @import("std_exp/build.pthr");
 func entry = () #entry -> UI8 {
 	build_exp.setOutput(build.Output.RUN);
 	build_exp.setNumThreads(12);
-	// build_exp.addDefaultStdLib();
+
+	// build_exp.addStdLib("../extern/Panther-std/std/");
+	// build_exp.addStdLib("../../Panther-std/std");
 
 
 	const main_project = new build_exp.Project(
@@ -18,7 +20,7 @@ func entry = () #entry -> UI8 {
 		}
 	);
 	main_project.addSourceFile("test.pthr");
-	main_project.addSourceFile("std_exp/std_exp.pthr");
+	// main_project.addSourceFile("std_exp/std_exp.pthr");
 
 	// @buildAddCHeaderFile("test.h", true);
 	

@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.198.0"></a>
+## v0.0.198.0
+
+### Panther
+- Added decaying of type aliases when used as a struct template argument
+- Fixed `@arrayElementTypeID()` and `@arrayRefElementTypeID()` when using aliases
+
+### Misc
+- Updated to [Panther-std v0.0.5.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.5.0)
+
+
+<!---------------------------------->
 <a name="v0.0.197.1"></a>
 ## v0.0.197.1
 

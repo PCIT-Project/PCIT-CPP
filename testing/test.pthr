@@ -1,24 +1,19 @@
-def std_exp = @import("std_exp/std_exp.pthr");
+// def std_exp = @import("std_exp/std_exp.pthr");
 
+
+type DoNothing = struct <{T: Type}> {}
 
 
 func entry = () #entry -> UI8 {
-	const arr = new [Int:3][1, 2, 3];
+	type alias IntArray = [Int:3];
+	type alias Integer = type(@arrayElementTypeID<{IntArray}>());
 
-	const arr_ref: [Int:*] = arr as [Int:*];
+	const foo: DoNothing<{Integer}> = new DoNothing<{Int}>();
+	const bar: DoNothing<{Int}> = new DoNothing<{Integer}>();
 
 
 
-	var sum: Int = {->expr:(sum:Int)
-		sum = 0;
 
-		for(arr) [_; value: Int] {
-			sum += value;
-		}
-
-		return->expr ...;
-	};
-
-	return sum as UI8;
+	return 0;
 }
 

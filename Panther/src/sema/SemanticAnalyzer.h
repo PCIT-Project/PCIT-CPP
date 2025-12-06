@@ -505,6 +505,9 @@ namespace pcit::panther{
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
 			template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
+			EVO_NODISCARD auto get_actual_voidable_type(TypeInfo::VoidableID type_id) const -> TypeInfo::VoidableID;
+
+			template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
 			EVO_NODISCARD auto get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID;
 
 

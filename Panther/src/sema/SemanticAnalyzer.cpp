@@ -10501,7 +10501,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					constexpr_intrinsic_evaluator.arrayElementTypeID(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+						this->get_actual_type<true, true>(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 					)
 				);
 			} break;
@@ -10510,7 +10510,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					constexpr_intrinsic_evaluator.arrayRefElementTypeID(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+						this->get_actual_type<true, true>(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 					)
 				);
 			} break;
@@ -13633,9 +13633,11 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
+					const TypeInfo::VoidableID actual_arg_type_id =
+						this->get_actual_voidable_type<false, true>(arg_type_voidable_id);
 
-					instantiation_lookup_args.emplace_back(arg_type_voidable_id);
-					instantiation_args.emplace_back(arg_type_voidable_id);
+					instantiation_lookup_args.emplace_back(actual_arg_type_id);
+					instantiation_args.emplace_back(actual_arg_type_id);
 					continue;
 				}
 
@@ -13779,11 +13781,15 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
-				instantiation_lookup_args.emplace_back(type_id);
-				instantiation_args.emplace_back(type_id);
+
+
+				const TypeInfo::VoidableID actual_type_id = this->get_actual_voidable_type<false, true>(type_id);
+
+				instantiation_lookup_args.emplace_back(actual_type_id);
+				instantiation_args.emplace_back(actual_type_id);
 
 				this->scope.addTemplateDeclInstantiationType(
-					instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), type_id
+					instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), actual_type_id
 				);
 			}
 		}
@@ -20614,6 +20620,18 @@ namespace pcit::panther{
 			target.setStatusInQueue();
 			this->context.add_task_to_work_manager(target_id);
 		}
+	}
+
+
+	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
+	auto SemanticAnalyzer::get_actual_voidable_type(TypeInfo::VoidableID type_id) const -> TypeInfo::VoidableID {
+		if(type_id.isVoid()){ return TypeInfo::VoidableID::Void(); }
+
+		return TypeInfo::VoidableID(
+			this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>(
+				type_id.asTypeID()
+			)
+		);
 	}
 
 

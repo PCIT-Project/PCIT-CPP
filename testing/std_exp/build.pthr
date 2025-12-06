@@ -69,6 +69,7 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 	setStdLibProject(std_lib_project);
 }
 
-func addDefaultStdLib = () #pub #rt -> Void {
-	addStdLib("../extern/Panther-std/std/".* as [Char:*]);
+
+func addStdLib = (path: [Char:$$;'\0']*) #pub #rt -> Void {
+	addStdLib(path.* as [Char:*]);
 }
