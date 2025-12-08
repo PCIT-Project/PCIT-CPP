@@ -22988,14 +22988,18 @@ namespace pcit::panther{
 
 				if(interface_name == "IIterable"){
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"), this->symbol_proc_id
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"),
+						this->symbol_proc_id,
+						this->context
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
 
 				}else if(interface_name == "IIterableRT"){
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"), this->symbol_proc_id
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"),
+						this->symbol_proc_id,
+						this->context
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
@@ -23020,7 +23024,8 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"),
-								this->symbol_proc_id
+								this->symbol_proc_id,
+								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
@@ -23029,7 +23034,8 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"),
-								this->symbol_proc_id
+								this->symbol_proc_id,
+								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
@@ -23042,7 +23048,8 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"),
-								this->symbol_proc_id
+								this->symbol_proc_id,
+								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
@@ -23051,7 +23058,8 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
-								this->symbol_proc_id
+								this->symbol_proc_id,
+								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;

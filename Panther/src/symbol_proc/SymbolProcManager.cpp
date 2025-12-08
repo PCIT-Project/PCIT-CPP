@@ -76,6 +76,59 @@ namespace pcit::panther{
 	}
 
 
+	auto SymbolProcManager::waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+		SymbolProc::BuiltinSymbolKind kind, SymbolProc::ID symbol_proc_id, class Context& context
+	) -> bool {
+		BuiltinSymbolInfo& builtin_symbol = this->builtin_symbols[size_t(kind)];
+
+		std::optional<SymbolProc::ID> builtin_symbol_proc_id = builtin_symbol.symbol_proc_id.load();
+		if(builtin_symbol_proc_id.has_value()){
+			SymbolProc& builtin_symbol_proc = this->getSymbolProc(*builtin_symbol_proc_id);
+
+			SymbolProc::WaitOnResult wait_on_result = 
+				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::WAITING:                    return false;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
+			}
+		}
+
+		const auto lock = std::scoped_lock(builtin_symbol.waited_on_by_lock);
+
+		builtin_symbol_proc_id = builtin_symbol.symbol_proc_id.load();
+		if(builtin_symbol_proc_id.has_value()){
+			SymbolProc& builtin_symbol_proc = this->getSymbolProc(*builtin_symbol_proc_id);
+
+			SymbolProc::WaitOnResult wait_on_result = 
+				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::WAITING:                    return false;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
+			}
+		}
+
+		if(builtin_symbol.waited_on_by.empty()){
+			this->num_builtin_symbols_waited_on += 1;
+		}
+
+		builtin_symbol.waited_on_by.emplace_back(symbol_proc_id);
+		this->getSymbolProc(symbol_proc_id).is_waiting_for_builtin = true;
+
+		return true;
+	}
+
+
+
+
+
 
 	#if defined(PCIT_CONFIG_DEBUG)
 

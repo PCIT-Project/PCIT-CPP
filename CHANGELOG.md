@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.199.1"></a>
+## v0.0.199.1
+
+### Panther
+- Fixed race condition in semantic analysis when using builtin symbols
+
+
+<!---------------------------------->
 <a name="v0.0.199.0"></a>
 ## v0.0.199.0
 
