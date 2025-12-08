@@ -371,10 +371,6 @@ namespace pcit::panther{
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
 		
-		struct TemplateFuncCheckParamIsInterface{
-			SymbolProcTypeID param_type;
-			size_t param_index;
-		};
 
 		struct TemplateFuncSetParamIsDeducer{
 			size_t param_index;
@@ -875,9 +871,10 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		struct PolyInterfaceRefType{
-			const AST::PolyInterfaceRefType& poly_interface_ref_type;
-			SymbolProcTermInfoID interface;
+		struct InterfaceMap{
+			const AST::InterfaceMap& interface_map;
+			std::optional<SymbolProcTypeID> base_type; // nullopt if polymorphic
+			SymbolProcTypeID interface;
 			SymbolProcTermInfoID output;
 		};
 
@@ -977,7 +974,6 @@ namespace pcit::panther{
 			FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED,
 			FUNC_CONSTEXPR_PIR_READY_IF_NEEDED,
 			TEMPLATE_FUNC_BEGIN,
-			TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE,
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
 			DELETED_SPECIAL_METHOD,
@@ -1101,7 +1097,7 @@ namespace pcit::panther{
 			PRIMITIVE_TYPE_NEEDS_DEF,
 			ARRAY_TYPE,
 			ARRAY_REF,
-			POLY_INTERFACE_REF_TYPE,
+			INTERFACE_MAP,
 			TYPE_ID_CONVERTER,
 			USER_TYPE,
 			BASE_TYPE_IDENT,

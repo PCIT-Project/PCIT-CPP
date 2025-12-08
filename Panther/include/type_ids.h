@@ -206,8 +206,8 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, PolyInterfaceRefID>::UniqueID; 
 	};
 
-	struct InterfaceImplInstantiationID : public core::UniqueID<uint32_t, struct InterfaceImplInstantiationID> {
-		using core::UniqueID<uint32_t, InterfaceImplInstantiationID>::UniqueID; 
+	struct InterfaceMapID : public core::UniqueID<uint32_t, struct InterfaceMapID> {
+		using core::UniqueID<uint32_t, InterfaceMapID>::UniqueID; 
 	};
 
 }
@@ -412,12 +412,12 @@ namespace pcit::core{
 
 
 	template<>
-	struct OptionalInterface<panther::BaseType::InterfaceImplInstantiationID>{
-		static constexpr auto init(panther::BaseType::InterfaceImplInstantiationID* id) -> void {
+	struct OptionalInterface<panther::BaseType::InterfaceMapID>{
+		static constexpr auto init(panther::BaseType::InterfaceMapID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const panther::BaseType::InterfaceImplInstantiationID& id) -> bool {
+		static constexpr auto has_value(const panther::BaseType::InterfaceMapID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -691,18 +691,18 @@ namespace std{
 
 
 	template<>
-	struct hash<pcit::panther::BaseType::InterfaceImplInstantiationID>{
-		auto operator()(const pcit::panther::BaseType::InterfaceImplInstantiationID& id) const noexcept -> size_t {
+	struct hash<pcit::panther::BaseType::InterfaceMapID>{
+		auto operator()(const pcit::panther::BaseType::InterfaceMapID& id) const noexcept -> size_t {
 			return hash<uint32_t>{}(id.get());
 		};
 	};
 	template<>
-	class optional<pcit::panther::BaseType::InterfaceImplInstantiationID>
-		: public pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>{
+	class optional<pcit::panther::BaseType::InterfaceMapID>
+		: public pcit::core::Optional<pcit::panther::BaseType::InterfaceMapID>{
 
 		public:
-			using pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>::Optional;
-			using pcit::core::Optional<pcit::panther::BaseType::InterfaceImplInstantiationID>::operator=;
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceMapID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::InterfaceMapID>::operator=;
 	};
 
 

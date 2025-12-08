@@ -703,7 +703,7 @@ namespace pcit::panther::sema{
 		SymbolProc& symbolProc;
 		size_t minNumTemplateArgs;
 		evo::SmallVector<TemplateParam> templateParams;
-		evo::SmallVector<bool> paramIsTemplate; // if a func param is an interface or a type deducer
+		evo::SmallVector<bool> paramIsDeducer;
 
 		struct InstantiationInfo{
 			Instantiation& instantiation;
@@ -724,12 +724,12 @@ namespace pcit::panther::sema{
 			SymbolProc& symbol_proc,
 			size_t min_num_template_args,
 			evo::SmallVector<TemplateParam>&& template_params,
-			evo::SmallVector<bool>&& param_is_template
+			evo::SmallVector<bool>&& param_is_deducer
 		) : 
 			symbolProc(symbol_proc), 
 			minNumTemplateArgs(min_num_template_args),
 			templateParams(std::move(template_params)),
-			paramIsTemplate(std::move(param_is_template))
+			paramIsDeducer(std::move(param_is_deducer))
 		{}
 
 		private:

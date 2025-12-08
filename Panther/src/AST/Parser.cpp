@@ -1688,6 +1688,10 @@ namespace pcit::panther{
 				is_primitive = false;
 			} break;
 
+			case Token::Kind::KEYWORD_IMPL: {
+				is_primitive = false;
+			} break;
+
 			default: return Result::Code::WRONG_TYPE;
 		}
 
@@ -1951,6 +1955,72 @@ namespace pcit::panther{
 					);
 				}
 
+			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_IMPL){
+				if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result(Result::Code::ERROR); }
+
+				if(this->expect_token(Token::lookupKind("("), "in interface map").isError()){
+					return Result(Result::Code::ERROR);
+				}
+
+
+				auto underlying_type = std::optional<evo::Variant<Token::ID, AST::Node>>();
+				switch(this->reader[this->reader.peek()].kind()){
+					case Token::lookupKind("*"): case Token::lookupKind("*mut"): {
+						underlying_type = this->reader.next();
+					} break;
+
+					default: {
+						const Result underlying_type_result = [&](){
+							if constexpr(
+								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+								|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+							){
+								return this->parse_type<KIND>();
+							}else{
+								return this->parse_type<TypeKind::EXPLICIT>();
+							}
+						}();
+
+						if(this->check_result(underlying_type_result, "underlying type in interface map").isError()){
+							return Result(Result::Code::ERROR);
+						}
+
+						underlying_type = underlying_type_result.value();
+					} break;
+				}
+
+
+				const Token::ID colon_token = this->reader.next();
+				if(this->reader[colon_token].kind() != Token::lookupKind(":")){
+					this->expected_but_got("[:] after underlying type in interface map", colon_token);
+					return Result(Result::Code::ERROR);
+				}
+
+
+				const Result target_interface = [&](){
+					if constexpr(
+						KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+						|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+					){
+						return this->parse_type<KIND>();
+					}else{
+						return this->parse_type<TypeKind::EXPLICIT>();
+					}
+				}();
+
+				if(this->check_result(target_interface, "target interface in interface map").isError()){
+					return Result(Result::Code::ERROR);
+				}
+
+
+				if(this->expect_token(Token::lookupKind(")"), "at end of interface map").isError()){
+					return Result(Result::Code::ERROR);
+				}
+
+				return Result(
+					this->source.ast_buffer.createInterfaceMap(*underlying_type, colon_token, target_interface.value())
+				);
+
 			}else{
 				if constexpr(KIND == TypeKind::EXPLICIT){
 					return this->parse_term<TermKind::EXPLICIT_TYPE>();
@@ -1986,41 +2056,6 @@ namespace pcit::panther{
 				this->reader.go_back(start_location);
 			}
 			return Result::Code::WRONG_TYPE;
-		}
-
-
-		AST::Node base_type = base_type_res.value();
-
-		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("^")){
-			if constexpr(KIND == TypeKind::AS_TYPE){
-				// make sure exprs like `a as Int ^ b` gets parsed like `(a as Int) ^ b`
-				switch(this->reader[this->reader.peek()].kind()){
-					case Token::Kind::IDENT:
-					case Token::lookupKind("("):
-					case Token::Kind::LITERAL_BOOL:
-					case Token::Kind::LITERAL_INT:
-					case Token::Kind::LITERAL_FLOAT:
-					case Token::Kind::LITERAL_STRING:
-					case Token::Kind::LITERAL_CHAR:
-					case Token::Kind::KEYWORD_NEW: 
-					case Token::lookupKind("{"): {
-						// do nothing
-					} break;
-
-					default: {
-						base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, false);
-						this->reader.skip();
-					} break;
-				}
-
-			}else{
-				base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, false);
-				this->reader.skip();
-			}
-
-		}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("^mut")){
-			base_type = this->source.ast_buffer.createPolyInterfaceRefType(base_type, true);
-			this->reader.skip();
 		}
 
 
@@ -2087,14 +2122,14 @@ namespace pcit::panther{
 
 			// just an ident
 			if constexpr(KIND == TypeKind::TEMPLATE_ARG){
-				if(base_type.kind() == AST::Kind::IDENT && qualifiers.empty()){
+				if(base_type_res.value().kind() == AST::Kind::IDENT && qualifiers.empty()){
 					this->reader.go_back(start_location);
 					return Result::Code::WRONG_TYPE;
 				}
 			}
 		}
 
-		return this->source.ast_buffer.createType(base_type, std::move(qualifiers));
+		return this->source.ast_buffer.createType(base_type_res.value(), std::move(qualifiers));
 	}
 
 

@@ -1530,12 +1530,32 @@ namespace pthr{
 						this->printer.printMagenta("]");
 					} break;
 
-					case panther::AST::Kind::POLY_INTERFACE_REF_TYPE: {
-						const panther::AST::PolyInterfaceRefType& poly_interface_ref_types =
-							this->ast_buffer.getPolyInterfaceRefType(base_type);
-						
-						this->print_base_type(poly_interface_ref_types.interface);
-						this->printer.printMagenta("^");
+					case panther::AST::Kind::INTERFACE_MAP: {
+						const panther::AST::InterfaceMap& interface_map = this->ast_buffer.getInterfaceMap(base_type);
+
+						this->printer.printMagenta("impl(");
+
+						if(interface_map.underlyingType.is<panther::Token::ID>()){
+							const panther::Token& ptr_token = this->source.getTokenBuffer()[
+								interface_map.underlyingType.as<panther::Token::ID>()
+							];
+
+							if(ptr_token.kind() == panther::Token::lookupKind("*")){
+								this->printer.printMagenta("*");
+							}else{
+								this->printer.printMagenta("*mut");
+							}
+						}else{
+							this->print_type(
+								this->ast_buffer.getType(interface_map.underlyingType.as<panther::AST::Node>())
+							);
+						}
+
+						this->printer.printMagenta(":");
+
+						this->print_type(this->ast_buffer.getType(interface_map.interface));
+
+						this->printer.printMagenta(")");
 					} break;
 
 					// TODO(FUTURE): print this properly
@@ -1711,7 +1731,7 @@ namespace pthr{
 					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
 					case panther::AST::Kind::FOR:              case panther::AST::Kind::DEFER:
 					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
-					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::POLY_INTERFACE_REF_TYPE:
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::INTERFACE_MAP:
 					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
 					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
 					case panther::AST::Kind::PRIMITIVE_TYPE: {

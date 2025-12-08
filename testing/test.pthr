@@ -1,19 +1,42 @@
 // def std_exp = @import("std_exp/std_exp.pthr");
 
 
-type DoNothing = struct <{T: Type}> {}
+interface IGetNum = #polymorphic {
+	func get_num = () -> Int;
+}
+
+type Thing = struct {
+	impl IGetNum{
+		get_num = () -> Int { return 12; }
+	}
+}
+
+
+
+func get_num = (foo: impl($$:IGetNum)) -> Int {
+	return foo.get_num();
+}
+
+
+func create_thing_get_num = () -> impl(Thing:IGetNum) {
+	return new Thing() as impl(Thing:IGetNum);
+}
+
+
+func arr_test = () -> Void {
+	const arr = new [Int:3][1, 2, 3];
+
+	for(arr as [Int:*]) [_; value: Int] {
+		// 
+	}
+}
+
 
 
 func entry = () #entry -> UI8 {
-	type alias IntArray = [Int:3];
-	type alias Integer = type(@arrayElementTypeID<{IntArray}>());
+	var thing = new Thing();
 
-	const foo: DoNothing<{Integer}> = new DoNothing<{Int}>();
-	const bar: DoNothing<{Int}> = new DoNothing<{Integer}>();
+	// var get_num: impl($$:IGetNum)* = &thing as impl(Thing:IGetNum)*;
 
-
-
-
-	return 0;
+	return get_num(thing as impl(Thing:IGetNum)) as UI8;
 }
-

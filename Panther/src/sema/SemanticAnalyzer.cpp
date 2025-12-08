@@ -64,13 +64,6 @@ namespace pcit::panther{
 					this->symbol_proc.nextInstruction();
 				} break;
 
-				case Result::FINISHED_EARLY: {
-					this->symbol_proc.setInstructionIndex(
-						SymbolProc::InstructionIndex(uint32_t(this->symbol_proc.instructions.size()))
-					);
-				} break;
-
-
 				case Result::ERROR: {
 					this->context.symbol_proc_manager.symbol_proc_done();
 
@@ -98,6 +91,12 @@ namespace pcit::panther{
 					// 	if(struct_info.instantiation != nullptr){ struct_info.instantiation->errored = true; }
 					// }
 					// this->symbol_proc.nextInstruction();
+				} break;
+
+				case Result::ERROR_NO_REPORT: {
+					this->symbol_proc.setInstructionIndex(
+						SymbolProc::InstructionIndex(uint32_t(this->symbol_proc.instructions.size()))
+					);
 				} break;
 
 				case Result::NEED_TO_WAIT: {
@@ -236,11 +235,6 @@ namespace pcit::panther{
 
 			case Instruction::Kind::TEMPLATE_FUNC_BEGIN:
 				return this->instr_template_func_begin(this->context.symbol_proc_manager.getTemplateFuncBegin(instr));
-
-			case Instruction::Kind::TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE:
-				return this->instr_template_func_check_param_is_interface(
-					this->context.symbol_proc_manager.getTemplateFuncCheckParamIsInterface(instr)
-				);
 
 			case Instruction::Kind::TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER:
 				return this->instr_template_set_param_is_deducer(
@@ -677,10 +671,8 @@ namespace pcit::panther{
 			case Instruction::Kind::ARRAY_REF:
 				return this->instr_array_ref(this->context.symbol_proc_manager.getArrayRef(instr));
 
-			case Instruction::Kind::POLY_INTERFACE_REF_TYPE:
-				return this->instr_poly_interface_ref_type(
-					this->context.symbol_proc_manager.getPolyInterfaceRefType(instr)
-				);
+			case Instruction::Kind::INTERFACE_MAP:
+				return this->instr_interface_map(this->context.symbol_proc_manager.getInterfaceMap(instr));
 
 			case Instruction::Kind::TYPE_ID_CONVERTER:
 				return this->instr_type_id_converter(this->context.symbol_proc_manager.getTypeIDConverter(instr));
@@ -911,16 +903,6 @@ namespace pcit::panther{
 					"Variables with global lifetime must be declared with a value"
 				);
 				return Result::ERROR;
-
-			}else{
-				if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(var_type_id)){
-					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_MEMBER_INVALID_TYPE,
-						*instr.var_def.type,
-						"Struct member variable cannot have a type that's a deducer without a value"
-					);
-					return Result::ERROR;
-				}
 			}
 		}
 
@@ -1100,6 +1082,17 @@ namespace pcit::panther{
 			if(got_type_info_id.isVoid()){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_def.type, "Variables cannot be type `Void`"
+				);
+				return Result::ERROR;
+			}
+
+			const TypeInfo& got_type_info = this->context.getTypeManager().getTypeInfo(got_type_info_id.asTypeID());
+
+			if(got_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_TYPE_INTERFACE,
+					*instr.var_def.type,
+					"Variables cannot be an interface type"
 				);
 				return Result::ERROR;
 			}
@@ -2821,7 +2814,7 @@ namespace pcit::panther{
 					sema::TemplatedFunc::Instantiation::ErroredReasonParamDeductionFailed(instr.param_index);
 
 				this->propagate_finished_decl();
-				return Result::FINISHED_EARLY;
+				return Result::ERROR_NO_REPORT;
 			} break;
 
 			case DeducerMatchOutput::Outcome::RESULT: {
@@ -2890,11 +2883,6 @@ namespace pcit::panther{
 
 		uint32_t min_num_args = 0;
 		bool has_in_param = false;
-
-		// only matters if is instantiation
-		bool has_template_params = false;
-		auto param_is_template = evo::SmallVector<bool>();
-
 		bool has_this_param = false;
 
 		for(size_t i = 0; const std::optional<SymbolProc::TypeID>& symbol_proc_param_type_id : instr.params()){
@@ -2928,8 +2916,16 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-
 				const TypeInfo& param_type_info = this->context.getTypeManager().getTypeInfo(param_type_id.asTypeID());
+
+				if(param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+					this->emit_error(
+						Diagnostic::Code::SEMA_PARAM_TYPE_INTERFACE,
+						*param.type,
+						"Function parameter cannot be an interface type"
+					);
+					return Result::ERROR;
+				}
 
 				if(param_type_info.isUninitPointer()){
 					this->emit_error(
@@ -2941,62 +2937,15 @@ namespace pcit::panther{
 				}
 
 
-				const bool param_type_is_interface =
-					this->context.getTypeManager().isInterfaceDeducer(param_type_id.asTypeID());
-
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
-				auto interface_impl_instantiation_type = std::optional<TypeInfo::ID>();
-
-				if(func_info.instantiation == nullptr){
-					if(param_type_is_interface || param_type_is_deducer){
-						has_template_params = true;
-						param_is_template.emplace_back(true);
-						continue;
-					}else{
-						param_is_template.emplace_back(false);
-
-						if(has_template_params){ continue; }
-					}
-
-				}else{
-					if(param_type_is_interface){
-						const TypeInfo::ID arg_type_info_id =
-							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
-
-
-						const DeducerMatchOutput deducer_match_output =
-							this->deducer_matches_and_extract(param_type_id.asTypeID(), arg_type_info_id);
-
-						switch(deducer_match_output.outcome()){
-							case DeducerMatchOutput::Outcome::MATCH: {
-								interface_impl_instantiation_type = deducer_match_output.resultantTypeID();
-							} break;
-
-							case DeducerMatchOutput::Outcome::NO_MATCH: {
-								func_info.instantiation->errored_reason = 
-									sema::TemplatedFunc::Instantiation::ErroredReasonTypeDoesntImplInterface{
-										i, param_type_id.asTypeID(), arg_type_info_id
-									};
-
-								this->propagate_finished_decl();
-								return Result::FINISHED_EARLY;
-							} break;
-
-							case DeducerMatchOutput::Outcome::RESULT: {
-								return deducer_match_output.result();
-							} break;
-						}
-					}
-				}
-
-
+				auto interface_map_type = std::optional<TypeInfo::ID>();
 
 				// saving types to check if param should be copy
 				// 	(need to do later after definitions of types are gotten)
 				if(param.kind == AST::FuncDef::Param::Kind::READ){
-					if(param_type_is_interface || param_type_is_deducer){
+					if(param_type_is_deducer){
 						func_info.param_type_to_check_if_is_copy.emplace_back(
 							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
 						);
@@ -3015,23 +2964,7 @@ namespace pcit::panther{
 				}
 
 
-				if(param_type_is_interface){
-					const TypeInfo::ID arg_type = *func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
-
-					const BaseType::ID interface_impl_instantiation_id = 
-						this->context.type_manager.getOrCreateInterfaceImplInstantiation(
-							BaseType::InterfaceImplInstantiation(
-								param_type_info.baseTypeID().interfaceID(), arg_type
-							)
-						);
-
-					const TypeInfo::ID impl_arg_type = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(interface_impl_instantiation_id)
-					);
-
-					params.emplace_back(impl_arg_type, type_param_kind, false);
-
-				}else if(param_type_is_deducer){
+				if(param_type_is_deducer){
 					params.emplace_back(
 						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], type_param_kind, false
 					);
@@ -3125,49 +3058,15 @@ namespace pcit::panther{
 		}
 
 
-		if(func_info.instantiation == nullptr && has_template_params){
-			for(const AST::FuncDef::Param& param : instr.func_def.params){
-				if(param.defaultValue.has_value()){
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						*param.defaultValue,
-						"Template functions with default parameter values is unimplemented"
-					);
-					return Result::ERROR;
-				}
-			}
-
-
-			const sema::TemplatedFunc::ID new_templated_func = 
-				this->context.sema_buffer.createTemplatedFunc(
-					this->symbol_proc,
-					0,
-					evo::SmallVector<sema::TemplatedFunc::TemplateParam>(),
-					std::move(param_is_template)
-				);
-
-			const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
-
-			if(this->add_ident_to_scope(
-				name_token.getString(), instr.func_def, true, new_templated_func
-			).isError()){
-				return Result::ERROR;
-			}
-
-			this->propagate_finished_decl_def();
-			return Result::FINISHED_EARLY;
-		}
-
-
 		auto return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
 		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_return_param_type_id : instr.returns()){
 			EVO_DEFER([&](){ i += 1; });
 
-			const TypeInfo::VoidableID type_id = this->get_type(symbol_proc_return_param_type_id);
+			const TypeInfo::VoidableID return_param_type_id = this->get_type(symbol_proc_return_param_type_id);
 
 			const AST::FuncDef::Return& ast_return_param = instr.func_def.returns[i];
 
-			if(type_id.isVoid()){
+			if(return_param_type_id.isVoid()){
 				if(i == 0){
 					if(ast_return_param.ident.has_value()){
 						this->emit_error(
@@ -3185,9 +3084,23 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}
+
+			}else{
+				const TypeInfo& return_param_type_info =
+					this->context.getTypeManager().getTypeInfo(return_param_type_id.asTypeID());
+
+				if(return_param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+					this->emit_error(
+						Diagnostic::Code::SEMA_RETURN_TYPE_INTERFACE,
+						ast_return_param.type,
+						"Function return type cannot be an interface type"
+					);
+					return Result::ERROR;
+				}
 			}
 
-			return_params.emplace_back(ast_return_param.ident, type_id);
+
+			return_params.emplace_back(ast_return_param.ident, return_param_type_id);
 		}
 
 
@@ -3195,11 +3108,11 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_error_return_param_type_id : instr.errorReturns()){
 			EVO_DEFER([&](){ i += 1; });
 
-			const TypeInfo::VoidableID type_id = this->get_type(symbol_proc_error_return_param_type_id);
+			const TypeInfo::VoidableID error_param_type_id = this->get_type(symbol_proc_error_return_param_type_id);
 
 			const AST::FuncDef::Return& ast_error_return_param = instr.func_def.errorReturns[i];
 
-			if(type_id.isVoid()){
+			if(error_param_type_id.isVoid()){
 				if(i == 0){
 					if(ast_error_return_param.ident.has_value()){
 						this->emit_error(
@@ -3218,9 +3131,21 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+			}else{
+				const TypeInfo& error_param_type_info =
+					this->context.getTypeManager().getTypeInfo(error_param_type_id.asTypeID());
+
+				if(error_param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+					this->emit_error(
+						Diagnostic::Code::SEMA_RETURN_TYPE_INTERFACE,
+						ast_error_return_param.type,
+						"Function error return type cannot be an interface type"
+					);
+					return Result::ERROR;
+				}
 			}
 
-			error_return_params.emplace_back(ast_error_return_param.ident, type_id);
+			error_return_params.emplace_back(ast_error_return_param.ident, error_param_type_id);
 		}
 
 
@@ -4544,77 +4469,6 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// check return param types after type defs are known to be had
-
-		for(size_t i = 0; const BaseType::Function::ReturnParam& return_param : func_type.returnParams){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(return_param.typeID.isVoid()){ continue; }
-
-			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(return_param.typeID.asTypeID())){
-				if(instr.func_def.block.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-						instr.func_def.returns[i].type,
-						"Invalid return type"
-					);
-					return Result::ERROR;
-				}
-
-				if(
-					this->scope.inObjectScope() == false
-					|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
-					|| this->context.getTypeManager().getInterface(
-							this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
-						).isPolymorphic 
-				){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-						instr.func_def.returns[i].type,
-						"Invalid return type"
-					);
-					return Result::ERROR;
-				}
-			}
-		}
-
-
-		for(size_t i = 0; const BaseType::Function::ReturnParam& error_param : func_type.errorParams){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(error_param.typeID.isVoid()){ continue; }
-
-			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(error_param.typeID.asTypeID())){
-				if(instr.func_def.block.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-						instr.func_def.errorReturns[i].type,
-						"Invalid error return type"
-					);
-					return Result::ERROR;
-				}
-
-				if(
-					this->scope.inObjectScope() == false
-					|| this->scope.getCurrentObjectScope().is<BaseType::Interface::ID>() == false
-					|| this->context.getTypeManager().getInterface(
-							this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
-						).isPolymorphic 
-				){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_RETURN_TYPE,
-						instr.func_def.errorReturns[i].type,
-						"Invalid error return type"
-					);
-					return Result::ERROR;
-				}
-			}
-		}
-
-
-
-
-		//////////////////
 		// check valid interface method default impl
 
 		if(
@@ -5263,34 +5117,12 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_template_func_check_param_is_interface(
-		const Instruction::TemplateFuncCheckParamIsInterface& instr
-	) -> Result {
-		const TypeInfo::VoidableID type_id = this->get_type(instr.param_type);
-
-		if(type_id.isVoid()){ return Result::SUCCESS; }
-
-		const TypeInfo& ident_type = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(type_id.asTypeID())
-		);
-
-		if(ident_type.qualifiers().empty() == false){ return Result::SUCCESS; }
-		if(ident_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){ return Result::SUCCESS; }
-
-		SymbolProc::TemplateFuncInfo& template_func_info = 
-			this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>();
-		template_func_info.templated_func.paramIsTemplate[instr.param_index] = true;
-
-		return Result::SUCCESS;
-	}
-
-
 	auto SemanticAnalyzer::instr_template_set_param_is_deducer(
 		const Instruction::TemplateFuncSetParamIsDeducer& instr
 	) -> Result {
 		SymbolProc::TemplateFuncInfo& template_func_info = 
 			this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>();
-		template_func_info.templated_func.paramIsTemplate[instr.param_index] = true;
+		template_func_info.templated_func.paramIsDeducer[instr.param_index] = true;
 
 		return Result::SUCCESS;
 	}
@@ -5502,14 +5334,11 @@ namespace pcit::panther{
 				const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 				for(const BaseType::Function::ReturnParam& return_param : method_type.returnParams){
-					if(
-						this->context.getTypeManager().isTypeDeducer(return_param.typeID)
-						|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(return_param.typeID)
-					){
+					if(this->context.getTypeManager().isTypeDeducer(return_param.typeID)){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
 							method_id,
-							"Method of a polymorphic interface cannot return type or interface deducers"
+							"Method of a polymorphic interface cannot return type deducers"
 						);
 						return Result::ERROR;
 					}
@@ -5666,28 +5495,28 @@ namespace pcit::panther{
 				const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
 
 				switch(*this->symbol_proc.builtin_symbol_proc_kind){
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"): {
-						return pthr_module.getSymbol("Iterable")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"): {
+						return pthr_module.getSymbol("IIterable")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"): {
-						return pthr_module.getSymbol("IterableRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"): {
+						return pthr_module.getSymbol("IIterableRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"): {
-						return pthr_module.getSymbol("IterableRef")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"): {
+						return pthr_module.getSymbol("IIterableRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"): {
-						return pthr_module.getSymbol("IterableRefRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"): {
+						return pthr_module.getSymbol("IIterableRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"): {
-						return pthr_module.getSymbol("IterableMutRef")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"): {
+						return pthr_module.getSymbol("IIterableMutRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"): {
-						return pthr_module.getSymbol("IterableMutRefRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
+						return pthr_module.getSymbol("IIterableMutRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					default: {
@@ -5706,10 +5535,7 @@ namespace pcit::panther{
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
 
-		if(
-			this->context.getTypeManager().isTypeDeducer(target_type_id.asTypeID())
-			|| this->context.getTypeManager().isInterfaceDeducer(target_type_id.asTypeID())
-		){
+		if(this->context.getTypeManager().isTypeDeducer(target_type_id.asTypeID())){
 			BaseType::Interface::DeducerImpl& interface_deudcer_impl =
 				this->context.type_manager.createInterfaceDeducerImpl(
 					target_type_id.asTypeID(), instr.interface_impl_node, this->symbol_proc_id
@@ -5980,10 +5806,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(
-				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
-				|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(this->get_type(*instr.type_id))
-			){
+			if(this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
 					*instr.var_def.value,
@@ -6003,10 +5826,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(
-				this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))
-				|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(this->get_type(*instr.type_id))
-			){
+			if(this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))){
 				this->emit_error(
 					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
 					*instr.var_def.value,
@@ -6038,7 +5858,7 @@ namespace pcit::panther{
 		}
 
 
-		auto interface_impl_instantiation_type = std::optional<TypeInfo::ID>();
+		auto interface_map_type = std::optional<TypeInfo::ID>();
 
 		if(instr.type_id.has_value()){
 			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
@@ -6049,6 +5869,18 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+			const TypeInfo& got_type_info = this->context.getTypeManager().getTypeInfo(got_type_info_id.asTypeID());
+
+			if(got_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+				this->emit_error(
+					Diagnostic::Code::SEMA_VAR_TYPE_INTERFACE,
+					*instr.var_def.type,
+					"Variables cannot be an interface type"
+				);
+				return Result::ERROR;
+			}
+
 
 			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
 				TypeCheckInfo type_check_info = this->type_check<true, true>(
@@ -6080,8 +5912,8 @@ namespace pcit::panther{
 		}
 
 		const std::optional<TypeInfo::ID> type_id = [&]() -> std::optional<TypeInfo::ID> {
-			if(interface_impl_instantiation_type.has_value()){
-				return interface_impl_instantiation_type;
+			if(interface_map_type.has_value()){
+				return interface_map_type;
 			}
 
 			if(value_term_info.type_id.is<TypeInfo::ID>()){
@@ -7047,18 +6879,18 @@ namespace pcit::panther{
 			};
 
 
-			interface_iterable         = get_interface("Iterable");
-			interface_iterable_ref     = get_interface("IterableRef");
-			interface_iterable_mut_ref = get_interface("IterableMutRef");
-			interface_iterator         = get_interface("Iterator");
-			interface_mut_iterator     = get_interface("MutIterator");
+			interface_iterable         = get_interface("IIterable");
+			interface_iterable_ref     = get_interface("IIterableRef");
+			interface_iterable_mut_ref = get_interface("IIterableMutRef");
+			interface_iterator         = get_interface("IIterator");
+			interface_mut_iterator     = get_interface("IMutIterator");
 
 			if(in_constexpr_func == false){
-				interface_iterable_rt         = get_interface("IterableRT");
-				interface_iterable_ref_rt     = get_interface("IterableRefRT");
-				interface_iterable_mut_ref_rt = get_interface("IterableMutRefRT");
-				interface_iterator_rt         = get_interface("IteratorRT");
-				interface_mut_iterator_rt     = get_interface("MutIteratorRT");
+				interface_iterable_rt         = get_interface("IIterableRT");
+				interface_iterable_ref_rt     = get_interface("IIterableRefRT");
+				interface_iterable_mut_ref_rt = get_interface("IIterableMutRefRT");
+				interface_iterator_rt         = get_interface("IIteratorRT");
+				interface_mut_iterator_rt     = get_interface("IMutIteratorRT");
 			}
 		}
 
@@ -7277,11 +7109,27 @@ namespace pcit::panther{
 			}
 
 
+			const TypeInfo::ID created_iterator_type_id = [&]() -> TypeInfo::ID {
+				const sema::Func& create_iterator_func =
+					this->context.getSemaBuffer().getFunc(iterable_impl.methods[0]);
 
-			const sema::Func& create_iterator_func = this->context.getSemaBuffer().getFunc(iterable_impl.methods[0]);
-			const BaseType::Function& create_iterator_func_type =
-				this->context.getTypeManager().getFunction(create_iterator_func.typeID);
-			const TypeInfo::ID created_iterator_type_id = create_iterator_func_type.returnParams[0].typeID.asTypeID();
+				const BaseType::Function& create_iterator_func_type =
+					this->context.getTypeManager().getFunction(create_iterator_func.typeID);
+
+				const TypeInfo::ID created_iterator_map_type_id =
+					create_iterator_func_type.returnParams[0].typeID.asTypeID();
+
+				const TypeInfo& created_iterator_map_type_info =
+					this->context.getTypeManager().getTypeInfo(created_iterator_map_type_id);
+
+				const BaseType::InterfaceMap& created_iterator_map_type = 
+					this->context.getTypeManager().getInterfaceMap(
+						created_iterator_map_type_info.baseTypeID().interfaceMapID()
+					);
+
+				return created_iterator_map_type.underlyingTypeID;
+			}();
+
 
 			const BaseType::Interface::Impl& iterator_impl = [&]() -> const BaseType::Interface::Impl& {
 				const auto lock = std::scoped_lock(selected_interface->iterator_interface.implsLock);
@@ -7333,10 +7181,7 @@ namespace pcit::panther{
 			){
 				param_type_ids.emplace_back(got_actual_type);
 
-			}else if(
-				this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false
-				&& this->context.getTypeManager().isInterfaceDeducer(got_type_id.asTypeID()) == false
-			){
+			}else if(this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false){
 				for_param_type_mismatch();
 				return Result::ERROR;
 
@@ -7569,46 +7414,63 @@ namespace pcit::panther{
 
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
-		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
 
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
-				sema_args.emplace_back(fake_term_info.expr);
 
-			}else if(
-				this->get_project_config().warn.methodCallOnNonMethod
-				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
-			){
-				this->emit_warning(
-					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-					instr.func_call,
-					"Making a method call to a function that is not a method",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
-						Diagnostic::Info(
-							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
-						),
-					}
-				);
-			}
-
-		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+		switch(target_term_info.value_category){
+			case TermInfo::ValueCategory::METHOD_CALL: {
 				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
 					target_term_info.getExpr().fakeTermInfoID()
 				);
 
-				const sema::Expr extract_this = sema::Expr(
-					this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
-				);
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					sema_args.emplace_back(fake_term_info.expr);
 
-				sema_args.emplace_back(
-					sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
-				);
-			}
+				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+						instr.func_call,
+						"Making a method call to a function that is not a method",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
+							Diagnostic::Info(
+								"Function declared here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							),
+						}
+					);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::INTERFACE_CALL: {
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+						target_term_info.getExpr().fakeTermInfoID()
+					);
+
+					sema_args.emplace_back(fake_term_info.expr);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+						target_term_info.getExpr().fakeTermInfoID()
+					);
+
+					const sema::Expr extract_this = sema::Expr(
+						this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+					);
+
+					sema_args.emplace_back(
+						sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+					);
+				}
+			} break;
+
+			default: break;
 		}
+
+
 
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
@@ -7693,7 +7555,7 @@ namespace pcit::panther{
 				sema_args.emplace_back(*func_call_impl_res.value().selected_func->params[i].defaultValue);
 			}
 
-			if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+			if(target_term_info.value_category == TermInfo::ValueCategory::POLY_INTERFACE_CALL){
 				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
 					target_term_info.getExpr().fakeTermInfoID()
 				);
@@ -7818,7 +7680,7 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, true>(lhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
 			const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
 
 			if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
@@ -9178,46 +9040,60 @@ namespace pcit::panther{
 
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
-		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
-				sema_args.emplace_back(fake_term_info.expr);
-
-			}else if( // TODO(FUTURE): make this warn on non-template params
-				this->get_project_config().warn.methodCallOnNonMethod
-				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
-			){
-				this->emit_warning(
-					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-					ast_func_call,
-					"Making a method call to a function that is not a method",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
-						Diagnostic::Info(
-							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
-						),
-					}
-				);
-			}
-
-		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
-				const sema::Expr extract_this = sema::Expr(
-					this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+		switch(target_term_info.value_category){
+			case TermInfo::ValueCategory::METHOD_CALL: {
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
 				);
 
-				sema_args.emplace_back(
-					sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					sema_args.emplace_back(fake_term_info.expr);
+
+				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+						ast_func_call,
+						"Making a method call to a function that is not a method",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
+							Diagnostic::Info(
+								"Function declared here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							),
+						}
+					);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::INTERFACE_CALL: {
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+						target_term_info.getExpr().fakeTermInfoID()
+					);
+
+					sema_args.emplace_back(fake_term_info.expr);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
 				);
-			}
+
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::Expr extract_this = sema::Expr(
+						this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+					);
+
+					sema_args.emplace_back(
+						sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+					);
+				}
+			} break;
+
+			default: break;
 		}
+
 
 
 		for(const SymbolProc::TermInfoID& arg : instr.func_call_args){
@@ -9279,7 +9155,7 @@ namespace pcit::panther{
 
 
 
-		if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+		if(target_term_info.value_category == TermInfo::ValueCategory::POLY_INTERFACE_CALL){
 			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
 				target_term_info.getExpr().fakeTermInfoID()
 			);
@@ -9512,45 +9388,58 @@ namespace pcit::panther{
 		}
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
-		if(target_term_info.value_category == TermInfo::ValueCategory::METHOD_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
-				sema_args.emplace_back(fake_term_info.expr);
-
-			}else if( // TODO(FUTURE): make this warn on non-template params
-				this->get_project_config().warn.methodCallOnNonMethod
-				&& fake_term_info.expr.kind() != sema::Expr::Kind::PARAM
-			){
-				this->emit_warning(
-					Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-					instr.func_call,
-					"Making a method call to a function that is not a method",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("Call the function through the type instead"), // TODO(FUTURE): better message
-						Diagnostic::Info(
-							"Function declared here:", this->get_location(*func_call_impl_res.value().selected_func_id)
-						),
-					}
-				);
-			}
-
-		}else if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
-			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
-				target_term_info.getExpr().fakeTermInfoID()
-			);
-
-			if(func_call_impl_res.value().selected_func->isMethod(this->context)){
-				const sema::Expr extract_this = sema::Expr(
-					this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+		switch(target_term_info.value_category){
+			case TermInfo::ValueCategory::METHOD_CALL: {
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
 				);
 
-				sema_args.emplace_back(
-					sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					sema_args.emplace_back(fake_term_info.expr);
+
+				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+						instr.func_call,
+						"Making a method call to a function that is not a method",
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
+							Diagnostic::Info(
+								"Function declared here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							),
+						}
+					);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::INTERFACE_CALL: {
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+						target_term_info.getExpr().fakeTermInfoID()
+					);
+
+					sema_args.emplace_back(fake_term_info.expr);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
+				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
+					target_term_info.getExpr().fakeTermInfoID()
 				);
-			}
+
+				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
+					const sema::Expr extract_this = sema::Expr(
+						this->context.sema_buffer.createInterfacePtrExtractThis(fake_term_info.expr)
+					);
+
+					sema_args.emplace_back(
+						sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
+					);
+				}
+			} break;
+
+			default: break;
 		}
 
 
@@ -9703,7 +9592,7 @@ namespace pcit::panther{
 		}
 
 
-		if(target_term_info.value_category == TermInfo::ValueCategory::INTERFACE_CALL){
+		if(target_term_info.value_category == TermInfo::ValueCategory::POLY_INTERFACE_CALL){
 			return this->interface_func_call<IS_CONSTEXPR>(
 				target_term_info, std::move(sema_args), *func_call_impl_res.value().selected_func_id, instr.output
 			);
@@ -12528,20 +12417,11 @@ namespace pcit::panther{
 			return this->union_designated_init_new(instr, target_type_id.asTypeID());
 
 		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(target_type_info.baseTypeID())){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-					instr.designated_init_new.type,
-					"Designated initializer operator [new] cannot accept a type that's not a struct or a union",
-					Diagnostic::Info("Note: the gotten type is a non-polymorphic interface deducer")
-				);
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-					instr.designated_init_new.type,
-					"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
-				);
-			}
+			this->emit_error(
+				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
+				instr.designated_init_new.type,
+				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
+			);
 			return Result::ERROR;
 		}
 
@@ -13044,15 +12924,6 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
 					instr.block.outputs[i].typeID,
 					"Block expression output cannot be type `Void`"
-				);
-				return Result::ERROR;
-			}
-
-			if(this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(output_type.asTypeID())){
-				this->emit_error(
-					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_DEDUCER_TYPE,
-					instr.block.outputs[i].typeID,
-					"Block expression output cannot be a non-polymorphic interface deducer"
 				);
 				return Result::ERROR;
 			}
@@ -13605,10 +13476,7 @@ namespace pcit::panther{
 				if(arg_term_info.value_category == TermInfo::ValueCategory::TYPE){
 					const TypeInfo::VoidableID arg_type_voidable_id = arg_term_info.type_id.as<TypeInfo::VoidableID>();
 
-					if(
-						this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)
-						|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(arg_type_voidable_id)
-					){
+					if(this->context.getTypeManager().isTypeDeducer(arg_type_voidable_id)){
 						instantiation_lookup_args.emplace_back(arg_type_voidable_id);
 						is_deducer = true;
 						continue;
@@ -13760,10 +13628,7 @@ namespace pcit::panther{
 
 				const TypeInfo::VoidableID type_id = this->get_type(arg.as<SymbolProc::TypeID>());
 
-				if(
-					this->context.getTypeManager().isTypeDeducer(type_id)
-					|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(type_id)
-				){
+				if(this->context.getTypeManager().isTypeDeducer(type_id)){
 					instantiation_lookup_args.emplace_back(type_id);
 					is_deducer = true;
 					continue;
@@ -14259,8 +14124,18 @@ namespace pcit::panther{
 		}
 
 
-		TypeManager& type_manager = this->context.type_manager;
 
+		{
+			const std::optional<Result> as_interface_map_res = this->operator_as_check_interface_map(
+				expr, expr.type_id.as<TypeInfo::ID>(), target_type.asTypeID(), instr.output, instr.infix
+			);
+
+			if(as_interface_map_res.has_value()){ return *as_interface_map_res; }
+		}
+
+
+
+		TypeManager& type_manager = this->context.type_manager;
 
 		const TypeInfo::ID from_underlying_type_id = type_manager.getUnderlyingType(expr.type_id.as<TypeInfo::ID>());
 		const TypeInfo& from_underlying_type = type_manager.getTypeInfo(from_underlying_type_id);
@@ -14287,15 +14162,9 @@ namespace pcit::panther{
 				from_underlying_type.baseTypeID().structID()
 			);
 
-			if(
-				to_underlying_type.qualifiers().empty()
-				&& to_underlying_type.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF
-			){
-				return this->operator_as_poly_interface_ref(instr, expr, from_underlying_type, to_underlying_type);
-			}
-
-
-			const auto find = from_struct.operatorAsOverloads.find(target_type.asTypeID());
+			const auto find = from_struct.operatorAsOverloads.find(
+				this->get_actual_type<false, false>(target_type.asTypeID())
+			);
 
 			if(find == from_struct.operatorAsOverloads.end()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -14376,7 +14245,10 @@ namespace pcit::panther{
 			const BaseType::ArrayRef& to_array_ref = 
 				this->context.getTypeManager().getArrayRef(to_underlying_type.baseTypeID().arrayRefID());
 
-			if(from_array.elementTypeID != to_array_ref.elementTypeID){
+			if(
+				this->get_actual_type<false, false>(from_array.elementTypeID)
+				!= this->get_actual_type<false, false>(to_array_ref.elementTypeID)
+			){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
@@ -14453,7 +14325,6 @@ namespace pcit::panther{
 				std::move(infos)
 			);
 			return Result::ERROR;
-
 		}
 
 
@@ -14478,7 +14349,17 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(from_underlying_type.isPointer() && to_underlying_type.isPointer()){
+
+			const TypeInfo& from_actual_type = type_manager.getTypeInfo(
+				this->get_actual_type<false, false>(expr.type_id.as<TypeInfo::ID>())
+			);
+
+			const TypeInfo& to_actual_type = type_manager.getTypeInfo(
+				this->get_actual_type<false, false>(target_type.asTypeID())
+			);
+
+
+			if(from_actual_type.isPointer() && to_actual_type.isPointer()){
 				this->emit_error(
 					Diagnostic::Code::SEMA_AS_INVALID_TO,
 					instr.infix,
@@ -14522,8 +14403,6 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 		}
-
-
 
 
 		if(from_underlying_type_id == TypeManager::getTypeBool()){
@@ -15102,124 +14981,135 @@ namespace pcit::panther{
 		}
 	}
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::operator_as_poly_interface_ref(
-		const Instruction::As<IS_CONSTEXPR>& instr,
+	auto SemanticAnalyzer::operator_as_check_interface_map(
 		const TermInfo& from_expr,
-		const TypeInfo& from_type_info,
-		const TypeInfo& to_type_info
-	) -> Result {
-		const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
-			this->context.getTypeManager().getPolyInterfaceRef(to_type_info.baseTypeID().polyInterfaceRefID());
-
-		const BaseType::Interface& target_interface =
-			this->context.getTypeManager().getInterface(target_poly_interface_ref.interfaceID);
-
-
-		const auto impl_exists = [&]() -> bool {
-			const auto lock = std::scoped_lock(target_interface.implsLock);
-			return target_interface.impls.contains(from_expr.type_id.as<TypeInfo::ID>());
-		};
+		const TypeInfo::ID from_type_id,
+		const TypeInfo::ID to_type_id,
+		SymbolProc::TermInfoID output_id,
+		const AST::Infix& ast_infix
+	) -> std::optional<Result> {
+		const TypeInfo::ID actual_from_type_id = this->get_actual_type<false, false>(from_type_id);
+		const TypeInfo& actual_from_type = this->context.getTypeManager().getTypeInfo(actual_from_type_id);
 
 
-		if(impl_exists()){
-			if(target_poly_interface_ref.isMut && from_expr.is_const()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF,
-					instr.infix,
-					"Operator [as] cannot convert a const expression to a mutable polymorphic interface reference"
+		const TypeInfo::ID actual_to_type_id = this->get_actual_type<false, false>(to_type_id);
+		const TypeInfo& actual_to_type = this->context.getTypeManager().getTypeInfo(actual_to_type_id);
+
+
+		TypeInfo::ID target_interface_impl_type_id = actual_from_type_id;
+
+		const evo::Result<bool> qualifiers_check_result = 
+			this->type_qualifiers_check(actual_to_type.qualifiers(), actual_from_type.qualifiers());
+
+		if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+			// if there are qualifiers, didn't match
+			// Allows for qualified type that implement the interface to pass
+			if(actual_to_type.qualifiers().empty() == false){ return std::nullopt; }
+			
+		}else{
+			// remove matching qualifiers
+			target_interface_impl_type_id =
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(actual_from_type.baseTypeID()));
+		}
+
+
+		switch(actual_to_type.baseTypeID().kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+			case BaseType::Kind::PRIMITIVE:               return std::nullopt;
+			case BaseType::Kind::FUNCTION:                return std::nullopt;
+			case BaseType::Kind::ARRAY:                   return std::nullopt;
+			case BaseType::Kind::ARRAY_DEDUCER:           evo::debugFatalBreak("Invalid operator [as] target");
+			case BaseType::Kind::ARRAY_REF:               return std::nullopt;
+			case BaseType::Kind::ALIAS:                   evo::debugFatalBreak("Should never hit here");
+			case BaseType::Kind::DISTINCT_ALIAS:          return std::nullopt;
+			case BaseType::Kind::STRUCT:                  return std::nullopt;
+			case BaseType::Kind::STRUCT_TEMPLATE:         evo::debugFatalBreak("Invalid operator [as] target");
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: evo::debugFatalBreak("Invalid operator [as] target");
+			case BaseType::Kind::UNION:                   return std::nullopt;
+			case BaseType::Kind::ENUM:                    return std::nullopt;
+			case BaseType::Kind::TYPE_DEDUCER:            evo::debugFatalBreak("Invalid operator [as] target");
+			case BaseType::Kind::INTERFACE:               return std::nullopt;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
+					this->context.getTypeManager().getPolyInterfaceRef(
+						actual_to_type.baseTypeID().polyInterfaceRefID()
+					);
+
+				BaseType::Interface& target_interface =
+					this->context.type_manager.getInterface(target_poly_interface_ref.interfaceID);
+
+				const evo::Expected<bool, Result> implements_result = 
+					this->type_implements_interface(target_interface, target_interface_impl_type_id);
+
+				if(implements_result.has_value() == false){ return implements_result.error(); }
+				if(implements_result.value() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
+						ast_infix,
+						"Base type of interface map doesn't implement the target interface"
+					);
+					return Result::ERROR;
+				}
+
+
+				if(target_poly_interface_ref.isMut && from_expr.is_const()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF,
+						ast_infix,
+						"Operator [as] cannot convert a const expression to a mutable polymorphic interface reference"
+					);
+					return Result::ERROR;
+				}
+
+				const sema::MakeInterfacePtr::ID make_interface_ptr_id = 
+					this->context.sema_buffer.createMakeInterfacePtr(
+						from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_type_id
+					);
+
+				this->return_term_info(output_id,
+					TermInfo::ValueCategory::EPHEMERAL,
+					from_expr.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					to_type_id,
+					sema::Expr(make_interface_ptr_id)
 				);
-				return Result::ERROR;
-			}
+				return Result::SUCCESS;
+			} break;
 
-			const sema::MakeInterfacePtr::ID make_interface_ptr_id = this->context.sema_buffer.createMakeInterfacePtr(
-				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_expr.type_id.as<TypeInfo::ID>()
-			);
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& target_interface_map = 
+					this->context.getTypeManager().getInterfaceMap(actual_to_type.baseTypeID().interfaceMapID());
 
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				from_expr.value_stage,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				this->get_type(instr.target_type).asTypeID(),
-				sema::Expr(make_interface_ptr_id)
-			);
-			return Result::SUCCESS;
-		}
+				BaseType::Interface& target_interface =
+					this->context.type_manager.getInterface(target_interface_map.interfaceID);
 
+				const evo::Expected<bool, Result> implements_result = 
+					this->type_implements_interface(target_interface, target_interface_impl_type_id);
 
-		if(from_type_info.qualifiers().empty() || from_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_NO_IMPL_FOR_TYPE,
-				instr.infix,
-				"The type of this expr has no impl of this interface"
-			);
-			return Result::ERROR;
-		}
+				if(implements_result.has_value() == false){ return implements_result.error(); }
+				if(implements_result.value() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
+						ast_infix,
+						"Base type of interface map doesn't implement the target interface"
+					);
+					return Result::ERROR;
+				}
 
-
-		const BaseType::Struct& from_struct =
-			this->context.getTypeManager().getStruct(from_type_info.baseTypeID().structID());
-
-
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<true>(
-			from_struct.namespacedMembers, "impl"
-		);
-
-		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_NO_IMPL_FOR_TYPE,
-					instr.infix,
-					"The type of this expr has no impl of this interface"
+				this->return_term_info(output_id,
+					from_expr.value_category,
+					from_expr.value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					to_type_id,
+					from_expr.getExpr()
 				);
-				return Result::ERROR;
-			} break;
-
-			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
-				return Result::ERROR;
-			} break;
-
-			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
-				return Result::NEED_TO_WAIT;
-			} break;
-
-			case WaitOnSymbolProcResult::SEMAS_READY: {
-				// do nothing...
+				return Result::SUCCESS;
 			} break;
 		}
 
-
-		if(impl_exists()){
-			if(target_poly_interface_ref.isMut && from_expr.is_const()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF,
-					instr.infix,
-					"Operator [as] cannot convert a const expression to a mutable polymorphic interface reference"
-				);
-				return Result::ERROR;
-			}
-
-			const sema::MakeInterfacePtr::ID make_interface_ptr_id = this->context.sema_buffer.createMakeInterfacePtr(
-				from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_expr.type_id.as<TypeInfo::ID>()
-			);
-
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				from_expr.value_stage,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				this->get_type(instr.target_type).asTypeID(),
-				sema::Expr(make_interface_ptr_id)
-			);
-			return Result::SUCCESS;
-		}
-
-		
-		this->emit_error(
-			Diagnostic::Code::SEMA_INTERFACE_NO_IMPL_FOR_TYPE,
-			instr.infix,
-			"The type of this expr has no impl of this interface"
-		);
-		return Result::ERROR;
+		evo::debugFatalBreak("Unknown base type");
 	}
 
 
@@ -15249,7 +15139,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true, true>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>());
 		const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
 
 		if(lhs_actual_type.isOptional() == false){
@@ -15565,7 +15455,7 @@ namespace pcit::panther{
 								case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
 								case BaseType::Kind::TYPE_DEDUCER:
 								case BaseType::Kind::INTERFACE:
-								case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+								case BaseType::Kind::INTERFACE_MAP: {
 									evo::debugFatalBreak("Invalid type to be compared");
 								} break;
 
@@ -16105,7 +15995,7 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
 						lhs.getExpr(),
 						rhs.getExpr(),
-						this->get_actual_type<true, true>(lhs.type_id.as<TypeInfo::ID>())
+						this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>())
 					)
 				);
 			}
@@ -16557,7 +16447,7 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+			case BaseType::Kind::INTERFACE_MAP: {
 				return this->interface_accessor<NEEDS_DEF>(
 					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, false
 				);
@@ -17083,68 +16973,111 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_poly_interface_ref_type(const Instruction::PolyInterfaceRefType& instr) -> Result {
-		TermInfo& got_interface_term_info = this->get_term_info(instr.interface);
 
-		if(got_interface_term_info.value_category != TermInfo::ValueCategory::TYPE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_TYPE,
-				instr.poly_interface_ref_type,
-				"Invalid base type"
-			);
-			return Result::ERROR;
-		}
+	auto SemanticAnalyzer::instr_interface_map(const Instruction::InterfaceMap& instr) -> Result {
+		const TypeInfo::VoidableID got_interface_type_id = this->get_type(instr.interface);
 
-
-		const TypeInfo::VoidableID got_interface_type_id = got_interface_term_info.type_id.as<TypeInfo::VoidableID>();
 		if(got_interface_type_id.isVoid()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF,
-				instr.poly_interface_ref_type,
-				"Base of polymorphic interface reference must be a polymorphic interface"
+				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
+				instr.interface_map.interface,
+				"Target interface of interface map must be an interface"
 			);
 			return Result::ERROR;
 		}
 
-		const TypeInfo& got_interface_type_info =
+		const TypeInfo& got_interface_type =
 			this->context.getTypeManager().getTypeInfo(got_interface_type_id.asTypeID());
 
-		if(got_interface_type_info.qualifiers().empty() == false){
+		if(got_interface_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF,
-				instr.poly_interface_ref_type,
-				"Base of polymorphic interface reference cannot have qualifiers"
+				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
+				instr.interface_map.interface,
+				"Target interface of interface map must be an interface"
 			);
 			return Result::ERROR;
 		}
 
-		if(got_interface_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){
+		if(got_interface_type.qualifiers().empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF,
-				instr.poly_interface_ref_type,
-				"Base of polymorphic interface reference must be a polymorphic interface"
-			);
-			return Result::ERROR;
-		}
-
-
-		const BaseType::Interface& got_interface =
-			this->context.getTypeManager().getInterface(got_interface_type_info.baseTypeID().interfaceID());
-
-		if(got_interface.isPolymorphic == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF,
-				instr.poly_interface_ref_type,
-				"Base of polymorphic interface reference must be a polymorphic interface",
-				Diagnostic::Info("Note: this interface is not polymorphic")
+				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
+				instr.interface_map.interface,
+				"Target interface of interface map must be an interface",
+				Diagnostic::Info("Note: Target interface type cannot have qualifiers")
 			);
 			return Result::ERROR;
 		}
 
 
-		const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreatePolyInterfaceRef(
-			BaseType::PolyInterfaceRef(
-				got_interface_type_info.baseTypeID().interfaceID(), instr.poly_interface_ref_type.isMut
+		BaseType::Interface& got_interface =
+			this->context.type_manager.getInterface(got_interface_type.baseTypeID().interfaceID());
+
+
+		if(instr.base_type.has_value() == false){
+			if(got_interface.isPolymorphic == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_POLY_INTERFACE_MAP_NOT_POLY_INTERFACE,
+					instr.interface_map.interface,
+					"Target interface of polymorphic interface map must be a polymorphic interface"
+				);
+				return Result::ERROR;
+			}
+
+
+			const bool is_mut = [&]() -> bool {
+				const Token& base_token =
+					this->source.getTokenBuffer()[instr.interface_map.underlyingType.as<Token::ID>()];
+				return base_token.kind() == Token::lookupKind("*mut");
+			}();
+
+
+			const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreatePolyInterfaceRef(
+				BaseType::PolyInterfaceRef(got_interface_type.baseTypeID().interfaceID(), is_mut)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE,
+				TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
+			);
+			return Result::SUCCESS;
+		}
+
+		
+		const TypeInfo::VoidableID base_type_id = this->get_type(*instr.base_type);
+
+		if(base_type_id.isVoid()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
+				instr.interface_map,
+				"Base type of interface map doesn't implement the target interface"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(this->context.getTypeManager().isTypeDeducer(base_type_id.asTypeID())){
+			// do nothing
+		}else{
+			const evo::Expected<bool, Result> implements_result = 
+				this->type_implements_interface(got_interface, base_type_id.asTypeID());
+
+			if(implements_result.has_value()){
+				if(implements_result.value() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
+						instr.interface_map,
+						"Base type of interface map doesn't implement the target interface"
+					);
+					return Result::ERROR;
+				}
+			}else{
+				return implements_result.error();
+			}
+		}
+
+		const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreateInterfaceMap(
+			BaseType::InterfaceMap(
+				base_type_id.asTypeID(), got_interface_type.baseTypeID().interfaceID()
 			)
 		);
 
@@ -17910,14 +17843,12 @@ namespace pcit::panther{
 				return this->context.getTypeManager().getInterface(poly_interface_ref.interfaceID);
 
 			}else{
-				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
-					this->context.getTypeManager().getInterfaceImplInstantiation(
-						actual_lhs_type.baseTypeID().interfaceImplInstantiationID()
-					);
+				const BaseType::InterfaceMap& interface_map = 
+					this->context.getTypeManager().getInterfaceMap(actual_lhs_type.baseTypeID().interfaceMapID());
 
-				impl_instantiation_type_id = interface_impl_instantiation.implInstantiationTypeID;
+				impl_instantiation_type_id = interface_map.underlyingTypeID;
 
-				return this->context.getTypeManager().getInterface(interface_impl_instantiation.interfacedID);
+				return this->context.getTypeManager().getInterface(interface_map.interfaceID);
 			}
 		}();
 
@@ -17980,7 +17911,7 @@ namespace pcit::panther{
 
 
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::INTERFACE_CALL,
+				TermInfo::ValueCategory::POLY_INTERFACE_CALL,
 				lhs.value_stage,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(methods),
@@ -18069,7 +18000,7 @@ namespace pcit::panther{
 			);
 
 			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::METHOD_CALL,
+				TermInfo::ValueCategory::INTERFACE_CALL,
 				TermInfo::ValueStage::CONSTEXPR,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(func_overload_list),
@@ -19454,14 +19385,12 @@ namespace pcit::panther{
 				return evo::Result<>();
 			} break;
 
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
-					this->context.getTypeManager().getInterfaceImplInstantiation(
-						type_info.baseTypeID().interfaceImplInstantiationID()
-					);
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map = 
+					this->context.getTypeManager().getInterfaceMap(type_info.baseTypeID().interfaceMapID());
 
 				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					interface_impl_instantiation.implInstantiationTypeID, dependent_funcs, location
+					interface_map.underlyingTypeID, dependent_funcs, location
 				);
 			} break;
 		}
@@ -19856,10 +19785,7 @@ namespace pcit::panther{
 						return param.typeID;
 
 					}else{
-						if(
-							this->context.getTypeManager().isTypeDeducer(param.typeID)
-							|| this->context.getTypeManager().isNonPolymorphicInterfaceDeducer(param.typeID)
-						){
+						if(this->context.getTypeManager().isTypeDeducer(param.typeID)){
 							return *func_info.instantiation_param_arg_types[param_index];
 						}else{
 							return param.typeID;	
@@ -20623,19 +20549,19 @@ namespace pcit::panther{
 	}
 
 
-	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
+	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_MAP>
 	auto SemanticAnalyzer::get_actual_voidable_type(TypeInfo::VoidableID type_id) const -> TypeInfo::VoidableID {
 		if(type_id.isVoid()){ return TypeInfo::VoidableID::Void(); }
 
 		return TypeInfo::VoidableID(
-			this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>(
+			this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_MAP>(
 				type_id.asTypeID()
 			)
 		);
 	}
 
 
-	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION>
+	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_MAP>
 	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
 		const TypeManager& type_manager = this->context.getTypeManager();
 
@@ -20659,9 +20585,9 @@ namespace pcit::panther{
 
 					base_type_id = this->context.type_manager.getOrCreateArray(
 						BaseType::Array(
-							this->get_actual_type<
-								LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION
-							>(array_type.elementTypeID),
+							this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_MAP>(
+								array_type.elementTypeID
+							),
 							evo::copy(array_type.dimensions),
 							evo::copy(array_type.terminator)
 						)
@@ -20676,9 +20602,9 @@ namespace pcit::panther{
 
 					base_type_id = this->context.type_manager.getOrCreateArrayRef(
 						BaseType::ArrayRef(
-							this->get_actual_type<
-								LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION
-							>(array_ref_type.elementTypeID),
+							this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_MAP>(
+								array_ref_type.elementTypeID
+							),
 							evo::copy(array_ref_type.dimensions),
 							evo::copy(array_ref_type.terminator),
 							array_ref_type.isMut
@@ -20705,14 +20631,12 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-					if constexpr(LOOK_THROUGH_INTERFACE_IMPL_INSTANTIATION){
-						const BaseType::InterfaceImplInstantiation& interface_impl_instantiation = 
-							type_manager.getInterfaceImplInstantiation(
-								type_info.baseTypeID().interfaceImplInstantiationID()
-							);
+				case BaseType::Kind::INTERFACE_MAP: {
+					if constexpr(LOOK_THROUGH_INTERFACE_MAP){
+						const BaseType::InterfaceMap& interface_map = 
+							type_manager.getInterfaceMap(type_info.baseTypeID().interfaceMapID());
 
-						type_id = interface_impl_instantiation.implInstantiationTypeID;
+						type_id = interface_map.underlyingTypeID;
 
 					}else{
 						should_continue = false;
@@ -20842,7 +20766,7 @@ namespace pcit::panther{
 				// check type mismatch
 
 				const TypeCheckInfo& type_check_info = this->type_check<false, false>(
-					this->get_actual_type<false, true>(func_info.func_type.params[arg_i].typeID),
+					this->get_actual_type<false, false>(func_info.func_type.params[arg_i].typeID),
 					arg_info.term_info,
 					"",
 					arg_info.ast_node
@@ -21313,7 +21237,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().getTypeInfo(selected_func.func_type.params[i].typeID);
 			if(param_id_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){
 				if(this->type_check<true, true>(
-					this->get_actual_type<false, true>(selected_func.func_type.params[i].typeID),
+					this->get_actual_type<false, false>(selected_func.func_type.params[i].typeID),
 					arg_info.term_info,
 					"Function call argument",
 					arg_info.ast_node
@@ -21373,7 +21297,7 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TermInfo::ValueCategory::METHOD_CALL: {
+			case TermInfo::ValueCategory::METHOD_CALL: case TermInfo::ValueCategory::INTERFACE_CALL: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
 
 				for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
@@ -21406,7 +21330,7 @@ namespace pcit::panther{
 				method_this_term_info.emplace(TermInfo::fromFakeTermInfo(fake_term_info));
 			} break;
 
-			case TermInfo::ValueCategory::INTERFACE_CALL: {
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
 				for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
 					const sema::Func& sema_func =
@@ -21927,7 +21851,8 @@ namespace pcit::panther{
 
 
 		switch(target_term_info.value_category){
-			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::METHOD_CALL: {
+			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::METHOD_CALL:
+			case TermInfo::ValueCategory::INTERFACE_CALL: {
 				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
 					func_infos[selected_func_overload_index.value()].func_id;
 
@@ -22039,7 +21964,7 @@ namespace pcit::panther{
 			} break;
 
 
-			case TermInfo::ValueCategory::INTERFACE_CALL: {
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
 				const sema::Func::ID selected_func_id = 
 					func_infos[selected_func_overload_index.value()].func_id.as<sema::Func::ID>();
 
@@ -22334,12 +22259,12 @@ namespace pcit::panther{
 			if(arg.type_id.is<TypeInfo::ID>()){
 				arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
 
-				if(templated_func.paramIsTemplate[i]){
+				if(templated_func.paramIsDeducer[i]){
 					instantiation_lookup_args.emplace_back(arg.type_id.as<TypeInfo::ID>());
 				}
 
 			}else{
-				if(templated_func.paramIsTemplate[i]){
+				if(templated_func.paramIsDeducer[i]){
 					return evo::Unexpected<TemplateOverloadMatchFail>(
 						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(i - size_t(is_method)))
 					);
@@ -22798,16 +22723,14 @@ namespace pcit::panther{
 				evo::unimplemented("BaseType::Kind::POLY_INTERFACE_REF"); // TODO(FUTURE): handling underlying data???
 			} break;
 
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
-					this->context.getTypeManager().getInterfaceImplInstantiation(
-						target_type.baseTypeID().interfaceImplInstantiationID()
-					);
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map_info =
+					this->context.getTypeManager().getInterfaceMap(target_type.baseTypeID().interfaceMapID());
 
 				return this->generic_value_to_sema_expr(
 					value,
 					this->context.getTypeManager().getTypeInfo(
-						interface_impl_instantiation_info.implInstantiationTypeID
+						interface_map_info.underlyingTypeID
 					)
 				);
 			} break;
@@ -23063,16 +22986,16 @@ namespace pcit::panther{
 					.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 
-				if(interface_name == "Iterable"){
+				if(interface_name == "IIterable"){
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"), this->symbol_proc_id
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"), this->symbol_proc_id
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
 
-				}else if(interface_name == "IterableRT"){
+				}else if(interface_name == "IIterableRT"){
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"), this->symbol_proc_id
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"), this->symbol_proc_id
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
@@ -23093,19 +23016,19 @@ namespace pcit::panther{
 					.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 				if(array_ref_type.isMut){
-					if(interface_name == "IterableMutRef"){
+					if(interface_name == "IIterableMutRef"){
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"),
 								this->symbol_proc_id
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
 
-					}else if(interface_name == "IterableMutRefRT"){
+					}else if(interface_name == "IIterableMutRefRT"){
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"),
 								this->symbol_proc_id
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -23115,19 +23038,19 @@ namespace pcit::panther{
 						return false;
 					}
 				}else{
-					if(interface_name == "IterableRef"){
+					if(interface_name == "IIterableRef"){
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"),
 								this->symbol_proc_id
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
 
-					}else if(interface_name == "IterableRefRT"){
+					}else if(interface_name == "IIterableRefRT"){
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
 								this->symbol_proc_id
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -23248,9 +23171,7 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return evo::resultError;
-				}
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
 
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return evo::resultError; }
 
@@ -23279,9 +23200,7 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY_REF: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return evo::resultError;
-				}
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
 
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){ return evo::resultError; }
 
@@ -23302,17 +23221,15 @@ namespace pcit::panther{
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
-
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+
 				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return evo::resultError;
-				}
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
 
 				if(got_type.baseTypeID().kind() != BaseType::Kind::ARRAY){ return evo::resultError; }
 
@@ -23330,7 +23247,6 @@ namespace pcit::panther{
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
-
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 
 				if(deducer_array_deducer_type.dimensions.size() != got_array_type.dimensions.size()){
@@ -23409,9 +23325,7 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					return evo::resultError;
-				}
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
 
 				if(got_type.baseTypeID().kind() != BaseType::Kind::STRUCT){ return evo::resultError; }
 
@@ -23505,51 +23419,37 @@ namespace pcit::panther{
 				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
-			case BaseType::Kind::INTERFACE: {
-				TypeInfo::ID got_match_type_id = got_type_id;
-
+			case BaseType::Kind::INTERFACE_MAP: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
 
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
-					// if there are qualifiers, didn't match
-					// Allows for qualified type that implement the interface to pass
-					if(deducer.qualifiers().empty() == false){ return evo::resultError; }
-					
-				}else{
-					// remove matching qualifiers
-					got_match_type_id = this->context.type_manager.getOrCreateTypeInfo(TypeInfo(got_type.baseTypeID()));
-				}
+				if(got_type.baseTypeID().kind() != BaseType::Kind::INTERFACE_MAP){ return evo::resultError; }
 
 
-				const evo::Expected<bool, Result> implements_interface_res = this->type_implements_interface(
-					this->context.type_manager.getInterface(deducer.baseTypeID().interfaceID()), got_match_type_id
+				const BaseType::InterfaceMap& deducer_interface_map_type = 
+					this->context.getTypeManager().getInterfaceMap(deducer.baseTypeID().interfaceMapID());
+
+				const BaseType::InterfaceMap& got_interface_map_type = 
+					this->context.getTypeManager().getInterfaceMap(got_type.baseTypeID().interfaceMapID());
+
+
+
+				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+					deducer_interface_map_type.underlyingTypeID, got_interface_map_type.underlyingTypeID
 				);
-
-				if(implements_interface_res.has_value()){
-					if(implements_interface_res.value()){
-						return DeducerMatchOutput(
-							std::move(deduced_terms),
-							this->context.type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->context.type_manager.getOrCreateInterfaceImplInstantiation(
-										BaseType::InterfaceImplInstantiation(
-											deducer.baseTypeID().interfaceID(), got_match_type_id
-										)
-									),
-									evo::SmallVector<TypeInfo::Qualifier>(
-										deducer.qualifiers().begin(), deducer.qualifiers().end()
-									)
-								)
-							)
-						);
-					}else{
-						return evo::resultError;
-					}
-
-				}else{
-					return implements_interface_res.error();
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:    break;
+					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+
+				if(deducer_interface_map_type.interfaceID != got_interface_map_type.interfaceID){
+					return evo::resultError;
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
 			} break;
 
 			default: {
@@ -24359,7 +24259,7 @@ namespace pcit::panther{
 
 				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_MAP: {
 					evo::debugFatalBreak("Invalid type to check if comparing is possible");
 				} break;
 			}
@@ -25731,7 +25631,7 @@ namespace pcit::panther{
 					);
 
 				}else{
-					actual_got_type_id = this->get_actual_type<false, true>(got_expr.type_id.as<TypeInfo::ID>());
+					actual_got_type_id = this->get_actual_type<false, false>(got_expr.type_id.as<TypeInfo::ID>());
 				}
 
 
@@ -25741,10 +25641,7 @@ namespace pcit::panther{
 					const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
 					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
 
-					if(
-						type_manager.isTypeDeducer(actual_expected_type_id)
-						|| type_manager.isInterfaceDeducer(actual_expected_type_id)
-					){
+					if(type_manager.isTypeDeducer(actual_expected_type_id)){
 						DeducerMatchOutput deducer_match_output =
 							this->deducer_matches_and_extract(actual_expected_type_id, actual_got_type_id);
 

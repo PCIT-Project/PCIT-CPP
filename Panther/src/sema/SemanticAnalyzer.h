@@ -45,9 +45,9 @@ namespace pcit::panther{
 		private:
 			enum class Result{
 				SUCCESS,
-				FINISHED_EARLY,
 				ERROR,
 				RECOVERABLE_ERROR,
+				ERROR_NO_REPORT,
 				NEED_TO_WAIT,
 				NEED_TO_WAIT_BEFORE_NEXT_INSTR,
 				SUSPEND,
@@ -93,9 +93,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
 
 			EVO_NODISCARD auto instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result;
-			EVO_NODISCARD auto instr_template_func_check_param_is_interface(
-				const Instruction::TemplateFuncCheckParamIsInterface& instr
-			) -> Result;
 			EVO_NODISCARD auto instr_template_set_param_is_deducer(
 				const Instruction::TemplateFuncSetParamIsDeducer& instr
 			) -> Result;
@@ -244,16 +241,18 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
 
-			EVO_NODISCARD auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
-
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto operator_as_poly_interface_ref(
-				const Instruction::As<IS_CONSTEXPR>& instr,
+			// return nullopt to type has no interface maps 
+			EVO_NODISCARD auto operator_as_check_interface_map(
 				const TermInfo& from_expr,
-				const TypeInfo& from_type_info,
-				const TypeInfo& to_type_info
-			) -> Result;
+				const TypeInfo::ID from_type_id,
+				const TypeInfo::ID to_type_id,
+				SymbolProc::TermInfoID output_id,
+				const AST::Infix& ast_infix
+			) -> std::optional<Result>;
 
+
+
+			EVO_NODISCARD auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
 
 			template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
 			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
@@ -267,7 +266,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
-			EVO_NODISCARD auto instr_poly_interface_ref_type(const Instruction::PolyInterfaceRefType& instr) -> Result;
+			EVO_NODISCARD auto instr_interface_map(const Instruction::InterfaceMap& instr) -> Result;
 			EVO_NODISCARD auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;
 			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
@@ -909,6 +908,7 @@ namespace pcit::panther{
 				evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifers,
 				evo::ArrayProxy<TypeInfo::Qualifier> got_qualifers
 			) -> evo::Result<bool>; // bool is if is implicit conversion to optional
+
 
 			template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
 			EVO_NODISCARD auto type_check(

@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.199.0"></a>
+## v0.0.199.0
+
+### Panther
+- Added interface maps
+	- replaces polymorphic inteface references
+	- replaces interface deducers
+- Changed names of builtin interfaces to add prefix "I"
+- Fixed checking of operator `as` from a pointer to a pointer not working properly
+- Fixed operator `as` of LHS structs not working with alias
+- Fixed operator `as` of Array to Array Reference not working with alias elements
+
+### Misc
+- Updated to [Panther-std v0.0.6.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.6.0)
+
+
+<!---------------------------------->
 <a name="v0.0.198.0"></a>
 ## v0.0.198.0
 

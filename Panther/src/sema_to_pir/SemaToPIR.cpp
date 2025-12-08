@@ -966,7 +966,7 @@ namespace pcit::panther{
 				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::POLY_INTERFACE_REF:      case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::POLY_INTERFACE_REF:      case BaseType::Kind::INTERFACE_MAP: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -5062,12 +5062,10 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Not non-trivially-deletable");
 			} break;
 
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
-					this->context.getTypeManager().getInterfaceImplInstantiation(
-						expr_type.baseTypeID().interfaceImplInstantiationID()
-					);
-				return this->delete_expr(expr, interface_impl_instantiation_info.implInstantiationTypeID);
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map =
+					this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
+				return this->delete_expr(expr, interface_map.underlyingTypeID);
 			} break;
 		}
 	}
@@ -5491,15 +5489,13 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
-						this->context.getTypeManager().getInterfaceImplInstantiation(
-							expr_type.baseTypeID().interfaceImplInstantiationID()
-						);
+				case BaseType::Kind::INTERFACE_MAP: {
+					const BaseType::InterfaceMap& interface_map =
+						this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
 
 					return this->expr_copy<MODE>(
 						expr,
-						interface_impl_instantiation_info.implInstantiationTypeID,
+						interface_map.underlyingTypeID,
 						is_initialization,
 						store_locations
 					);
@@ -5935,14 +5931,12 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-					const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
-						this->context.getTypeManager().getInterfaceImplInstantiation(
-							expr_type.baseTypeID().interfaceImplInstantiationID()
-						);
+				case BaseType::Kind::INTERFACE_MAP: {
+					const BaseType::InterfaceMap& interface_map =
+						this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
 					return this->expr_move<MODE>(
 						expr,
-						interface_impl_instantiation_info.implInstantiationTypeID,
+						interface_map.underlyingTypeID,
 						is_initialization,
 						store_locations
 					);
@@ -6982,7 +6976,7 @@ namespace pcit::panther{
 				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
 				case BaseType::Kind::INTERFACE:               case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
+				case BaseType::Kind::INTERFACE_MAP: {
 					evo::debugFatalBreak("Invalid type to compare");
 				} break;
 			}
@@ -8817,15 +8811,13 @@ namespace pcit::panther{
 				return this->data.getInterfacePtrType(this->module);
 			} break;
 
-			case BaseType::Kind::INTERFACE_IMPL_INSTANTIATION: {
-				const BaseType::InterfaceImplInstantiation& interface_impl_instantiation_info =
-					this->context.getTypeManager().getInterfaceImplInstantiation(
-						base_type_id.interfaceImplInstantiationID()
-					);
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map =
+					this->context.getTypeManager().getInterfaceMap(base_type_id.interfaceMapID());
 
 				return this->get_type<MAY_LOWER_DEPENDENCY>(
 					this->context.getTypeManager().getTypeInfo(
-						interface_impl_instantiation_info.implInstantiationTypeID
+						interface_map.underlyingTypeID
 					).baseTypeID()
 				);
 			} break;

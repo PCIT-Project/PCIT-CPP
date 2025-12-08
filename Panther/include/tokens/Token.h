@@ -140,7 +140,6 @@ namespace pcit::panther{
 				UNDERSCORE,             // _
 				ELLIPSIS,               // ...
 				MUT_PTR,                // *mut
-				MUT_POLY_INTERFACE_REF, // ^mut
 
 
 				// assignment
@@ -306,7 +305,6 @@ namespace pcit::panther{
 				// length 4
 				if(op_str == "<<|="){ return Kind::ASSIGN_SHIFT_LEFT_SAT; }
 				if(op_str == "*mut"){ return Kind::MUT_PTR; }
-				if(op_str == "^mut"){ return Kind::MUT_POLY_INTERFACE_REF; }
 
 				// length 3
 				if(op_str == "..."){ return Kind::ELLIPSIS; }
@@ -520,7 +518,6 @@ namespace pcit::panther{
 					break; case Kind::UNDERSCORE:             return "_";
 					break; case Kind::ELLIPSIS:               return "...";
 					break; case Kind::MUT_PTR:                return "*mut";
-					break; case Kind::MUT_POLY_INTERFACE_REF: return "^mut";
 
 
 					// assignment

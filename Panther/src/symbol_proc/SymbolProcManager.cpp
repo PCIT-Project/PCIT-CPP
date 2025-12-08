@@ -23,22 +23,22 @@ namespace pcit::panther{
 		this->builtin_symbol_kind_lookup.reserve(size_t(SymbolProc::BuiltinSymbolKind::_MAX_));
 
 		this->builtin_symbol_kind_lookup.emplace(
-			"array.Iterable", constevalLookupBuiltinSymbolKind("array.Iterable")
+			"array.IIterable", constevalLookupBuiltinSymbolKind("array.IIterable")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
-			"array.IterableRT", constevalLookupBuiltinSymbolKind("array.IterableRT")
+			"array.IIterableRT", constevalLookupBuiltinSymbolKind("array.IIterableRT")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
-			"arrayRef.IterableRef", constevalLookupBuiltinSymbolKind("arrayRef.IterableRef")
+			"arrayRef.IIterableRef", constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
-			"arrayRef.IterableRefRT", constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT")
+			"arrayRef.IIterableRefRT", constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
-			"arrayMutRef.IterableMutRef", constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef")
+			"arrayMutRef.IIterableMutRef", constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
-			"arrayMutRef.IterableMutRefRT", constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT")
+			"arrayMutRef.IIterableMutRefRT", constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT")
 		);
 	}
 

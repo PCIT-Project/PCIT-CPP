@@ -66,7 +66,7 @@ namespace pcit::panther::AST{
 		TRY_ELSE,
 
 		ARRAY_TYPE,
-		POLY_INTERFACE_REF_TYPE,
+		INTERFACE_MAP,
 		TYPE,
 		TYPEID_CONVERTER,
 
@@ -443,9 +443,10 @@ namespace pcit::panther::AST{
 		std::optional<bool> refIsMut; // only has value if is array ref
 	};
 
-	struct PolyInterfaceRefType{
+	struct InterfaceMap{
+		evo::Variant<Token::ID, Node> underlyingType;
+		Token::ID colonToken;
 		Node interface;
-		bool isMut;
 	};
 
 

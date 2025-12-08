@@ -739,16 +739,6 @@ namespace pcit::panther{
 					this->create_token(Token::lookupKind("^="));
 					return true;
 
-				}else if(
-					ammount_left > 4
-					&& this->char_stream.peek(1) == 'm'
-					&& this->char_stream.peek(2) == 'u'
-					&& this->char_stream.peek(3) == 't'
-				){
-					this->char_stream.skip(evo::stringSize("^mut"));
-					this->create_token(Token::lookupKind("^mut"));
-					return true;
-
 				}else{
 					this->char_stream.skip(evo::stringSize("^"));
 					this->create_token(Token::lookupKind("^"));

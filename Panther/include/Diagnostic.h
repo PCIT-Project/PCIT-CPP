@@ -119,7 +119,9 @@ namespace pcit::panther{
 			SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
 			SEMA_ARRAY_ELEM_TYPE_VOID,
 			SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT,
-			SEMA_NON_POLYMORPHIC_INTERFACE_REF,
+			SEMA_INTERFACE_MAP_NOT_INTERFACE,
+			SEMA_POLY_INTERFACE_MAP_NOT_POLY_INTERFACE,
+			SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
 
 			// idents
 			SEMA_IDENT_NOT_IN_SCOPE,
@@ -129,6 +131,7 @@ namespace pcit::panther{
 
 			// vars
 			SEMA_VAR_TYPE_VOID,
+			SEMA_VAR_TYPE_INTERFACE,
 			SEMA_VAR_DEF_NOT_EPHEMERAL,
 			SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
 			SEMA_VAR_INITIALIZER_ON_NON_VAR,
@@ -193,11 +196,13 @@ namespace pcit::panther{
 
 			// functions
 			SEMA_PARAM_TYPE_VOID,
+			SEMA_PARAM_TYPE_INTERFACE,
 			SEMA_PARAM_TYPE_UNINIT_PTR,
 			SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE,
 			SEMA_THIS_PARAM_NOT_FIRST,
 			SEMA_INVALID_SCOPE_FOR_THIS_PARAM,
 			SEMA_NAMED_VOID_RETURN,
+			SEMA_RETURN_TYPE_INTERFACE,
 			SEMA_NOT_FIRST_RETURN_VOID,
 			SEMA_INVALID_RETURN_TYPE,
 			SEMA_FUNC_ISNT_TERMINATED,
@@ -476,8 +481,7 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(const AST::PolyInterfaceRefType& type, const class Source& src)
-					-> Location;
+				EVO_NODISCARD static auto get(const AST::InterfaceMap& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Type& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::TypeIDConverter& type, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AttributeBlock::Attribute& attr, const class Source& src)
@@ -737,12 +741,15 @@ namespace pcit::panther{
 				case Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED:
 				case Code::SEMA_ARRAY_ELEM_TYPE_VOID:
 				case Code::SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT:
-				case Code::SEMA_NON_POLYMORPHIC_INTERFACE_REF:
+				case Code::SEMA_INTERFACE_MAP_NOT_INTERFACE:
+				case Code::SEMA_POLY_INTERFACE_MAP_NOT_POLY_INTERFACE:
+				case Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE:
 				case Code::SEMA_IDENT_NOT_IN_SCOPE:
 				case Code::SEMA_IDENT_ALREADY_IN_SCOPE:
 				case Code::SEMA_INTRINSIC_DOESNT_EXIST:
 				case Code::SEMA_CANT_DETERMINE_VALUE_STATE:
 				case Code::SEMA_VAR_TYPE_VOID:
+				case Code::SEMA_VAR_TYPE_INTERFACE:
 				case Code::SEMA_VAR_DEF_NOT_EPHEMERAL:
 				case Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE:
 				case Code::SEMA_VAR_INITIALIZER_ON_NON_VAR:
@@ -793,11 +800,13 @@ namespace pcit::panther{
 				case Code::SEMA_TEMPLATE_TOO_MANY_ARGS:
 				case Code::SEMA_TEMPLATE_INVALID_ARG:
 				case Code::SEMA_PARAM_TYPE_VOID:
+				case Code::SEMA_PARAM_TYPE_INTERFACE:
 				case Code::SEMA_PARAM_TYPE_UNINIT_PTR:
 				case Code::SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE:
 				case Code::SEMA_THIS_PARAM_NOT_FIRST:
 				case Code::SEMA_INVALID_SCOPE_FOR_THIS_PARAM:
 				case Code::SEMA_NAMED_VOID_RETURN:
+				case Code::SEMA_RETURN_TYPE_INTERFACE:
 				case Code::SEMA_NOT_FIRST_RETURN_VOID:
 				case Code::SEMA_INVALID_RETURN_TYPE:
 				case Code::SEMA_FUNC_ISNT_TERMINATED:

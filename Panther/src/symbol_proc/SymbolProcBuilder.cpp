@@ -482,18 +482,18 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:              case AST::Kind::ERROR:                  case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:                 case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:               case AST::Kind::FOR:                    case AST::Kind::DEFER:
-			case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:                  case AST::Kind::FUNC_CALL:
-			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:          case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:              case AST::Kind::INFIX:                  case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:                    case AST::Kind::ARRAY_INIT_NEW:
-			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:               case AST::Kind::DEDUCER:
-			case AST::Kind::ARRAY_TYPE:          case AST::Kind::POLY_INTERFACE_REF_TYPE:case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK:        case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:                  case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:                 case AST::Kind::ZEROINIT:
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:           case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:          case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:             case AST::Kind::DEFER:
+			case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:           case AST::Kind::FUNC_CALL:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:             case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:        case AST::Kind::DEDUCER:
+			case AST::Kind::ARRAY_TYPE:          case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
 			case AST::Kind::THIS:                case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
@@ -801,12 +801,12 @@ namespace pcit::panther{
 				const AST::Type& param_type = this->source.getASTBuffer().getType(*param.type);
 
 
-				auto terms_to_check_for_templates = std::stack<AST::Node, evo::SmallVector<AST::Node, 8>>();
-				terms_to_check_for_templates.emplace(param_type.base);
+				auto terms_to_check_for_deducers = std::stack<AST::Node, evo::SmallVector<AST::Node, 8>>();
+				terms_to_check_for_deducers.emplace(param_type.base);
 
-				while(terms_to_check_for_templates.empty() == false){
-					const AST::Node target_term = terms_to_check_for_templates.top();
-					terms_to_check_for_templates.pop();
+				while(terms_to_check_for_deducers.empty() == false){
+					const AST::Node target_term = terms_to_check_for_deducers.top();
+					terms_to_check_for_deducers.pop();
 
 					switch(target_term.kind()){
 						case AST::Kind::IDENT: {
@@ -820,12 +820,6 @@ namespace pcit::panther{
 								const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
 									this->analyze_type<false>(param_type);
 								if(symbol_proc_type_id.isError()){ return evo::resultError; }
-
-								this->add_instruction(
-									this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
-										symbol_proc_type_id.value(), i
-									)
-								);
 							}
 
 						} break;
@@ -836,12 +830,6 @@ namespace pcit::panther{
 							const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
 								this->analyze_type<false>(param_type);
 							if(symbol_proc_type_id.isError()){ return evo::resultError; }
-
-							this->add_instruction(
-								this->context.symbol_proc_manager.createTemplateFuncCheckParamIsInterface(
-									symbol_proc_type_id.value(), i
-								)
-							);
 						} break;
 
 						case AST::Kind::DEDUCER: {
@@ -875,15 +863,15 @@ namespace pcit::panther{
 						case AST::Kind::ARRAY_TYPE: {
 							const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(target_term);
 
-							terms_to_check_for_templates.emplace(array_type.elemType);
+							terms_to_check_for_deducers.emplace(array_type.elemType);
 
 							for(const std::optional<AST::Node>& dimension : array_type.dimensions){
 								if(dimension.has_value() == false){ continue; }
-								terms_to_check_for_templates.emplace(*dimension);
+								terms_to_check_for_deducers.emplace(*dimension);
 							}
 
 							if(array_type.terminator.has_value()){
-								terms_to_check_for_templates.emplace(*array_type.terminator);
+								terms_to_check_for_deducers.emplace(*array_type.terminator);
 							}
 						} break;
 
@@ -1311,12 +1299,12 @@ namespace pcit::panther{
 			}
 
 			switch(*current_symbol_proc.builtin_symbol_proc_kind){
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"): {
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
 					in_def = true;
 				} break;
 
@@ -1594,18 +1582,27 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case AST::Kind::POLY_INTERFACE_REF_TYPE: {
-				const AST::PolyInterfaceRefType& poly_interface_ref_type =
-					ast_buffer.getPolyInterfaceRefType(ast_type_base);
+			case AST::Kind::INTERFACE_MAP: {
+				const AST::InterfaceMap& interface_map = ast_buffer.getInterfaceMap(ast_type_base);
 
-				const evo::Result<SymbolProc::TermInfoID> interface =
-					this->analyze_type_base<NEEDS_DEF>(poly_interface_ref_type.interface);
-				if(interface.isError()){ return evo::resultError; }
+				auto base_type = std::optional<SymbolProc::TypeID>();
+				if(interface_map.underlyingType.is<AST::Node>()){
+					const evo::Result<SymbolProc::TypeID> underlying_type_type_res = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(interface_map.underlyingType.as<AST::Node>())
+					);
+					if(underlying_type_type_res.isError()){ return evo::resultError; }
+					base_type = underlying_type_type_res.value();
+				}
+
+				const evo::Result<SymbolProc::TypeID> interface_type = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(interface_map.interface)
+				);
+				if(interface_type.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				this->add_instruction(
-					this->context.symbol_proc_manager.createPolyInterfaceRefType(
-						poly_interface_ref_type, interface.value(), new_term_info_id
+					this->context.symbol_proc_manager.createInterfaceMap(
+						interface_map, base_type, interface_type.value(), new_term_info_id
 					)
 				);
 				return new_term_info_id;
@@ -1774,7 +1771,7 @@ namespace pcit::panther{
 			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
-			case AST::Kind::POLY_INTERFACE_REF_TYPE: evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::INTERFACE_MAP:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPEID_CONVERTER:       evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ATTRIBUTE_BLOCK:        evo::debugFatalBreak("Invalid statment");
@@ -3892,6 +3889,12 @@ namespace pcit::panther{
 				}
 
 				return false;
+			} break;
+
+			case AST::Kind::INTERFACE_MAP: {
+				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
+				if(interface_map_type.underlyingType.is<Token::ID>()){ return false; }
+				return this->is_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 
 			default: {

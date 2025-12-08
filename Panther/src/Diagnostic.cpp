@@ -72,7 +72,7 @@ namespace pcit::panther{
 			case AST::Kind::TRY_ELSE:          return Location::get(ast_buffer.getTryElse(node), src);
 			case AST::Kind::DEDUCER:           return Location::get(ast_buffer.getDeducer(node), src);
 			case AST::Kind::ARRAY_TYPE:        return Location::get(ast_buffer.getArrayType(node), src);
-			case AST::Kind::POLY_INTERFACE_REF_TYPE:return Location::get(ast_buffer.getPolyInterfaceRefType(node), src);
+			case AST::Kind::INTERFACE_MAP:     return Location::get(ast_buffer.getInterfaceMap(node), src);
 			case AST::Kind::TYPE:              return Location::get(ast_buffer.getType(node), src);
 			case AST::Kind::TYPEID_CONVERTER:  return Location::get(ast_buffer.getTypeIDConverter(node), src);
 			case AST::Kind::ATTRIBUTE_BLOCK:   evo::debugFatalBreak("Cannot get location of AST::Kind::AttributeBlock");
@@ -242,8 +242,8 @@ namespace pcit::panther{
 		return Location::get(type.openBracket, src);
 	}
 
-	auto Diagnostic::Location::get(const AST::PolyInterfaceRefType& type, const Source& src) -> Location {
-		return Location::get(type.interface, src);
+	auto Diagnostic::Location::get(const AST::InterfaceMap& type, const Source& src) -> Location {
+		return Location::get(type.colonToken, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Type& type, const Source& src) -> Location {

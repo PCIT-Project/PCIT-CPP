@@ -54,7 +54,7 @@ namespace pcit::panther{
 			TYPE_DEDUCER,
 			INTERFACE,
 			POLY_INTERFACE_REF,
-			INTERFACE_IMPL_INSTANTIATION,
+			INTERFACE_MAP,
 		};
 
 
@@ -136,11 +136,9 @@ namespace pcit::panther{
 				return PolyInterfaceRefID(this->_id);
 			}
 
-			EVO_NODISCARD auto interfaceImplInstantiationID() const -> InterfaceImplInstantiationID {
-				evo::debugAssert(
-					this->kind() == Kind::INTERFACE_IMPL_INSTANTIATION, "not an interface impl instantiation"
-				);
-				return InterfaceImplInstantiationID(this->_id);
+			EVO_NODISCARD auto interfaceMapID() const -> InterfaceMapID {
+				evo::debugAssert(this->kind() == Kind::INTERFACE_MAP, "not an interface map");
+				return InterfaceMapID(this->_id);
 			}
 
 
@@ -152,22 +150,22 @@ namespace pcit::panther{
 			}
 
 
-			explicit ID(PrimitiveID id)                  : _kind(Kind::PRIMITIVE),                    _id(id.get()) {}
-			explicit ID(FunctionID id)                   : _kind(Kind::FUNCTION),                     _id(id.get()) {}
-			explicit ID(ArrayID id)                      : _kind(Kind::ARRAY),                        _id(id.get()) {}
-			explicit ID(ArrayDeducerID id)               : _kind(Kind::ARRAY_DEDUCER),                _id(id.get()) {}
-			explicit ID(ArrayRefID id)                   : _kind(Kind::ARRAY_REF),                    _id(id.get()) {}
-			explicit ID(AliasID id)                      : _kind(Kind::ALIAS),                        _id(id.get()) {}
-			explicit ID(DistinctAliasID id)              : _kind(Kind::DISTINCT_ALIAS),               _id(id.get()) {}
-			explicit ID(StructID id)                     : _kind(Kind::STRUCT),                       _id(id.get()) {}
-			explicit ID(StructTemplateID id)             : _kind(Kind::STRUCT_TEMPLATE),              _id(id.get()) {}
-			explicit ID(StructTemplateDeducerID id)      : _kind(Kind::STRUCT_TEMPLATE_DEDUCER),      _id(id.get()) {}
-			explicit ID(UnionID id)                      : _kind(Kind::UNION),                        _id(id.get()) {}
-			explicit ID(EnumID id)                       : _kind(Kind::ENUM),                         _id(id.get()) {}
-			explicit ID(TypeDeducerID id)                : _kind(Kind::TYPE_DEDUCER),                 _id(id.get()) {}
-			explicit ID(InterfaceID id)                  : _kind(Kind::INTERFACE),                    _id(id.get()) {}
-			explicit ID(PolyInterfaceRefID id)           : _kind(Kind::POLY_INTERFACE_REF),           _id(id.get()) {}
-			explicit ID(InterfaceImplInstantiationID id) : _kind(Kind::INTERFACE_IMPL_INSTANTIATION), _id(id.get()) {}
+			explicit ID(PrimitiveID id)             : _kind(Kind::PRIMITIVE),               _id(id.get()) {}
+			explicit ID(FunctionID id)              : _kind(Kind::FUNCTION),                _id(id.get()) {}
+			explicit ID(ArrayID id)                 : _kind(Kind::ARRAY),                   _id(id.get()) {}
+			explicit ID(ArrayDeducerID id)          : _kind(Kind::ARRAY_DEDUCER),           _id(id.get()) {}
+			explicit ID(ArrayRefID id)              : _kind(Kind::ARRAY_REF),               _id(id.get()) {}
+			explicit ID(AliasID id)                 : _kind(Kind::ALIAS),                   _id(id.get()) {}
+			explicit ID(DistinctAliasID id)         : _kind(Kind::DISTINCT_ALIAS),          _id(id.get()) {}
+			explicit ID(StructID id)                : _kind(Kind::STRUCT),                  _id(id.get()) {}
+			explicit ID(StructTemplateID id)        : _kind(Kind::STRUCT_TEMPLATE),         _id(id.get()) {}
+			explicit ID(StructTemplateDeducerID id) : _kind(Kind::STRUCT_TEMPLATE_DEDUCER), _id(id.get()) {}
+			explicit ID(UnionID id)                 : _kind(Kind::UNION),                   _id(id.get()) {}
+			explicit ID(EnumID id)                  : _kind(Kind::ENUM),                    _id(id.get()) {}
+			explicit ID(TypeDeducerID id)           : _kind(Kind::TYPE_DEDUCER),            _id(id.get()) {}
+			explicit ID(InterfaceID id)             : _kind(Kind::INTERFACE),               _id(id.get()) {}
+			explicit ID(PolyInterfaceRefID id)      : _kind(Kind::POLY_INTERFACE_REF),      _id(id.get()) {}
+			explicit ID(InterfaceMapID id)          : _kind(Kind::INTERFACE_MAP),           _id(id.get()) {}
 
 
 
@@ -849,13 +847,13 @@ namespace pcit::panther{
 		};
 
 
-		struct InterfaceImplInstantiation{
-			using ID = InterfaceImplInstantiationID;
+		struct InterfaceMap{
+			using ID = InterfaceMapID;
 			
-			Interface::ID interfacedID;
-			TypeInfoID implInstantiationTypeID;
+			TypeInfoID underlyingTypeID;
+			Interface::ID interfaceID;
 
-			EVO_NODISCARD auto operator==(const InterfaceImplInstantiation&) const -> bool = default;
+			EVO_NODISCARD auto operator==(const InterfaceMap&) const -> bool = default;
 		};
 
 	};
@@ -1049,9 +1047,9 @@ namespace pcit::panther{
 				-> const BaseType::PolyInterfaceRef&;
 			EVO_NODISCARD auto getOrCreatePolyInterfaceRef(BaseType::PolyInterfaceRef&& lookup_type) -> BaseType::ID;
 
-			EVO_NODISCARD auto getInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation::ID id) const
-				-> const BaseType::InterfaceImplInstantiation&;
-			EVO_NODISCARD auto getOrCreateInterfaceImplInstantiation(BaseType::InterfaceImplInstantiation&& lookup_type)
+			EVO_NODISCARD auto getInterfaceMap(BaseType::InterfaceMap::ID id) const
+				-> const BaseType::InterfaceMap&;
+			EVO_NODISCARD auto getOrCreateInterfaceMap(BaseType::InterfaceMap&& lookup_type)
 				-> BaseType::ID;
 
 			
@@ -1074,13 +1072,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTypeDeducer(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(TypeInfo::VoidableID id) const -> bool;
-			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isNonPolymorphicInterfaceDeducer(BaseType::ID id) const -> bool;
-
-			EVO_NODISCARD auto isInterfaceDeducer(TypeInfo::VoidableID id) const -> bool;
-			EVO_NODISCARD auto isInterfaceDeducer(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isInterfaceDeducer(BaseType::ID id) const -> bool;
 
 
 			///////////////////////////////////
@@ -1247,9 +1238,8 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::PolyInterfaceRef, BaseType::PolyInterfaceRef::ID> poly_interface_refs{};
 			mutable evo::SpinLock poly_interface_refs_lock{};
 
-			core::LinearStepAlloc<BaseType::InterfaceImplInstantiation, BaseType::InterfaceImplInstantiation::ID>
-				interface_impl_instantiations{};
-			mutable evo::SpinLock interface_impl_instantiations_lock{};
+			core::LinearStepAlloc<BaseType::InterfaceMap, BaseType::InterfaceMap::ID> interface_maps{};
+			mutable evo::SpinLock interface_maps_lock{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable evo::SpinLock types_lock{};

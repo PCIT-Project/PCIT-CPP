@@ -463,26 +463,6 @@ namespace pcit::panther{
 
 
 
-			//////////////////
-			// TemplateFuncCheckParamIsInterface
-
-			EVO_NODISCARD auto createTemplateFuncCheckParamIsInterface(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE,
-					this->template_func_check_param_is_interfaces.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			EVO_NODISCARD auto getTemplateFuncCheckParamIsInterface(Instruction instr) const
-			-> const Instruction::TemplateFuncCheckParamIsInterface& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::TEMPLATE_FUNC_CHECK_PARAM_IS_INTERFACE,
-					"Not a TemplateFuncCheckParamIsInterface"
-				);
-				return this->template_func_check_param_is_interfaces[instr._index];
-			}
-
-
 
 			//////////////////
 			// TemplateFuncSetParamIsDeducer
@@ -2474,21 +2454,19 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// PolyInterfaceRefType
+			// InterfaceMap
 
-			EVO_NODISCARD auto createPolyInterfaceRefType(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createInterfaceMap(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::POLY_INTERFACE_REF_TYPE,
-					this->poly_interface_ref_types.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::INTERFACE_MAP,
+					this->interface_maps.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getPolyInterfaceRefType(Instruction instr) const
-			-> const Instruction::PolyInterfaceRefType& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::POLY_INTERFACE_REF_TYPE, "Not a PolyInterfaceRefType"
-				);
-				return this->poly_interface_ref_types[instr._index];
+			EVO_NODISCARD auto getInterfaceMap(Instruction instr) const
+			-> const Instruction::InterfaceMap& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::INTERFACE_MAP, "Not a InterfaceMap");
+				return this->interface_maps[instr._index];
 			}
 
 
@@ -2710,14 +2688,14 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static consteval auto constevalLookupBuiltinSymbolKind(std::string_view str)
 			-> SymbolProc::BuiltinSymbolKind {
-				if(str == "array.Iterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
-				if(str == "array.IterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
-				if(str == "arrayRef.IterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
-				if(str == "arrayRef.IterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
-				if(str == "arrayMutRef.IterableMutRef"){
+				if(str == "array.IIterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
+				if(str == "array.IIterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
+				if(str == "arrayRef.IIterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
+				if(str == "arrayRef.IIterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
+				if(str == "arrayMutRef.IIterableMutRef"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF;
 				}
-				if(str == "arrayMutRef.IterableMutRefRT"){
+				if(str == "arrayMutRef.IIterableMutRefRT"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF_RT;
 				}
 
@@ -2831,8 +2809,6 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncPrepareConstexprPIRIfNeeded, uint32_t>
 				func_prepare_constexpr_pir_if_neededs{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncBegin, uint32_t> template_func_begins{};
-			core::SyncLinearStepAlloc<Instruction::TemplateFuncCheckParamIsInterface, uint32_t>
-				template_func_check_param_is_interfaces{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint32_t>
 				template_func_set_param_is_deducers{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint32_t> template_func_ends{};
@@ -2977,7 +2953,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayType, uint32_t> array_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint32_t> array_refs{};
-			core::SyncLinearStepAlloc<Instruction::PolyInterfaceRefType, uint32_t> poly_interface_ref_types{};
+			core::SyncLinearStepAlloc<Instruction::InterfaceMap, uint32_t> interface_maps{};
 			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint32_t> type_id_converters{};
 			core::SyncLinearStepAlloc<Instruction::UserType, uint32_t> user_types{};
 			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint32_t> base_type_idents{};
