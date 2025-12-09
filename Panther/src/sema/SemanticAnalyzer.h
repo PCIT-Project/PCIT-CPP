@@ -1116,20 +1116,14 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_location(sema::ReturnParam::ID return_param_id) const -> Diagnostic::Location {
 				const sema::ReturnParam& return_param = this->context.getSemaBuffer().getReturnParam(return_param_id);
 
-				const BaseType::Function& current_func_type = 
-					this->context.getTypeManager().getFunction(this->get_current_func().typeID);
-
-				return this->get_location(*current_func_type.returnParams[return_param.index].ident);
+				return this->get_location(this->get_current_func().returnParamIdents[return_param.index]);
 			}
 
 			EVO_NODISCARD auto get_location(sema::ErrorReturnParam::ID error_param_id) const -> Diagnostic::Location {
 				const sema::ErrorReturnParam& error_param =
 					this->context.getSemaBuffer().getErrorReturnParam(error_param_id);
 
-				const BaseType::Function& current_func_type = 
-					this->context.getTypeManager().getFunction(this->get_current_func().typeID);
-
-				return this->get_location(*current_func_type.errorParams[error_param.index].ident);
+				return this->get_location(this->get_current_func().errorParamIdents[error_param.index]);
 			}
 
 			EVO_NODISCARD auto get_location(sema::BlockExprOutput::ID block_expr_output_id) const

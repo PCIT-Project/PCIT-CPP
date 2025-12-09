@@ -1625,10 +1625,10 @@ namespace pcit::panther{
 				const BaseType::ID default_init_func_type = this->context.type_manager.getOrCreateFunction(
 					BaseType::Function(
 						evo::SmallVector<BaseType::Function::Param>(),
-						evo::SmallVector<BaseType::Function::ReturnParam>{
-							BaseType::Function::ReturnParam(created_struct.name.as<Token::ID>(), created_struct_type_id)
-						},
-						evo::SmallVector<BaseType::Function::ReturnParam>()
+						evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
+						evo::SmallVector<TypeInfo::VoidableID>(),
+						true,
+						false
 					)
 				);
 
@@ -1641,6 +1641,8 @@ namespace pcit::panther{
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					default_init_func_type.funcID(),
 					evo::SmallVector<sema::Func::Param>(),
+					evo::SmallVector<Token::ID>{created_struct.name.as<Token::ID>()},
+					evo::SmallVector<Token::ID>(),
 					std::nullopt,
 					0,
 					false,
@@ -1776,7 +1778,7 @@ namespace pcit::panther{
 					created_struct.isConstexprDefaultInitializable = true;
 				}
 
-				if(new_init_overload_func_type.errorParams.empty()){
+				if(new_init_overload_func_type.errorTypes.empty()){
 					created_struct.isNoErrorDefaultInitializable = true;
 				}
 
@@ -1821,10 +1823,10 @@ namespace pcit::panther{
 								created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
 							),
 						},
-						evo::SmallVector<BaseType::Function::ReturnParam>{
-							BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-						},
-						evo::SmallVector<BaseType::Function::ReturnParam>()
+						evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+						evo::SmallVector<TypeInfo::VoidableID>(),
+						false,
+						false
 					)
 				);
 
@@ -1839,6 +1841,8 @@ namespace pcit::panther{
 					evo::SmallVector<sema::Func::Param>{
 						sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
 					},
+					evo::SmallVector<Token::ID>(),
+					evo::SmallVector<Token::ID>(),
 					std::nullopt,
 					1,
 					false,
@@ -1968,12 +1972,10 @@ namespace pcit::panther{
 									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
 								),
 							},
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(
-									created_struct.name.as<Token::ID>(), created_struct_type_id
-								)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					);
 
@@ -1988,6 +1990,8 @@ namespace pcit::panther{
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
 						},
+						evo::SmallVector<Token::ID>{created_struct.name.as<Token::ID>()},
+						evo::SmallVector<Token::ID>(),
 						std::nullopt,
 						1,
 						false,
@@ -2119,12 +2123,10 @@ namespace pcit::panther{
 									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
 								),
 							},
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(
-									created_struct.name.as<Token::ID>(), created_struct_type_id
-								)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					);
 
@@ -2139,6 +2141,8 @@ namespace pcit::panther{
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
 						},
+						evo::SmallVector<Token::ID>{created_struct.name.as<Token::ID>()},
+						evo::SmallVector<Token::ID>(),
 						std::nullopt,
 						1,
 						false,
@@ -3073,7 +3077,8 @@ namespace pcit::panther{
 		}
 
 
-		auto return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+		auto return_params = evo::SmallVector<TypeInfo::VoidableID>();
+		auto return_param_idents = evo::SmallVector<Token::ID>();
 		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_return_param_type_id : instr.returns()){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -3115,11 +3120,16 @@ namespace pcit::panther{
 			}
 
 
-			return_params.emplace_back(ast_return_param.ident, return_param_type_id);
+			return_params.emplace_back(return_param_type_id);
+
+			if(ast_return_param.ident.has_value()){
+				return_param_idents.emplace_back(*ast_return_param.ident);
+			}
 		}
 
 
-		auto error_return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+		auto error_return_params = evo::SmallVector<TypeInfo::VoidableID>();
+		auto error_param_idents = evo::SmallVector<Token::ID>();
 		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_error_return_param_type_id : instr.errorReturns()){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -3160,7 +3170,11 @@ namespace pcit::panther{
 				}
 			}
 
-			error_return_params.emplace_back(ast_error_return_param.ident, error_param_type_id);
+			error_return_params.emplace_back(error_param_type_id);
+
+			if(ast_error_return_param.ident.has_value()){
+				return_param_idents.emplace_back(*ast_error_return_param.ident);
+			}
 		}
 
 
@@ -3169,7 +3183,13 @@ namespace pcit::panther{
 		// create func
 
 		const BaseType::ID created_func_base_type = this->context.type_manager.getOrCreateFunction(
-			BaseType::Function(std::move(params), std::move(return_params), std::move(error_return_params))
+			BaseType::Function(
+				std::move(params),
+				std::move(return_params),
+				std::move(error_return_params),
+				!return_param_idents.empty(),
+				!error_param_idents.empty()
+			)
 		);
 
 
@@ -3182,6 +3202,8 @@ namespace pcit::panther{
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			created_func_base_type.funcID(),
 			std::move(sema_params),
+			std::move(return_param_idents),
+			std::move(error_param_idents),
 			this->symbol_proc_id,
 			min_num_args,
 			func_attrs.value().is_pub,
@@ -3316,29 +3338,53 @@ namespace pcit::panther{
 					const BaseType::Function& created_func_type =
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
-					if(created_func_type.returnParams.size() != 1){
+					if(created_func_type.returnTypes.size() != 1){
+						const Diagnostic::Location location = [&]() -> Diagnostic::Location {
+							if(created_func.hasNamedReturns()){
+								return this->get_location(created_func.returnParamIdents[1]);
+							}else{
+								return this->get_location(created_func.name.as<Token::ID>());
+							}
+						}();
+
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[1].ident.value_or(created_func.name.as<Token::ID>()),
+							location,
 							"Operator [as] overload can only have single return"
 						);
 						return Result::ERROR;
 					}
 
-					if(created_func_type.returnParams[0].typeID.isVoid()){
+					if(created_func_type.returnTypes[0].isVoid()){
+						const Diagnostic::Location location = [&]() -> Diagnostic::Location {
+							if(created_func.hasNamedReturns()){
+								return this->get_location(created_func.returnParamIdents[0]);
+							}else{
+								return this->get_location(created_func.name.as<Token::ID>());
+							}
+						}();
+
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[1].ident.value_or(created_func.name.as<Token::ID>()),
+							location,
 							"Operator [as] overload must return a value"
 						);
 						return Result::ERROR;
 					}
 
 
-					if(created_func_type.errorParams.empty() == false){
+					if(created_func_type.errorTypes.empty() == false){
+						const Diagnostic::Location location = [&]() -> Diagnostic::Location {
+							if(created_func.hasNamedErrors()){
+								return this->get_location(created_func.errorParamIdents[0]);
+							}else{
+								return this->get_location(created_func.name.as<Token::ID>());
+							}
+						}();
+
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.errorParams[0].ident.value_or(created_func.name.as<Token::ID>()),
+							location,
 							"Operator [as] overload cannot error"
 						);
 						return Result::ERROR;
@@ -3349,15 +3395,23 @@ namespace pcit::panther{
 						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
-					const TypeInfo::ID conversion_type = created_func_type.returnParams[0].typeID.asTypeID();
+					const TypeInfo::ID conversion_type = created_func_type.returnTypes[0].asTypeID();
 
 					const auto lock = std::scoped_lock(current_struct.operatorAsOverloadsLock);
 
 					const auto find = current_struct.operatorAsOverloads.find(conversion_type);
 					if(find != current_struct.operatorAsOverloads.end()){
+						const Diagnostic::Location location = [&]() -> Diagnostic::Location {
+							if(created_func.hasNamedReturns()){
+								return this->get_location(created_func.returnParamIdents[0]);
+							}else{
+								return this->get_location(created_func.name.as<Token::ID>());
+							}
+						}();
+
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func_type.returnParams[0].ident.value_or(created_func.name.as<Token::ID>()),
+							location,
 							"Operator [as] overload for this type already defined",
 							Diagnostic::Info("Defined here:", this->get_location(find->second))
 						);
@@ -3440,8 +3494,8 @@ namespace pcit::panther{
 						);
 
 						if(
-							created_func_type.returnParams.size() != 1
-							|| created_func_type.returnParams[0].typeID != expected_return_type
+							created_func_type.returnTypes.size() != 1
+							|| created_func_type.returnTypes[0] != expected_return_type
 						){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
@@ -3451,7 +3505,7 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(created_func_type.hasNamedReturns() == false){
+						if(created_func_type.hasNamedReturns == false){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
 								instr.func_def,
@@ -3545,10 +3599,10 @@ namespace pcit::panther{
 
 
 					if(created_func_type.returnsVoid() == false){
-						if(created_func_type.returnParams[0].ident.has_value()){
+						if(created_func.hasNamedReturns()){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								*created_func_type.returnParams[0].ident,
+								created_func.returnParamIdents[0],
 								"Operator [delete] overload must return `Void`"
 							);
 						}else{
@@ -3562,10 +3616,10 @@ namespace pcit::panther{
 					}
 
 					if(created_func_type.hasErrorReturn()){
-						if(created_func_type.errorParams[0].ident.has_value()){
+						if(created_func.hasNamedErrors()){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								*created_func_type.errorParams[0].ident,
+								created_func.errorParamIdents[0],
 								"Operator [delete] cannot error"
 							);
 						}else{
@@ -3648,8 +3702,8 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.returnParams.size() != 1){
-								if(created_func_type.returnParams.empty()){
+							if(created_func_type.returnTypes.size() != 1){
+								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
 										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 										instr.func_def,
@@ -3666,7 +3720,7 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.returnParams[0].typeID != struct_type_info_id){
+							if(created_func_type.returnTypes[0] != struct_type_info_id){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 									instr.func_def.returns[0].type,
@@ -3676,7 +3730,7 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.errorParams.empty() == false){
+							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
 									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 									instr.func_def.errorReturns[0],
@@ -3744,7 +3798,7 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.errorParams.empty() == false){
+							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
 									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 									instr.func_def.errorReturns[0],
@@ -3845,8 +3899,8 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.returnParams.size() != 1){
-								if(created_func_type.returnParams.empty()){
+							if(created_func_type.returnTypes.size() != 1){
+								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
 										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 										instr.func_def,
@@ -3863,7 +3917,7 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.returnParams[0].typeID != struct_type_info_id){
+							if(created_func_type.returnTypes[0] != struct_type_info_id){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 									instr.func_def.returns[0].type,
@@ -3873,7 +3927,7 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.errorParams.empty() == false){
+							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
 									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 									instr.func_def.errorReturns[0],
@@ -3941,7 +3995,7 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.errorParams.empty() == false){
+							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
 									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 									instr.func_def.errorReturns[0],
@@ -4091,7 +4145,7 @@ namespace pcit::panther{
 					}
 
 
-					if(created_func_type.returnParams.size() > 1){
+					if(created_func_type.returnTypes.size() > 1){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
 							instr.func_def.returns[1],
@@ -4123,7 +4177,7 @@ namespace pcit::panther{
 						case Token::lookupKind("=="): case Token::lookupKind("!="): case Token::lookupKind("<"):
 						case Token::lookupKind("<="): case Token::lookupKind(">"):  case Token::lookupKind(">="):
 						case Token::lookupKind("&&"): case Token::lookupKind("||"): {
-							if(created_func_type.returnParams[0].typeID != TypeManager::getTypeBool()){
+							if(created_func_type.returnTypes[0] != TypeManager::getTypeBool()){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
 									instr.func_def.returns[0].type,
@@ -4179,8 +4233,10 @@ namespace pcit::panther{
 										evo::SmallVector<BaseType::Function::Param>{
 											created_func_type.params[1], created_func_type.params[0]
 										},
-										created_func_type.returnParams,
-										created_func_type.errorParams
+										evo::copy(created_func_type.returnTypes),
+										evo::copy(created_func_type.errorTypes),
+										created_func_type.hasNamedReturns,
+										created_func_type.hasNamedErrorReturns
 									)
 								);
 
@@ -4191,6 +4247,8 @@ namespace pcit::panther{
 									this->scope.getCurrentEncapsulatingSymbolIfExists(),
 									swapped_type_id.funcID(),
 									evo::SmallVector<sema::Func::Param>{created_func.params[1], created_func.params[0]},
+									created_func.returnParamIdents,
+									created_func.errorParamIdents,
 									this->symbol_proc_id,
 									2,
 									false,
@@ -4578,12 +4636,12 @@ namespace pcit::panther{
 			}
 
 			if(
-				func_type.returnParams[0].typeID.isVoid() ||
-				this->get_actual_type<false, false>(func_type.returnParams[0].typeID.asTypeID())
+				func_type.returnTypes[0].isVoid() ||
+				this->get_actual_type<false, false>(func_type.returnTypes[0].asTypeID())
 					!= TypeManager::getTypeUI8()
 			){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
-				this->diagnostic_print_type_info(func_type.returnParams[0].typeID.asTypeID(), infos, "Returned type: ");
+				this->diagnostic_print_type_info(func_type.returnTypes[0].asTypeID(), infos, "Returned type: ");
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_def.returns[0].type,
@@ -4593,7 +4651,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(func_type.errorParams.empty() == false){
+			if(func_type.errorTypes.empty() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_def.errorReturns[0],
@@ -4653,7 +4711,7 @@ namespace pcit::panther{
 		}
 
 
-		if(func_type.hasNamedReturns()){
+		if(func_type.hasNamedReturns){
 			for(uint32_t i = 0; const AST::FuncDef::Return& return_param : instr.func_def.returns){
 				EVO_DEFER([&](){ i += 1; });
 
@@ -4670,7 +4728,7 @@ namespace pcit::panther{
 				switch(this->source.getTokenBuffer()[current_func.name.as<Token::ID>()].kind()){
 					case Token::Kind::KEYWORD_NEW: case Token::Kind::KEYWORD_COPY: case Token::Kind::KEYWORD_MOVE: {
 						const TypeInfo& return_type = 
-							this->context.getTypeManager().getTypeInfo(func_type.returnParams[i].typeID.asTypeID());
+							this->context.getTypeManager().getTypeInfo(func_type.returnTypes[i].asTypeID());
 						const BaseType::Struct& return_struct_type =
 							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
 
@@ -4723,9 +4781,9 @@ namespace pcit::panther{
 		}
 
 
-		if(func_type.hasNamedErrorReturns()){
+		if(func_type.hasNamedErrorReturns){
 			// account for the RET param
-			if(func_type.returnsVoid() == false && func_type.hasNamedReturns() == false){
+			if(func_type.returnsVoid() == false && func_type.hasNamedReturns == false){
 				abi_index += 1;
 			}
 
@@ -4882,7 +4940,7 @@ namespace pcit::panther{
 
 
 				// create jit interface if needed
-				if(func_type.returnsVoid() == false && func_type.returnParams.size() == 1){
+				if(func_type.returnsVoid() == false && func_type.returnTypes.size() == 1){
 					sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
 						sema_func_id, *sema_func.constexprJITFunc
 					);
@@ -5353,8 +5411,8 @@ namespace pcit::panther{
 				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
 				const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
-				for(const BaseType::Function::ReturnParam& return_param : method_type.returnParams){
-					if(this->context.getTypeManager().isTypeDeducer(return_param.typeID)){
+				for(TypeInfo::VoidableID return_type : method_type.returnTypes){
+					if(this->context.getTypeManager().isTypeDeducer(return_type)){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
 							method_id,
@@ -6055,7 +6113,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(current_func_type.hasNamedReturns()){
+			if(current_func_type.hasNamedReturns){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
@@ -6077,7 +6135,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(current_func_type.hasNamedReturns()){
+			if(current_func_type.hasNamedReturns){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
@@ -6100,7 +6158,7 @@ namespace pcit::panther{
 			}
 
 			if(this->type_check<true, true>(
-				current_func_type.returnParams.front().typeID.asTypeID(),
+				current_func_type.returnTypes.front().asTypeID(),
 				return_value_term,
 				"Return statement",
 				instr.return_stmt.value.as<AST::Node>()
@@ -6122,7 +6180,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(current_func_type.hasNamedReturns() == false){
+			if(current_func_type.hasNamedReturns == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.return_stmt,
@@ -6386,7 +6444,7 @@ namespace pcit::panther{
 		}else if(instr.error_stmt.value.is<AST::Node>()){ // error {EXPRESSION};
 			evo::debugAssert(instr.value.has_value(), "error return value needs to have value analyzed");
 
-			if(current_func_type.hasNamedErrorReturns()){
+			if(current_func_type.hasNamedErrorReturns){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.error_stmt,
@@ -6409,7 +6467,7 @@ namespace pcit::panther{
 			}
 
 			if(this->type_check<true, true>(
-				current_func_type.errorParams.front().typeID.asTypeID(),
+				current_func_type.errorTypes.front().asTypeID(),
 				error_value_term,
 				"Error return",
 				instr.error_stmt.value.as<AST::Node>()
@@ -6422,7 +6480,7 @@ namespace pcit::panther{
 		}else{ // error...;
 			evo::debugAssert(instr.error_stmt.value.is<Token::ID>(), "Unknown return kind");
 
-			if(current_func_type.hasNamedErrorReturns() == false){
+			if(current_func_type.hasNamedErrorReturns == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
 					instr.error_stmt,
@@ -7146,7 +7204,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getFunction(create_iterator_func.typeID);
 
 				const TypeInfo::ID created_iterator_map_type_id =
-					create_iterator_func_type.returnParams[0].typeID.asTypeID();
+					create_iterator_func_type.returnTypes[0].asTypeID();
 
 				const TypeInfo& created_iterator_map_type_info =
 					this->context.getTypeManager().getTypeInfo(created_iterator_map_type_id);
@@ -7172,7 +7230,7 @@ namespace pcit::panther{
 			const sema::Func& get_func = this->context.getSemaBuffer().getFunc(iterator_impl.methods[1]);
 			const BaseType::Function& get_func_type =
 				this->context.getTypeManager().getFunction(get_func.typeID);
-			const TypeInfo::ID get_func_ret_type = get_func_type.returnParams[0].typeID.asTypeID();
+			const TypeInfo::ID get_func_ret_type = get_func_type.returnTypes[0].asTypeID();
 
 
 			const TypeInfo::ID iterator_get_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -9140,8 +9198,8 @@ namespace pcit::panther{
 		const BaseType::Function& selected_func_type = func_call_impl_res.value().selected_func_type;
 
 		if(
-			instr.try_else.exceptParams.size() != selected_func_type.errorParams.size()
-			&& selected_func_type.errorParams[0].typeID.isVoid() == false
+			instr.try_else.exceptParams.size() != selected_func_type.errorTypes.size()
+			&& selected_func_type.errorTypes[0].isVoid() == false
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
@@ -9149,7 +9207,7 @@ namespace pcit::panther{
 				"Number of except parameters does not match attempt function call",
 				Diagnostic::Info(
 					std::format(
-						"Expected {}, got {}", selected_func_type.errorParams.size(), instr.try_else.exceptParams.size()
+						"Expected {}, got {}", selected_func_type.errorTypes.size(), instr.try_else.exceptParams.size()
 					)
 				)
 			);
@@ -9169,7 +9227,7 @@ namespace pcit::panther{
 			const std::string_view except_param_ident_str = except_param_token.getString();
 
 			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
-				instr.try_else.exceptParams[i], uint32_t(i), selected_func_type.errorParams[i].typeID.asTypeID()
+				instr.try_else.exceptParams[i], uint32_t(i), selected_func_type.errorTypes[i].asTypeID()
 			);
 			except_params.emplace_back(except_param_id);
 
@@ -9561,23 +9619,23 @@ namespace pcit::panther{
 				}
 			}();
 
-			const evo::SmallVector<BaseType::Function::ReturnParam>& selected_func_type_return_params = 
-				func_call_impl_res.value().selected_func_type.returnParams;
+			const evo::SmallVector<TypeInfo::VoidableID>& selected_func_type_return_params = 
+				func_call_impl_res.value().selected_func_type.returnTypes;
 
 			if(selected_func_type_return_params.size() == 1){ // single return
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					value_stage,
 					TermInfo::ValueState::NOT_APPLICABLE,
-					selected_func_type_return_params[0].typeID.asTypeID(),
+					selected_func_type_return_params[0].asTypeID(),
 					sema::Expr(sema_func_call_id)
 				);
 				
 			}else{ // multi-return
 				auto return_types = evo::SmallVector<TypeInfo::ID>();
 				return_types.reserve(selected_func_type_return_params.size());
-				for(const BaseType::Function::ReturnParam& return_param : selected_func_type_return_params){
-					return_types.emplace_back(return_param.typeID.asTypeID());
+				for(TypeInfo::VoidableID return_type : selected_func_type_return_params){
+					return_types.emplace_back(return_type.asTypeID());
 				}
 
 				this->return_term_info(instr.output,
@@ -9647,23 +9705,23 @@ namespace pcit::panther{
 			}
 		}();
 
-		const evo::SmallVector<BaseType::Function::ReturnParam>& selected_func_type_return_params = 
-			func_call_impl_res.value().selected_func_type.returnParams;
+		const evo::SmallVector<TypeInfo::VoidableID>& selected_func_type_return_params = 
+			func_call_impl_res.value().selected_func_type.returnTypes;
 
 		if(selected_func_type_return_params.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				value_stage,
 				TermInfo::ValueState::NOT_APPLICABLE,
-				selected_func_type_return_params[0].typeID.asTypeID(),
+				selected_func_type_return_params[0].asTypeID(),
 				sema::Expr(sema_func_call_id)
 			);
 			
 		}else{ // multi-return
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
 			return_types.reserve(selected_func_type_return_params.size());
-			for(const BaseType::Function::ReturnParam& return_param : selected_func_type_return_params){
-				return_types.emplace_back(return_param.typeID.asTypeID());
+			for(TypeInfo::VoidableID return_param : selected_func_type_return_params){
+				return_types.emplace_back(return_param.asTypeID());
 			}
 
 			this->return_term_info(instr.output,
@@ -9809,7 +9867,7 @@ namespace pcit::panther{
 					);
 				}
 
-				const TypeInfo::ID return_type_id = call_type.returnParams[0].typeID.asTypeID();
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
 
 
 				const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
@@ -9831,7 +9889,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
 				);
 
-				const TypeInfo::ID return_type_id = call_type.returnParams[0].typeID.asTypeID();
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
 
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
@@ -9871,7 +9929,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
 				);
 
-				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
 
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
@@ -9894,7 +9952,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
 				);
 
-				const TypeInfo::ID return_type = call_type.returnParams[0].typeID.asTypeID();
+				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
 
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
@@ -9942,20 +10000,20 @@ namespace pcit::panther{
 					std::move(args)
 				);
 
-				if(selected_func_type.returnParams.size() == 1){ // single return
+				if(selected_func_type.returnTypes.size() == 1){ // single return
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						target_term_info.value_stage,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						selected_func_type.returnParams[0].typeID.asTypeID(),
+						selected_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(interface_call_id)
 					);
 					
 				}else{ // multi-return
 					auto return_types = evo::SmallVector<TypeInfo::ID>();
-					return_types.reserve(selected_func_type.returnParams.size());
-					for(const BaseType::Function::ReturnParam& return_param : selected_func_type.returnParams){
-						return_types.emplace_back(return_param.typeID.asTypeID());
+					return_types.reserve(selected_func_type.returnTypes.size());
+					for(TypeInfo::VoidableID return_param : selected_func_type.returnTypes){
+						return_types.emplace_back(return_param.asTypeID());
 					}
 
 					this->return_term_info(output,
@@ -9994,7 +10052,7 @@ namespace pcit::panther{
 		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
 
 		auto jit_args = evo::SmallVector<core::GenericValue>();
-		jit_args.reserve(instr.args.size() && size_t(target_func_type.hasNamedReturns()));
+		jit_args.reserve(instr.args.size() && size_t(target_func_type.hasNamedReturns));
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 			const TermInfo& arg = this->get_term_info(arg_id);
 
@@ -10003,13 +10061,13 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		const bool uses_rvo = target_func_type.hasNamedReturns() 
+		const bool uses_rvo = target_func_type.hasNamedReturns 
 			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
 
 		if(uses_rvo){
 			jit_args.emplace_back(
 				core::GenericValue::createUninit(
-					this->context.getTypeManager().numBytes(target_func_type.returnParams[0].typeID.asTypeID())
+					this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
 				)
 			);
 		}
@@ -10045,7 +10103,7 @@ namespace pcit::panther{
 
 		}else{
 			const TypeInfo& target_func_return_type = this->context.getTypeManager().getTypeInfo(
-				target_func_type.returnParams[0].typeID.asTypeID()
+				target_func_type.returnTypes[0].asTypeID()
 			);
 
 
@@ -10370,10 +10428,10 @@ namespace pcit::panther{
 			args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
 		}
 
-		const auto create_runtime_call = [&](evo::ArrayProxy<BaseType::Function::ReturnParam> return_params) -> void {
+		const auto create_runtime_call = [&](evo::ArrayProxy<TypeInfo::VoidableID> return_voidable_types) -> void {
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
-			for(const BaseType::Function::ReturnParam& return_param : return_params){
-				return_types.emplace_back(return_param.typeID.asTypeID());
+			for(TypeInfo::VoidableID return_voidable_type : return_voidable_types){
+				return_types.emplace_back(return_voidable_type.asTypeID());
 			}
 
 			const sema::TemplateIntrinsicFuncInstantiation::ID intrinsic_target = 
@@ -10453,7 +10511,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
@@ -10463,7 +10521,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10474,7 +10532,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10485,7 +10543,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10496,7 +10554,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10507,7 +10565,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10518,7 +10576,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10529,7 +10587,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10554,12 +10612,12 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_WRAP: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
@@ -10570,7 +10628,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10582,7 +10640,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10607,12 +10665,12 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_WRAP: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
@@ -10623,7 +10681,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10635,7 +10693,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10660,12 +10718,12 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_WRAP: {
-				create_runtime_call(selected_func.value().selected_func_type.returnParams);
+				create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
@@ -10676,7 +10734,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10688,7 +10746,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10713,7 +10771,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10725,7 +10783,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10748,7 +10806,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10759,7 +10817,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10781,7 +10839,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10804,7 +10862,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10826,7 +10884,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10848,7 +10906,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10870,7 +10928,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10892,7 +10950,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10904,7 +10962,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10916,7 +10974,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10928,7 +10986,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10953,7 +11011,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10965,7 +11023,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -10990,7 +11048,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -11001,7 +11059,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -11012,7 +11070,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -11023,7 +11081,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -11034,7 +11092,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -11045,7 +11103,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					create_runtime_call(selected_func.value().selected_func_type.returnParams);
+					create_runtime_call(selected_func.value().selected_func_type.returnTypes);
 				}
 			} break;
 
@@ -12749,15 +12807,15 @@ namespace pcit::panther{
 
 		
 		if(
-			attempt_func_type.errorParams.size() != instr.except_params.size()
-			&& attempt_func_type.errorParams[0].typeID.isVoid() == false
+			attempt_func_type.errorTypes.size() != instr.except_params.size()
+			&& attempt_func_type.errorTypes[0].isVoid() == false
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
 				instr.handler_kind_token_id,
 				"Number of except parameters does not match attempt function call",
 				Diagnostic::Info(
-					std::format("Expected {}, got {}", attempt_func_type.errorParams.size(), instr.except_params.size())
+					std::format("Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size())
 				)
 			);
 			return Result::ERROR;
@@ -12776,7 +12834,7 @@ namespace pcit::panther{
 			const std::string_view except_param_ident_str = except_param_token.getString();
 
 			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
-				instr.except_params[i], uint32_t(i), attempt_func_type.errorParams[i].typeID.asTypeID()
+				instr.except_params[i], uint32_t(i), attempt_func_type.errorTypes[i].asTypeID()
 			);
 			except_params.emplace_back(sema::Expr(except_param_id));
 
@@ -13286,7 +13344,7 @@ namespace pcit::panther{
 					TermInfo::ValueCategory::EPHEMERAL,
 					target.value_stage,
 					TermInfo::ValueState::NOT_APPLICABLE,
-					selected_overload_info.func_type.returnParams[0].typeID.asTypeID(),
+					selected_overload_info.func_type.returnTypes[0].asTypeID(),
 					sema::Expr(
 						this->context.sema_buffer.createFuncCall(
 							selected_overload_info.func_id.as<sema::Func::ID>(), std::move(sema_args)
@@ -15305,7 +15363,7 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::EPHEMERAL,
 						lhs.value_stage,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						target_func_type.returnParams[0].typeID.asTypeID(),
+						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
 					);
 					return Result::SUCCESS;
@@ -15339,7 +15397,7 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::EPHEMERAL,
 						rhs.value_stage,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						target_func_type.returnParams[0].typeID.asTypeID(),
+						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
 					);
 					return Result::SUCCESS;
@@ -15693,7 +15751,7 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::EPHEMERAL,
 						lhs.value_stage,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						target_func_type.returnParams[0].typeID.asTypeID(),
+						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
 					);
 					return Result::SUCCESS;
@@ -15871,7 +15929,7 @@ namespace pcit::panther{
 					TermInfo::ValueCategory::EPHEMERAL,
 					rhs.value_stage,
 					TermInfo::ValueState::NOT_APPLICABLE,
-					target_func_type.returnParams[0].typeID.asTypeID(),
+					target_func_type.returnTypes[0].asTypeID(),
 					sema::Expr(infix_overload_result.value())
 				);
 				return Result::SUCCESS;
@@ -17268,11 +17326,11 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 			
 		}else if(intrinsic_name == "build"){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.intrinsic,
-				"Intrinsic `@build` is currently unimplemented"
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_MODULE, BuiltinModule::ID::BUILD
 			);
+			return Result::SUCCESS;
+
 		}
 
 
@@ -18085,10 +18143,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, optional_held_type_id)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{optional_held_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18705,10 +18763,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeUSize())
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeUSize()},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18743,10 +18801,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, returned_array_type)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{returned_array_type},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18784,10 +18842,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, return_type_id)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18855,10 +18913,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeUSize())
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeUSize()},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18893,10 +18951,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, returned_array_type)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{returned_array_type},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -18935,10 +18993,10 @@ namespace pcit::panther{
 					this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>(),
-							evo::SmallVector<BaseType::Function::ReturnParam>{
-								BaseType::Function::ReturnParam(std::nullopt, return_type_id)
-							},
-							evo::SmallVector<BaseType::Function::ReturnParam>()
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
+							false
 						)
 					)
 				)
@@ -19112,7 +19170,7 @@ namespace pcit::panther{
 
 					value_state_datas.emplace_back(
 						value_state_info.creation_index,
-						current_func_type.returnParams[return_param.index].typeID.asTypeID(),
+						current_func_type.returnTypes[return_param.index].asTypeID(),
 						sema::Expr(value_state_id.as<sema::ErrorReturnParam::ID>()),
 						this->get_location(value_state_id.as<sema::ReturnParam::ID>())
 					);
@@ -19133,7 +19191,7 @@ namespace pcit::panther{
 
 					value_state_datas.emplace_back(
 						value_state_info.creation_index,
-						current_func_type.returnParams[error_return_param.index].typeID.asTypeID(),
+						current_func_type.returnTypes[error_return_param.index].asTypeID(),
 						sema::Expr(value_state_id.as<sema::ErrorReturnParam::ID>()),
 						this->get_location(value_state_id.as<sema::ErrorReturnParam::ID>())
 					);
@@ -19838,7 +19896,7 @@ namespace pcit::panther{
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
-				const BaseType::Function::ReturnParam& return_param = current_func_type.returnParams[
+				TypeInfo::VoidableID return_type = current_func_type.returnTypes[
 					this->context.getSemaBuffer().getReturnParam(ident_id).index
 				];
 
@@ -19848,7 +19906,7 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
-						return_param.typeID.asTypeID(),
+						return_type.asTypeID(),
 						sema::Expr(ident_id)
 					)
 				);
@@ -19859,7 +19917,7 @@ namespace pcit::panther{
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
-				const BaseType::Function::ReturnParam& error_param = current_func_type.errorParams[
+				TypeInfo::VoidableID error_param = current_func_type.errorTypes[
 					this->context.getSemaBuffer().getErrorReturnParam(ident_id).index
 				];
 
@@ -19868,7 +19926,7 @@ namespace pcit::panther{
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
-						error_param.typeID.asTypeID(),
+						error_param.asTypeID(),
 						sema::Expr(ident_id)
 					)
 				);
@@ -20204,24 +20262,22 @@ namespace pcit::panther{
 					func_name_kind == Token::Kind::KEYWORD_NEW || func_name_kind == Token::Kind::KEYWORD_DELETE
 					|| func_name_kind == Token::Kind::KEYWORD_COPY || func_name_kind == Token::Kind::KEYWORD_MOVE
 				){
-					const BaseType::Function& func_type =
-						this->context.getTypeManager().getFunction(current_func.typeID);
-
 					infos.emplace_back(
 						std::format(
 							"Did you mean `{}.{}`?",
-							this->source.getTokenBuffer()[*func_type.returnParams[0].ident].getString(),
+							this->source.getTokenBuffer()[current_func.returnParamIdents[0]].getString(),
 							ident_str
 						)
 					);
 				}else{
 					infos.emplace_back(std::format("Did you mean `this.{}`?", ident_str));
+					infos.emplace_back("Note: implicit `this` is not allowed");
 				}
 
 				this->emit_error(
 					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 					ident,
-					std::format("Member variables are not accessable except through an accessor", ident_str),
+					std::format("Member variables must be accessed through an accessor", ident_str),
 					std::move(infos)
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -23596,7 +23652,7 @@ namespace pcit::panther{
 		//////////////////
 		// returns
 
-		if(created_func_type.returnParams.size() > 1){
+		if(created_func_type.returnTypes.size() > 1){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
 				ast_func_def.returns[1],
@@ -23605,7 +23661,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		if(created_func_type.returnParams[0].typeID.isVoid()){
+		if(created_func_type.returnTypes[0].isVoid()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
 				ast_func_def.returns[1],
@@ -23797,7 +23853,7 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::EPHEMERAL,
 			expr.value_stage,
 			TermInfo::ValueState::NOT_APPLICABLE,
-			selected_overload_type.returnParams[0].typeID.asTypeID(),
+			selected_overload_type.returnTypes[0].asTypeID(),
 			sema::Expr(
 				this->context.sema_buffer.createFuncCall(
 					selected_overload_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
@@ -24542,27 +24598,27 @@ namespace pcit::panther{
 						}
 
 						// return params
-						if(target_method_type.returnParams != overload_sema_type.returnParams){
-							if(target_method_type.returnParams.size() != overload_sema_type.returnParams.size()){
+						if(target_method_type.returnTypes != overload_sema_type.returnTypes){
+							if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
 								continue;
 							}
 
 							bool return_params_matched = true;
-							for(size_t i = 0; i < target_method_type.returnParams.size(); i+=1){
-								if(target_method_type.returnParams[i].typeID.isVoid()){
-									return_params_matched = overload_sema_type.returnParams[i].typeID.isVoid();
+							for(size_t i = 0; i < target_method_type.returnTypes.size(); i+=1){
+								if(target_method_type.returnTypes[i].isVoid()){
+									return_params_matched = overload_sema_type.returnTypes[i].isVoid();
 									break;
 
-								}else if(overload_sema_type.returnParams[i].typeID.isVoid()){
+								}else if(overload_sema_type.returnTypes[i].isVoid()){
 									return_params_matched = false;
 									break;
 								}
 
 								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.returnParams[i].typeID.asTypeID();
+									target_method_type.returnTypes[i].asTypeID();
 
 								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.returnParams[i].typeID.asTypeID();
+									overload_sema_type.returnTypes[i].asTypeID();
 
 								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
 
@@ -24594,27 +24650,27 @@ namespace pcit::panther{
 						}
 
 						// error params
-						if(target_method_type.errorParams != overload_sema_type.errorParams){
-							if(target_method_type.errorParams.size() != overload_sema_type.errorParams.size()){
+						if(target_method_type.errorTypes != overload_sema_type.errorTypes){
+							if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
 								continue;
 							}
 
 							bool error_params_matched = true;
-							for(size_t i = 0; i < target_method_type.errorParams.size(); i+=1){
-								if(target_method_type.errorParams[i].typeID.isVoid()){
-									error_params_matched = overload_sema_type.errorParams[i].typeID.isVoid();
+							for(size_t i = 0; i < target_method_type.errorTypes.size(); i+=1){
+								if(target_method_type.errorTypes[i].isVoid()){
+									error_params_matched = overload_sema_type.errorTypes[i].isVoid();
 									break;
 
-								}else if(overload_sema_type.errorParams[i].typeID.isVoid()){
+								}else if(overload_sema_type.errorTypes[i].isVoid()){
 									error_params_matched = false;
 									break;
 								}
 
 								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.errorParams[i].typeID.asTypeID();
+									target_method_type.errorTypes[i].asTypeID();
 
 								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.errorParams[i].typeID.asTypeID();
+									overload_sema_type.errorTypes[i].asTypeID();
 
 								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
 

@@ -88,7 +88,7 @@ namespace pcit::pir{
 		if(isStandardName(func_decl.name)){
 			this->printer.printGreen("&{} ", func_decl.name);
 		}else{
-			this->printer.print("&");
+			this->printer.printGreen("&");
 			this->print_non_standard_name(func_decl.name);
 			this->printer.print(" ");
 		}

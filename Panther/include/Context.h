@@ -476,8 +476,8 @@ namespace pcit::panther{
 						instantiated_params.emplace_back(param_type, param.kind, false);
 					}
 
-					auto instantiated_returns = evo::SmallVector<BaseType::Function::ReturnParam>();
-					instantiated_returns.reserve(this->returns.size());
+					auto instantiated_return_types = evo::SmallVector<TypeInfo::VoidableID>();
+					instantiated_return_types.reserve(this->returns.size());
 					for(const ReturnParam& return_param : this->returns){
 						const TypeInfo::VoidableID return_type = return_param.visit([&](const auto& return_data){
 							if constexpr(std::is_same<std::decay_t<decltype(return_data)>, TypeInfo::VoidableID>()){
@@ -487,10 +487,16 @@ namespace pcit::panther{
 							}
 						});
 
-						instantiated_returns.emplace_back(std::nullopt, return_type);
+						instantiated_return_types.emplace_back(return_type);
 					}
 
-					return BaseType::Function(std::move(instantiated_params), std::move(instantiated_returns), {});
+					return BaseType::Function(
+						std::move(instantiated_params),
+						std::move(instantiated_return_types),
+						evo::SmallVector<TypeInfo::VoidableID>(),
+						false,
+						false
+					);
 				}
 			};
 			EVO_NODISCARD auto getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind)

@@ -25,9 +25,9 @@ namespace pcit::panther{
 
 	auto BaseType::Function::isImplicitRVO(const TypeManager& type_manager) const -> bool {
 		if(this->returnsVoid()){ return false; }
-		if(this->hasNamedReturns()){ return false; }
+		if(this->hasNamedReturns){ return false; }
 
-		const TypeInfo::ID ret_type_id = this->returnParams[0].typeID.asTypeID();
+		const TypeInfo::ID ret_type_id = this->returnTypes[0].asTypeID();
 
 		return type_manager.isTriviallySized(ret_type_id) == false
 			|| type_manager.isTriviallyCopyable(ret_type_id) == false

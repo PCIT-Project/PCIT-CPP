@@ -2,13 +2,13 @@ def build = @import("build");
 
 
 type Package = struct #pub {
-	func new = (path: [Char:*], name: [Char:*], warnings: @pthr.PackageWarningSettings in) #rt
+	func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
 	-> (output: This) {
 		output._package_id = @buildCreatePackage(path, name, forward warnings);
 		return...;
 	}
 
-	// func new = (warning_settings: @pthr.PackageWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
+	// func new = (warning_settings: @build.PackageWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
 	// 	output = new Package(forward warning_settings, path.* as [Char:*]);
 	// 	return...;
 	// }
@@ -36,7 +36,7 @@ type Package = struct #pub {
 
 	
 
-	const _package_id: @pthr.PackageID;
+	const _package_id: @build.PackageID;
 }
 
 
@@ -55,7 +55,7 @@ func setStdLibPackage = (package: Package) #pub #rt -> Void {
 
 
 func addStdLib = (path: [Char:*]) #pub #rt -> Void {
-	const warns = new @pthr.PackageWarningSettings{
+	const warns = new @build.PackageWarningSettings{
 		methodCallOnNonMethod        = true,
 		deleteMovedFromExpr          = true,
 		deleteTriviallyDeletableType = true,

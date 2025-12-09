@@ -326,29 +326,42 @@ namespace pcit::panther{
 				EVO_NODISCARD auto operator==(const Param&) const -> bool = default;
 			};
 
-			struct ReturnParam{
-				std::optional<Token::ID> ident;
-				TypeInfoVoidableID typeID;
-
-				EVO_NODISCARD auto operator==(const ReturnParam& rhs) const -> bool {
-					return this->ident.has_value() == rhs.ident.has_value() && this->typeID == rhs.typeID;
-				}
-			};
-
 			evo::SmallVector<Param> params;
-			evo::SmallVector<ReturnParam> returnParams;
-			evo::SmallVector<ReturnParam> errorParams;
+			evo::SmallVector<TypeInfoVoidableID> returnTypes;
+			evo::SmallVector<TypeInfoVoidableID> errorTypes;
+			bool hasNamedReturns;
+			bool hasNamedErrorReturns;
 
 
-			EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParams[0].ident.has_value(); }
-			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnParams[0].typeID.isVoid(); }
-
-			EVO_NODISCARD auto hasErrorReturn() const -> bool { return !this->errorParams.empty(); }
-			EVO_NODISCARD auto hasErrorReturnParams() const -> bool {
-				return this->hasErrorReturn() && this->errorParams[0].typeID.isVoid() == false;
+			Function(
+				evo::SmallVector<Param>&& _params,
+				evo::SmallVector<TypeInfoVoidableID>&& returns_types,
+				evo::SmallVector<TypeInfoVoidableID>&& error_types,
+				bool has_named_returns,
+				bool has_named_error_returns
+			) : 
+				params(std::move(_params)),
+				returnTypes(std::move(returns_types)),
+				errorTypes(std::move(error_types)),
+				hasNamedReturns(has_named_returns),
+				hasNamedErrorReturns(has_named_error_returns)
+			{
+				evo::debugAssert(
+					this->hasNamedReturns == false || this->returnsVoid() == false,
+					"Type `Void` cannot be named"
+				);
+				evo::debugAssert(
+					this->hasNamedErrorReturns == false || this->hasErrorReturnParams(),
+					"Cannot have named error returns without error returns"
+				);
 			}
-			EVO_NODISCARD auto hasNamedErrorReturns() const -> bool {
-				return this->hasErrorReturnParams() && this->errorParams[0].ident.has_value();
+
+
+			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnTypes[0].isVoid(); }
+
+			EVO_NODISCARD auto hasErrorReturn() const -> bool { return !this->errorTypes.empty(); }
+			EVO_NODISCARD auto hasErrorReturnParams() const -> bool {
+				return this->hasErrorReturn() && this->errorTypes[0].isVoid() == false;
 			}
 
 			EVO_NODISCARD auto isImplicitRVO(const class TypeManager& type_manager) const -> bool; // only if Panther

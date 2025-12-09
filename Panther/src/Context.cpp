@@ -303,8 +303,8 @@ namespace pcit::panther{
 			const clangint::BaseType::Function& func_type = clang_type.baseType.as<clangint::BaseType::Function>();
 
 			auto params = evo::SmallVector<BaseType::Function::Param>();
-			auto return_params = evo::SmallVector<BaseType::Function::ReturnParam>();
-			auto error_params = evo::SmallVector<BaseType::Function::ReturnParam>();
+			auto return_types = evo::SmallVector<TypeInfo::VoidableID>();
+			auto error_types = evo::SmallVector<TypeInfo::VoidableID>();
 
 			params.reserve(func_type.getParamTypes().size());
 			for(const clangint::Type& param_type : func_type.getParamTypes()){
@@ -322,10 +322,10 @@ namespace pcit::panther{
 				clang_type_to_panther_type(func_type.getReturnType(), type_manager, type_map);
 			if(return_panther_type.has_value() == false){ return std::nullopt; }
 
-			return_params.emplace_back(std::nullopt, *return_panther_type);
+			return_types.emplace_back(*return_panther_type);
 
 			base_type_id = type_manager.getOrCreateFunction(
-				BaseType::Function(std::move(params), std::move(return_params), std::move(error_params))
+				BaseType::Function(std::move(params), std::move(return_types), std::move(error_types), false, false)
 			);
 		}
 
@@ -1433,6 +1433,8 @@ namespace pcit::panther{
 								std::nullopt,
 								this->type_manager.getTypeInfo(panther_func_type->asTypeID()).baseTypeID().funcID(),
 								std::move(params),
+								evo::SmallVector<Token::ID>(),
+								evo::SmallVector<Token::ID>(),
 								std::nullopt,
 								uint32_t(function_decl.params.size()),
 								false,
@@ -1983,11 +1985,12 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// pthr
+		// builtin modules
 
 		BuiltinModule& pthr_module = this->source_manager[BuiltinModule::ID::PTHR];
-
 		const BuiltinModule::StringID pthr_module_this_string = pthr_module.createString("this");
+
+		BuiltinModule& build_module = this->source_manager[BuiltinModule::ID::BUILD];
 
 
 		//////////////////
@@ -1997,25 +2000,25 @@ namespace pcit::panther{
 			auto package_warning_settings_members = evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					pthr_module.createString("methodCallOnNonMethod"),
+					build_module.createString("methodCallOnNonMethod"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					pthr_module.createString("deleteMovedFromExpr"),
+					build_module.createString("deleteMovedFromExpr"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					pthr_module.createString("deleteTriviallyDeletableType"),
+					build_module.createString("deleteTriviallyDeletableType"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					pthr_module.createString("constexprIfCond"),
+					build_module.createString("constexprIfCond"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
@@ -2030,8 +2033,8 @@ namespace pcit::panther{
 
 			const BaseType::ID package_warning_settings_type = this->type_manager.getOrCreateStruct(
 				BaseType::Struct(
-					BuiltinModule::ID::PTHR,
-					pthr_module.createString("PackageWarningSettings"),
+					BuiltinModule::ID::BUILD,
+					build_module.createString("PackageWarningSettings"),
 					std::nullopt,
 					std::nullopt,
 					std::numeric_limits<uint32_t>::max(),
@@ -2048,7 +2051,7 @@ namespace pcit::panther{
 
 			sema_to_pir.lowerStruct(package_warning_settings_type.structID());
 
-			pthr_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
+			build_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
 		}
 
 
@@ -2058,7 +2061,7 @@ namespace pcit::panther{
 		{
 			const BaseType::ID package_id = this->type_manager.getOrCreateAlias(
 				BaseType::Alias(
-					BuiltinModule::ID::PTHR,
+					BuiltinModule::ID::BUILD,
 					pthr_module.createString("PackageID"),
 					std::nullopt,
 					TypeManager::getTypeUI32(),
@@ -2066,7 +2069,7 @@ namespace pcit::panther{
 				)
 			);
 
-			pthr_module.createSymbol("PackageID", package_id);
+			build_module.createSymbol("PackageID", package_id);
 		}
 
 
@@ -2099,10 +2102,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2113,6 +2116,8 @@ namespace pcit::panther{
 				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2139,10 +2144,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2153,6 +2158,8 @@ namespace pcit::panther{
 				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2173,10 +2180,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2187,6 +2194,8 @@ namespace pcit::panther{
 				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2230,10 +2239,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2244,6 +2253,8 @@ namespace pcit::panther{
 				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2270,10 +2281,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2284,6 +2295,8 @@ namespace pcit::panther{
 				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2304,10 +2317,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2318,6 +2331,8 @@ namespace pcit::panther{
 				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2360,21 +2375,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2385,6 +2399,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2405,21 +2421,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2430,6 +2445,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_mut_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2474,21 +2491,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_ref_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2499,6 +2515,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2546,21 +2564,20 @@ namespace pcit::panther{
 							iterable_mut_ref_type_id, BaseType::Function::Param::Kind::READ, false
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2571,6 +2588,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2613,10 +2632,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2627,6 +2646,8 @@ namespace pcit::panther{
 				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2653,10 +2674,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2667,6 +2688,8 @@ namespace pcit::panther{
 				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2687,10 +2710,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2701,6 +2724,8 @@ namespace pcit::panther{
 				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2733,7 +2758,8 @@ namespace pcit::panther{
 		pthr_module.createSymbol("IMutIteratorRT", mut_iterator_rt_id);
 
 		{
-			const TypeInfo::ID mut_iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_rt_id));
+			const TypeInfo::ID mut_iterator_type_id =
+				this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_rt_id));
 
 			BaseType::Interface& mut_iterator_type = this->type_manager.getInterface(mut_iterator_rt_id.interfaceID());
 
@@ -2744,10 +2770,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2758,6 +2784,8 @@ namespace pcit::panther{
 				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2784,10 +2812,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, get_return_type)
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2798,6 +2826,8 @@ namespace pcit::panther{
 				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2818,10 +2848,10 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeManager::getTypeBool())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2832,6 +2862,8 @@ namespace pcit::panther{
 				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2874,21 +2906,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2899,6 +2930,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2919,21 +2952,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::MUT, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -2944,6 +2976,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_mut_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -2990,21 +3024,20 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(iterable_rt_ref_type_id, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -3015,6 +3048,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -3062,21 +3097,20 @@ namespace pcit::panther{
 							iterable_rt_mut_ref_type_id, BaseType::Function::Param::Kind::READ, false
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(
-							std::nullopt,
-							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									this->type_manager.getOrCreateInterfaceMap(
-										BaseType::InterfaceMap(
-											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
-										)
+					evo::SmallVector<TypeInfo::VoidableID>{
+						this->type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->type_manager.getOrCreateInterfaceMap(
+									BaseType::InterfaceMap(
+										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
 									)
 								)
 							)
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -3087,6 +3121,8 @@ namespace pcit::panther{
 				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
+				evo::SmallVector<Token::ID>(),
+				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
 				false,
@@ -3111,11 +3147,11 @@ namespace pcit::panther{
 
 		const auto create_func_type = [&](
 			evo::SmallVector<BaseType::Function::Param>&& params,
-			evo::SmallVector<BaseType::Function::ReturnParam>&& returns,
-			evo::SmallVector<BaseType::Function::ReturnParam>&& error_returns
+			evo::SmallVector<TypeInfo::VoidableID>&& returns,
+			evo::SmallVector<TypeInfo::VoidableID>&& error_returns
 		) -> TypeInfo::ID {
 			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns))
+				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns), false, false)
 			);
 
 			return type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type));
@@ -3123,19 +3159,25 @@ namespace pcit::panther{
 
 
 		const TypeInfo::ID no_params_return_void = create_func_type(
-			{}, {BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())}, {}
+			evo::SmallVector<BaseType::Function::Param>{},
+			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+			evo::SmallVector<TypeInfo::VoidableID>{}
 		);
 
 		const TypeInfo::ID ui32_arg_return_void = create_func_type(
-			{BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ, true)},
-			{BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())},
-			{}
+			evo::SmallVector<BaseType::Function::Param>{
+				BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ, true)
+			},
+			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+			evo::SmallVector<TypeInfo::VoidableID>{}
 		);
 
 		const TypeInfo::ID bool_arg_return_void = create_func_type(
-			{BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true)},
-			{BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())},
-			{}
+			evo::SmallVector<BaseType::Function::Param>{
+				BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true)
+			},
+			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+			evo::SmallVector<TypeInfo::VoidableID>{}
 		);
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
@@ -3165,20 +3207,18 @@ namespace pcit::panther{
 
 
 		{
-			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
 
 			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
+				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 			const TypeInfo::ID created_func_type = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
 					BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
 				},
-				evo::SmallVector<BaseType::Function::ReturnParam>{
-					BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-				},
-				evo::SmallVector<BaseType::Function::ReturnParam>()
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>()
 			);
 
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE))] = 
@@ -3208,14 +3248,14 @@ namespace pcit::panther{
 
 
 		{
-			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
 
 			const TypeInfo::ID package_warning_settings = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
+				TypeInfo(builtin_module_build.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
 			);
 
 			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
+				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3226,10 +3266,10 @@ namespace pcit::panther{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
 						BaseType::Function::Param(package_warning_settings, BaseType::Function::Param::Kind::IN, false)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, package_id)
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{package_id},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -3242,10 +3282,10 @@ namespace pcit::panther{
 		}
 
 		{
-			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
 
 			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
+				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3255,10 +3295,10 @@ namespace pcit::panther{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
 						BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -3271,10 +3311,10 @@ namespace pcit::panther{
 		}
 
 		{
-			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
 
 			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
+				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3287,10 +3327,10 @@ namespace pcit::panther{
 							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 
@@ -3311,10 +3351,10 @@ namespace pcit::panther{
 							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
 						)
 					},
-					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
-					},
-					evo::SmallVector<BaseType::Function::ReturnParam>()
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
+					false
 				)
 			);
 

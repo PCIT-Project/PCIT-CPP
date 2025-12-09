@@ -6,14 +6,14 @@ func entry = () #entry -> UI8 {
 	build_exp.setOutput(build.Output.PIR);
 	// build_exp.setNumThreads(12);
 
-	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
-	build_exp.addStdLib("../../Panther-std/std");
+	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build_exp.addStdLib("../../Panther-std/std");
 
 
 	const test_package = new build_exp.Package(
 		path     : "./".* as [Char:*],
 		name     : "test".* as [Char:*],
-		warnings : new @pthr.PackageWarningSettings{
+		warnings : new @build.PackageWarningSettings{
 			methodCallOnNonMethod        = true,
 			deleteMovedFromExpr          = true,
 			deleteTriviallyDeletableType = true,

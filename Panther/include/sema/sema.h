@@ -620,6 +620,8 @@ namespace pcit::panther::sema{
 		std::optional<EncapsulatingSymbolID> parent;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
+		evo::SmallVector<Token::ID> returnParamIdents; // empty if not named
+		evo::SmallVector<Token::ID> errorParamIdents; // empty if not named
 		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
 		uint32_t minNumArgs;
 		bool isPub; // meaningless if is Clang or builtin type
@@ -648,6 +650,9 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto isEquivalentOverload(const Func& rhs, const class panther::Context& context) const -> bool;
 
 		EVO_NODISCARD auto isMethod(const class panther::Context& context) const -> bool;
+
+		EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty(); }
+		EVO_NODISCARD auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty(); }
 	};
 
 
