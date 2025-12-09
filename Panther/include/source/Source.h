@@ -31,12 +31,13 @@ namespace pcit::panther{
 			using ID = SourceID;
 			using Location = SourceLocation;
 
-			struct ProjectConfig{
+			struct Package{
 				struct ID : public core::UniqueID<uint32_t, struct ID> {
 					using core::UniqueID<uint32_t, ID>::UniqueID;
 				};
 
 				std::filesystem::path basePath;
+				std::string name;
 
 				struct Warns{
 					bool methodCallOnNonMethod        = true;
@@ -52,9 +53,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getID() const -> ID { return this->id; }
 			EVO_NODISCARD auto getPath() const -> const std::filesystem::path& { return this->path; }
 			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
-			EVO_NODISCARD auto getProjectConfigID() const -> ProjectConfig::ID {
-				return this->project_config_id;
-			}
+			EVO_NODISCARD auto getPackageID() const -> Package::ID { return this->packagage_id; }
 
 
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
@@ -65,15 +64,15 @@ namespace pcit::panther{
 
 		private:
 			Source(
-				std::filesystem::path&& _path, std::string&& data_str, ProjectConfig::ID proj_config_id
-			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), project_config_id(proj_config_id) {}
+				std::filesystem::path&& _path, std::string&& data_str, Package::ID pgk_id
+			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), packagage_id(pgk_id) {}
 
 	
 		private:
 			ID id;
 			std::filesystem::path path;
 			std::string data;
-			ProjectConfig::ID project_config_id;
+			Package::ID packagage_id;
 
 			TokenBuffer token_buffer{};
 			ASTBuffer ast_buffer{};

@@ -132,9 +132,9 @@ namespace pcit::panther{
 					
 					this->symbol_proc.setStatusSuspended();
 
-					if(this->scope.getCurrentObjectScope().is<sema::Func::ID>()){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()){
 						sema::Func& sema_func = this->context.sema_buffer.funcs[
-							this->scope.getCurrentObjectScope().as<sema::Func::ID>()
+							this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>()
 						];
 
 						sema_func.status = sema::Func::Status::SUSPENDED;
@@ -795,7 +795,7 @@ namespace pcit::panther{
 			}
 		}else{
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
 
 			const uint32_t member_index = [&](){
@@ -837,7 +837,7 @@ namespace pcit::panther{
 					this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<uint32_t>();
 
 				BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-					this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+					this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 				);
 
 				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
@@ -949,7 +949,7 @@ namespace pcit::panther{
 				this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<uint32_t>();
 
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
 
 			const TermInfo& default_term = this->get_term_info(*instr.value_id);
@@ -1204,7 +1204,7 @@ namespace pcit::panther{
 
 		}else{
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-				this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
 
 			{
@@ -1395,7 +1395,11 @@ namespace pcit::panther{
 
 		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
 			BaseType::Alias(
-				this->source.getID(), instr.alias_def.ident, aliased_type.asTypeID(), attr_pub.is_set()
+				this->source.getID(),
+				instr.alias_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				aliased_type.asTypeID(),
+				attr_pub.is_set()
 			)
 		);
 
@@ -1431,6 +1435,7 @@ namespace pcit::panther{
 			BaseType::Struct{
 				.sourceID          = this->source.getID(),
 				.name              = instr.struct_def.ident,
+				.parent            = this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				.templateID        = instr.struct_template_id,
 				.instantiation     = instr.instantiation_id,
 				.memberVars        = evo::SmallVector<BaseType::Struct::MemberVar>(),
@@ -1633,6 +1638,7 @@ namespace pcit::panther{
 						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_NEW
 					),
 					std::string(),
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					default_init_func_type.funcID(),
 					evo::SmallVector<sema::Func::Param>(),
 					std::nullopt,
@@ -1828,6 +1834,7 @@ namespace pcit::panther{
 						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_DELETE
 					),
 					std::string(),
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					default_delete_func_type.funcID(),
 					evo::SmallVector<sema::Func::Param>{
 						sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -1976,6 +1983,7 @@ namespace pcit::panther{
 							created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_MOVE
 						),
 						std::string(),
+						this->scope.getCurrentEncapsulatingSymbolIfExists(),
 						default_move_func_type.funcID(),
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -2126,6 +2134,7 @@ namespace pcit::panther{
 							created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_COPY
 						),
 						std::string(),
+						this->scope.getCurrentEncapsulatingSymbolIfExists(),
 						default_copy_func_type.funcID(),
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -2415,7 +2424,11 @@ namespace pcit::panther{
 
 		const BaseType::ID created_struct_type_id = this->context.type_manager.getOrCreateStructTemplate(
 			BaseType::StructTemplate(
-				this->source.getID(), instr.struct_def.ident, std::move(params), minimum_num_template_args
+				this->source.getID(),
+				instr.struct_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				std::move(params),
+				minimum_num_template_args
 			)
 		);
 		
@@ -2451,6 +2464,7 @@ namespace pcit::panther{
 			BaseType::Union(
 				this->source.getID(),
 				instr.union_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				evo::SmallVector<BaseType::Union::Field>(),
 				&union_info.member_symbols,
 				nullptr,
@@ -2650,6 +2664,7 @@ namespace pcit::panther{
 			BaseType::Enum(
 				this->source.getID(),
 				instr.enum_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				evo::SmallVector<BaseType::Enum::Enumerator>(),
 				underlying_type_id,
 				&enum_info.member_symbols,
@@ -2999,7 +3014,7 @@ namespace pcit::panther{
 			}else{ // [this] param
 				has_this_param = true;
 
-				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
+				const std::optional<EncapsulatingSymbolID> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
 
 				if(current_type_scope.has_value() == false){
@@ -3039,8 +3054,8 @@ namespace pcit::panther{
 
 						params.emplace_back(this_type, type_param_kind, false);
 
-					}else if constexpr(std::is_same<TypeScope, sema::ScopeManager::Scope::InterfaceImplInfo>()){
-						params.emplace_back(type_scope.target_type_id, type_param_kind, false);
+					}else if constexpr(std::is_same<TypeScope, EncapsulatingSymbolID::InterfaceImplInfo>()){
+						params.emplace_back(type_scope.targetTypeID, type_param_kind, false);
 
 					}else if constexpr(std::is_same<TypeScope, sema::Func::ID>()){
 						evo::debugFatalBreak("Invalid type object scope");
@@ -3164,6 +3179,7 @@ namespace pcit::panther{
 			this->source.getID(),
 			instr.func_def.name,
 			std::string(),
+			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			created_func_base_type.funcID(),
 			std::move(sema_params),
 			this->symbol_proc_id,
@@ -3205,12 +3221,12 @@ namespace pcit::panther{
 						const std::string_view ident_str = name_token.getString();
 
 						const bool include_shadow_checks = [&]() -> bool {
-							if(this->scope.inObjectScope() == false){ return true; }
+							if(this->scope.inEncapsulatingSymbol() == false){ return true; }
 
-							const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
-								this->scope.getCurrentObjectScope();
+							const EncapsulatingSymbolID& current_encapsulating_symbol =
+								this->scope.getCurrentEncapsulatingSymbol();
 
-							return current_object_scope.is<sema::Func::ID>();
+							return current_encapsulating_symbol.is<sema::Func::ID>();
 						}();
 
 						if(include_shadow_checks){
@@ -3235,7 +3251,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_AS: {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3245,7 +3261,7 @@ namespace pcit::panther{
 					}
 
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3330,7 +3346,7 @@ namespace pcit::panther{
 
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 					const TypeInfo::ID conversion_type = created_func_type.returnParams[0].typeID.asTypeID();
@@ -3353,7 +3369,7 @@ namespace pcit::panther{
 
 
 				case Token::Kind::KEYWORD_NEW: {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3362,7 +3378,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3375,7 +3391,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 					if(
@@ -3419,7 +3435,7 @@ namespace pcit::panther{
 					}else{ // initialization
 						const TypeInfo::ID expected_return_type = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
-								BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>())
+								BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>())
 							)
 						);
 
@@ -3471,7 +3487,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_DELETE: {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3480,7 +3496,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3524,7 +3540,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 
@@ -3578,7 +3594,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_COPY: {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3587,7 +3603,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3600,12 +3616,12 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 
 					const TypeInfo::ID struct_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+						TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
 					);
 
 
@@ -3775,7 +3791,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_MOVE: {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3784,7 +3800,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3797,12 +3813,12 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 
 					const TypeInfo::ID struct_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+						TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
 					);
 
 
@@ -3987,7 +4003,7 @@ namespace pcit::panther{
 				case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
 				case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
 				case Token::lookupKind("|="):   case Token::lookupKind("^="): {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -3996,7 +4012,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -4009,12 +4025,12 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 
 					const TypeInfo::ID struct_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+						TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
 					);
 
 
@@ -4172,6 +4188,7 @@ namespace pcit::panther{
 									this->source.getID(),
 									created_func.name,
 									std::string(),
+									this->scope.getCurrentEncapsulatingSymbolIfExists(),
 									swapped_type_id.funcID(),
 									evo::SmallVector<sema::Func::Param>{created_func.params[1], created_func.params[0]},
 									this->symbol_proc_id,
@@ -4302,7 +4319,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("!"): case Token::lookupKind("~"): {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -4311,7 +4328,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -4324,7 +4341,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 
@@ -4343,7 +4360,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("["): {
-					if(this->scope.inObjectScope() == false){
+					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -4352,7 +4369,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 							instr.func_def,
@@ -4365,7 +4382,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 					);
 
 					if(created_func_type.params.size() < 2){
@@ -4460,7 +4477,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result {
-		const sema::Func::ID current_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
+		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
@@ -4476,7 +4493,7 @@ namespace pcit::panther{
 			|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
 		){
 			if(
-				this->scope.getCurrentInterfaceScopeIfExists().has_value() && current_func.isMethod(this->context)
+				this->scope.getCurrentInterfaceSymbolIfExists().has_value() && current_func.isMethod(this->context)
 			){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -4766,20 +4783,22 @@ namespace pcit::panther{
 
 
 		{ // add to interface method if it's a default method
-			const std::optional<sema::ScopeManager::Scope::ObjectScope> current_interface_scope = 
-				this->scope.getCurrentInterfaceScopeIfExists();
+			const std::optional<EncapsulatingSymbolID> current_interface_symbol = 
+				this->scope.getCurrentInterfaceSymbolIfExists();
 
 			if(
-				current_interface_scope.has_value()
+				current_interface_symbol.has_value()
 				&&  (
 						this->symbol_proc.parent == nullptr
 						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
 					)
 			){
 				BaseType::Interface& current_interface = this->context.type_manager.getInterface(
-					current_interface_scope->as<BaseType::Interface::ID>()
+					current_interface_symbol->as<BaseType::Interface::ID>()
 				);
-				current_interface.methods.emplace_back(this->scope.getCurrentObjectScope().as<sema::Func::ID>());
+				current_interface.methods.emplace_back(
+					this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>()
+				);
 			}
 		}
 
@@ -4850,7 +4869,7 @@ namespace pcit::panther{
 					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 				);
 
-				const sema::Func::ID sema_func_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
+				const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 				sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
 
 				sema_to_pir.lowerFuncDef(sema_func_id);
@@ -5138,12 +5157,12 @@ namespace pcit::panther{
 
 
 			const bool include_shadow_checks = [&]() -> bool {
-				if(this->scope.inObjectScope() == false){ return true; }
+				if(this->scope.inEncapsulatingSymbol() == false){ return true; }
 
-				const sema::ScopeManager::Scope::ObjectScope& current_object_scope =
-					this->scope.getCurrentObjectScope();
+				const EncapsulatingSymbolID& current_encapsulating_symbol =
+					this->scope.getCurrentEncapsulatingSymbol();
 
-				return current_object_scope.is<sema::Func::ID>();
+				return current_encapsulating_symbol.is<sema::Func::ID>();
 			}();
 
 			if(include_shadow_checks){
@@ -5183,7 +5202,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_deleted_special_method(const Instruction::DeletedSpecialMethod& instr) -> Result {
-		if(this->scope.inObjectScope() == false){
+		if(this->scope.inEncapsulatingSymbol() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 				instr.deleted_special_method,
@@ -5192,7 +5211,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>() == false){
+		if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
 				instr.deleted_special_method,
@@ -5202,7 +5221,7 @@ namespace pcit::panther{
 		}
 
 		BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-			this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 		);
 
 		const Token::Kind deleted_kind = this->source.getTokenBuffer()[instr.deleted_special_method.memberToken].kind();
@@ -5295,6 +5314,7 @@ namespace pcit::panther{
 			BaseType::Interface(
 				this->source.getID(),
 				instr.interface_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				this->symbol_proc_id,
 				interface_attrs.value().is_pub,
 				interface_attrs.value().is_polymorphic
@@ -5324,7 +5344,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_interface_decl() -> Result {
 		BaseType::Interface::ID current_interface_id =
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Interface::ID>();
 
 		BaseType::Interface& current_interface = this->context.type_manager.getInterface(current_interface_id);
 
@@ -5361,7 +5381,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_interface_def() -> Result {
 		BaseType::Interface::ID current_interface_id =
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Interface::ID>();
 
 		this->context.type_manager.getInterface(current_interface_id).defCompleted = true;
 
@@ -5374,7 +5394,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result {
-		const sema::Func::ID current_method_id = this->scope.getCurrentObjectScope().as<sema::Func::ID>();
+		const sema::Func::ID current_method_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 		sema::Func& current_method = this->context.sema_buffer.funcs[current_method_id];
 
 		if(instr.func_def.block.has_value()){ // has default 
@@ -5410,7 +5430,7 @@ namespace pcit::panther{
 		this->propagate_finished_def();
 
 		BaseType::Interface& current_interface = this->context.type_manager.getInterface(
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>()
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Interface::ID>()
 		);
 		current_interface.methods.emplace_back(current_method_id);
 
@@ -5445,7 +5465,10 @@ namespace pcit::panther{
 		const BaseType::Interface::ID target_interface_id = target_type.baseTypeID().interfaceID();
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
-		if(!this->scope.inObjectScope() || !this->scope.getCurrentObjectScope().is<BaseType::Struct::ID>()){
+		if(
+			this->scope.inEncapsulatingSymbol() == false
+			|| this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false
+		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INTERFACE_IMPL_NOT_DEFINED_IN_STRUCT,
 				instr.interface_impl,
@@ -5454,7 +5477,8 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const BaseType::Struct::ID current_struct_id = this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>();
+		const BaseType::Struct::ID current_struct_id =
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>();
 		const BaseType::Struct& current_struct = this->context.getTypeManager().getStruct(current_struct_id);
 
 		BaseType::Interface::Impl& interface_impl =
@@ -5530,7 +5554,7 @@ namespace pcit::panther{
 
 
 		const BaseType::Interface::ID target_interface_id =
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Interface::ID>();
 
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
@@ -5555,7 +5579,9 @@ namespace pcit::panther{
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
 			);
 
-			this->push_scope_level(nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(target_type_id.asTypeID()));
+			this->push_scope_level(
+				nullptr, EncapsulatingSymbolID::InterfaceImplInfo(target_type_id.asTypeID(), target_interface_id)
+			);
 		}
 
 
@@ -5569,7 +5595,7 @@ namespace pcit::panther{
 		const Instruction::InterfaceDeducerImplInstantiationDecl& instr
 	) -> Result {
 		const BaseType::Interface::ID target_interface_id =
-			this->scope.getCurrentObjectScope().as<BaseType::Interface::ID>();
+			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Interface::ID>();
 		BaseType::Interface& target_interface = this->context.type_manager.getInterface(target_interface_id);
 
 
@@ -5578,7 +5604,9 @@ namespace pcit::panther{
 		);
 
 
-		this->push_scope_level(nullptr, sema::ScopeManager::Scope::InterfaceImplInfo(instr.instantiation_type_id));
+		this->push_scope_level(
+			nullptr, EncapsulatingSymbolID::InterfaceImplInfo(instr.instantiation_type_id, target_interface_id)
+		);
 
 		this->propagate_finished_decl();
 
@@ -5668,11 +5696,11 @@ namespace pcit::panther{
 
 			evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
 
-			this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 			sub_symbol_proc.sema_scope_id = 
 				this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
 
+			this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 			{
 				const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
@@ -5723,7 +5751,7 @@ namespace pcit::panther{
 			const TypeInfo::ID current_type_id = [&](){
 				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
 					return this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+						TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
 					);
 					
 				}else{
@@ -5973,6 +6001,7 @@ namespace pcit::panther{
 			BaseType::Alias(
 				this->source.getID(),
 				instr.alias_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				aliased_type.asTypeID(),
 				false
 			)
@@ -5996,7 +6025,7 @@ namespace pcit::panther{
 		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 			EVO_DEFER([&](){ i -= 1; });
 
-			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
 				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
@@ -6174,7 +6203,7 @@ namespace pcit::panther{
 		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 			EVO_DEFER([&](){ i -= 1; });
 
-			if(i == this->scope.getCurrentObjectScopeIndex()){
+			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
 				this->emit_error(
 					Diagnostic::Code::SEMA_RETURN_LABEL_NOT_FOUND,
 					*instr.return_stmt.label,
@@ -6313,7 +6342,7 @@ namespace pcit::panther{
 		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 			EVO_DEFER([&](){ i -= 1; });
 
-			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
 				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
@@ -6456,7 +6485,7 @@ namespace pcit::panther{
 			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 				EVO_DEFER([&](){ i -= 1; });
 
-				if(i == this->scope.getCurrentObjectScopeIndex()){
+				if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_BREAK_LABEL_NOT_FOUND,
 						*instr.break_stmt.label,
@@ -6527,7 +6556,7 @@ namespace pcit::panther{
 			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 				EVO_DEFER([&](){ i -= 1; });
 
-				if(i == this->scope.getCurrentObjectScopeIndex()){
+				if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_CONTINUE_LABEL_NOT_FOUND,
 						*instr.continue_stmt.label,
@@ -6623,7 +6652,7 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
-				if(this->get_project_config().warn.deleteMovedFromExpr){
+				if(this->get_package().warn.deleteMovedFromExpr){
 					this->emit_warning(
 						Diagnostic::Code::SEMA_WARN_DELETE_MOVED_FROM_EXPR,
 						instr.delete_stmt.value,
@@ -6635,7 +6664,7 @@ namespace pcit::panther{
 
 
 		if(
-			this->get_project_config().warn.deleteTriviallyDeletableType
+			this->get_package().warn.deleteTriviallyDeletableType
 			&& this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>())
 		){
 			this->emit_warning(
@@ -6681,7 +6710,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_project_config().warn.constexprIfCond && cond.value_stage == TermInfo::ValueStage::CONSTEXPR){
+		if(this->get_package().warn.constexprIfCond && cond.value_stage == TermInfo::ValueStage::CONSTEXPR){
 			this->emit_warning(
 				Diagnostic::Code::SEMA_WARN_CONSTEXPR_IF_COND,
 				instr.conditional.cond,
@@ -7425,7 +7454,7 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+				}else if(this->get_package().warn.methodCallOnNonMethod){
 					this->emit_warning(
 						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
 						instr.func_call,
@@ -9049,7 +9078,7 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+				}else if(this->get_package().warn.methodCallOnNonMethod){
 					this->emit_warning(
 						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
 						ast_func_call,
@@ -9225,7 +9254,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_require_this_def() -> Result {
-		const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
+		const std::optional<EncapsulatingSymbolID> current_type_scope = 
 			this->scope.getCurrentTypeScopeIfExists();
 
 		if(current_type_scope->is<BaseType::Struct::ID>()){
@@ -9309,11 +9338,10 @@ namespace pcit::panther{
 
 		evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
 
-		this->context.symbol_proc_manager.num_procs_not_done += 1;
-
 		sub_symbol_proc.sema_scope_id = 
 			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
 
+		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 		{
 			const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
@@ -9343,11 +9371,11 @@ namespace pcit::panther{
 
 		evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
 
-		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 		sub_symbol_proc.sema_scope_id = 
 			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
 
+		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
 		{
 			const auto lock = std::scoped_lock(sub_symbol_proc.waiting_for_lock);
@@ -9397,7 +9425,7 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_project_config().warn.methodCallOnNonMethod){
+				}else if(this->get_package().warn.methodCallOnNonMethod){
 					this->emit_warning(
 						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
 						instr.func_call,
@@ -12891,7 +12919,7 @@ namespace pcit::panther{
 		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 			EVO_DEFER([&](){ i -= 1; });
 
-			if(i == this->scope.getCurrentObjectScopeIndex()){ break; }
+			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
 				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
@@ -16489,7 +16517,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_THIS: {
-				const std::optional<sema::ScopeManager::Scope::ObjectScope> current_type_scope = 
+				const std::optional<EncapsulatingSymbolID> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
 
 				if(current_type_scope.has_value() == false){
@@ -16511,9 +16539,9 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(current_type_scope->is<sema::ScopeManager::Scope::InterfaceImplInfo>()){
+				if(current_type_scope->is<EncapsulatingSymbolID::InterfaceImplInfo>()){
 					this->return_type(instr.output,
-						current_type_scope->as<sema::ScopeManager::Scope::InterfaceImplInfo>().target_type_id
+						current_type_scope->as<EncapsulatingSymbolID::InterfaceImplInfo>().targetTypeID
 					);
 					return Result::SUCCESS;
 				}
@@ -17193,8 +17221,8 @@ namespace pcit::panther{
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
 		if(
-			this->scope.inObjectScope()
-			&& this->scope.getCurrentObjectScope().is<sema::Func::ID>()
+			this->scope.inEncapsulatingSymbol()
+			&& this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()
 			&& this->expr_in_func_is_valid_value_stage(lookup_ident_result.value(), instr.ident) == false
 		){
 			return Result::ERROR;
@@ -18949,7 +18977,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block) -> void {
-		if(this->scope.inObjectScope()){
+		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
 		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block));
@@ -18958,15 +18986,15 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::push_scope_level(
 		sema::StmtBlock& stmt_block, Token::ID label, sema::ScopeLevel::LabelNode label_node
 	) -> void {
-		if(this->scope.inObjectScope()){
+		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
 		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block, label, label_node));
 	}
 
-	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void {
+	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& encapsulating_symbol_id) -> void {
 		this->get_current_scope_level().addSubScope();
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block), object_scope_id);
+		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block), encapsulating_symbol_id);
 	}
 
 
@@ -18986,7 +19014,7 @@ namespace pcit::panther{
 			){
 				current_scope_level.stmtBlock().setTerminated();
 
-			}else if(current_scope_is_terminated == false && this->scope.inObjectScope()){
+			}else if(current_scope_is_terminated == false && this->scope.inEncapsulatingSymbol()){
 				sema::ScopeLevel& parent_scope_level = 
 					this->context.sema_buffer.scope_manager.getLevel(*std::next(this->scope.begin()));
 
@@ -19016,7 +19044,7 @@ namespace pcit::panther{
 
 				if(
 					current_scope_is_terminated
-					&& this->scope.inObjectScope()
+					&& this->scope.inEncapsulatingSymbol()
 					&& !this->scope.inObjectMainScope()
 					&& current_scope_is_label_terminated == false
 
@@ -19029,7 +19057,7 @@ namespace pcit::panther{
 
 				if(
 					current_scope_is_terminated
-					&& this->scope.inObjectScope()
+					&& this->scope.inEncapsulatingSymbol()
 					&& !this->scope.inObjectMainScope()
 				){
 					this->get_current_scope_level().setSubScopeTerminated();
@@ -19403,15 +19431,15 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::currently_in_func() const -> bool {
-		return this->scope.inObjectScope() && this->scope.getCurrentObjectScope().is<sema::Func::ID>();
+		return this->scope.inEncapsulatingSymbol() && this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>();
 	}
 
 	auto SemanticAnalyzer::get_current_func() -> sema::Func& {
-		return this->context.sema_buffer.funcs[this->scope.getCurrentObjectScope().as<sema::Func::ID>()];
+		return this->context.sema_buffer.funcs[this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>()];
 	}
 
 	auto SemanticAnalyzer::get_current_func() const -> const sema::Func& {
-		return this->context.getSemaBuffer().getFunc(this->scope.getCurrentObjectScope().as<sema::Func::ID>());
+		return this->context.getSemaBuffer().getFunc(this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>());
 	}
 
 
@@ -19484,7 +19512,7 @@ namespace pcit::panther{
 					ident,
 					ident_str,
 					this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
-					i >= this->scope.getCurrentObjectScopeIndex() || i == 0,
+					i >= this->scope.getCurrentEncapsulatingSymbolIndex() || i == 0,
 					i == 0,
 					nullptr
 				);
@@ -21035,9 +21063,7 @@ namespace pcit::panther{
 								Diagnostic::Info(
 									std::format(
 										"Parameter type: {}",
-										this->context.getTypeManager().printType(
-											expected_type_id, this->context.getSourceManager()
-										)
+										this->context.getTypeManager().printType(expected_type_id, this->context)
 									)
 								),
 							}
@@ -21692,17 +21718,13 @@ namespace pcit::panther{
 								Diagnostic::Info(
 									std::format(
 										"Argument type:  {}",
-										this->context.getTypeManager().printType(
-											reason.got_type_id, this->context.getSourceManager()
-										)
+										this->context.getTypeManager().printType(reason.got_type_id, this->context)
 									)
 								),
 								Diagnostic::Info(
 									std::format(
 										"Parameter type: {}",
-										this->context.getTypeManager().printType(
-											reason.expected_type_id, this->context.getSourceManager()
-										)
+										this->context.getTypeManager().printType(reason.expected_type_id, this->context)
 									)
 								),
 							}
@@ -21724,16 +21746,14 @@ namespace pcit::panther{
 								Diagnostic::Info(
 									std::format(
 										"Argument type:  {}",
-										this->context.getTypeManager().printType(
-											reason.got_type_id, this->context.getSourceManager()
-										)
+										this->context.getTypeManager().printType(reason.got_type_id, this->context)
 									)
 								),
 								Diagnostic::Info(
 									std::format(
 										"Interface type: {}",
 										this->context.getTypeManager().printType(
-											reason.interface_type_id, this->context.getSourceManager()
+											reason.interface_type_id, this->context
 										)
 									)
 								),
@@ -22827,8 +22847,8 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::get_project_config() const -> const Source::ProjectConfig& {
-		return this->context.getSourceManager().getSourceProjectConfig(this->source.getProjectConfigID());
+	auto SemanticAnalyzer::get_package() const -> const Source::Package& {
+		return this->context.getSourceManager().getPackage(this->source.getPackageID());
 	}
 
 
@@ -24655,7 +24675,7 @@ namespace pcit::panther{
 			const TypeInfo::ID target_type_id = [&](){
 				if(info.type_info.is<SymbolProc::InterfaceImplInfo::ParentTypeInfo>()){
 					return this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(BaseType::ID(this->scope.getCurrentObjectScope().as<BaseType::Struct::ID>()))
+						TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
 					);
 					
 				}else{
@@ -26179,7 +26199,7 @@ namespace pcit::panther{
 			auto initial_type_str = std::string();
 			initial_type_str += message;
 			initial_type_str +=
-				this->context.getTypeManager().printType(type_id.asTypeID(), this->context.getSourceManager());
+				this->context.getTypeManager().printType(type_id.asTypeID(), this->context);
 			infos.emplace_back(std::move(initial_type_str));
 
 			this->diagnostic_print_type_info_impl(type_id.asTypeID(), infos, message);
@@ -26244,7 +26264,7 @@ namespace pcit::panther{
 				alias_of_str += ' ';
 			}
 
-			alias_of_str += this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+			alias_of_str += this->context.getTypeManager().printType(type_id, this->context);
 
 			infos.emplace_back(std::move(alias_of_str));
 		}
@@ -26485,7 +26505,7 @@ namespace pcit::panther{
 				}
 				
 			}else if constexpr(std::is_same<TypeID, TypeInfo::ID>()){
-				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+				return this->context.getTypeManager().printType(type_id, this->context);
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::BuiltinTypeMethod>()){
 				return "{BUILTIN TYPE METHOD}";
@@ -26495,12 +26515,10 @@ namespace pcit::panther{
 				return "{FUNCTION}";
 
 			}else if constexpr(std::is_same<TypeID, TypeInfo::VoidableID>()){
-				return this->context.getTypeManager().printType(type_id, this->context.getSourceManager());
+				return this->context.getTypeManager().printType(type_id, this->context);
 
 			}else if constexpr(std::is_same<TypeID, evo::SmallVector<TypeInfo::ID>>()){
-				return this->context.getTypeManager().printType(
-					type_id[*multi_type_index], this->context.getSourceManager()
-				);
+				return this->context.getTypeManager().printType(type_id[*multi_type_index], this->context);
 
 			}else if constexpr(std::is_same<TypeID, Source::ID>()){
 				// TODO(FEATURE): actual module name?

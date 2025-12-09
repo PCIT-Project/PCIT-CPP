@@ -107,8 +107,8 @@ namespace pcit::panther{
 			module.createVoidType()
 		);
 
-		this->jit_build_funcs.build_set_std_lib_project = create_func_decl(
-			"PTHR.BUILD.buildSetStdLibProject",
+		this->jit_build_funcs.build_set_std_lib_package = create_func_decl(
+			"PTHR.BUILD.buildSetStdLibPackage",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("use_std_lib", module.createIntegerType(32))
@@ -116,11 +116,12 @@ namespace pcit::panther{
 			module.createVoidType()
 		);
 
-		this->jit_build_funcs.build_create_project = create_func_decl(
-			"PTHR.BUILD.buildCreateProject",
+		this->jit_build_funcs.build_create_package = create_func_decl(
+			"PTHR.BUILD.buildCreatePackage",
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
-				pir::Parameter("base_path", module.createPtrType()),
+				pir::Parameter("path", module.createPtrType()),
+				pir::Parameter("name", module.createPtrType()),
 				pir::Parameter("warns_settings", module.createPtrType())
 			},
 			module.createIntegerType(32)
@@ -131,7 +132,7 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("project_id", module.createIntegerType(32))
+				pir::Parameter("package_id", module.createIntegerType(32))
 			},
 			module.createVoidType()
 		);
@@ -141,7 +142,7 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createIntegerType(sizeof(size_t) * 8)),
 				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("project_id", module.createIntegerType(32)),
+				pir::Parameter("package_id", module.createIntegerType(32)),
 				pir::Parameter("is_recursive", module.createBoolType()),
 			},
 			module.createVoidType()

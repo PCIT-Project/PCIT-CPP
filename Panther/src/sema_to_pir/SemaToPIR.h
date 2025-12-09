@@ -19,6 +19,7 @@
 #include "./SemaToPIRData.h"
 
 
+
 namespace pcit::panther{
 
 
@@ -222,6 +223,60 @@ namespace pcit::panther{
 
 			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(sema::Func::ID func_id, Token::Kind op_kind) const -> std::string;
+
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id,
+				evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id
+			) const -> std::string;
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id,
+				evo::Variant<SourceID, ClangSourceID> source_id
+			) const -> std::string {
+				if(source_id.is<SourceID>()){
+					return this->get_parent_name(parent_id, source_id.as<SourceID>());
+				}else{
+					return this->get_parent_name(parent_id, source_id.as<ClangSourceID>());
+				}
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id,
+				evo::Variant<SourceID, BuiltinModuleID> source_id
+			) const -> std::string {
+				if(source_id.is<SourceID>()){
+					return this->get_parent_name(parent_id, source_id.as<SourceID>());
+				}else{
+					return this->get_parent_name(parent_id, source_id.as<BuiltinModuleID>());
+				}
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id, SourceID source_id
+			) const -> std::string {
+				return this->get_parent_name(
+					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+				);
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id, ClangSourceID source_id
+			) const -> std::string {
+				return this->get_parent_name(
+					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+				);
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent_id, BuiltinModuleID source_id
+			) const -> std::string {
+				return this->get_parent_name(
+					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+				);
+			}
+
+
 
 
 			// Note on naming: use a '.' prefix if the operation is an intermediate (not returned by some sema expr)

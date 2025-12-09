@@ -48,8 +48,8 @@ namespace pcit::panther{
 			}
 			EVO_NODISCARD auto notAllProcsDone() const -> bool { return !this->allProcsDone(); }
 
-			EVO_NODISCARD auto numProcsNotDone() const -> size_t { return this->num_procs_not_done; }
-			EVO_NODISCARD auto numProcsSuspended() const -> size_t { return this->num_procs_suspended; }
+			EVO_NODISCARD auto numProcsNotDone() const -> size_t { return this->num_procs_not_done.load(); }
+			EVO_NODISCARD auto numProcsSuspended() const -> size_t { return this->num_procs_suspended.load(); }
 			EVO_NODISCARD auto numProcs() const -> size_t { return this->symbol_procs.size(); }
 
 			EVO_NODISCARD auto numBuiltinSymbolsWaitedOn() const -> size_t {

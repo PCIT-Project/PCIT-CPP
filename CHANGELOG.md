@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.200.0"></a>
+## v0.0.200.0
+
+### Panther
+- Renamed "Project" to "Package"
+- Added package names
+- Added diagnostic printing of types to include the parent symbol and package name
+- Added lowering of PIR names when using readable names to include parent symbol and package name
+- Fixed some builtin interfaces:
+	- `IIterableRT`
+	- `IIterableRefRT`
+	- `IIterableMutRefRT`
+
+
+<!---------------------------------->
 <a name="v0.0.199.1"></a>
 ## v0.0.199.1
 

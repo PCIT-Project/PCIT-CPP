@@ -397,7 +397,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto push_scope_level(
 				sema::StmtBlock& stmt_block, Token::ID label, sema::ScopeLevel::LabelNode label_node
 			) -> void;
-			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block, const auto& object_scope_id) -> void;
+			EVO_NODISCARD auto push_scope_level(sema::StmtBlock* stmt_block, const auto& encapsulating_symbol_id)
+				-> void;
 
 			enum class PopScopeLevelKind{
 				LABEL_TERMINATE,
@@ -594,7 +595,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue;
 
 
-			EVO_NODISCARD auto get_project_config() const -> const Source::ProjectConfig&;
+			EVO_NODISCARD auto get_package() const -> const Source::Package&;
 
 
 

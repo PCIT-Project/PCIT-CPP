@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <ranges>
 
 #include <Evo.h>
 #include <PCIT_core.h>
@@ -28,18 +29,6 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
-					struct InterfaceImplInfo{
-						TypeInfo::ID target_type_id;
-					};
-
-					using ObjectScope = evo::Variant<
-						sema::Func::ID,
-						BaseType::Struct::ID,
-						BaseType::Union::ID,
-						BaseType::Enum::ID,
-						BaseType::Interface::ID,
-						InterfaceImplInfo
-					>;
 
 				public:
 					Scope() = default;
@@ -51,19 +40,19 @@ namespace pcit::panther::sema{
 
 					auto pushLevel(ScopeLevel::ID id) -> void { this->scope_levels.emplace_back(id); }
 
-					// The type of `object_scope` must be one of the ones in ObjectScope
+					// The type of `object_scope` must be one of the ones in EncapsulatingSymbolID
 					auto pushLevel(ScopeLevel::ID id, auto&& object_scope) -> void {
 						this->pushLevel(id);
 						this->object_scopes.emplace_back(
-							ObjectScope(std::move(object_scope)), uint32_t(this->scope_levels.size())
+							EncapsulatingSymbolID(std::move(object_scope)), uint32_t(this->scope_levels.size())
 						);
 					}
 
-					// The type of `object_scope` must be one of the ones in ObjectScope
+					// The type of `object_scope` must be one of the ones in EncapsulatingSymbolID
 					auto pushLevel(ScopeLevel::ID id, const auto& object_scope) -> void {
 						this->pushLevel(id);
 						this->object_scopes.emplace_back(
-							ObjectScope(object_scope), uint32_t(this->scope_levels.size())
+							EncapsulatingSymbolID(object_scope), uint32_t(this->scope_levels.size())
 						);
 					}
 
@@ -71,7 +60,7 @@ namespace pcit::panther::sema{
 						evo::debugAssert(!this->scope_levels.empty(), "cannot pop scope level as there are none");
 
 						if(
-							this->inObjectScope() && 
+							this->inEncapsulatingSymbol() && 
 							this->object_scopes.back().scope_level_index == uint32_t(this->scope_levels.size())
 						){
 							this->object_scopes.pop_back();
@@ -113,47 +102,64 @@ namespace pcit::panther::sema{
 
 					// pushing / popping happens automatically with `pushLevel` / `popLevel`
 
-					EVO_NODISCARD auto inObjectScope() const -> bool { return !this->object_scopes.empty(); }
-					EVO_NODISCARD auto getCurrentObjectScope() const -> const ObjectScope& {
-						evo::debugAssert(this->inObjectScope(), "not in object scope");
-						return this->object_scopes.back().obj_scope;
+					EVO_NODISCARD auto inEncapsulatingSymbol() const -> bool { return !this->object_scopes.empty(); }
+					EVO_NODISCARD auto getCurrentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
+						return this->object_scopes.back().encapsulating_symbol_id;
 					}
-					EVO_NODISCARD auto getParentObjectScope() const -> const ObjectScope& {
-						evo::debugAssert(this->inObjectScope(), "not in object scope");
+					EVO_NODISCARD auto getCurrentEncapsulatingSymbolIfExists() const
+					-> std::optional<EncapsulatingSymbolID> {
+						if(this->inEncapsulatingSymbol()){ return this->getCurrentEncapsulatingSymbol(); }
+						return std::nullopt;
+					}
+					EVO_NODISCARD auto getParentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
 						evo::debugAssert(this->object_scopes.size() >= 2, "no parent object scope");
-						return this->object_scopes[this->object_scopes.size() - 2].obj_scope;
+						return this->object_scopes[this->object_scopes.size() - 2].encapsulating_symbol_id;
 					}
 
-					EVO_NODISCARD auto getCurrentObjectScopeIndex() const -> uint32_t {
+					EVO_NODISCARD auto getCurrentEncapsulatingSymbolIndex() const -> uint32_t {
 						if(this->object_scopes.empty()){ return 0; }
 						return this->object_scopes.back().scope_level_index - 1;
 					}
 
 					EVO_NODISCARD auto inObjectMainScope() const -> bool {
-						evo::debugAssert(this->inObjectScope(), "not in object scope");
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
 						return this->object_scopes.back().scope_level_index - 1 == this->size();
 					}
 
 
-					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<ObjectScope> {
-						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
+					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<EncapsulatingSymbolID> {
+						for(
+							const EncapsulatingSymbolData& encapsulating_symbol_data
+							: this->object_scopes | std::views::reverse
+						){
+							EncapsulatingSymbolID encapsulating_symbol_id =
+								encapsulating_symbol_data.encapsulating_symbol_id;
+
 							if(
-								iter->obj_scope.is<BaseType::Struct::ID>()
-								|| iter->obj_scope.is<BaseType::Union::ID>()
-								|| iter->obj_scope.is<BaseType::Enum::ID>()
-								|| iter->obj_scope.is<BaseType::Interface::ID>()
-								|| iter->obj_scope.is<InterfaceImplInfo>()
+								encapsulating_symbol_id.is<BaseType::Struct::ID>()
+								|| encapsulating_symbol_id.is<BaseType::Union::ID>()
+								|| encapsulating_symbol_id.is<BaseType::Enum::ID>()
+								|| encapsulating_symbol_id.is<BaseType::Interface::ID>()
+								|| encapsulating_symbol_id.is<EncapsulatingSymbolID::InterfaceImplInfo>()
 							){
-								return iter->obj_scope;
+								return encapsulating_symbol_id;
 							}
 						}
 
 						return std::nullopt;
 					}
 
-					EVO_NODISCARD auto getCurrentInterfaceScopeIfExists() const -> std::optional<ObjectScope> {
-						for(auto iter = this->object_scopes.rbegin(); iter != this->object_scopes.rend(); ++iter){
-							if(iter->obj_scope.is<BaseType::Interface::ID>()){ return iter->obj_scope; }
+					EVO_NODISCARD auto getCurrentInterfaceSymbolIfExists() const
+					-> std::optional<EncapsulatingSymbolID> {
+						for(
+							const EncapsulatingSymbolData& encapsulating_symbol_data
+							: this->object_scopes | std::views::reverse
+						){
+							if(encapsulating_symbol_data.encapsulating_symbol_id.is<BaseType::Interface::ID>()){
+								return encapsulating_symbol_data.encapsulating_symbol_id;
+							}
 						}
 
 						return std::nullopt;
@@ -164,7 +170,7 @@ namespace pcit::panther::sema{
 					auto addThisParam(sema::Param::ID param_id) -> void {
 						evo::debugAssert(
 							this->object_scopes.empty() == false
-								&& this->object_scopes.back().obj_scope.is<sema::Func::ID>(),
+								&& this->object_scopes.back().encapsulating_symbol_id.is<sema::Func::ID>(),
 							"Cannot set [this] param not in an a func object scope"
 						);
 
@@ -180,7 +186,7 @@ namespace pcit::panther::sema{
 					EVO_NODISCARD auto getThisParam() const -> std::optional<sema::Param::ID> {
 						evo::debugAssert(
 							this->object_scopes.empty() == false
-								&& this->object_scopes.back().obj_scope.is<sema::Func::ID>(),
+								&& this->object_scopes.back().encapsulating_symbol_id.is<sema::Func::ID>(),
 							"Cannot get [this] param not in an a func object scope"
 						);
 
@@ -226,15 +232,15 @@ namespace pcit::panther::sema{
 
 
 				private:
-					struct ObjectScopeData{
-						ObjectScope obj_scope;
+					struct EncapsulatingSymbolData{
+						EncapsulatingSymbolID encapsulating_symbol_id;
 						uint32_t scope_level_index;
 						std::optional<sema::Param::ID> this_param;
 					};
 
 					// TODO(PERF): use a stack?
 					evo::SmallVector<ScopeLevel::ID> scope_levels{};
-					evo::SmallVector<ObjectScopeData> object_scopes{};
+					evo::SmallVector<EncapsulatingSymbolData> object_scopes{};
 					evo::SmallVector<
 						std::unordered_map<std::string_view, std::optional<TypeInfo::VoidableID>>
 					> template_decl_instantiation_types{};

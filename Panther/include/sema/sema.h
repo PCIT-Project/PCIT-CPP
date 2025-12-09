@@ -617,6 +617,7 @@ namespace pcit::panther::sema{
 		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
 		std::string clangMangledName; // empty if not clang type
+		std::optional<EncapsulatingSymbolID> parent;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type

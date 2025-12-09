@@ -1,22 +1,22 @@
 def build = @import("build");
 
 
-type Project = struct #pub {
-	func new = (path: [Char:*], warning_settings: @pthr.ProjectWarningSettings in) #rt
+type Package = struct #pub {
+	func new = (path: [Char:*], name: [Char:*], warnings: @pthr.PackageWarningSettings in) #rt
 	-> (output: This) {
-		output._project_id = @buildCreateProject(path, forward warning_settings);
+		output._package_id = @buildCreatePackage(path, name, forward warnings);
 		return...;
 	}
 
-	// func new = (warning_settings: @pthr.ProjectWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
-	// 	output = new Project(forward warning_settings, path.* as [Char:*]);
+	// func new = (warning_settings: @pthr.PackageWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
+	// 	output = new Package(forward warning_settings, path.* as [Char:*]);
 	// 	return...;
 	// }
 
 
 
 	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
-		@buildAddSourceFile(path, this._project_id);
+		@buildAddSourceFile(path, this._package_id);
 	}
 
 	func addSourceFile = (this, path: [Char:$$;'\0']*) #rt -> Void {
@@ -26,7 +26,7 @@ type Project = struct #pub {
 
 
 	func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
-		@buildAddSourceDirectory(path, this._project_id, is_recursive);
+		@buildAddSourceDirectory(path, this._package_id, is_recursive);
 	}
 
 	func addSourceDirectory = (this, path: [Char:$$;'\0']*, is_recursive: Bool) #rt -> Void {
@@ -36,7 +36,7 @@ type Project = struct #pub {
 
 	
 
-	const _project_id: @pthr.ProjectID;
+	const _package_id: @pthr.PackageID;
 }
 
 
@@ -49,24 +49,22 @@ func setNumThreads = (num_threads: UI32) #pub #rt -> Void {
 }
 
 
-func setStdLibProject = (project: Project) #pub #rt -> Void {
-	@buildSetStdLibProject(project._project_id);
+func setStdLibPackage = (package: Package) #pub #rt -> Void {
+	@buildSetStdLibPackage(package._package_id);
 }
 
 
 func addStdLib = (path: [Char:*]) #pub #rt -> Void {
-	const std_lib_project = new Project(
-		path,
-		new @pthr.ProjectWarningSettings{
-			methodCallOnNonMethod        = true,
-			deleteMovedFromExpr          = true,
-			deleteTriviallyDeletableType = true,
-			constexprIfCond              = true,
-		}
-	);
+	const warns = new @pthr.PackageWarningSettings{
+		methodCallOnNonMethod        = true,
+		deleteMovedFromExpr          = true,
+		deleteTriviallyDeletableType = true,
+		constexprIfCond              = true,
+	};
 
-	std_lib_project.addSourceDirectory("./", true);
-	setStdLibProject(std_lib_project);
+	const std_lib_package = new Package(path, "std".* as [Char:*], copy warns);
+	std_lib_package.addSourceDirectory("./", true);
+	setStdLibPackage(std_lib_package);
 }
 
 

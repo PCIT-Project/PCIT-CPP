@@ -68,7 +68,7 @@ namespace pcit::panther{
 		this->started_any_target = true;
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
-			this->tokenize_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().project_config_id);
+			this->tokenize_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().package_id);
 			return evo::Result<>();
 		};
 
@@ -106,7 +106,7 @@ namespace pcit::panther{
 		this->started_any_target = true;
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
-			this->parse_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().project_config_id);
+			this->parse_impl(std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().package_id);
 			return evo::Result<>();
 		};
 
@@ -144,7 +144,7 @@ namespace pcit::panther{
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
 			this->build_symbol_procs_impl(
-				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().project_config_id
+				std::move(task.as<FileToLoad>().path), task.as<FileToLoad>().package_id
 			);
 			return evo::Result<>();
 		};
@@ -1050,72 +1050,58 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// adding sources
 
-	auto Context::addSourceFile(const fs::path& path, Source::ProjectConfig::ID project_config_id)
-	-> AddSourceResult {
+	auto Context::addSourceFile(const fs::path& path, Source::Package::ID package_id) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		// if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
-		const Source::ProjectConfig& project_config =
-			this->source_manager.getSourceProjectConfig(project_config_id);
-		this->files_to_load.emplace_back(
-			normalize_path(path, project_config.basePath), project_config_id
-		);
+		const Source::Package& package = this->source_manager.getPackage(package_id);
+		this->files_to_load.emplace_back(normalize_path(path, package.basePath), package_id);
 
 		return AddSourceResult::SUCCESS;
 	}
 
-	auto Context::addSourceDirectory(
-		const fs::path& directory, Source::ProjectConfig::ID project_config_id
-	) -> AddSourceResult {
+	auto Context::addSourceDirectory(const fs::path& directory, Source::Package::ID package_id) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
-		const Source::ProjectConfig& project_config =
-			this->source_manager.getSourceProjectConfig(project_config_id);
+		const Source::Package& package = this->source_manager.getPackage(package_id);
 
-		const fs::path target_directory = normalize_path(directory, project_config.basePath);
+		const fs::path target_directory = normalize_path(directory, package.basePath);
 		for(const fs::path& file_path : std::filesystem::directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
-				this->files_to_load.emplace_back(
-					normalize_path(file_path, project_config.basePath), project_config_id
-				);
+				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
 			}
 		}
 
 		return AddSourceResult::SUCCESS;
 	}
 
-	auto Context::addSourceDirectoryRecursive(
-		const fs::path& directory, Source::ProjectConfig::ID project_config_id
-	) -> AddSourceResult {
+	auto Context::addSourceDirectoryRecursive(const fs::path& directory, Source::Package::ID package_id)
+	-> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
-		const Source::ProjectConfig& project_config =
-			this->source_manager.getSourceProjectConfig(project_config_id);
+		const Source::Package& package = this->source_manager.getPackage(package_id);
 
-		const fs::path target_directory = normalize_path(directory, project_config.basePath);
+		const fs::path target_directory = normalize_path(directory, package.basePath);
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
-				this->files_to_load.emplace_back(
-					normalize_path(file_path, project_config.basePath), project_config_id
-				);
+				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
 			}
 		}
 
 		return AddSourceResult::SUCCESS;
 	}
 
-	auto Context::addStdLib(Source::ProjectConfig::ID project_config_id) -> void {
+	auto Context::addStdLib(Source::Package::ID package_id) -> void {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 		evo::debugAssert(this->added_std_lib == false, "already added std lib");
 
-		const Source::ProjectConfig& project_config =
-			this->source_manager.getSourceProjectConfig(project_config_id);
+		const Source::Package& package = this->source_manager.getPackage(package_id);
 
-		const fs::path normalized_path = project_config.basePath.lexically_normal();
+		const fs::path normalized_path = package.basePath.lexically_normal();
 
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(normalized_path)){
 			if(path_is_pthr_file(file_path)){
@@ -1159,7 +1145,7 @@ namespace pcit::panther{
 	// task 
 
 	EVO_NODISCARD auto Context::load_source(
-		fs::path&& path, Source::ProjectConfig::ID project_config_id
+		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
 			this->emitError(
@@ -1180,22 +1166,22 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		return this->source_manager.create_source(std::move(path), std::move(file_data.value()), project_config_id);
+		return this->source_manager.create_source(std::move(path), std::move(file_data.value()), package_id);
 	}
 
 
-	auto Context::tokenize_impl(fs::path&& path, Source::ProjectConfig::ID project_config_id)
+	auto Context::tokenize_impl(fs::path&& path, Source::Package::ID package_id)
 	-> void {
-		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), project_config_id);
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), package_id);
 		if(new_source.isError()){ return; }
 
 		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
 	}
 
 
-	auto Context::parse_impl(fs::path&& path, Source::ProjectConfig::ID project_config_id)
+	auto Context::parse_impl(fs::path&& path, Source::Package::ID package_id)
 	-> void {
-		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), project_config_id);
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), package_id);
 		if(new_source.isError()){ return; }
 
 		if(panther::tokenize(*this, new_source.value()).isError()){ return; }
@@ -1203,9 +1189,9 @@ namespace pcit::panther{
 	}
 
 	auto Context::build_symbol_procs_impl(
-		fs::path&& path, Source::ProjectConfig::ID project_config_id
+		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
-		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), project_config_id);
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), package_id);
 		if(new_source.isError()){ return evo::resultError; }
 
 		if(panther::tokenize(*this, new_source.value()).isError()){ return evo::resultError; }
@@ -1295,6 +1281,7 @@ namespace pcit::panther{
 									source_clang_source.createDeclInfo(
 										alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
 									),
+									std::nullopt,
 									panther_type->asTypeID(),
 									false
 								)
@@ -1345,6 +1332,7 @@ namespace pcit::panther{
 										struct_decl.name, struct_decl.declLine, struct_decl.declCollumn
 									),
 									std::nullopt,
+									std::nullopt,
 									std::numeric_limits<uint32_t>::max(),
 									std::move(member_vars),
 									std::move(member_vars_abi),
@@ -1394,6 +1382,7 @@ namespace pcit::panther{
 									source_clang_source.createDeclInfo(
 										union_decl.name, union_decl.declLine, union_decl.declCollumn
 									),
+									std::nullopt,
 									std::move(fields),
 									nullptr,
 									nullptr,
@@ -1441,6 +1430,7 @@ namespace pcit::panther{
 									function_decl.name, function_decl.declLine, function_decl.declCollumn
 								),
 								function_decl.mangled_name,
+								std::nullopt,
 								this->type_manager.getTypeInfo(panther_func_type->asTypeID()).baseTypeID().funcID(),
 								std::move(params),
 								std::nullopt,
@@ -1691,10 +1681,8 @@ namespace pcit::panther{
 				return relative_dir / fs::path(lookup_path);
 
 			}else{
-				const Source::ProjectConfig& project_config = this->source_manager.getSourceProjectConfig(
-					calling_source.getProjectConfigID()
-				);
-				return project_config.basePath / fs::path(lookup_path);
+				const Source::Package& package = this->source_manager.getPackage(calling_source.getPackageID());
+				return package.basePath / fs::path(lookup_path);
 			}
 		}().lexically_normal();
 
@@ -1735,7 +1723,7 @@ namespace pcit::panther{
 			}
 
 			const evo::Result<Source::ID> dep_analysis_res = this->build_symbol_procs_impl(
-				std::move(file_path), calling_source.getProjectConfigID()
+				std::move(file_path), calling_source.getPackageID()
 			);
 
 			{
@@ -1804,10 +1792,8 @@ namespace pcit::panther{
 				return relative_dir / fs::path(lookup_path);
 
 			}else{
-				const Source::ProjectConfig& project_config = this->source_manager.getSourceProjectConfig(
-					calling_source.getProjectConfigID()
-				);
-				return project_config.basePath / fs::path(lookup_path);
+				const Source::Package& package = this->source_manager.getPackage(calling_source.getPackageID());
+				return package.basePath / fs::path(lookup_path);
 			}
 		}().lexically_normal();
 
@@ -1889,9 +1875,12 @@ namespace pcit::panther{
 		struct StringView{
 			const char* data;
 			size_t size;
+
+			operator std::string_view(){ return std::string_view(this->data, this->size); }
+			operator std::string(){ return std::string(this->data, this->size); }
 		};
 
-		using ProjectID = uint32_t;
+		using PackageID = uint32_t;
 
 
 		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
@@ -1909,42 +1898,43 @@ namespace pcit::panther{
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildSetStdLibProject",
-					[](Context* context, ProjectID project_id){
-						context->build_system_config.stdLibProjectID = Source::ProjectConfig::ID(project_id);
+					"PTHR.BUILD.buildSetStdLibPackage",
+					[](Context* context, PackageID package_id){
+						context->build_system_config.stdLibPackageID = Source::Package::ID(package_id);
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildCreateProject",
-					[](Context* context, StringView* base_path, Source::ProjectConfig::Warns* warns_settings)
-					-> ProjectID {
-						const ProjectID project_id = ProjectID(context->build_system_config.projectConfigs.size());
+					"PTHR.BUILD.buildCreatePackage",
+					[](Context* context, StringView* path, StringView* name, Source::Package::Warns* warnings)
+					-> PackageID {
+						const PackageID package_id = PackageID(context->build_system_config.packages.size());
 
-						context->build_system_config.projectConfigs.emplace_back(
+						context->build_system_config.packages.emplace_back(
 							normalize_path(
-								fs::path(std::string_view(base_path->data, base_path->size)),
+								fs::path(static_cast<std::string_view>(*path)),
 								context->getConfig().workingDirectory
 							),
-							*warns_settings
+							static_cast<std::string>(*name),
+							*warnings
 						);
 
-						return project_id;
+						return package_id;
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
 					"PTHR.BUILD.buildAddSourceFile",
-					[](Context* context, StringView* file_path, ProjectID project_id) -> void {
+					[](Context* context, StringView* file_path, PackageID package_id) -> void {
 						context->build_system_config.sourceFiles.emplace_back(
-							std::string(file_path->data, file_path->size), Source::ProjectConfig::ID(project_id)
+							std::string(file_path->data, file_path->size), Source::Package::ID(package_id)
 						);
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
 					"PTHR.BUILD.buildAddSourceDirectory",
-					[](Context* context, StringView* file_path, ProjectID project_id, bool is_recursive) -> void {
+					[](Context* context, StringView* file_path, PackageID package_id, bool is_recursive) -> void {
 						context->build_system_config.sourceDirectories.emplace_back(
-							std::string(file_path->data, file_path->size),
-							Source::ProjectConfig::ID(project_id),
+							static_cast<std::string>(*file_path),
+							Source::Package::ID(package_id),
 							is_recursive
 						);
 					}
@@ -1953,7 +1943,7 @@ namespace pcit::panther{
 					"PTHR.BUILD.buildAddCHeaderFile",
 					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
 						context->build_system_config.cLangFiles.emplace_back(
-							std::string(file_path->data, file_path->size), add_includes_to_pub_api, false, true
+							static_cast<std::string>(*file_path), add_includes_to_pub_api, false, true
 						);
 					}
 				),
@@ -1961,7 +1951,7 @@ namespace pcit::panther{
 					"PTHR.BUILD.buildAddCPPHeaderFile",
 					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
 						context->build_system_config.cLangFiles.emplace_back(
-							std::string(file_path->data, file_path->size), add_includes_to_pub_api, true, true
+							static_cast<std::string>(*file_path), add_includes_to_pub_api, true, true
 						);
 					}
 				),
@@ -2001,10 +1991,10 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// ProjectWarningSettings
+		// PackageWarningSettings
 
 		{
-			auto project_warning_settings_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+			auto package_warning_settings_members = evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					pthr_module.createString("methodCallOnNonMethod"),
@@ -2032,20 +2022,21 @@ namespace pcit::panther{
 			};
 
 
-			auto project_warning_settings_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			project_warning_settings_member_vars_abi.reserve(project_warning_settings_members.size());
-			for(BaseType::Struct::MemberVar& member : project_warning_settings_members){
-				project_warning_settings_member_vars_abi.emplace_back(&member);
+			auto package_warning_settings_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+			package_warning_settings_member_vars_abi.reserve(package_warning_settings_members.size());
+			for(BaseType::Struct::MemberVar& member : package_warning_settings_members){
+				package_warning_settings_member_vars_abi.emplace_back(&member);
 			}
 
-			const BaseType::ID project_warning_settings_type = this->type_manager.getOrCreateStruct(
+			const BaseType::ID package_warning_settings_type = this->type_manager.getOrCreateStruct(
 				BaseType::Struct(
 					BuiltinModule::ID::PTHR,
-					pthr_module.createString("ProjectWarningSettings"),
+					pthr_module.createString("PackageWarningSettings"),
+					std::nullopt,
 					std::nullopt,
 					std::numeric_limits<uint32_t>::max(),
-					std::move(project_warning_settings_members),
-					std::move(project_warning_settings_member_vars_abi),
+					std::move(package_warning_settings_members),
+					std::move(package_warning_settings_member_vars_abi),
 					nullptr,
 					nullptr,
 					false,
@@ -2055,26 +2046,27 @@ namespace pcit::panther{
 				)
 			);
 
-			sema_to_pir.lowerStruct(project_warning_settings_type.structID());
+			sema_to_pir.lowerStruct(package_warning_settings_type.structID());
 
-			pthr_module.createSymbol("ProjectWarningSettings", project_warning_settings_type);
+			pthr_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
 		}
 
 
 		//////////////////
-		// ProjectID
+		// PackageID
 
 		{
-			const BaseType::ID project_id = this->type_manager.getOrCreateAlias(
+			const BaseType::ID package_id = this->type_manager.getOrCreateAlias(
 				BaseType::Alias(
 					BuiltinModule::ID::PTHR,
-					pthr_module.createString("ProjectID"),
+					pthr_module.createString("PackageID"),
+					std::nullopt,
 					TypeManager::getTypeUI32(),
 					false
 				)
 			);
 
-			pthr_module.createSymbol("ProjectID", project_id);
+			pthr_module.createSymbol("PackageID", package_id);
 		}
 
 
@@ -2086,6 +2078,7 @@ namespace pcit::panther{
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterator"),
+				std::nullopt,
 				std::nullopt,
 				false,
 				false
@@ -2117,6 +2110,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("next"),
 				std::string(),
+				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2156,6 +2150,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("get"),
 				std::string(),
+				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2189,6 +2184,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("atEnd"),
 				std::string(),
+				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2213,6 +2209,7 @@ namespace pcit::panther{
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IMutIterator"),
+				std::nullopt,
 				std::nullopt,
 				false,
 				false
@@ -2244,6 +2241,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("next"),
 				std::string(),
+				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2283,6 +2281,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("get"),
 				std::string(),
+				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2316,6 +2315,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("atEnd"),
 				std::string(),
+				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2340,6 +2340,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterable"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -2353,7 +2354,7 @@ namespace pcit::panther{
 			BaseType::Interface& iterable_type = this->type_manager.getInterface(iterable_id.interfaceID());
 
 
-			// func createIterator = (this) -> impl($$:@pthr.Iterator);
+			// func createIterator = (this) -> impl($$:@pthr.IIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2381,6 +2382,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2397,7 +2399,7 @@ namespace pcit::panther{
 
 
 
-			// func createIterator = (this mut) -> impl($$:@pthr.MutIterator);
+			// func createIterator = (this mut) -> impl($$:@pthr.IMutIterator);
 			const BaseType::ID create_mut_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2425,6 +2427,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_mut_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2451,6 +2454,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRef"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -2464,7 +2468,7 @@ namespace pcit::panther{
 			BaseType::Interface& iterable_ref_type = this->type_manager.getInterface(iterable_ref_id.interfaceID());
 
 
-			// func createIterator = (this) -> impl($$:@pthr.Iterator);
+			// func createIterator = (this) -> impl($$:@pthr.IIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2492,6 +2496,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2517,6 +2522,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableMutRef"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -2532,7 +2538,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_mut_ref_id.interfaceID());
 
 
-			// func createIterator = (this) -> impl($$:@pthr.MutIterator);
+			// func createIterator = (this) -> impl($$:@pthr.IMutIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2562,6 +2568,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2585,6 +2592,7 @@ namespace pcit::panther{
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIteratorRT"),
+				std::nullopt,
 				std::nullopt,
 				false,
 				false
@@ -2616,6 +2624,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("next"),
 				std::string(),
+				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2655,6 +2664,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("get"),
 				std::string(),
+				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2688,6 +2698,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("atEnd"),
 				std::string(),
+				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2712,6 +2723,7 @@ namespace pcit::panther{
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IMutIteratorRT"),
+				std::nullopt,
 				std::nullopt,
 				false,
 				false
@@ -2743,6 +2755,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("next"),
 				std::string(),
+				std::nullopt,
 				next_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2782,6 +2795,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("get"),
 				std::string(),
+				std::nullopt,
 				get_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2815,6 +2829,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("atEnd"),
 				std::string(),
+				std::nullopt,
 				at_end_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2839,6 +2854,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRT"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -2852,7 +2868,7 @@ namespace pcit::panther{
 			BaseType::Interface& iterable_rt_type = this->type_manager.getInterface(iterable_rt_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> @pthr.Iterator;
+			// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2860,7 +2876,16 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(
-							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_rt_id))
+							std::nullopt,
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									this->type_manager.getOrCreateInterfaceMap(
+										BaseType::InterfaceMap(
+											anonymous_type_deducer_type_id, iterator_id.interfaceID()
+										)
+									)
+								)
+							)
 						)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>()
@@ -2871,6 +2896,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2887,7 +2913,7 @@ namespace pcit::panther{
 
 
 
-			// func createIterator = (this mut) #rt -> @pthr.MutIterator;
+			// func createIterator = (this mut) #rt -> impl($$:@pthr.IMutIterator);
 			const BaseType::ID create_mut_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2895,7 +2921,16 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(
-							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_rt_id))
+							std::nullopt,
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									this->type_manager.getOrCreateInterfaceMap(
+										BaseType::InterfaceMap(
+											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
+										)
+									)
+								)
+							)
 						)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>()
@@ -2906,6 +2941,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_mut_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2932,6 +2968,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRefRT"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -2947,7 +2984,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_ref_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> @pthr.Iterator;
+			// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2955,7 +2992,16 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(
-							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_rt_id))
+							std::nullopt,
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									this->type_manager.getOrCreateInterfaceMap(
+										BaseType::InterfaceMap(
+											anonymous_type_deducer_type_id, iterator_id.interfaceID()
+										)
+									)
+								)
+							)
 						)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>()
@@ -2966,6 +3012,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -2991,6 +3038,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableMutRefRT"),
 				std::nullopt,
+				std::nullopt,
 				false,
 				false
 			)
@@ -3006,7 +3054,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_mut_ref_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> @pthr.MutIterator;
+			// func createIterator = (this) #rt -> impl($$:@pthr.IMutIterator);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -3016,7 +3064,16 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(
-							std::nullopt, this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_rt_id))
+							std::nullopt,
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									this->type_manager.getOrCreateInterfaceMap(
+										BaseType::InterfaceMap(
+											anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
+										)
+									)
+								)
+							)
 						)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>()
@@ -3027,6 +3084,7 @@ namespace pcit::panther{
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("createIterator"),
 				std::string(),
+				std::nullopt,
 				create_iterator_type_id.funcID(),
 				evo::SmallVector<sema::Func::Param>{sema::Func::Param(pthr_module_this_string, std::nullopt)},
 				std::nullopt,
@@ -3109,13 +3167,13 @@ namespace pcit::panther{
 		{
 			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
 
-			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 			const TypeInfo::ID created_func_type = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(project_id, BaseType::Function::Param::Kind::READ, true)
+					BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
 				},
 				evo::SmallVector<BaseType::Function::ReturnParam>{
 					BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
@@ -3123,7 +3181,7 @@ namespace pcit::panther{
 				evo::SmallVector<BaseType::Function::ReturnParam>()
 			);
 
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PROJECT))] = 
+			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = created_func_type,
 				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
@@ -3152,12 +3210,12 @@ namespace pcit::panther{
 		{
 			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
 
-			const TypeInfo::ID project_warning_settings = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("ProjectWarningSettings")->as<BaseType::ID>())
+			const TypeInfo::ID package_warning_settings = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
 			);
 
-			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3165,16 +3223,17 @@ namespace pcit::panther{
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(project_warning_settings, BaseType::Function::Param::Kind::IN, false)
+						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
+						BaseType::Function::Param(package_warning_settings, BaseType::Function::Param::Kind::IN, false)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
-						BaseType::Function::ReturnParam(std::nullopt, project_id)
+						BaseType::Function::ReturnParam(std::nullopt, package_id)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>()
 				)
 			);
 
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_CREATE_PROJECT))] = 
+			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
 				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
@@ -3185,8 +3244,8 @@ namespace pcit::panther{
 		{
 			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
 
-			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3194,7 +3253,7 @@ namespace pcit::panther{
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(project_id, BaseType::Function::Param::Kind::READ, true)
+						BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
 					},
 					evo::SmallVector<BaseType::Function::ReturnParam>{
 						BaseType::Function::ReturnParam(std::nullopt, TypeInfo::VoidableID::Void())
@@ -3214,8 +3273,8 @@ namespace pcit::panther{
 		{
 			const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
 
-			const TypeInfo::ID project_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_pthr.getSymbol("ProjectID")->as<BaseType::ID>())
+			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("PackageID")->as<BaseType::ID>())
 			);
 
 
@@ -3223,7 +3282,7 @@ namespace pcit::panther{
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(project_id, BaseType::Function::Param::Kind::READ, true),
+						BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true),
 						BaseType::Function::Param(
 							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
 						)

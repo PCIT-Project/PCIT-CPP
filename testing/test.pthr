@@ -1,42 +1,23 @@
 // def std_exp = @import("std_exp/std_exp.pthr");
 
 
-interface IGetNum = #polymorphic {
-	func get_num = () -> Int;
-}
-
-type Thing = struct {
-	impl IGetNum{
-		get_num = () -> Int { return 12; }
-	}
-}
-
-
-
-func get_num = (foo: impl($$:IGetNum)) -> Int {
-	return foo.get_num();
-}
-
-
-func create_thing_get_num = () -> impl(Thing:IGetNum) {
-	return new Thing() as impl(Thing:IGetNum);
-}
-
-
-func arr_test = () -> Void {
-	const arr = new [Int:3][1, 2, 3];
-
-	for(arr as [Int:*]) [_; value: Int] {
-		// 
-	}
-}
 
 
 
 func entry = () #entry -> UI8 {
-	var thing = new Thing();
+	type Foo = struct {
+		type Bar = struct {
+			func [] = (this, value: USize) -> USize { return copy value; }
+		}
+		func [] = (this, value: USize) -> USize { return copy value; }
+	}
+	
 
-	// var get_num: impl($$:IGetNum)* = &thing as impl(Thing:IGetNum)*;
+	const arr = new [Int:3][1, 2, 3];
+	for(arr) [_; value: Int] {}
 
-	return get_num(thing as impl(Thing:IGetNum)) as UI8;
+
+	// const foo: Foo.Bar = false;
+	
+	return 0;
 }

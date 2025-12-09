@@ -30,6 +30,38 @@
 namespace pcit::panther{
 
 	class SourceManager;
+	class Context;
+
+
+	struct EncapsulatingSymbolID{
+		struct InterfaceImplInfo{
+			TypeInfoID targetTypeID;
+			BaseType::InterfaceID interfaceID;
+		};
+
+		template<class T>
+		EVO_NODISCARD auto is() const -> bool { return this->id.is<T>(); }
+
+		template<class T>
+		EVO_NODISCARD auto as() const -> const T& { return this->id.as<T>(); }
+
+		template<class T>
+		EVO_NODISCARD auto as() -> T& { return this->id.as<T>(); }
+
+
+		auto visit(auto callable) const -> auto { return this->id.visit(callable); }
+		auto visit(auto callable) -> auto { return this->id.visit(callable); }
+
+
+		evo::Variant<
+			BaseType::StructID,
+			BaseType::UnionID,
+			BaseType::EnumID,
+			BaseType::InterfaceID,
+			sema::FuncID,
+			InterfaceImplInfo
+		> id;
+	};
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -456,6 +488,7 @@ namespace pcit::panther{
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID aliasedType;
 			bool isPub; // meaningless if not pthr source type
 
@@ -475,6 +508,7 @@ namespace pcit::panther{
 
 			SourceID sourceID;
 			Token::ID identTokenID;
+			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID underlyingType;
 			bool isPub;
 			
@@ -510,6 +544,7 @@ namespace pcit::panther{
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uint32_t max if not instantiation
 			evo::SmallVector<MemberVar> memberVars; // make sure to take the lock (.memberVarsLock) when not defComplete
@@ -603,6 +638,7 @@ namespace pcit::panther{
 
 			SourceID sourceID;
 			Token::ID identTokenID;
+			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Param> params;
 			size_t minNumTemplateArgs; // TODO(PERF): make sure this optimization actually improves perf
 
@@ -632,11 +668,13 @@ namespace pcit::panther{
 			StructTemplate(
 				SourceID source_id,
 				Token::ID ident_token_id,
+				std::optional<EncapsulatingSymbolID> _parent,
 				evo::SmallVector<Param>&& _params,
 				size_t min_num_template_args
 			) : 
 				sourceID(source_id), 
 				identTokenID(ident_token_id),
+				parent(_parent),
 				params(std::move(_params)), 
 				minNumTemplateArgs(min_num_template_args) 
 			{}
@@ -669,6 +707,7 @@ namespace pcit::panther{
 			
 			evo::Variant<SourceID, ClangSourceID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Field> fields;
 			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
 			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
@@ -701,6 +740,7 @@ namespace pcit::panther{
 			
 			evo::Variant<SourceID, ClangSourceID> sourceID;
 			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Enumerator> enumerators;
 			BaseType::Primitive::ID underlyingTypeID;
 			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
@@ -815,6 +855,7 @@ namespace pcit::panther{
 			
 			evo::Variant<SourceID, BuiltinModuleID> sourceID;
 			evo::Variant<Token::ID, BuiltinModuleStringID> name;
+			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<SymbolProcID> symbolProcID; // nullopt if builtin
 			bool isPub;
 			bool isPolymorphic;
@@ -972,15 +1013,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getTypeInfo(TypeInfo::ID id) const -> const TypeInfo&;
 			EVO_NODISCARD auto getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID;
 				
-			EVO_NODISCARD auto printType(
-				TypeInfo::VoidableID type_info_id, const class SourceManager& source_manager
-			) const -> std::string;
-			EVO_NODISCARD auto printType(
-				TypeInfo::ID type_info_id, const class SourceManager& source_manager
-			) const -> std::string;
-			EVO_NODISCARD auto printType(
-				BaseType::ID base_type_id, const class SourceManager& source_manager
-			) const -> std::string;
+			EVO_NODISCARD auto printType(TypeInfo::VoidableID type_info_id, const class Context& context) const
+				-> std::string;
+			EVO_NODISCARD auto printType(TypeInfo::ID type_info_id, const class Context& context) const
+				-> std::string;
+			EVO_NODISCARD auto printType(BaseType::ID base_type_id, const class Context& context) const
+				-> std::string;
 
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id) const -> const BaseType::Function&;
 			EVO_NODISCARD auto getFunction(BaseType::Function::ID id)       ->       BaseType::Function&;
@@ -1184,6 +1222,83 @@ namespace pcit::panther{
 		private:
 			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)
 				-> BaseType::ID;
+
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id,
+				const class Context& context
+			) const -> std::string;
+
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::Variant<SourceID, ClangSourceID> source_id,
+				const class Context& context
+			) const -> std::string {
+				if(source_id.is<SourceID>()){
+					return this->get_parent_name(
+						parent,
+						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<SourceID>()),
+						context
+					);
+				}else{
+					return this->get_parent_name(
+						parent,
+						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<ClangSourceID>()),
+						context
+					);
+				}
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::Variant<SourceID, BuiltinModuleID> source_id,
+				const class Context& context
+			) const -> std::string {
+				if(source_id.is<SourceID>()){
+					return this->get_parent_name(
+						parent,
+						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<SourceID>()),
+						context
+					);
+				}else{
+					return this->get_parent_name(
+						parent,
+						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<BuiltinModuleID>()),
+						context
+					);
+				}
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent, SourceID source_id, const class Context& context
+			) const -> std::string {
+				return this->get_parent_name(
+					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+				);
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent, ClangSourceID source_id, const class Context& context
+			) const -> std::string {
+				return this->get_parent_name(
+					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+				);
+			}
+
+			EVO_NODISCARD auto get_parent_name(
+				std::optional<EncapsulatingSymbolID> parent, BuiltinModuleID source_id, const class Context& context
+			) const -> std::string {
+				return this->get_parent_name(
+					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+				);
+			}
+
+
+
+			EVO_NODISCARD auto get_func_name(sema::FuncID sema_func_id, const class Context& context) const
+				-> std::string;
 
 
 		private:

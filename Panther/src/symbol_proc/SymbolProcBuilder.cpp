@@ -1880,6 +1880,7 @@ namespace pcit::panther{
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
@@ -1895,6 +1896,7 @@ namespace pcit::panther{
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
@@ -1909,6 +1911,7 @@ namespace pcit::panther{
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
@@ -1924,6 +1927,7 @@ namespace pcit::panther{
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
 		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())

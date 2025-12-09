@@ -24,10 +24,11 @@ namespace pcit::panther{
 
 	class SourceManager{
 		public:
-			enum class CreateSourceProjectConfigFailReason{
+			enum class CreatePackageFailReason{
 				PATH_NOT_ABSOLUTE,
 				PATH_DOESNT_EXIST,
 				PATH_NOT_DIRECTORY,
+				INVALID_NAME,
 			};
 
 		public:
@@ -35,43 +36,38 @@ namespace pcit::panther{
 			~SourceManager() = default;
 
 
-			EVO_NODISCARD auto createSourceProjectConfig(Source::ProjectConfig&& src_comp_config)
-			-> evo::Expected<Source::ProjectConfig::ID, CreateSourceProjectConfigFailReason> {
-				if(src_comp_config.basePath.is_absolute() == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE);
+			EVO_NODISCARD auto createPackage(Source::Package&& package)
+			-> evo::Expected<Source::Package::ID, CreatePackageFailReason> {
+				if(package.basePath.is_absolute() == false){
+					return evo::Unexpected(CreatePackageFailReason::PATH_NOT_ABSOLUTE);
 				}
 
-				if(path_exitsts(src_comp_config.basePath) == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST);
+				if(evo::fs::exists(package.basePath.string()) == false){
+					return evo::Unexpected(CreatePackageFailReason::PATH_DOESNT_EXIST);
 				}
 
-				if(path_exitsts(src_comp_config.basePath) == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY);
+				if(std::filesystem::is_directory(package.basePath) == false){
+					return evo::Unexpected(CreatePackageFailReason::PATH_NOT_DIRECTORY);
 				}
 
-				return this->priv.source_project_configs.emplace_back(std::move(src_comp_config));
+				for(char character : package.name){
+					if(evo::isAlphaNumeric(character) == false && character != '_'  && character != '.'){
+						return evo::Unexpected(CreatePackageFailReason::INVALID_NAME);
+					}
+				}
+
+				return this->priv.packages.emplace_back(std::move(package));
 			}
 
-			EVO_NODISCARD auto createSourceProjectConfig(const Source::ProjectConfig& src_comp_config)
-			-> evo::Expected<Source::ProjectConfig::ID, CreateSourceProjectConfigFailReason> {
-				if(src_comp_config.basePath.is_absolute() == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE);
-				}
-
-				if(path_exitsts(src_comp_config.basePath) == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST);
-				}
-
-				if(path_exitsts(src_comp_config.basePath) == false){
-					return evo::Unexpected(CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY);
-				}
-
-				return this->priv.source_project_configs.emplace_back(src_comp_config);
+			EVO_NODISCARD auto createPackage(const Source::Package& package)
+			-> evo::Expected<Source::Package::ID, CreatePackageFailReason> {
+				return this->createPackage(evo::copy(package));
 			}
 
-			EVO_NODISCARD auto getSourceProjectConfig(Source::ProjectConfig::ID id) const 
-			-> const Source::ProjectConfig& {
-				return this->priv.source_project_configs[id];
+
+			EVO_NODISCARD auto getPackage(Source::Package::ID id) const 
+			-> const Source::Package& {
+				return this->priv.packages[id];
 			}
 
 
@@ -138,7 +134,7 @@ namespace pcit::panther{
 
 		private:
 			auto create_source(
-				std::filesystem::path&& path, std::string&& data_str, Source::ProjectConfig::ID comp_config_id
+				std::filesystem::path&& path, std::string&& data_str, Source::Package::ID comp_config_id
 			) -> Source::ID {
 				const auto lock = std::lock_guard(this->priv.sources_lock);
 
@@ -169,15 +165,11 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto emplace_source_project_config(auto&&... args) -> Source::ProjectConfig::ID {
-				return this->priv.source_project_configs.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto emplace_source_package_config(auto&&... args) -> Source::Package::ID {
+				return this->priv.packages.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
 
-			EVO_NODISCARD static auto path_exitsts(const std::filesystem::path& path) -> bool {
-				auto ec = std::error_code();
-				return std::filesystem::exists(path, ec) && (ec.value() == 0);
-			}
 	
 		private:
 			// To prevent context from accessing private members while allowing access to private methods
@@ -191,8 +183,7 @@ namespace pcit::panther{
 
 					std::array<BuiltinModule, 2> builtin_modules{};
 
-					using CompConfig = Source::ProjectConfig;
-					core::LinearStepAlloc<CompConfig, CompConfig::ID> source_project_configs{};
+					core::LinearStepAlloc<Source::Package, Source::Package::ID> packages{};
 
 					std::unordered_map<std::string_view, std::filesystem::path> special_name_paths{};
 

@@ -68,23 +68,23 @@ namespace pthr{
 
 
 
-using CreatePantherProjectResult =
-	evo::Expected<panther::Source::ProjectConfig::ID, panther::SourceManager::CreateSourceProjectConfigFailReason>;
+using CreatePantherPackageResult =
+	evo::Expected<panther::Source::Package::ID, panther::SourceManager::CreatePackageFailReason>;
 
 static auto error_failed_to_add_std_lib(
-	panther::SourceManager::CreateSourceProjectConfigFailReason fail_reason, core::Printer& printer
+	panther::SourceManager::CreatePackageFailReason fail_reason, core::Printer& printer
 ) -> void {
 	auto infos = evo::SmallVector<panther::Diagnostic::Info>();
 	switch(fail_reason){
-		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE: {
+		case panther::SourceManager::CreatePackageFailReason::PATH_NOT_ABSOLUTE: {
 			infos.emplace_back("Path isn't absolute");
 		} break;
 
-		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST: {
+		case panther::SourceManager::CreatePackageFailReason::PATH_DOESNT_EXIST: {
 			infos.emplace_back("Path doesn't exist");
 		} break;
 
-		case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY: {
+		case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
 			infos.emplace_back("Path isn't directory");
 		} break;
 	}
@@ -137,31 +137,31 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 
 
 	if(cmd_args_config.use_std_lib){
-		const CreatePantherProjectResult std_project_id = context.getSourceManager().createSourceProjectConfig(
-			panther::Source::ProjectConfig{
+		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
+			panther::Source::Package{
 				.basePath = cmd_args_config.workingDirectory / "../extern/Panther-std/std",
-				.warn     = panther::Source::ProjectConfig::Warns::all(),
+				.warn     = panther::Source::Package::Warns::all(),
 			}
 		);
 
-		if(std_project_id.has_value() == false){
-			error_failed_to_add_std_lib(std_project_id.error(), printer);
+		if(std_package_id.has_value() == false){
+			error_failed_to_add_std_lib(std_package_id.error(), printer);
 			return evo::resultError;
 		}
 
 		const panther::Context::AddSourceResult add_dir_result = 
-			context.addSourceDirectoryRecursive("./", *std_project_id);
+			context.addSourceDirectoryRecursive("./", *std_package_id);
 
 		evo::debugAssert(add_dir_result == panther::Context::AddSourceResult::SUCCESS, "This should never fail");
 
-		context.addStdLib(*std_project_id);
+		context.addStdLib(*std_package_id);
 	}
 
 
-	const CreatePantherProjectResult proj_config_id = context.getSourceManager().createSourceProjectConfig(
-		panther::Source::ProjectConfig{
+	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
+		panther::Source::Package{
 			.basePath = cmd_args_config.workingDirectory,
-			.warn = panther::Source::ProjectConfig::Warns{
+			.warn = panther::Source::Package::Warns{
 				.methodCallOnNonMethod        = true,
 				.deleteMovedFromExpr          = true,
 				.deleteTriviallyDeletableType = true,
@@ -170,11 +170,11 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		}
 	);
 
-	if(proj_config_id.has_value() == false){
+	if(package_res.has_value() == false){
 		// TODO(FUTURE): handle fail
 	}
 
-	std::ignore = context.addSourceFile("build.pthr", *proj_config_id);
+	std::ignore = context.addSourceFile("build.pthr", *package_res);
 
 
 	if(context.analyzeSemantics().isError()){
@@ -245,46 +245,73 @@ EVO_NODISCARD static auto run_compile(
 
 	unsigned num_errors = 0;
 
-	for(const panther::Source::ProjectConfig& project_config : config.projectConfigs){
-		const fs::path project_path = project_config.basePath;
+	for(const panther::Source::Package& package : config.packages){
+		const fs::path package_path = package.basePath;
+		const std::string package_name = package.name;
 
-		const CreatePantherProjectResult res = 
-			context.getSourceManager().createSourceProjectConfig(std::move(project_config));
+		const CreatePantherPackageResult res = context.getSourceManager().createPackage(std::move(package));
 
 		if(res.has_value() == false){
-			auto infos = evo::SmallVector<panther::Diagnostic::Info>();
-			infos.reserve(2);
-			infos.emplace_back(std::format("Path: \"{}\"", project_path.string()));
-
 			switch(res.error()){
-				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_ABSOLUTE: {
-					infos.emplace_back("Path isn't absolute");
+				case panther::SourceManager::CreatePackageFailReason::PATH_NOT_ABSOLUTE: {
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
+						panther::Diagnostic::Location::NONE,
+						"Invalid path for package",
+						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
+							panther::Diagnostic::Info("Path isn't absolute")
+						}
+					));
 				} break;
 
-				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_DOESNT_EXIST: {
-					infos.emplace_back("Path doesn't exist");
+				case panther::SourceManager::CreatePackageFailReason::PATH_DOESNT_EXIST: {
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
+						panther::Diagnostic::Location::NONE,
+						"Invalid path for package",
+						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
+							panther::Diagnostic::Info("Path doesn't exist")
+						}
+					));
 				} break;
 
-				case panther::SourceManager::CreateSourceProjectConfigFailReason::PATH_NOT_DIRECTORY: {
-					infos.emplace_back("Path isn't directory");
+				case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
+						panther::Diagnostic::Location::NONE,
+						"Invalid path for package",
+						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
+							panther::Diagnostic::Info("Path isn't directory")
+						}
+					));
+				} break;
+
+				case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
+						panther::Diagnostic::Location::NONE,
+						"Invalid name for package",
+						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info(std::format("Name: \"{}\"", package_name)),
+						}
+					));
 				} break;
 			}
-
-			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-				panther::Diagnostic::Level::ERROR,
-				panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-				panther::Diagnostic::Location::NONE,
-				"Invalid path for project",
-				std::move(infos)
-			));
 
 			num_errors += 1;
 		}
 	}
 
 
-	if(config.stdLibProjectID.has_value()){
-		context.addStdLib(*config.stdLibProjectID);	
+	if(config.stdLibPackageID.has_value()){
+		context.addStdLib(*config.stdLibPackageID);	
 	}
 
 
@@ -295,14 +322,13 @@ EVO_NODISCARD static auto run_compile(
 
 
 	for(const panther::Context::BuildSystemConfig::PantherFile& source_file : config.sourceFiles){
-		const panther::Context::AddSourceResult result = context.addSourceFile(source_file.path, source_file.projectID);
+		const panther::Context::AddSourceResult result = context.addSourceFile(source_file.path, source_file.packageID);
 
 		switch(result){
 			case panther::Context::AddSourceResult::SUCCESS: break;
 
 			case panther::Context::AddSourceResult::DOESNT_EXIST: {
-				const panther::Source::ProjectConfig& project_config = 
-					context.getSourceManager().getSourceProjectConfig(source_file.projectID);
+				const panther::Source::Package& package = context.getSourceManager().getPackage(source_file.packageID);
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -312,7 +338,7 @@ EVO_NODISCARD static auto run_compile(
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path)),
 						panther::Diagnostic::Info(
-							std::format("Relative directory: \"{}\"", project_config.basePath.string())
+							std::format("Relative directory: \"{}\"", package.basePath.string())
 						)
 					}
 				));
@@ -330,9 +356,9 @@ EVO_NODISCARD static auto run_compile(
 	for(const panther::Context::BuildSystemConfig::PantherDirectory& source_directory : config.sourceDirectories){
 		const panther::Context::AddSourceResult result = [&]() -> panther::Context::AddSourceResult {
 			if(source_directory.isRecursive){
-				return context.addSourceDirectoryRecursive(source_directory.path, source_directory.projectID);
+				return context.addSourceDirectoryRecursive(source_directory.path, source_directory.packageID);
 			}else{
-				return context.addSourceDirectory(source_directory.path, source_directory.projectID);
+				return context.addSourceDirectory(source_directory.path, source_directory.packageID);
 			}
 		}();
 
@@ -340,8 +366,8 @@ EVO_NODISCARD static auto run_compile(
 			case panther::Context::AddSourceResult::SUCCESS: break;
 
 			case panther::Context::AddSourceResult::DOESNT_EXIST: {
-				const panther::Source::ProjectConfig& project_config = 
-					context.getSourceManager().getSourceProjectConfig(source_directory.projectID);
+				const panther::Source::Package& package = 
+					context.getSourceManager().getPackage(source_directory.packageID);
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -351,7 +377,7 @@ EVO_NODISCARD static auto run_compile(
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_directory.path)),
 						panther::Diagnostic::Info(
-							std::format("Relative directory: \"{}\"", project_config.basePath.string())
+							std::format("Relative directory: \"{}\"", package.basePath.string())
 						)
 					}
 				));
@@ -360,8 +386,8 @@ EVO_NODISCARD static auto run_compile(
 			} break;
 
 			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
-				const panther::Source::ProjectConfig& project_config = 
-					context.getSourceManager().getSourceProjectConfig(source_directory.projectID);
+				const panther::Source::Package& package = 
+					context.getSourceManager().getPackage(source_directory.packageID);
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -371,7 +397,7 @@ EVO_NODISCARD static auto run_compile(
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_directory.path)),
 						panther::Diagnostic::Info(
-							std::format("Relative directory: \"{}\"", project_config.basePath.string())
+							std::format("Relative directory: \"{}\"", package.basePath.string())
 						)
 					}
 				));

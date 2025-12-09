@@ -14,7 +14,7 @@
 #endif
 
 #include "../include/source/SourceManager.h"
-
+#include "../include/Context.h"
 #include "../include/sema/SemaBuffer.h"
 
 
@@ -272,19 +272,19 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::printType(TypeInfo::VoidableID type_info_id, const SourceManager& source_manager) const 
+	auto TypeManager::printType(TypeInfo::VoidableID type_info_id, const Context& context) const 
 	-> std::string {
 		if(type_info_id.isVoid()) [[unlikely]] {
 			return "Void";
 		}else{
-			return this->printType(type_info_id.asTypeID(), source_manager);
+			return this->printType(type_info_id.asTypeID(), context);
 		}
 	}
 
-	auto TypeManager::printType(TypeInfo::ID type_info_id, const SourceManager& source_manager) const -> std::string {
+	auto TypeManager::printType(TypeInfo::ID type_info_id, const Context& context) const -> std::string {
 		const TypeInfo& type_info = this->getTypeInfo(type_info_id);
 
-		std::string type_str = this->printType(type_info.baseTypeID(), source_manager);
+		std::string type_str = this->printType(type_info.baseTypeID(), context);
 
 		bool is_first_qualifer = type_str.back() != '*'
 			&& type_str.ends_with("*mut")
@@ -310,7 +310,7 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::printType(BaseType::ID base_type_id, const SourceManager& source_manager) const -> std::string {
+	auto TypeManager::printType(BaseType::ID base_type_id, const Context& context) const -> std::string {
 		switch(base_type_id.kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
 
@@ -340,7 +340,7 @@ namespace pcit::panther{
 				auto builder = std::string();
 				builder += '[';
 
-				builder += this->printType(array.elementTypeID, source_manager);
+				builder += this->printType(array.elementTypeID, context);
 
 				builder += ':';
 
@@ -405,7 +405,7 @@ namespace pcit::panther{
 				auto builder = std::string();
 				builder += '[';
 
-				builder += this->printType(array_deducer.elementTypeID, source_manager);
+				builder += this->printType(array_deducer.elementTypeID, context);
 
 				builder += ':';
 
@@ -414,8 +414,8 @@ namespace pcit::panther{
 						builder += std::to_string(dimension.as<uint64_t>());
 						
 					}else{
-						const Token& token =
-							source_manager[array_deducer.sourceID].getTokenBuffer()[dimension.as<Token::ID>()];
+						const Token& token = context.getSourceManager()[array_deducer.sourceID]
+							.getTokenBuffer()[dimension.as<Token::ID>()];
 
 						if(token.kind() == Token::Kind::DEDUCER){
 							return std::format("${}", token.getString());
@@ -488,7 +488,7 @@ namespace pcit::panther{
 					}
 
 				}else if(array_deducer.terminator.is<Token::ID>()){
-					const Token& token = source_manager[array_deducer.sourceID]
+					const Token& token = context.getSourceManager()[array_deducer.sourceID]
 						.getTokenBuffer()[array_deducer.terminator.as<Token::ID>()];
 
 					if(token.kind() == Token::Kind::DEDUCER){
@@ -512,7 +512,7 @@ namespace pcit::panther{
 				auto builder = std::string();
 				builder += '[';
 
-				builder += this->printType(array_ref.elementTypeID, source_manager);
+				builder += this->printType(array_ref.elementTypeID, context);
 
 				builder += ':';
 
@@ -599,7 +599,7 @@ namespace pcit::panther{
 				const BaseType::Alias::ID alias_id = base_type_id.aliasID();
 				const BaseType::Alias& alias = this->getAlias(alias_id);
 
-				return std::string(alias.getName(source_manager));
+				return std::string(alias.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
@@ -607,7 +607,7 @@ namespace pcit::panther{
 				const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(distinct_alias_id);
 
 				return std::string(
-					source_manager[distinct_alias_info.sourceID]
+					context.getSourceManager()[distinct_alias_info.sourceID]
 						.getTokenBuffer()[distinct_alias_info.identTokenID]
 						.getString()
 				);
@@ -617,16 +617,17 @@ namespace pcit::panther{
 				const BaseType::Struct::ID struct_id = base_type_id.structID();
 				const BaseType::Struct& struct_info = this->getStruct(struct_id);
 
-				const std::string_view struct_name = struct_info.getName(source_manager);
+				const std::string_view struct_name = struct_info.getName(context.getSourceManager());
+
+				auto builder = this->get_parent_name(struct_info.parent, struct_info.sourceID, context);
+
+				builder += struct_name;
 
 				if(struct_info.templateID.has_value() == false){
-					return std::string(struct_name);
+					return builder;
 				}
 
 				const BaseType::StructTemplate& struct_template = this->getStructTemplate(*struct_info.templateID);
-
-				auto builder = std::string();
-				builder += struct_name;
 
 				builder += "<{";
 
@@ -637,7 +638,7 @@ namespace pcit::panther{
 				// TODO(PERF): 
 				for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : template_args){
 					if(template_arg.is<TypeInfo::VoidableID>()){
-						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
+						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), context);
 
 					}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
 						builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
@@ -695,8 +696,11 @@ namespace pcit::panther{
 				const BaseType::StructTemplate::ID struct_template_id = base_type_id.structTemplateID();
 				const BaseType::StructTemplate& struct_template_info = this->getStructTemplate(struct_template_id);
 
-				const TokenBuffer& token_buffer = source_manager[struct_template_info.sourceID].getTokenBuffer();
-				return std::string(token_buffer[struct_template_info.identTokenID].getString());
+				const TokenBuffer& token_buffer =
+					context.getSourceManager()[struct_template_info.sourceID].getTokenBuffer();
+
+				return this->get_parent_name(struct_template_info.parent, struct_template_info.sourceID, context) +
+					std::string(token_buffer[struct_template_info.identTokenID].getString());
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
@@ -709,16 +713,15 @@ namespace pcit::panther{
 				);
 
 
-				std::string builder =
-					this->printType(BaseType::ID(struct_template_deduce_info.structTemplateID), source_manager);
-
+				std::string builder = this->get_parent_name(struct_template.parent, struct_template.sourceID, context);
+				builder += this->printType(BaseType::ID(struct_template_deduce_info.structTemplateID), context);
 				builder += "<{";
 
 
 				// TODO(PERF): 
 				for(size_t i = 0; const BaseType::StructTemplate::Arg& template_arg : struct_template_deduce_info.args){
 					if(template_arg.is<TypeInfo::VoidableID>()){
-						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), source_manager);
+						builder += this->printType(template_arg.as<TypeInfo::VoidableID>(), context);
 
 					}else if(*struct_template.params[i].typeID == TypeManager::getTypeBool()){
 						builder += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
@@ -774,16 +777,18 @@ namespace pcit::panther{
 
 			case BaseType::Kind::UNION: {
 				const BaseType::Union::ID union_id = base_type_id.unionID();
-				const BaseType::Union& union_info = this->getUnion(union_id);
+				const BaseType::Union& union_type = this->getUnion(union_id);
 
-				return std::string(union_info.getName(source_manager));
+				return this->get_parent_name(union_type.parent, union_type.sourceID, context)
+					+ std::string(union_type.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::ENUM: {
 				const BaseType::Enum::ID enum_id = base_type_id.enumID();
-				const BaseType::Enum& enum_info = this->getEnum(enum_id);
+				const BaseType::Enum& enum_type = this->getEnum(enum_id);
 
-				return std::string(enum_info.getName(source_manager));
+				return this->get_parent_name(enum_type.parent, enum_type.sourceID, context)
+					+ std::string(enum_type.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -795,7 +800,7 @@ namespace pcit::panther{
 				}
 
 				const Token& token =
-					source_manager[*type_deducer.sourceID].getTokenBuffer()[*type_deducer.identTokenID];
+					context.getSourceManager()[*type_deducer.sourceID].getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(token.kind() == Token::Kind::DEDUCER){
 					return std::format("${}", token.getString());
@@ -809,9 +814,10 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE: {
 				const BaseType::Interface::ID interface_id = base_type_id.interfaceID();
-				const BaseType::Interface& interface_info = this->getInterface(interface_id);
+				const BaseType::Interface& interface_type = this->getInterface(interface_id);
 
-				return std::string(interface_info.getName(source_manager));
+				return this->get_parent_name(interface_type.parent, interface_type.sourceID, context)
+					+ std::string(interface_type.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
@@ -821,7 +827,7 @@ namespace pcit::panther{
 
 
 				std::string interface_str =
-					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), source_manager);
+					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), context);
 
 				if(poly_interface_ref_info.isMut){
 					interface_str += "^mut";
@@ -838,13 +844,89 @@ namespace pcit::panther{
 				
 				return std::format(
 					"impl({}:{})",
-					this->printType(interface_map_info.underlyingTypeID, source_manager),
-					this->printType(BaseType::ID(interface_map_info.interfaceID), source_manager)
+					this->printType(interface_map_info.underlyingTypeID, context),
+					this->printType(BaseType::ID(interface_map_info.interfaceID), context)
 				);
 			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsuport base-type kind");
+	}
+
+
+
+	auto TypeManager::get_parent_name(
+		std::optional<EncapsulatingSymbolID> parent,
+		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id,
+		const Context& context
+	) const -> std::string {
+		auto output = std::string();
+
+		if(parent.has_value()){
+			parent->visit([&](const auto& parent_id) -> void {
+				using ParentIDType = std::decay_t<decltype(parent_id)>;
+
+				if constexpr(
+					std::is_same<ParentIDType, BaseType::StructID>()
+					|| std::is_same<ParentIDType, BaseType::UnionID>()
+					|| std::is_same<ParentIDType, BaseType::EnumID>()
+					|| std::is_same<ParentIDType, BaseType::InterfaceID>()
+				){
+					output = this->printType(BaseType::ID(parent_id), context);
+					output += ".";
+
+				}else if constexpr(std::is_same<ParentIDType, sema::FuncID>()){
+					output = this->get_func_name(parent_id, context);
+					output += ".";
+
+				}else if constexpr(std::is_same<ParentIDType, EncapsulatingSymbolID::InterfaceImplInfo>()){
+					output = this->printType(BaseType::ID(parent_id.interfaceID), context);
+					output += std::format(".impl_{}.", parent_id.targetTypeID.get());
+
+				}else{
+					static_assert(false, "Unknown encapsulating symbol");
+				}
+			});
+
+		}else{
+			if(source_id.is<Source::ID>()){
+				const Source& parent_source = context.getSourceManager()[source_id.as<Source::ID>()];
+				const Source::Package& parent_package =
+					context.getSourceManager().getPackage(parent_source.getPackageID());
+
+				output = parent_package.name;
+				output += ".";
+
+			}else if(source_id.is<BuiltinModule::ID>()){
+				switch(source_id.as<BuiltinModule::ID>()){
+					break; case BuiltinModule::ID::PTHR:  output = "@pthr.";
+					break; case BuiltinModule::ID::BUILD: output = "@build.";
+				}
+
+			}else{
+				evo::debugAssert(source_id.is<ClangSource::ID>(), "Unknown source ID");
+
+				const ClangSource& clang_source = context.getSourceManager()[source_id.as<ClangSource::ID>()];
+
+				if(clang_source.isCPP()){
+					output += "{CPP}.";
+				}else{
+					output += "{C}.";
+				}
+			}
+		}
+
+		return output;
+	}
+
+
+	auto TypeManager::get_func_name(sema::FuncID sema_func_id, const Context& context) const -> std::string {
+		const sema::Func& sema_func = context.getSemaBuffer().getFunc(sema_func_id);
+
+		auto output = this->get_parent_name(sema_func.parent, sema_func.sourceID, context);
+		output += sema_func.getName(context.getSourceManager());
+
+		return output;
 	}
 
 
@@ -996,7 +1078,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.name, lookup_type.aliasedType, lookup_type.isPub
+			lookup_type.sourceID, lookup_type.name, lookup_type.parent, lookup_type.aliasedType, lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::ALIAS, new_alias.get());
 	}
@@ -1026,7 +1108,11 @@ namespace pcit::panther{
 		}
 
 		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.identTokenID, lookup_type.underlyingType, lookup_type.isPub
+			lookup_type.sourceID,
+			lookup_type.identTokenID,
+			lookup_type.parent,
+			lookup_type.underlyingType,
+			lookup_type.isPub
 		);
 		return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, new_distinct_alias.get());
 	}
@@ -1059,6 +1145,7 @@ namespace pcit::panther{
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.name,
+			lookup_type.parent,
 			lookup_type.templateID,
 			lookup_type.instantiation,
 			std::move(lookup_type.memberVars),
@@ -1108,6 +1195,7 @@ namespace pcit::panther{
 		const BaseType::StructTemplate::ID new_struct = this->struct_templates.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.identTokenID,
+			lookup_type.parent,
 			std::move(lookup_type.params),
 			lookup_type.minNumTemplateArgs
 		);
@@ -1161,6 +1249,7 @@ namespace pcit::panther{
 		const BaseType::Union::ID new_union = this->unions.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.location,
+			lookup_type.parent,
 			std::move(lookup_type.fields),
 			lookup_type.namespacedMembers,
 			lookup_type.scopeLevel,
@@ -1203,6 +1292,7 @@ namespace pcit::panther{
 		const BaseType::Enum::ID new_enum = this->enums.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.location,
+			lookup_type.parent,
 			std::move(lookup_type.enumerators),
 			lookup_type.underlyingTypeID,
 			lookup_type.namespacedMembers,
@@ -1263,6 +1353,7 @@ namespace pcit::panther{
 		const BaseType::Interface::ID new_interface = this->interfaces.emplace_back(
 			lookup_type.sourceID,
 			lookup_type.name,
+			lookup_type.parent,
 			lookup_type.symbolProcID,
 			lookup_type.isPub,
 			lookup_type.isPolymorphic
