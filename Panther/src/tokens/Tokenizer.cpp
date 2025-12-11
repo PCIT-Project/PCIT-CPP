@@ -196,7 +196,6 @@ namespace pcit::panther{
 		{"const",       Token::Kind::KEYWORD_CONST},
 		{"def",         Token::Kind::KEYWORD_DEF},
 		{"func",        Token::Kind::KEYWORD_FUNC},
-		{"alias",       Token::Kind::KEYWORD_ALIAS},
 		{"type",        Token::Kind::KEYWORD_TYPE},
 		{"struct",      Token::Kind::KEYWORD_STRUCT},
 		{"interface",   Token::Kind::KEYWORD_INTERFACE},

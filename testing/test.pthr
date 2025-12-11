@@ -2,22 +2,13 @@
 
 
 
-
-
 func entry = () #entry -> UI8 {
-	type Foo = struct {
-		type Bar = struct {
-			func [] = (this, value: USize) -> USize { return copy value; }
-		}
-		func [] = (this, value: USize) -> USize { return copy value; }
-	}
-	
+	type Integer #distinct = Int;
 
-	const arr = new [Int:3][1, 2, 3];
-	for(arr) [_; value: Int] {}
+	var underlying: Int = 12;
+	var aliased: Integer = uninit;
+	aliased = new Integer(copy underlying);
 
-
-	// const foo: Foo.Bar = false;
 	
 	return 0;
 }

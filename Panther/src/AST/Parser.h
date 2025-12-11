@@ -86,7 +86,6 @@ namespace pcit::panther{
 			template<bool MUST_HAVE_BODY>
 			EVO_NODISCARD auto parse_func_def() -> Result;
 
-			EVO_NODISCARD auto parse_alias_def() -> Result;
 			EVO_NODISCARD auto parse_type_def() -> Result;
 			EVO_NODISCARD auto parse_struct_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;
 			EVO_NODISCARD auto parse_union_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result;

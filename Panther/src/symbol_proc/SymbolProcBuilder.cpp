@@ -49,9 +49,6 @@ namespace pcit::panther{
 			break; case AST::Kind::ALIAS_DEF:
 				if(this->build_alias_def(stmt).isError()){ return evo::resultError; }
 
-			break; case AST::Kind::DISTINCT_ALIAS_DEF:
-				if(this->build_distinct_alias_def(stmt).isError()){ return evo::resultError; }
-
 			break; case AST::Kind::STRUCT_DEF:
 				if(this->build_struct_def(stmt).isError()){ return evo::resultError; }
 
@@ -452,10 +449,6 @@ namespace pcit::panther{
 
 			case AST::Kind::ALIAS_DEF: {
 				return token_buffer[ast_buffer.getAliasDef(stmt).ident].getString();
-			} break;
-
-			case AST::Kind::DISTINCT_ALIAS_DEF: {
-				return token_buffer[ast_buffer.getDistinctAliasDef(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::STRUCT_DEF: {
@@ -980,16 +973,6 @@ namespace pcit::panther{
 		return evo::Result<>();
 	}
 
-
-	auto SymbolProcBuilder::build_distinct_alias_def(const AST::Node& stmt) -> evo::Result<> {
-		// const AST::DistinctAliasDef& distinct_alias_def = this->source.getASTBuffer().getDistinctAliasDef(stmt);
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			stmt,
-			"Building symbol process of distinct alias decl is unimplemented"
-		);
-		return evo::resultError;
-	}
 
 	auto SymbolProcBuilder::build_struct_def(const AST::Node& stmt) -> evo::Result<> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
@@ -1739,7 +1722,6 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::ALIAS_DEF:              return this->analyze_local_alias(ast_buffer.getAliasDef(stmt));
-			case AST::Kind::DISTINCT_ALIAS_DEF:     evo::unimplemented("AST::Kind::DISTINCT_ALIAS_DEF");
 			case AST::Kind::STRUCT_DEF:             return this->analyze_local_struct(stmt);
 			case AST::Kind::UNION_DEF:              return this->analyze_local_union(stmt);
 			case AST::Kind::ENUM_DEF:               return this->analyze_local_enum(stmt);
@@ -2261,7 +2243,7 @@ namespace pcit::panther{
 			return evo::Result<>();
 		}
 
-		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind("==")){
+		if(this->source.getTokenBuffer()[infix.opTokenID].kind() == Token::lookupKind("=")){
 			switch(infix.rhs.kind()){
 				case AST::Kind::NEW: {
 					const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
@@ -2606,15 +2588,14 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::VAR_DEF:         case AST::Kind::FUNC_DEF: case AST::Kind::DELETED_SPECIAL_METHOD:
-				case AST::Kind::ALIAS_DEF:       case AST::Kind::DISTINCT_ALIAS_DEF: case AST::Kind::STRUCT_DEF:
-				case AST::Kind::UNION_DEF:       case AST::Kind::ENUM_DEF:           case AST::Kind::INTERFACE_DEF:
-				case AST::Kind::INTERFACE_IMPL:  case AST::Kind::RETURN:             case AST::Kind::ERROR:
-				case AST::Kind::UNREACHABLE:     case AST::Kind::BREAK:              case AST::Kind::CONTINUE:
-				case AST::Kind::CONDITIONAL:     case AST::Kind::WHEN_CONDITIONAL:   case AST::Kind::WHILE:
-				case AST::Kind::DEFER:           case AST::Kind::TEMPLATE_PACK:      case AST::Kind::MULTI_ASSIGN:
-				case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:          case AST::Kind::PRIMITIVE_TYPE:
-				case AST::Kind::DISCARD: {
+				case AST::Kind::VAR_DEF:         case AST::Kind::FUNC_DEF:      case AST::Kind::DELETED_SPECIAL_METHOD:
+				case AST::Kind::ALIAS_DEF:       case AST::Kind::STRUCT_DEF:    case AST::Kind::UNION_DEF:
+				case AST::Kind::ENUM_DEF:        case AST::Kind::INTERFACE_DEF: case AST::Kind::INTERFACE_IMPL:
+				case AST::Kind::RETURN:          case AST::Kind::ERROR:         case AST::Kind::UNREACHABLE:
+				case AST::Kind::BREAK:           case AST::Kind::CONTINUE:      case AST::Kind::CONDITIONAL:
+				case AST::Kind::WHEN_CONDITIONAL:case AST::Kind::WHILE:         case AST::Kind::DEFER:
+				case AST::Kind::TEMPLATE_PACK:   case AST::Kind::MULTI_ASSIGN:  case AST::Kind::ATTRIBUTE_BLOCK:
+				case AST::Kind::ATTRIBUTE:       case AST::Kind::PRIMITIVE_TYPE:case AST::Kind::DISCARD: {
 					// TODO(FUTURE): better messaging (specify what kind)
 					this->emit_fatal(
 						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,

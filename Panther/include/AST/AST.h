@@ -29,7 +29,6 @@ namespace pcit::panther::AST{
 		FUNC_DEF,
 		DELETED_SPECIAL_METHOD,
 		ALIAS_DEF,
-		DISTINCT_ALIAS_DEF,
 		STRUCT_DEF,
 		INTERFACE_DEF,
 		INTERFACE_IMPL,
@@ -205,12 +204,6 @@ namespace pcit::panther::AST{
 	};
 
 	struct AliasDef{
-		Token::ID ident;
-		Node attributeBlock;
-		Node type;
-	};
-
-	struct DistinctAliasDef{
 		Token::ID ident;
 		Node attributeBlock;
 		Node type;

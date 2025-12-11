@@ -752,6 +752,22 @@ namespace pcit::panther{
 			) -> evo::Result<VarAttrs>;
 
 
+			struct AliasAttrs{
+				bool is_pub;
+				bool is_distinct;
+			};
+			EVO_NODISCARD auto analyze_alias_attrs(
+				const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<AliasAttrs>;
+
+			struct LocalAliasAttrs{
+				bool is_distinct;
+			};
+			EVO_NODISCARD auto analyze_local_alias_attrs(
+				const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<LocalAliasAttrs>;
+
+
 			struct StructAttrs{
 				bool is_pub;
 				bool is_ordered;

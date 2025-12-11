@@ -262,10 +262,6 @@ namespace pthr{
 						this->print_alias_def(this->ast_buffer.getAliasDef(stmt));
 					} break;
 
-					case panther::AST::Kind::DISTINCT_ALIAS_DEF: {
-						this->print_distinct_alias(this->ast_buffer.getDistinctAliasDef(stmt));
-					} break;
-
 					case panther::AST::Kind::STRUCT_DEF: {
 						this->print_struct_def(this->ast_buffer.getStructDef(stmt));
 					} break;
@@ -635,31 +631,6 @@ namespace pthr{
 					this->print_minor_header("Type");
 					this->printer.print(" ");
 					this->print_type(this->ast_buffer.getType(alias_def.type));
-					this->printer.println();
-
-					this->indenter.pop();
-				}
-			}
-
-			auto print_distinct_alias(const panther::AST::DistinctAliasDef& distinct_alias) -> void {
-				this->indenter.print();
-				this->print_major_header("Type Definition");
-
-				{
-					this->indenter.push();
-
-					this->indenter.print_arrow();
-					this->print_minor_header("Identifier");
-					this->printer.print(" ");
-					this->print_ident(distinct_alias.ident);
-
-					this->indenter.set_arrow();
-					this->print_attribute_block(this->ast_buffer.getAttributeBlock(distinct_alias.attributeBlock));
-
-					this->indenter.print_end();
-					this->print_minor_header("Type");
-					this->printer.print(" ");
-					this->print_type(this->ast_buffer.getType(distinct_alias.type));
 					this->printer.println();
 
 					this->indenter.pop();
@@ -1719,22 +1690,21 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
-					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
-					case panther::AST::Kind::ALIAS_DEF:        case panther::AST::Kind::DISTINCT_ALIAS_DEF:
-					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
-					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
-					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
-					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
-					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::FOR:              case panther::AST::Kind::DEFER:
-					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
-					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::INTERFACE_MAP:
-					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DEF:
+					case panther::AST::Kind::FUNC_DEF:        case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::ALIAS_DEF:       case panther::AST::Kind::STRUCT_DEF:
+					case panther::AST::Kind::UNION_DEF:       case panther::AST::Kind::ENUM_DEF:
+					case panther::AST::Kind::INTERFACE_DEF:   case panther::AST::Kind::INTERFACE_IMPL:
+					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
+					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::BREAK:
+					case panther::AST::Kind::CONTINUE:        case panther::AST::Kind::DELETE:
+					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
+					case panther::AST::Kind::WHILE:           case panther::AST::Kind::FOR:
+					case panther::AST::Kind::DEFER:           case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:    case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::INTERFACE_MAP:   case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::DEDUCER:         case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

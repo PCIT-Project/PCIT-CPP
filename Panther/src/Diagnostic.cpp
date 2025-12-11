@@ -40,7 +40,6 @@ namespace pcit::panther{
 			case AST::Kind::FUNC_DEF:          return Location::get(ast_buffer.getFuncDef(node), src);
 			case AST::Kind::DELETED_SPECIAL_METHOD: return Location::get(ast_buffer.getDeletedSpecialMethod(node), src);
 			case AST::Kind::ALIAS_DEF:         return Location::get(ast_buffer.getAliasDef(node), src);
-			case AST::Kind::DISTINCT_ALIAS_DEF: return Location::get(ast_buffer.getDistinctAliasDef(node), src);
 			case AST::Kind::STRUCT_DEF:        return Location::get(ast_buffer.getStructDef(node), src);
 			case AST::Kind::UNION_DEF:         return Location::get(ast_buffer.getUnionDef(node), src);
 			case AST::Kind::ENUM_DEF:          return Location::get(ast_buffer.getEnumDef(node), src);
@@ -119,10 +118,6 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::AliasDef& alias_def, const Source& src) -> Location {
 		return Location::get(alias_def.ident, src);
-	}
-
-	auto Diagnostic::Location::get(const AST::DistinctAliasDef& distinct_alias_def, const Source& src) -> Location {
-		return Location::get(distinct_alias_def.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::StructDef& struct_def, const Source& src) -> Location {

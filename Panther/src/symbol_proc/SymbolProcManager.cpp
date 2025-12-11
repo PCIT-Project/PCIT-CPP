@@ -189,7 +189,6 @@ namespace pcit::panther{
 					break; case AST::Kind::FUNC_DEF:               print_field("AST Node", "FUNC_DEF");
 					break; case AST::Kind::DELETED_SPECIAL_METHOD: print_field("AST Node", "DELETED_SPECIAL_METHOD");
 					break; case AST::Kind::ALIAS_DEF:              print_field("AST Node", "ALIAS_DEF");
-					break; case AST::Kind::DISTINCT_ALIAS_DEF:     print_field("AST Node", "DISTINCT_ALIAS_DEF");
 					break; case AST::Kind::STRUCT_DEF:             print_field("AST Node", "STRUCT_DEF");
 					break; case AST::Kind::UNION_DEF:              print_field("AST Node", "UNION_DEF");
 					break; case AST::Kind::ENUM_DEF:               print_field("AST Node", "ENUM_DEF");

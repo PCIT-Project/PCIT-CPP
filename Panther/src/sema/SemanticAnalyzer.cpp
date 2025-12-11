@@ -1324,56 +1324,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_alias(const Instruction::Alias& instr) -> Result {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
-
-		const AST::AttributeBlock& attribute_block = 
-			this->source.getASTBuffer().getAttributeBlock(instr.alias_def.attributeBlock);
-
-		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
-			EVO_DEFER([&](){ i += 1; });
-			
-			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
-
-			if(attribute_str == "pub"){
-				if(instr.attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return Result::ERROR; } 
-
-				}else if(instr.attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(instr.attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){ return Result::ERROR; }
-
-					if(this->type_check<true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return Result::ERROR;
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return Result::ERROR; }
-
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
-					return Result::ERROR;
-				}
-
-			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown alias attribute #{}", attribute_str)
-				);
-				return Result::ERROR;
-			}
-		}
+		const evo::Result<AliasAttrs> alias_attrs =
+			this->analyze_alias_attrs(instr.alias_def, instr.attribute_params_info);
+		if(alias_attrs.isError()){ return Result::ERROR; }
 
 
 		///////////////////////////////////
@@ -1393,24 +1346,46 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create
 
-		const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
-			BaseType::Alias(
-				this->source.getID(),
-				instr.alias_def.ident,
-				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				aliased_type.asTypeID(),
-				attr_pub.is_set()
-			)
-		);
+		if(alias_attrs.value().is_distinct){
+			const BaseType::ID created_alias = this->context.type_manager.getOrCreateDistinctAlias(
+				BaseType::DistinctAlias(
+					this->source.getID(),
+					instr.alias_def.ident,
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					aliased_type.asTypeID(),
+					alias_attrs.value().is_pub
+				)
+			);
 
-		const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
-		if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.aliasID()).isError()){
-			return Result::ERROR;
+			const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+			if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.distinctAliasID()).isError()){
+				return Result::ERROR;
+			}
+
+			this->context.symbol_proc_manager.addTypeSymbolProc(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+			);
+			
+		}else{
+			const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
+				BaseType::Alias(
+					this->source.getID(),
+					instr.alias_def.ident,
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					aliased_type.asTypeID(),
+					alias_attrs.value().is_pub
+				)
+			);
+
+			const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+			if(this->add_ident_to_scope(ident_str, instr.alias_def, true, created_alias.aliasID()).isError()){
+				return Result::ERROR;
+			}
+
+			this->context.symbol_proc_manager.addTypeSymbolProc(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+			);
 		}
-
-		this->context.symbol_proc_manager.addTypeSymbolProc(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
-		);
 
 		this->propagate_finished_decl_def();
 		return Result::SUCCESS;
@@ -6035,14 +6010,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_local_alias(const Instruction::LocalAlias& instr) -> Result {
-		if(instr.attribute_params_info.empty() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-				this->source.getASTBuffer().getAttributeBlock(instr.alias_def.attributeBlock).attributes[0].attribute,
-				"Unknown local alias attribute"
-			);
-			return Result::ERROR;
-		}
+		const evo::Result<LocalAliasAttrs> local_alias_attrs = 
+			this->analyze_local_alias_attrs(instr.alias_def, instr.attribute_params_info);
+		if(local_alias_attrs.isError()){ return Result::ERROR; }
+
 
 		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
 		if(aliased_type.isVoid()){
@@ -6055,21 +6026,43 @@ namespace pcit::panther{
 		}
 
 
-		const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateAlias(
-			BaseType::Alias(
-				this->source.getID(),
-				instr.alias_def.ident,
-				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				aliased_type.asTypeID(),
-				false
-			)
-		);
+		if(local_alias_attrs.value().is_distinct){
+			const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateDistinctAlias(
+				BaseType::DistinctAlias(
+					this->source.getID(),
+					instr.alias_def.ident,
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					aliased_type.asTypeID(),
+					false
+				)
+			);
 
-		const std::string_view alias_ident = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
-		if(this->add_ident_to_scope(alias_ident, instr.alias_def.ident, true, created_alias_id.aliasID()).isError()){
-			return Result::ERROR;
+			const std::string_view alias_ident = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+			if(this->add_ident_to_scope(
+				alias_ident, instr.alias_def.ident, true, created_alias_id.distinctAliasID()
+			).isError()){
+				return Result::ERROR;
+			}
+			
+		}else{
+			const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateAlias(
+				BaseType::Alias(
+					this->source.getID(),
+					instr.alias_def.ident,
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					aliased_type.asTypeID(),
+					false
+				)
+			);
+
+			const std::string_view alias_ident = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+			if(this->add_ident_to_scope(
+				alias_ident, instr.alias_def.ident, true, created_alias_id.aliasID()
+			).isError()){
+				return Result::ERROR;
+			}
 		}
-
+		
 		return Result::SUCCESS;
 	}
 
@@ -7890,10 +7883,58 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(target_type_id.asTypeID())
-		);
 
+		const TypeInfo::ID actual_target_type_id = this->get_actual_type<true, true>(target_type_id.asTypeID());
+
+		if(instr.args.size() == 1){ // check distinct alias from underlying
+			const TypeInfo::ID maybe_distinct_alias_target_type_id =
+				this->get_actual_type<false, true>(target_type_id.asTypeID());
+
+			const TypeInfo& maybe_distinct_alias_target_type_info =
+				this->context.getTypeManager().getTypeInfo(maybe_distinct_alias_target_type_id);
+
+			if(maybe_distinct_alias_target_type_info.baseTypeID().kind() == BaseType::Kind::DISTINCT_ALIAS){
+				const TermInfo& arg = this->get_term_info(instr.args[0]);
+
+				if(arg.type_id.is<TypeInfo::ID>()){
+					const TypeInfo::ID actual_arg_type_id =
+						this->get_actual_type<true, true>(arg.type_id.as<TypeInfo::ID>());
+
+					if(actual_target_type_id == actual_arg_type_id){ // matched with distinct alias from underlying
+						if(arg.is_ephemeral() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_DISTINCT_ALIAS_ARG_VAL_NOT_EPHEMERAL,
+								this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].value,
+								"Argument of operator [new] of distinct alias from underlying type must be ephemeral"
+							);
+							return Result::ERROR;
+						}
+
+						if(this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].label.has_value()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_DISTINCT_ALIAS_ARG_HAS_LABEL,
+								*this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].label,
+								"Argument of operator [new] of distinct alias from underlying type cannot have a label"
+							);
+							return Result::ERROR;
+						}
+
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createAssign(lhs.getExpr(), arg.getExpr())
+						);
+
+						if(lhs.value_state == TermInfo::ValueState::UNINIT){
+							this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+						}
+
+						return Result::SUCCESS;
+					}
+				}
+			}
+		}
+
+
+		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(actual_target_type_id);
 
 		if(actual_target_type_info.qualifiers().empty() == false){
 			if(actual_target_type_info.isOptional()){
@@ -20066,12 +20107,31 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::DistinctAlias::ID>()){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					ident,
-					"Using distinct aliases is currently unimplemented"
+				const BaseType::DistinctAlias& alias = this->context.getTypeManager().getDistinctAlias(ident_id);
+
+				if constexpr(PUB_REQUIRED){
+					if(alias.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							ident,
+							std::format("Distinct alias \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info(
+								"Distinct alias declared here:",
+								Diagnostic::Location::get(ident_id, this->context)
+							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::TYPE,
+						TypeInfo::VoidableID(
+							this->context.type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+						)
+					)
 				);
-				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Struct::ID>()){
 				const BaseType::Struct& struct_info = this->context.getTypeManager().getStruct(ident_id);
@@ -24956,6 +25016,126 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::analyze_alias_attrs(
+		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<AliasAttrs> {
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_distinct = Attribute(*this, "distinct");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(alias_def.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(attribute_params_info[i].empty()){
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #pub",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+			}else if(attribute_str == "distinct"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #distinct does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_distinct.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					std::format("Unknown alias attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+		return AliasAttrs{
+			.is_pub      = attr_pub.is_set(),
+			.is_distinct = attr_distinct.is_set(),
+		};
+	}
+
+
+
+	auto SemanticAnalyzer::analyze_local_alias_attrs(
+		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<LocalAliasAttrs> {
+		auto attr_distinct = Attribute(*this, "distinct");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(alias_def.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "distinct"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #distinct does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_distinct.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					std::format("Unknown alias attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+		return LocalAliasAttrs{
+			.is_distinct = attr_distinct.is_set(),
+		};
+	}
+
+
+
+
 	auto SemanticAnalyzer::analyze_struct_attrs(
 		const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<StructAttrs> {
@@ -25041,7 +25221,11 @@ namespace pcit::panther{
 		}
 
 
-		return StructAttrs(attr_pub.is_set(), attr_ordered.is_set(), attr_packed.is_set());
+		return StructAttrs{
+			.is_pub     = attr_pub.is_set(),
+			.is_ordered = attr_ordered.is_set(),
+			.is_packed  = attr_packed.is_set(),
+		};
 	}
 
 
@@ -25116,7 +25300,10 @@ namespace pcit::panther{
 		}
 
 
-		return UnionAttrs(attr_pub.is_set(), attr_untagged.is_set());
+		return UnionAttrs{
+			.is_pub      = attr_pub.is_set(),
+			.is_untagged = attr_untagged.is_set(),
+		};
 	}
 
 
@@ -25453,7 +25640,10 @@ namespace pcit::panther{
 			}
 		}
 
-		return InterfaceAttrs(attr_pub.is_set(), attr_polymorphic.is_set());
+		return InterfaceAttrs{
+			.is_pub         = attr_pub.is_set(),
+			.is_polymorphic = attr_polymorphic.is_set(),
+		};
 	}
 
 
@@ -25692,13 +25882,14 @@ namespace pcit::panther{
 
 		const TypeManager& type_manager = this->context.getTypeManager();
 
-		const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false, false>(expected_type_id);
 
 		switch(got_expr.value_category){
 			case TermInfo::ValueCategory::EPHEMERAL:
 			case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT:
 			case TermInfo::ValueCategory::FORWARDABLE: {
+				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false, false>(expected_type_id);
+
 				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()) [[unlikely]] {
 					if(multi_type_index.has_value() == false){
@@ -25829,6 +26020,8 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
+				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<true, true>(expected_type_id);
+
 				const TypeInfo& expected_type_info = 
 					type_manager.getTypeInfo(actual_expected_type_id);
 
@@ -26120,6 +26313,7 @@ namespace pcit::panther{
 
 
 			case TermInfo::ValueCategory::NULL_VALUE: {
+				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<true, true>(expected_type_id);
 				const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
 				
 				if(expected_type.isOptional() == false){

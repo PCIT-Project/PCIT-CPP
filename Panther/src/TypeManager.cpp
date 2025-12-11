@@ -597,20 +597,20 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias::ID alias_id = base_type_id.aliasID();
-				const BaseType::Alias& alias = this->getAlias(alias_id);
+				const BaseType::Alias& alias_type = this->getAlias(alias_id);
 
-				return std::string(alias.getName(context.getSourceManager()));
+				return this->get_parent_name(alias_type.parent, alias_type.sourceID, context) +
+					std::string(alias_type.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias::ID distinct_alias_id = base_type_id.distinctAliasID();
-				const BaseType::DistinctAlias& distinct_alias_info = this->getDistinctAlias(distinct_alias_id);
+				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(distinct_alias_id);
 
-				return std::string(
-					context.getSourceManager()[distinct_alias_info.sourceID]
-						.getTokenBuffer()[distinct_alias_info.identTokenID]
-						.getString()
-				);
+				const Source& source = context.getSourceManager()[distinct_alias_type.sourceID];
+
+				return this->get_parent_name(distinct_alias_type.parent, distinct_alias_type.sourceID, context) +
+					std::string(source.getTokenBuffer()[distinct_alias_type.identTokenID].getString());
 			} break;
 
 			case BaseType::Kind::STRUCT: {

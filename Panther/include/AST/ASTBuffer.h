@@ -132,17 +132,6 @@ namespace pcit::panther{
 			}
 
 
-			EVO_NODISCARD auto createDistinctAliasDef(auto&&... args) -> AST::Node {
-				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-				const uint32_t node_index = this->distinct_aliases.emplace_back(std::forward<decltype(args)>(args)...);
-				return AST::Node(AST::Kind::DISTINCT_ALIAS_DEF, node_index);
-			}
-			EVO_NODISCARD auto getDistinctAliasDef(const AST::Node& node) const -> const AST::DistinctAliasDef& {
-				evo::debugAssert(node.kind() == AST::Kind::DISTINCT_ALIAS_DEF, "Node is not a DistinctAliasDef");
-				return this->distinct_aliases[node._value.node_index];
-			}
-
-
 			EVO_NODISCARD auto createStructDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->struct_defs.emplace_back(std::forward<decltype(args)>(args)...);
@@ -504,7 +493,6 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::FuncDef, uint32_t> func_defs{};
 			core::LinearStepAlloc<AST::DeletedSpecialMethod, uint32_t> deleted_sepcial_methods{};
 			core::LinearStepAlloc<AST::AliasDef, uint32_t> alias_defs{};
-			core::LinearStepAlloc<AST::DistinctAliasDef, uint32_t> distinct_aliases{};
 			core::LinearStepAlloc<AST::StructDef, uint32_t> struct_defs{};
 			core::LinearStepAlloc<AST::UnionDef, uint32_t> union_defs{};
 			core::LinearStepAlloc<AST::EnumDef, uint32_t> enum_defs{};

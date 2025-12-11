@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.202.0"></a>
+## v0.0.202.0
+
+### Panther
+- Added alias attribute `#distinct`
+- Modified aliases to no longer need the `alias` keyword
+- Removed keyword `alias`
+- Fixed assignment `new`, `copy`, `move`, and `forward` being generated incorrectly
+
+### Misc
+- Updated to [Panther-std v0.0.7.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.7.0)
+
+
+<!---------------------------------->
 <a name="v0.0.201.0"></a>
 ## v0.0.201.0
 

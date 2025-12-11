@@ -61,7 +61,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_func_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_deleted_special_method(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_alias_def(const AST::Node& stmt) -> evo::Result<>;
-			EVO_NODISCARD auto build_distinct_alias_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_struct_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_union_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_enum_def(const AST::Node& stmt) -> evo::Result<>;

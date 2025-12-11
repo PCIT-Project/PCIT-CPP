@@ -347,36 +347,8 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_alias_def() -> Result {
-		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
-
-		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in alias definition").isError()){ return Result::Code::ERROR; }
-
-		const Result attributes = this->parse_attribute_block();
-		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
-
-		if(this->expect_token(Token::lookupKind("="), "in alias definition").isError()){ return Result::Code::ERROR; }
-
-		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result(type, "type in alias definition").isError()){ return Result::Code::ERROR; }
-
-		if(this->expect_token(Token::lookupKind(";"), "at end of alias definition").isError()){
-			return Result::Code::ERROR;
-		}
-
-		return this->source.ast_buffer.createAliasDef(
-			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
-		);
-	}
-
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_type_def() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_TYPE).isError()){ return Result::Code::ERROR; }
-
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
-			return this->parse_alias_def();
-		}
 
 		const Result ident = this->parse_ident();
 		if(this->check_result(ident, "identifier in type definition").isError()){ return Result::Code::ERROR; }
@@ -399,7 +371,7 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createDistinctAliasDef(
+		return this->source.ast_buffer.createAliasDef(
 			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
 		);
 	}

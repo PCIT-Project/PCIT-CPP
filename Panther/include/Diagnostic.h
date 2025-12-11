@@ -257,6 +257,8 @@ namespace pcit::panther{
 			SEMA_NEW_ARRAY_INIT_VAL_NOT_EPHERMERAL,
 			SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
 			SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+			SEMA_NEW_DISTINCT_ALIAS_ARG_VAL_NOT_EPHEMERAL,
+			SEMA_NEW_DISTINCT_ALIAS_ARG_HAS_LABEL,
 			SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
 			SEMA_NEW_STRUCT_MEMBER_NOT_SET,
 			SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
@@ -443,9 +445,6 @@ namespace pcit::panther{
 					const AST::DeletedSpecialMethod& deleted_special_method, const class Source& src
 				) -> Location;
 				EVO_NODISCARD static auto get(const AST::AliasDef& alias_def, const class Source& src) -> Location;
-				EVO_NODISCARD static auto get(
-					const AST::DistinctAliasDef& distinct_alias_def, const class Source& src
-				) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructDef& struct_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::UnionDef& union_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::EnumDef& enum_def, const class Source& src) -> Location;
@@ -854,6 +853,8 @@ namespace pcit::panther{
 				case Code::SEMA_NEW_ARRAY_INIT_VAL_NOT_EPHERMERAL:
 				case Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD:
 				case Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL:
+				case Code::SEMA_NEW_DISTINCT_ALIAS_ARG_VAL_NOT_EPHEMERAL:
+				case Code::SEMA_NEW_DISTINCT_ALIAS_ARG_HAS_LABEL:
 				case Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT:
 				case Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET:
 				case Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST:
