@@ -1,12 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.203.0"></a>
+## v0.0.203.0
+
+### Panther
+- Added function aliases
+- Added keyword `alias`
+- Modified type aliases be `type {IDENTIFIER} = alias {TYPE};`
+- Removed special import names "build" and "math" 
+
+### Misc
+- Updated to [Panther-std v0.0.8.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.8.0)
+
+
+<!---------------------------------->
 <a name="v0.0.202.0"></a>
 ## v0.0.202.0
 
 ### Panther
 - Added alias attribute `#distinct`
-- Modified aliases to no longer need the `alias` keyword
+- Modified aliases to be `type {IDENTIFIER} = {TYPE};`
 - Removed keyword `alias`
 - Fixed assignment `new`, `copy`, `move`, and `forward` being generated incorrectly
 

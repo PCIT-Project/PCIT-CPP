@@ -121,6 +121,16 @@ namespace pcit::panther{
 				return this->deleted_sepcial_methods[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createFuncAliasDef(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->func_alias_defs.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FUNC_ALIAS_DEF, node_index);
+			}
+			EVO_NODISCARD auto getFuncAliasDef(const AST::Node& node) const -> const AST::FuncAliasDef& {
+				evo::debugAssert(node.kind() == AST::Kind::FUNC_ALIAS_DEF, "Node is not a FuncAliasDef");
+				return this->func_alias_defs[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createAliasDef(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->alias_defs.emplace_back(std::forward<decltype(args)>(args)...);
@@ -492,6 +502,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::VarDef, uint32_t> var_defs{};
 			core::LinearStepAlloc<AST::FuncDef, uint32_t> func_defs{};
 			core::LinearStepAlloc<AST::DeletedSpecialMethod, uint32_t> deleted_sepcial_methods{};
+			core::LinearStepAlloc<AST::FuncAliasDef, uint32_t> func_alias_defs{};
 			core::LinearStepAlloc<AST::AliasDef, uint32_t> alias_defs{};
 			core::LinearStepAlloc<AST::StructDef, uint32_t> struct_defs{};
 			core::LinearStepAlloc<AST::UnionDef, uint32_t> union_defs{};

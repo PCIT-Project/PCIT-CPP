@@ -249,6 +249,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getDeletedSpecialMethod(instr)
 				);
 
+			case Instruction::Kind::FUNC_ALIAS_DEF:
+				return this->instr_func_alias_def(this->context.symbol_proc_manager.getFuncAliasDef(instr));
+
 			case Instruction::Kind::INTERFACE_PREPARE:
 				return this->instr_interface_prepare(this->context.symbol_proc_manager.getInterfacePrepare(instr));
 
@@ -292,6 +295,9 @@ namespace pcit::panther{
 
 			case Instruction::Kind::LOCAL_VAR:
 				return this->instr_local_var(this->context.symbol_proc_manager.getLocalVar(instr));
+
+			case Instruction::Kind::LOCAL_FUNC_ALIAS:
+				return this->instr_local_func_alias(this->context.symbol_proc_manager.getLocalFuncAlias(instr));
 
 			case Instruction::Kind::LOCAL_ALIAS:
 				return this->instr_local_alias(this->context.symbol_proc_manager.getLocalAlias(instr));
@@ -5335,6 +5341,41 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_func_alias_def(const Instruction::FuncAliasDef& instr) -> Result {
+		const evo::Result<FuncAliasAttrs> func_alias = this->analyze_func_alias_attrs(
+			instr.func_alias_def, instr.attribute_params_info
+		);
+		if(func_alias.isError()){ return Result::ERROR; }
+
+
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
+
+		if(target_term_info.type_id.is<TermInfo::FuncOverloadList>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC,
+				instr.func_alias_def.func,
+				"Target of function alias must be a function"
+			);
+			return Result::ERROR;
+		}
+
+
+		const sema::FuncAlias::ID created_func_alias_id = this->context.sema_buffer.createFuncAlias(
+			this->source.getID(),
+			instr.func_alias_def.ident,
+			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
+			func_alias.value().is_pub
+		);
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.func_alias_def.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.func_alias_def, true, created_func_alias_id).isError()){
+			return Result::ERROR;
+		}
+
+		this->propagate_finished_decl_def();
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_interface_prepare(const Instruction::InterfacePrepare& instr) -> Result {
@@ -6007,6 +6048,53 @@ namespace pcit::panther{
 
 		return Result::SUCCESS;
 	}
+
+
+
+	auto SemanticAnalyzer::instr_local_func_alias(const Instruction::LocalFuncAlias& instr) -> Result {
+		if(instr.attribute_params_info.empty() == false){
+			const AST::AttributeBlock::Attribute& first_ast_attribute =
+				this->source.getASTBuffer().getAttributeBlock(instr.func_alias_def.attributeBlock).attributes[0];
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+				first_ast_attribute.attribute,
+				std::format(
+					"Unknown local function alias attribute #{}",
+					this->source.getTokenBuffer()[first_ast_attribute.attribute].getString()
+				)
+			);
+			return Result::ERROR;
+		}
+
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
+
+		if(target_term_info.type_id.is<TermInfo::FuncOverloadList>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC,
+				instr.func_alias_def.func,
+				"Target of function alias must be a function"
+			);
+			return Result::ERROR;
+		}
+
+
+		const sema::FuncAlias::ID created_func_alias_id = this->context.sema_buffer.createFuncAlias(
+			this->source.getID(),
+			instr.func_alias_def.ident,
+			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
+			false
+		);
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.func_alias_def.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.func_alias_def, true, created_func_alias_id).isError()){
+			return Result::ERROR;
+		}
+
+		this->propagate_finished_decl_def();
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_local_alias(const Instruction::LocalAlias& instr) -> Result {
@@ -19701,6 +19789,28 @@ namespace pcit::panther{
 				evo::debugAssert(PUB_REQUIRED == false, "Getting a method should never need pub");
 				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
 
+			}else if constexpr(std::is_same<IdentIDType, sema::FuncAlias::ID>()){
+				const sema::FuncAlias& func_alias = this->context.getSemaBuffer().getFuncAlias(ident_id);
+
+				if constexpr(PUB_REQUIRED){
+					if(func_alias.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							ident,
+							std::format("Function alias \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info("Function alias defined here:", this->get_location(ident_id))
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+
+					return ReturnType(
+						TermInfo(TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED, func_alias.aliasedOverloads)
+					);
+
+				}else{
+					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, func_alias.aliasedOverloads));
+				}
+
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
 				evo::debugAssert(PUB_REQUIRED == false, "Getting a non-local variable should never need pub");
 
@@ -24963,6 +25073,70 @@ namespace pcit::panther{
 
 		return GlobalVarAttrs(attr_pub.is_set(), attr_global.is_set());
 	}
+
+
+	auto SemanticAnalyzer::analyze_func_alias_attrs(
+		const AST::FuncAliasDef& func_alias_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<FuncAliasAttrs> {
+		auto attr_pub = ConditionalAttribute(*this, "pub");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(func_alias_decl.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "pub"){
+				if(attribute_params_info[i].empty()){
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #pub",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool pub_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #pub does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					std::format("Unknown variable attribute #{}", attribute_str)
+				);
+				return evo::resultError;
+			}
+		}
+
+
+		return FuncAliasAttrs{
+			.is_pub = attr_pub.is_set(),
+		};
+	}
+
 
 
 	auto SemanticAnalyzer::analyze_var_attrs(

@@ -28,6 +28,7 @@ namespace pcit::panther::AST{
 		VAR_DEF,
 		FUNC_DEF,
 		DELETED_SPECIAL_METHOD,
+		FUNC_ALIAS_DEF,
 		ALIAS_DEF,
 		STRUCT_DEF,
 		INTERFACE_DEF,
@@ -202,6 +203,13 @@ namespace pcit::panther::AST{
 	struct DeletedSpecialMethod{
 		Token::ID memberToken;
 	};
+
+	struct FuncAliasDef{
+		Token::ID ident;
+		Node attributeBlock;
+		Node func;
+	};
+
 
 	struct AliasDef{
 		Token::ID ident;

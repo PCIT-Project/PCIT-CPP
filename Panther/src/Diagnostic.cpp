@@ -39,6 +39,7 @@ namespace pcit::panther{
 			case AST::Kind::VAR_DEF:           return Location::get(ast_buffer.getVarDef(node), src);
 			case AST::Kind::FUNC_DEF:          return Location::get(ast_buffer.getFuncDef(node), src);
 			case AST::Kind::DELETED_SPECIAL_METHOD: return Location::get(ast_buffer.getDeletedSpecialMethod(node), src);
+			case AST::Kind::FUNC_ALIAS_DEF:    return Location::get(ast_buffer.getFuncAliasDef(node), src);
 			case AST::Kind::ALIAS_DEF:         return Location::get(ast_buffer.getAliasDef(node), src);
 			case AST::Kind::STRUCT_DEF:        return Location::get(ast_buffer.getStructDef(node), src);
 			case AST::Kind::UNION_DEF:         return Location::get(ast_buffer.getUnionDef(node), src);
@@ -114,6 +115,10 @@ namespace pcit::panther{
 		const AST::DeletedSpecialMethod& deleted_special_method, const Source& src
 	) -> Location {
 		return Location::get(deleted_special_method.memberToken, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::FuncAliasDef& func_alias_def, const Source& src) -> Location {
+		return Location::get(func_alias_def.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::AliasDef& alias_def, const Source& src) -> Location {
@@ -308,6 +313,18 @@ namespace pcit::panther{
 			}
 		});
 	}
+
+
+
+	auto Diagnostic::Location::get(sema::FuncAlias::ID func_alias_id, const Context& context) -> Location {
+		return Location::get(context.getSemaBuffer().getFuncAlias(func_alias_id), context);
+	}
+
+	auto Diagnostic::Location::get(const sema::FuncAlias& func_alias, const Context& context) -> Location {
+		return Location::get(func_alias.ident, context.getSourceManager()[func_alias.sourceID]);
+	}
+
+
 
 	auto Diagnostic::Location::get(const sema::TemplatedFunc::ID& func_id, const Source& src, const Context& context)
 	-> Location {

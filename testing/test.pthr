@@ -1,14 +1,9 @@
-// def std_exp = @import("std_exp/std_exp.pthr");
+def std = @import("std");
 
 
 
 func entry = () #entry -> UI8 {
-	type Integer #distinct = Int;
+	func sizeOf = alias std.types.numBytes;
 
-	var underlying: Int = 12;
-	var aliased: Integer = uninit;
-	aliased = new Integer(copy underlying);
-
-	
-	return 0;
+	return sizeOf<{Int}>() as UI8;
 }

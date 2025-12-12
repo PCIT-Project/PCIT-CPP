@@ -100,6 +100,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_deleted_special_method(const Instruction::DeletedSpecialMethod& instr) -> Result;
 
 			EVO_NODISCARD auto instr_interface_prepare(const Instruction::InterfacePrepare& instr) -> Result;
+			EVO_NODISCARD auto instr_func_alias_def(const Instruction::FuncAliasDef& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_decl() -> Result;
 			EVO_NODISCARD auto instr_interface_def() -> Result;
 			EVO_NODISCARD auto instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result;
@@ -119,6 +120,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto instr_local_var(const Instruction::LocalVar& instr) -> Result;
+			EVO_NODISCARD auto instr_local_func_alias(const Instruction::LocalFuncAlias& instr) -> Result;
 			EVO_NODISCARD auto instr_local_alias(const Instruction::LocalAlias& instr) -> Result;
 			EVO_NODISCARD auto instr_return(const Instruction::Return& instr) -> Result;
 			EVO_NODISCARD auto instr_labeled_return(const Instruction::LabeledReturn& instr) -> Result;
@@ -752,6 +754,15 @@ namespace pcit::panther{
 			) -> evo::Result<VarAttrs>;
 
 
+			struct FuncAliasAttrs{
+				bool is_pub;
+			};
+			EVO_NODISCARD auto analyze_func_alias_attrs(
+				const AST::FuncAliasDef& func_alias_def,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<FuncAliasAttrs>;
+
+
 			struct AliasAttrs{
 				bool is_pub;
 				bool is_distinct;
@@ -1108,6 +1119,14 @@ namespace pcit::panther{
 				return Diagnostic::Location::get(func, this->context);
 			}
 
+			EVO_NODISCARD auto get_location(sema::FuncAlias::ID func_alias_id) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(func_alias_id, this->context);
+			}
+
+			EVO_NODISCARD auto get_location(const sema::FuncAlias& func_alias) const -> Diagnostic::Location {
+				return Diagnostic::Location::get(func_alias, this->context);
+			}
+
 			EVO_NODISCARD auto get_location(const sema::TemplatedFuncID& templated_func) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(templated_func, this->source, this->context);
 			}
@@ -1257,7 +1276,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto get_location(const auto& node) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(node, this->source);
+				return Diagnostic::Location:: get(node, this->source);
 			}
 
 

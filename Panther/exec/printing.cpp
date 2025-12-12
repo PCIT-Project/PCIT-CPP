@@ -258,6 +258,10 @@ namespace pthr{
 						this->print_deleted_special_method(this->ast_buffer.getDeletedSpecialMethod(stmt));
 					} break;
 
+					case panther::AST::Kind::FUNC_ALIAS_DEF: {
+						this->print_func_alias_def(this->ast_buffer.getFuncAliasDef(stmt));
+					} break;
+
 					case panther::AST::Kind::ALIAS_DEF: {
 						this->print_alias_def(this->ast_buffer.getAliasDef(stmt));
 					} break;
@@ -605,6 +609,32 @@ namespace pthr{
 					this->printer.printMagenta(
 						"{}\n", this->source.getTokenBuffer()[deleted_special_method.memberToken].kind()
 					);
+
+					this->indenter.pop();
+				}
+			}
+
+
+			auto print_func_alias_def(const panther::AST::FuncAliasDef& func_alias_def) -> void {
+				this->indenter.print();
+				this->print_major_header("Function Alias Definition");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(func_alias_def.ident);
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(func_alias_def.attributeBlock));
+
+					this->indenter.print_end();
+					this->print_minor_header("Target");
+					this->printer.print(" ");
+					this->print_expr(func_alias_def.func);
+					this->printer.println();
 
 					this->indenter.pop();
 				}
@@ -1690,21 +1720,22 @@ namespace pthr{
 					} break;
 
 
-					case panther::AST::Kind::NONE:            case panther::AST::Kind::VAR_DEF:
-					case panther::AST::Kind::FUNC_DEF:        case panther::AST::Kind::DELETED_SPECIAL_METHOD:
-					case panther::AST::Kind::ALIAS_DEF:       case panther::AST::Kind::STRUCT_DEF:
-					case panther::AST::Kind::UNION_DEF:       case panther::AST::Kind::ENUM_DEF:
-					case panther::AST::Kind::INTERFACE_DEF:   case panther::AST::Kind::INTERFACE_IMPL:
-					case panther::AST::Kind::RETURN:          case panther::AST::Kind::ERROR:
-					case panther::AST::Kind::UNREACHABLE:     case panther::AST::Kind::BREAK:
-					case panther::AST::Kind::CONTINUE:        case panther::AST::Kind::DELETE:
-					case panther::AST::Kind::CONDITIONAL:     case panther::AST::Kind::WHEN_CONDITIONAL:
-					case panther::AST::Kind::WHILE:           case panther::AST::Kind::FOR:
-					case panther::AST::Kind::DEFER:           case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:    case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::INTERFACE_MAP:   case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK: case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::DEDUCER:         case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
+					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
+					case panther::AST::Kind::FUNC_ALIAS_DEF:   case panther::AST::Kind::ALIAS_DEF:
+					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
+					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
+					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
+					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
+					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
+					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
+					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
+					case panther::AST::Kind::FOR:              case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::INTERFACE_MAP:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

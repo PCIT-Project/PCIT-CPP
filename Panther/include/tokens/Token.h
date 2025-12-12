@@ -92,6 +92,7 @@ namespace pcit::panther{
 				KEYWORD_CONST,
 				KEYWORD_DEF,
 				KEYWORD_FUNC,
+				KEYWORD_ALIAS,
 				KEYWORD_TYPE,
 				KEYWORD_STRUCT,
 				KEYWORD_INTERFACE,
@@ -468,6 +469,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_CONST:          return "const";
 					break; case Kind::KEYWORD_DEF:            return "def";
 					break; case Kind::KEYWORD_FUNC:           return "func";
+					break; case Kind::KEYWORD_ALIAS:          return "alias";
 					break; case Kind::KEYWORD_TYPE:           return "type";
 					break; case Kind::KEYWORD_STRUCT:         return "struct";
 					break; case Kind::KEYWORD_INTERFACE:      return "interface";

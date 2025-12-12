@@ -657,6 +657,17 @@ namespace pcit::panther::sema{
 
 
 
+	struct FuncAlias{
+		using ID = FuncAliasID;
+
+		SourceID sourceID;
+		Token::ID ident;
+		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> aliasedOverloads;
+		bool isPub;
+	};
+
+
+
 
 	struct TemplatedFunc{
 		using ID = TemplatedFuncID;

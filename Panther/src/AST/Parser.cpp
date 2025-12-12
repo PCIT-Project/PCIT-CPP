@@ -204,23 +204,28 @@ namespace pcit::panther{
 			}
 		}
 
+
+		const Result attributes = this->parse_attribute_block();
+		if(this->check_result(attributes, "attributes in function definition").isError()){ return Result::Code::ERROR; }
+
+
 		if(this->expect_token(Token::lookupKind("="), "after identifier in function definition").isError()){
-			if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
-				this->context.emitError(
-					Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-					Diagnostic::Location::get(this->reader.peek(), this->source),
-					"Attributes for function definition in the wrong place",
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("Attributes should be after the parameters block")
-					}
-				);
-			}
 			return Result::Code::ERROR;
 		}
 
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
-			this->reader.skip();
+			const AST::AttributeBlock& attribute_block = this->source.ast_buffer.getAttributeBlock(attributes.value());
+			if(attribute_block.attributes.empty() == false){
+				this->context.emitError(
+					Diagnostic::Code::PARSER_INVALID_DELETED_SPECIAL_METHOD,
+					Diagnostic::Location::get(attribute_block.attributes[0].attribute, this->source),
+					"Deleted special members cannot accept attributes"
+				);
+				return Result::Code::ERROR;
+			}
+
+			if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
 
 			const Token::Kind member_token_kind = this->reader[name].kind();
 
@@ -247,6 +252,42 @@ namespace pcit::panther{
 			}
 
 			return this->source.ast_buffer.createDeletedSpecialMethod(name);
+
+		}else if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
+			this->reader.skip();
+
+			if(this->reader[name].kind() != Token::Kind::IDENT){
+				this->context.emitError(
+					Diagnostic::Code::PARSER_FUNC_ALIAS_CANNOT_BE_AN_OPERATOR,
+					Diagnostic::Location::get(name, this->source),
+					"Function alias cannot be an operator"
+				);
+				return Result::Code::ERROR;
+			}
+
+			const Result aliased_func = this->parse_expr();
+			if(this->check_result(aliased_func, "aliased function").isError()){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token(Token::lookupKind(";"), "at end of function alias").isError()){
+				return Result::Code::ERROR;
+			}
+
+			return this->source.ast_buffer.createFuncAliasDef(name, attributes.value(), aliased_func.value());
+		}
+
+
+		if(this->source.ast_buffer.getAttributeBlock(attributes.value()).attributes.empty() == false){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				Diagnostic::Location::get(this->reader.peek(), this->source),
+				"Attributes for function definition in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info("Attributes should be after the parameters block")
+				}
+			);
+			return Result::Code::ERROR;
 		}
 
 
@@ -362,18 +403,11 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_def(ident.value(), attributes.value());
 			case Token::Kind::KEYWORD_UNION:  return this->parse_union_def(ident.value(), attributes.value());
 			case Token::Kind::KEYWORD_ENUM:   return this->parse_enum_def(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_ALIAS:  return this->parse_type_alias(ident.value(), attributes.value());
 		}
 
-		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result(type, "type in distinct alias definition").isError()){ return Result::Code::ERROR; }
-
-		if(this->expect_token(Token::lookupKind(";"), "at end of distinct alias definition").isError()){
-			return Result::Code::ERROR;
-		}
-
-		return this->source.ast_buffer.createAliasDef(
-			ASTBuffer::getIdent(ident.value()), attributes.value(), type.value()
-		);
+		this->expected_but_got("valid type kind ([struct], [union], [enum], or [alias])", this->reader.peek());
+		return Result::Code::ERROR;
 	}
 
 
@@ -608,6 +642,21 @@ namespace pcit::panther{
 			std::move(enumerators),
 			std::move(statements)
 		);
+	}
+
+
+
+	auto Parser::parse_type_alias(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
+
+		const Result type = this->parse_type<TypeKind::EXPLICIT>();
+		if(this->check_result(type, "type in type alias definition").isError()){ return Result::Code::ERROR; }
+
+		if(this->expect_token(Token::lookupKind(";"), "at end of type alias definition").isError()){
+			return Result::Code::ERROR;
+		}
+
+		return this->source.ast_buffer.createAliasDef(ASTBuffer::getIdent(ident), attrs_pre_equals, type.value());
 	}
 
 

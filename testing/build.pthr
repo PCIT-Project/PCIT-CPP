@@ -1,9 +1,9 @@
-def build = @import("build");
-def build_exp = @import("std_exp/build.pthr");
+def std = @import("std");
+def build_exp = @import("std_exp/building.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(build.Output.PIR);
+	build_exp.setOutput(std.build.Output.PIR);
 	// build_exp.setNumThreads(12);
 
 	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
@@ -21,7 +21,7 @@ func entry = () #entry -> UI8 {
 		},
 	);
 	test_package.addSourceFile("test.pthr");
-	// main_project.addSourceFile("std_exp/std_exp.pthr");
+	// test_package.addSourceFile("std_exp/std_exp.pthr");
 
 	// @buildAddCHeaderFile("test.h", true);
 	

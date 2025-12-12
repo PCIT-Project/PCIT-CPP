@@ -60,6 +60,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto build_var_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_func_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_deleted_special_method(const AST::Node& stmt) -> evo::Result<>;
+			EVO_NODISCARD auto build_func_alias_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_alias_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_struct_def(const AST::Node& stmt) -> evo::Result<>;
 			EVO_NODISCARD auto build_union_def(const AST::Node& stmt) -> evo::Result<>;
@@ -79,6 +80,7 @@ namespace pcit::panther{
 			auto analyze_stmt(const AST::Node& stmt) -> evo::Result<>;
 			auto analyze_local_var(const AST::VarDef& var) -> evo::Result<>;
 			auto analyze_local_func(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
+			auto analyze_local_func_alias(const AST::FuncAliasDef& stmt) -> evo::Result<>;
 			auto analyze_local_alias(const AST::AliasDef& alias_def) -> evo::Result<>;
 			auto analyze_local_struct(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_union(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct

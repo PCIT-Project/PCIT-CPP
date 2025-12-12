@@ -46,6 +46,9 @@ namespace pcit::panther{
 			break; case AST::Kind::DELETED_SPECIAL_METHOD:
 				if(this->build_deleted_special_method(stmt).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::FUNC_ALIAS_DEF:
+				if(this->build_func_alias_def(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::ALIAS_DEF:
 				if(this->build_alias_def(stmt).isError()){ return evo::resultError; }
 
@@ -445,6 +448,10 @@ namespace pcit::panther{
 
 			case AST::Kind::DELETED_SPECIAL_METHOD: {
 				return std::string_view();
+			} break;
+
+			case AST::Kind::FUNC_ALIAS_DEF: {
+				return token_buffer[ast_buffer.getFuncAliasDef(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::ALIAS_DEF: {
@@ -906,6 +913,47 @@ namespace pcit::panther{
 		this->add_instruction(
 			this->context.symbol_proc_manager.createDeletedSpecialMethod(
 				this->source.getASTBuffer().getDeletedSpecialMethod(stmt)
+			)
+		);
+
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol.symbol_proc.getIdent(), current_symbol.symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::build_func_alias_def(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_ALIAS_DEF, "Not an alias func decl");
+
+		const AST::FuncAliasDef& func_alias_def = this->source.getASTBuffer().getFuncAliasDef(stmt);
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
+			this->source.getASTBuffer().getAttributeBlock(func_alias_def.attributeBlock)
+		);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		const evo::Result<SymbolProc::TermInfoID> aliased_func = this->analyze_expr<true>(func_alias_def.func);
+		if(aliased_func.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createFuncAliasDef(
+				func_alias_def, std::move(attribute_params_info.value()), aliased_func.value()
 			)
 		);
 
@@ -1721,6 +1769,9 @@ namespace pcit::panther{
 				return evo::resultError;
 			} break;
 
+			case AST::Kind::FUNC_ALIAS_DEF:
+				return this->analyze_local_func_alias(ast_buffer.getFuncAliasDef(stmt));
+
 			case AST::Kind::ALIAS_DEF:              return this->analyze_local_alias(ast_buffer.getAliasDef(stmt));
 			case AST::Kind::STRUCT_DEF:             return this->analyze_local_struct(stmt);
 			case AST::Kind::UNION_DEF:              return this->analyze_local_union(stmt);
@@ -1833,6 +1884,24 @@ namespace pcit::panther{
 		return evo::Result<>();
 	}
 
+
+	auto SymbolProcBuilder::analyze_local_func_alias(const AST::FuncAliasDef& func_alias_def) -> evo::Result<> {
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
+			this->source.getASTBuffer().getAttributeBlock(func_alias_def.attributeBlock)
+		);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		const evo::Result<SymbolProc::TermInfoID> aliased_func = this->analyze_expr<true>(func_alias_def.func);
+		if(aliased_func.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createLocalFuncAlias(
+				func_alias_def, std::move(attribute_params_info.value()), aliased_func.value()
+			)
+		);
+
+		return evo::Result<>();
+	}
 
 
 	auto SymbolProcBuilder::analyze_local_alias(const AST::AliasDef& alias_def) -> evo::Result<> {

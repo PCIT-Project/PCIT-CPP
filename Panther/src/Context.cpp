@@ -1105,12 +1105,7 @@ namespace pcit::panther{
 
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(normalized_path)){
 			if(path_is_pthr_file(file_path)){
-				// TODO(PERF): optimize this, maybe with a map
-				if(file_path.stem() == "std"){  this->source_manager.add_special_name_path("std", file_path);  }
-				if(file_path.stem() == "math"){ this->source_manager.add_special_name_path("math", file_path); }
-				if(file_path.stem() == "build_config"){
-					this->source_manager.add_special_name_path("build", file_path);
-				}
+				if(file_path.stem() == "std"){ this->source_manager.add_special_name_path("std", file_path); }
 			}
 		}
 

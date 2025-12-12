@@ -83,6 +83,7 @@ namespace pcit::panther{
 			PARSER_FOR_NO_ITERABLES,
 			PARSER_FOR_NUM_ITERABLES_NEQ_NUM_PARAMS,
 			PARSER_INVALID_KIND_FOR_A_FOR_PARAM,
+			PARSER_FUNC_ALIAS_CANNOT_BE_AN_OPERATOR,
 
 
 			//////////////////
@@ -352,6 +353,7 @@ namespace pcit::panther{
 			SEMA_ARRAY_DOESNT_HAVE_MEMBER,
 			SEMA_PREFIX_NO_MATCHING_OP,
 			SEMA_STRUCT_MEMBER_INVALID_TYPE,
+			SEMA_FUNC_ALIAS_MUST_BE_FUNC,
 
 
 			//////////////////
@@ -444,6 +446,7 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(
 					const AST::DeletedSpecialMethod& deleted_special_method, const class Source& src
 				) -> Location;
+				EVO_NODISCARD static auto get(const AST::FuncAliasDef& alias_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::AliasDef& alias_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::StructDef& struct_def, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::UnionDef& union_def, const class Source& src) -> Location;
@@ -498,6 +501,11 @@ namespace pcit::panther{
 
 				EVO_NODISCARD static auto get(sema::Func::ID func_id, const class Context& context) -> Location;
 				EVO_NODISCARD static auto get(const sema::Func& func, const class Context& context) -> Location;
+
+				EVO_NODISCARD static auto get(sema::FuncAlias::ID func_alias_id, const class Context& context)
+					-> Location;
+				EVO_NODISCARD static auto get(const sema::FuncAlias& func_alias, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(
 					const sema::TemplatedFunc::ID& templated_func_id,
@@ -708,6 +716,7 @@ namespace pcit::panther{
 				case Code::PARSER_FOR_NO_ITERABLES:
 				case Code::PARSER_FOR_NUM_ITERABLES_NEQ_NUM_PARAMS:
 				case Code::PARSER_INVALID_KIND_FOR_A_FOR_PARAM:
+				case Code::PARSER_FUNC_ALIAS_CANNOT_BE_AN_OPERATOR:
 					return "Px";
 
 				// TODO(FUTURE): give individual codes and put in correct order
@@ -925,6 +934,7 @@ namespace pcit::panther{
 				case Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER:
 				case Code::SEMA_PREFIX_NO_MATCHING_OP:
 				case Code::SEMA_STRUCT_MEMBER_INVALID_TYPE:
+				case Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC:
 					return "Sxx";
 
 				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:

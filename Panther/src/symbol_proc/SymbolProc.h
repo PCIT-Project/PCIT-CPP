@@ -386,6 +386,12 @@ namespace pcit::panther{
 			const AST::DeletedSpecialMethod& deleted_special_method;
 		};
 
+		struct FuncAliasDef{
+			const AST::FuncAliasDef& func_alias_def;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTermInfoID target;
+		};
+
 
 
 		struct InterfacePrepare{
@@ -439,6 +445,12 @@ namespace pcit::panther{
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			std::optional<SymbolProcTypeID> type_id;
 			SymbolProcTermInfoID value;
+		};
+
+		struct LocalFuncAlias{
+			const AST::FuncAliasDef& func_alias_def;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTermInfoID target;
 		};
 
 		struct LocalAlias{
@@ -977,6 +989,7 @@ namespace pcit::panther{
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
 			DELETED_SPECIAL_METHOD,
+			FUNC_ALIAS_DEF,
 			INTERFACE_PREPARE,
 			INTERFACE_DECL,
 			INTERFACE_DEF,
@@ -991,6 +1004,7 @@ namespace pcit::panther{
 
 			// stmt
 			LOCAL_VAR,
+			LOCAL_FUNC_ALIAS,
 			LOCAL_ALIAS,
 			RETURN,
 			LABELED_RETURN,

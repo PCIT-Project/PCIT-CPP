@@ -45,6 +45,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// func alias
+
+			EVO_NODISCARD auto createFuncAlias(auto&&... args) -> sema::FuncAlias::ID {
+				return this->func_aliases.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getFuncAlias(sema::FuncAlias::ID id) const -> const sema::FuncAlias& {
+				return this->func_aliases[id];
+			}
+
+
+			///////////////////////////////////
 			// templated funcs
 
 			EVO_NODISCARD auto createTemplatedFunc(auto&&... args) -> sema::TemplatedFunc::ID {
@@ -904,6 +916,7 @@ namespace pcit::panther{
 	
 		private:
 			core::SyncLinearStepAlloc<sema::Func, sema::Func::ID> funcs{};
+			core::SyncLinearStepAlloc<sema::FuncAlias, sema::FuncAlias::ID> func_aliases{};
 			core::SyncLinearStepAlloc<sema::TemplatedFunc, sema::TemplatedFunc::ID> templated_funcs{};
 			core::SyncLinearStepAlloc<sema::TemplatedStruct, sema::TemplatedStruct::ID> templated_structs{};
 			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};

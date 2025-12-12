@@ -521,6 +521,25 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// FuncAliasDef
+
+			EVO_NODISCARD auto createFuncAliasDef(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FUNC_ALIAS_DEF,
+					this->func_alias_def.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getFuncAliasDef(Instruction instr) const
+			-> const Instruction::FuncAliasDef& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::FUNC_ALIAS_DEF, "Not a FuncAliasDef"
+				);
+				return this->func_alias_def[instr._index];
+			}
+
+
+			//////////////////
 			// InterfacePrepare
 
 			EVO_NODISCARD auto createInterfacePrepare(auto&&... args) -> Instruction {
@@ -708,6 +727,22 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getLocalVar(Instruction instr) const -> const Instruction::LocalVar& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::LOCAL_VAR, "Not a LocalVar");
 				return this->local_vars[instr._index];
+			}
+
+
+			//////////////////
+			// LocalFuncAlias
+
+			EVO_NODISCARD auto createLocalFuncAlias(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::LOCAL_FUNC_ALIAS,
+					this->local_func_aliass.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getLocalFuncAlias(Instruction instr) const -> const Instruction::LocalFuncAlias& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::LOCAL_FUNC_ALIAS, "Not a LocalFuncAlias");
+				return this->local_func_aliass[instr._index];
 			}
 
 
@@ -2796,6 +2831,7 @@ namespace pcit::panther{
 				template_func_set_param_is_deducers{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncEnd, uint32_t> template_func_ends{};
 			core::SyncLinearStepAlloc<Instruction::DeletedSpecialMethod, uint32_t> deleted_special_methods{};
+			core::SyncLinearStepAlloc<Instruction::FuncAliasDef, uint32_t> func_alias_def{};
 			core::SyncLinearStepAlloc<Instruction::InterfacePrepare, uint32_t> interface_prepares{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint32_t> interface_func_defs{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint32_t> interface_impl_decls{};
@@ -2806,6 +2842,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::InterfaceInDefImplMethod, uint32_t> interface_in_def_impl_method{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDef, uint32_t> interface_impl_defs{};
 			core::SyncLinearStepAlloc<Instruction::LocalVar, uint32_t> local_vars{};
+			core::SyncLinearStepAlloc<Instruction::LocalFuncAlias, uint32_t> local_func_aliass{};
 			core::SyncLinearStepAlloc<Instruction::LocalAlias, uint32_t> local_aliass{};
 			core::SyncLinearStepAlloc<Instruction::Return, uint32_t> returns{};
 			core::SyncLinearStepAlloc<Instruction::LabeledReturn, uint32_t> labeled_returns{};

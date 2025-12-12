@@ -1,4 +1,4 @@
-def build = @import("build");
+def std = @import("std");
 
 
 type Package = struct #pub {
@@ -40,7 +40,7 @@ type Package = struct #pub {
 }
 
 
-func setOutput = (output: build.Output) #pub #rt -> Void {
+func setOutput = (output: std.build.Output) #pub #rt -> Void {
 	@buildSetOutput(output as UI32);
 }
 
