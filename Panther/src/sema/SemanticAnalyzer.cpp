@@ -26376,6 +26376,17 @@ namespace pcit::panther{
 					}
 
 					is_implicit_conversion_to_optional = qualifiers_check_result.value();
+
+					if(is_implicit_conversion_to_optional && got_expr.is_ephemeral() == false){
+						if constexpr(MAY_EMIT_ERROR){
+							this->emit_error(
+								Diagnostic::Code::SEMA_IMPLICIT_CONVERT_TO_OPTIONAL_NOT_EPHEMERAL,
+								location,
+								"A value can only be implicitly converted if the value is ephemeral"
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
 				}
 
 				if constexpr(MAY_IMPLICITLY_CONVERT){

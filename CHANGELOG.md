@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.205.0"></a>
+## v0.0.205.0
+
+### Panther
+- Added checking that implicit conversion to optional is done with an ephemeral value
+
+
+<!---------------------------------->
 <a name="v0.0.204.1"></a>
 ## v0.0.204.1
 

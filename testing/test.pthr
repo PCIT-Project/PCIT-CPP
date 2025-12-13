@@ -1,11 +1,44 @@
 // def std = @import("std");
 
 
+type Tracker = struct {
+	func new = () -> (output: Tracker) {
+		output.this_ptr = &output;
+		return...;
+	}
+
+	func copy = (this) -> (output: Tracker) {
+		output.this_ptr = &output;
+		return...;
+	}
+
+	func move = (this) -> (output: Tracker) {
+		output.this_ptr = &output;
+		return...;
+	}
+
+
+	func isValid = (this) -> Bool {
+		return this.this_ptr == &this;
+	}
+
+
+	var this_ptr: Tracker* #priv;
+}
+
+
+
+
+
+
+func opt_test = (opt: Tracker?) -> Bool {
+	return opt.?.isValid();
+}
+
+
 
 func entry = () #entry -> UI8 {
-	const num: Int = 12;
+	const tracker = new Tracker();
 
-	const opt: Int? = copy num;
-
-	return 0;
+	return opt_test(copy tracker) as UI8;
 }
