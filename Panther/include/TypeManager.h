@@ -37,6 +37,8 @@ namespace pcit::panther{
 		struct InterfaceImplInfo{
 			TypeInfoID targetTypeID;
 			BaseType::InterfaceID interfaceID;
+
+			EVO_NODISCARD auto operator==(const InterfaceImplInfo&) const -> bool = default;
 		};
 
 		template<class T>
@@ -51,6 +53,9 @@ namespace pcit::panther{
 
 		auto visit(auto callable) const -> auto { return this->id.visit(callable); }
 		auto visit(auto callable) -> auto { return this->id.visit(callable); }
+
+
+		EVO_NODISCARD auto operator==(const EncapsulatingSymbolID&) const -> bool = default;
 
 
 		evo::Variant<
@@ -544,6 +549,7 @@ namespace pcit::panther{
 				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
 				std::optional<DefaultValue> defaultValue;
+				bool isPriv;
 			};
 
 			struct DeletableOverload{
@@ -567,7 +573,7 @@ namespace pcit::panther{
 			bool isPub; // meaningless if not pthr src type
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
-			bool shouldLower = true; // may only be false if is builtin type
+			bool shouldLower = true; // may only be false if is builtin type // TODO(FUTURE): still in use?
 
 			std::atomic<bool> defCompleted = false; // includes PIR lowering
 

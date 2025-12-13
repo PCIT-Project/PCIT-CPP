@@ -625,6 +625,7 @@ namespace pcit::panther::sema{
 		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
 		uint32_t minNumArgs;
 		bool isPub; // meaningless if is Clang or builtin type
+		bool isPriv; // meaningless if not member
 		bool isConstexpr;
 		bool isExport; // always true if is clang type
 		bool hasInParam; // always false if is clang type

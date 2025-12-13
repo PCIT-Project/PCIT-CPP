@@ -4,7 +4,7 @@ def std = @import("std");
 type Package = struct #pub {
 	func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
 	-> (output: This) {
-		output._package_id = @buildCreatePackage(path, name, forward warnings);
+		output.package_id = @buildCreatePackage(path, name, forward warnings);
 		return...;
 	}
 
@@ -16,7 +16,7 @@ type Package = struct #pub {
 
 
 	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
-		@buildAddSourceFile(path, this._package_id);
+		@buildAddSourceFile(path, this.package_id);
 	}
 
 	func addSourceFile = (this, path: [Char:$$;'\0']*) #rt -> Void {
@@ -26,7 +26,7 @@ type Package = struct #pub {
 
 
 	func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
-		@buildAddSourceDirectory(path, this._package_id, is_recursive);
+		@buildAddSourceDirectory(path, this.package_id, is_recursive);
 	}
 
 	func addSourceDirectory = (this, path: [Char:$$;'\0']*, is_recursive: Bool) #rt -> Void {
@@ -35,8 +35,7 @@ type Package = struct #pub {
 
 
 	
-
-	const _package_id: @build.PackageID;
+	const package_id: @build.PackageID;
 }
 
 
@@ -50,7 +49,7 @@ func setNumThreads = (num_threads: UI32) #pub #rt -> Void {
 
 
 func setStdLibPackage = (package: Package) #pub #rt -> Void {
-	@buildSetStdLibPackage(package._package_id);
+	@buildSetStdLibPackage(package.package_id);
 }
 
 

@@ -1434,6 +1434,7 @@ namespace pcit::panther{
 								uint32_t(function_decl.params.size()),
 								false,
 								false,
+								false,
 								true,
 								false
 							);
@@ -2118,6 +2119,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2160,6 +2162,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2193,6 +2196,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2255,6 +2259,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2297,6 +2302,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2330,6 +2336,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2401,6 +2408,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2444,6 +2452,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2514,6 +2523,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2590,6 +2600,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2646,6 +2657,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -2688,6 +2700,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -2723,6 +2736,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				true,
 				false,
@@ -2784,6 +2798,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -2826,6 +2841,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -2861,6 +2877,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				true,
 				false,
@@ -2930,6 +2947,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -2975,6 +2993,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				true,
 				false,
@@ -3048,6 +3067,7 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
+				false,
 				true,
 				false,
 				false
@@ -3120,6 +3140,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				true,
 				false,

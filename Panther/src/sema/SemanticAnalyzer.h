@@ -467,12 +467,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result>;
 
 
+			enum class ScopeAccessRequirement{
+				NONE,
+				PUB,
+				NOT_PRIV,
+			};
 			enum class AnalyzeExprIdentInScopeLevelError{
 				DOESNT_EXIST,
 				NEEDS_TO_WAIT_ON_DEF,
 				ERROR_EMITTED,
 			};
-			template<bool NEEDS_DEF, bool PUB_REQUIRED>
+			template<bool NEEDS_DEF, ScopeAccessRequirement SCOPE_ACCESS_REQUIREMENT>
 			EVO_NODISCARD auto analyze_expr_ident_in_scope_level(
 				const Token::ID& ident,
 				std::string_view ident_str,
@@ -739,6 +744,7 @@ namespace pcit::panther{
 
 			struct GlobalVarAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_global;
 			};
 			EVO_NODISCARD auto analyze_global_var_attrs(
@@ -810,6 +816,7 @@ namespace pcit::panther{
 
 			struct FuncAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_runtime;
 				bool is_export;
 				bool is_entry;

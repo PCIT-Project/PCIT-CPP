@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.204.0"></a>
+## v0.0.204.0
+
+### Panther
+- Added member variable attribute `#priv`
+- Added checking for invalid use of non-local variable attribute `#pub`
+
+
+<!---------------------------------->
 <a name="v0.0.203.0"></a>
 ## v0.0.203.0
 
@@ -8,7 +17,7 @@
 - Added function aliases
 - Added keyword `alias`
 - Modified type aliases be `type {IDENTIFIER} = alias {TYPE};`
-- Removed special import names "build" and "math" 
+- Removed special import names "build" and "math"
 
 ### Misc
 - Updated to [Panther-std v0.0.8.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.8.0)

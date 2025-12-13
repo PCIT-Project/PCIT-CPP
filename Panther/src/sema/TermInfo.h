@@ -38,6 +38,7 @@ namespace pcit::panther{
 			BUILTIN_MODULE,
 			FUNCTION, // function, not func pointer
 			FUNCTION_PUB_REQUIRED, // same as FUNCTION, but requires pub checking
+			FUNCTION_NOT_PRIV_REQUIRED, // same as FUNCTION, but requires not priv checking
 			METHOD_CALL, // the expr is the 'this'
 			INTERFACE_CALL,
 			POLY_INTERFACE_CALL,
@@ -107,8 +108,8 @@ namespace pcit::panther{
 			ExceptParamPack,                // EXCEPT_PARAM_PACK
 			TypeInfo::ID,                   // CONCRETE_CONST|CONCRETE_MUT|FORWARDABLE|EPHEMERAL|INTRINSIC_FUNC
 			BuiltinTypeMethod,              // BUILTIN_TYPE_METHOD
-			FuncOverloadList,               // FUNCTION|FUNCTION_PUB_REQUIRED|METHOD_CALL|INTERFACE_CALL
-											//     |POLY_INTERFACE_CALL
+			FuncOverloadList,               // FUNCTION|FUNCTION_PUB_REQUIRED|FUNCTION_NOT_PRIV_REQUIRED|METHOD_CALL
+											//     |INTERFACE_CALL|POLY_INTERFACE_CALL
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
 			ClangSourceID,                  // CLANG_MODULE
@@ -277,6 +278,9 @@ namespace pcit::panther{
 					break; case ValueCategory::FUNCTION_PUB_REQUIRED:
 						evo::debugFatalBreak("Incorrect TermInfo creation");
 
+					break; case ValueCategory::FUNCTION_NOT_PRIV_REQUIRED:
+						evo::debugFatalBreak("Incorrect TermInfo creation");
+
 					break; case ValueCategory::METHOD_CALL:
 						evo::debugAssert(this->type_id.is<FuncOverloadList>(), "Incorrect TermInfo creation");
 
@@ -329,6 +333,7 @@ namespace pcit::panther{
 					|| this->value_category == ValueCategory::TYPE
 					|| this->value_category == ValueCategory::FUNCTION
 					|| this->value_category == ValueCategory::FUNCTION_PUB_REQUIRED
+					|| this->value_category == ValueCategory::FUNCTION_NOT_PRIV_REQUIRED
 					|| this->value_category == ValueCategory::TEMPLATE_INTRINSIC_FUNC
 					|| this->value_category == ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE
 					|| this->value_category == ValueCategory::TAGGED_UNION_FIELD_ACCESSOR
@@ -467,10 +472,7 @@ namespace pcit::panther{
 			return this->value_category == ValueCategory::CONCRETE_CONST 
 				|| this->value_category == ValueCategory::FUNCTION
 				|| this->value_category == ValueCategory::FUNCTION_PUB_REQUIRED
-				|| this->value_category == ValueCategory::METHOD_CALL
-				|| this->value_category == ValueCategory::BUILTIN_TYPE_METHOD
-				|| this->value_category == ValueCategory::INTERFACE_CALL
-				|| this->value_category == ValueCategory::POLY_INTERFACE_CALL;
+				|| this->value_category == ValueCategory::FUNCTION_NOT_PRIV_REQUIRED;
 		}
 
 

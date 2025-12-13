@@ -142,7 +142,7 @@ namespace pcit::panther{
 				Diagnostic::Location::get(this->reader.peek(-1), this->source),
 				"Attributes for variable definition in the wrong place",
 				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("If the variable is explicitly-typed, the attributes go after the type")
+					Diagnostic::Info("If the variable is explicitly typed, the attributes go after the type")
 				}
 			);
 			return Result::Code::ERROR;
@@ -1607,7 +1607,7 @@ namespace pcit::panther{
 					
 				}else{
 					const Result type_result = this->parse_type<TypeKind::EXPLICIT>();
-					if(this->check_result(type_result, "type in explicitly-typed labeled expression block").isError()){
+					if(this->check_result(type_result, "type in explicitly typed labeled expression block").isError()){
 						return Result::Code::ERROR;
 					}
 

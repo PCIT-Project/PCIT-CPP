@@ -751,7 +751,7 @@ namespace pcit::panther{
 		if(instr.var_def.kind == AST::VarDef::Kind::DEF){
 			if(var_attrs.value().is_global){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_DEF_WITH_ATTR_GLOBAL,
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 					instr.var_def,
 					"A [def] variable should not have the attribute `#global`"
 				);
@@ -761,9 +761,18 @@ namespace pcit::panther{
 		}else if(this->scope.isGlobalScope()){
 			if(var_attrs.value().is_global){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_GLOBAL_VAR_WITH_ATTR_GLOBAL,
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 					instr.var_def,
 					"Global variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
+
+			if(var_attrs.value().is_priv){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+					instr.var_def,
+					"Global variable should not have the attribute `#priv`"
 				);
 				return Result::ERROR;
 			}
@@ -800,6 +809,15 @@ namespace pcit::panther{
 				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
 		}else{
+			if(var_attrs.value().is_pub){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+					instr.var_def,
+					"Member variable should not have the attribute `#pub`"
+				);
+				return Result::ERROR;
+			}
+
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -807,7 +825,11 @@ namespace pcit::panther{
 			const uint32_t member_index = [&](){
 				const auto lock = std::scoped_lock(current_struct.memberVarsLock);
 				current_struct.memberVars.emplace_back(
-					instr.var_def.kind, instr.var_def.ident, got_type_info_id.asTypeID()
+					instr.var_def.kind,
+					instr.var_def.ident,
+					got_type_info_id.asTypeID(),
+					std::nullopt,
+					var_attrs.value().is_priv
 				);
 				return uint32_t(current_struct.memberVars.size() - 1);
 			}();
@@ -1138,7 +1160,7 @@ namespace pcit::panther{
 		if(instr.var_def.kind == AST::VarDef::Kind::DEF){
 			if(var_attrs.value().is_global){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_DEF_WITH_ATTR_GLOBAL,
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 					instr.var_def,
 					"A [def] variable should not have the attribute `#global`"
 				);
@@ -1148,9 +1170,18 @@ namespace pcit::panther{
 		}else if(this->scope.isGlobalScope()){
 			if(var_attrs.value().is_global){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_GLOBAL_VAR_WITH_ATTR_GLOBAL,
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 					instr.var_def,
 					"Global variable should not have the attribute `#global`"
+				);
+				return Result::ERROR;
+			}
+
+			if(var_attrs.value().is_priv){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+					instr.var_def,
+					"Global variable should not have the attribute `#priv`"
 				);
 				return Result::ERROR;
 			}
@@ -1209,6 +1240,15 @@ namespace pcit::panther{
 			}
 
 		}else{
+			if(var_attrs.value().is_pub){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
+					instr.var_def,
+					"Member variable should not have the attribute `#pub`"
+				);
+				return Result::ERROR;
+			}
+			
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -1627,6 +1667,7 @@ namespace pcit::panther{
 					std::nullopt,
 					0,
 					false,
+					false,
 					created_struct.isConstexprDefaultInitializable,
 					false,
 					false
@@ -1827,6 +1868,7 @@ namespace pcit::panther{
 					std::nullopt,
 					1,
 					false,
+					false,
 					is_constexpr_deletable,
 					false,
 					false
@@ -1975,6 +2017,7 @@ namespace pcit::panther{
 						evo::SmallVector<Token::ID>(),
 						std::nullopt,
 						1,
+						false,
 						false,
 						is_constexpr_movable,
 						false,
@@ -2126,6 +2169,7 @@ namespace pcit::panther{
 						evo::SmallVector<Token::ID>(),
 						std::nullopt,
 						1,
+						false,
 						false,
 						is_constexpr_copyable,
 						false,
@@ -3188,6 +3232,7 @@ namespace pcit::panther{
 			this->symbol_proc_id,
 			min_num_args,
 			func_attrs.value().is_pub,
+			func_attrs.value().is_priv,
 			is_constexpr,
 			func_attrs.value().is_export,
 			has_in_param,
@@ -4232,6 +4277,7 @@ namespace pcit::panther{
 									created_func.errorParamIdents,
 									this->symbol_proc_id,
 									2,
+									false,
 									false,
 									created_func.isConstexpr,
 									false,
@@ -5725,7 +5771,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<false, false>(
+			this->analyze_expr_ident_in_scope_level<false, ScopeAccessRequirement::NONE>(
 				instr.method_name,
 				target_ident_str,
 				info.type_info.as<SymbolProc::InterfaceImplInfo::ParentTypeInfo>().scope_level,
@@ -17704,7 +17750,7 @@ namespace pcit::panther{
 		}
 
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, true>(
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::PUB>(
 				instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
 			);
 
@@ -17945,10 +17991,9 @@ namespace pcit::panther{
 			} break;
 		}
 
-
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *scope_level, true, true, type_source
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NOT_PRIV>(
+				instr.rhs_ident, rhs_ident_str, *scope_level, true, false, type_source
 			);
 
 		if(expr_ident.has_value() == false){
@@ -18333,7 +18378,29 @@ namespace pcit::panther{
 				const std::string_view member_ident_str = 
 					lhs_type_struct.getMemberName(*member_var, this->context.getSourceManager());
 
+
 				if(member_ident_str == rhs_ident_str){
+					if(member_var->isPriv){
+						const std::optional<EncapsulatingSymbolID> current_type_scope =
+							this->scope.getCurrentTypeScopeIfExists();
+
+						if(
+							current_type_scope.has_value() == false
+							|| current_type_scope->is<BaseType::Struct::ID>() == false
+							|| current_type_scope->as<BaseType::Struct::ID>() != actual_lhs_type.baseTypeID().structID()
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+								instr.infix.rhs,
+								std::format(
+									"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
+									member_ident_str
+								)
+							);
+							return Result::ERROR;
+						}
+					}
+
 					const TermInfo::ValueCategory value_category = [&](){
 						if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
 
@@ -18452,10 +18519,9 @@ namespace pcit::panther{
 			} break;
 		}
 
-
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
-				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, true, struct_source
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NOT_PRIV>(
+				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, false, struct_source
 			);
 
 
@@ -18664,7 +18730,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_union.scopeLevel, true, true, union_source
 			);
 
@@ -18806,7 +18872,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_enum.scopeLevel, true, true, enum_source
 			);
 
@@ -19695,7 +19761,7 @@ namespace pcit::panther{
 
 		for(size_t i = this->scope.size() - 1; sema::ScopeLevel::ID scope_level_id : this->scope){
 			const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> scope_level_lookup = 
-				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, false>(
+				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
 					ident,
 					ident_str,
 					this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
@@ -19752,7 +19818,7 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF, bool PUB_REQUIRED>
+	template<bool NEEDS_DEF, SemanticAnalyzer::ScopeAccessRequirement SCOPE_ACCESS_REQUIREMENT>
 	auto SemanticAnalyzer::analyze_expr_ident_in_scope_level(
 		const Token::ID& ident,
 		std::string_view ident_str,
@@ -19761,9 +19827,21 @@ namespace pcit::panther{
 		bool is_global_scope, // TODO(FUTURE): make this template argumnet?
 		const Source* source_module
 	) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> {
-		if constexpr(PUB_REQUIRED){
-			evo::debugAssert(variables_in_scope, "IF `PUB_REQUIRED`, `variables_in_scope` should be true");
-			evo::debugAssert(is_global_scope, "IF `PUB_REQUIRED`, `is_global_scope` should be true");
+		if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
+			evo::debugAssert(
+				variables_in_scope, "If `ScopeAccessRequirement::PUB`, `variables_in_scope` should be true"
+			);
+			evo::debugAssert(
+				is_global_scope, "If `ScopeAccessRequirement::PUB`, `is_global_scope` should be true"
+			);
+
+		}else if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+			evo::debugAssert(
+				variables_in_scope, "If `ScopeAccessRequirement::NOT_PRIV`, `variables_in_scope` should be true"
+			);
+			evo::debugAssert(
+				is_global_scope == false, "If `ScopeAccessRequirement::NOT_PRIV`, `is_global_scope` should be fale"
+			);
 		}
 
 		const sema::ScopeLevel::IdentID* ident_id_lookup = scope_level.lookupIdent(ident_str);
@@ -19779,25 +19857,32 @@ namespace pcit::panther{
 
 
 			if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::FuncOverloadList>()){
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED, ident_id.funcs));
 				}else{
 					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
 				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MethodOverloadList>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a method should never need pub");
-				return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED, ident_id.funcs));
+				}else{
+					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, ident_id.funcs));
+				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::FuncAlias::ID>()){
 				const sema::FuncAlias& func_alias = this->context.getSemaBuffer().getFuncAlias(ident_id);
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(func_alias.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
-							std::format("Function alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format(
+								"Function alias \"{}\" does not have the `#pub` attribute, "
+									"and is not accessable in this scope",
+								ident_str
+							),
 							Diagnostic::Info("Function alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -19812,8 +19897,6 @@ namespace pcit::panther{
 				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a non-local variable should never need pub");
-
 				if(!variables_in_scope){
 					// TODO(FUTURE): better messaging
 					this->emit_error(
@@ -19883,7 +19966,7 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, sema::GlobalVar::ID>()){
 				const sema::GlobalVar& sema_var = this->context.getSemaBuffer().getGlobalVar(ident_id);
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(sema_var.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -19995,8 +20078,6 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Unknown or unsupported AST::VarDef::Kind");
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Param::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a param should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -20042,8 +20123,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ReturnParam::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a return param should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -20063,8 +20142,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ErrorReturnParam::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting an error return param should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
@@ -20083,8 +20160,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::BlockExprOutput::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a block expr output should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::BlockExprOutput& sema_block_expr_output =
@@ -20104,8 +20179,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ExceptParam::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting an except param should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(ident_id);
@@ -20120,8 +20193,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ForParam::ID>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a for param should never need pub");
-
 				const sema::Func& current_func = this->get_current_func();
 
 				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(ident_id);
@@ -20138,7 +20209,7 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(ident_id.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20164,7 +20235,7 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ClangModuleInfo>()){
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(ident_id.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20192,7 +20263,7 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, BaseType::Alias::ID>()){
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(alias.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20219,7 +20290,7 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<IdentIDType, BaseType::DistinctAlias::ID>()){
 				const BaseType::DistinctAlias& alias = this->context.getTypeManager().getDistinctAlias(ident_id);
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(alias.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20254,7 +20325,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(struct_info.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20289,7 +20360,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(union_info.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20324,7 +20395,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(enum_info.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20359,7 +20430,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(interface_info.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
@@ -20384,14 +20455,13 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
-				if constexpr(PUB_REQUIRED){
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED, ident_id));
 				}else{
 					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
 				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a templated type param should never need pub");
 				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateExprParam>()){
@@ -20420,8 +20490,6 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::MemberVar>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a member var should never need pub");
-
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 
 				const sema::Func& current_func = this->get_current_func();
@@ -20453,8 +20521,6 @@ namespace pcit::panther{
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::UnionField>()){
-				evo::debugAssert(PUB_REQUIRED == false, "Getting a union field should never need pub");
-
 				this->emit_error(
 					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
 					ident,
@@ -21522,7 +21588,8 @@ namespace pcit::panther{
 		auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
 
 		switch(target_term_info.value_category){
-			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED: {
+			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED: {
 				using FuncOverload = evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>;
 				for(const FuncOverload& func_overload : target_term_info.type_id.as<TermInfo::FuncOverloadList>()){
 					if(func_overload.is<sema::Func::ID>()){
@@ -22097,8 +22164,7 @@ namespace pcit::panther{
 
 
 		switch(target_term_info.value_category){
-			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::METHOD_CALL:
-			case TermInfo::ValueCategory::INTERFACE_CALL: {
+			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::INTERFACE_CALL: {
 				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
 					func_infos[selected_func_overload_index.value()].func_id;
 
@@ -22151,7 +22217,8 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							func_call.target,
-							"Selected function overload does not have the #pub attribute",
+							"Selected function overload does not have the `#pub` attribute, "
+								"and is not accessable in this scope",
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
 							)
@@ -22185,7 +22252,8 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							func_call.target,
-							"Selected function overload does not have the #pub attribute",
+							"Selected function overload does not have the `#pub` attribute, "
+								"and is not accessable in this scope",
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
@@ -22209,6 +22277,75 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED: case TermInfo::ValueCategory::METHOD_CALL: {
+				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
+					func_infos[selected_func_overload_index.value()].func_id;
+
+				if(selected_func_id.is<sema::Func::ID>()){
+					const sema::Func& sema_func =
+						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
+
+					if(sema_func.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							func_call.target,
+							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							Diagnostic::Info(
+								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
+							)
+						);
+						return evo::Unexpected(true);
+					}
+
+					return FuncCallImplData(
+						selected_func_id.as<sema::Func::ID>(),
+						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
+						func_infos[selected_func_overload_index.value()].func_type
+					);
+
+				}else{
+					evo::debugAssert(
+						selected_func_id.is<sema::TemplatedFunc::InstantiationInfo>(),
+						"Unsupported func id type for this value category"
+					);
+
+					const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+						selected_func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+					const SymbolProc::ID instantiation_symbol_proc_id = 
+						*instantiation_info.instantiation.symbolProcID.load();
+					SymbolProc& instantiation_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+
+					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+
+					if(sema_func.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							func_call.target,
+							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							Diagnostic::Info(
+								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
+							)
+						);
+						return evo::Unexpected(true);
+					}
+
+					if(instantiation_symbol_proc.unsuspendIfNeeded()){
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+
+						sema_func.status = sema::Func::Status::NOT_DONE;
+
+						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
+					}
+
+					return FuncCallImplData(
+						*instantiation_info.instantiation.funcID,
+						&sema_func,
+						func_infos[selected_func_overload_index.value()].func_type
+					);
+				}
+			} break;
 
 			case TermInfo::ValueCategory::POLY_INTERFACE_CALL: {
 				const sema::Func::ID selected_func_id = 
@@ -25005,6 +25142,7 @@ namespace pcit::panther{
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<GlobalVarAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_global = Attribute(*this, "global");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -25048,6 +25186,39 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 			}else if(attribute_str == "global"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
@@ -25071,7 +25242,11 @@ namespace pcit::panther{
 		}
 
 
-		return GlobalVarAttrs(attr_pub.is_set(), attr_global.is_set());
+		return GlobalVarAttrs{
+			.is_pub    = attr_pub.is_set(),
+			.is_priv   = attr_priv.is_set(),
+			.is_global = attr_global.is_set(),
+		};
 	}
 
 
@@ -25550,6 +25725,7 @@ namespace pcit::panther{
 		const AST::FuncDef& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<FuncAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_rt = ConditionalAttribute(*this, "rt");
 		auto attr_export = Attribute(*this, "export");
 		auto attr_entry = Attribute(*this, "entry");
@@ -25596,6 +25772,39 @@ namespace pcit::panther{
 						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
 						attribute.args[1],
 						"Attribute #pub does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
 					);
 					return evo::resultError;
 				}
@@ -25734,6 +25943,7 @@ namespace pcit::panther{
 
 		return FuncAttrs{
 			.is_pub         = attr_pub.is_set(),
+			.is_priv        = attr_priv.is_set(),
 			.is_runtime     = attr_rt.is_set(),
 			.is_export      = attr_export.is_set(),
 			.is_entry       = attr_entry.is_set(),
@@ -26529,6 +26739,9 @@ namespace pcit::panther{
 
 			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
 				evo::debugFatalBreak("FUNCTION_PUB_REQUIRED should not be compared with this function");
+
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED:
+				evo::debugFatalBreak("FUNCTION_NOT_PRIV_REQUIRED should not be compared with this function");
 
 			case TermInfo::ValueCategory::INTRINSIC_FUNC:
 				evo::debugFatalBreak("INTRINSIC_FUNC should not be compared with this function");

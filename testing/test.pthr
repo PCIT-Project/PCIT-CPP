@@ -1,9 +1,23 @@
-def std = @import("std");
+// def std = @import("std");
 
+
+
+type Foo = struct {
+	func get_num = (this) #priv -> Int {
+		return copy this.bar;
+	}
+
+	func get_num_leak = (this) -> Int {
+		return this.get_num();
+	}
+
+
+	var bar: Int #priv;
+}
 
 
 func entry = () #entry -> UI8 {
-	func sizeOf = alias std.types.numBytes;
+	var foo = new Foo{bar = 12};
 
-	return sizeOf<{Int}>() as UI8;
+	return foo.get_num_leak() as UI8;
 }
