@@ -461,7 +461,7 @@ namespace pcit::panther::AST{
 			Qualifier(bool is_ptr, bool is_mut, bool is_uninit, bool is_optional)
 				: isPtr(is_ptr), isMut(is_mut), isUninit(is_uninit), isOptional(is_optional) {
 				evo::debugAssert(is_ptr || is_optional, "must be pointer xor optional");
-				evo::debugAssert(is_mut || is_ptr, "mut must be a pointer");
+				evo::debugAssert(is_mut == false || is_ptr, "mut must be a pointer");
 				evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
 			}
 

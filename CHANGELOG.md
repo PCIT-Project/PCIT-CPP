@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.204.1"></a>
+## v0.0.204.1
+
+### Panther
+- Fixed incorrect assert in parsing optional type
+
+
+<!---------------------------------->
 <a name="v0.0.204.0"></a>
 ## v0.0.204.0
 

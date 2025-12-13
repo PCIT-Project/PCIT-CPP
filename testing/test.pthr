@@ -2,22 +2,10 @@
 
 
 
-type Foo = struct {
-	func get_num = (this) #priv -> Int {
-		return copy this.bar;
-	}
-
-	func get_num_leak = (this) -> Int {
-		return this.get_num();
-	}
-
-
-	var bar: Int #priv;
-}
-
-
 func entry = () #entry -> UI8 {
-	var foo = new Foo{bar = 12};
+	const num: Int = 12;
 
-	return foo.get_num_leak() as UI8;
+	const opt: Int? = copy num;
+
+	return 0;
 }
