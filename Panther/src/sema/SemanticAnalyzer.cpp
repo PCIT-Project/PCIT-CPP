@@ -3067,6 +3067,9 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				if(param.kind == AST::FuncDef::Param::Kind::IN){
+					has_in_param = true;
+				}
 
 				current_type_scope->visit([&](const auto& type_scope) -> void {
 					using TypeScope = std::decay_t<decltype(type_scope)>;
@@ -3728,6 +3731,15 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
+							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+									instr.func_def,
+									"Operator [copy] initialization overload [this] parameter cannot be kind [in]"
+								);
+								return Result::ERROR;
+							}
+
 							if(created_func_type.returnTypes.size() != 1){
 								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
@@ -3801,6 +3813,15 @@ namespace pcit::panther{
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 									instr.func_def.params[0],
 									"Operator [copy] overload must have a [this] parameter"
+								);
+								return Result::ERROR;
+							}
+
+							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
+									instr.func_def,
+									"Operator [copy] assignment overload [this] parameter cannot be kind [in]"
 								);
 								return Result::ERROR;
 							}
@@ -3925,6 +3946,15 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
+							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+									instr.func_def,
+									"Operator [move] initialization overload [this] parameter cannot be kind [in]"
+								);
+								return Result::ERROR;
+							}
+
 							if(created_func_type.returnTypes.size() != 1){
 								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
@@ -3997,7 +4027,16 @@ namespace pcit::panther{
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 									instr.func_def.params[0],
-									"Operator [move] overload must have a [this] parameter"
+									"Operator [move] assignment overload must have a [this] parameter"
+								);
+								return Result::ERROR;
+							}
+
+							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+								this->emit_error(
+									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
+									instr.func_def,
+									"Operator [move] assignment overload [this] parameter cannot be kind [in]"
 								);
 								return Result::ERROR;
 							}
@@ -8664,7 +8703,7 @@ namespace pcit::panther{
 			if(copy_init_overload.wasDeleted){
 				this->emit_error(
 					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					"This type is not copyable as its operator [copy] was deleted"
 				);
 				return Result::ERROR;
@@ -8672,6 +8711,36 @@ namespace pcit::panther{
 
 			if(copy_init_overload.funcID.has_value() == false){
 				return default_copy();
+			}
+
+
+			const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+			const BaseType::Function& copy_sema_func_type =
+				this->context.getTypeManager().getFunction(copy_sema_func.typeID);
+			switch(copy_sema_func_type.params[0].kind){
+				case BaseType::Function::Param::Kind::READ: {
+					// no checking needed
+				} break;
+
+				case BaseType::Function::Param::Kind::MUT: {
+					if(target.is_mutable() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+							this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
+							"Initialization copy of this type requires a mutable value "
+								"as the [this] parameter is [mut]"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::IN: {
+					evo::debugFatalBreak("[this] param shouldn't be kind IN");
+				} break;
+
+				case BaseType::Function::Param::Kind::C: {
+					evo::debugFatalBreak("[this] param shouldn't be kind C");
+				} break;
 			}
 
 			this->get_current_scope_level().stmtBlock().emplace_back(
@@ -8698,6 +8767,36 @@ namespace pcit::panther{
 			const std::optional<sema::FuncID> copy_assign_overload = struct_type.copyAssignOverload.load();
 
 			if(copy_assign_overload.has_value()){
+				const sema::Func& copy_sema_func =
+					this->context.getSemaBuffer().getFunc(*copy_assign_overload);
+				const BaseType::Function& copy_sema_func_type =
+					this->context.getTypeManager().getFunction(copy_sema_func.typeID);
+				switch(copy_sema_func_type.params[0].kind){
+					case BaseType::Function::Param::Kind::READ: {
+						// no checking needed
+					} break;
+
+					case BaseType::Function::Param::Kind::MUT: {
+						if(target.is_mutable() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
+								"Initialization copy of this type requires a mutable value "
+									"as the [this] parameter is [mut]"
+							);
+							return Result::ERROR;
+						}
+					} break;
+
+					case BaseType::Function::Param::Kind::IN: {
+						evo::debugFatalBreak("[this] param shouldn't be kind IN");
+					} break;
+
+					case BaseType::Function::Param::Kind::C: {
+						evo::debugFatalBreak("[this] param shouldn't be kind C");
+					} break;
+				}
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createFuncCall(
 						*copy_assign_overload,
@@ -8719,7 +8818,7 @@ namespace pcit::panther{
 			if(copy_init_overload.wasDeleted){
 				this->emit_error(
 					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					"This type is not copyable as its operator [copy] was deleted"
 				);
 				return Result::ERROR;
@@ -8729,6 +8828,38 @@ namespace pcit::panther{
 			if(copy_init_overload.funcID.has_value() == false){
 				return default_copy();
 			}
+
+
+			const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+			const BaseType::Function& copy_sema_func_type =
+				this->context.getTypeManager().getFunction(copy_sema_func.typeID);
+
+			switch(copy_sema_func_type.params[0].kind){
+				case BaseType::Function::Param::Kind::READ: {
+					// no checking needed
+				} break;
+
+				case BaseType::Function::Param::Kind::MUT: {
+					if(target.is_mutable() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+							this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
+							"Initialization copy of this type requires a mutable value "
+								"as the [this] parameter is [mut]"
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::IN: {
+					evo::debugFatalBreak("[this] param shouldn't be kind IN");
+				} break;
+
+				case BaseType::Function::Param::Kind::C: {
+					evo::debugFatalBreak("[this] param shouldn't be kind C");
+				} break;
+			}
+
 
 			if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
 				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
@@ -11351,6 +11482,49 @@ namespace pcit::panther{
 			);
 			return Result::ERROR;
 		}
+
+
+		const TypeInfo& target_type_info =
+			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+		if(target_type_info.qualifiers().empty() && target_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			const BaseType::Struct& struct_type =
+				this->context.getTypeManager().getStruct(target_type_info.baseTypeID().structID());
+
+			const BaseType::Struct::DeletableOverload copy_init_overload = struct_type.copyInitOverload.load();
+			if(copy_init_overload.funcID.has_value()){
+				const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+				const BaseType::Function& copy_sema_func_type =
+					this->context.getTypeManager().getFunction(copy_sema_func.typeID);
+
+				switch(copy_sema_func_type.params[0].kind){
+					case BaseType::Function::Param::Kind::READ: {
+						// no checking needed
+					} break;
+
+					case BaseType::Function::Param::Kind::MUT: {
+						if(target.is_mutable() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								instr.prefix,
+								"Initialization copy of this type requires a mutable value "
+									"as the [this] parameter is [mut]"
+							);
+							return Result::ERROR;
+						}
+					} break;
+
+					case BaseType::Function::Param::Kind::IN: {
+						evo::debugFatalBreak("[this] param shouldn't be kind IN");
+					} break;
+
+					case BaseType::Function::Param::Kind::C: {
+						evo::debugFatalBreak("[this] param shouldn't be kind C");
+					} break;
+				}
+			}
+		}
+
+
 
 		if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::COPY>(
 			target.type_id.as<TypeInfo::ID>(),
@@ -14440,8 +14614,53 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+			const sema::Func::ID selected_func_id = find->second;
+
+			const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+			const BaseType::Function& selected_func_type =
+				this->context.getTypeManager().getFunction(selected_func.typeID);
+
+			switch(selected_func_type.params[0].kind){
+				case BaseType::Function::Param::Kind::READ: {
+					// no checking needed
+				} break;
+
+				case BaseType::Function::Param::Kind::MUT: {
+					if(expr.is_mutable() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_AS_EXPR_DOESNT_SUPPORT_THIS_PARAM_KIND,
+							instr.infix.lhs,
+							"The selected operator [as] requires a mutable LHS as the [this] parameter kind is [mut]",
+							Diagnostic::Info(
+								"Selected operator [as] defined here:", this->get_location(selected_func_id)
+							)
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::IN: {
+					if(expr.is_ephemeral() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_AS_EXPR_DOESNT_SUPPORT_THIS_PARAM_KIND,
+							instr.infix.lhs,
+							"The selected operator [as] requires an ephemeral LHS as the [this] parameter kind is [in]",
+							Diagnostic::Info(
+								"Selected operator [as] defined here:", this->get_location(selected_func_id)
+							)
+						);
+						return Result::ERROR;
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::C: {
+					evo::debugFatalBreak("Shouldn't have a [this] param of kind C");
+				} break;
+			}
+
+
 			if(this->currently_in_func() && this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(find->second);
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 			}
 
 			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
@@ -17663,7 +17882,7 @@ namespace pcit::panther{
 			switch(param.kind){
 				case BaseType::Function::Param::Kind::READ:  return TermInfo::ValueCategory::CONCRETE_CONST;
 				case BaseType::Function::Param::Kind::MUT:   return TermInfo::ValueCategory::CONCRETE_MUT;
-				case BaseType::Function::Param::Kind::IN:    evo::debugFatalBreak("Cannot have an in [this] parameter");
+				case BaseType::Function::Param::Kind::IN:    return TermInfo::ValueCategory::FORWARDABLE;
 				case BaseType::Function::Param::Kind::C:     evo::debugFatalBreak("Cannot have a c [this] parameter");
 			}
 
@@ -21383,17 +21602,36 @@ namespace pcit::panther{
 						}while(false);
 
 						if(is_method_this_param){
+							auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+
+							switch(func_infos[i].func_type.params[reason.arg_index].kind){
+								case BaseType::Function::Param::Kind::READ: {
+									evo::debugFatalBreak("Read parameters should never fail to accept value kind");
+								} break;
+
+								case BaseType::Function::Param::Kind::MUT: {
+									sub_infos.emplace_back(
+										"[this] parameters that are [mut] can only accept values that are mutable"
+									);
+								} break;
+
+								case BaseType::Function::Param::Kind::IN: {
+									sub_infos.emplace_back(
+										"[this] parameters that are [in] can only accept values that are ephemeral"
+									);
+								} break;
+
+								case BaseType::Function::Param::Kind::C: {
+									evo::debugFatalBreak("Unexpected result (assumed impossible to have a C [this])");
+								} break;
+							}
+
 							infos.emplace_back(
 								std::format(
 									"Failed to match: method target value kind mismatch", reason.arg_index
 								),
 								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info(
-										"[this] parameters that are [mut] can only accept values that are mutable",
-										this->get_location(arg_infos[reason.arg_index].ast_node)
-									),
-								}
+								std::move(sub_infos)
 							);
 
 						}else{

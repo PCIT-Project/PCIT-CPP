@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.206.0"></a>
+## v0.0.206.0
+
+### Panther
+- Added `in` `this` parameters
+- Added checking for mutability of operator `copy` overloads
+
+
+<!---------------------------------->
 <a name="v0.0.205.0"></a>
 ## v0.0.205.0
 

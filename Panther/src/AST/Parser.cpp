@@ -2948,36 +2948,6 @@ namespace pcit::panther{
 				const Token::ID this_token_id = this->reader.next();
 				param_ident = AST::Node(AST::Kind::THIS, this_token_id);
 
-				switch(this->reader[this->reader.peek()].kind()){
-					case Token::Kind::KEYWORD_READ: {
-						this->reader.skip();
-						param_kind = ParamKind::READ;
-					} break;
-
-					case Token::Kind::KEYWORD_MUT: {
-						this->reader.skip();
-						param_kind = ParamKind::MUT;
-					} break;
-
-					case Token::Kind::KEYWORD_IN: {
-						this->context.emitError(
-							Diagnostic::Code::PARSER_INVALID_KIND_FOR_A_THIS_PARAM,
-							Diagnostic::Location::get(
-								this->reader.peek(), this->source
-							),
-							"[this] parameters cannot have the kind [in]",
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Note: valid kinds are [read] and [mut]"),
-							}
-						);
-						return evo::resultError;
-					} break;
-
-					default: {
-						param_kind = ParamKind::READ;
-					} break;
-				}
-
 			}else{
 				const Result param_ident_result = this->parse_ident();
 				if(this->check_result(param_ident_result, "identifier or [this] in function parameter").isError()){
@@ -2994,27 +2964,27 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 				param_type = type.value();
+			}
 
-				switch(this->reader[this->reader.peek()].kind()){
-					case Token::Kind::KEYWORD_READ: {
-						this->reader.skip();
-						param_kind = ParamKind::READ;
-					} break;
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::KEYWORD_READ: {
+					this->reader.skip();
+					param_kind = ParamKind::READ;
+				} break;
 
-					case Token::Kind::KEYWORD_MUT: {
-						this->reader.skip();
-						param_kind = ParamKind::MUT;
-					} break;
+				case Token::Kind::KEYWORD_MUT: {
+					this->reader.skip();
+					param_kind = ParamKind::MUT;
+				} break;
 
-					case Token::Kind::KEYWORD_IN: {
-						this->reader.skip();
-						param_kind = ParamKind::IN;
-					} break;
+				case Token::Kind::KEYWORD_IN: {
+					this->reader.skip();
+					param_kind = ParamKind::IN;
+				} break;
 
-					default: {
-						param_kind = ParamKind::READ;
-					} break;
-				}
+				default: {
+					param_kind = ParamKind::READ;
+				} break;
 			}
 
 			const Result attributes = this->parse_attribute_block();
