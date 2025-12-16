@@ -35,16 +35,14 @@ namespace pcit::panther{
 
 	// TODO(PERF): 
 	auto SemaToPIRData::getArrayRefType(pir::Module& module, unsigned num_dimensions) -> pir::Type {
-		evo::debugAssert(num_dimensions >= 1, "Must have at least 1 dimension");
-
-		const auto lock = std::scoped_lock(this->array_ref_type_lock);
+		const auto lock = std::scoped_lock(this->array_ref_types_lock);
 
 		if(
-			this->array_ref_type.size() < num_dimensions
-			|| this->array_ref_type[num_dimensions - 1].has_value() == false
+			this->array_ref_types.size() < num_dimensions + 1
+			|| this->array_ref_types[num_dimensions].has_value() == false
 		){
-			if(this->array_ref_type.size() < num_dimensions){
-				this->array_ref_type.resize(num_dimensions);
+			if(this->array_ref_types.size() < num_dimensions + 1){
+				this->array_ref_types.resize(std::bit_ceil(num_dimensions + 1));
 			}
 
 			auto member_types = evo::SmallVector<pir::Type>();
@@ -56,14 +54,12 @@ namespace pcit::panther{
 				member_types.emplace_back(usize_type);
 			}
 
-			this->array_ref_type[num_dimensions - 1] = module.createStructType(
-				std::format("PTHR.array_ref.d{}", num_dimensions),
-				std::move(member_types),
-				false
+			this->array_ref_types[num_dimensions] = module.createStructType(
+				std::format("PTHR.array_ref.d{}", num_dimensions), std::move(member_types), false
 			);
 		}
 
-		return *this->array_ref_type[num_dimensions - 1];
+		return *this->array_ref_types[num_dimensions];
 	}
 
 

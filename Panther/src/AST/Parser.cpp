@@ -1842,91 +1842,148 @@ namespace pcit::panther{
 
 				auto dimensions = evo::SmallVector<std::optional<AST::Node>>();
 
-				while(true){
-					switch(this->reader[this->reader.peek()].kind()){
-						case Token::lookupKind("*"): {
-							is_ref = true;
-							dimensions.emplace_back(std::nullopt);
 
-							if(last_ptr_dimension.has_value() && is_mutable_ref){
-								this->context.emitError(
-									Diagnostic::Code::PARSER_ARRAY_REF_MUTABILITY_DOESNT_MATCH,
-									Diagnostic::Location::get(
-										this->reader.peek(), this->source
-									),
-									"All pointer dimensions in an array reference must match mutability",
-									evo::SmallVector<Diagnostic::Info>{
-										Diagnostic::Info(
-											"Last pointer dimension was here:",
-											Diagnostic::Location::get(
-												*last_ptr_dimension, this->source
-											)
-										)
+				switch(this->reader[this->reader.peek()].kind()){
+					case Token::lookupKind("*"): case Token::lookupKind("*mut"): {
+						is_ref = true;
+						is_mutable_ref = this->reader[this->reader.next()].kind() == Token::lookupKind("*mut");
+
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+							this->reader.skip();
+
+							while(true){
+								switch(this->reader[this->reader.peek()].kind()){
+									case Token::Kind::DEDUCER: {
+										if constexpr(
+											KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+											|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+										){
+											dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+										}else{
+											this->context.emitError(
+												Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+												Diagnostic::Location::get(this->reader.peek(), this->source),
+												"Type deducers are not allowed here"
+											);
+											return Result(Result::Code::ERROR);
+										}
+									} break;
+
+									case Token::Kind::ANONYMOUS_DEDUCER: {
+										if constexpr(
+											KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+											|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+											|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+										){
+											dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+										}else{
+											this->context.emitError(
+												Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+												Diagnostic::Location::get(this->reader.peek(), this->source),
+												"Anonymous Type deducers are not allowed here"
+											);
+											return Result(Result::Code::ERROR);
+										}
+									} break;
+
+									case Token::lookupKind("*"): {
+										this->reader.skip();
+										dimensions.emplace_back();
+									} break;
+
+									case Token::lookupKind("*mut"): {
+										this->context.emitError(
+											Diagnostic::Code::PARSER_ARRAY_REF_MUT_IN_DIMENSION,
+											Diagnostic::Location::get(this->reader.peek(), this->source),
+											"Mutable pointer dimensions cannot be mutable"
+										);
+										return Result(Result::Code::ERROR);
+									} break;
+
+									default: {
+										const Result dimension = this->parse_expr();
+										if(this->check_result(
+											dimension, "dimension(s) in array reference type"
+										).isError()){
+											return Result(Result::Code::ERROR);
+										}
+
+										dimensions.emplace_back(dimension.value());
+									} break;
+								}
+
+								if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
+									break;
+								}else{
+									this->reader.skip();
+								}
+							}
+
+							if(this->expect_token(
+								Token::lookupKind(")"), "at end of array reference dimensions"
+							).isError()){
+								return Result(Result::Code::ERROR);
+							}
+						}else{
+							dimensions.emplace_back();
+						}
+					} break;
+
+					default: {
+						while(true){
+							switch(this->reader[this->reader.peek()].kind()){
+								case Token::Kind::DEDUCER: {
+									if constexpr(
+										KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+										|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+									){
+										dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+									}else{
+										this->context.emitError(
+											Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+											Diagnostic::Location::get(this->reader.peek(), this->source),
+											"Type deducers are not allowed here"
+										);
+										return Result(Result::Code::ERROR);
 									}
-								);
-								return Result(Result::Code::ERROR);
+								} break;
+
+								case Token::Kind::ANONYMOUS_DEDUCER: {
+									if constexpr(
+										KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+										|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+										|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+									){
+										dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+									}else{
+										this->context.emitError(
+											Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
+											Diagnostic::Location::get(this->reader.peek(), this->source),
+											"Anonymous Type deducers are not allowed here"
+										);
+										return Result(Result::Code::ERROR);
+									}
+								} break;
+
+								default: {
+									const Result dimension = this->parse_expr();
+									if(this->check_result(dimension, "dimension(s) in array type").isError()){
+										return Result(Result::Code::ERROR);
+									}
+
+									dimensions.emplace_back(dimension.value());
+								} break;
 							}
-							last_ptr_dimension = this->reader.next();
-						} break;
 
-						case Token::lookupKind("*mut"): {
-							is_ref = true;
-							last_ptr_dimension = this->reader.next();
-							dimensions.emplace_back(std::nullopt);
-							is_mutable_ref = true;
-						} break;
-
-						case Token::Kind::DEDUCER: {
-							if constexpr(
-								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER || KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
-							){
-								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
+							if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
+								break;
 							}else{
-								this->context.emitError(
-									Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
-									Diagnostic::Location::get(this->reader.peek(), this->source),
-									"Type deducers are not allowed here"
-								);
-								return Result(Result::Code::ERROR);
+								this->reader.skip();
 							}
-						} break;
-
-						case Token::Kind::ANONYMOUS_DEDUCER: {
-							if constexpr(
-								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-								|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-								|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
-							){
-								dimensions.emplace_back(AST::Node(AST::Kind::DEDUCER, this->reader.next()));
-							}else{
-								this->context.emitError(
-									Diagnostic::Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
-									Diagnostic::Location::get(this->reader.peek(), this->source),
-									"Anonymous Type deducers are not allowed here"
-								);
-								return Result(Result::Code::ERROR);
-							}
-						} break;
-
-						default: {
-							const Result length = this->parse_expr();
-							if(this->check_result(length, "length(s) in array type").isError()){
-								return Result(Result::Code::ERROR);
-							}
-
-							dimensions.emplace_back(length.value());
-						} break;
-					}
-
-
-					if(this->reader[this->reader.peek()].kind() != Token::lookupKind(",")){
-						break;
-					}else{
-						this->reader.skip();
-					}
+						}
+					} break;
 				}
 
-				
 				auto terminator = std::optional<AST::Node>();
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
 					if(this->assert_token(Token::lookupKind(";")).isError()){ return Result(Result::Code::ERROR); }

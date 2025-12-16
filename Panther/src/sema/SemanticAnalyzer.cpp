@@ -8400,12 +8400,12 @@ namespace pcit::panther{
 
 				auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
 				dimensions.reserve(array_ref.dimensions.size());
-				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+				for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
 					if(dimension.isPtr()){
 						dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
-					}else{
-						dimensions.emplace_back(dimension.length());
 					}
+
+					i += 1;
 				}
 
 				this->get_current_scope_level().stmtBlock().emplace_back(
@@ -8425,7 +8425,147 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				// just break as will be done after switch
+				const BaseType::Struct& target_struct =
+					this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
+
+
+				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+				auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
+
+				const bool is_semantically_initialization = lhs.value_state == TermInfo::ValueState::UNINIT;
+				const bool should_run_initialization = 
+					is_semantically_initialization || target_struct.newAssignOverloads.empty();
+
+
+
+				if(should_run_initialization){
+					if(target_struct.newInitOverloads.empty()){
+						if(target_struct.isTriviallyDefaultInitializable){
+							if(lhs.value_state == TermInfo::ValueState::UNINIT){
+								this->set_ident_value_state_if_needed(
+									lhs.getExpr(), sema::ScopeLevel::ValueState::INIT
+								);
+							}
+							return Result::SUCCESS;
+
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+								ast_new.type,
+								"No matching operator [new] overload for this type"
+							);
+							return Result::ERROR;
+						}
+					}
+
+
+					overloads.reserve(target_struct.newInitOverloads.size());
+					for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
+						const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+
+						overloads.emplace_back(
+							overload_id, this->context.getTypeManager().getFunction(overload.typeID)
+						);
+					}
+
+					args.reserve(instr.args.size());
+				}else{
+					overloads.reserve(target_struct.newAssignOverloads.size());
+					for(const sema::Func::ID overload_id : target_struct.newAssignOverloads){
+						const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
+
+						overloads.emplace_back(
+							overload_id, this->context.getTypeManager().getFunction(overload.typeID)
+						);
+					}
+
+					args.reserve(instr.args.size() + 1);
+					args.emplace_back(this->get_term_info(instr.lhs), instr.infix.lhs, std::nullopt);
+				}
+
+
+
+				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+					args.emplace_back(this->get_term_info(arg_id), ast_new.args[i].value, ast_new.args[i].label);
+
+					i += 1;
+				}
+
+
+				const evo::Result<size_t> selected_overload = this->select_func_overload(
+					overloads, args, ast_new, !should_run_initialization, evo::SmallVector<Diagnostic::Info>()
+				);
+				if(selected_overload.isError()){ return Result::ERROR; }
+
+				const sema::Func::ID selected_func_id =
+					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
+				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+
+
+				auto output_args = evo::SmallVector<sema::Expr>();
+				if(should_run_initialization){
+					output_args.reserve(selected_func.params.size());
+				}else{
+					output_args.reserve(selected_func.params.size() + 1);
+					output_args.emplace_back(lhs.getExpr());
+				}
+				for(const SymbolProc::TermInfoID& arg_id : instr.args){
+					output_args.emplace_back(this->get_term_info(arg_id).getExpr());
+				}
+
+				// default values
+				for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
+					output_args.emplace_back(*selected_func.params[i].defaultValue);
+				}
+
+
+				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+					selected_func_id, std::move(output_args)
+				);
+
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+
+				if(should_run_initialization){
+					if(
+						is_semantically_initialization == false
+						&& this->context.getTypeManager().isTriviallyDeletable(actual_target_type_info.baseTypeID())
+							== false
+					){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							instr.infix.rhs,
+							"assignment operator [new] that runs an initializer predicated by a destroy "
+								"is unimplemented"
+						);
+						return Result::ERROR;
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createAssign(lhs.getExpr(), sema::Expr(created_func_call_id))
+					);
+
+				}else{
+					if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
+						if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
+							lhs.type_id.as<TypeInfo::ID>(),
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+							instr.infix
+						).isError()){
+							return Result::ERROR;
+						}
+
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
+						);
+					}
+					this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt(created_func_call_id));
+				}
+
+				if(lhs.value_state == TermInfo::ValueState::UNINIT){
+					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				}
+
+				return Result::SUCCESS;
 			} break;
 
 			default: {
@@ -8437,141 +8577,6 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 		}
-
-
-
-		const BaseType::Struct& target_struct =
-			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
-
-
-		auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
-		auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
-
-		const bool is_semantically_initialization = lhs.value_state == TermInfo::ValueState::UNINIT;
-		const bool should_run_initialization = 
-			is_semantically_initialization || target_struct.newAssignOverloads.empty();
-
-
-
-		if(should_run_initialization){
-			if(target_struct.newInitOverloads.empty()){
-				if(target_struct.isTriviallyDefaultInitializable){
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
-					}
-					return Result::SUCCESS;
-
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-						ast_new.type,
-						"No matching operator [new] overload for this type"
-					);
-					return Result::ERROR;
-				}
-			}
-
-
-			overloads.reserve(target_struct.newInitOverloads.size());
-			for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
-				const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
-
-				overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
-			}
-
-			args.reserve(instr.args.size());
-		}else{
-			overloads.reserve(target_struct.newAssignOverloads.size());
-			for(const sema::Func::ID overload_id : target_struct.newAssignOverloads){
-				const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
-
-				overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
-			}
-
-			args.reserve(instr.args.size() + 1);
-			args.emplace_back(this->get_term_info(instr.lhs), instr.infix.lhs, std::nullopt);
-		}
-
-
-
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
-			args.emplace_back(this->get_term_info(arg_id), ast_new.args[i].value, ast_new.args[i].label);
-
-			i += 1;
-		}
-
-
-		const evo::Result<size_t> selected_overload = this->select_func_overload(
-			overloads, args, ast_new, !should_run_initialization, evo::SmallVector<Diagnostic::Info>()
-		);
-		if(selected_overload.isError()){ return Result::ERROR; }
-
-		const sema::Func::ID selected_func_id = overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
-		const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
-
-
-		auto output_args = evo::SmallVector<sema::Expr>();
-		if(should_run_initialization){
-			output_args.reserve(selected_func.params.size());
-		}else{
-			output_args.reserve(selected_func.params.size() + 1);
-			output_args.emplace_back(lhs.getExpr());
-		}
-		for(const SymbolProc::TermInfoID& arg_id : instr.args){
-			output_args.emplace_back(this->get_term_info(arg_id).getExpr());
-		}
-
-		// default values
-		for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
-			output_args.emplace_back(*selected_func.params[i].defaultValue);
-		}
-
-
-		const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-			selected_func_id, std::move(output_args)
-		);
-
-		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
-
-		if(should_run_initialization){
-			if(
-				is_semantically_initialization == false
-				&& this->context.getTypeManager().isTriviallyDeletable(actual_target_type_info.baseTypeID()) == false
-			){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.infix.rhs,
-					"assignment operator [new] that runs an initializer predicated by a destroy is unimplemented"
-				);
-				return Result::ERROR;
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(lhs.getExpr(), sema::Expr(created_func_call_id))
-			);
-
-		}else{
-			if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix
-				).isError()){
-					return Result::ERROR;
-				}
-
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
-			}
-			this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt(created_func_call_id));
-		}
-
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
-		}
-
-		return Result::SUCCESS;
 	}
 
 
@@ -12561,8 +12566,6 @@ namespace pcit::panther{
 				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
 					if(dimension.isPtr()){
 						dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
-					}else{
-						dimensions.emplace_back(dimension.length());
 					}
 				}
 
@@ -14772,8 +14775,28 @@ namespace pcit::panther{
 
 			auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
 			dimensions.reserve(from_array.dimensions.size());
-			for(uint64_t dimension : from_array.dimensions){
-				dimensions.emplace_back(dimension);
+			for(size_t i = 0; uint64_t dimension : from_array.dimensions){
+				if(to_array_ref.dimensions[i].isPtr()){
+					dimensions.emplace_back(dimension);
+				}else{
+					if(dimension != to_array_ref.dimensions[i].length()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_AS_INVALID_TO,
+							instr.infix.rhs,
+							"No valid operator [as] to this type",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(std::format("Dimension mismatch (index {})", i)),
+								Diagnostic::Info(std::format("Expected dimension: {}", dimension)),
+								Diagnostic::Info(
+									std::format("Got dimension:      {}", to_array_ref.dimensions[i].length())
+								),
+							}
+						);
+						return Result::ERROR;
+					}
+				}
+
+				i += 1;
 			}
 
 			const sema::Expr created_array_to_array_ref = sema::Expr(

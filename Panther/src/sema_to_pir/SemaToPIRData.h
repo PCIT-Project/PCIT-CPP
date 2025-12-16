@@ -254,8 +254,8 @@ namespace pcit::panther{
 			std::optional<pir::Type> interface_ptr_type = std::nullopt;
 			mutable evo::SpinLock interface_ptr_type_lock{};	
 
-			evo::SmallVector<std::optional<pir::Type>> array_ref_type{};
-			mutable evo::SpinLock array_ref_type_lock{};	
+			evo::SmallVector<std::optional<pir::Type>> array_ref_types{};
+			mutable evo::SpinLock array_ref_types_lock{};	
 
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};

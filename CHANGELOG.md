@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.207.0"></a>
+## v0.0.207.0
+
+### Panther
+- Added new array reference syntax
+	- `[Int:3,*mut]` -> `[Int:*mut(3,*)]`
+	- Allows for 1-dimensional arrays references with known size
+- Added checking of known dimensions of array reference in `Array as ArrayReference` 
+- Fixed initalization of array references with known dimensions (output from semantic analysis was incorrect)
+
+
+<!---------------------------------->
 <a name="v0.0.206.0"></a>
 ## v0.0.206.0
 

@@ -1,55 +1,19 @@
-// def std = @import("std");
 
-
-type Tracker = struct {
-	func new = () -> (output: Tracker) {
-		output.this_ptr = &output;
-		return...;
-	}
-
-	func copy = (this) -> (output: Tracker) {
-		output.this_ptr = &output;
-		return...;
-	}
-
-	func move = (this) -> (output: Tracker) {
-		output.this_ptr = &output;
-		return...;
-	}
-
-
-	func isValid = (this) -> Bool {
-		return this.this_ptr == &this;
-	}
-
-
-	func as = (this in) -> RawPtr {
-		return this.this_ptr as RawPtr;
-	}
-
-	func forwardThis = (this in) -> Tracker {
-		return forward this;
-	}
-
-
-	var this_ptr: Tracker* #priv;
+func size = (arr_ref: $$) -> USize {
+	return arr_ref.size();
 }
 
 
-
-
-
-
-func opt_test = (opt: Tracker?) -> Bool {
-	return opt.?.isValid();
+func conversion_error = (arr: [Int:2, 2]) -> Void {
+	const arr_ref = arr as [Int:*(2,*)];
 }
 
 
 
 func entry = () #entry -> UI8 {
-	const tracker = new Tracker();
-
-	const ptr: RawPtr = (copy tracker) as RawPtr;
-
-	return opt_test((copy tracker).forwardThis()) as UI8;
+	const arr = new [Int:4][1, 2, 3, 4];
+	
+	const arr_ref = new [Int:*(*, 2)](arr.data(), 2);
+	
+	return size(arr_ref) as UI8;
 }
