@@ -1,19 +1,12 @@
 
-func size = (arr_ref: $$) -> USize {
-	return arr_ref.size();
-}
-
-
-func conversion_error = (arr: [Int:2, 2]) -> Void {
-	const arr_ref = arr as [Int:*(2,*)];
-}
-
-
 
 func entry = () #entry -> UI8 {
-	const arr = new [Int:4][1, 2, 3, 4];
+	var arr = new [Int:4][1, 2, 3, 4];
+	const coefs = new [Int:4][1, 0, 2, 5];
 	
-	const arr_ref = new [Int:*(*, 2)](arr.data(), 2);
+	for(arr, coefs) [_; val: $$ mut, coef: Int] {
+		val *= coef;
+	}
 	
-	return size(arr_ref) as UI8;
+	return (arr == new [Int:4][1, 0, 6, 20]) as UI8;
 }

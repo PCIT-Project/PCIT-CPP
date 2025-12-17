@@ -1896,6 +1896,8 @@ namespace pcit::panther{
 				}
 
 				for(size_t i = 0; const sema::For::Iterable& iterable : for_stmt.iterables){
+					EVO_DEFER([&](){ i += 1; });
+
 					//////////////////
 					// get
 
@@ -9397,7 +9399,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getInterface(parent_id.interfaceID);
 
 					return std::format(
-						"{}.{}.impl_{}",
+						"{}.{}.impl_t{}",
 						this->get_parent_name(interface_type.parent, interface_type.sourceID),
 						interface_type.getName(this->context.getSourceManager()),
 						parent_id.targetTypeID.get()

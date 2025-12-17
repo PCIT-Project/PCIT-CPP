@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.207.1"></a>
+## v0.0.207.1
+
+### Panther
+- Fixed lowering of for loop with more than 1 iterable
+
+
+<!---------------------------------->
 <a name="v0.0.207.0"></a>
 ## v0.0.207.0
 
