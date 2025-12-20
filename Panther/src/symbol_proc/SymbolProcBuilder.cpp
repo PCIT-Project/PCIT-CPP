@@ -185,6 +185,9 @@ namespace pcit::panther{
 		symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation = &instantiation;
 		symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types = std::move(arg_types);
 
+		const evo::SmallVector<std::optional<TypeInfo::ID>>& instantiation_param_arg_types = 
+			symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types;
+
 		symbol_proc.sema_scope_id = sema_scope_id;
 
 		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
@@ -205,6 +208,7 @@ namespace pcit::panther{
 
 		auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 		default_param_values.reserve(func_def.params.size());
+
 		for(size_t i = 0; const AST::FuncDef::Param& param : func_def.params){
 			if(param.type.has_value() == false){ // skip `this` param
 				types.emplace_back();
@@ -221,7 +225,7 @@ namespace pcit::panther{
 			types.emplace_back(param_type.value());
 
 			if(
-				symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[i].has_value()
+				instantiation_param_arg_types[i].has_value()
 				&& this->is_deducer(*param.type)
 			){
 				this->add_instruction(
@@ -240,6 +244,13 @@ namespace pcit::panther{
 			}
 		}
 
+
+		size_t num_extra_variadics = 0;
+		if(func_def.isVariadic && instantiation_param_arg_types.size() >= func_def.params.size()){
+			num_extra_variadics = instantiation_param_arg_types.size() - func_def.params.size();
+		}
+
+
 		for(const AST::FuncDef::Return& return_param : func_def.returns){
 			const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
 				ast_buffer.getType(return_param.type)
@@ -256,13 +267,15 @@ namespace pcit::panther{
 			types.emplace_back(param_type.value());
 		}
 
+
 		this->add_instruction(
 			this->context.symbol_proc_manager.createFuncDeclInstantiation(
 				func_def,
 				std::move(attribute_params_info.value()),
 				std::move(default_param_values),
 				std::move(types),
-				instantiation_id
+				instantiation_id,
+				num_extra_variadics
 			)
 		);
 
@@ -644,9 +657,7 @@ namespace pcit::panther{
 		}();
 
 
-
-
-		if(template_param_infos.empty() && has_type_deducer_param == false){
+		if(template_param_infos.empty() && has_type_deducer_param == false && func_def.isVariadic == false){
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 				this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
 			if(attribute_params_info.isError()){ return evo::resultError; }
@@ -763,6 +774,16 @@ namespace pcit::panther{
 					Diagnostic::Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
 					func_def,
 					"Interface methods cannot be templates"
+				);
+				return evo::resultError;
+			}
+
+
+			if(func_def.isVariadic && this->is_named_deducer(*func_def.params.back().type)){
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_VARIADIC_PARAM_TYPE_IS_NAMED_DEDUCER,
+					*func_def.params.back().type,
+					"Variadic function parameter cannot be a named deducer"
 				);
 				return evo::resultError;
 			}
@@ -2115,7 +2136,7 @@ namespace pcit::panther{
 			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(target_when->cond);
 			if(cond.isError()){ return evo::resultError; }
 
-			const Instruction new_instr = this->add_instruction(
+			const Instruction begin_local_when_cond = this->add_instruction(
 				this->context.symbol_proc_manager.createBeginLocalWhenCond(
 					when_stmt, cond.value(), SymbolProc::InstructionIndex::dummy()
 				)
@@ -2131,7 +2152,7 @@ namespace pcit::panther{
 				)
 			);
 
-			this->context.symbol_proc_manager.begin_local_when_conds[new_instr._index].else_index = 
+			this->context.symbol_proc_manager.begin_local_when_conds[begin_local_when_cond._index].else_index = 
 				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
 
 			if(target_when->elseBlock.has_value() == false){
@@ -2211,18 +2232,74 @@ namespace pcit::panther{
 			types.emplace_back(value_type.value());
 		}
 
-		this->add_instruction(
-			this->context.symbol_proc_manager.createBeginFor(for_stmt, std::move(iterables), std::move(types))
-		);
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(for_stmt.attributeBlock);
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(attribute_block);
+		if(attribute_params_info.isError()){ return evo::resultError; }
 
-		const AST::Block& block = this->source.getASTBuffer().getBlock(for_stmt.block);
-		for(const AST::Node& stmt : block.statements){
-			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		const bool is_unroll = [&]() -> bool {
+			for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+				const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+				if(attribute_str == "unroll"){ return true; }
+			}
+
+			return false;
+		}();
+
+
+		if(is_unroll){
+			if(for_stmt.index.has_value()){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, std::nullopt)
+				);
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, types[0])
+				);
+			}
+
+			const Instruction& cond_instr = this->add_instruction(
+				this->context.symbol_proc_manager.createForUnrollCond(
+					for_stmt, std::move(iterables), std::move(types), SymbolProc::InstructionIndex::dummy()
+				)
+			);
+
+			const auto cond_instr_index =
+				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2));
+
+
+			const AST::Block& block = this->source.getASTBuffer().getBlock(for_stmt.block);
+			for(const AST::Node& stmt : block.statements){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			this->add_instruction(
+				this->context.symbol_proc_manager.createForUnrollContinue(
+					this->source.getASTBuffer().getBlock(for_stmt.block).closeBrace, cond_instr_index
+				)
+			);
+
+			this->context.symbol_proc_manager.for_unroll_conds[cond_instr._index].end_index =
+				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
+
+			return evo::Result<>();
+
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createBeginFor(for_stmt, std::move(iterables), std::move(types))
+			);
+
+			const AST::Block& block = this->source.getASTBuffer().getBlock(for_stmt.block);
+			for(const AST::Node& stmt : block.statements){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
+
+			return evo::Result<>();
 		}
-
-		this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
-
-		return evo::Result<>();
 	}
 
 
@@ -3949,6 +4026,56 @@ namespace pcit::panther{
 				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
 				if(interface_map_type.underlyingType.is<Token::ID>()){ return false; }
 				return this->is_deducer(interface_map_type.underlyingType.as<AST::Node>());
+			} break;
+
+			default: {
+				return false;
+			} break;
+		}
+	}
+
+
+	auto SymbolProcBuilder::is_named_deducer(const AST::Node& node) const -> bool {
+		switch(node.kind()){
+			case AST::Kind::TYPE: {
+				const AST::Type& type = this->source.getASTBuffer().getType(node);
+				return this->is_named_deducer(type.base);
+			} break;
+
+			case AST::Kind::DEDUCER: {
+				const Token& deducer_token = this->source.getTokenBuffer()[ASTBuffer::getDeducer(node)];
+				return deducer_token.kind() == Token::Kind::DEDUCER;
+			} break;
+
+			case AST::Kind::ARRAY_TYPE: {
+				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(node);
+
+				if(this->is_named_deducer(this->source.getASTBuffer().getType(array_type.elemType).base)){
+					return true;
+				}
+
+				for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+					if(dimension.has_value() == false){ continue; }
+					if(this->is_named_deducer(*dimension)){ return true; }
+				}
+
+				return array_type.terminator.has_value() && this->is_named_deducer(*array_type.terminator);
+			} break;
+
+			case AST::Kind::TEMPLATED_EXPR: {
+				const AST::TemplatedExpr& templated_expr = this->source.getASTBuffer().getTemplatedExpr(node);
+
+				for(const AST::Node& arg : templated_expr.args){
+					if(this->is_named_deducer(arg)){ return true; }
+				}
+
+				return false;
+			} break;
+
+			case AST::Kind::INTERFACE_MAP: {
+				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
+				if(interface_map_type.underlyingType.is<Token::ID>()){ return false; }
+				return this->is_named_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 
 			default: {

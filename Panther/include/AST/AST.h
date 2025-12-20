@@ -194,6 +194,7 @@ namespace pcit::panther::AST{
 		Token::ID name; // either identifier or operator
 		std::optional<Node> templatePack;
 		evo::SmallVector<Param> params;
+		bool isVariadic;
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
 		evo::SmallVector<Return> errorReturns;
@@ -331,6 +332,7 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Node> iterables;
 		std::optional<Param> index; // nullopt means `_`
 		evo::SmallVector<Param> values;
+		Node attributeBlock;
 		Node block;
 	};
 

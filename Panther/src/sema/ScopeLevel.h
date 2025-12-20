@@ -23,6 +23,7 @@ namespace pcit::panther{
 
 
 namespace pcit::panther::sema{
+
 	struct ReturnParamAccessorValueStateID{
 		ReturnParamID id;
 		uint32_t index;
@@ -35,10 +36,12 @@ namespace pcit::panther::sema{
 
 		EVO_NODISCARD auto operator==(const OpDeleteThisAccessorValueStateID&) const -> bool = default;
 	};
+
 }
 
 
 namespace std{
+
 	template<>
 	struct hash<pcit::panther::sema::ReturnParamAccessorValueStateID>{
 		auto operator()(pcit::panther::sema::ReturnParamAccessorValueStateID id) const noexcept -> size_t {
@@ -54,6 +57,7 @@ namespace std{
 			return std::hash<uint32_t>{}(id.index);
 		};
 	};
+
 }
 
 
@@ -128,6 +132,21 @@ namespace pcit::panther::sema{
 				OverloadList funcs;
 			};
 
+			struct ExtractedVariadicParam{
+				ParamID param_id;
+				TypeInfoID type_id;
+				bool is_mut;
+			};
+
+
+			struct ForUnrollIndexFlag{};
+			struct ForUnrollIndex{
+				TypeInfoID typeID;
+				sema::Expr value;
+				Token::ID location;
+			};
+
+
 			using IdentID = evo::Variant<
 				FuncOverloadList,
 				MethodOverloadList,
@@ -135,6 +154,8 @@ namespace pcit::panther::sema{
 				sema::VarID,
 				sema::GlobalVarID,
 				sema::ParamID,
+				sema::VariadicParamID,
+				ExtractedVariadicParam,
 				sema::ReturnParamID,
 				sema::ErrorReturnParamID,
 				sema::BlockExprOutputID,
@@ -154,11 +175,14 @@ namespace pcit::panther::sema{
 				DeducedType,
 				DeducedExpr,
 				MemberVar,
-				UnionField
+				UnionField,
+				ForUnrollIndex
 			>;
 
 			using NoLabelNode = std::monostate;
-			using LabelNode = evo::Variant<NoLabelNode, sema::BlockExprID, sema::WhileID, sema::ForID>;
+			using LabelNode = evo::Variant<
+				NoLabelNode, sema::BlockExprID, sema::WhileID, sema::ForID, sema::ForUnrollID
+			>;
 
 			using ValueStateID = evo::Variant<
 				sema::VarID,
@@ -185,7 +209,9 @@ namespace pcit::panther::sema{
 				};
 
 				struct ModifyInfo{
-					unsigned num_sub_scopes = 1;
+					unsigned num_sub_scopes;
+
+					explicit ModifyInfo(unsigned _num_sub_scopes) : num_sub_scopes(_num_sub_scopes) {}
 				};
 
 
@@ -259,6 +285,8 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::GlobalVarID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::VariadicParamID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, ExtractedVariadicParam id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ErrorReturnParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult;
@@ -302,6 +330,10 @@ namespace pcit::panther::sema{
 				std::string_view ident, UnionFieldFlag, Token::ID location, uint32_t field_index
 			) -> AddIdentResult;
 
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident, ForUnrollIndexFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
+			) -> AddIdentResult;
+
 
 
 			// returns false if is a redefinition
@@ -318,7 +350,7 @@ namespace pcit::panther::sema{
 
 			auto addIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
 			auto setIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
-			auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
+			EVO_NODISCARD auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
 				-> evo::Expected<void, ValueStateID>;
 			EVO_NODISCARD auto getIdentValueState(ValueStateID value_state_id) const -> std::optional<ValueState>;
 

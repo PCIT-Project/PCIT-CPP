@@ -267,6 +267,7 @@ namespace pcit::panther{
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			evo::SmallVector<std::optional<SymbolProcTermInfoID>> default_param_values;
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
+			size_t num_extra_variadics = 0;
 
 			// param type is nullopt if the param is `this`
 			EVO_NODISCARD auto params() const -> evo::ArrayProxy<std::optional<SymbolProcTypeID>> {
@@ -282,7 +283,7 @@ namespace pcit::panther{
 				);
 			}
 
-			EVO_NODISCARD auto errorReturns() const -> evo::ArrayProxy<SymbolProcTypeID> {
+			EVO_NODISCARD auto error_returns() const -> evo::ArrayProxy<SymbolProcTypeID> {
 				if(this->func_def.errorReturns.empty()){
 					return evo::ArrayProxy<SymbolProcTypeID>();
 					
@@ -302,9 +303,9 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types
 			) requires(!IS_INSTANTIATION) : 
 				func_def(_func_def),
-				attribute_params_info(_attribute_params_info),
-				default_param_values(_default_param_values),
-				types(_types)
+				attribute_params_info(std::move(_attribute_params_info)),
+				default_param_values(std::move(_default_param_values)),
+				types(std::move(_types))
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
 					const size_t correct_num_types = this->func_def.params.size() 
@@ -321,13 +322,15 @@ namespace pcit::panther{
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
-				uint32_t _instantiation_id
+				uint32_t _instantiation_id,
+				size_t _num_extra_variadics
 			) requires(IS_INSTANTIATION) : 
 				func_def(_func_def),
-				attribute_params_info(_attribute_params_info),
-				default_param_values(_default_param_values),
-				types(_types),
-				instantiation_id(_instantiation_id)
+				attribute_params_info(std::move(_attribute_params_info)),
+				default_param_values(std::move(_default_param_values)),
+				types(std::move(_types)),
+				instantiation_id(_instantiation_id),
+				num_extra_variadics(_num_extra_variadics)
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
 					const size_t correct_num_types = this->func_def.params.size() 
@@ -534,6 +537,41 @@ namespace pcit::panther{
 		struct EndFor{
 			Token::ID close_brace;
 		};
+
+
+
+		struct BeginForUnroll{
+			const AST::For& for_stmt;
+			evo::SmallVector<SymbolProcTermInfoID> iterables;
+			std::optional<SymbolProcTypeID> index_type_id;
+		};
+
+		struct ForUnrollCond{
+			const AST::For& for_stmt;
+			evo::SmallVector<SymbolProcTermInfoID> iterables;
+			evo::SmallVector<SymbolProcTypeID> types;
+			SymbolProcInstructionIndex end_index;
+
+			ForUnrollCond(
+				const AST::For& _for_stmt,
+				evo::SmallVector<SymbolProcTermInfoID>&& _iterables,
+				evo::SmallVector<SymbolProcTypeID>&& _types,
+				SymbolProcInstructionIndex _end_index
+			) : for_stmt(_for_stmt), iterables(std::move(_iterables)), types(std::move(_types)), end_index(_end_index){}
+
+			EVO_NODISCARD auto get_index() const -> size_t { return this->index; }
+			auto next_index() const -> void { this->index += 1; }
+
+			private:
+				mutable size_t index = 0;
+		};
+
+		struct ForUnrollContinue{
+			Token::ID close_brace;
+			SymbolProcInstructionIndex cond_index;
+		};
+
+
 
 
 		struct BeginDefer{
@@ -1025,6 +1063,9 @@ namespace pcit::panther{
 			END_WHILE,
 			BEGIN_FOR,
 			END_FOR,
+			BEGIN_FOR_UNROLL,
+			FOR_UNROLL_COND,
+			FOR_UNROLL_CONTINUE,
 			BEGIN_DEFER,
 			END_DEFER,
 			BEGIN_STMT_BLOCK,
@@ -1487,6 +1528,7 @@ namespace pcit::panther{
 				size_t num_members_of_initializing_are_uninit = 0;
 
 				evo::SmallVector<std::optional<TypeInfo::ID>> param_type_to_check_if_is_copy{};
+				evo::SmallVector<sema::Param::ID> actual_variadic_params{};
 
 				sema::TemplatedFunc::Instantiation* instantiation = nullptr;
 				evo::SmallVector<std::optional<TypeInfo::ID>> instantiation_param_arg_types{};

@@ -176,6 +176,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto is_deducer(const AST::Node& node) const -> bool;
+			EVO_NODISCARD auto is_named_deducer(const AST::Node& node) const -> bool;
 
 			EVO_NODISCARD auto extract_deducer_names(const AST::Node& node) const 
 				-> evo::SmallVector<std::string_view>;

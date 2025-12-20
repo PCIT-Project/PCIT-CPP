@@ -361,6 +361,15 @@ namespace pcit::panther{
 			case Instruction::Kind::END_FOR:
 				return this->instr_end_for(this->context.symbol_proc_manager.getEndFor(instr));
 
+			case Instruction::Kind::BEGIN_FOR_UNROLL:
+				return this->instr_begin_for_unroll(this->context.symbol_proc_manager.getBeginForUnroll(instr));
+
+			case Instruction::Kind::FOR_UNROLL_COND:
+				return this->instr_for_unroll_cond(this->context.symbol_proc_manager.getForUnrollCond(instr));
+
+			case Instruction::Kind::FOR_UNROLL_CONTINUE:
+				return this->instr_for_unroll_continue(this->context.symbol_proc_manager.getForUnrollContinue(instr));
+
 			case Instruction::Kind::BEGIN_DEFER:
 				return this->instr_begin_defer(this->context.symbol_proc_manager.getBeginDefer(instr));
 
@@ -2984,8 +2993,6 @@ namespace pcit::panther{
 				const bool param_type_is_deducer =
 					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
-				auto interface_map_type = std::optional<TypeInfo::ID>();
-
 				// saving types to check if param should be copy
 				// 	(need to do later after definitions of types are gotten)
 				if(param.kind == AST::FuncDef::Param::Kind::READ){
@@ -3033,7 +3040,6 @@ namespace pcit::panther{
 					}
 
 					sema_params.emplace_back(ast_buffer.getIdent(param.name), default_param_value.getExpr());
-
 
 				}else{
 					sema_params.emplace_back(ast_buffer.getIdent(param.name), std::nullopt);
@@ -3105,6 +3111,55 @@ namespace pcit::panther{
 		}
 
 
+		if constexpr(IS_INSTANTIATION){
+			if(instr.func_def.isVariadic & (instr.num_extra_variadics != 0)){
+				const AST::FuncDef::Param& variadic_param = instr.func_def.params.back();
+
+				const std::optional<TypeInfo::ID> variadic_param_type = [&]() -> std::optional<TypeInfo::ID> {
+					const TypeInfo::ID got_variadic_param_type_id = this->get_type(*instr.params().back()).asTypeID();
+
+					if(this->context.getTypeManager().isTypeDeducer(got_variadic_param_type_id)){
+						return std::nullopt;
+					}else{
+						return got_variadic_param_type_id;
+					}
+				}();
+
+				const BaseType::Function::Param::Kind type_param_kind = [&](){
+					switch(variadic_param.kind){
+						case AST::FuncDef::Param::Kind::READ: return BaseType::Function::Param::Kind::READ;
+						case AST::FuncDef::Param::Kind::MUT:  return BaseType::Function::Param::Kind::MUT;
+						case AST::FuncDef::Param::Kind::IN:   return BaseType::Function::Param::Kind::IN;
+					}
+					evo::debugFatalBreak("Unknown ast param kind");
+				}();
+
+				for(size_t i = 0; i < instr.num_extra_variadics; i+=1){
+					const TypeInfo::ID arg_type_id = [&]() -> TypeInfo::ID {
+						if(variadic_param_type.has_value()){
+							return *variadic_param_type;
+						}else{
+							return *func_info.instantiation_param_arg_types[
+								instr.params().size() + i - size_t(has_this_param)
+							];
+						}
+					}();
+
+					if(variadic_param.kind == AST::FuncDef::Param::Kind::READ){
+						func_info.param_type_to_check_if_is_copy.emplace_back(arg_type_id);
+					}else{
+						func_info.param_type_to_check_if_is_copy.emplace_back();
+					}
+
+					params.emplace_back(arg_type_id, type_param_kind, false);
+					sema_params.emplace_back(ast_buffer.getIdent(variadic_param.name), std::nullopt);
+
+					min_num_args += 1;
+				}
+			}
+		}
+
+
 		auto return_params = evo::SmallVector<TypeInfo::VoidableID>();
 		auto return_param_idents = evo::SmallVector<Token::ID>();
 		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_return_param_type_id : instr.returns()){
@@ -3158,7 +3213,7 @@ namespace pcit::panther{
 
 		auto error_return_params = evo::SmallVector<TypeInfo::VoidableID>();
 		auto error_param_idents = evo::SmallVector<Token::ID>();
-		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_error_return_param_type_id : instr.errorReturns()){
+		for(size_t i = 0; const SymbolProc::TypeID& symbol_proc_error_return_param_type_id : instr.error_returns()){
 			EVO_DEFER([&](){ i += 1; });
 
 			const TypeInfo::VoidableID error_param_type_id = this->get_type(symbol_proc_error_return_param_type_id);
@@ -4765,14 +4820,40 @@ namespace pcit::panther{
 				continue;
 			}
 
+
 			const std::string_view param_name = this->source.getTokenBuffer()[
 				this->source.getASTBuffer().getIdent(param.name)
 			].getString();
 
-			if(this->add_ident_to_scope(
-				param_name, param, true, this->context.sema_buffer.createParam(i, abi_index)
-			).isError()){
-				return Result::ERROR;
+
+			if(instr.func_def.isVariadic && i + 1 == instr.func_def.params.size()){
+				const uint32_t num_variadics = uint32_t(current_func.params.size() - instr.func_def.params.size() + 1);
+
+				if(this->add_ident_to_scope(
+					param_name, param, true, this->context.sema_buffer.createVariadicParam(i, abi_index, num_variadics)
+				).isError()){
+					return Result::ERROR;
+				}
+
+				for(uint32_t j = 0; j < num_variadics; j+=1){
+					const sema::Param::ID actual_variadic_param_id =
+						this->context.sema_buffer.createParam(i + j, abi_index + j);
+
+					this->get_current_scope_level().addIdentValueState(
+						actual_variadic_param_id, sema::ScopeLevel::ValueState::INIT
+					);
+
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().actual_variadic_params.emplace_back(
+						actual_variadic_param_id
+					);
+				}
+
+				abi_index += num_variadics - 1;
+
+			}else{
+				const sema::Param::ID sema_param_id = this->context.sema_buffer.createParam(i, abi_index);
+				if(this->add_ident_to_scope(param_name, param, true, sema_param_id).isError()){ return Result::ERROR; }
+				this->get_current_scope_level().addIdentValueState(sema_param_id, sema::ScopeLevel::ValueState::INIT);
 			}
 		}
 
@@ -5249,7 +5330,8 @@ namespace pcit::panther{
 			this->symbol_proc,
 			minimum_num_template_args,
 			std::move(template_params),
-			evo::SmallVector<bool>(instr.func_def.params.size(), false)
+			evo::SmallVector<bool>(instr.func_def.params.size(), false),
+			instr.func_def.isVariadic
 		);
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::TemplateFuncInfo>(
@@ -6045,8 +6127,6 @@ namespace pcit::panther{
 		}
 
 
-		auto interface_map_type = std::optional<TypeInfo::ID>();
-
 		if(instr.type_id.has_value()){
 			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
 
@@ -6099,10 +6179,6 @@ namespace pcit::panther{
 		}
 
 		const std::optional<TypeInfo::ID> type_id = [&]() -> std::optional<TypeInfo::ID> {
-			if(interface_map_type.has_value()){
-				return interface_map_type;
-			}
-
 			if(value_term_info.type_id.is<TypeInfo::ID>()){
 				return std::optional<TypeInfo::ID>(value_term_info.type_id.as<TypeInfo::ID>());
 			}
@@ -7088,6 +7164,25 @@ namespace pcit::panther{
 		const bool in_constexpr_func = this->get_current_func().isConstexpr;
 
 
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(instr.for_stmt.attributeBlock);
+
+		if(attribute_block.attributes.empty() == false){
+			const std::string_view first_attribute_str =
+				this->source.getTokenBuffer()[attribute_block.attributes[0].attribute].getString();
+
+			evo::debugAssert(first_attribute_str != "unroll", "Should be using unroll for instructions, not normal for");
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+				attribute_block.attributes[0].attribute,
+				std::format("Unknown [for] loop attribute #{}", first_attribute_str)
+			);
+			return Result::ERROR;
+			
+		}
+
+
 		auto index_type_id = std::optional<TypeInfo::ID>();
 		if(instr.for_stmt.index.has_value()){
 			const TypeInfo::VoidableID got_index_type_id = this->get_type(instr.types[0]);
@@ -7184,10 +7279,20 @@ namespace pcit::panther{
 
 
 			if(iterable.type_id.is<TypeInfo::ID>() == false){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				if(iterable.type_id.is<TermInfo::VariadicParamTypes>()){
+					infos.emplace_back(
+						"Variadic parameters can only be an interable in a [for] loop if the [for] loop is unrolled"
+					);
+					infos.emplace_back("Did you mean to give the [for] loop attribute `#unroll`?");
+				}
+
 				this->emit_error(
 					Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
 					instr.for_stmt.iterables[i],
-					"Invalid iterable in [for] loop"
+					"Invalid iterable in [for] loop",
+					std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -7554,6 +7659,302 @@ namespace pcit::panther{
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_begin_for_unroll(const Instruction::BeginForUnroll& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
+
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(instr.for_stmt.attributeBlock);
+
+		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "unroll"){ continue; }
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+				attribute.attribute,
+				std::format("Unknown [for] loop attribute #{}", attribute_str)
+			);
+			return Result::ERROR;
+		}
+
+		if(instr.index_type_id.has_value()){
+			if(this->context.getTypeManager().isIntegral(this->get_type(*instr.index_type_id)) == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INDEX_NOT_INTEGRAL,
+					instr.for_stmt.index->type,
+					"Index of [for] loop must be integral"
+				);
+			}
+			return Result::ERROR;
+		}
+
+		auto iterables_size = std::optional<size_t>();
+		for(size_t i = 0; SymbolProc::TermInfoID iterable_id : instr.iterables){
+			EVO_DEFER([&](){ i += 1; });
+
+			const TermInfo& iterable = this->get_term_info(iterable_id);
+
+			if(iterable.value_category != TermInfo::ValueCategory::VARIADIC_PARAM){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
+					instr.for_stmt.iterables[i],
+					"Invalid iterable in unrolled [for] loop"
+				);
+				return Result::ERROR;
+			}
+
+			if(iterables_size.has_value()){
+				if(*iterables_size != iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids.size()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
+						instr.for_stmt.iterables[i],
+						"Iterable in unrolled [for] loop is a different size"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				iterables_size = iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids.size();
+			}
+		}
+
+		const AST::Block& for_block = this->source.getASTBuffer().getBlock(instr.for_stmt.block);
+
+		const sema::ForUnroll::ID sema_for_unroll_id = this->context.sema_buffer.createForUnroll(
+			for_block.label, evo::SmallVector<sema::StmtBlock>(*iterables_size)
+		);
+		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_unroll_id);
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_for_unroll_cond(const Instruction::ForUnrollCond& instr) -> Result {
+		const TermInfo& first_iterable = this->get_term_info(instr.iterables[0]);
+		if(first_iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids.size() == instr.get_index()){
+			this->symbol_proc.setInstructionIndex(instr.end_index);
+			return Result::SUCCESS;
+		}
+
+
+		// this needs to be done BEFORE pushing scope in case needs to wait
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
+		auto param_type_ids = evo::SmallVector<TypeInfo::ID>();
+		for(size_t i = 0; const SymbolProc::TermInfoID& iterable_id : instr.iterables){
+			const TermInfo& iterable = this->get_term_info(iterable_id);
+
+			const TypeInfo::VoidableID for_param_type =
+				this->get_type(instr.types[i + size_t(instr.for_stmt.index.has_value())]);
+			const TypeInfo::ID variadic_param_type =
+				iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids[instr.get_index()];
+
+			const auto for_param_type_mismatch = [&]() -> void {
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(variadic_param_type, infos, "Expected type: ");
+				this->diagnostic_print_type_info(for_param_type, infos, "Got type:      ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
+					instr.for_stmt.values[i].type,
+					"Invalid [for] loop value parameter type",
+					std::move(infos)
+				);
+			};
+
+			if(for_param_type == variadic_param_type){
+				param_type_ids.emplace_back(for_param_type.asTypeID());
+
+			}else if(for_param_type.isVoid()){
+				for_param_type_mismatch();
+				return Result::ERROR;
+
+			}else if(
+				const TypeInfo::ID got_actual_type = this->get_actual_type<false, false>(for_param_type.asTypeID());
+				got_actual_type == this->get_actual_type<false, false>(variadic_param_type)
+			){
+				param_type_ids.emplace_back(got_actual_type);
+
+			}else if(this->context.getTypeManager().isTypeDeducer(for_param_type.asTypeID()) == false){
+				for_param_type_mismatch();
+				return Result::ERROR;
+
+			}else{
+				DeducerMatchOutput deducer_match_output = 
+					this->deducer_matches_and_extract(for_param_type.asTypeID(), variadic_param_type);
+
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH: {
+						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						param_type_ids.emplace_back(deducer_match_output.resultantTypeID());
+					} break;
+
+					case DeducerMatchOutput::Outcome::NO_MATCH: {
+						for_param_type_mismatch();
+						return Result::ERROR;
+					} break;
+
+					case DeducerMatchOutput::Outcome::RESULT: {
+						return deducer_match_output.result();
+					} break;
+				}
+			}
+
+			i += 1;
+		}
+
+
+
+
+		{
+			const sema::Stmt current_for_unroll_stmt = this->get_current_scope_level().stmtBlock().back();
+			sema::ForUnroll& current_for_unroll =
+				this->context.sema_buffer.for_unrolls[current_for_unroll_stmt.forUnrollID()];
+
+			if(current_for_unroll.label.has_value()){
+				this->push_scope_level(
+					current_for_unroll.stmtBlocks[instr.get_index()],
+					*current_for_unroll.label,
+					current_for_unroll_stmt.forUnrollID()
+				);
+			}else{
+				this->push_scope_level(&current_for_unroll.stmtBlocks[instr.get_index()]);
+			}
+		}
+
+
+		const BaseType::Function& current_func_type =
+			this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+
+		const BaseType::Function::Param::Kind variadic_param_kind = current_func_type.params.back().kind;
+
+
+		for(size_t i = 0; const SymbolProc::TermInfoID& iterable_id : instr.iterables){
+			EVO_DEFER([&](){ i += 1; });
+
+			const TermInfo& iterable = this->get_term_info(iterable_id);
+			evo::debugAssert(iterable.isVariadicParam(), "Unknown unroll for iterable");
+
+			// const sema::VariadicParam& variadic_param =
+			// 	this->context.getSemaBuffer().getVariadicParam(iterable.getVariadicParam().variadicParamID());
+
+
+			const bool for_param_is_mut = instr.for_stmt.values[i].isMut;
+
+			if(for_param_is_mut & (variadic_param_kind == BaseType::Function::Param::Kind::READ)){
+				this->emit_error(
+					Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
+					instr.for_stmt.iterables[i],
+					"Iterable in [for] loop is not mutable",
+					Diagnostic::Info(
+						"Required to be mutable by value parameter",
+						this->get_location(instr.for_stmt.values[i].ident)
+					)
+				);
+				return Result::ERROR;
+			}
+
+
+			const Token::ID for_param_ident_token_id = instr.for_stmt.values[i].ident; 
+			const std::string_view for_param_ident_str =
+				this->source.getTokenBuffer()[for_param_ident_token_id].getString();
+
+			const sema::Param::ID sema_param_id = 
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().actual_variadic_params[instr.get_index()];
+
+			const auto extracted_variadic_param =
+				sema::ScopeLevel::ExtractedVariadicParam(sema_param_id, param_type_ids[i], for_param_is_mut);
+
+			if(this->add_ident_to_scope(
+				for_param_ident_str, for_param_ident_token_id, true, extracted_variadic_param
+			).isError()){
+				return Result::ERROR;
+			}
+
+			switch(this->get_ident_value_state(sema_param_id)){
+				case TermInfo::ValueState::NOT_APPLICABLE: {
+					evo::debugFatalBreak("Shouldn't be possible to be not applicable value state");
+				} break;
+
+				case TermInfo::ValueState::INIT: {
+					// do nothing
+				} break;
+
+				case TermInfo::ValueState::INITIALIZING: {
+					evo::debugFatalBreak("Shouldn't be possible to be initializing");
+				} break;
+
+				case TermInfo::ValueState::UNINIT: {
+					this->emit_error(
+						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+						for_param_ident_token_id,
+						std::format("Variadic parameter index {} was uninitialized", i)
+					);
+					return Result::ERROR;
+				} break;
+
+				case TermInfo::ValueState::MOVED_FROM: {
+					this->emit_error(
+						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
+						for_param_ident_token_id,
+						std::format("Variadic parameter index {} was moved from", i)
+					);
+					return Result::ERROR;
+				} break;
+			}
+		}
+
+		// add index to scope (if exists)
+		if(instr.for_stmt.index.has_value()){
+			const Token::ID index_ident_token_id = instr.for_stmt.index->ident;
+			const std::string_view index_ident_str = this->source.getTokenBuffer()[index_ident_token_id].getString();
+
+			const TypeInfo::ID index_type_id = this->get_type(instr.types[0]).asTypeID();
+			const BaseType::ID index_base_type_id =
+				this->context.getTypeManager().getTypeInfo(index_type_id).baseTypeID();
+
+			const unsigned index_type_num_bits = unsigned(this->context.getTypeManager().numBits(index_base_type_id));
+			const bool is_signed = this->context.getTypeManager().isSignedIntegral(index_base_type_id);
+
+			if(this->add_ident_to_scope(
+				index_ident_str,
+				index_ident_token_id,
+				true,
+				sema::ScopeLevel::ForUnrollIndexFlag{},
+				index_type_id,
+				sema::Expr(
+					this->context.sema_buffer.createIntValue(
+						core::GenericInt(index_type_num_bits, instr.get_index(), is_signed),
+						index_base_type_id
+					)
+				),
+				index_ident_token_id
+			).isError()){
+				return Result::ERROR;
+			}
+		}
+
+
+		this->get_current_scope_level().setIsLoopMainScope();
+
+		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){ return Result::ERROR; }
+
+		instr.next_index();
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_for_unroll_continue(const Instruction::ForUnrollContinue& instr) -> Result {
+		if(this->add_auto_delete_calls<AutoDeleteMode::NORMAL>().isError()){ return Result::ERROR; }
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
+
+		this->symbol_proc.setInstructionIndex(instr.cond_index);
+
+		return Result::SUCCESS;
+	}
+
 
 
 
@@ -14553,10 +14954,16 @@ namespace pcit::panther{
 
 
 		if(expr.value_state != TermInfo::ValueState::INIT && expr.value_state != TermInfo::ValueState::NOT_APPLICABLE){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			if(expr.value_state == TermInfo::ValueState::MOVED_FROM){
+				infos.emplace_back("Argument was already moved from");
+			}
+
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 				instr.infix.lhs,
-				"Argument for operator [as] must be initialized"
+				"Argument for operator [as] must be initialized",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -17058,14 +17465,13 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TYPE_INT:     case Token::Kind::TYPE_ISIZE:       case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_F16:         case Token::Kind::TYPE_BF16:
-			case Token::Kind::TYPE_F32:     case Token::Kind::TYPE_F64:         case Token::Kind::TYPE_F80:
-			case Token::Kind::TYPE_F128:    case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_BOOL:
-			case Token::Kind::TYPE_CHAR:    case Token::Kind::TYPE_RAWPTR:      case Token::Kind::TYPE_TYPEID:
-			case Token::Kind::TYPE_C_WCHAR: case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
-			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F32:          case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_BYTE:          case Token::Kind::TYPE_BOOL:         case Token::Kind::TYPE_CHAR:
+			case Token::Kind::TYPE_RAWPTR:        case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:
+			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
+			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
@@ -17077,11 +17483,53 @@ namespace pcit::panther{
 			} break;
 
 
+			case Token::Kind::TYPE_F16: {
+				// TODO(FUTURE): not supported on WASM
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_BF16: {
+				// TODO(FUTURE): not supported on WASM, SPIR
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_F80: {
+				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
+					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						instr.ast_type,
+						"Type `F80` is currenlty unimplemented on this platform"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->get_package().warn.experimentalF80){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_EXPERIMENTAL_F80,
+						instr.ast_type,
+						"Type `F80` is experimental, and may not work as expected"
+					);
+				}
+
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_F128: {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.ast_type,
+					"Type `F128` is currenlty unimplemented"
+				);
+				return Result::ERROR;
+			} break;
+
+
 			case Token::Kind::TYPE_TYPE: {
 				this->emit_error(
 					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
 					instr.ast_type,
-					"Type \"Type\" may only be used in a template pack declaration"
+					"Type `Type` may only be used in a template pack declaration"
 				);
 				return Result::ERROR;
 			} break;
@@ -20323,6 +20771,7 @@ namespace pcit::panther{
 				const sema::Func& current_func = this->get_current_func();
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
+
 				const size_t param_index = size_t(this->context.getSemaBuffer().getParam(ident_id).index);
 				const BaseType::Function::Param& param = current_func_type.params[param_index];
 
@@ -20361,6 +20810,69 @@ namespace pcit::panther{
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, sema::VariadicParam::ID>()){
+				const sema::VariadicParam& variadic_param = this->context.getSemaBuffer().getVariadicParam(ident_id);
+
+				const sema::Func& current_func = this->get_current_func();
+				const BaseType::Function& current_func_type = 
+					this->context.getTypeManager().getFunction(current_func.typeID);
+
+				auto variadic_param_types = evo::SmallVector<TypeInfo::ID>();
+				variadic_param_types.reserve(variadic_param.numParams);
+				for(
+					size_t i = variadic_param.startIndex;
+					i < variadic_param.startIndex + variadic_param.numParams;
+					i+=1
+				){
+					variadic_param_types.emplace_back(current_func_type.params[i].typeID);
+				}
+
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::VARIADIC_PARAM,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
+						sema::Expr(ident_id)
+					)
+				);
+
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ExtractedVariadicParam>()){
+				const sema::Func& current_func = this->get_current_func();
+
+				const TermInfo::ValueCategory value_category = [&]() -> TermInfo::ValueCategory {
+					if(ident_id.is_mut){
+						const BaseType::Function& current_func_type = 
+							this->context.getTypeManager().getFunction(current_func.typeID);
+
+						const size_t param_index =
+							size_t(this->context.getSemaBuffer().getParam(ident_id.param_id).index);
+						const BaseType::Function::Param& param = current_func_type.params[param_index];
+
+						switch(param.kind){
+							case BaseType::Function::Param::Kind::READ: evo::debugFatalBreak("Not mutable");
+							case BaseType::Function::Param::Kind::MUT:  return TermInfo::ValueCategory::CONCRETE_MUT;
+							case BaseType::Function::Param::Kind::IN:   return TermInfo::ValueCategory::FORWARDABLE;
+							case BaseType::Function::Param::Kind::C:    evo::debugFatalBreak("invalid here");
+						}
+
+						evo::unreachable();
+
+					}else{
+						return TermInfo::ValueCategory::CONCRETE_CONST;
+					}
+				}();
+
+				return ReturnType(
+					TermInfo(
+						value_category,
+						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						this->get_ident_value_state(ident_id.param_id),
+						ident_id.type_id,
+						sema::Expr(ident_id.param_id)
 					)
 				);
 
@@ -20771,6 +21283,17 @@ namespace pcit::panther{
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ForUnrollIndex>()){
+				return ReturnType(
+					TermInfo(
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						ident_id.typeID,
+						ident_id.value
+					)
+				);
+
 			}else{
 				static_assert(false, "Unsupported IdentID");
 			}
@@ -20811,6 +21334,8 @@ namespace pcit::panther{
 
 				sema::ScopeLevel::ValueStateInfo::ModifyInfo& modify_info = 
 					value_state_info.info.as<sema::ScopeLevel::ValueStateInfo::ModifyInfo>();
+
+				if(modify_info.num_sub_scopes == 0){ continue; }
 
 				if(modify_info.num_sub_scopes != current_scope_level.numUnterminatedSubScopes()){
 					this->emit_error(
@@ -20963,7 +21488,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ARRAY_REF_SIZE:                case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
 			case sema::Expr::Kind::ARRAY_REF_DATA:                case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
 			case sema::Expr::Kind::UNION_TAG_CMP:                 case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::GLOBAL_VAR:                    case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::VARIADIC_PARAM:                case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return;
 			} break;
 		}
@@ -21405,11 +21931,18 @@ namespace pcit::panther{
 						}
 
 						if(arg_info.term_info.getExpr().kind() != sema::Expr::Kind::COPY){
-							const TypeInfo::ID arg_type_info_id = arg_info.term_info.type_id.as<TypeInfo::ID>();
-							if(this->context.getTypeManager().isMovable(arg_type_info_id) == false){
-								scores.emplace_back(OverloadScore::InArgNotMovable(arg_i));
-								arg_checking_failed = true;
-								break;
+							if(arg_info.term_info.type_id.is<TypeInfo::ID>()){
+								const TypeInfo::ID arg_type_info_id = arg_info.term_info.type_id.as<TypeInfo::ID>();
+								if(this->context.getTypeManager().isMovable(arg_type_info_id) == false){
+									scores.emplace_back(OverloadScore::InArgNotMovable(arg_i));
+									arg_checking_failed = true;
+									break;
+								}
+							}else{
+								evo::debugAssert(
+									arg_info.term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID,
+									"Unknown value category for argument"
+								);
 							}
 						}
 					} break;
@@ -22890,34 +23423,43 @@ namespace pcit::panther{
 			const size_t got_num_args = args.size();
 
 			if(expected_num_args != got_num_args){
-				return evo::Unexpected<TemplateOverloadMatchFail>(
-					TemplateOverloadMatchFail(TemplateOverloadMatchFail::WrongNumArgs(expected_num_args, got_num_args))
-				);
+				if(templated_func.isVariadic == false || expected_num_args > got_num_args){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(
+							TemplateOverloadMatchFail::WrongNumArgs(expected_num_args, got_num_args)
+						)
+					);
+				}
 			}
 		}
 
 		auto arg_types = evo::SmallVector<std::optional<TypeInfo::ID>>();
 		arg_types.reserve(args.size());
-		for(size_t i = size_t(is_method); const SymbolProc::TermInfoID arg_id : args){
-			const TermInfo& arg = this->get_term_info(arg_id);
-			if(arg.type_id.is<TypeInfo::ID>()){
-				arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
+		{
+			size_t param_i = size_t(is_method);
+			size_t arg_i = 0;
+			for(const SymbolProc::TermInfoID arg_id : args){
+				const TermInfo& arg = this->get_term_info(arg_id);
+				if(arg.type_id.is<TypeInfo::ID>()){
+					if(templated_func.paramIsDeducer[param_i]){
+						instantiation_lookup_args.emplace_back(arg.type_id.as<TypeInfo::ID>());
+					}
+					arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
 
-				if(templated_func.paramIsDeducer[i]){
-					instantiation_lookup_args.emplace_back(arg.type_id.as<TypeInfo::ID>());
+				}else{
+					if(templated_func.paramIsDeducer[param_i]){
+						return evo::Unexpected<TemplateOverloadMatchFail>(
+							TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(arg_i))
+						);
+					}
+					arg_types.emplace_back(std::nullopt);
 				}
 
-			}else{
-				if(templated_func.paramIsDeducer[i]){
-					return evo::Unexpected<TemplateOverloadMatchFail>(
-						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(i - size_t(is_method)))
-					);
-				}
-				arg_types.emplace_back(std::nullopt);
+				if(param_i + 1 < templated_func.paramIsDeducer.size()){ param_i += 1; }
+				arg_i += 1;
 			}
-
-			i += 1;
 		}
+
 
 
 		const sema::TemplatedFunc::InstantiationInfo instantiation_info = 
@@ -27459,6 +28001,10 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<TypeID, TermInfo::TaggedUnionFieldAccessor>()){
 				// TODO(FEATURE): actual name?
 				return "{TAGGED UNION FIELD ACCESSOR}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::VariadicParamTypes>()){
+				// TODO(FEATURE): actual name?
+				return "{VARIADIC PARAM}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

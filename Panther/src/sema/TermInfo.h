@@ -51,6 +51,7 @@ namespace pcit::panther{
 			TEMPLATE_DECL_INSTANTIATION_TYPE,
 			EXCEPT_PARAM_PACK,
 			TAGGED_UNION_FIELD_ACCESSOR,
+			VARIADIC_PARAM,
 		};
 
 		enum class ValueStage{
@@ -74,6 +75,7 @@ namespace pcit::panther{
 		struct FluidType{};
 		struct TemplateDeclInstantiationType{};
 		struct ExceptParamPack{};
+		struct VariadicParamTypes{ evo::SmallVector<TypeInfo::ID> type_ids; };
 
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
@@ -117,7 +119,8 @@ namespace pcit::panther{
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
 			TemplateIntrinsicFunc::Kind,    // TEMPLATE_INTRINSIC_FUNC
-			TaggedUnionFieldAccessor        // TAGGED_UNION_FIELD_ACCESSOR
+			TaggedUnionFieldAccessor,       // TAGGED_UNION_FIELD_ACCESSOR
+			VariadicParamTypes              // VARIADIC_PARAM
 		>;
 
 		ValueCategory value_category;
@@ -318,6 +321,9 @@ namespace pcit::panther{
 
 					break; case ValueCategory::TAGGED_UNION_FIELD_ACCESSOR:
 						evo::debugFatalBreak("Incorrect TermInfo creation");
+
+					break; case ValueCategory::VARIADIC_PARAM:
+						evo::debugAssert(this->type_id.is<VariadicParamTypes>(), "Incorrect TermInfo creation");
 				}
 			}
 
@@ -551,7 +557,7 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// multi-value
+		// except param pack
 
 		EVO_NODISCARD auto isExceptParamPack() const -> bool {
 			return this->type_id.is<ExceptParamPack>();
@@ -563,8 +569,21 @@ namespace pcit::panther{
 		}
 
 
+		//////////////////
+		// variadic param
+
+		EVO_NODISCARD auto isVariadicParam() const -> bool {
+			return this->type_id.is<VariadicParamTypes>();
+		}
+
+		EVO_NODISCARD auto getVariadicParam() const -> const sema::Expr& {
+			evo::debugAssert(this->isVariadicParam(), "does not hold variadic param");
+			return this->exprs[0];
+		}
+
+
 		private:
-			evo::SmallVector<sema::Expr> exprs; // empty if from ValueCategory::Module
+			evo::SmallVector<sema::Expr> exprs;
 	};
 	
 

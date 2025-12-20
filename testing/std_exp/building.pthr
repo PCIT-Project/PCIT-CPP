@@ -8,31 +8,14 @@ type Package = struct #pub {
 		return...;
 	}
 
-	// func new = (warning_settings: @build.PackageWarningSettings in, path: [Char:$$;'\0']*) #rt -> (output: This) {
-	// 	output = new Package(forward warning_settings, path.* as [Char:*]);
-	// 	return...;
-	// }
-
-
 
 	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
 		@buildAddSourceFile(path, this.package_id);
 	}
 
-	func addSourceFile = (this, path: [Char:$$;'\0']*) #rt -> Void {
-		this.addSourceFile(path.* as [Char:*]);
-	}
-
-
-
 	func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
 		@buildAddSourceDirectory(path, this.package_id, is_recursive);
 	}
-
-	func addSourceDirectory = (this, path: [Char:$$;'\0']*, is_recursive: Bool) #rt -> Void {
-		this.addSourceDirectory(path.* as [Char:*], is_recursive);
-	}
-
 
 	
 	const package_id: @build.PackageID;
@@ -59,14 +42,10 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 		deleteMovedFromExpr          = true,
 		deleteTriviallyDeletableType = true,
 		constexprIfCond              = true,
+		experimentalF80              = true,
 	};
 
 	const std_lib_package = new Package(path, "std".* as [Char:*], copy warns);
-	std_lib_package.addSourceDirectory("./", true);
+	std_lib_package.addSourceDirectory("./".* as [Char:*], true);
 	setStdLibPackage(std_lib_package);
-}
-
-
-func addStdLib = (path: [Char:$$;'\0']*) #pub #rt -> Void {
-	addStdLib(path.* as [Char:*]);
 }

@@ -299,7 +299,7 @@ namespace pcit::panther{
 			case Result::Code::ERROR:     return Result::Code::ERROR;	
 		}
 
-		evo::Result<evo::SmallVector<AST::FuncDef::Param>> params = this->parse_func_params();
+		evo::Result<FuncParams> params = this->parse_func_params();
 		if(params.isError()){ return Result::Code::ERROR; }
 
 
@@ -337,7 +337,8 @@ namespace pcit::panther{
 			return this->source.ast_buffer.createFuncDef(
 				name,
 				template_pack_node,
-				std::move(params.value()),
+				std::move(params.value().params),
+				params.value().is_variadic,
 				attribute_block.value(),
 				std::move(returns.value()),
 				std::move(error_returns.value()),
@@ -350,7 +351,8 @@ namespace pcit::panther{
 					return this->source.ast_buffer.createFuncDef(
 						name,
 						template_pack_node,
-						std::move(params.value()),
+						std::move(params.value().params),
+						params.value().is_variadic,
 						attribute_block.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -368,7 +370,8 @@ namespace pcit::panther{
 					return this->source.ast_buffer.createFuncDef(
 						name,
 						template_pack_node,
-						std::move(params.value()),
+						std::move(params.value().params),
+						params.value().is_variadic,
 						attribute_block.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -780,7 +783,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("("): {
-					evo::Result<evo::SmallVector<AST::FuncDef::Param>> params = this->parse_func_params();
+					evo::Result<FuncParams> params = this->parse_func_params();
 					if(params.isError()){ return Result::Code::ERROR; }
 
 
@@ -805,7 +808,8 @@ namespace pcit::panther{
 					const AST::Node created_func_def_node = this->source.ast_buffer.createFuncDef(
 						ASTBuffer::getIdent(method_ident.value()),
 						std::nullopt,
-						std::move(params.value()),
+						std::move(params.value().params),
+						params.value().is_variadic,
 						attribute_block.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -1206,7 +1210,7 @@ namespace pcit::panther{
 
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_READ: {
-					// do nothing...
+					this->reader.skip();
 				} break;
 
 				case Token::Kind::KEYWORD_MUT: {
@@ -1279,6 +1283,13 @@ namespace pcit::panther{
 
 
 		//////////////////
+		// attributes
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+
+		//////////////////
 		// block
 
 		const Result block = this->parse_block(BlockLabelRequirement::OPTIONAL);
@@ -1289,7 +1300,7 @@ namespace pcit::panther{
 		// done
 
 		return this->source.ast_buffer.createFor(
-			keyword, std::move(iterables), index, std::move(values), block.value()
+			keyword, std::move(iterables), index, std::move(values), attributes.value(), block.value()
 		);
 	}
 
@@ -2982,8 +2993,10 @@ namespace pcit::panther{
 	}
 
 
-	auto Parser::parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDef::Param>> {
+	auto Parser::parse_func_params() -> evo::Result<FuncParams> {
 		auto params = evo::SmallVector<AST::FuncDef::Param>();
+		auto found_variadic_token = std::optional<Token::ID>();
+
 		if(this->expect_token(Token::lookupKind("("), "to open parameter block in function definition").isError()){
 			return evo::resultError;
 		}
@@ -3022,6 +3035,21 @@ namespace pcit::panther{
 				}
 				param_type = type.value();
 			}
+
+
+			if(found_variadic_token.has_value()){
+				this->context.emitError(
+					Diagnostic::Code::PARSER_INVALID_VARIADIC_PARAM,
+					Diagnostic::Location::get(*found_variadic_token, this->source),
+					"Invalid variadic function parameter",
+					evo::SmallVector<Diagnostic::Info>{Diagnostic::Info("Only the last parameter can be variadic")}
+				);
+				return evo::resultError;
+				
+			}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("...")){
+				found_variadic_token = this->reader.next();
+			}
+
 
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_READ: {
@@ -3088,7 +3116,7 @@ namespace pcit::panther{
 			}
 		}
 
-		return params;
+		return FuncParams(std::move(params), found_variadic_token.has_value());
 	}
 
 

@@ -164,7 +164,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto parse_template_pack() -> Result;
 
-			EVO_NODISCARD auto parse_func_params() -> evo::Result<evo::SmallVector<AST::FuncDef::Param>>;
+			struct FuncParams{
+				evo::SmallVector<AST::FuncDef::Param> params;
+				bool is_variadic;
+			};
+			EVO_NODISCARD auto parse_func_params() -> evo::Result<FuncParams>;
 
 			template<bool ALLOW_RETURN_DEDUCERS>
 			EVO_NODISCARD auto parse_func_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>>;

@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.208.0"></a>
+## v0.0.208.0
+
+### Panther
+- Added variadic function parameters
+- Added attribute `#unroll` for `for` loops with variadic function parameters
+- Added error that `F128` is unimplemented
+- Added warning `@built.PackageWarningSettings.experimentalF80`
+	- "Type `F80` is experimental, and may not work as expected"
+- Fixed value state checking for function parameters
+- Fixed `for` params with explicit `read`
+- Fixed value state tracking failing when a value state was changed in a sub-scope which also contained an `if` statement (after the value state change)
+
+
+<!---------------------------------->
 <a name="v0.0.207.1"></a>
 ## v0.0.207.1
 

@@ -1,12 +1,24 @@
 
+func sum = (nums: $$... in) -> Int {
+	var output: Int = 0;
+
+	for(nums) [I: USize; num: $NumType mut] #unroll {
+		when(I == 0){
+			const num_copy: NumType = forward num;
+			output += num_copy as Int;
+		}else{
+			output += num as Int / 2;
+		}
+	}
+
+	return copy output;
+}
+
+
 
 func entry = () #entry -> UI8 {
-	var arr = new [Int:4][1, 2, 3, 4];
-	const coefs = new [Int:4][1, 0, 2, 5];
-	
-	for(arr, coefs) [_; val: $$ mut, coef: Int] {
-		val *= coef;
-	}
-	
-	return (arr == new [Int:4][1, 0, 6, 20]) as UI8;
+	const sum_res: Int = sum(12 as I32, 14.0 as F32);
+	return (sum_res == 19) as UI8;
 }
+
+

@@ -161,17 +161,13 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
 		panther::Source::Package{
 			.basePath = cmd_args_config.workingDirectory,
-			.warn = panther::Source::Package::Warns{
-				.methodCallOnNonMethod        = true,
-				.deleteMovedFromExpr          = true,
-				.deleteTriviallyDeletableType = true,
-				.constexprIfCond              = true,
-			},
+			.warn     = panther::Source::Package::Warns::all(),
 		}
 	);
 
 	if(package_res.has_value() == false){
 		// TODO(FUTURE): handle fail
+		evo::debugFatalBreak("Failed to create build package");
 	}
 
 	std::ignore = context.addSourceFile("build.pthr", *package_res);

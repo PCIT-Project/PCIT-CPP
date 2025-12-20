@@ -141,6 +141,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_end_while(const Instruction::EndWhile& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_for(const Instruction::BeginFor& instr) -> Result;
 			EVO_NODISCARD auto instr_end_for(const Instruction::EndFor& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_for_unroll(const Instruction::BeginForUnroll& instr) -> Result;
+			EVO_NODISCARD auto instr_for_unroll_cond(const Instruction::ForUnrollCond& instr) -> Result;
+			EVO_NODISCARD auto instr_for_unroll_continue(const Instruction::ForUnrollContinue& instr) -> Result;
 			EVO_NODISCARD auto instr_end_while() -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer(const Instruction::EndDefer& instr) -> Result;
@@ -659,7 +662,7 @@ namespace pcit::panther{
 					return *this->_result;
 				}
 
-				EVO_NODISCARD auto deducedTerms() const&-> evo::ArrayProxy<DeducedTerm> {
+				EVO_NODISCARD auto deducedTerms() const& -> evo::ArrayProxy<DeducedTerm> {
 					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
 					return this->_deduced_terms;
 				}
@@ -1118,6 +1121,11 @@ namespace pcit::panther{
 				return this->get_location(union_field.location);
 			}
 
+			EVO_NODISCARD auto get_location(const sema::ScopeLevel::ForUnrollIndex& for_unroll_index) const
+			-> Diagnostic::Location {
+				return this->get_location(for_unroll_index.location);
+			}
+
 			EVO_NODISCARD auto get_location(sema::Func::ID func_id) const -> Diagnostic::Location {
 				return Diagnostic::Location::get(func_id, this->context);
 			}
@@ -1153,6 +1161,20 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getFuncDef(this->symbol_proc.ast_node);
 
 				return this->get_location(current_ast_func.params[param.index].name);
+			}
+
+			EVO_NODISCARD auto get_location(sema::VariadicParamID param_id) const -> Diagnostic::Location {
+				const sema::VariadicParam& param = this->context.getSemaBuffer().getVariadicParam(param_id);
+
+				const AST::FuncDef& current_ast_func =
+					this->source.getASTBuffer().getFuncDef(this->symbol_proc.ast_node);
+
+				return this->get_location(current_ast_func.params[param.startIndex].name);
+			}
+
+			EVO_NODISCARD auto get_location(sema::ScopeLevel::ExtractedVariadicParam extracted_variadic_param) const
+			-> Diagnostic::Location {
+				return this->get_location(extracted_variadic_param.param_id);
 			}
 
 			EVO_NODISCARD auto get_location(sema::ReturnParam::ID return_param_id) const -> Diagnostic::Location {

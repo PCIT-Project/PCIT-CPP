@@ -505,6 +505,15 @@ namespace pcit::panther::sema{
 		StmtBlock block{};
 	};
 
+	struct ForUnroll{
+		using ID = ForUnrollID;
+
+		std::optional<Token::ID> label;
+		evo::SmallVector<StmtBlock> stmtBlocks{};
+	};
+
+
+
 	struct Defer{
 		using ID = DeferID;
 
@@ -519,6 +528,14 @@ namespace pcit::panther::sema{
 
 		uint32_t index;
 		uint32_t abiIndex;
+	};
+
+	struct VariadicParam{
+		using ID = VariadicParamID;
+		
+		uint32_t startIndex;
+		uint32_t startABIIndex;
+		uint32_t numParams;
 	};
 
 	struct ReturnParam{
@@ -722,6 +739,7 @@ namespace pcit::panther::sema{
 		size_t minNumTemplateArgs;
 		evo::SmallVector<TemplateParam> templateParams;
 		evo::SmallVector<bool> paramIsDeducer;
+		bool isVariadic;
 
 		struct InstantiationInfo{
 			Instantiation& instantiation;
@@ -742,12 +760,14 @@ namespace pcit::panther::sema{
 			SymbolProc& symbol_proc,
 			size_t min_num_template_args,
 			evo::SmallVector<TemplateParam>&& template_params,
-			evo::SmallVector<bool>&& param_is_deducer
+			evo::SmallVector<bool>&& param_is_deducer,
+			bool is_variadic
 		) : 
 			symbolProc(symbol_proc), 
 			minNumTemplateArgs(min_num_template_args),
 			templateParams(std::move(template_params)),
-			paramIsDeducer(std::move(param_is_deducer))
+			paramIsDeducer(std::move(param_is_deducer)),
+			isVariadic(is_variadic)
 		{}
 
 		private:

@@ -203,7 +203,7 @@ namespace pcit::panther{
 						if(token.kind() == Token::Kind::KEYWORD_THIS){
 							return std::string("this");
 						}else{
-							return std::string(token.getString());
+							return std::format("PARAM.{}.{}", i, token.getString());
 						}
 					}
 				}
@@ -255,7 +255,6 @@ namespace pcit::panther{
 					param_infos.emplace_back(this->get_type<false>(param.typeID), std::nullopt);
 				}
 			}
-
 		}
 
 		bool is_implicit_rvo = false;
@@ -1550,24 +1549,48 @@ namespace pcit::panther{
 					const std::string_view label =
 						this->current_source->getTokenBuffer()[*break_stmt.label].getString();
 
+					#if defined(PCIT_CONFIG_DEBUG)
+						bool found_loop = false;
+					#endif
+
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::BREAK>(scope_level);
 
 						if(scope_level.label == label){
+							#if defined(PCIT_CONFIG_DEBUG)
+								found_loop = true;
+							#endif
+
 							this->agent.createJump(*scope_level.end_block);
 							break;
 						}
 					}
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						evo::debugAssert(found_loop, "Labeled loop block not found");
+					#endif
 					
 				}else{
+					#if defined(PCIT_CONFIG_DEBUG)
+						bool found_loop = false;
+					#endif
+
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::BREAK>(scope_level);
 
 						if(scope_level.is_loop){
+							#if defined(PCIT_CONFIG_DEBUG)
+								found_loop = true;
+							#endif
+
 							this->agent.createJump(*scope_level.end_block);
 							break;
 						}
 					}
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						evo::debugAssert(found_loop, "No loop block to break to found");
+					#endif
 				}
 			} break;
 
@@ -1578,24 +1601,48 @@ namespace pcit::panther{
 					const std::string_view label =
 						this->current_source->getTokenBuffer()[*continue_stmt.label].getString();
 
+					#if defined(PCIT_CONFIG_DEBUG)
+						bool found_loop = false;
+					#endif
+
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::CONTINUE>(scope_level);
 
 						if(scope_level.label == label){
+							#if defined(PCIT_CONFIG_DEBUG)
+								found_loop = true;
+							#endif
+
 							this->agent.createJump(*scope_level.begin_block);
 							break;
 						}
 					}
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						evo::debugAssert(found_loop, "Labeled loop block not found");
+					#endif
 					
 				}else{
+					#if defined(PCIT_CONFIG_DEBUG)
+						bool found_loop = false;
+					#endif
+
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::CONTINUE>(scope_level);
 
 						if(scope_level.is_loop){
+							#if defined(PCIT_CONFIG_DEBUG)
+								found_loop = true;
+							#endif
+
 							this->agent.createJump(*scope_level.begin_block);
 							break;
 						}
 					}
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						evo::debugAssert(found_loop, "No loop block to continue to found");
+					#endif
 				}
 			} break;
 
@@ -1947,6 +1994,53 @@ namespace pcit::panther{
 
 				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
 					this->delete_expr(iterator_alloca, iterator_type_ids[i]);
+				}
+			} break;
+
+			case sema::Stmt::Kind::FOR_UNROLL: {
+				const sema::ForUnroll& for_unroll_stmt = this->context.getSemaBuffer().getForUnroll(stmt.forUnrollID());
+
+				if(for_unroll_stmt.stmtBlocks.empty()){ break; }
+
+				auto basic_blocks = evo::SmallVector<pir::BasicBlock::ID>();
+				basic_blocks.reserve(for_unroll_stmt.stmtBlocks.size());
+				for(size_t i = 1; i < for_unroll_stmt.stmtBlocks.size(); i+=1){ // yes, skip index 0
+					basic_blocks.emplace_back(this->agent.createBasicBlock(this->name("FOR_UNROLL.LOOP_{}", i)));
+				}
+				basic_blocks.emplace_back(this->agent.createBasicBlock(this->name("FOR_UNROLL.END")));
+
+				const std::string_view label_name_str = [&]() -> std::string_view {
+					if(for_unroll_stmt.label.has_value()){
+						return this->current_source->getTokenBuffer()[*for_unroll_stmt.label].getString();
+					}else{
+						return "";
+					}
+				}();
+
+
+				for(size_t i = 0; const sema::StmtBlock& stmt_block : for_unroll_stmt.stmtBlocks){
+					EVO_DEFER([&](){ i += 1; });
+
+
+					this->push_scope_level(
+						label_name_str, evo::SmallVector<pir::Expr>(), basic_blocks[i], basic_blocks.back(), true
+					);
+
+					for(const sema::Stmt& block_stmt : stmt_block){
+						this->lower_stmt(block_stmt);
+					}
+
+					if(stmt_block.isTerminated() == false){
+						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
+					}
+
+					this->pop_scope_level();
+
+					if(stmt_block.isTerminated() == false){
+						this->agent.createJump(basic_blocks[i]);
+					}
+
+					this->agent.setTargetBasicBlock(basic_blocks[i]);
 				}
 			} break;
 
@@ -8603,10 +8697,11 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
 			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:              case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:         case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::FOR_PARAM:                 case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:                case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::VARIADIC_PARAM:            case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:        case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:              case sema::Expr::Kind::FOR_PARAM:
+			case sema::Expr::Kind::VAR:                       case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

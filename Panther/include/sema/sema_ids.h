@@ -256,6 +256,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ForID>::UniqueID;
 	};
 
+	struct ForUnrollID : public core::UniqueID<uint32_t, struct ForUnrollID> {
+		using core::UniqueID<uint32_t, ForUnrollID>::UniqueID;
+	};
+
 	struct DeferID : public core::UniqueID<uint32_t, struct DeferID> {
 		using core::UniqueID<uint32_t, DeferID>::UniqueID;
 	};
@@ -289,6 +293,10 @@ namespace pcit::panther::sema{
 
 	struct ParamID : public core::UniqueID<uint32_t, struct ParamID> {
 		using core::UniqueID<uint32_t, ParamID>::UniqueID;
+	};
+
+	struct VariadicParamID : public core::UniqueID<uint32_t, struct VariadicParamID> {
+		using core::UniqueID<uint32_t, VariadicParamID>::UniqueID;
 	};
 
 	struct ReturnParamID : public core::UniqueID<uint32_t, struct ReturnParamID> {
@@ -780,6 +788,17 @@ namespace pcit::core{
 	};
 
 	template<>
+	struct OptionalInterface<panther::sema::ForUnrollID>{
+		static constexpr auto init(panther::sema::ForUnrollID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::ForUnrollID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
 	struct OptionalInterface<panther::sema::DeferID>{
 		static constexpr auto init(panther::sema::DeferID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
@@ -863,6 +882,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::ParamID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::VariadicParamID>{
+		static constexpr auto init(panther::sema::VariadicParamID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::VariadicParamID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1747,6 +1777,21 @@ namespace std{
 
 
 	template<>
+	struct hash<pcit::panther::sema::ForUnrollID>{
+		auto operator()(pcit::panther::sema::ForUnrollID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::ForUnrollID> : public pcit::core::Optional<pcit::panther::sema::ForUnrollID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::ForUnrollID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::ForUnrollID>::operator=;
+	};
+
+
+
+	template<>
 	struct hash<pcit::panther::sema::DeferID>{
 		auto operator()(pcit::panther::sema::DeferID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
@@ -1868,6 +1913,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ParamID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ParamID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::VariadicParamID>{
+		auto operator()(pcit::panther::sema::VariadicParamID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::VariadicParamID>
+		: public pcit::core::Optional<pcit::panther::sema::VariadicParamID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::VariadicParamID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::VariadicParamID>::operator=;
 	};
 
 

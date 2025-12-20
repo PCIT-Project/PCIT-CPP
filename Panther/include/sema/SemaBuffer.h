@@ -135,6 +135,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// variadic params
+
+			EVO_NODISCARD auto createVariadicParam(auto&&... args) -> sema::VariadicParam::ID {
+				return this->variadic_params.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getVariadicParam(sema::VariadicParam::ID id) const -> const sema::VariadicParam& {
+				return this->variadic_params[id];
+			}
+
+
+			///////////////////////////////////
 			// return params
 
 			EVO_NODISCARD auto createReturnParam(auto&&... args) -> sema::ReturnParam::ID {
@@ -361,6 +373,18 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getFor(sema::For::ID id) const -> const sema::For& {
 				return this->fors[id];
+			}
+
+
+			///////////////////////////////////
+			// for unrolls
+
+			EVO_NODISCARD auto createForUnroll(auto&&... args) -> sema::ForUnroll::ID {
+				return this->for_unrolls.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getForUnroll(sema::ForUnroll::ID id) const -> const sema::ForUnroll& {
+				return this->for_unrolls[id];
 			}
 
 
@@ -922,6 +946,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};
 			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
+			core::SyncLinearStepAlloc<sema::VariadicParam, sema::VariadicParam::ID> variadic_params{};
 			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};
 			core::SyncLinearStepAlloc<sema::ErrorReturnParam, sema::ErrorReturnParam::ID> error_return_params{};
 			core::SyncLinearStepAlloc<sema::BlockExprOutput, sema::BlockExprOutput::ID> block_expr_outputs{};
@@ -942,6 +967,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 			core::SyncLinearStepAlloc<sema::For, sema::For::ID> fors{};
+			core::SyncLinearStepAlloc<sema::ForUnroll, sema::ForUnroll::ID> for_unrolls{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
 			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
 			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};

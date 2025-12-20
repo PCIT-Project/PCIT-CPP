@@ -43,7 +43,7 @@ namespace pcit::panther::sema{
 					// The type of `object_scope` must be one of the ones in EncapsulatingSymbolID
 					auto pushLevel(ScopeLevel::ID id, auto&& object_scope) -> void {
 						this->pushLevel(id);
-						this->object_scopes.emplace_back(
+						this->encapsulating_symbols.emplace_back(
 							EncapsulatingSymbolID(std::move(object_scope)), uint32_t(this->scope_levels.size())
 						);
 					}
@@ -51,7 +51,7 @@ namespace pcit::panther::sema{
 					// The type of `object_scope` must be one of the ones in EncapsulatingSymbolID
 					auto pushLevel(ScopeLevel::ID id, const auto& object_scope) -> void {
 						this->pushLevel(id);
-						this->object_scopes.emplace_back(
+						this->encapsulating_symbols.emplace_back(
 							EncapsulatingSymbolID(object_scope), uint32_t(this->scope_levels.size())
 						);
 					}
@@ -61,9 +61,9 @@ namespace pcit::panther::sema{
 
 						if(
 							this->inEncapsulatingSymbol() && 
-							this->object_scopes.back().scope_level_index == uint32_t(this->scope_levels.size())
+							this->encapsulating_symbols.back().scope_level_index == uint32_t(this->scope_levels.size())
 						){
-							this->object_scopes.pop_back();
+							this->encapsulating_symbols.pop_back();
 						}
 						
 						this->scope_levels.pop_back();
@@ -102,10 +102,12 @@ namespace pcit::panther::sema{
 
 					// pushing / popping happens automatically with `pushLevel` / `popLevel`
 
-					EVO_NODISCARD auto inEncapsulatingSymbol() const -> bool { return !this->object_scopes.empty(); }
+					EVO_NODISCARD auto inEncapsulatingSymbol() const -> bool {
+						return !this->encapsulating_symbols.empty();
+					}
 					EVO_NODISCARD auto getCurrentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
 						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
-						return this->object_scopes.back().encapsulating_symbol_id;
+						return this->encapsulating_symbols.back().encapsulating_symbol_id;
 					}
 					EVO_NODISCARD auto getCurrentEncapsulatingSymbolIfExists() const
 					-> std::optional<EncapsulatingSymbolID> {
@@ -114,25 +116,27 @@ namespace pcit::panther::sema{
 					}
 					EVO_NODISCARD auto getParentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
 						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
-						evo::debugAssert(this->object_scopes.size() >= 2, "no parent object scope");
-						return this->object_scopes[this->object_scopes.size() - 2].encapsulating_symbol_id;
+						evo::debugAssert(this->encapsulating_symbols.size() >= 2, "no parent object scope");
+
+						const size_t parent_index = this->encapsulating_symbols.size() - 2;
+						return this->encapsulating_symbols[parent_index].encapsulating_symbol_id;
 					}
 
 					EVO_NODISCARD auto getCurrentEncapsulatingSymbolIndex() const -> uint32_t {
-						if(this->object_scopes.empty()){ return 0; }
-						return this->object_scopes.back().scope_level_index - 1;
+						if(this->encapsulating_symbols.empty()){ return 0; }
+						return this->encapsulating_symbols.back().scope_level_index - 1;
 					}
 
 					EVO_NODISCARD auto inObjectMainScope() const -> bool {
 						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
-						return this->object_scopes.back().scope_level_index - 1 == this->size();
+						return this->encapsulating_symbols.back().scope_level_index - 1 == this->size();
 					}
 
 
 					EVO_NODISCARD auto getCurrentTypeScopeIfExists() const -> std::optional<EncapsulatingSymbolID> {
 						for(
 							const EncapsulatingSymbolData& encapsulating_symbol_data
-							: this->object_scopes | std::views::reverse
+							: this->encapsulating_symbols | std::views::reverse
 						){
 							EncapsulatingSymbolID encapsulating_symbol_id =
 								encapsulating_symbol_data.encapsulating_symbol_id;
@@ -155,7 +159,7 @@ namespace pcit::panther::sema{
 					-> std::optional<EncapsulatingSymbolID> {
 						for(
 							const EncapsulatingSymbolData& encapsulating_symbol_data
-							: this->object_scopes | std::views::reverse
+							: this->encapsulating_symbols | std::views::reverse
 						){
 							if(encapsulating_symbol_data.encapsulating_symbol_id.is<BaseType::Interface::ID>()){
 								return encapsulating_symbol_data.encapsulating_symbol_id;
@@ -169,28 +173,28 @@ namespace pcit::panther::sema{
 
 					auto addThisParam(sema::Param::ID param_id) -> void {
 						evo::debugAssert(
-							this->object_scopes.empty() == false
-								&& this->object_scopes.back().encapsulating_symbol_id.is<sema::Func::ID>(),
+							this->encapsulating_symbols.empty() == false
+								&& this->encapsulating_symbols.back().encapsulating_symbol_id.is<sema::Func::ID>(),
 							"Cannot set [this] param not in an a func object scope"
 						);
 
 						evo::debugAssert(
-							this->object_scopes.back().this_param.has_value() == false,
+							this->encapsulating_symbols.back().this_param.has_value() == false,
 							"[this] param was already set for this function scope"
 						);
 
-						this->object_scopes.back().this_param = param_id;
+						this->encapsulating_symbols.back().this_param = param_id;
 					}
 
 
 					EVO_NODISCARD auto getThisParam() const -> std::optional<sema::Param::ID> {
 						evo::debugAssert(
-							this->object_scopes.empty() == false
-								&& this->object_scopes.back().encapsulating_symbol_id.is<sema::Func::ID>(),
+							this->encapsulating_symbols.empty() == false
+								&& this->encapsulating_symbols.back().encapsulating_symbol_id.is<sema::Func::ID>(),
 							"Cannot get [this] param not in an a func object scope"
 						);
 
-						return this->object_scopes.back().this_param;
+						return this->encapsulating_symbols.back().this_param;
 					}
 
 
@@ -240,7 +244,7 @@ namespace pcit::panther::sema{
 
 					// TODO(PERF): use a stack?
 					evo::SmallVector<ScopeLevel::ID> scope_levels{};
-					evo::SmallVector<EncapsulatingSymbolData> object_scopes{};
+					evo::SmallVector<EncapsulatingSymbolData> encapsulating_symbols{};
 					evo::SmallVector<
 						std::unordered_map<std::string_view, std::optional<TypeInfo::VoidableID>>
 					> template_decl_instantiation_types{};

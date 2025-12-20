@@ -300,9 +300,9 @@ namespace pcit::panther{
 
 			struct ScopeLevel{
 				std::string_view label; // empty if no label
-				evo::SmallVector<pir::Expr> label_output_locations;
+				evo::SmallVector<pir::Expr> label_output_locations; // empty if none
 				std::optional<pir::BasicBlock::ID> begin_block;
-				std::optional<pir::BasicBlock::ID> end_block; // only has value if has label
+				std::optional<pir::BasicBlock::ID> end_block;
 				bool is_loop;
 				evo::SmallVector<DeferItem> defers{};
 

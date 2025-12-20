@@ -1051,6 +1051,55 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginForUnroll
+
+			EVO_NODISCARD auto createBeginForUnroll(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_FOR_UNROLL,
+					this->begin_for_unrolls.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getBeginForUnroll(Instruction instr) const -> const Instruction::BeginForUnroll& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_FOR_UNROLL, "Not a BeginForUnroll");
+				return this->begin_for_unrolls[instr._index];
+			}
+
+
+			//////////////////
+			// ForUnrollCond
+
+			EVO_NODISCARD auto createForUnrollCond(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FOR_UNROLL_COND,
+					this->for_unroll_conds.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getForUnrollCond(Instruction instr) const -> const Instruction::ForUnrollCond& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FOR_UNROLL_COND, "Not a ForUnrollCond");
+				return this->for_unroll_conds[instr._index];
+			}
+
+
+			//////////////////
+			// ForUnrollContinue
+
+			EVO_NODISCARD auto createForUnrollContinue(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FOR_UNROLL_CONTINUE,
+					this->for_unroll_continues.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getForUnrollContinue(Instruction instr) const -> const Instruction::ForUnrollContinue& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FOR_UNROLL_CONTINUE, "Not a ForUnrollContinue");
+				return this->for_unroll_continues[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginDefer
 
 			EVO_NODISCARD auto createBeginDefer(auto&&... args) -> Instruction {
@@ -2859,6 +2908,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndWhile, uint32_t> end_whiles{};
 			core::SyncLinearStepAlloc<Instruction::BeginFor, uint32_t> begin_fors{};
 			core::SyncLinearStepAlloc<Instruction::EndFor, uint32_t> end_fors{};
+			core::SyncLinearStepAlloc<Instruction::BeginForUnroll, uint32_t> begin_for_unrolls{};
+			core::SyncLinearStepAlloc<Instruction::ForUnrollCond, uint32_t> for_unroll_conds{};
+			core::SyncLinearStepAlloc<Instruction::ForUnrollContinue, uint32_t> for_unroll_continues{};
 			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint32_t> begin_defers{};
 			core::SyncLinearStepAlloc<Instruction::EndDefer, uint32_t> end_defers{};
 			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint32_t> begin_stmt_blocks{};

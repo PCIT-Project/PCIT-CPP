@@ -498,6 +498,11 @@ namespace pthr{
 						this->indenter.pop();
 					}
 
+					this->indenter.print_arrow();
+					this->print_minor_header("Variadic");
+					this->printer.print(" ");
+					this->printer.printlnMagenta(evo::boolStr(func_def.isVariadic));
+
 					this->indenter.set_arrow();
 					this->print_attribute_block(this->ast_buffer.getAttributeBlock(func_def.attributeBlock));
 
@@ -1311,6 +1316,9 @@ namespace pthr{
 						}
 						this->indenter.pop();
 					}
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(for_loop.attributeBlock));
 
 					this->indenter.print_end();
 					this->print_minor_header("Block");

@@ -80,6 +80,7 @@ namespace pcit::panther::sema{
 			SAME_TYPE_CMP,
 				
 			PARAM,
+			VARIADIC_PARAM,
 			RETURN_PARAM,
 			ERROR_RETURN_PARAM,
 			BLOCK_EXPR_OUTPUT,
@@ -157,6 +158,7 @@ namespace pcit::panther::sema{
 
 		explicit Expr(ParamID id)              : _kind(Kind::PARAM),                value{.param = id}               {};
 		explicit Expr(ReturnParamID id)        : _kind(Kind::RETURN_PARAM),         value{.return_param = id}        {};
+		explicit Expr(VariadicParamID id)      : _kind(Kind::VARIADIC_PARAM),       value{.variadic_param = id}      {};
 		explicit Expr(ErrorReturnParamID id)   : _kind(Kind::ERROR_RETURN_PARAM),   value{.error_return_param = id}  {};
 		explicit Expr(BlockExprOutputID id)    : _kind(Kind::BLOCK_EXPR_OUTPUT),    value{.block_expr_output = id}   {};
 		explicit Expr(ExceptParamID id)        : _kind(Kind::EXCEPT_PARAM),         value{.except_param = id}        {};
@@ -367,6 +369,10 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::PARAM, "not a param");
 			return this->value.param;
 		}
+		EVO_NODISCARD auto variadicParamID() const -> VariadicParamID {
+			evo::debugAssert(this->kind() == Kind::VARIADIC_PARAM, "not a variadic param");
+			return this->value.variadic_param;
+		}
 		EVO_NODISCARD auto returnParamID() const -> ReturnParamID {
 			evo::debugAssert(this->kind() == Kind::RETURN_PARAM, "not a return param");
 			return this->value.return_param;
@@ -469,6 +475,7 @@ namespace pcit::panther::sema{
 				ExceptParamID except_param;
 				ForParamID for_param;
 				ParamID param;
+				VariadicParamID variadic_param;
 				ReturnParamID return_param;
 				ErrorReturnParamID error_return_param;
 				BlockExprOutputID block_expr_output;

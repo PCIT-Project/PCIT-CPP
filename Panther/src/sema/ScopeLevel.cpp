@@ -234,6 +234,14 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
+	auto ScopeLevel::addIdent(std::string_view ident, sema::VariadicParamID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, ExtractedVariadicParam id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
 	auto ScopeLevel::addIdent(std::string_view ident, sema::ReturnParamID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
@@ -384,6 +392,20 @@ namespace pcit::panther::sema{
 	}
 
 
+	auto ScopeLevel::addIdent(
+		std::string_view ident, ForUnrollIndexFlag, TypeInfoID typeID, sema::Expr value, Token::ID location
+	) -> AddIdentResult {
+		const auto lock = std::scoped_lock(this->idents_lock);
+
+		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
+		if(this->do_shadowing_checks && this->disallowed_idents_for_shadowing.contains(ident)){
+			return evo::Unexpected(true);
+		}
+		
+		return &this->ids.emplace(ident, ForUnrollIndex(typeID, value, location)).first->second;
+	}
+
+
 
 
 	auto ScopeLevel::disallowIdentForShadowing(std::string_view ident, const IdentID* id) -> bool {
@@ -445,7 +467,7 @@ namespace pcit::panther::sema{
 
 		if(find == this->value_states.end()){
 			this->value_states.emplace(
-				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(), this->value_states.size())
+				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(0), this->value_states.size())
 			);
 
 		}else{
@@ -461,7 +483,7 @@ namespace pcit::panther::sema{
 
 		if(find == this->value_states.end()){
 			this->value_states.emplace(
-				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(), this->value_states.size())
+				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(1), this->value_states.size())
 			);
 			return evo::Expected<void, ValueStateID>();
 

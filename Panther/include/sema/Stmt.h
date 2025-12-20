@@ -47,6 +47,7 @@ namespace pcit::panther::sema{
 			CONDITIONAL,
 			WHILE,
 			FOR,
+			FOR_UNROLL,
 			DEFER,
 		};
 
@@ -70,6 +71,7 @@ namespace pcit::panther::sema{
 		explicit Stmt(ConditionalID cond_id)     : _kind(Kind::CONDITIONAL), value{.cond_id = cond_id}             {}
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
 		explicit Stmt(ForID for_id)              : _kind(Kind::FOR),         value{.for_id = for_id}               {}
+		explicit Stmt(ForUnrollID for_unroll_id) : _kind(Kind::FOR_UNROLL),  value{.for_unroll_id = for_unroll_id} {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
@@ -113,7 +115,7 @@ namespace pcit::panther::sema{
 		}
 
 		EVO_NODISCARD auto returnID() const -> ReturnID {
-			evo::debugAssert(this->kind() == Kind::RETURN, "not an return");
+			evo::debugAssert(this->kind() == Kind::RETURN, "not a return");
 			return this->value.return_id;
 		}
 
@@ -128,17 +130,17 @@ namespace pcit::panther::sema{
 		}
 
 		EVO_NODISCARD auto breakID() const -> BreakID {
-			evo::debugAssert(this->kind() == Kind::BREAK, "not an break");
+			evo::debugAssert(this->kind() == Kind::BREAK, "not a break");
 			return this->value.break_id;
 		}
 
 		EVO_NODISCARD auto continueID() const -> ContinueID {
-			evo::debugAssert(this->kind() == Kind::CONTINUE, "not an continue");
+			evo::debugAssert(this->kind() == Kind::CONTINUE, "not a continue");
 			return this->value.continue_id;
 		}
 
 		EVO_NODISCARD auto deleteID() const -> DeleteID {
-			evo::debugAssert(this->kind() == Kind::DELETE, "not an delete");
+			evo::debugAssert(this->kind() == Kind::DELETE, "not a delete");
 			return this->value.delete_id;
 		}
 
@@ -148,22 +150,27 @@ namespace pcit::panther::sema{
 		}
 
 		EVO_NODISCARD auto conditionalID() const -> ConditionalID {
-			evo::debugAssert(this->kind() == Kind::CONDITIONAL, "not an conditional");
+			evo::debugAssert(this->kind() == Kind::CONDITIONAL, "not a conditional");
 			return this->value.cond_id;
 		}
 
 		EVO_NODISCARD auto whileID() const -> WhileID {
-			evo::debugAssert(this->kind() == Kind::WHILE, "not an while");
+			evo::debugAssert(this->kind() == Kind::WHILE, "not a while");
 			return this->value.while_id;
 		}
 
 		EVO_NODISCARD auto forID() const -> ForID {
-			evo::debugAssert(this->kind() == Kind::FOR, "not an for");
+			evo::debugAssert(this->kind() == Kind::FOR, "not a for");
 			return this->value.for_id;
 		}
 
+		EVO_NODISCARD auto forUnrollID() const -> ForUnrollID {
+			evo::debugAssert(this->kind() == Kind::FOR_UNROLL, "not a for unroll");
+			return this->value.for_unroll_id;
+		}
+
 		EVO_NODISCARD auto deferID() const -> DeferID {
-			evo::debugAssert(this->kind() == Kind::DEFER, "not an defer");
+			evo::debugAssert(this->kind() == Kind::DEFER, "not a defer");
 			return this->value.defer_id;
 		}
 
@@ -192,6 +199,7 @@ namespace pcit::panther::sema{
 				ConditionalID cond_id;
 				WhileID while_id;
 				ForID for_id;
+				ForUnrollID for_unroll_id;
 				DeferID defer_id;
 			} value;
 	};
@@ -254,6 +262,9 @@ namespace pcit::panther::sema{
 
 			EVO_NODISCARD auto empty() const -> bool { return this->stmts.empty(); }
 			EVO_NODISCARD auto size() const -> size_t { return this->stmts.size(); }
+
+			EVO_NODISCARD auto front() const -> Stmt { return this->stmts.front(); }
+			EVO_NODISCARD auto back() const -> Stmt { return this->stmts.back(); }
 	
 		private:
 			evo::SmallVector<Stmt> stmts;
