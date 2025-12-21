@@ -25699,9 +25699,6 @@ namespace pcit::panther{
 							this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
 
 						if(target_method.typeID != overload_sema.typeID){
-							if(target_method.isMethod(this->context) == false){ continue; }
-							if(overload_sema.isMethod(this->context) == false){ continue; }
-
 							const BaseType::Function& target_method_type = 
 								this->context.getTypeManager().getFunction(target_method.typeID);
 

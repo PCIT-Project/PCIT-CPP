@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.208.2"></a>
+## v0.0.208.2
+
+### Panther
+- Fixed interface impl method matching not working properly if it has no `this` parameter
+- Fixed unexpected behavior (such as hitting crashing) when an error in parsing the type of the error return value errored
+- Fixed missing checks of using a deducer return type for a interface method declaration with a default implementation
+
+
+<!---------------------------------->
 <a name="v0.0.208.1"></a>
 ## v0.0.208.1
 

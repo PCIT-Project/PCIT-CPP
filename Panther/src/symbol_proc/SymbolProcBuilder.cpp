@@ -744,6 +744,17 @@ namespace pcit::panther{
 
 
 			if(func_def.block.has_value()){
+				for(const AST::FuncDef::Return& return_param : func_def.returns){
+					if(this->is_deducer(return_param.type)){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_DEFAULT_INTERFACE_METHOD_WITH_DEDUCER_RET,
+							return_param.type,
+							"Interface method with default implementation cannot have a deducer return type"
+						);
+						return evo::resultError;
+					}
+				}
+
 				this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_def));
 
 				this->symbol_scopes.emplace_back(nullptr);

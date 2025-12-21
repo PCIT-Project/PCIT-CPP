@@ -1,11 +1,11 @@
-
-interface Interface = {
-	// func sink = (val: $$ in) -> Void;
+interface DoNothing = {
+	func test = () -> $$ {
+		return false;
+	}
 }
 
-
 type Thing = struct {
-	impl Interface{
-		sink = () -> Void {},
+	impl DoNothing{
+		test = () -> Bool { return true; },
 	}
 }

@@ -3249,7 +3249,7 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek(1)].kind() != Token::lookupKind(":")){
 			const Result single_type = this->parse_type<TypeKind::EXPLICIT>();
 			if(this->check_result(single_type, "single type in function error return parameter block").isError()){
-				evo::resultError;
+				return evo::resultError;
 			}
 			error_returns.emplace_back(std::nullopt, single_type.value());
 
