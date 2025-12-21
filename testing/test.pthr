@@ -1,24 +1,11 @@
 
-func sum = (nums: $$... in) -> Int {
-	var output: Int = 0;
+interface Interface = {
+	// func sink = (val: $$ in) -> Void;
+}
 
-	for(nums) [I: USize; num: $NumType mut] #unroll {
-		when(I == 0){
-			const num_copy: NumType = forward num;
-			output += num_copy as Int;
-		}else{
-			output += num as Int / 2;
-		}
+
+type Thing = struct {
+	impl Interface{
+		sink = () -> Void {},
 	}
-
-	return copy output;
 }
-
-
-
-func entry = () #entry -> UI8 {
-	const sum_res: Int = sum(12 as I32, 14.0 as F32);
-	return (sum_res == 19) as UI8;
-}
-
-

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.208.1"></a>
+## v0.0.208.1
+
+### Panther
+- Fixed missing checks of methods in an interface impl of an interface with no methods
+
+
+<!---------------------------------->
 <a name="v0.0.208.0"></a>
 ## v0.0.208.0
 

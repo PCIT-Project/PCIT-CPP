@@ -25614,225 +25614,255 @@ namespace pcit::panther{
 			return false;
 		};
 
-		size_t method_init_i = 0;
-		for(sema::Func::ID target_method_id : info.target_interface.methods){
-			const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
-			const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
 
-			if(method_init_i >= instr.interface_impl.methods.size()){
-				if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
-					interface_impl.methods.emplace_back(target_method_id);
-					continue;
-				}
+		if(info.target_interface.methods.empty() == false){
+			size_t method_init_i = 0;
+			for(sema::Func::ID target_method_id : info.target_interface.methods){
+				const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
+				const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
 
-				if(instr.interface_impl.methods.empty()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-						instr.interface_impl,
-						std::format("Method \"{}\" was not set in interface impl", target_method_name)
-					);
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-						instr.interface_impl,
-						std::format("Method \"{}\" was not set in interface impl", target_method_name),
-						Diagnostic::Info(
-							std::format("Method listing for \"{}\" should go after this one", target_method_name),
-							this->get_location(instr.interface_impl.methods[method_init_i - 1].method)
-						)
-					);
-				}
-
-				return Result::ERROR;
-
-				
-			}else{
-				const AST::InterfaceImpl::Method& method_init = instr.interface_impl.methods[method_init_i];
-
-				const std::string_view method_init_name = this->source.getTokenBuffer()[method_init.method].getString();
-
-				if(target_method_name != method_init_name){
+				if(method_init_i >= instr.interface_impl.methods.size()){
 					if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
 						interface_impl.methods.emplace_back(target_method_id);
 						continue;
 					}
 
-					if(interface_has_member(method_init_name)){
+					if(instr.interface_impl.methods.empty()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+							instr.interface_impl,
+							std::format("Method \"{}\" was not set in interface impl", target_method_name)
+						);
+					}else{
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
 							instr.interface_impl,
 							std::format("Method \"{}\" was not set in interface impl", target_method_name),
 							Diagnostic::Info(
-								std::format("Method listing for \"{}\" should go before this one", target_method_name),
-								this->get_location(method_init.method)
+								std::format("Method listing for \"{}\" should go after this one", target_method_name),
+								this->get_location(instr.interface_impl.methods[method_init_i - 1].method)
 							)
 						);
-					}else{
+					}
+
+					return Result::ERROR;
+
+					
+				}else{
+					const AST::InterfaceImpl::Method& method_init = instr.interface_impl.methods[method_init_i];
+
+					const std::string_view method_init_name =
+						this->source.getTokenBuffer()[method_init.method].getString();
+
+					if(target_method_name != method_init_name){
+						if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
+							interface_impl.methods.emplace_back(target_method_id);
+							continue;
+						}
+
+						if(interface_has_member(method_init_name)){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
+								instr.interface_impl,
+								std::format("Method \"{}\" was not set in interface impl", target_method_name),
+								Diagnostic::Info(
+									std::format(
+										"Method listing for \"{}\" should go before this one", target_method_name
+									),
+									this->get_location(method_init.method)
+								)
+							);
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
+								method_init.method,
+								std::format("This interface has no method \"{}\"", method_init_name),
+								Diagnostic::Info(
+									"Interface was declared here:", this->get_location(info.target_interface)
+								)
+							);
+							return Result::ERROR;
+						}
+
+						return Result::ERROR;
+					}
+
+					// find if of the overloads any match
+					bool found_overload = false;
+					using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
+					for(
+						const Overload& overload : info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()
+					){
+						if(overload.is<sema::TemplatedFunc::ID>()){ continue; }
+
+						const sema::Func& overload_sema =
+							this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
+
+						if(target_method.typeID != overload_sema.typeID){
+							if(target_method.isMethod(this->context) == false){ continue; }
+							if(overload_sema.isMethod(this->context) == false){ continue; }
+
+							const BaseType::Function& target_method_type = 
+								this->context.getTypeManager().getFunction(target_method.typeID);
+
+							const BaseType::Function& overload_sema_type = 
+								this->context.getTypeManager().getFunction(overload_sema.typeID);
+
+
+							if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
+
+							// params
+							for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
+								if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){
+									continue;
+								}
+							}
+
+							// return params
+							if(target_method_type.returnTypes != overload_sema_type.returnTypes){
+								if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
+									continue;
+								}
+
+								bool return_params_matched = true;
+								for(size_t i = 0; i < target_method_type.returnTypes.size(); i+=1){
+									if(target_method_type.returnTypes[i].isVoid()){
+										return_params_matched = overload_sema_type.returnTypes[i].isVoid();
+										break;
+
+									}else if(overload_sema_type.returnTypes[i].isVoid()){
+										return_params_matched = false;
+										break;
+									}
+
+									const TypeInfo::ID target_ret_param_type_id = 
+										target_method_type.returnTypes[i].asTypeID();
+
+									const TypeInfo::ID overload_ret_param_type_id = 
+										overload_sema_type.returnTypes[i].asTypeID();
+
+									if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+									//////////////////
+									// deducers
+
+									const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+										target_ret_param_type_id, overload_ret_param_type_id
+									);
+
+									switch(deducer_match_output.outcome()){
+										case DeducerMatchOutput::Outcome::MATCH: {
+											continue;
+										} break;
+
+										case DeducerMatchOutput::Outcome::NO_MATCH: {
+											return_params_matched = false;
+											break;
+										} break;
+
+										case DeducerMatchOutput::Outcome::RESULT: {
+											return deducer_match_output.result();
+										} break;
+									}
+								}
+
+								if(return_params_matched == false){ continue; }
+							}
+
+							// error params
+							if(target_method_type.errorTypes != overload_sema_type.errorTypes){
+								if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
+									continue;
+								}
+
+								bool error_params_matched = true;
+								for(size_t i = 0; i < target_method_type.errorTypes.size(); i+=1){
+									if(target_method_type.errorTypes[i].isVoid()){
+										error_params_matched = overload_sema_type.errorTypes[i].isVoid();
+										break;
+
+									}else if(overload_sema_type.errorTypes[i].isVoid()){
+										error_params_matched = false;
+										break;
+									}
+
+									const TypeInfo::ID target_ret_param_type_id = 
+										target_method_type.errorTypes[i].asTypeID();
+
+									const TypeInfo::ID overload_ret_param_type_id = 
+										overload_sema_type.errorTypes[i].asTypeID();
+
+									if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+									//////////////////
+									// deducers
+
+									const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+										target_ret_param_type_id, overload_ret_param_type_id
+									);
+
+									switch(deducer_match_output.outcome()){
+										case DeducerMatchOutput::Outcome::MATCH: {
+											continue;
+										} break;
+
+										case DeducerMatchOutput::Outcome::NO_MATCH: {
+											error_params_matched = false;
+											break;
+										} break;
+
+										case DeducerMatchOutput::Outcome::RESULT: {
+											return deducer_match_output.result();
+										} break;
+									}
+								}
+
+								if(error_params_matched == false){ continue; }
+							}
+
+						}
+
+						if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
+
+						interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
+						found_overload = true;
+						break;
+					}
+
+					if(found_overload == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
+							Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
 							method_init.method,
-							std::format("This interface has no method \"{}\"", method_init_name),
-							Diagnostic::Info("Interface was declared here:", this->get_location(info.target_interface))
+							"No overload has correct signature in interface impl",
+							Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
 						);
 						return Result::ERROR;
 					}
 
-					return Result::ERROR;
+					method_init_i += 1;
 				}
+			}
 
-				// find if of the overloads any match
-				bool found_overload = false;
-				using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
-				for(const Overload& overload : info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()){
-					if(overload.is<sema::TemplatedFunc::ID>()){ continue; }
+		}else{ // interface defines no methods
+			if(instr.interface_impl.methods.empty() == false){
+				const Token::ID first_method_ident_token_id = instr.interface_impl.methods[0].method;
+				const std::string_view first_method_ident_str =
+					this->source.getTokenBuffer()[first_method_ident_token_id].getString();
 
-					const sema::Func& overload_sema =
-						this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
-
-					if(target_method.typeID != overload_sema.typeID){
-						if(target_method.isMethod(this->context) == false){ continue; }
-						if(overload_sema.isMethod(this->context) == false){ continue; }
-
-						const BaseType::Function& target_method_type = 
-							this->context.getTypeManager().getFunction(target_method.typeID);
-
-						const BaseType::Function& overload_sema_type = 
-							this->context.getTypeManager().getFunction(overload_sema.typeID);
-
-
-						if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
-
-						// params
-						for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
-							if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){ continue; }
-						}
-
-						// return params
-						if(target_method_type.returnTypes != overload_sema_type.returnTypes){
-							if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
-								continue;
-							}
-
-							bool return_params_matched = true;
-							for(size_t i = 0; i < target_method_type.returnTypes.size(); i+=1){
-								if(target_method_type.returnTypes[i].isVoid()){
-									return_params_matched = overload_sema_type.returnTypes[i].isVoid();
-									break;
-
-								}else if(overload_sema_type.returnTypes[i].isVoid()){
-									return_params_matched = false;
-									break;
-								}
-
-								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.returnTypes[i].asTypeID();
-
-								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.returnTypes[i].asTypeID();
-
-								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-								//////////////////
-								// deducers
-
-								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-									target_ret_param_type_id, overload_ret_param_type_id
-								);
-
-								switch(deducer_match_output.outcome()){
-									case DeducerMatchOutput::Outcome::MATCH: {
-										continue;
-									} break;
-
-									case DeducerMatchOutput::Outcome::NO_MATCH: {
-										return_params_matched = false;
-										break;
-									} break;
-
-									case DeducerMatchOutput::Outcome::RESULT: {
-										return deducer_match_output.result();
-									} break;
-								}
-							}
-
-							if(return_params_matched == false){ continue; }
-						}
-
-						// error params
-						if(target_method_type.errorTypes != overload_sema_type.errorTypes){
-							if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
-								continue;
-							}
-
-							bool error_params_matched = true;
-							for(size_t i = 0; i < target_method_type.errorTypes.size(); i+=1){
-								if(target_method_type.errorTypes[i].isVoid()){
-									error_params_matched = overload_sema_type.errorTypes[i].isVoid();
-									break;
-
-								}else if(overload_sema_type.errorTypes[i].isVoid()){
-									error_params_matched = false;
-									break;
-								}
-
-								const TypeInfo::ID target_ret_param_type_id = 
-									target_method_type.errorTypes[i].asTypeID();
-
-								const TypeInfo::ID overload_ret_param_type_id = 
-									overload_sema_type.errorTypes[i].asTypeID();
-
-								if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-								//////////////////
-								// deducers
-
-								const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-									target_ret_param_type_id, overload_ret_param_type_id
-								);
-
-								switch(deducer_match_output.outcome()){
-									case DeducerMatchOutput::Outcome::MATCH: {
-										continue;
-									} break;
-
-									case DeducerMatchOutput::Outcome::NO_MATCH: {
-										error_params_matched = false;
-										break;
-									} break;
-
-									case DeducerMatchOutput::Outcome::RESULT: {
-										return deducer_match_output.result();
-									} break;
-								}
-							}
-
-							if(error_params_matched == false){ continue; }
-						}
-
-					}
-
-					if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
-
-					interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
-					found_overload = true;
-					break;
-				}
-
-				if(found_overload == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
-						method_init.method,
-						"No overload has correct signature in interface impl",
-						Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
-					);
-					return Result::ERROR;
-				}
-
-				method_init_i += 1;
+				this->emit_error(
+					Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
+					first_method_ident_token_id,
+					std::format("This interface has no method \"{}\"", first_method_ident_str),
+					Diagnostic::Info(
+						"Interface was declared here:", this->get_location(info.target_interface)
+					)
+				);
+				return Result::ERROR;
 			}
 		}
+
 
 
 		const BaseType::Interface::Impl* old_impl = nullptr;
