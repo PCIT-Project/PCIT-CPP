@@ -1,11 +1,76 @@
-interface DoNothing = {
-	func test = () -> $$ {
-		return false;
+interface Shape = #polymorphic {
+	func area = (this) -> F32;
+	func num_sides = () -> UInt { return 0;	} // method with default
+}
+
+
+type Quad = struct {
+	var width: F32;
+	var height: F32;
+
+
+	func area = (this) -> F32 {
+		return this.width * this.height;
+	}
+
+	func num_sides = () -> UInt { return 4; }
+
+
+	// implementation of Shape for Quad
+	impl Shape{
+		area      = area, // defining with an existing method
+		num_sides = () -> UInt { return 4; }, // defining with an inline method
 	}
 }
 
-type Thing = struct {
-	impl DoNothing{
-		test = () -> Bool { return true; },
+
+type Circle = struct {
+	var radius: F32;
+
+
+	func get_area = (this) -> F32 {
+		return 3.14 * this.radius * this.radius;
 	}
+
+	func get_num_sides = () -> UInt { return 0; }
+
+
+	// Implementation of Shape for Circle
+	impl Shape{
+		area = get_area, // method names don't have to be the same
+		// using default for Shape.num_sides
+	}
+}
+
+
+
+// this function becomes a template on the shape passed to it
+func get_shape_num_sides = (shape: impl($$:Shape)) -> UInt {
+	return shape.num_sides();
+}
+
+
+// runtime polymorphism (allowed becuase the interface has attribute '#polymorphic')
+// 'shape' is a struct of a pointer to the shape object and a pointer to a vtable
+func get_shape_area = (shape: impl(*:Shape)) -> F32 {
+	return shape.area();
+}
+
+
+
+func entry = () #entry -> UI8 {
+	const quad = new Quad{
+		width  = 1.0,
+		height = 2.0,
+	};
+
+	const circle = new Circle{
+		radius = 2.0,
+	};
+
+	const num_sides_of_quad: UInt = get_shape_num_sides(quad as impl(Quad:Shape));
+
+	const area_of_circle: F32 = get_shape_area(circle/* as impl(*:Shape)*/);
+	
+	return 0;
 }

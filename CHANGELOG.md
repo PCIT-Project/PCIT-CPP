@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.208.3"></a>
+## v0.0.208.3
+
+### Panther
+- Fixed printing of polymorphic interface references in diagnostics
+
+
+<!---------------------------------->
 <a name="v0.0.208.2"></a>
 ## v0.0.208.2
 

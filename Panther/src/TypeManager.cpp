@@ -824,18 +824,12 @@ namespace pcit::panther{
 				const BaseType::PolyInterfaceRef::ID poly_interface_ref_id = base_type_id.polyInterfaceRefID();
 				const BaseType::PolyInterfaceRef& poly_interface_ref_info =
 					this->getPolyInterfaceRef(poly_interface_ref_id);
-
-
-				std::string interface_str =
-					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), context);
-
-				if(poly_interface_ref_info.isMut){
-					interface_str += "^mut";
-				}else{
-					interface_str += "^";
-				}
-
-				return interface_str;
+					
+				return std::format(
+					"impl({}:{})",
+					poly_interface_ref_info.isMut ? "*mut" : "*",
+					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), context)
+				);
 			} break;
 
 
