@@ -65,6 +65,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_WHEN:        return this->parse_conditional<true>();
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
 			case Token::Kind::KEYWORD_FOR:         return this->parse_for();
+			case Token::Kind::KEYWORD_SWITCH:      return this->parse_switch();
 			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
@@ -1303,6 +1304,123 @@ namespace pcit::panther{
 			keyword, std::move(iterables), index, std::move(values), attributes.value(), block.value()
 		);
 	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_switch() -> Result {
+		const Token::ID keyword = this->reader.peek();
+		if(this->assert_token(Token::Kind::KEYWORD_SWITCH).isError()){ return Result::Code::ERROR; }
+
+		if(this->expect_token(Token::lookupKind("("), "before condition in switch statement").isError()){
+			return Result::Code::ERROR;
+		}
+
+		const Result cond = this->parse_expr();
+		if(this->check_result(cond, "condition in switch statement").isError()){ return Result::Code::ERROR; }
+
+		if(this->expect_token(Token::lookupKind(")"), "after condition in switch statement").isError()){
+			return Result::Code::ERROR;
+		}
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+		if(this->expect_token(Token::lookupKind("{"), "in switch statement").isError()){
+			return Result::Code::ERROR;
+		}
+
+		auto cases = evo::SmallVector<AST::Switch::Case>();
+		bool has_else_case = false;
+
+		auto close_brace_token_id = std::optional<Token::ID>();
+
+		bool not_at_end_of_switch = true;
+		while(not_at_end_of_switch){
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::KEYWORD_CASE: {
+					this->reader.skip();
+
+					if(this->expect_token(Token::lookupKind("("), "before value(s) in switch case").isError()){
+						return Result::Code::ERROR;
+					}
+
+					auto values = evo::SmallVector<AST::Node>();
+
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+							if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
+							break;
+						}
+
+						const Result case_expr = this->parse_expr();
+						if(this->check_result(case_expr, "expression argument inside function call").isError()){
+							return Result::Code::ERROR;
+						}
+
+						values.emplace_back(case_expr.value());
+
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind(")")){
+								this->expected_but_got(
+									"[,] at end of case value expression or [)] at end of case expression block",
+									this->reader.peek(-1)
+								);
+								return Result::Code::ERROR;
+							}
+
+							break;
+						}
+					}
+
+					const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+					if(this->check_result(block, "case statement block in switch statement").isError()){
+						return Result::Code::ERROR;
+					}
+
+					cases.emplace_back(std::move(values), block.value());
+				} break;
+
+				case Token::Kind::KEYWORD_ELSE: {
+					if(has_else_case){
+						this->context.emitError(
+							Diagnostic::Code::PARSER_SWITCH_ELSE_REDEF,
+							Diagnostic::Location::get(this->reader.peek(), this->source),
+							"Else block was already defined in this [switch] statement"
+						);
+						return Result::Code::ERROR;
+					}
+
+					this->reader.skip();
+
+					const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+					if(this->check_result(block, "else condition statement block in switch statement").isError()){
+						return Result::Code::ERROR;
+					}
+
+					cases.emplace_back(evo::SmallVector<AST::Node>(), block.value());
+					has_else_case = true;
+				} break;
+
+				case Token::lookupKind("}"): {
+					not_at_end_of_switch = false;
+					close_brace_token_id = this->reader.next();
+				} break;
+
+				default: {
+					this->expected_but_got("switch case or switch else", this->reader.peek());
+					return Result::Code::ERROR;
+				} break;
+			}
+		}
+
+
+		return this->source.ast_buffer.createSwitch(
+			keyword, *close_brace_token_id, cond.value(), attributes.value(), std::move(cases)
+		);
+	}
+
 
 
 	// TODO(FUTURE): check EOF

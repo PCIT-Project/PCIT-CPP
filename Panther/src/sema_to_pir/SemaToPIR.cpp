@@ -1534,9 +1534,7 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::UNREACHABLE: {
 				if(this->data.getConfig().useDebugUnreachables){
-					this->agent.createBreakpoint();
-					// TODO(FUTURE): proper panic
-					this->agent.createAbort();
+					this->create_fatal();
 				}else{
 					this->agent.createUnreachable();
 				}
@@ -1689,11 +1687,9 @@ namespace pcit::panther{
 					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
 					if(then_terminated == false){
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
-					}
-					this->pop_scope_level();
-					if(then_terminated == false){
 						this->agent.createJump(*end_block);
 					}
+					this->pop_scope_level();
 				}else{
 					const pir::BasicBlock::ID else_block = this->agent.createBasicBlock("IF.ELSE");
 
@@ -2032,15 +2028,156 @@ namespace pcit::panther{
 
 					if(stmt_block.isTerminated() == false){
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
+						this->agent.createJump(basic_blocks[i]);
 					}
 
 					this->pop_scope_level();
 
-					if(stmt_block.isTerminated() == false){
-						this->agent.createJump(basic_blocks[i]);
+					this->agent.setTargetBasicBlock(basic_blocks[i]);
+				}
+			} break;
+
+			case sema::Stmt::Kind::SWITCH: {
+				const sema::Switch& switch_stmt = this->context.getSemaBuffer().getSwitch(stmt.switchID());
+
+
+				const pir::BasicBlock::ID start_basic_block = this->agent.getTargetBasicBlock().getID();
+
+				if(switch_stmt.kind == sema::Switch::Kind::NO_JUMP){
+					// const pir::Expr cond = this->get_expr_register(switch_stmt.cond);
+					evo::unimplemented("lowering no jump switch");
+
+				}else{
+					const pir::Expr cond = [&]() -> pir::Expr {
+						TypeInfo::ID target_cond_type_id = switch_stmt.condTypeID;
+						while(true){
+							const TypeInfo& target_cond_type =
+								this->context.getTypeManager().getTypeInfo(target_cond_type_id);
+
+							evo::debugAssert(target_cond_type.qualifiers().empty(), "unexpected switch cond type");
+
+							switch(target_cond_type.baseTypeID().kind()){
+								case BaseType::Kind::ALIAS: {
+									target_cond_type_id = this->context.getTypeManager().getAlias(
+										target_cond_type.baseTypeID().aliasID()
+									).aliasedType;
+								} break;
+
+								case BaseType::Kind::DISTINCT_ALIAS: {
+									target_cond_type_id = this->context.getTypeManager().getDistinctAlias(
+										target_cond_type.baseTypeID().distinctAliasID()
+									).underlyingType;
+								} break;
+
+								case BaseType::Kind::UNION: {
+									const pir::Type union_pir_type =
+										this->get_type<false>(target_cond_type.baseTypeID());
+
+									const pir::StructType union_pir_struct_type =
+										this->module.getStructType(union_pir_type);
+
+									const pir::Expr calc_ptr = this->agent.createCalcPtr(
+										this->get_expr_pointer(switch_stmt.cond),
+										union_pir_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+										this->name(".SWITCH.UNION_TAG_PTR")
+									);
+
+									return this->agent.createLoad(
+										calc_ptr, union_pir_struct_type.members[1], this->name(".SWITCH.UNION_TAG")
+									);
+								} break;
+
+								default: {
+									return this->get_expr_register(switch_stmt.cond);
+								} break;
+							}
+						}
+					}();
+
+					bool all_cases_terminated = switch_stmt.kind == sema::Switch::Kind::COMPLETE;
+					auto else_index = std::optional<size_t>();
+
+					auto basic_blocks = evo::SmallVector<pir::BasicBlock::ID>();
+					basic_blocks.reserve(switch_stmt.cases.size() + 1);
+					for(size_t i = 0; i < switch_stmt.cases.size(); i+=1){
+						basic_blocks.emplace_back(this->agent.createBasicBlock(this->name("SWITCH.CASE_{}", i)));
+
+						if(switch_stmt.cases[i].stmtBlock.isTerminated() == false){
+							all_cases_terminated = false;
+						}
+
+						if(switch_stmt.cases[i].values.empty()){
+							else_index = i;
+						}
 					}
 
-					this->agent.setTargetBasicBlock(basic_blocks[i]);
+					const std::optional<pir::BasicBlock::ID> end_block = [&]() -> std::optional<pir::BasicBlock::ID> {
+						if(all_cases_terminated){
+							return std::nullopt;
+						}else{
+							const pir::BasicBlock::ID created_end_block =
+								this->agent.createBasicBlock(this->name("SWITCH.END"));
+							basic_blocks.emplace_back(created_end_block);
+							return created_end_block;
+						}
+					}();
+
+					pir::BasicBlock::ID default_block = [&]() -> pir::BasicBlock::ID {
+						if(else_index.has_value()){
+							return basic_blocks[*else_index];
+
+						}else if(switch_stmt.kind == sema::Switch::Kind::COMPLETE){
+							const pir::BasicBlock::ID invalid_block =
+								this->agent.createBasicBlock(this->name("SWITCH.INVALID"));
+
+							this->agent.setTargetBasicBlock(invalid_block);
+							this->create_fatal();
+
+							this->agent.setTargetBasicBlock(start_basic_block); // probably not needed, but just in case
+
+							return invalid_block;
+							
+						}else{
+							return *end_block;
+						}
+					}();
+
+					auto cases = evo::SmallVector<pir::Switch::Case>();
+					for(size_t i = 0; const sema::Switch::Case& switch_case : switch_stmt.cases){
+						if(switch_stmt.cases.empty() == false){
+							for(const sema::Expr value : switch_case.values){
+								cases.emplace_back(this->get_expr_register(value), basic_blocks[i]);
+							}
+						}else{
+							default_block = basic_blocks[i];
+						}
+
+						this->agent.setTargetBasicBlock(basic_blocks[i]);
+
+						this->push_scope_level();
+
+						for(const sema::Stmt& block_stmt : switch_case.stmtBlock){
+							this->lower_stmt(block_stmt);
+						}
+
+						if(switch_case.stmtBlock.isTerminated() == false){
+							this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
+							this->agent.createJump(*end_block);
+						}
+
+						this->pop_scope_level();
+
+						i += 1;
+					}
+					
+
+					this->agent.setTargetBasicBlock(start_basic_block);
+					this->agent.createSwitch(cond, std::move(cases), default_block);
+
+					if(end_block.has_value()){
+						this->agent.setTargetBasicBlock(*end_block);
+					}
 				}
 			} break;
 
@@ -4232,6 +4369,12 @@ namespace pcit::panther{
 								core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
 							);
 							this->agent.createStore(tag_ptr, tag_value);
+						}
+
+						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+							return target;
+						}else{
+							return std::nullopt;
 						}
 					}
 				}
@@ -8587,6 +8730,14 @@ namespace pcit::panther{
 
 			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
+	}
+
+
+	auto SemaToPIR::create_fatal() -> void {
+		// TODO(FUTURE): option to turn off breakpoints here
+		this->agent.createBreakpoint();
+
+		this->agent.createAbort();
 	}
 
 

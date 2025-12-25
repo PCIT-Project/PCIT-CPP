@@ -495,19 +495,19 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:              case AST::Kind::ERROR:           case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:          case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:               case AST::Kind::FOR:             case AST::Kind::DEFER:
-			case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:           case AST::Kind::FUNC_CALL:
-			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:              case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:             case AST::Kind::ARRAY_INIT_NEW:
-			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:        case AST::Kind::DEDUCER:
-			case AST::Kind::ARRAY_TYPE:          case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:           case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:          case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:                case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:         case AST::Kind::ERROR:               case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:       case AST::Kind::DELETE:              case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:          case AST::Kind::FOR:                 case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:      case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:
+			case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:              case AST::Kind::INFIX:
+			case AST::Kind::POSTFIX:        case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:
+			case AST::Kind::ARRAY_INIT_NEW: case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:
+			case AST::Kind::DEDUCER:        case AST::Kind::ARRAY_TYPE:          case AST::Kind::INTERFACE_MAP:
+			case AST::Kind::TYPE:           case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:      case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:
+			case AST::Kind::INTRINSIC:      case AST::Kind::LITERAL:             case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:       case AST::Kind::THIS:                case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1820,6 +1820,7 @@ namespace pcit::panther{
 			case AST::Kind::WHEN_CONDITIONAL:       return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
 			case AST::Kind::WHILE:                  return this->analyze_while(ast_buffer.getWhile(stmt));
 			case AST::Kind::FOR:                    return this->analyze_for(ast_buffer.getFor(stmt));
+			case AST::Kind::SWITCH:                 return this->analyze_switch(ast_buffer.getSwitch(stmt));
 			case AST::Kind::DEFER:                  return this->analyze_defer(ast_buffer.getDefer(stmt));
 			case AST::Kind::BLOCK:                  return this->analyze_stmt_block(ast_buffer.getBlock(stmt));
 			case AST::Kind::FUNC_CALL:              return this->analyze_func_call(ast_buffer.getFuncCall(stmt));
@@ -2311,6 +2312,71 @@ namespace pcit::panther{
 
 			return evo::Result<>();
 		}
+	}
+
+
+
+	auto SymbolProcBuilder::analyze_switch(const AST::Switch& switch_stmt) -> evo::Result<> {
+		const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(switch_stmt.cond);
+		if(cond.isError()){ return evo::resultError; }
+
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(switch_stmt.attributeBlock);
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(attribute_block);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		const bool is_no_jump = [&]() -> bool {
+			for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+				const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+				if(attribute_str == "noJump"){ return true; }
+			}
+
+			return false;
+		}();
+
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createBeginSwitch(
+				switch_stmt, std::move(attribute_params_info.value()), cond.value(), is_no_jump
+			)
+		);
+
+		for(size_t i = 0; const AST::Switch::Case& switch_case : switch_stmt.cases){
+			auto values = evo::SmallVector<SymbolProc::TermInfoID>();
+			values.reserve(switch_case.values.size());
+			for(const AST::Node value : switch_case.values){
+				const evo::Result<SymbolProc::TermInfoID> value_res = [&]() -> evo::Result<SymbolProc::TermInfoID> {
+					if(is_no_jump){
+						return this->analyze_expr<false>(value);
+					}else{
+						return this->analyze_expr<true>(value);
+					}
+				}();
+				if(value_res.isError()){ return evo::resultError; }
+
+				values.emplace_back(value_res.value());
+			}
+
+			this->add_instruction(
+				this->context.symbol_proc_manager.createBeginCase(switch_case, std::move(values), i)
+			);
+
+			const AST::Block& block = this->source.getASTBuffer().getBlock(switch_case.block);
+			for(const AST::Node& stmt : block.statements){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			this->add_instruction(this->context.symbol_proc_manager.createEndCase());
+
+			i += 1;
+		}
+
+
+		this->add_instruction(this->context.symbol_proc_manager.createEndSwitch(switch_stmt));
+
+		return evo::Result<>();
 	}
 
 

@@ -1100,6 +1100,63 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginSwitch
+
+			EVO_NODISCARD auto createBeginSwitch(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_SWITCH,
+					this->begin_switches.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getBeginSwitch(Instruction instr) const -> const Instruction::BeginSwitch& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_SWITCH, "Not a BeginSwitch");
+				return this->begin_switches[instr._index];
+			}
+
+
+			//////////////////
+			// BeginCase
+
+			EVO_NODISCARD auto createBeginCase(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_CASE,
+					this->begin_cases.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getBeginCase(Instruction instr) const -> const Instruction::BeginCase& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_CASE, "Not a BeginCase");
+				return this->begin_cases[instr._index];
+			}
+
+
+			//////////////////
+			// EndCase
+
+			EVO_NODISCARD auto createEndCase() -> Instruction {
+				return Instruction(Instruction::Kind::END_CASE, 0);
+			}
+
+
+			//////////////////
+			// EndCase
+
+			EVO_NODISCARD auto createEndSwitch(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_SWITCH,
+					this->end_switches.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getEndSwitch(Instruction instr) const -> const Instruction::EndSwitch& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_SWITCH, "Not a EndSwitch");
+				return this->end_switches[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginDefer
 
 			EVO_NODISCARD auto createBeginDefer(auto&&... args) -> Instruction {
@@ -2911,6 +2968,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::BeginForUnroll, uint32_t> begin_for_unrolls{};
 			core::SyncLinearStepAlloc<Instruction::ForUnrollCond, uint32_t> for_unroll_conds{};
 			core::SyncLinearStepAlloc<Instruction::ForUnrollContinue, uint32_t> for_unroll_continues{};
+			core::SyncLinearStepAlloc<Instruction::BeginSwitch, uint32_t> begin_switches{};
+			core::SyncLinearStepAlloc<Instruction::BeginCase, uint32_t> begin_cases{};
+
+			core::SyncLinearStepAlloc<Instruction::EndSwitch, uint32_t> end_switches{};
 			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint32_t> begin_defers{};
 			core::SyncLinearStepAlloc<Instruction::EndDefer, uint32_t> end_defers{};
 			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint32_t> begin_stmt_blocks{};

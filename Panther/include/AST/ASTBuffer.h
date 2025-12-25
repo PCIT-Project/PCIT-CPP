@@ -283,6 +283,16 @@ namespace pcit::panther{
 				return this->fors[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createSwitch(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->switches.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::SWITCH, node_index);
+			}
+			EVO_NODISCARD auto getSwitch(const AST::Node& node) const -> const AST::Switch& {
+				evo::debugAssert(node.kind() == AST::Kind::SWITCH, "Node is not a Switch");
+				return this->switches[node._value.node_index];
+			}
+
 			EVO_NODISCARD auto createDefer(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->defers.emplace_back(std::forward<decltype(args)>(args)...);
@@ -519,6 +529,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::WhenConditional, uint32_t> when_conditionals{};
 			core::LinearStepAlloc<AST::While, uint32_t> whiles{};
 			core::LinearStepAlloc<AST::For, uint32_t> fors{};
+			core::LinearStepAlloc<AST::Switch, uint32_t> switches{};
 			core::LinearStepAlloc<AST::Defer, uint32_t> defers{};
 
 			core::LinearStepAlloc<AST::Block, uint32_t> blocks{};

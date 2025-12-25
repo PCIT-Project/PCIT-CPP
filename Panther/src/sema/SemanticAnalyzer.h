@@ -144,7 +144,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_begin_for_unroll(const Instruction::BeginForUnroll& instr) -> Result;
 			EVO_NODISCARD auto instr_for_unroll_cond(const Instruction::ForUnrollCond& instr) -> Result;
 			EVO_NODISCARD auto instr_for_unroll_continue(const Instruction::ForUnrollContinue& instr) -> Result;
-			EVO_NODISCARD auto instr_end_while() -> Result;
+			EVO_NODISCARD auto instr_begin_switch(const Instruction::BeginSwitch& instr) -> Result;
+			EVO_NODISCARD auto instr_begin_case(const Instruction::BeginCase& instr) -> Result;
+			EVO_NODISCARD auto instr_end_case() -> Result;
+			EVO_NODISCARD auto instr_end_switch(const Instruction::EndSwitch& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_end_defer(const Instruction::EndDefer& instr) -> Result;
 			EVO_NODISCARD auto instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result;
@@ -840,6 +843,16 @@ namespace pcit::panther{
 				const AST::InterfaceDef& interface_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<InterfaceAttrs>;
+
+
+
+			struct SwitchAttrs{
+				bool is_partial;
+			};
+			EVO_NODISCARD auto analyze_switch_attrs(
+				const AST::Switch& switch_stmt,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<SwitchAttrs>;
 
 
 			///////////////////////////////////

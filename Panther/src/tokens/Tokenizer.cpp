@@ -230,6 +230,8 @@ namespace pcit::panther{
 		{"when",        Token::Kind::KEYWORD_WHEN},
 		{"while",       Token::Kind::KEYWORD_WHILE},
 		{"for",         Token::Kind::KEYWORD_FOR},
+		{"switch",      Token::Kind::KEYWORD_SWITCH},
+		{"case",        Token::Kind::KEYWORD_CASE},
 		{"defer",       Token::Kind::KEYWORD_DEFER},
 		{"errorDefer",  Token::Kind::KEYWORD_ERROR_DEFER},
 

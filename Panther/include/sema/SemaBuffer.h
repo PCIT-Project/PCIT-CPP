@@ -389,6 +389,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// switches
+
+			EVO_NODISCARD auto createSwitch(auto&&... args) -> sema::Switch::ID {
+				return this->switches.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getSwitch(sema::Switch::ID id) const -> const sema::Switch& {
+				return this->switches[id];
+			}
+
+
+			///////////////////////////////////
 			// defers
 
 			EVO_NODISCARD auto createDefer(auto&&... args) -> sema::Defer::ID {
@@ -968,6 +980,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
 			core::SyncLinearStepAlloc<sema::For, sema::For::ID> fors{};
 			core::SyncLinearStepAlloc<sema::ForUnroll, sema::ForUnroll::ID> for_unrolls{};
+			core::SyncLinearStepAlloc<sema::Switch, sema::Switch::ID> switches{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
 			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
 			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};

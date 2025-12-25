@@ -401,9 +401,24 @@ namespace pcit::pir{
 					} break;
 
 					case Expr::Kind::ABORT: {
-						this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
-						);
+						// follows how clang lowers `__builtin_trap()` 
+						// 	(which prevents it complaining about basic blocks not terminated)
+						if(this->reader.getTargetFunction().getReturnType().kind() == pir::Type::Kind::VOID){
+							this->builder.createIntrinsicCall(
+								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
+							);
+							this->builder.createRet();
+
+						}else{
+							this->builder.createIntrinsicCall(
+								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
+							);
+							this->builder.createIntrinsicCall(
+								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
+							);
+							this->builder.createUnreachable();
+						}
+
 					} break;
 
 					case Expr::Kind::BREAKPOINT: {

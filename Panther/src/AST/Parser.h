@@ -102,6 +102,7 @@ namespace pcit::panther{
 			template<bool IS_WHEN> EVO_NODISCARD auto parse_conditional() -> Result;
 			EVO_NODISCARD auto parse_while() -> Result;
 			EVO_NODISCARD auto parse_for() -> Result;
+			EVO_NODISCARD auto parse_switch() -> Result;
 			template<bool IS_ERROR_DEFER> EVO_NODISCARD auto parse_defer() -> Result;
 			EVO_NODISCARD auto parse_try_stmt() -> Result;
 

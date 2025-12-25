@@ -48,6 +48,7 @@ namespace pcit::panther::sema{
 			WHILE,
 			FOR,
 			FOR_UNROLL,
+			SWITCH,
 			DEFER,
 		};
 
@@ -72,6 +73,7 @@ namespace pcit::panther::sema{
 		explicit Stmt(WhileID while_id)          : _kind(Kind::WHILE),       value{.while_id = while_id}           {}
 		explicit Stmt(ForID for_id)              : _kind(Kind::FOR),         value{.for_id = for_id}               {}
 		explicit Stmt(ForUnrollID for_unroll_id) : _kind(Kind::FOR_UNROLL),  value{.for_unroll_id = for_unroll_id} {}
+		explicit Stmt(SwitchID switch_id)        : _kind(Kind::SWITCH),      value{.switch_id = switch_id}         {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
@@ -169,6 +171,11 @@ namespace pcit::panther::sema{
 			return this->value.for_unroll_id;
 		}
 
+		EVO_NODISCARD auto switchID() const -> SwitchID {
+			evo::debugAssert(this->kind() == Kind::SWITCH, "not a switch");
+			return this->value.switch_id;
+		}
+
 		EVO_NODISCARD auto deferID() const -> DeferID {
 			evo::debugAssert(this->kind() == Kind::DEFER, "not a defer");
 			return this->value.defer_id;
@@ -200,6 +207,7 @@ namespace pcit::panther::sema{
 				WhileID while_id;
 				ForID for_id;
 				ForUnrollID for_unroll_id;
+				SwitchID switch_id;
 				DeferID defer_id;
 			} value;
 	};

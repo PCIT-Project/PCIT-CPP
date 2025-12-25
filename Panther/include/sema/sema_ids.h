@@ -260,6 +260,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ForUnrollID>::UniqueID;
 	};
 
+	struct SwitchID : public core::UniqueID<uint32_t, struct SwitchID> {
+		using core::UniqueID<uint32_t, SwitchID>::UniqueID;
+	};
+
 	struct DeferID : public core::UniqueID<uint32_t, struct DeferID> {
 		using core::UniqueID<uint32_t, DeferID>::UniqueID;
 	};
@@ -794,6 +798,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::ForUnrollID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::SwitchID>{
+		static constexpr auto init(panther::sema::SwitchID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::SwitchID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1787,6 +1802,21 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ForUnrollID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ForUnrollID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::SwitchID>{
+		auto operator()(pcit::panther::sema::SwitchID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::SwitchID> : public pcit::core::Optional<pcit::panther::sema::SwitchID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::SwitchID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::SwitchID>::operator=;
 	};
 
 

@@ -43,6 +43,7 @@ namespace pcit::panther::AST{
 		WHEN_CONDITIONAL,
 		WHILE,
 		FOR,
+		SWITCH,
 		DEFER,
 		BREAK,
 		CONTINUE,
@@ -324,7 +325,7 @@ namespace pcit::panther::AST{
 			Node type;
 			bool isMut; // is false if param is index
 
-			Param(Token::ID _ident, Node _type) : ident(_ident), type(_type), isMut(false) {};
+			Param(Token::ID _ident, Node _type) : ident(_ident), type(_type), isMut() {}; // for indexers
 			Param(Token::ID _ident, Node _type, bool is_mut) : ident(_ident), type(_type), isMut(is_mut) {};
 		};
 
@@ -334,6 +335,19 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Param> values;
 		Node attributeBlock;
 		Node block;
+	};
+
+	struct Switch{
+		struct Case{
+			evo::SmallVector<Node> values; // empty if `else`
+			Node block;
+		};
+
+		Token::ID keyword;
+		Token::ID closeBrace;
+		Node cond;
+		Node attributeBlock;
+		evo::SmallVector<Case> cases;
 	};
 
 	struct Defer{

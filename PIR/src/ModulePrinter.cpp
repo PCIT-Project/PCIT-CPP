@@ -25,6 +25,7 @@ namespace pcit::pir{
 			case 0: return "";
 			case 1: return "    ";
 			case 2: return "        ";
+			case 3: return "            ";
 		}
 
 		evo::debugFatalBreak("Unsupported indent level");
@@ -97,6 +98,11 @@ namespace pcit::pir{
 		for(size_t i = 0; const Parameter& param : func_decl.parameters){
 			EVO_DEFER([&](){ i += 1; });
 
+			if(func_decl.parameters.size() > 1){
+				this->printer.println();
+				this->printer.print(tabs(1));
+			}
+
 			this->printer.print("${}", param.getName());
 			this->printer.printRed(": ");
 			this->print_type(param.getType());
@@ -145,7 +151,12 @@ namespace pcit::pir{
 				this->printer.print(", ");
 			}
 		}
-		this->printer.print(") ");
+
+		if(func_decl.parameters.size() > 1){
+			this->printer.print("\n) ");
+		}else{
+			this->printer.print(") ");
+		}
 
 		this->print_calling_convention(func_decl.callingConvention);
 		this->printer.print(" ");
@@ -966,15 +977,18 @@ namespace pcit::pir{
 				this->printer.printRed("{}@switch ", tabs(2));
 
 				this->print_expr(switch_stmt.cond);
-				this->printer.print(" ");
 
 				for(const Switch::Case& switch_case : switch_stmt.cases){
+					this->printer.println();
+					this->printer.print(tabs(3));
 					this->printer.print("[");
 					this->print_expr(switch_case.value);
 					this->printer.printRed(" -> ");
 					this->printer.print("${}], ", reader.getBasicBlock(switch_case.block).getName());
 				}
 
+				this->printer.println();
+				this->printer.print(tabs(3));
 				this->printer.print("[");
 				this->printer.printRed("default -> ");
 				this->printer.println("${}]", reader.getBasicBlock(switch_stmt.defaultBlock).getName());

@@ -573,6 +573,24 @@ namespace pcit::panther{
 
 
 
+		struct BeginSwitch{
+			const AST::Switch& switch_stmt;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTermInfoID cond;
+			bool is_no_jump;
+		};
+
+		struct BeginCase{
+			const AST::Switch::Case& switch_case;
+			evo::SmallVector<SymbolProcTermInfoID> values;
+			size_t index;
+		};
+
+		struct EndSwitch{
+			const AST::Switch& switch_stmt;
+		};
+
+
 
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
@@ -1066,6 +1084,10 @@ namespace pcit::panther{
 			BEGIN_FOR_UNROLL,
 			FOR_UNROLL_COND,
 			FOR_UNROLL_CONTINUE,
+			BEGIN_SWITCH,
+			BEGIN_CASE,
+			END_CASE,
+			END_SWITCH,
 			BEGIN_DEFER,
 			END_DEFER,
 			BEGIN_STMT_BLOCK,
@@ -1523,7 +1545,7 @@ namespace pcit::panther{
 			};
 
 			struct FuncInfo{
-				std::stack<sema::Stmt> subscopes{};
+				std::stack<sema::Stmt, evo::SmallVector<sema::Stmt, 4>> subscopes{};
 
 				size_t num_members_of_initializing_are_uninit = 0;
 

@@ -77,6 +77,7 @@ namespace pcit::panther{
 			PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT,
 			PARSER_TYPE_CONVERTER_LOWER_CASE,
 			PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK,
+			PARSER_SWITCH_ELSE_REDEF,
 			PARSER_UNION_WITH_NO_FIELDS,
 			PARSER_ENUM_WITH_NO_ENUMERATORS,
 			PARSER_ARRAY_REF_MUT_IN_DIMENSION,
@@ -274,7 +275,6 @@ namespace pcit::panther{
 			SEMA_NEW_UNION_VALUE_TO_VOID_FIELD,
 			SEMA_NEW_UNION_FIELD_DOESNT_EXIST,
 
-
 			// terminators
 			SEMA_INCORRECT_RETURN_STMT_KIND,
 			SEMA_RETURN_NOT_EPHEMERAL,
@@ -324,7 +324,6 @@ namespace pcit::panther{
 			SEMA_INDEXER_INVALID_TARGET,
 			SEMA_INDEXER_INCORRECT_NUM_INDICES,
 
-
 			// union
 			SEMA_UNION_UNTAGGED_WITH_VOID_FIELD,
 			SEMA_UNION_UNTAGGED_NON_TRIVIALLY_DELETABLE_FIELD,
@@ -343,6 +342,12 @@ namespace pcit::panther{
 			SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE,
 			SEMA_FOR_INVALID_PARAM_TYPE,
 
+			// switch
+			SEMA_SWITCH_INVALID_COND,
+			SEMA_SWITCH_INVALID_CASE_VALUE,
+			SEMA_SWITCH_VALUE_REUSE,
+			SEMA_SWITCH_EXTRANEOUS_ELSE,
+			SEMA_SWITCH_MISSING_CASE,
 
 			// block expr
 			SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
@@ -471,6 +476,7 @@ namespace pcit::panther{
 					-> Location;
 				EVO_NODISCARD static auto get(const AST::While& while_loop, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::For& for_loop, const class Source& src) -> Location;
+				EVO_NODISCARD static auto get(const AST::Switch& switch_stmt, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Defer& defer, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::Block& block, const class Source& src) -> Location;
 				EVO_NODISCARD static auto get(const AST::FuncCall& func_call, const class Source& src) -> Location;
@@ -716,6 +722,7 @@ namespace pcit::panther{
 				case Code::PARSER_DEDUCER_INVALID_IN_THIS_CONTEXT:
 				case Code::PARSER_TYPE_CONVERTER_LOWER_CASE:
 				case Code::PARSER_BLOCK_EXPR_EMPTY_OUTPUTS_BLOCK:
+				case Code::PARSER_SWITCH_ELSE_REDEF:
 				case Code::PARSER_UNION_WITH_NO_FIELDS:
 				case Code::PARSER_ENUM_WITH_NO_ENUMERATORS:
 				case Code::PARSER_ARRAY_REF_MUT_IN_DIMENSION:
@@ -934,6 +941,11 @@ namespace pcit::panther{
 				case Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS:
 				case Code::SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE:
 				case Code::SEMA_FOR_INVALID_PARAM_TYPE:
+				case Code::SEMA_SWITCH_INVALID_COND:
+				case Code::SEMA_SWITCH_INVALID_CASE_VALUE:
+				case Code::SEMA_SWITCH_VALUE_REUSE:
+				case Code::SEMA_SWITCH_EXTRANEOUS_ELSE:
+				case Code::SEMA_SWITCH_MISSING_CASE:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID:
 				case Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_DEDUCER_TYPE:
 				case Code::SEMA_BLOCK_EXPR_NOT_TERMINATED:

@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.209.0"></a>
+## v0.0.209.0
+
+### Panther
+- Added `switch` statements
+- Fixed crashing when lowering designated initializer new tagged union in some cases
+
+### PIR
+- Adjusted printing of modules
+	- switch cases now are on individual lines
+	- function arameters are on their own lines if the function has more than 1 parameter
+- Fixed `@abort` when lowered to LLVMIR
+
+
+<!---------------------------------->
 <a name="v0.0.208.3"></a>
 ## v0.0.208.3
 

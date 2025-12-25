@@ -513,6 +513,27 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct Switch{
+		using ID = SwitchID;
+
+		struct Case{
+			evo::SmallVector<Expr> values; // empty if `else`
+			StmtBlock stmtBlock{};
+		};
+
+		enum class Kind{
+			NO_JUMP,
+			PARTIAL,
+			COMPLETE,
+		};
+
+		TypeInfo::ID condTypeID;
+		Expr cond;
+		evo::SmallVector<Case> cases;
+		Kind kind;
+	};
+
+
 
 	struct Defer{
 		using ID = DeferID;
