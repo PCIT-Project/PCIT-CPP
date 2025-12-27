@@ -1,103 +1,107 @@
 
 
-type Vec2 = struct {
-	var x: F32; // member variable
-	var y: F32;
+// type Vec2 = struct {
+// 	var x: F32; // member variable
+// 	var y: F32;
 
-	func multiplyBy = (this mut, coefficient: F32) -> Void { // method
-		this.x *= coefficient;
-		this.y *= coefficient;
-	}
+// 	func multiplyBy = (this mut, coefficient: F32) -> Void { // method
+// 		this.x *= coefficient;
+// 		this.y *= coefficient;
+// 	}
 
-	func createZero = () -> Vec2 { // member function (no \`this\`)
-		return new Vec2{x = 0.0, y = 0.0};
-	}
+// 	func createZero = () -> Vec2 { // member function (no \`this\`)
+// 		return new Vec2{x = 0.0, y = 0.0};
+// 	}
 
 
-	func + = (this, rhs: Vec2) -> Vec2 { // operator overloading
-		return new Vec2{
-			x = this.x + rhs.x,
-			y = this.y + rhs.y,
-		};
-	}
+// 	func + = (this, rhs: Vec2) -> Vec2 { // operator overloading
+// 		return new Vec2{
+// 			x = this.x + rhs.x,
+// 			y = this.y + rhs.y,
+// 		};
+// 	}
 
-	func * = (this, coefficient: F32) -> (output: Vec2) { // arg of operator overloading can be a different type
-		output = copy this;
-		output.multiplyBy(coefficient);
-		return...;
-	}
-}
+// 	func * = (this, coefficient: F32) -> (output: Vec2) { // arg of operator overloading can be a different type
+// 		output = copy this;
+// 		output.multiplyBy(coefficient);
+// 		return...;
+// 	}
+// }
 
 
 
 type NonTrivialNum = struct {
-	func new = (num: Int) #rt -> (output: NonTrivialNum) { // initialization new
-		output.num = new Int?(copy num);
-		NonTrivialNum.num_existing += 1;
-		return...;
-	}
+	// func new = (num: Int) #rt -> (output: NonTrivialNum) { // initialization new
+	// 	output.num = copy num;
+	// 	NonTrivialNum.num_existing += 1;
+	// 	return...;
+	// }
 
-	func new = () #rt -> (output: NonTrivialNum) { // default initialization new
-		output.num = 0;
-		NonTrivialNum.num_existing += 1;
-		return...;
-	}
+	// func new = () #rt -> (output: NonTrivialNum) { // default initialization new
+	// 	output.num = 0;
+	// 	NonTrivialNum.num_existing += 1;
+	// 	return...;
+	// }
 
-	func new = (this mut, num: Int) #rt -> Void { // assignment new
-		this.num = new Int?(copy num);
-	}
-
-
-	func delete = (this) #rt -> Void { // delete
-		if(this.num != null){
-			NonTrivialNum.num_existing -= 1;
-		}
-	}
+	// func new = (this mut, num: Int) #rt -> Void { // assignment new
+	// 	this.num = copy num;
+	// }
 
 
-
-	func copy = (this) #rt -> (output: NonTrivialNum) { // initialization copy
-		output.num = copy this.num;
-		NonTrivialNum.num_existing += 1;
-		return...;
-	}
-
-	func copy = (this, target: NonTrivialNum mut) #rt -> Void { // assignment copy
-		target.num = copy this.num;
-		NonTrivialNum.num_existing += 1;
-	}
+	// func delete = (this) #rt -> Void { // delete
+	// 	if(this.num != null){
+	// 		NonTrivialNum.num_existing -= 1;
+	// 	}
+	// }
 
 
 
+	// func copy = (this) #rt -> (output: NonTrivialNum) { // initialization copy
+	// 	output.num = copy this.num;
+	// 	NonTrivialNum.num_existing += 1;
+	// 	return...;
+	// }
 
-	func move = (this mut) #rt -> (output: NonTrivialNum) { // initialization move
-		output.num = this.num.extract();
-		return...;
-	}
-
-	func move = (this mut, target: NonTrivialNum mut) #rt -> Void { // assignment move
-		target.num = this.num.extract();
-		NonTrivialNum.num_existing -= 1;
-	}
-
-
-	// private, cannot be accessed outside this struct
-	var num: Int? #priv; // Demo explanaition: null if `this` was moved from
+	// func copy = (this, target: NonTrivialNum mut) #rt -> Void { // assignment copy
+	// 	target.num = copy this.num;
+	// 	NonTrivialNum.num_existing += 1;
+	// }
 
 
-	var num_existing: UInt #priv #global = 0;
-	func getNumExisting = () #rt -> UInt {
-		return copy NonTrivialNum.num_existing;
-	}
+
+
+	// func move = (this mut) #rt -> (output: NonTrivialNum) { // initialization move
+	// 	output.num = this.num.extract();
+	// 	return...;
+	// }
+
+	// func move = (this mut, target: NonTrivialNum mut) #rt -> Void { // assignment move
+	// 	target.num = this.num.extract();
+	// 	NonTrivialNum.num_existing -= 1;
+	// }
+
+
+	// // private, cannot be accessed outside this struct
+	// var num: Int? #priv; // Demo explanaition: null if `this` was moved from
+
+
+	// var num_existing: UInt #priv #global = 0;
+	// func getNumExisting = () #rt -> UInt {
+	// 	return copy NonTrivialNum.num_existing;
+	// }
+
+	func new = () -> (output: This) { return...; }
+	func delete = (this) -> Void {}
+	func copy = (this) -> (output: This) { return...; }
+	func move = (this) -> (output: This) { return...; }
 }
 
 
 func entry = () #entry -> UI8 {
 	var foo = new NonTrivialNum(); // 1 NonTrivialNum exists
 
-	var bar: NonTrivialNum = copy foo; // 2 NonTrivialNum exists
-
-	bar = move foo; // 1 NonTrivialNum exists
+	var opt_foo: NonTrivialNum? = null;
+	// opt_foo = copy foo;
 	
-	return NonTrivialNum.getNumExisting() as UI8; // returns 1
+	return 0;
 }

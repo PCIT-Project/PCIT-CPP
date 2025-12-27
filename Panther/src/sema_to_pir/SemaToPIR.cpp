@@ -2778,6 +2778,7 @@ namespace pcit::panther{
 
 				const pir::Type target_type = this->get_type<false>(conversion_to_optional.targetTypeID);
 
+
 				const pir::Expr target = [&](){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createAlloca(target_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
@@ -5056,9 +5057,9 @@ namespace pcit::panther{
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 		if(expr_type.qualifiers().size() > 0){
-			if(expr_type.qualifiers().back().isOptional == false || expr_type.qualifiers().back().isPtr == false){
-				return;
-			}
+			evo::debugAssert(
+				expr_type.qualifiers().back().isOptional, "Unknown non-trivially-deletable type with qualifiers"
+			);
 
 			const pir::Type target_type = this->get_type<false>(expr_type_id);
 			const pir::Expr flag_ptr = this->agent.createCalcPtr(

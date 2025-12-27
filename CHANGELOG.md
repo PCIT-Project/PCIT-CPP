@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.209.2"></a>
+## v0.0.209.2
+
+### Panther
+- Fixed not lowering call to `delete` (implicit or explicit) of optional
+
+
+<!---------------------------------->
 <a name="v0.0.209.1"></a>
 ## v0.0.209.1
 
