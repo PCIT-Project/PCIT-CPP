@@ -620,9 +620,11 @@ namespace pcit::panther::sema{
 		evo::Variant<SourceID, ClangSourceID> sourceID;
 		evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
 		std::string clangMangledName; // empty if not clang type
+		std::optional<EncapsulatingSymbolID> parent;
 		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if clang type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
+		bool isPriv;
 		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
 
 		std::optional<pir::GlobalVar::ID> constexprJITGlobal{};

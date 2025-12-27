@@ -1472,8 +1472,10 @@ namespace pcit::panther{
 									global_var_decl.name, global_var_decl.declLine, global_var_decl.declCollumn
 								),
 								global_var_decl.mangled_name,
+								std::nullopt,
 								std::optional<sema::Expr>(),
 								panther_var_type->asTypeID(),
+								false,
 								false,
 								std::nullopt
 							);
@@ -1519,10 +1521,12 @@ namespace pcit::panther{
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
+							std::nullopt,
 							std::optional<sema::Expr>(sema::Expr(
 								this->sema_buffer.createBoolValue(clang_api.macroExprBuffer.getBool(macro.value))
 							)),
 							TypeManager::getTypeBool(),
+							false,
 							false,
 							std::nullopt
 						),
@@ -1568,8 +1572,10 @@ namespace pcit::panther{
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
+							std::nullopt,
 							std::optional<sema::Expr>(expr_value),
 							int_type,
+							false,
 							false,
 							std::nullopt
 						),
@@ -1615,8 +1621,10 @@ namespace pcit::panther{
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
+							std::nullopt,
 							std::optional<sema::Expr>(expr_value),
 							float_type,
+							false,
 							false,
 							std::nullopt
 						),

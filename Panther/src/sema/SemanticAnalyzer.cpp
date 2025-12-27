@@ -809,9 +809,11 @@ namespace pcit::panther{
 				this->source.getID(),
 				instr.var_def.ident,
 				std::string(),
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				std::optional<sema::Expr>(),
 				got_type_info_id.asTypeID(),
 				var_attrs.value().is_pub,
+				var_attrs.value().is_priv,
 				this->symbol_proc_id
 			);
 
@@ -1218,9 +1220,11 @@ namespace pcit::panther{
 				this->source.getID(),
 				instr.var_def.ident,
 				std::string(),
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				std::optional<sema::Expr>(value_term_info.getExpr()),
 				type_id,
 				var_attrs.value().is_pub,
+				var_attrs.value().is_priv,
 				this->symbol_proc_id
 			);
 
@@ -21212,13 +21216,28 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
-							std::format("Variable \"{}\" does not have the #pub attribute", ident_str),
-							Diagnostic::Info("Variable defined here:", this->get_location(ident_id))
+							std::format("Global variable \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 
+				}else if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(sema_var.isPriv && sema_var.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Global variable \"{}\" has the #priv attribute, and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
 				}
+
+
 
 				using ValueCategory = TermInfo::ValueCategory;
 				using ValueStage = TermInfo::ValueStage;
@@ -23632,7 +23651,7 @@ namespace pcit::panther{
 
 					if(sema_func.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
 							func_call.target,
 							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
 							Diagnostic::Info(

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.209.1"></a>
+## v0.0.209.1
+
+### Panther
+- Fixed missing check for `#priv` of global member variables
+
+
+<!---------------------------------->
 <a name="v0.0.209.0"></a>
 ## v0.0.209.0
 
