@@ -18942,7 +18942,10 @@ namespace pcit::panther{
 
 				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
 			}
+		}
 
+		if(this->expr_in_func_is_valid_value_stage(expr_ident.value(), instr.rhs_ident) == false){
+			return Result::ERROR;
 		}
 
 		this->return_term_info(instr.output, std::move(expr_ident.value()));
@@ -21241,11 +21244,12 @@ namespace pcit::panther{
 						const ValueStage value_stage = [&](){
 							if(is_global_scope){ return ValueStage::RUNTIME; }
 
-							if(this->currently_in_func() == false){
-								return ValueStage::RUNTIME;
-							}
-							
-							if(this->get_current_func().isConstexpr){
+							evo::debugAssert(sema_var.parent.has_value(), "Not in global scope, should have parent");
+							if(sema_var.parent->is<sema::Func::ID>() == false){ return ValueStage::RUNTIME; }
+
+							const sema::Func& parent_sema_func =
+								this->context.getSemaBuffer().getFunc(sema_var.parent->as<sema::Func::ID>());
+							if(parent_sema_func.isConstexpr){
 								return ValueStage::COMPTIME;
 							}else{
 								return ValueStage::RUNTIME;

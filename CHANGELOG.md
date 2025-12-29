@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.3"></a>
+## v0.0.210.3
+
+### Panther
+- Fixed missing check for valid value stage when using variables with attribute `#global`
+- Fixed `var` variables with attribute `#global` sometimes being classified as the wrong value state
+
+
+<!---------------------------------->
 <a name="v0.0.210.2"></a>
 ## v0.0.210.2
 
@@ -21,8 +30,8 @@
 ## v0.0.210.0
 
 ### Panther
-- Added assignment operator [new] that runs an initializer predicated by a destroy
-- Added assignment operator [new] for optional that is not trivially deletable
+- Added assignment operator `new` that runs an initializer predicated by a destroy
+- Added assignment operator `new` for optional that is not trivially deletable
 - Fixed lowering of copy and move in some contexts
 - Fixed not properly checking if a type is copyable/movable in a `copy`, `move`, or `forward` for all types
 - Fixed not properly checking of value state in a `copy`, `move`, or `forward` for all types
