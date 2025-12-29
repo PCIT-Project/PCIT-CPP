@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.5"></a>
+## v0.0.210.5
+
+### Panther
+- Fixed "No matching operator [new] overload for this type" diagnostic saying the compiler didn't generate a default operator `new` when the call is not a default `new`
+
+
+<!---------------------------------->
 <a name="v0.0.210.4"></a>
 ## v0.0.210.4
 

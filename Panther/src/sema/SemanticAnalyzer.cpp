@@ -13242,25 +13242,37 @@ namespace pcit::panther{
 		const BaseType::Struct& target_struct =
 			this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
 
-		if(instr.args.empty() && target_struct.isTriviallyDefaultInitializable){
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				target_type_id.asTypeID(),
-				sema::Expr(
-					this->context.sema_buffer.createDefaultTriviallyInitStruct(actual_target_type_info.baseTypeID())
-				)
-			);
-			return Result::SUCCESS;
-		}
+		if(instr.args.empty()){
+			if(target_struct.isTriviallyDefaultInitializable){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					this->get_current_func().isConstexpr
+						? TermInfo::ValueStage::COMPTIME
+						: TermInfo::ValueStage::RUNTIME,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_id.asTypeID(),
+					sema::Expr(
+						this->context.sema_buffer.createDefaultTriviallyInitStruct(actual_target_type_info.baseTypeID())
+					)
+				);
+				return Result::SUCCESS;
 
-		if(target_struct.newInitOverloads.empty()){
+			}else if(target_struct.newInitOverloads.empty()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+					instr.ast_new.type,
+					"No matching operator [new] overload for this type",
+					Diagnostic::Info("Compiler didn't generate a default operator [new]")
+				);
+				return Result::ERROR;
+			}
+
+		}else if(target_struct.newInitOverloads.empty()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
 				instr.ast_new.type,
 				"No matching operator [new] overload for this type",
-				Diagnostic::Info("Compiler didn't generate a default operator [new]")
+				Diagnostic::Info("Compiler didn't generate an operator [new]")
 			);
 			return Result::ERROR;
 		}

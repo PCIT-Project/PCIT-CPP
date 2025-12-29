@@ -1,10 +1,8 @@
-type NonTrivialNum = struct {
-	func new = () -> (output: This) { return...; }
-	func delete = (this) -> Void {}
-	func copy = (this) -> (output: This) { return...; }
-	func move = (this) -> (output: This) { return...; }
+type Vec2 = struct {
+	var x: F32;
+	var y: F32;
 
-	func as = (this in) -> This? { // HERE
-		return new This?(forward this); // HERE
+	func createZero = () -> Vec2 {
+		return new Vec2(0, 0);
 	}
 }
