@@ -84,6 +84,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
+		bool isInitialization;
 	};
 
 	struct Move{
@@ -91,6 +92,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
+		bool isInitialization;
 	};
 
 	struct Forward{

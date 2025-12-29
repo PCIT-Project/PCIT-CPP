@@ -427,15 +427,32 @@ namespace pcit::panther{
 
 			enum class SpecialMemberKind{
 				DELETE,
-				COPY,
-				MOVE,
+				COPY_INIT,
+				COPY_ASSIGN,
+				MOVE_INIT,
+				MOVE_ASSIGN,
 			};
 			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
-			EVO_NODISCARD auto get_special_member_stmt_dependents_and_check_constexpr(
+			EVO_NODISCARD auto check_special_member_call_and_get_dependents(
 				TypeInfo::ID type_info_id,
+				TermInfo::ValueCategory value_category,
 				std::unordered_set<sema::Func::ID>& dependent_funcs,
 				const auto& location
-			) ->evo::Result<>;
+			) -> evo::Result<>;
+
+			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
+			EVO_NODISCARD auto check_special_member_call_and_get_dependents(
+				const TermInfo& term_info,
+				std::unordered_set<sema::Func::ID>& dependent_funcs,
+				const auto& location
+			) -> evo::Result<> {
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					term_info.type_id.as<TypeInfo::ID>(),
+					term_info.value_category,
+					dependent_funcs,
+					location
+				);
+			}
 
 
 			EVO_NODISCARD auto currently_in_func() const -> bool;

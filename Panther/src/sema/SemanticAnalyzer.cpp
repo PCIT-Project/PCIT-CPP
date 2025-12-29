@@ -1924,8 +1924,11 @@ namespace pcit::panther{
 					}();
 
 
-					if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-						member_var.typeID, funcs_to_wait_on, Diagnostic::Location::NONE
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+						member_var.typeID,
+						TermInfo::ValueCategory::CONCRETE_MUT,
+						funcs_to_wait_on,
+						Diagnostic::Location::NONE
 					).isError()){
 						evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
 					}
@@ -2079,16 +2082,19 @@ namespace pcit::panther{
 						}
 
 
-						if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::MOVE>(
-							member_var.typeID, funcs_to_wait_on, Diagnostic::Location::NONE
+						if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_INIT>(
+							member_var.typeID,
+							TermInfo::ValueCategory::CONCRETE_MUT,
+							funcs_to_wait_on,
+							Diagnostic::Location::NONE
 						).isError()){
-							evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
+							evo::debugFatalBreak("Automatic creation of operator [move] should not be able to fail");
 						}
 
 						created_default_move.stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
-								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID))
+								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID, true))
 							)
 						);
 					}
@@ -2232,16 +2238,19 @@ namespace pcit::panther{
 
 
 
-						if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::COPY>(
-							member_var.typeID, funcs_to_wait_on, Diagnostic::Location::NONE
+						if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_INIT>(
+							member_var.typeID,
+							TermInfo::ValueCategory::CONCRETE_MUT,
+							funcs_to_wait_on,
+							Diagnostic::Location::NONE
 						).isError()){
-							evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
+							evo::debugFatalBreak("Automatic creation of operator [copy] should not be able to fail");
 						}
 
 						created_default_copy.stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
-								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID))
+								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID, true))
 							)
 						);
 					}
@@ -6991,8 +7000,8 @@ namespace pcit::panther{
 		}
 
 
-		if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-			target.type_id.as<TypeInfo::ID>(),
+		if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+			target,
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 			instr.delete_stmt
 		).isError()){
@@ -8866,8 +8875,8 @@ namespace pcit::panther{
 
 			}else{
 				if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
-					if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-						lhs.type_id.as<TypeInfo::ID>(),
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+						lhs,
 						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 						instr.infix
 					).isError()){
@@ -9067,15 +9076,20 @@ namespace pcit::panther{
 		if(actual_target_type_info.qualifiers().empty() == false){
 			if(actual_target_type_info.isOptional()){
 				if(
-					lhs.value_state == TermInfo::ValueState::UNINIT
+					lhs.value_state != TermInfo::ValueState::UNINIT
 					&& this->context.getTypeManager().isTriviallyDeletable(target_type_id.asTypeID()) == false
 				){
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.infix.rhs,
-						"assignment operator [new] for optional that is not trivially deletable is unimplemented"
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+						lhs,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.infix
+					).isError()){
+						return Result::ERROR;
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
 					);
-					return Result::ERROR;
 				}
 
 
@@ -9486,13 +9500,17 @@ namespace pcit::panther{
 						&& this->context.getTypeManager().isTriviallyDeletable(actual_target_type_info.baseTypeID())
 							== false
 					){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							instr.infix.rhs,
-							"assignment operator [new] that runs an initializer predicated by a destroy "
-								"is unimplemented"
+						if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+							lhs,
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+							instr.infix
+						).isError()){
+							return Result::ERROR;
+						}
+
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
 						);
-						return Result::ERROR;
 					}
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9501,8 +9519,8 @@ namespace pcit::panther{
 
 				}else{
 					if(this->context.getTypeManager().isTriviallyDeletable(lhs.type_id.as<TypeInfo::ID>()) == false){
-						if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-							lhs.type_id.as<TypeInfo::ID>(),
+						if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+							lhs,
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 							instr.infix
 						).isError()){
@@ -9540,7 +9558,7 @@ namespace pcit::panther{
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
 
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
-		TermInfo& target = this->get_term_info(instr.target);
+		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(lhs.is_concrete() == false){
 			this->emit_error(
@@ -9604,255 +9622,54 @@ namespace pcit::panther{
 		}
 
 
-		if(this->type_check<false, true>(
-			lhs.type_id.as<TypeInfo::ID>(), target, "RHS of assignment", instr.infix.rhs
+		const bool is_initialization = lhs.value_state == TermInfo::ValueState::UNINIT;
+
+		auto target_copy = TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			target.type_id,
+			sema::Expr(
+				this->context.sema_buffer.createCopy(
+					target.getExpr(), target.type_id.as<TypeInfo::ID>(), is_initialization
+				)
+			)
+		);
+
+
+		if(this->type_check<true, true>(
+			lhs.type_id.as<TypeInfo::ID>(), target_copy, "RHS of assignment", instr.infix.rhs
 		).ok == false){
 			return Result::ERROR;
 		}
 
 
-		const auto default_copy = [&]() -> Result {
-			if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix
-				).isError()){
-					return Result::ERROR;
-				}
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>())
-					)
-				)
-			);
-
-			if(lhs.value_state == TermInfo::ValueState::UNINIT){
-				this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
-			}
-
-			return Result::SUCCESS;
-		};
-
-		const TypeInfo& target_type_info =
-			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
-
-		if(target_type_info.qualifiers().empty() == false){
-			return default_copy();
-		}
-
-		if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			return default_copy();
-		}
-
-		const BaseType::Struct& struct_type =
-			this->context.getTypeManager().getStruct(target_type_info.baseTypeID().structID());
-
-
-
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			const BaseType::Struct::DeletableOverload copy_init_overload = struct_type.copyInitOverload.load();
-
-			if(copy_init_overload.wasDeleted){
-				this->emit_error(
-					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					"This type is not copyable as its operator [copy] was deleted"
-				);
+		if(is_initialization){
+			if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_INIT>(
+				target,
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+				instr.infix
+			).isError()){
 				return Result::ERROR;
-			}
-
-			if(copy_init_overload.funcID.has_value() == false){
-				return default_copy();
-			}
-
-
-			const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
-			const BaseType::Function& copy_sema_func_type =
-				this->context.getTypeManager().getFunction(copy_sema_func.typeID);
-			switch(copy_sema_func_type.params[0].kind){
-				case BaseType::Function::Param::Kind::READ: {
-					// no checking needed
-				} break;
-
-				case BaseType::Function::Param::Kind::MUT: {
-					if(target.is_mutable() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-							this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-							"Initialization copy of this type requires a mutable value "
-								"as the [this] parameter is [mut]"
-						);
-						return Result::ERROR;
-					}
-				} break;
-
-				case BaseType::Function::Param::Kind::IN: {
-					evo::debugFatalBreak("[this] param shouldn't be kind IN");
-				} break;
-
-				case BaseType::Function::Param::Kind::C: {
-					evo::debugFatalBreak("[this] param shouldn't be kind C");
-				} break;
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							*copy_init_overload.funcID, evo::SmallVector<sema::Expr>{target.getExpr()}
-						)
-					)
-				)
-			);
-
-			if(this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-					.dependent_funcs.emplace(*copy_init_overload.funcID);
 			}
 
 			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
 
-			return Result::SUCCESS;
-
 		}else{
-			const std::optional<sema::FuncID> copy_assign_overload = struct_type.copyAssignOverload.load();
-
-			if(copy_assign_overload.has_value()){
-				const sema::Func& copy_sema_func =
-					this->context.getSemaBuffer().getFunc(*copy_assign_overload);
-				const BaseType::Function& copy_sema_func_type =
-					this->context.getTypeManager().getFunction(copy_sema_func.typeID);
-				switch(copy_sema_func_type.params[0].kind){
-					case BaseType::Function::Param::Kind::READ: {
-						// no checking needed
-					} break;
-
-					case BaseType::Function::Param::Kind::MUT: {
-						if(target.is_mutable() == false){
-							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-								this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-								"Initialization copy of this type requires a mutable value "
-									"as the [this] parameter is [mut]"
-							);
-							return Result::ERROR;
-						}
-					} break;
-
-					case BaseType::Function::Param::Kind::IN: {
-						evo::debugFatalBreak("[this] param shouldn't be kind IN");
-					} break;
-
-					case BaseType::Function::Param::Kind::C: {
-						evo::debugFatalBreak("[this] param shouldn't be kind C");
-					} break;
-				}
-
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createFuncCall(
-						*copy_assign_overload,
-						evo::SmallVector<sema::Expr>{target.getExpr(), lhs.getExpr()}
-					)
-				);
-
-				if(this->get_current_func().isConstexpr){
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-						.dependent_funcs.emplace(*copy_assign_overload);
-				}
-
-				return Result::SUCCESS;
-			}
-
-
-			const BaseType::Struct::DeletableOverload copy_init_overload = struct_type.copyInitOverload.load();
-
-			if(copy_init_overload.wasDeleted){
-				this->emit_error(
-					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					"This type is not copyable as its operator [copy] was deleted"
-				);
+			if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_ASSIGN>(
+				target,
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+				instr.infix
+			).isError()){
 				return Result::ERROR;
 			}
-
-
-			if(copy_init_overload.funcID.has_value() == false){
-				return default_copy();
-			}
-
-
-			const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
-			const BaseType::Function& copy_sema_func_type =
-				this->context.getTypeManager().getFunction(copy_sema_func.typeID);
-
-			switch(copy_sema_func_type.params[0].kind){
-				case BaseType::Function::Param::Kind::READ: {
-					// no checking needed
-				} break;
-
-				case BaseType::Function::Param::Kind::MUT: {
-					if(target.is_mutable() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-							this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-							"Initialization copy of this type requires a mutable value "
-								"as the [this] parameter is [mut]"
-						);
-						return Result::ERROR;
-					}
-				} break;
-
-				case BaseType::Function::Param::Kind::IN: {
-					evo::debugFatalBreak("[this] param shouldn't be kind IN");
-				} break;
-
-				case BaseType::Function::Param::Kind::C: {
-					evo::debugFatalBreak("[this] param shouldn't be kind C");
-				} break;
-			}
-
-
-			if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix
-				).isError()){
-					return Result::ERROR;
-				}
-
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							*copy_init_overload.funcID, evo::SmallVector<sema::Expr>{target.getExpr()}
-						)
-					)
-				)
-			);
-
-			if(this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-					.dependent_funcs.emplace(*copy_init_overload.funcID);
-			}
-
-			return Result::SUCCESS;
 		}
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createAssign(lhs.getExpr(), target_copy.getExpr())
+		);
+
+		return Result::SUCCESS;
 	}
 
 
@@ -9958,164 +9775,54 @@ namespace pcit::panther{
 		}
 
 
-		if(this->type_check<false, true>(
-			lhs.type_id.as<TypeInfo::ID>(), target, "RHS of assignment", instr.infix.rhs
+		const bool is_initialization = lhs.value_state == TermInfo::ValueState::UNINIT;
+
+		auto target_move = TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			target.value_stage,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			target.type_id,
+			sema::Expr(
+				this->context.sema_buffer.createMove(
+					target.getExpr(), target.type_id.as<TypeInfo::ID>(), is_initialization
+				)
+			)
+		);
+
+
+		if(this->type_check<true, true>(
+			lhs.type_id.as<TypeInfo::ID>(), target_move, "RHS of assignment", instr.infix.rhs
 		).ok == false){
 			return Result::ERROR;
 		}
 
 
-		const auto default_move = [&]() -> Result {
-			if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix
-				).isError()){
-					return Result::ERROR;
-				}
-
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>())
-					)
-				)
-			);
-
-			if(lhs.value_state == TermInfo::ValueState::UNINIT){
-				this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
-			}
-
-			return Result::SUCCESS;
-		};
-
-		const TypeInfo& target_type_info =
-			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
-
-		if(target_type_info.qualifiers().empty() == false){
-			return default_move();
-		}
-
-		if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
-			return default_move();
-		}
-
-		const BaseType::Struct& struct_type =
-			this->context.getTypeManager().getStruct(target_type_info.baseTypeID().structID());
-
-
-
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			const BaseType::Struct::DeletableOverload move_init_overload = struct_type.moveInitOverload.load();
-
-			if(move_init_overload.wasDeleted){
-				this->emit_error(
-					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
-					"This type is not movable as its operator [move] was deleted"
-				);
+		if(is_initialization){
+			if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_INIT>(
+				target,
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+				instr.infix
+			).isError()){
 				return Result::ERROR;
-			}
-
-			if(move_init_overload.funcID.has_value() == false){
-				return default_move();
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							*move_init_overload.funcID, evo::SmallVector<sema::Expr>{target.getExpr()}
-						)
-					)
-				)
-			);
-
-			if(this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-					.dependent_funcs.emplace(*move_init_overload.funcID);
 			}
 
 			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
 
-			return Result::SUCCESS;
-
 		}else{
-			const std::optional<sema::FuncID> move_assign_overload = struct_type.moveAssignOverload.load();
-
-			if(move_assign_overload.has_value()){
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createFuncCall(
-						*move_assign_overload,
-						evo::SmallVector<sema::Expr>{target.getExpr(), lhs.getExpr()}
-					)
-				);
-
-				if(this->get_current_func().isConstexpr){
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-						.dependent_funcs.emplace(*move_assign_overload);
-				}
-
-				return Result::SUCCESS;
-			}
-
-
-			const BaseType::Struct::DeletableOverload move_init_overload = struct_type.moveInitOverload.load();
-
-			if(move_init_overload.wasDeleted){
-				this->emit_error(
-					Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
-					"This type is not movable as its operator [move] was deleted"
-				);
+			if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_ASSIGN>(
+				target,
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+				instr.infix
+			).isError()){
 				return Result::ERROR;
 			}
-
-
-			if(move_init_overload.funcID.has_value() == false){
-				return default_move();
-			}
-
-			if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-					lhs.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix
-				).isError()){
-					return Result::ERROR;
-				}
-
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
-				);
-			}
-
-			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(
-					lhs.getExpr(),
-					sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							*move_init_overload.funcID, evo::SmallVector<sema::Expr>{target.getExpr()}
-						)
-					)
-				)
-			);
-
-			if(this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-					.dependent_funcs.emplace(*move_init_overload.funcID);
-			}
-
-			return Result::SUCCESS;
 		}
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createAssign(lhs.getExpr(), target_move.getExpr())
+		);
+
+		return Result::SUCCESS;
 	}
 
 
@@ -10162,24 +9869,54 @@ namespace pcit::panther{
 		}
 
 
-		if(this->get_current_func().isConstexpr){
-			if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>())){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::COPY>(
-					target.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix.rhs
-				).isError()){
-					return Result::ERROR;
-				}
-			}
+		bool is_initialization = false;
 
-			if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>())){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::MOVE>(
-					target.type_id.as<TypeInfo::ID>(),
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-					instr.infix.rhs
-				).isError()){
-					return Result::ERROR;
+		if(lhs.value_state == TermInfo::ValueState::UNINIT){
+			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			is_initialization = true;
+		}
+
+
+		if(this->get_current_func().isConstexpr){
+			if(is_initialization){
+				if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>())){
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_INIT>(
+						target,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
+				}
+
+				if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>())){
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_INIT>(
+						target,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
+				}
+			}else{
+				if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>())){
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_ASSIGN>(
+						target,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
+				}
+
+				if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>())){
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_ASSIGN>(
+						target,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 			}
 		}
@@ -10214,14 +9951,6 @@ namespace pcit::panther{
 			} break;
 		}
 
-
-
-		bool is_initialization = false;
-
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
-			is_initialization = true;
-		}
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(
@@ -10323,8 +10052,8 @@ namespace pcit::panther{
 
 			}else{
 				if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
-					if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
-						target.type_id.as<TypeInfo::ID>(),
+					if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
+						target,
 						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 						instr.multi_assign
 					).isError()){
@@ -12445,50 +12174,8 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo& target_type_info =
-			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
-		if(target_type_info.qualifiers().empty() && target_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT){
-			const BaseType::Struct& struct_type =
-				this->context.getTypeManager().getStruct(target_type_info.baseTypeID().structID());
-
-			const BaseType::Struct::DeletableOverload copy_init_overload = struct_type.copyInitOverload.load();
-			if(copy_init_overload.funcID.has_value()){
-				const sema::Func& copy_sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
-				const BaseType::Function& copy_sema_func_type =
-					this->context.getTypeManager().getFunction(copy_sema_func.typeID);
-
-				switch(copy_sema_func_type.params[0].kind){
-					case BaseType::Function::Param::Kind::READ: {
-						// no checking needed
-					} break;
-
-					case BaseType::Function::Param::Kind::MUT: {
-						if(target.is_mutable() == false){
-							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-								instr.prefix,
-								"Initialization copy of this type requires a mutable value "
-									"as the [this] parameter is [mut]"
-							);
-							return Result::ERROR;
-						}
-					} break;
-
-					case BaseType::Function::Param::Kind::IN: {
-						evo::debugFatalBreak("[this] param shouldn't be kind IN");
-					} break;
-
-					case BaseType::Function::Param::Kind::C: {
-						evo::debugFatalBreak("[this] param shouldn't be kind C");
-					} break;
-				}
-			}
-		}
-
-
-
-		if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::COPY>(
-			target.type_id.as<TypeInfo::ID>(),
+		if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_INIT>(
+			target,
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 			instr.prefix
 		).isError()){
@@ -12500,7 +12187,7 @@ namespace pcit::panther{
 			target.value_stage,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
+			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true))
 		);
 
 		return Result::SUCCESS;
@@ -12599,8 +12286,8 @@ namespace pcit::panther{
 			} break;
 		}
 
-		if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::MOVE>(
-			target.type_id.as<TypeInfo::ID>(),
+		if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_INIT>(
+			target,
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 			instr.prefix
 		).isError()){
@@ -12612,7 +12299,7 @@ namespace pcit::panther{
 			target.value_stage,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
+			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true))
 		);
 
 		return Result::SUCCESS;
@@ -12643,8 +12330,8 @@ namespace pcit::panther{
 
 		if(this->get_current_func().isConstexpr){
 			if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>())){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::COPY>(
-					target.type_id.as<TypeInfo::ID>(),
+				if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::COPY_INIT>(
+					target,
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 					instr.prefix
 				).isError()){
@@ -12653,8 +12340,8 @@ namespace pcit::panther{
 			}
 
 			if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>())){
-				if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::MOVE>(
-					target.type_id.as<TypeInfo::ID>(),
+				if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::MOVE_INIT>(
+					target,
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 					instr.prefix
 				).isError()){
@@ -20708,8 +20395,9 @@ namespace pcit::panther{
 
 			sema::Defer& defer_stmt = this->context.sema_buffer.defers[defer_id];
 
-			if(this->get_special_member_stmt_dependents_and_check_constexpr<SpecialMemberKind::DELETE>(
+			if(this->check_special_member_call_and_get_dependents<SpecialMemberKind::DELETE>(
 				value_state_data.type_info_id,
+				TermInfo::ValueCategory::CONCRETE_MUT,
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
 				value_state_data.location
 			).isError()){
@@ -20726,8 +20414,11 @@ namespace pcit::panther{
 
 
 	template<SemanticAnalyzer::SpecialMemberKind SPECIAL_MEMBER_KIND>
-	auto SemanticAnalyzer::get_special_member_stmt_dependents_and_check_constexpr(
-		TypeInfo::ID type_info_id, std::unordered_set<sema::Func::ID>& dependent_funcs, const auto& location
+	auto SemanticAnalyzer::check_special_member_call_and_get_dependents(
+		TypeInfo::ID type_info_id,
+		TermInfo::ValueCategory value_category,
+		std::unordered_set<sema::Func::ID>& dependent_funcs,
+		const auto& location
 	) -> evo::Result<> {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
 
@@ -20737,8 +20428,8 @@ namespace pcit::panther{
 					type_info.copyWithPoppedQualifier()
 				);
 
-				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					optional_held_type_id, dependent_funcs, location
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					optional_held_type_id, value_category, dependent_funcs, location
 				);
 
 			}else{
@@ -20767,8 +20458,8 @@ namespace pcit::panther{
 				const BaseType::Array& array_type = 
 					this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
 
-				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					array_type.elementTypeID, dependent_funcs, location
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					array_type.elementTypeID, value_category, dependent_funcs, location
 				);
 			} break;
 
@@ -20781,8 +20472,8 @@ namespace pcit::panther{
 				const BaseType::Alias& alias_type = 
 					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
 
-				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					alias_type.aliasedType, dependent_funcs, location
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					alias_type.aliasedType, value_category, dependent_funcs, location
 				);
 			} break;
 
@@ -20790,8 +20481,8 @@ namespace pcit::panther{
 				const BaseType::DistinctAlias& distinct_alias_type = 
 					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
 
-				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					distinct_alias_type.underlyingType, dependent_funcs, location
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					distinct_alias_type.underlyingType, value_category, dependent_funcs, location
 				);
 			} break;
 
@@ -20812,7 +20503,7 @@ namespace pcit::panther{
 								location,
 								"Cannot call a non-constexpr [delete] within a constexpr function",
 								Diagnostic::Info(
-									"Called special member was defined here:",
+									"Called operator [delete] was defined here:",
 									this->get_location(*delete_overload)
 								)
 							);
@@ -20822,8 +20513,17 @@ namespace pcit::panther{
 						dependent_funcs.emplace(*delete_overload);
 					}
 
-				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::COPY){
+				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::COPY_INIT){
 					const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
+
+					if(copy_overload.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+							location,
+							"This type is not copyable as its operator [copy] was deleted"
+						);
+						return evo::resultError;
+					}
 
 					if(copy_overload.funcID.has_value()){
 						if(
@@ -20833,11 +20533,26 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 								location,
-								"Cannot call a non-constexpr [copy] within a constexpr function",
+								"Cannot call a non-constexpr [copy] initialization within a constexpr function",
 								Diagnostic::Info(
-									"Called special member was defined here:",
+									"Called operator [copy] initialization was defined here:",
 									this->get_location(*copy_overload.funcID)
 								)
+							);
+							return evo::resultError;
+						}
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_overload.funcID);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Initialization [copy] of this type requires a mutable value"
 							);
 							return evo::resultError;
 						}
@@ -20845,8 +20560,140 @@ namespace pcit::panther{
 						dependent_funcs.emplace(*copy_overload.funcID);
 					}
 
-				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::MOVE){
+				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::COPY_ASSIGN){
+					const BaseType::Struct::DeletableOverload copy_init_overload = struct_type.copyInitOverload.load();
+
+					if(copy_init_overload.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+							location,
+							"This type is not copyable as its operator [copy] was deleted"
+						);
+						return evo::resultError;
+					}
+
+
+					const std::optional<sema::FuncID> copy_assign_overload = struct_type.copyAssignOverload.load();
+					if(copy_assign_overload.has_value()){
+						if(
+							this->get_current_func().isConstexpr
+							&& this->context.getSemaBuffer().getFunc(*copy_assign_overload).isConstexpr == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+								location,
+								"Cannot call a non-constexpr [copy] assignment within a constexpr function",
+								Diagnostic::Info(
+									"Called special member was defined here:", this->get_location(*copy_assign_overload)
+								)
+							);
+							return evo::resultError;
+						}
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_assign_overload);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Assignment [copy] of this type requires a mutable value"
+							);
+							return evo::resultError;
+						}
+
+						dependent_funcs.emplace(*copy_assign_overload);
+						return evo::Result<>();
+					}
+
+
+					if(copy_init_overload.funcID.has_value()){
+						if(
+							this->get_current_func().isConstexpr
+							&& this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID).isConstexpr == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+								location,
+								"Cannot call a non-constexpr [copy] initialization within a constexpr function",
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"Called operator [copy] initialization was defined here:",
+										this->get_location(*copy_init_overload.funcID)
+									),
+									Diagnostic::Info(
+										"NOTE: [copy] initialization called here as this type does not have an "
+											"explicit [copy] assignment overload"
+									)
+								}
+							);
+							return evo::resultError;
+						}
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Initialization [copy] of this type requires a mutable value",
+								Diagnostic::Info(
+									"NOTE: [copy] initialization called here as this type does not have an "
+										"explicit [copy] assignment overload"
+								)
+							);
+							return evo::resultError;
+						}
+
+						dependent_funcs.emplace(*copy_init_overload.funcID);
+
+
+						const std::optional<sema::FuncID> delete_overload = struct_type.deleteOverload.load();
+						if(delete_overload.has_value()){
+							if(
+								this->get_current_func().isConstexpr
+								&& this->context.getSemaBuffer().getFunc(*delete_overload).isConstexpr == false
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									location,
+									"Cannot call a non-constexpr [delete] within a constexpr function",
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"Called operator [delete] was defined here:",
+											this->get_location(*copy_init_overload.funcID)
+										),
+										Diagnostic::Info(
+											"NOTE: [delete] called here as this type does not have an "
+												"explicit [copy] assignment overload"
+										)
+									}
+								);
+								return evo::resultError;
+							}
+
+							dependent_funcs.emplace(*delete_overload);
+						}
+					}
+
+				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::MOVE_INIT){
 					const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
+
+					if(move_overload.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+							location,
+							"This type is not movable as its operator [move] was deleted"
+						);
+						return evo::resultError;
+					}
 
 					if(move_overload.funcID.has_value()){
 						if(
@@ -20856,16 +20703,162 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
 								location,
-								"Cannot call a non-constexpr [move] within a constexpr function",
+								"Cannot call a non-constexpr [move] initialization within a constexpr function",
 								Diagnostic::Info(
-									"Called special member was defined here:",
+									"Called operator [copy] initialization was defined here:",
 									this->get_location(*move_overload.funcID)
 								)
 							);
 							return evo::resultError;
 						}
 
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_overload.funcID);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Initialization [move] of this type requires a mutable value"
+							);
+							return evo::resultError;
+						}
+
 						dependent_funcs.emplace(*move_overload.funcID);
+					}
+
+				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::MOVE_ASSIGN){
+					const BaseType::Struct::DeletableOverload move_init_overload = struct_type.moveInitOverload.load();
+
+					if(move_init_overload.wasDeleted){
+						this->emit_error(
+							Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+							location,
+							"This type is not movable as its operator [move] was deleted"
+						);
+						return evo::resultError;
+					}
+
+
+					const std::optional<sema::FuncID> move_assign_overload = struct_type.moveAssignOverload.load();
+					if(move_assign_overload.has_value()){
+						if(
+							this->get_current_func().isConstexpr
+							&& this->context.getSemaBuffer().getFunc(*move_assign_overload).isConstexpr == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+								location,
+								"Cannot call a non-constexpr [move] assignment within a constexpr function",
+								Diagnostic::Info(
+									"Called operator [move] assignment was defined here:",
+									this->get_location(*move_assign_overload)
+								)
+							);
+							return evo::resultError;
+						}
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_assign_overload);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT){
+							if(
+								value_category == TermInfo::ValueCategory::EPHEMERAL
+								|| value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
+							    || value_category == TermInfo::ValueCategory::CONCRETE_MUT
+								|| value_category == TermInfo::ValueCategory::FORWARDABLE
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+									location,
+									"Assignment [move] of this type requires a mutable value"
+								);
+								return evo::resultError;
+							}
+						}
+
+						dependent_funcs.emplace(*move_assign_overload);
+					}
+
+
+					if(move_init_overload.funcID.has_value()){
+						if(
+							this->get_current_func().isConstexpr
+							&& this->context.getSemaBuffer().getFunc(*move_init_overload.funcID).isConstexpr == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+								location,
+								"Cannot call a non-constexpr [move] initialization within a constexpr function",
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"Called operator [move] initialization was defined here:",
+										this->get_location(*move_init_overload.funcID)
+									),
+									Diagnostic::Info(
+										"NOTE: [move] initialization called here as this type does not have an "
+											"explicit [move] assignment overload"
+									)
+								}
+							);
+							return evo::resultError;
+						}
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_init_overload.funcID);
+						const BaseType::Function& sema_func_type =
+							this->context.getTypeManager().getFunction(sema_func.typeID);
+						if(sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT){
+							if(
+								value_category == TermInfo::ValueCategory::EPHEMERAL
+								|| value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
+							    || value_category == TermInfo::ValueCategory::CONCRETE_MUT
+								|| value_category == TermInfo::ValueCategory::FORWARDABLE
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+									location,
+									"Initialization [move] of this type requires a mutable value",
+									Diagnostic::Info(
+										"NOTE: [move] initialization called here as this type does not have an "
+											"explicit [move] assignment overload"
+									)
+								);
+								return evo::resultError;
+							}
+						}
+
+						dependent_funcs.emplace(*move_init_overload.funcID);
+
+
+						const std::optional<sema::FuncID> delete_overload = struct_type.deleteOverload.load();
+						if(delete_overload.has_value()){
+							if(
+								this->get_current_func().isConstexpr
+								&& this->context.getSemaBuffer().getFunc(*delete_overload).isConstexpr == false
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									location,
+									"Cannot call a non-constexpr [delete] within a constexpr function",
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"Called operator [delete] was defined here:",
+											this->get_location(*move_init_overload.funcID)
+										),
+										Diagnostic::Info(
+											"NOTE: [delete] called here as this type does not have an "
+												"explicit [move] assignment overload"
+										)
+									}
+								);
+								return evo::resultError;
+							}
+
+							dependent_funcs.emplace(*delete_overload);
+						}
 					}
 
 				}else{
@@ -20887,8 +20880,8 @@ namespace pcit::panther{
 					for(const BaseType::Union::Field& field : union_type.fields){
 						if(field.typeID.isVoid()){ continue; }
 
-						if(this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-							field.typeID.asTypeID(), dependent_funcs, location
+						if(this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+							field.typeID.asTypeID(), value_category, dependent_funcs, location
 						).isError()){
 							return evo::resultError;
 						}
@@ -20915,8 +20908,8 @@ namespace pcit::panther{
 				const BaseType::InterfaceMap& interface_map = 
 					this->context.getTypeManager().getInterfaceMap(type_info.baseTypeID().interfaceMapID());
 
-				return this->get_special_member_stmt_dependents_and_check_constexpr<SPECIAL_MEMBER_KIND>(
-					interface_map.underlyingTypeID, dependent_funcs, location
+				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+					interface_map.underlyingTypeID, value_category, dependent_funcs, location
 				);
 			} break;
 		}

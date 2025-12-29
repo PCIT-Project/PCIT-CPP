@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.0"></a>
+## v0.0.210.0
+
+### Panther
+- Added assignment operator [new] that runs an initializer predicated by a destroy
+- Added assignment operator [new] for optional that is not trivially deletable
+- Fixed lowering of copy and move in some contexts
+- Fixed not properly checking if a type is copyable/movable in a `copy`, `move`, or `forward` for all types
+- Fixed not properly checking of value state in a `copy`, `move`, or `forward` for all types
+- Fixed implicit conversion assignment
+- Fixed lowering of conversion to optional assignment
+
+
+<!---------------------------------->
 <a name="v0.0.209.2"></a>
 ## v0.0.209.2
 

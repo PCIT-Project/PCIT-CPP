@@ -91,17 +91,34 @@ type NonTrivialNum = struct {
 	// }
 
 	func new = () -> (output: This) { return...; }
+	func new = (this) -> Void {}
+
 	func delete = (this) -> Void {}
-	func copy = (this) -> (output: This) { return...; }
+
+	func copy = (this mut) -> (output: This) { return...; }
+	// func copy = (this, target: This) -> Void {}
+
 	func move = (this) -> (output: This) { return...; }
+	func move = (this, target: This) -> Void {}
+
+	
 }
+
+
+
+// func test = (ntn: NonTrivialNum in) -> Void {
+// 	var foo = new NonTrivialNum();
+// 	foo = forward ntn;
+// }
 
 
 func entry = () #entry -> UI8 {
 	var foo = new NonTrivialNum(); // 1 NonTrivialNum exists
+	var bar: NonTrivialNum = copy foo;
+	bar = copy foo;
 
 	var opt_foo: NonTrivialNum? = null;
-	// opt_foo = copy foo;
+	opt_foo = move foo;
 	
-	return 0;
+	return (opt_foo != null) as UI8;
 }

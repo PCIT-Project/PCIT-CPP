@@ -483,10 +483,7 @@ namespace pcit::panther{
 
 
 		EVO_NODISCARD constexpr auto is_mutable() const -> bool {
-			return this->value_category == ValueCategory::EPHEMERAL
-				|| this->value_category == ValueCategory::EPHEMERAL_FLUID
-			    || this->value_category == ValueCategory::CONCRETE_MUT
-				|| this->value_category == ValueCategory::FORWARDABLE;
+			return isValueCategoryMutable(this->value_category);
 		}
 
 
@@ -494,6 +491,15 @@ namespace pcit::panther{
 			return this->value_category == ValueCategory::MODULE
 				|| this->value_category == ValueCategory::CLANG_MODULE
 				|| this->value_category == ValueCategory::BUILTIN_MODULE;
+		}
+
+
+
+		EVO_NODISCARD static constexpr auto isValueCategoryMutable(ValueCategory value_category) -> bool {
+			return value_category == ValueCategory::EPHEMERAL
+				|| value_category == ValueCategory::EPHEMERAL_FLUID
+			    || value_category == ValueCategory::CONCRETE_MUT
+				|| value_category == ValueCategory::FORWARDABLE;
 		}
 
 

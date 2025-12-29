@@ -2594,12 +2594,16 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::COPY: {
 				const sema::Copy& copy_expr = this->context.getSemaBuffer().getCopy(expr.copyID());
-				return this->expr_copy<MODE>(copy_expr.expr, copy_expr.exprTypeID, true, store_locations);
+				return this->expr_copy<MODE>(
+					copy_expr.expr, copy_expr.exprTypeID, copy_expr.isInitialization, store_locations
+				);
 			} break;
 
 			case sema::Expr::Kind::MOVE: {
 				const sema::Move& move_expr = this->context.getSemaBuffer().getMove(expr.moveID());
-				return this->expr_move<MODE>(move_expr.expr, move_expr.exprTypeID, true, store_locations);
+				return this->expr_move<MODE>(
+					move_expr.expr, move_expr.exprTypeID, move_expr.isInitialization, store_locations
+				);
 			} break;
 
 			case sema::Expr::Kind::FORWARD: {
@@ -2795,22 +2799,132 @@ namespace pcit::panther{
 				}();
 
 
-				const pir::Expr held_calc_ptr = this->agent.createCalcPtr(
+				const pir::Expr value_calc_ptr = this->agent.createCalcPtr(
 					target,
 					target_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".CONVERSION_TO_OPTIONAL.value")
+					this->name(".CONVERSION_TO_OPTIONAL.value_ptr")
 				);
-				this->get_expr_store(conversion_to_optional.expr, held_calc_ptr);
-
 
 				const pir::Expr flag_calc_ptr = this->agent.createCalcPtr(
 					target,
 					target_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".CONVERSION_TO_OPTIONAL.flag")
+					this->name(".CONVERSION_TO_OPTIONAL.flag_ptr")
 				);
+
+
+				const auto create_copy_expr = [&](
+					const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
+				) -> void {
+					if(is_initialization){
+						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+					}else{
+						const pir::BasicBlock::ID init_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
+
+						const pir::BasicBlock::ID assign_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
+
+						const pir::BasicBlock::ID end_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
+
+						const pir::Expr flag_value = this->agent.createLoad(
+							flag_calc_ptr,
+							this->module.createBoolType(),
+							this->name("CONVERSION_TO_OPTIONAL.flag")
+						);
+
+						this->agent.createBranch(flag_value, assign_block, init_block);
+
+						this->agent.setTargetBasicBlock(init_block);
+						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+						this->agent.createJump(end_block);
+
+						this->agent.setTargetBasicBlock(assign_block);
+						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
+						this->agent.createJump(end_block);
+
+						this->agent.setTargetBasicBlock(end_block);
+					}
+				};
+
+
+				const auto create_move_expr = [&](
+					const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
+				) -> void {
+					if(is_initialization){
+						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+					}else{
+						const pir::BasicBlock::ID init_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
+
+						const pir::BasicBlock::ID assign_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
+
+						const pir::BasicBlock::ID end_block =
+							this->agent.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
+
+						const pir::Expr flag_value = this->agent.createLoad(
+							flag_calc_ptr,
+							this->module.createBoolType(),
+							this->name("CONVERSION_TO_OPTIONAL.flag")
+						);
+
+						this->agent.createBranch(flag_value, assign_block, init_block);
+
+						this->agent.setTargetBasicBlock(init_block);
+						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+						this->agent.createJump(end_block);
+
+						this->agent.setTargetBasicBlock(assign_block);
+						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
+						this->agent.createJump(end_block);
+
+						this->agent.setTargetBasicBlock(end_block);
+					}
+				};
+
+
+				switch(conversion_to_optional.expr.kind()){
+					case sema::Expr::Kind::COPY: {
+						const sema::Copy& copy_expr =
+							this->context.getSemaBuffer().getCopy(conversion_to_optional.expr.copyID());
+
+						create_copy_expr(copy_expr.expr, copy_expr.exprTypeID, copy_expr.isInitialization);
+					} break;
+
+					case sema::Expr::Kind::MOVE: {
+						const sema::Move& move_expr =
+							this->context.getSemaBuffer().getMove(conversion_to_optional.expr.moveID());
+
+						create_move_expr(move_expr.expr, move_expr.exprTypeID, move_expr.isInitialization);
+					} break;
+
+					case sema::Expr::Kind::FORWARD: {
+						const sema::Forward& forward_expr =
+							this->context.getSemaBuffer().getForward(conversion_to_optional.expr.forwardID());
+
+						const sema::Param& target_param = 
+							this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
+						const uint32_t in_param_index =
+							*this->current_func_info->params[target_param.index].in_param_index;
+						const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
+
+						if(param_is_copy){
+							create_copy_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
+						}else{
+							create_move_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
+						}
+					} break;
+					
+					default: {
+						this->get_expr_store(conversion_to_optional.expr, value_calc_ptr);
+					} break;
+				}
+
 				this->agent.createStore(flag_calc_ptr, this->agent.createBoolean(true));
+
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(target, target_type, this->name("CONVERSION_TO_OPTIONAL"));
@@ -5069,8 +5183,8 @@ namespace pcit::panther{
 
 			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
 
-			const pir::BasicBlock::ID delete_block = this->agent.createBasicBlock();
-			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID delete_block = this->agent.createBasicBlock(this->name("DELETE_OPT.DELETE"));
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("DELETE_OPT.END"));
 
 			this->agent.createBranch(flag_is_true, delete_block, end_block);
 
@@ -5397,9 +5511,9 @@ namespace pcit::panther{
 
 			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
 
-			const pir::BasicBlock::ID true_copy_block = this->agent.createBasicBlock();
-			const pir::BasicBlock::ID false_copy_block = this->agent.createBasicBlock();
-			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID true_copy_block = this->agent.createBasicBlock(this->name("COPY_OPT.HAS"));
+			const pir::BasicBlock::ID false_copy_block = this->agent.createBasicBlock(this->name("COPY_OPT.NULL"));
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("COPY_OPT.END"));
 
 			this->agent.createBranch(flag_is_true, true_copy_block, false_copy_block);
 
@@ -5566,14 +5680,14 @@ namespace pcit::panther{
 					const BaseType::Alias& alias =
 						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
-					this->delete_expr(expr, alias.aliasedType);
+					this->expr_copy<MODE>(expr, alias.aliasedType, is_initialization, target);
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
 					const BaseType::DistinctAlias& distinct_alias =
 						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
-					this->delete_expr(expr, distinct_alias.underlyingType);
+					this->expr_copy<MODE>(expr, distinct_alias.underlyingType, is_initialization, target);
 				} break;
 
 				case BaseType::Kind::STRUCT: {
@@ -5591,6 +5705,7 @@ namespace pcit::panther{
 							if(copy_assign_overload.has_value()){
 								return *copy_assign_overload;
 							}else{
+								this->delete_expr(target, expr_type_id);
 								return *struct_type.copyInitOverload.load().funcID;
 							}
 						}
@@ -5843,9 +5958,9 @@ namespace pcit::panther{
 
 			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
 
-			const pir::BasicBlock::ID true_move_block = this->agent.createBasicBlock();
-			const pir::BasicBlock::ID false_move_block = this->agent.createBasicBlock();
-			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock();
+			const pir::BasicBlock::ID true_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.HAS"));
+			const pir::BasicBlock::ID false_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.NULL"));
+			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("MOVE_OPT.END"));
 
 			this->agent.createBranch(flag_is_true, true_move_block, false_move_block);
 
@@ -5973,7 +6088,7 @@ namespace pcit::panther{
 						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
 					);
 
-					this->expr_copy<GetExprMode::STORE>(
+					this->expr_move<GetExprMode::STORE>(
 						src_elem, array_type.elementTypeID, is_initialization, target_elem
 					);
 
@@ -6009,14 +6124,14 @@ namespace pcit::panther{
 					const BaseType::Alias& alias =
 						this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
 
-					this->delete_expr(expr, alias.aliasedType);
+					this->expr_move<MODE>(expr, alias.aliasedType, is_initialization, target);
 				} break;
 
 				case BaseType::Kind::DISTINCT_ALIAS: {
 					const BaseType::DistinctAlias& distinct_alias =
 						this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
 
-					this->delete_expr(expr, distinct_alias.underlyingType);
+					this->expr_move<MODE>(expr, distinct_alias.underlyingType, is_initialization, target);
 				} break;
 
 				case BaseType::Kind::STRUCT: {
@@ -9220,21 +9335,45 @@ namespace pcit::panther{
 			switch(op_kind){
 				// prefix keywords
 				case Token::Kind::KEYWORD_COPY: {
-					return std::format(
-						"PTHR.f{}.{}.OP_copy", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
-					);
+					if(func.params.size() == 1){
+						return std::format(
+							"PTHR.f{}.{}.OP_copy_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.OP_copy_assign",
+							func_id.get(),
+							this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
 				} break;
 
 				case Token::Kind::KEYWORD_MOVE: {
-					return std::format(
-						"PTHR.f{}.{}.OP_move", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
-					);
+					if(func.params.size() == 1){
+						return std::format(
+							"PTHR.f{}.{}.OP_move_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.OP_move_assign",
+							func_id.get(),
+							this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
 				} break;
 
 				case Token::Kind::KEYWORD_NEW: {
-					return std::format(
-						"PTHR.f{}.{}.OP_new", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
-					);
+					if(func.params.empty()){
+						return std::format(
+							"PTHR.f{}.{}.OP_new_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.OP_new_assign",
+							func_id.get(),
+							this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
 				} break;
 
 				case Token::Kind::KEYWORD_DELETE: {
@@ -9567,18 +9706,57 @@ namespace pcit::panther{
 			}
 
 		}else{
-			if(op_kind == Token::lookupKind("[")){
-				return std::format(
-					"PTHR.f{}.{}.[]", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
-				);
+			switch(op_kind){
+				case Token::lookupKind("["): {
+					return std::format(
+						"PTHR.f{}.{}.[]", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+					);
+				} break;
 
-			}else{
-				return std::format(
-					"PTHR.f{}.{}.{}",
-					func_id.get(),
-					this->get_parent_name(func.parent, func.sourceID),
-					Token::printKind(op_kind)
-				);
+				case Token::Kind::KEYWORD_COPY: {
+					if(func.params.size() == 1){
+						return std::format(
+							"PTHR.f{}.{}.copy.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);	
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.copy.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
+				} break;
+
+				case Token::Kind::KEYWORD_MOVE: {
+					if(func.params.size() == 1){
+						return std::format(
+							"PTHR.f{}.{}.move.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);	
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.move.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
+				} break;
+
+				case Token::Kind::KEYWORD_NEW: {
+					if(func.params.size() == 0){
+						return std::format(
+							"PTHR.f{}.{}.new.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);	
+					}else{
+						return std::format(
+							"PTHR.f{}.{}.new.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						);
+					}
+				} break;
+
+				default: {
+					return std::format(
+						"PTHR.f{}.{}.{}",
+						func_id.get(),
+						this->get_parent_name(func.parent, func.sourceID),
+						Token::printKind(op_kind)
+					);
+				} break;
 			}
 		}
 	}
