@@ -17622,6 +17622,7 @@ namespace pcit::panther{
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
 		auto base_type = std::optional<BaseType::ID>();
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
 		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
 		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
@@ -17664,10 +17665,13 @@ namespace pcit::panther{
 				}
 
 				if(current_type_scope->is<EncapsulatingSymbolID::InterfaceImplInfo>()){
-					this->return_type(instr.output,
+					const TypeInfo& interface_impl_type = this->context.getTypeManager().getTypeInfo(
 						current_type_scope->as<EncapsulatingSymbolID::InterfaceImplInfo>().targetTypeID
 					);
-					return Result::SUCCESS;
+					
+					base_type = interface_impl_type.baseTypeID();
+					qualifiers.append_range(interface_impl_type.qualifiers());
+					break;
 				}
 
 				const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
@@ -17703,8 +17707,9 @@ namespace pcit::panther{
 					}
 				}
 
-				this->return_type(instr.output, TypeInfo::VoidableID(current_type_id));
-				return Result::SUCCESS;
+				const TypeInfo& current_type = this->context.getTypeManager().getTypeInfo(current_type_id);
+				base_type = current_type.baseTypeID();
+				qualifiers.append_range(current_type.qualifiers());
 			} break;
 
 			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
@@ -17783,8 +17788,7 @@ namespace pcit::panther{
 
 		evo::debugAssert(base_type.has_value(), "Base type was not set");
 
-		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-		qualifiers.reserve(instr.ast_type.qualifiers.size());
+		qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
 		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
 			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
 		}

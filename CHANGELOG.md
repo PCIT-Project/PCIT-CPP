@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.4"></a>
+## v0.0.210.4
+
+### Panther
+- Fixed type `This` with qualifiers not including the qualifiers properly
+
+
+<!---------------------------------->
 <a name="v0.0.210.3"></a>
 ## v0.0.210.3
 
