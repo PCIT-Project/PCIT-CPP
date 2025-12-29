@@ -20764,20 +20764,16 @@ namespace pcit::panther{
 						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_assign_overload);
 						const BaseType::Function& sema_func_type =
 							this->context.getTypeManager().getFunction(sema_func.typeID);
-						if(sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT){
-							if(
-								value_category == TermInfo::ValueCategory::EPHEMERAL
-								|| value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
-							    || value_category == TermInfo::ValueCategory::CONCRETE_MUT
-								|| value_category == TermInfo::ValueCategory::FORWARDABLE
-							){
-								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Assignment [move] of this type requires a mutable value"
-								);
-								return evo::resultError;
-							}
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Assignment [move] of this type requires a mutable value"
+							);
+							return evo::resultError;
 						}
 
 						dependent_funcs.emplace(*move_assign_overload);
@@ -20810,24 +20806,20 @@ namespace pcit::panther{
 						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_init_overload.funcID);
 						const BaseType::Function& sema_func_type =
 							this->context.getTypeManager().getFunction(sema_func.typeID);
-						if(sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT){
-							if(
-								value_category == TermInfo::ValueCategory::EPHEMERAL
-								|| value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
-							    || value_category == TermInfo::ValueCategory::CONCRETE_MUT
-								|| value_category == TermInfo::ValueCategory::FORWARDABLE
-							){
-								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Initialization [move] of this type requires a mutable value",
-									Diagnostic::Info(
-										"NOTE: [move] initialization called here as this type does not have an "
-											"explicit [move] assignment overload"
-									)
-								);
-								return evo::resultError;
-							}
+						if(
+							sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							&& TermInfo::isValueCategoryMutable(value_category) == false
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
+								location,
+								"Initialization [move] of this type requires a mutable value",
+								Diagnostic::Info(
+									"NOTE: [move] initialization called here as this type does not have an "
+										"explicit [move] assignment overload"
+								)
+							);
+							return evo::resultError;
 						}
 
 						dependent_funcs.emplace(*move_init_overload.funcID);

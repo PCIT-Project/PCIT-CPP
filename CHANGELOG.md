@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.2"></a>
+## v0.0.210.2
+
+### Panther
+- Fixed assignment move not calculating mutablility of argument correctly
+
+
+<!---------------------------------->
 <a name="v0.0.210.1"></a>
 ## v0.0.210.1
 
