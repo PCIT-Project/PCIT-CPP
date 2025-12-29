@@ -2961,14 +2961,21 @@ namespace pcit::panther{
 							);
 						}
 
-					}else if(target_type_info.isOptionalNotPointer()){
+					}else{
+						evo::debugAssert(target_type_info.isOptionalNotPointer(), "Unknown expr to opt null check");
+
 						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
 
 						const pir::Type target_type = this->get_type<false>(optional_null_check.targetTypeID);
 						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+							lhs,
+							target_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+							this->name(".OPT_NULL_CHECK.flag_ptr")
 						);
-						const pir::Expr flag = this->agent.createLoad(calc_ptr, this->module.createBoolType());
+						const pir::Expr flag = this->agent.createLoad(
+							calc_ptr, this->module.createBoolType(), this->name(".OPT_NULL_CHECK.flag")
+						);
 
 						if(optional_null_check.equal){
 							return this->agent.createIEq(
@@ -2980,23 +2987,6 @@ namespace pcit::panther{
 							);
 						}
 
-					}else{
-						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
-
-						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							lhs, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-
-						if(optional_null_check.equal){
-							return this->agent.createIEq(
-								calc_ptr, this->agent.createNullptr(), this->name("OPT_IS_NULL")
-							);
-						}else{
-							return this->agent.createINeq(
-								calc_ptr, this->agent.createNullptr(), this->name("OPT_ISNT_NULL")
-							);
-						}
 					}
 				}();
 				
@@ -5177,11 +5167,13 @@ namespace pcit::panther{
 
 			const pir::Type target_type = this->get_type<false>(expr_type_id);
 			const pir::Expr flag_ptr = this->agent.createCalcPtr(
-				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".DELETE_OPT.flag_ptr")
 			);
-			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
+			const pir::Expr flag =
+				this->agent.createLoad(flag_ptr, this->module.createBoolType(), this->name(".DELETE_OPT.flag"));
 
-			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
+			const pir::Expr flag_is_true =
+				this->agent.createIEq(flag, this->agent.createBoolean(true), this->name(".DELETE_OPT.flag_true"));
 
 			const pir::BasicBlock::ID delete_block = this->agent.createBasicBlock(this->name("DELETE_OPT.DELETE"));
 			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("DELETE_OPT.END"));
@@ -5190,11 +5182,11 @@ namespace pcit::panther{
 
 			this->agent.setTargetBasicBlock(delete_block);
 
-			const pir::Expr held_ptr = this->agent.createCalcPtr(
-				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+			const pir::Expr data_ptr = this->agent.createCalcPtr(
+				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".DELETE_OPT.data_ptr")
 			);
 			this->delete_expr(
-				held_ptr, this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier())
+				data_ptr, this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier())
 			);
 
 			this->agent.createJump(end_block);
@@ -5464,6 +5456,10 @@ namespace pcit::panther{
 	) -> std::optional<pir::Expr> {
 		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "Expr must be a pointer");
 
+		if constexpr(MODE != GetExprMode::STORE){
+			evo::debugAssert(is_initialization, "this expr mode cannot be assignment");
+		}
+
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 		const pir::Type target_type = this->get_type<false>(expr_type_id);
@@ -5504,67 +5500,166 @@ namespace pcit::panther{
 		if(expr_type.qualifiers().size() > 0){
 			evo::debugAssert(expr_type.isOptionalNotPointer(), "Not non-trivially-copyable");
 
-			const pir::Expr flag_ptr = this->agent.createCalcPtr(
-				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-			);
-			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
-
-			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
-
-			const pir::BasicBlock::ID true_copy_block = this->agent.createBasicBlock(this->name("COPY_OPT.HAS"));
-			const pir::BasicBlock::ID false_copy_block = this->agent.createBasicBlock(this->name("COPY_OPT.NULL"));
-			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("COPY_OPT.END"));
-
-			this->agent.createBranch(flag_is_true, true_copy_block, false_copy_block);
-
-
-			//////////////////
-			// has value
-
-			this->agent.setTargetBasicBlock(true_copy_block);
-
-			{
-				const pir::Expr src_held_ptr = this->agent.createCalcPtr(
-					expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+			if(is_initialization){
+				const pir::Expr flag_ptr = this->agent.createCalcPtr(
+					expr,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".COPY_OPT_INIT.flag_ptr")
 				);
-				const pir::Expr target_held_ptr = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-				);
-				this->expr_copy<GetExprMode::STORE>(
-					src_held_ptr,
-					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
-					is_initialization,
-					target_held_ptr
+				const pir::Expr flag =
+					this->agent.createLoad(flag_ptr, this->module.createBoolType(), this->name(".COPY_OPT_INIT.flag"));
+
+				const pir::Expr flag_is_true = this->agent.createIEq(
+					flag, this->agent.createBoolean(true), this->name(".COPY_OPT_INIT.flag_true")
 				);
 
-				const pir::Expr target_flag = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-				);
-				this->agent.createStore(target_flag, this->agent.createBoolean(true));
+				const pir::BasicBlock::ID true_copy_block =
+					this->agent.createBasicBlock(this->name("COPY_OPT_INIT.HAS"));
+				const pir::BasicBlock::ID false_copy_block =
+					this->agent.createBasicBlock(this->name("COPY_OPT_INIT.NULL"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("COPY_OPT_INIT.END"));
 
+				this->agent.createBranch(flag_is_true, true_copy_block, false_copy_block);
+
+
+				//////////////////
+				// has value
+
+				this->agent.setTargetBasicBlock(true_copy_block);
+
+				{
+					const pir::Expr src_held_ptr = this->agent.createCalcPtr(
+						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+					);
+					const pir::Expr target_held_ptr = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+					);
+					this->expr_copy<GetExprMode::STORE>(
+						src_held_ptr,
+						this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
+						is_initialization,
+						target_held_ptr
+					);
+
+					const pir::Expr target_flag = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+					);
+					this->agent.createStore(target_flag, this->agent.createBoolean(true));
+
+					this->agent.createJump(end_block);
+				}
+
+
+
+				//////////////////
+				// doesn't have value
+
+				this->agent.setTargetBasicBlock(false_copy_block);
+
+				{
+					const pir::Expr target_flag = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+					);
+					this->agent.createStore(target_flag, this->agent.createBoolean(false));
+
+					this->agent.createJump(end_block);
+				}
+
+				//////////////////
+				// end
+
+				this->agent.setTargetBasicBlock(end_block);
+
+			}else{
+				const TypeInfo::ID held_type_id =
+					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier());
+
+
+				const pir::Expr src_data_ptr = this->agent.createCalcPtr(
+					expr,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".COPY_OPT_ASSIGN.src_data_ptr")
+				);
+
+
+				const pir::Expr dst_data_ptr = this->agent.createCalcPtr(
+					store_locations[0],
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".COPY_OPT_ASSIGN.dst_data_ptr")
+				);
+
+				const pir::Expr src_flag_ptr = this->agent.createCalcPtr(
+					expr,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".COPY_OPT_ASSIGN.src_flag_ptr")
+				);
+
+				const pir::Expr src_flag =this->agent.createLoad(
+					src_flag_ptr, this->module.createBoolType(), this->name(".COPY_OPT_ASSIGN.src_flag")
+				);
+
+				const pir::Expr dst_flag_ptr = this->agent.createCalcPtr(
+					store_locations[0],
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".COPY_OPT_ASSIGN.dst_flag_ptr")
+				);
+
+				const pir::Expr dst_flag = this->agent.createLoad(
+					dst_flag_ptr, this->module.createBoolType(), this->name(".COPY_OPT_ASSIGN.dst_flag")
+				);
+
+
+				const pir::BasicBlock::ID flags_eq_block = this->agent.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_EQ");
+				const pir::BasicBlock::ID flags_true_block = this->agent.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_TRUE");
+				const pir::BasicBlock::ID flags_neq_block = this->agent.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_NEQ");
+				const pir::BasicBlock::ID src_flag_true_block =
+					this->agent.createBasicBlock("COPY_OPT_ASSIGN.SRC_FLAG_TRUE");
+				const pir::BasicBlock::ID dst_flag_true_block =
+					this->agent.createBasicBlock("COPY_OPT_ASSIGN.DST_FLAG_TRUE");
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("COPY_OPT_ASSIGN.END");
+
+				const pir::Expr flags_eq = 
+					this->agent.createIEq(src_flag, dst_flag, this->name(".COPY_OPT_ASSIGN.flags_eq"));
+				this->agent.createBranch(flags_eq, flags_eq_block, flags_neq_block);
+
+
+				this->agent.setTargetBasicBlock(flags_eq_block);
+				const pir::Expr flags_true = this->agent.createIEq(
+					src_flag, this->agent.createBoolean(true), this->name(".COPY_OPT_ASSIGN.flags_true")
+				);
+				this->agent.createBranch(flags_true, flags_true_block, end_block);
+
+
+				this->agent.setTargetBasicBlock(flags_true_block);
+				this->expr_copy<GetExprMode::STORE>(src_data_ptr, held_type_id, false, dst_data_ptr);
 				this->agent.createJump(end_block);
-			}
 
 
-
-			//////////////////
-			// doesn't have value
-
-			this->agent.setTargetBasicBlock(false_copy_block);
-
-			{
-				const pir::Expr target_flag = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				this->agent.setTargetBasicBlock(flags_neq_block);
+				const pir::Expr src_flag_true = this->agent.createIEq(
+					src_flag, this->agent.createBoolean(true), this->name(".COPY_OPT_ASSIGN.src_flag_true")
 				);
-				this->agent.createStore(target_flag, this->agent.createBoolean(false));
+				this->agent.createBranch(src_flag_true, src_flag_true_block, dst_flag_true_block);
 
+
+				this->agent.setTargetBasicBlock(src_flag_true_block);
+				this->expr_copy<GetExprMode::STORE>(src_data_ptr, held_type_id, true, dst_data_ptr);
+				this->agent.createStore(dst_flag_ptr, this->agent.createBoolean(true));
 				this->agent.createJump(end_block);
+
+
+				this->agent.setTargetBasicBlock(dst_flag_true_block);
+				this->delete_expr(dst_data_ptr, held_type_id);
+				this->agent.createStore(dst_flag_ptr, this->agent.createBoolean(false));
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
 			}
-
-			//////////////////
-			// end
-
-			this->agent.setTargetBasicBlock(end_block);
 
 		}else{
 			switch(expr_type.baseTypeID().kind()){
@@ -5912,6 +6007,10 @@ namespace pcit::panther{
 	) -> std::optional<pir::Expr> {
 		evo::debugAssert(this->agent.getExprType(expr).kind() == pir::Type::Kind::PTR, "Expr must be a pointer");
 
+		if constexpr(MODE != GetExprMode::STORE){
+			evo::debugAssert(is_initialization, "this expr mode cannot be assignment");
+		}
+
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 		const pir::Type target_type = this->get_type<false>(expr_type_id);
@@ -5951,66 +6050,159 @@ namespace pcit::panther{
 		if(expr_type.qualifiers().size() > 0){
 			evo::debugAssert(expr_type.isOptionalNotPointer(), "Not non-trivially-movable");
 
-			const pir::Expr flag_ptr = this->agent.createCalcPtr(
-				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-			);
-			const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
-
-			const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
-
-			const pir::BasicBlock::ID true_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.HAS"));
-			const pir::BasicBlock::ID false_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.NULL"));
-			const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("MOVE_OPT.END"));
-
-			this->agent.createBranch(flag_is_true, true_move_block, false_move_block);
-
-
-			//////////////////
-			// has value
-
-			this->agent.setTargetBasicBlock(true_move_block);
-
-			{
-				const pir::Expr src_held_ptr = this->agent.createCalcPtr(
-					expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+			if(is_initialization){
+				const pir::Expr flag_ptr = this->agent.createCalcPtr(
+					expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
 				);
-				const pir::Expr target_held_ptr = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-				);
-				this->expr_move<GetExprMode::STORE>(
-					src_held_ptr,
-					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
-					is_initialization,
-					target_held_ptr
+				const pir::Expr flag = this->agent.createLoad(flag_ptr, this->module.createBoolType());
+
+				const pir::Expr flag_is_true = this->agent.createIEq(flag, this->agent.createBoolean(true));
+
+				const pir::BasicBlock::ID true_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.HAS"));
+				const pir::BasicBlock::ID false_move_block = this->agent.createBasicBlock(this->name("MOVE_OPT.NULL"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("MOVE_OPT.END"));
+
+				this->agent.createBranch(flag_is_true, true_move_block, false_move_block);
+
+
+				//////////////////
+				// has value
+
+				this->agent.setTargetBasicBlock(true_move_block);
+
+				{
+					const pir::Expr src_held_ptr = this->agent.createCalcPtr(
+						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+					);
+					const pir::Expr target_held_ptr = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
+					);
+					this->expr_move<GetExprMode::STORE>(
+						src_held_ptr,
+						this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier()),
+						is_initialization,
+						target_held_ptr
+					);
+
+					const pir::Expr target_flag = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+					);
+					this->agent.createStore(target_flag, this->agent.createBoolean(true));
+
+					this->agent.createJump(end_block);
+				}
+
+
+				//////////////////
+				// doesn't have value
+
+				this->agent.setTargetBasicBlock(false_move_block);
+
+				{
+					const pir::Expr target_flag = this->agent.createCalcPtr(
+						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+					);
+					this->agent.createStore(target_flag, this->agent.createBoolean(false));
+
+					this->agent.createJump(end_block);
+				}
+
+				//////////////////
+				// end
+
+				this->agent.setTargetBasicBlock(end_block);
+
+			}else{
+				const TypeInfo::ID held_type_id =
+					this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier());
+
+
+				const pir::Expr src_data_ptr = this->agent.createCalcPtr(
+					expr,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".MOVE_OPT_ASSIGN.src_data_ptr")
 				);
 
-				const pir::Expr target_flag = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-				);
-				this->agent.createStore(target_flag, this->agent.createBoolean(true));
 
+				const pir::Expr dst_data_ptr = this->agent.createCalcPtr(
+					store_locations[0],
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".MOVE_OPT_ASSIGN.dst_data_ptr")
+				);
+
+				const pir::Expr src_flag_ptr = this->agent.createCalcPtr(
+					expr,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".MOVE_OPT_ASSIGN.src_flag_ptr")
+				);
+
+				const pir::Expr src_flag =this->agent.createLoad(
+					src_flag_ptr, this->module.createBoolType(), this->name(".MOVE_OPT_ASSIGN.src_flag")
+				);
+
+				const pir::Expr dst_flag_ptr = this->agent.createCalcPtr(
+					store_locations[0],
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".MOVE_OPT_ASSIGN.dst_flag_ptr")
+				);
+
+				const pir::Expr dst_flag = this->agent.createLoad(
+					dst_flag_ptr, this->module.createBoolType(), this->name(".MOVE_OPT_ASSIGN.dst_flag")
+				);
+
+
+				const pir::BasicBlock::ID flags_eq_block = this->agent.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_EQ");
+				const pir::BasicBlock::ID flags_true_block = this->agent.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_TRUE");
+				const pir::BasicBlock::ID flags_neq_block = this->agent.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_NEQ");
+				const pir::BasicBlock::ID src_flag_true_block =
+					this->agent.createBasicBlock("MOVE_OPT_ASSIGN.SRC_FLAG_TRUE");
+				const pir::BasicBlock::ID dst_flag_true_block =
+					this->agent.createBasicBlock("MOVE_OPT_ASSIGN.DST_FLAG_TRUE");
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock("MOVE_OPT_ASSIGN.END");
+
+				const pir::Expr flags_eq = 
+					this->agent.createIEq(src_flag, dst_flag, this->name(".MOVE_OPT_ASSIGN.flags_eq"));
+				this->agent.createBranch(flags_eq, flags_eq_block, flags_neq_block);
+
+
+				this->agent.setTargetBasicBlock(flags_eq_block);
+				const pir::Expr flags_true = this->agent.createIEq(
+					src_flag, this->agent.createBoolean(true), this->name(".MOVE_OPT_ASSIGN.flags_true")
+				);
+				this->agent.createBranch(flags_true, flags_true_block, end_block);
+
+
+				this->agent.setTargetBasicBlock(flags_true_block);
+				this->expr_move<GetExprMode::STORE>(src_data_ptr, held_type_id, false, dst_data_ptr);
+				this->agent.createStore(src_flag_ptr, this->agent.createBoolean(false));
 				this->agent.createJump(end_block);
-			}
 
 
-			//////////////////
-			// doesn't have value
-
-			this->agent.setTargetBasicBlock(false_move_block);
-
-			{
-				const pir::Expr target_flag = this->agent.createCalcPtr(
-					target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
+				this->agent.setTargetBasicBlock(flags_neq_block);
+				const pir::Expr src_flag_true = this->agent.createIEq(
+					src_flag, this->agent.createBoolean(true), this->name(".MOVE_OPT_ASSIGN.src_flag_true")
 				);
-				this->agent.createStore(target_flag, this->agent.createBoolean(false));
+				this->agent.createBranch(src_flag_true, src_flag_true_block, dst_flag_true_block);
 
+
+				this->agent.setTargetBasicBlock(src_flag_true_block);
+				this->expr_move<GetExprMode::STORE>(src_data_ptr, held_type_id, true, dst_data_ptr);
+				this->agent.createStore(src_flag_ptr, this->agent.createBoolean(false));
+				this->agent.createStore(dst_flag_ptr, this->agent.createBoolean(true));
 				this->agent.createJump(end_block);
+
+
+				this->agent.setTargetBasicBlock(dst_flag_true_block);
+				this->delete_expr(dst_data_ptr, held_type_id);
+				this->agent.createStore(dst_flag_ptr, this->agent.createBoolean(false));
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
 			}
-
-			//////////////////
-			// end
-
-			this->agent.setTargetBasicBlock(end_block);
 
 		}else{
 			switch(expr_type.baseTypeID().kind()){

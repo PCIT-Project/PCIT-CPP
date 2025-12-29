@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.210.1"></a>
+## v0.0.210.1
+
+### Panther
+- Fixed lowering optional assignemnt copy and move
+
+
+<!---------------------------------->
 <a name="v0.0.210.0"></a>
 ## v0.0.210.0
 
