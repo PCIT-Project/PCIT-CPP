@@ -516,7 +516,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Alias& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->name == rhs.name;
+				return this->sourceID == rhs.sourceID && this->name == rhs.name && this->parent == rhs.parent;
 			}
 		};
 
@@ -531,7 +531,9 @@ namespace pcit::panther{
 			bool isPub;
 			
 			EVO_NODISCARD auto operator==(const DistinctAlias& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->identTokenID == rhs.identTokenID;
+				return this->sourceID == rhs.sourceID
+					&& this->identTokenID == rhs.identTokenID
+					&& this->parent == rhs.parent;
 			}
 		};
 
@@ -623,7 +625,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto operator==(const Struct& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
 					&& this->name == rhs.name
-					&& this->instantiation == rhs.instantiation;
+					&& this->instantiation == rhs.instantiation
+					&& this->parent == rhs.parent;
 			}
 		};
 
@@ -680,6 +683,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto operator==(const StructTemplate& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID 
 					&& this->identTokenID == rhs.identTokenID
+					&& this->parent == rhs.parent
 					&& this->params == rhs.params;
 			}
 
@@ -744,7 +748,7 @@ namespace pcit::panther{
 			) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Union& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->location == rhs.location;
+				return this->sourceID == rhs.sourceID && this->location == rhs.location && this->parent == rhs.parent;
 			}
 		};
 
@@ -777,7 +781,7 @@ namespace pcit::panther{
 			) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Enum& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->location == rhs.location;
+				return this->sourceID == rhs.sourceID && this->location == rhs.location && this->parent == rhs.parent;
 			}
 		};
 

@@ -19,7 +19,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 	}
 
 	func delete = (this mut) -> Void {
-		for(this as [Int:*mut]) [_; elem: T mut] {
+		for(this as [T:*mut]) [_; elem: T mut] {
 			delete elem;
 		}
 	}
@@ -28,7 +28,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 	// func copy = (this) -> (output: This) {
 	// 	output = new This();
 
-	// 	for(this as [Int:*]) [_; elem: T]{
+	// 	for(this as [T:*]) [_; elem: T]{
 	// 		output.append().* = copy elem;
 	// 	}
 
@@ -38,7 +38,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 	// func move = (this mut) -> (output: This) {
 	// 	output = new This();
 
-	// 	for(this as [Int:*mut]) [_; elem: T mut]{
+	// 	for(this as [T:*mut]) [_; elem: T mut]{
 	// 		output.append().* = move elem;
 	// 	}
 
@@ -80,7 +80,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 	// modifiers
 
 	func clear = (this mut) -> Void {
-		for(this as [Int:*mut]) [_; elem: T mut] {
+		for(this as [T:*mut]) [_; elem: T mut] {
 			delete elem;
 		}
 
@@ -120,34 +120,8 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 }
 
 
-type Union = union {
-	none: Void,
-	num: Int,
-}
-
-
-type NonTrivial = struct {
-	func new = () -> (output: This) { return...; }
-	func new = (this) -> Void {}
-
-	func delete = (this) -> Void {}
-
-	func copy = (this) -> (output: This) { return...; }
-	func copy = (this, target: This mut) -> Void {}
-
-	func move = (this) -> (output: This) { return...; }
-	func move = (this mut, target: This mut) -> Void {}
-}
-
-
-func test = () #rt -> Void {
-	var opt: NonTrivial = new NonTrivial();
-	opt = new NonTrivial();
-}
-
-
 func entry = () #entry -> UI8 {
-	var nums = new StaticArrayList<{Int,5}>();
+	var nums = new StaticArrayList<{Int, 5}>();
 	nums.append().* = 1;
 	nums.append().* = 2;
 	nums.append().* = 3;
@@ -156,6 +130,8 @@ func entry = () #entry -> UI8 {
 	for(nums as [Int:*]) [_; num: Int] {
 		sum += num;
 	}
+
+	var other = new StaticArrayList<{F32, 5}>();
 
 	return (sum + nums.size() as Int) as UI8; // 9
 }

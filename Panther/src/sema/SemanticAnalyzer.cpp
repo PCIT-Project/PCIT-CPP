@@ -19100,7 +19100,10 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->expr_in_func_is_valid_value_stage(expr_ident.value(), instr.rhs_ident) == false){
+		if(
+			this->currently_in_func()
+			&& this->expr_in_func_is_valid_value_stage(expr_ident.value(), instr.rhs_ident) == false
+		){
 			return Result::ERROR;
 		}
 

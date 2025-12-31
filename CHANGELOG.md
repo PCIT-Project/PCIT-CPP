@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.211.1"></a>
+## v0.0.211.1
+
+### Panther
+- Fixed types definitions within instantiations being considered the same type across all instantiations
+- Fixed crashing in semantic analysis of type accessor not in function scope
+
+
+<!---------------------------------->
 <a name="v0.0.211.0"></a>
 ## v0.0.211.0
 
