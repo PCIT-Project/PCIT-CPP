@@ -109,6 +109,10 @@ namespace pcit::panther{
 				-> std::optional<pir::Expr>;
 
 
+			template<GetExprMode MODE>
+			auto default_new_expr(
+				TypeInfo::ID expr_type_id, bool is_initialization, evo::ArrayProxy<pir::Expr> store_location
+			) -> std::optional<pir::Expr>;
 
 			auto delete_expr(const sema::Expr& expr, TypeInfo::ID expr_type_id) -> void;
 			auto delete_expr(pir::Expr expr, TypeInfo::ID expr_type_id) -> void; // expr must be pointer to value
@@ -175,7 +179,9 @@ namespace pcit::panther{
 
 
 
-
+			auto iterate_array(
+				const BaseType::Array& array_type, std::string_view op_name, std::function<void(pir::Expr)> body_func
+			) -> void;
 
 
 			EVO_NODISCARD auto create_call(
@@ -289,6 +295,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto name(std::format_string<Args...> fmt, Args&&... args) const -> std::string;
 
 
+			struct AutoDeleteTarget{
+				pir::Expr expr;
+				TypeInfo::ID typeID;
+			};
+
 			struct DeferItem{
 				struct Targets{
 					bool on_scope_end;
@@ -298,7 +309,7 @@ namespace pcit::panther{
 					bool on_break;
 				};
 
-				evo::Variant<sema::Defer::ID, std::function<void()>> defer_item;
+				evo::Variant<sema::Defer::ID, std::function<void()>, AutoDeleteTarget> defer_item;
 				Targets targets;
 			};
 
@@ -332,6 +343,8 @@ namespace pcit::panther{
 			auto pop_scope_level() -> void;
 			EVO_NODISCARD auto get_current_scope_level() -> ScopeLevel&;
 
+			auto add_auto_delete_target(pir::Expr epxr, TypeInfo::ID type_id) -> void;
+
 
 			enum class DeferTarget{
 				SCOPE_END,
@@ -358,6 +371,8 @@ namespace pcit::panther{
 			evo::SmallVector<ScopeLevel> scope_levels{}; // TODO(PERF): use stack?
 
 			uint32_t in_param_bitmap = 0; // 0 bit means move, 1 bit means copy
+
+			evo::SmallVector<AutoDeleteTarget> end_of_stmt_deletes{};
 
 			Data& data;
 	};

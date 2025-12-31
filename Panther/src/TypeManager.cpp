@@ -1981,13 +1981,19 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
-				for(const BaseType::Union::Field& field : union_info.fields){
-					if(field.typeID.isVoid()){ continue; }
-					// Yes, this is the correct method
-					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-				}
+				if(union_info.isUntagged){
+					for(const BaseType::Union::Field& field : union_info.fields){
+						// Yes, this is the correct method
+						if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+					}
 
-				return true;
+					return true;
+
+				}else{
+					const TypeInfo::VoidableID default_field_type = union_info.fields[0].typeID;
+					if(default_field_type.isVoid()){ return true; }
+					return this->isDefaultInitializable(default_field_type.asTypeID());
+				}
 			} break;
 
 			case BaseType::Kind::ENUM: {
@@ -2074,13 +2080,19 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
-				for(const BaseType::Union::Field& field : union_info.fields){
-					if(field.typeID.isVoid()){ continue; }
-					// Yes, this is the correct method
-					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-				}
+				if(union_info.isUntagged){
+					for(const BaseType::Union::Field& field : union_info.fields){
+						// Yes, this is the correct method
+						if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+					}
 
-				return true;
+					return true;
+
+				}else{
+					const TypeInfo::VoidableID default_field_type = union_info.fields[0].typeID;
+					if(default_field_type.isVoid()){ return true; }
+					return this->isNoErrorDefaultInitializable(default_field_type.asTypeID());
+				}
 			} break;
 
 			case BaseType::Kind::ENUM: {
@@ -2169,13 +2181,19 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
-				for(const BaseType::Union::Field& field : union_info.fields){
-					if(field.typeID.isVoid()){ continue; }
-					// Yes, this is the correct method
-					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-				}
+				if(union_info.isUntagged){
+					for(const BaseType::Union::Field& field : union_info.fields){
+						// Yes, this is the correct method
+						if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+					}
 
-				return true;
+					return true;
+
+				}else{
+					const TypeInfo::VoidableID default_field_type = union_info.fields[0].typeID;
+					if(default_field_type.isVoid()){ return true; }
+					return this->isConstexprDefaultInitializable(default_field_type.asTypeID());
+				}
 			} break;
 
 			case BaseType::Kind::ENUM: {
@@ -2260,12 +2278,16 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
-				for(const BaseType::Union::Field& field : union_info.fields){
-					if(field.typeID.isVoid()){ continue; }
-					if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-				}
+				if(union_info.isUntagged){
+					for(const BaseType::Union::Field& field : union_info.fields){
+						if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
+					}
 
-				return true;
+					return true;
+
+				}else{
+					return false;
+				}
 			} break;
 
 			case BaseType::Kind::ENUM: {

@@ -151,16 +151,8 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, IndexerID>::UniqueID;
 	};
 
-	struct DefaultInitPrimitiveID : public core::UniqueID<uint32_t, struct DefaultInitPrimitiveID> {
-		using core::UniqueID<uint32_t, DefaultInitPrimitiveID>::UniqueID;
-	};
-
-	struct DefaultTriviallyInitStructID : public core::UniqueID<uint32_t, struct DefaultTriviallyInitStructID> {
-		using core::UniqueID<uint32_t, DefaultTriviallyInitStructID>::UniqueID;
-	};
-
-	struct DefaultInitArrayRefID : public core::UniqueID<uint32_t, struct DefaultInitArrayRefID> {
-		using core::UniqueID<uint32_t, DefaultInitArrayRefID>::UniqueID;
+	struct DefaultNewID : public core::UniqueID<uint32_t, struct DefaultNewID> {
+		using core::UniqueID<uint32_t, DefaultNewID>::UniqueID;
 	};
 
 	struct InitArrayRefID : public core::UniqueID<uint32_t, struct InitArrayRefID> {
@@ -980,37 +972,16 @@ namespace pcit::core{
 
 
 	template<>
-	struct OptionalInterface<panther::sema::DefaultInitPrimitiveID>{
-		static constexpr auto init(panther::sema::DefaultInitPrimitiveID* id) -> void {
+	struct OptionalInterface<panther::sema::DefaultNewID>{
+		static constexpr auto init(panther::sema::DefaultNewID* id) -> void {
 			std::construct_at(id, std::numeric_limits<uint32_t>::max());
 		}
 
-		static constexpr auto has_value(const panther::sema::DefaultInitPrimitiveID& id) -> bool {
+		static constexpr auto has_value(const panther::sema::DefaultNewID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
 
-	template<>
-	struct OptionalInterface<panther::sema::DefaultTriviallyInitStructID>{
-		static constexpr auto init(panther::sema::DefaultTriviallyInitStructID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const panther::sema::DefaultTriviallyInitStructID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
-
-	template<>
-	struct OptionalInterface<panther::sema::DefaultInitArrayRefID>{
-		static constexpr auto init(panther::sema::DefaultInitArrayRefID* id) -> void {
-			std::construct_at(id, std::numeric_limits<uint32_t>::max());
-		}
-
-		static constexpr auto has_value(const panther::sema::DefaultInitArrayRefID& id) -> bool {
-			return id.get() != std::numeric_limits<uint32_t>::max();
-		}
-	};
 
 	template<>
 	struct OptionalInterface<panther::sema::InitArrayRefID>{
@@ -2064,52 +2035,18 @@ namespace std{
 
 
 	template<>
-	struct hash<pcit::panther::sema::DefaultInitPrimitiveID>{
-		auto operator()(pcit::panther::sema::DefaultInitPrimitiveID id) const noexcept -> size_t {
+	struct hash<pcit::panther::sema::DefaultNewID>{
+		auto operator()(pcit::panther::sema::DefaultNewID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};
 	template<>
-	class optional<pcit::panther::sema::DefaultInitPrimitiveID>
-		: public pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>{
+	class optional<pcit::panther::sema::DefaultNewID>
+		: public pcit::core::Optional<pcit::panther::sema::DefaultNewID>{
 		
 		public:
-			using pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::DefaultInitPrimitiveID>::operator=;
-	};
-
-
-
-	template<>
-	struct hash<pcit::panther::sema::DefaultTriviallyInitStructID>{
-		auto operator()(pcit::panther::sema::DefaultTriviallyInitStructID id) const noexcept -> size_t {
-			return std::hash<uint32_t>{}(id.get());
-		};
-	};
-	template<>
-	class optional<pcit::panther::sema::DefaultTriviallyInitStructID>
-		: public pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>{
-		
-		public:
-			using pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::DefaultTriviallyInitStructID>::operator=;
-	};
-	
-
-
-	template<>
-	struct hash<pcit::panther::sema::DefaultInitArrayRefID>{
-		auto operator()(pcit::panther::sema::DefaultInitArrayRefID id) const noexcept -> size_t {
-			return std::hash<uint32_t>{}(id.get());
-		};
-	};
-	template<>
-	class optional<pcit::panther::sema::DefaultInitArrayRefID>
-		: public pcit::core::Optional<pcit::panther::sema::DefaultInitArrayRefID>{
-		
-		public:
-			using pcit::core::Optional<pcit::panther::sema::DefaultInitArrayRefID>::Optional;
-			using pcit::core::Optional<pcit::panther::sema::DefaultInitArrayRefID>::operator=;
+			using pcit::core::Optional<pcit::panther::sema::DefaultNewID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DefaultNewID>::operator=;
 	};
 
 

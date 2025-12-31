@@ -3212,14 +3212,14 @@ namespace pcit::panther{
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime      = true,
-			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
 			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInCompile   = true,  .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 

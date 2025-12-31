@@ -673,42 +673,15 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
-			// default init primitive
+			// default init
 
-			EVO_NODISCARD auto createDefaultInitPrimitive(auto&&... args) -> sema::DefaultInitPrimitive::ID {
-				return this->default_init_primitive.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createDefaultNew(auto&&... args) -> sema::DefaultNew::ID {
+				return this->default_news.emplace_back(std::forward<decltype(args)>(args)...);
 			}
 
-			EVO_NODISCARD auto getDefaultInitPrimitive(sema::DefaultInitPrimitive::ID id) const
-			-> const sema::DefaultInitPrimitive& {
-				return this->default_init_primitive[id];
-			}
-
-
-			///////////////////////////////////
-			// default trivially init struct
-
-			EVO_NODISCARD auto createDefaultTriviallyInitStruct(auto&&... args)
-			-> sema::DefaultTriviallyInitStruct::ID {
-				return this->default_trivially_init_struct.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getDefaultTriviallyInitStruct(sema::DefaultTriviallyInitStruct::ID id) const
-			-> const sema::DefaultTriviallyInitStruct& {
-				return this->default_trivially_init_struct[id];
-			}
-
-
-			///////////////////////////////////
-			// default init array ref
-
-			EVO_NODISCARD auto createDefaultInitArrayRef(auto&&... args) -> sema::DefaultInitArrayRef::ID {
-				return this->default_init_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
-			}
-
-			EVO_NODISCARD auto getDefaultInitArrayRef(sema::DefaultInitArrayRef::ID id) const
-			-> const sema::DefaultInitArrayRef& {
-				return this->default_init_array_ref[id];
+			EVO_NODISCARD auto getDefaultNew(sema::DefaultNew::ID id) const
+			-> const sema::DefaultNew& {
+				return this->default_news[id];
 			}
 
 
@@ -912,16 +885,15 @@ namespace pcit::panther{
 			}
 
 
-
 			///////////////////////////////////
 			// null
 
-			EVO_NODISCARD auto createNull(auto&&... args) -> sema::Null::ID {
-				return this->nulls.emplace_back(std::forward<decltype(args)>(args)...);
+			EVO_NODISCARD auto createNull(Token::ID null_token_id) -> sema::Null::ID {
+				return sema::Null::ID(this->misc_tokens.emplace_back(null_token_id));
 			}
 
-			EVO_NODISCARD auto getNull(sema::Null::ID id) const -> const sema::Null& {
-				return this->nulls[id];
+			EVO_NODISCARD auto getNull(sema::Uninit::ID id) const -> Token::ID {
+				return this->misc_tokens[id.get()];
 			}
 
 
@@ -1007,12 +979,7 @@ namespace pcit::panther{
 				interface_ptr_extract_thises{};
 			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
 			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
-			core::SyncLinearStepAlloc<sema::DefaultInitPrimitive, sema::DefaultInitPrimitive::ID>
-				default_init_primitive{};
-			core::SyncLinearStepAlloc<sema::DefaultTriviallyInitStruct, sema::DefaultTriviallyInitStruct::ID>
-				default_trivially_init_struct{};
-			core::SyncLinearStepAlloc<sema::DefaultInitArrayRef, sema::DefaultInitArrayRef::ID>
-				default_init_array_ref{};
+			core::SyncLinearStepAlloc<sema::DefaultNew, sema::DefaultNew::ID> default_news{};
 			core::SyncLinearStepAlloc<sema::InitArrayRef, sema::InitArrayRef::ID> init_array_ref{};
 			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
 			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
@@ -1033,7 +1000,6 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::StringValue, sema::StringValue::ID> string_values{};
 			core::SyncLinearStepAlloc<sema::AggregateValue, sema::AggregateValue::ID> aggregate_values{};
 			core::SyncLinearStepAlloc<sema::CharValue, sema::CharValue::ID> char_values{};
-			core::SyncLinearStepAlloc<sema::Null, sema::Null::ID> nulls{};
 
 			core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
 

@@ -1,8 +1,161 @@
-type Vec2 = struct {
-	var x: F32;
-	var y: F32;
+def std = @import("std");
 
-	func createZero = () -> Vec2 {
-		return new Vec2(0, 0);
+
+
+type TypeSystemEscape = struct <{T: Type}> {
+	func get = (this) -> T* { return std.bit.bitCast<{T*}>(this.data.data()); }
+	func get = (this mut) -> T*mut { return std.bit.bitCast<{T*mut}>(this.data.data()); }
+	func getUninit = (this mut) -> T*! { return std.bit.bitCast<{T*!}>(this.data.data()); }
+	
+	var data: [Byte:std.types.numBytes<{T}>()] #priv;
+}
+
+
+type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
+	func new = () -> (output: This) {
+		output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+		output._size = 0;
+		return...;
 	}
+
+	func delete = (this mut) -> Void {
+		for(this as [Int:*mut]) [_; elem: T mut] {
+			delete elem;
+		}
+	}
+
+
+	// func copy = (this) -> (output: This) {
+	// 	output = new This();
+
+	// 	for(this as [Int:*]) [_; elem: T]{
+	// 		output.append().* = copy elem;
+	// 	}
+
+	// 	return...;
+	// }
+
+	// func move = (this mut) -> (output: This) {
+	// 	output = new This();
+
+	// 	for(this as [Int:*mut]) [_; elem: T mut]{
+	// 		output.append().* = move elem;
+	// 	}
+
+	// 	this._size = 0;
+
+	// 	return...;
+	// }
+
+
+
+
+
+	///////////////////////////////////
+	// element access
+
+	func [] = (this, index: USize) -> T* { return this._data[index].get(); }
+	func [] = (this mut, index: USize) -> T*mut { return this._data[index].get(); }
+
+	func first = (this) -> T* { return this[0]; }
+	func first = (this mut) -> T*mut { return this[0]; }
+
+	func last = (this) -> T* { return this[this.size() - 1]; }
+	func last = (this mut) -> T*mut { return this[this.size() - 1]; }
+
+	func data = (this) -> T* { return this[0]; }
+	func data = (this mut) -> T*mut { return this[0]; }
+
+
+
+	///////////////////////////////////
+	// capacity
+
+	func empty = (this) -> Bool { return this.size() == 0; }
+	func size = (this) -> USize { return copy this._size; }
+	func capacity = (this) -> USize { return CAPACITY; }
+
+
+	///////////////////////////////////
+	// modifiers
+
+	func clear = (this mut) -> Void {
+		for(this as [Int:*mut]) [_; elem: T mut] {
+			delete elem;
+		}
+
+		this._size = 0;
+	}
+
+
+	func append = (this mut) -> T*! {
+		this._size += 1;
+		return this._data[this._size - 1].getUninit();
+	}
+
+	func pop = (this mut) -> Void {
+		delete this.last().*;
+		this._size -= 1;
+	}
+
+
+	///////////////////////////////////
+	// type conversion
+
+	func as = (this) -> [T:*] { return new [T:*](this.data(), this.size());	}
+	func as = (this mut) -> [T:*mut] { return new [T:*mut](this.data(), this.size()); }
+
+
+	///////////////////////////////////
+	// iterators
+
+	// TODO(FUTURE): 
+
+
+	///////////////////////////////////
+	// member vars
+
+	var _data: [TypeSystemEscape<{T}>:CAPACITY] #priv;
+	var _size: USize;
+}
+
+
+type Union = union {
+	none: Void,
+	num: Int,
+}
+
+
+type NonTrivial = struct {
+	func new = () -> (output: This) { return...; }
+	func new = (this) -> Void {}
+
+	func delete = (this) -> Void {}
+
+	func copy = (this) -> (output: This) { return...; }
+	func copy = (this, target: This mut) -> Void {}
+
+	func move = (this) -> (output: This) { return...; }
+	func move = (this mut, target: This mut) -> Void {}
+}
+
+
+func test = () #rt -> Void {
+	var opt: NonTrivial = new NonTrivial();
+	opt = new NonTrivial();
+}
+
+
+func entry = () #entry -> UI8 {
+	var nums = new StaticArrayList<{Int,5}>();
+	nums.append().* = 1;
+	nums.append().* = 2;
+	nums.append().* = 3;
+
+	var sum: Int = 0;
+	for(nums as [Int:*]) [_; num: Int] {
+		sum += num;
+	}
+
+	return (sum + nums.size() as Int) as UI8; // 9
 }

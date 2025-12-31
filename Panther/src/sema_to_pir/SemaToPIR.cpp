@@ -905,7 +905,7 @@ namespace pcit::panther{
 				return this->module.createStructType(
 					this->mangle_name(union_id),
 					evo::SmallVector<pir::Type>{
-						data_type, this->module.createIntegerType(unsigned(std::bit_ceil(union_info.fields.size())))
+						data_type, this->module.createIntegerType(unsigned(std::bit_ceil(union_info.fields.size() - 1)))
 					},
 					true
 				);
@@ -1015,7 +1015,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::VAR: {
 				const sema::Var& var = this->context.getSemaBuffer().getVar(stmt.varID());
 
-				if(var.kind == AST::VarDef::Kind::DEF){ return; }
+				if(var.kind == AST::VarDef::Kind::DEF){ break; }
 
 				const pir::Expr var_alloca = this->agent.createAlloca(
 					this->get_type<false>(*var.typeID),
@@ -1032,7 +1032,7 @@ namespace pcit::panther{
 
 				if(func_call.target.is<IntrinsicFunc::Kind>()){
 					this->intrinsic_func_call(func_call);
-					return;
+					break;
 				}
 
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
@@ -1421,11 +1421,13 @@ namespace pcit::panther{
 					if(target.is<sema::Expr>()){
 						targets.emplace_back(this->get_expr_pointer(target.as<sema::Expr>()));
 					}else{
-						targets.emplace_back(
-							this->agent.createAlloca(
-								this->get_type<false>(target.as<TypeInfo::ID>()), this->name(".DISCARD")
-							)
+						const pir::Expr discard_alloca = this->agent.createAlloca(
+							this->get_type<false>(target.as<TypeInfo::ID>()), this->name(".DISCARD")
 						);
+
+						targets.emplace_back(discard_alloca);
+
+						this->add_auto_delete_target(discard_alloca, target.as<TypeInfo::ID>());
 					}
 				}
 
@@ -1725,7 +1727,7 @@ namespace pcit::panther{
 
 					// end block
 
-					if(else_terminated && then_terminated){ return; }
+					if(else_terminated && then_terminated){ break; }
 
 					end_block = this->agent.createBasicBlock("IF.END");
 
@@ -2195,6 +2197,12 @@ namespace pcit::panther{
 				);
 			} break;
 		}
+
+
+		for(const AutoDeleteTarget& expr_to_delete : this->end_of_stmt_deletes){
+			this->delete_expr(expr_to_delete.expr, expr_to_delete.typeID);
+		}
+		this->end_of_stmt_deletes.clear();
 	}
 
 
@@ -2277,99 +2285,7 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::NULL_VALUE: {
-				const sema::Null& null_value = this->context.getSemaBuffer().getNull(expr.nullID());
-				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(*null_value.targetTypeID);
-
-				if(target_type_info.isPointer()){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createNullptr();
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr ptr_alloca = this->agent.createAlloca(
-							this->module.createPtrType(), this->name("NULL")
-						);
-						this->agent.createStore(ptr_alloca, this->agent.createNullptr());
-						return ptr_alloca;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						this->agent.createStore(store_locations[0], this->agent.createNullptr());
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-
-				}else if(target_type_info.isOptionalNotPointer()){
-					const pir::Type optional_type = this->get_type<false>(*null_value.targetTypeID);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr optional_alloca = this->agent.createAlloca(optional_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							optional_alloca, optional_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createBoolean(false));
-
-						return this->agent.createLoad(optional_alloca, optional_type, this->name("NULL"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr optional_alloca = this->agent.createAlloca(optional_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							optional_alloca, optional_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createBoolean(false));
-
-						return optional_alloca;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							store_locations[0], optional_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createBoolean(false));
-
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-
-				}else{
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-
-						return this->agent.createLoad(interface_ptr_alloca, interface_ptr_type, this->name("NULL"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr interface_ptr_alloca = this->agent.createAlloca(interface_ptr_type);
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							interface_ptr_alloca, interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-
-						return interface_ptr_alloca;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr calc_ptr = this->agent.createCalcPtr(
-							store_locations[0], interface_ptr_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}
-						);
-						this->agent.createStore(calc_ptr, this->agent.createNullptr());
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-				}
-
+				evo::debugFatalBreak("Can't lower `null`");
 			} break;
 
 			case sema::Expr::Kind::INT_VALUE: {
@@ -2700,6 +2616,8 @@ namespace pcit::panther{
 							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
 						);
 
+						this->end_of_stmt_deletes.emplace_back(return_alloc, target_type.returnTypes[0].asTypeID());
+
 						return return_alloc;
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
@@ -2718,7 +2636,14 @@ namespace pcit::panther{
 
 						const size_t current_num_args = args.size();
 						for(size_t i = current_num_args; i < target_func.getParameters().size(); i+=1){
-							args.emplace_back(this->agent.createAlloca(target_func.getParameters()[i].getType()));
+							const pir::Expr ret_alloca = this->agent.createAlloca(
+								target_func.getParameters()[i].getType(), this->name(".DISCARD")
+							);
+							args.emplace_back(ret_alloca);
+
+							this->add_auto_delete_target(
+								ret_alloca, target_type.returnTypes[i - current_num_args].asTypeID()
+							);
 						}
 
 						this->create_call_void(
@@ -2738,9 +2663,10 @@ namespace pcit::panther{
 						return call_return;
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr alloca = this->agent.createAlloca(target_func_info.return_type);
-						this->agent.createStore(alloca, call_return);
-						return alloca;
+						const pir::Expr return_alloca = this->agent.createAlloca(target_func_info.return_type);
+						this->agent.createStore(return_alloca, call_return);
+						this->end_of_stmt_deletes.emplace_back(return_alloca, target_type.returnTypes[0].asTypeID());
+						return return_alloca;
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
@@ -2748,6 +2674,12 @@ namespace pcit::panther{
 						return std::nullopt;
 
 					}else{
+						const pir::Expr discard_alloca =
+							this->agent.createAlloca(target_func_info.return_type, this->name(".DISCARD"));
+						this->agent.createStore(discard_alloca, call_return);
+
+						this->add_auto_delete_target(discard_alloca, target_type.returnTypes[0].asTypeID());
+
 						return std::nullopt;
 					}
 				}
@@ -3741,151 +3673,13 @@ namespace pcit::panther{
 
 			} break;
 
-			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE: {
-				if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
-					return std::nullopt;
+			case sema::Expr::Kind::DEFAULT_NEW: {
+				const sema::DefaultNew& default_new =
+					this->context.getSemaBuffer().getDefaultNew(expr.defaultInitID());
 
-				}else{
-					const sema::DefaultInitPrimitive& default_init_primitive =
-						this->context.getSemaBuffer().getDefaultInitPrimitive(expr.defaultInitPrimitiveID());
-
-					const pir::Type primitive_type = this->get_type<false>(default_init_primitive.targetTypeID);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						if(primitive_type.kind() == pir::Type::Kind::INTEGER){
-							return this->agent.createNumber(
-								primitive_type, core::GenericInt(primitive_type.getWidth(), 0)
-							);
-
-						}else if(primitive_type.kind() == pir::Type::Kind::BFLOAT){
-							return this->agent.createNumber(primitive_type, core::GenericFloat::createBF16(0));
-
-						}else{
-							switch(primitive_type.getWidth()){
-								case 16: {
-									return this->agent.createNumber(
-										primitive_type, core::GenericFloat::createF32(0.0f).asF16()
-									);
-								} break;
-
-								case 32: {
-									return this->agent.createNumber(
-										primitive_type, core::GenericFloat::createF32(0.0f)
-									);
-								} break;
-
-								case 64: {
-									return this->agent.createNumber(
-										primitive_type, core::GenericFloat::createF64(0.0)
-									);
-								} break;
-
-								case 80: {
-									return this->agent.createNumber(
-										primitive_type, core::GenericFloat::createF64(0.0).asF80()
-									);
-								} break;
-
-								case 128: {
-									return this->agent.createNumber(
-										primitive_type, core::GenericFloat::createF64(0.0).asF128()
-									);
-								} break;
-							}
-						}
-						
-					}else{
-						return this->agent.createAlloca(primitive_type);
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT: {
-				if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
-					return std::nullopt;
-
-				}else{
-					const sema::DefaultTriviallyInitStruct& default_trivially_init_struct = this->context
-						.getSemaBuffer()
-						.getDefaultTriviallyInitStruct(expr.defaultTriviallyInitStructID());
-
-					const pir::Type struct_type = this->get_type<false>(default_trivially_init_struct.targetTypeID);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->agent.createLoad(
-							this->agent.createAlloca(struct_type, this->name(".DEFAULT_TRIVIALLY_INIT_STRUCT")),
-							struct_type,
-							this->name("DEFAULT_TRIVIALLY_INIT_STRUCT")
-						);
-						
-					}else{
-						return this->agent.createAlloca(struct_type, this->name("DEFAULT_TRIVIALLY_INIT_STRUCT"));
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::DefaultInitArrayRef& default_init_array_ref = 
-						this->context.getSemaBuffer().getDefaultInitArrayRef(expr.defaultInitArrayRefID());
-
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(default_init_array_ref.targetTypeID);
-
-					const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
-
-					const pir::Type pir_array_ref_type =
-						this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
-
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr output_alloca = this->agent.createAlloca(
-							pir_array_ref_type, this->name(".DEFAULT_INIT_ARRAY_REF")
-						);
-
-						this->agent.createMemset(
-							output_alloca,
-							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
-							),
-							pir_array_ref_type
-						);
-
-						return this->agent.createLoad(
-							output_alloca, pir_array_ref_type, this->name("DEFAULT_INIT_ARRAY_REF")
-						);
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr output_alloca = this->agent.createAlloca(
-							pir_array_ref_type, this->name("DEFAULT_INIT_ARRAY_REF")
-						);
-
-						this->agent.createMemset(
-							output_alloca,
-							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
-							),
-							pir_array_ref_type
-						);
-
-						return output_alloca;
-						
-					}else{
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						this->agent.createMemset(
-							store_locations[0],
-							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
-							),
-							pir_array_ref_type
-						);
-						return std::nullopt;
-					}
-				}
+				return this->default_new_expr<MODE>(
+					default_new.targetTypeID, default_new.isInitialization, store_locations
+				);
 			} break;
 
 			case sema::Expr::Kind::INIT_ARRAY_REF: {
@@ -5145,6 +4939,492 @@ namespace pcit::panther{
 	}
 
 
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::default_new_expr(
+		TypeInfo::ID expr_type_id, bool is_initialization, evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		evo::debugAssert(
+			this->context.getTypeManager().isDefaultInitializable(expr_type_id), "this type isn't default initializable"
+		);
+
+		if constexpr(MODE != GetExprMode::STORE){
+			evo::debugAssert(is_initialization, "this mode shouldn't be assignment");
+		}
+
+		if(this->context.getTypeManager().isTriviallyDefaultInitializable(expr_type_id)){
+			if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
+				return std::nullopt;
+
+			}else{
+				const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
+
+				if(expr_type.qualifiers().empty() && expr_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE){
+					const pir::Type primitive_type = this->get_type<false>(expr_type_id);
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						if(primitive_type.kind() == pir::Type::Kind::INTEGER){
+							return this->agent.createNumber(
+								primitive_type, core::GenericInt(primitive_type.getWidth(), 0)
+							);
+
+						}else if(primitive_type.kind() == pir::Type::Kind::BFLOAT){
+							return this->agent.createNumber(primitive_type, core::GenericFloat::createBF16(0));
+
+						}else{
+							switch(primitive_type.getWidth()){
+								case 16: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF32(0.0f).asF16()
+									);
+								} break;
+
+								case 32: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF32(0.0f)
+									);
+								} break;
+
+								case 64: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0)
+									);
+								} break;
+
+								case 80: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0).asF80()
+									);
+								} break;
+
+								case 128: {
+									return this->agent.createNumber(
+										primitive_type, core::GenericFloat::createF64(0.0).asF128()
+									);
+								} break;
+							}
+						}
+						
+					}else{
+						return this->agent.createAlloca(primitive_type);
+					}
+					
+				}else{
+					const pir::Type expr_pir_type = this->get_type<false>(expr_type_id);
+
+					return this->agent.createLoad(
+						this->agent.createAlloca(expr_pir_type, this->name(".DEFAULT_NEW.ptr")),
+						expr_pir_type,
+						this->name("DEFAULT_NEW")
+					);
+				}
+			}
+		}
+		
+		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
+
+		if(expr_type.qualifiers().empty() == false){
+			evo::debugAssert(expr_type.isOptionalNotPointer(), "Unknown non-trivial default-initializable qualifier");
+
+			const pir::Type opt_pir_type = this->get_type<false>(expr_type_id);
+
+			const pir::Expr target = [&]() -> pir::Expr {
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createAlloca(opt_pir_type, this->name(".DEFAULT_NEW_OPT"));
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->agent.createAlloca(opt_pir_type, this->name("DEFAULT_NEW_OPT"));
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return store_locations[0];
+					
+				}else{
+					return this->agent.createAlloca(opt_pir_type, this->name(".DISCARD"));
+				}
+			}();
+
+
+			const pir::Expr flag_ptr = this->agent.createCalcPtr(
+				target,
+				opt_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+				this->name(".DEFAULT_NEW_OPT.flag_ptr")
+			);
+
+			const TypeInfo::ID data_type_id =
+				this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier());
+
+			if(is_initialization || this->context.getTypeManager().isTriviallyDeletable(data_type_id)){
+				this->agent.createStore(flag_ptr, this->agent.createBoolean(false));
+
+			}else{
+				const pir::BasicBlock::ID has_flag_block =
+					this->agent.createBasicBlock(this->name("DEFAULT_NEW_OPT.has_flag"));
+				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("DEFAULT_NEW_OPT.end"));
+
+				const pir::Expr flag = this->agent.createLoad(
+					flag_ptr, this->module.createBoolType(), this->name(".DEFAULT_NEW_OPT.flag")
+				);
+
+				this->agent.createBranch(flag, has_flag_block, end_block);
+
+				this->agent.setTargetBasicBlock(has_flag_block);
+				const pir::Expr data_ptr = this->agent.createCalcPtr(
+					target,
+					opt_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".DEFAULT_NEW_OPT.data_ptr")
+				);
+				this->delete_expr(data_ptr, data_type_id);
+				this->agent.createStore(flag_ptr, this->agent.createBoolean(false));
+				this->agent.createJump(end_block);
+
+				this->agent.setTargetBasicBlock(end_block);
+
+			}
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->agent.createLoad(target, opt_pir_type, this->name("DEFAULT_NEW_OPT"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				this->end_of_stmt_deletes.emplace_back(target, expr_type_id);
+				return target;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return std::nullopt;
+				
+			}else{
+				this->add_auto_delete_target(target, expr_type_id);
+				return std::nullopt;
+			}
+		}
+
+		switch(expr_type.baseTypeID().kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				evo::debugAssert("Unknown non-trivial default-initializable type");
+			} break;
+			
+			case BaseType::Kind::FUNCTION: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::ARRAY: {
+				const pir::Type array_pir_type = this->get_type<false>(expr_type_id);
+
+				const pir::Expr target = [&]() -> pir::Expr {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createAlloca(array_pir_type, this->name(".DEFAULT_NEW_ARR"));
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->agent.createAlloca(array_pir_type, this->name("DEFAULT_NEW_ARR"));
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return store_locations[0];
+						
+					}else{
+						return this->agent.createAlloca(array_pir_type, this->name(".DISCARD"));
+					}
+				}();
+
+
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
+
+
+				this->iterate_array(array_type, "DEFAULT_NEW_ARR", [&](pir::Expr index) -> void {
+					const pir::Expr target_elem = this->agent.createCalcPtr(
+						store_locations[0], array_pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+					);
+					this->default_new_expr<GetExprMode::STORE>(
+						array_type.elementTypeID, is_initialization, target_elem
+					);
+				});
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(target, array_pir_type, this->name("DEFAULT_NEW_ARR"));
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					this->end_of_stmt_deletes.emplace_back(target, expr_type_id);
+					return target;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+					
+				}else{
+					this->add_auto_delete_target(target, expr_type_id);
+					return std::nullopt;
+				}
+			} break;
+			
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::ARRAY_REF: {
+				if constexpr(MODE == GetExprMode::DISCARD){
+					return std::nullopt;
+
+				}else{
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(expr_type.baseTypeID().arrayRefID());
+
+					const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
+
+					const pir::Type pir_array_ref_type =
+						this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
+
+
+					if constexpr(MODE == GetExprMode::REGISTER){
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							pir_array_ref_type, this->name(".DEFAULT_NEW_ARRAY_REF")
+						);
+
+						this->agent.createMemset(
+							output_alloca,
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+
+						return this->agent.createLoad(
+							output_alloca, pir_array_ref_type, this->name("DEFAULT_NEW_ARRAY_REF")
+						);
+						
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr output_alloca = this->agent.createAlloca(
+							pir_array_ref_type, this->name("DEFAULT_NEW_ARRAY_REF")
+						);
+
+						this->agent.createMemset(
+							output_alloca,
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+
+						return output_alloca;
+						
+					}else{
+						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+						this->agent.createMemset(
+							store_locations[0],
+							this->agent.createNumber(
+								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+							),
+							pir_array_ref_type
+						);
+						return std::nullopt;
+					}
+				}
+			} break;
+			
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type =
+					this->context.getTypeManager().getAlias(expr_type.baseTypeID().aliasID());
+
+				return this->default_new_expr<MODE>(
+					alias_type.aliasedType, is_initialization, store_locations
+				);
+			} break;
+			
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type =
+					this->context.getTypeManager().getDistinctAlias(expr_type.baseTypeID().distinctAliasID());
+
+				return this->default_new_expr<MODE>(
+					distinct_alias_type.underlyingType, is_initialization, store_locations
+				);
+			} break;
+			
+			case BaseType::Kind::STRUCT: {
+				const pir::Type struct_pir_type = this->get_type<false>(expr_type.baseTypeID());
+
+				const pir::Expr target = [&]() -> pir::Expr {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createAlloca(struct_pir_type, this->name(".DEFAULT_NEW_STRUCT"));
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->agent.createAlloca(struct_pir_type, this->name("DEFAULT_NEW_STRUCT"));
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return store_locations[0];
+						
+					}else{
+						return this->agent.createAlloca(struct_pir_type, this->name(".DISCARD"));
+					}
+				}();
+
+				const BaseType::Struct& struct_type =
+					this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
+
+				if(is_initialization){
+					for(const sema::Func::ID& new_init_overload_id : struct_type.newInitOverloads){
+						if(this->context.getSemaBuffer().getFunc(new_init_overload_id).minNumArgs > 0){ continue; }
+
+						const Data::FuncInfo& target_func_info = this->data.get_func(new_init_overload_id);
+						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
+
+						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+
+						break;
+					}
+				}else{
+					bool found_assign_overload = false;
+
+					for(const sema::Func::ID& new_assign_overload_id : struct_type.newAssignOverloads){
+						if(this->context.getSemaBuffer().getFunc(new_assign_overload_id).minNumArgs > 0){ continue; }
+
+						const Data::FuncInfo& target_func_info = this->data.get_func(new_assign_overload_id);
+						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
+
+						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+
+						found_assign_overload = true;
+						break;
+					}
+
+					if(found_assign_overload == false){
+						for(const sema::Func::ID& new_init_overload_id : struct_type.newInitOverloads){
+							if(this->context.getSemaBuffer().getFunc(new_init_overload_id).minNumArgs > 0){ continue; }
+
+							const Data::FuncInfo& target_func_info = this->data.get_func(new_init_overload_id);
+							const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
+
+							this->delete_expr(target, expr_type_id);
+							this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+
+							break;
+						}
+					}
+				}
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(target, struct_pir_type, this->name("DEFAULT_NEW_STRUCT"));
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					this->end_of_stmt_deletes.emplace_back(target, expr_type_id);
+					return target;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+					
+				}else{
+					this->add_auto_delete_target(target, expr_type_id);
+					return std::nullopt;
+				}
+			} break;
+			
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_type =
+					this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
+
+				evo::debugAssert(union_type.isUntagged == false, "Tagged union should be trivially-initable");
+
+				const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+
+				const pir::Expr target = [&]() -> pir::Expr {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createAlloca(union_pir_type, this->name(".DEFAULT_NEW_UNION"));
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						if(is_initialization == false){
+							this->delete_expr(store_locations[0], expr_type_id);
+						}
+						return this->agent.createAlloca(union_pir_type, this->name("DEFAULT_NEW_UNION"));
+						
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return store_locations[0];
+						
+					}else{
+						return this->agent.createAlloca(union_pir_type, this->name(".DISCARD"));
+					}
+				}();
+
+
+				const TypeInfo::VoidableID default_field_type = union_type.fields[0].typeID;
+				if(
+					default_field_type.isVoid() == false
+					&& !this->context.getTypeManager().isTriviallyDefaultInitializable(default_field_type.asTypeID())
+				){
+					const pir::Expr data_ptr = this->agent.createCalcPtr(
+						target,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".DEFAULT_NEW_UNION.data")
+					);
+
+					this->default_new_expr<GetExprMode::STORE>(default_field_type.asTypeID(), true, data_ptr);
+				}
+
+
+				const pir::Expr tag_ptr = this->agent.createCalcPtr(
+					target,
+					union_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".DEFAULT_NEW_UNION.tag")
+				);
+
+				const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+
+				this->agent.createStore(
+					tag_ptr, this->agent.createNumber(tag_type, core::GenericInt(tag_type.getWidth(), 0))
+				);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(target, union_pir_type, this->name("DEFAULT_NEW_UNION"));
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					this->end_of_stmt_deletes.emplace_back(target, expr_type_id);
+					return target;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+					
+				}else{
+					this->add_auto_delete_target(target, expr_type_id);
+					return std::nullopt;
+				}
+			} break;
+			
+			case BaseType::Kind::ENUM: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::TYPE_DEDUCER: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
+			
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map =
+					this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
+
+				return this->default_new_expr<MODE>(interface_map.underlyingTypeID, is_initialization, store_locations);
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown base type");
+	}
+
+
 
 	auto SemaToPIR::delete_expr(const sema::Expr& expr, TypeInfo::ID expr_type_id) -> void {
 		if(this->context.getTypeManager().isTriviallyDeletable(expr_type_id)){ return; }
@@ -5213,80 +5493,14 @@ namespace pcit::panther{
 				const BaseType::Array& array_type =
 					this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
 
-				const uint64_t num_elems = [&](){
-					uint64_t output_num_elems = 1;
+				const pir::Type array_pir_type = this->get_type<false>(expr_type_id);
 
-					for(uint64_t dimension : array_type.dimensions){
-						output_num_elems *= dimension;
-					}
-
-					if(array_type.terminator.has_value()){ output_num_elems += 1; }
-
-					return output_num_elems;
-				}();
-
-				const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
-
-				const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".DELETE_ARR.i.ALLOCA"));
-				this->agent.createStore(
-					pir_i,
-					this->agent.createNumber(
-						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
-					)
-				);
-
-				const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("DELETE_ARR.cond"));
-				const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("DELETE_ARR.then"));
-				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("DELETE_ARR.end"));
-
-				this->agent.createJump(cond_block);
-
-
-				//////////////////
-				// cond
-
-				this->agent.setTargetBasicBlock(cond_block);
-
-				const pir::Expr array_size = this->agent.createNumber(
-					usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
-				);
-
-				const pir::Expr pir_i_load = this->agent.createLoad(pir_i, usize_type, this->name("DELETE_ARR.i"));
-				const pir::Expr cond = 
-					this->agent.createULT(pir_i_load, array_size, this->name("DELETE_ARR.LOOP_COND"));
-
-				this->agent.createBranch(cond, then_block, end_block);
-
-
-				//////////////////
-				// then
-
-				this->agent.setTargetBasicBlock(then_block);
-
-				const pir::Expr target_elem = this->agent.createCalcPtr(
-					expr, this->get_type<false>(expr_type_id), evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
-				);
-
-				this->delete_expr(target_elem, array_type.elementTypeID);
-
-
-				const pir::Expr i_increment = this->agent.createAdd(
-					pir_i_load,
-					this->agent.createNumber(
-						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
-					),
-					false,
-					true
-				);
-				this->agent.createStore(pir_i, i_increment);
-
-				this->agent.createJump(cond_block);
-
-
-				//////////////////
-				// end
-
-				this->agent.setTargetBasicBlock(end_block);
+				this->iterate_array(array_type, "DELETE_ARR", [&](pir::Expr index) -> void {
+					const pir::Expr target_elem = this->agent.createCalcPtr(
+						expr, array_pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+					);
+					this->delete_expr(target_elem, array_type.elementTypeID);
+				});
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
@@ -5679,88 +5893,19 @@ namespace pcit::panther{
 					const BaseType::Array& array_type =
 						this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
 
-					const uint64_t num_elems = [&](){
-						uint64_t output_num_elems = 1;
+					this->iterate_array(array_type, "COPY_ARR", [&](pir::Expr index) -> void {
+						const pir::Expr src_elem = this->agent.createCalcPtr(
+							expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+						);
 
-						for(uint64_t dimension : array_type.dimensions){
-							output_num_elems *= dimension;
-						}
+						const pir::Expr target_elem = this->agent.createCalcPtr(
+							target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+						);
 
-						if(array_type.terminator.has_value()){ output_num_elems += 1; }
-
-						return output_num_elems;
-					}();
-
-					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
-
-					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".COPY_ARR.i.ALLOCA"));
-					this->agent.createStore(
-						pir_i,
-						this->agent.createNumber(
-							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
-						)
-					);
-
-					const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("COPY_ARR.cond"));
-					const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("COPY_ARR.then"));
-					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("COPY_ARR.end"));
-
-					this->agent.createJump(cond_block);
-
-
-					//////////////////
-					// cond
-
-					this->agent.setTargetBasicBlock(cond_block);
-
-					const pir::Expr array_size = this->agent.createNumber(
-						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
-					);
-
-					const pir::Expr pir_i_load = this->agent.createLoad(
-						pir_i, usize_type, this->name("COPY_ARR.i")
-					);
-					const pir::Expr cond = 
-						this->agent.createULT(pir_i_load, array_size, this->name("COPY_ARR.LOOP_COND"));
-
-					this->agent.createBranch(cond, then_block, end_block);
-
-
-					//////////////////
-					// then
-
-					this->agent.setTargetBasicBlock(then_block);
-
-					const pir::Expr src_elem = this->agent.createCalcPtr(
-						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
-					);
-
-					const pir::Expr target_elem = this->agent.createCalcPtr(
-						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
-					);
-
-					this->expr_copy<GetExprMode::STORE>(
-						src_elem, array_type.elementTypeID, is_initialization, target_elem
-					);
-
-
-					const pir::Expr i_increment = this->agent.createAdd(
-						pir_i_load,
-						this->agent.createNumber(
-							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
-						),
-						false,
-						true
-					);
-					this->agent.createStore(pir_i, i_increment);
-
-					this->agent.createJump(cond_block);
-
-
-					//////////////////
-					// end
-
-					this->agent.setTargetBasicBlock(end_block);
+						this->expr_copy<GetExprMode::STORE>(
+							src_elem, array_type.elementTypeID, is_initialization, target_elem
+						);
+					});
 				} break;
 
 				case BaseType::Kind::ARRAY_DEDUCER: {
@@ -6222,86 +6367,19 @@ namespace pcit::panther{
 					const BaseType::Array& array_type =
 						this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
 
-					const uint64_t num_elems = [&](){
-						uint64_t output_num_elems = 1;
+					this->iterate_array(array_type, "MOVE_ARR", [&](pir::Expr index) -> void {
+						const pir::Expr src_elem = this->agent.createCalcPtr(
+							expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+						);
 
-						for(uint64_t dimension : array_type.dimensions){
-							output_num_elems *= dimension;
-						}
+						const pir::Expr target_elem = this->agent.createCalcPtr(
+							target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, index}
+						);
 
-						if(array_type.terminator.has_value()){ output_num_elems += 1; }
-
-						return output_num_elems;
-					}();
-
-					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
-
-					const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".MOVE_ARR.i.ALLOCA"));
-					this->agent.createStore(
-						pir_i,
-						this->agent.createNumber(
-							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
-						)
-					);
-
-					const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("MOVE_ARR.cond"));
-					const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("MOVE_ARR.then"));
-					const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("MOVE_ARR.end"));
-
-					this->agent.createJump(cond_block);
-
-
-					//////////////////
-					// cond
-
-					this->agent.setTargetBasicBlock(cond_block);
-
-					const pir::Expr array_size = this->agent.createNumber(
-						usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
-					);
-
-					const pir::Expr pir_i_load = this->agent.createLoad(pir_i, usize_type, this->name("MOVE_ARR.i"));
-					const pir::Expr cond = 
-						this->agent.createULT(pir_i_load, array_size, this->name("MOVE_ARR.LOOP_COND"));
-
-					this->agent.createBranch(cond, then_block, end_block);
-
-
-					//////////////////
-					// then
-
-					this->agent.setTargetBasicBlock(then_block);
-
-					const pir::Expr src_elem = this->agent.createCalcPtr(
-						expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
-					);
-
-					const pir::Expr target_elem = this->agent.createCalcPtr(
-						target, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, pir_i_load}
-					);
-
-					this->expr_move<GetExprMode::STORE>(
-						src_elem, array_type.elementTypeID, is_initialization, target_elem
-					);
-
-
-					const pir::Expr i_increment = this->agent.createAdd(
-						pir_i_load,
-						this->agent.createNumber(
-							usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
-						),
-						false,
-						true
-					);
-					this->agent.createStore(pir_i, i_increment);
-
-					this->agent.createJump(cond_block);
-
-
-					//////////////////
-					// end
-
-					this->agent.setTargetBasicBlock(end_block);
+						this->expr_move<GetExprMode::STORE>(
+							src_elem, array_type.elementTypeID, is_initialization, target_elem
+						);
+					});
 				} break;
 
 				case BaseType::Kind::ARRAY_DEDUCER: {
@@ -7569,6 +7647,83 @@ namespace pcit::panther{
 		return output_in_param_bitmap;
 	}
 
+
+
+
+	auto SemaToPIR::iterate_array(
+		const BaseType::Array& array_type, std::string_view op_name, std::function<void(pir::Expr)> body_func
+	) -> void {
+		const uint64_t num_elems = [&](){
+			uint64_t output_num_elems = 1;
+
+			for(uint64_t dimension : array_type.dimensions){
+				output_num_elems *= dimension;
+			}
+
+			if(array_type.terminator.has_value()){ output_num_elems += 1; }
+
+			return output_num_elems;
+		}();
+
+		const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+
+		const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".{}.i.ALLOCA", op_name));
+		this->agent.createStore(
+			pir_i,
+			this->agent.createNumber(
+				usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0)
+			)
+		);
+
+		const pir::BasicBlock::ID cond_block = this->agent.createBasicBlock(this->name("{}.cond", op_name));
+		const pir::BasicBlock::ID then_block = this->agent.createBasicBlock(this->name("{}.then", op_name));
+		const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("{}.end", op_name));
+
+		this->agent.createJump(cond_block);
+
+
+		//////////////////
+		// cond
+
+		this->agent.setTargetBasicBlock(cond_block);
+
+		const pir::Expr array_size = this->agent.createNumber(
+			usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), num_elems)
+		);
+
+		const pir::Expr pir_i_load = this->agent.createLoad(pir_i, usize_type, this->name("{}.i", op_name));
+		const pir::Expr cond = 
+			this->agent.createULT(pir_i_load, array_size, this->name("{}.LOOP_COND", op_name));
+
+		this->agent.createBranch(cond, then_block, end_block);
+
+
+		//////////////////
+		// then
+
+		this->agent.setTargetBasicBlock(then_block);
+
+
+		body_func(pir_i_load);
+
+		const pir::Expr i_increment = this->agent.createAdd(
+			pir_i_load,
+			this->agent.createNumber(
+				usize_type, core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 1)
+			),
+			false,
+			true
+		);
+		this->agent.createStore(pir_i, i_increment);
+
+		this->agent.createJump(cond_block);
+
+
+		//////////////////
+		// end
+
+		this->agent.setTargetBasicBlock(end_block);
+	}
 
 
 
@@ -9150,8 +9305,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
 			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
 			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_INIT_PRIMITIVE:    case sema::Expr::Kind::DEFAULT_TRIVIALLY_INIT_STRUCT:
-			case sema::Expr::Kind::DEFAULT_INIT_ARRAY_REF:    case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::DEFAULT_NEW:               case sema::Expr::Kind::INIT_ARRAY_REF:
 			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
@@ -10087,6 +10241,20 @@ namespace pcit::panther{
 	}
 
 
+	auto SemaToPIR::add_auto_delete_target(pir::Expr expr, TypeInfo::ID type_id) -> void {
+		this->get_current_scope_level().defers.emplace_back(
+			AutoDeleteTarget(expr, type_id),
+			DeferItem::Targets{
+				.on_scope_end = true,
+				.on_return    = true,
+				.on_error     = true,
+				.on_continue  = true,
+				.on_break     = true,
+			}
+		);
+	}
+
+
 	template<SemaToPIR::DeferTarget TARGET>
 	auto SemaToPIR::output_defers_for_scope_level(const ScopeLevel& scope_level) -> void {
 		for(const DeferItem& defer_item : scope_level.defers | std::views::reverse){
@@ -10117,6 +10285,10 @@ namespace pcit::panther{
 				for(const sema::Stmt& stmt : sema_defer.block){
 					this->lower_stmt(stmt);
 				}
+
+			}else if(defer_item.defer_item.is<AutoDeleteTarget>()){
+				const AutoDeleteTarget& auto_delete_target = defer_item.defer_item.as<AutoDeleteTarget>();
+				this->delete_expr(auto_delete_target.expr, auto_delete_target.typeID);
 
 			}else{
 				defer_item.defer_item.as<std::function<void()>>()();

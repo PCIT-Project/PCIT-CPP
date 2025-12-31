@@ -108,6 +108,10 @@ namespace pcit::panther::sema{
 	}
 
 
+	namespace Null{
+		using ID = NullID;
+	}
+
 	namespace Uninit{
 		using ID = UninitID;
 	}
@@ -117,11 +121,6 @@ namespace pcit::panther::sema{
 	}
 
 
-	struct Null{
-		using ID = NullID;
-
-		std::optional<TypeInfo::ID> targetTypeID; // nullopt if unknown
-	};
 
 	struct ConversionToOptional{
 		using ID = ConversionToOptionalID;
@@ -295,24 +294,13 @@ namespace pcit::panther::sema{
 	};
 
 
-	struct DefaultInitPrimitive{
-		using ID = DefaultInitPrimitiveID;
+	struct DefaultNew{
+		using ID = DefaultNewID;
 
-		BaseType::ID targetTypeID;
+		TypeInfo::ID targetTypeID;
+		bool isInitialization;
 	};
 
-	struct DefaultTriviallyInitStruct{
-		using ID = DefaultTriviallyInitStructID;
-
-		BaseType::ID targetTypeID;
-	};
-
-
-	struct DefaultInitArrayRef{
-		using ID = DefaultInitArrayRefID;
-
-		BaseType::ArrayRef::ID targetTypeID;
-	};
 
 	struct InitArrayRef{
 		using ID = InitArrayRefID;	

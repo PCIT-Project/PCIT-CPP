@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.211.0"></a>
+## v0.0.211.0
+
+### Panther
+- Added default new:
+	- Arrays
+	- Unions
+	- Interface Maps
+- Fixed `delete` not being called on intermediates
+- Fixed `delete` not being called on discards
+- Fixed unions being lowered with a tag type sometimes being 1 bit too wide
+- Fixed lowering of assignment sometimes causing double deletes
+- Fixed `@breakpoint` not being allowed in compile mode
+- Fixed new struct assignment calling `delete`
+
+
+<!---------------------------------->
 <a name="v0.0.210.5"></a>
 ## v0.0.210.5
 

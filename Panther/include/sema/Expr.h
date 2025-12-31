@@ -67,9 +67,7 @@ namespace pcit::panther::sema{
 			INTERFACE_PTR_EXTRACT_THIS,
 			INTERFACE_CALL,
 			INDEXER,
-			DEFAULT_INIT_PRIMITIVE,
-			DEFAULT_TRIVIALLY_INIT_STRUCT,
-			DEFAULT_INIT_ARRAY_REF,
+			DEFAULT_NEW,
 			INIT_ARRAY_REF,
 			ARRAY_REF_INDEXER,
 			ARRAY_REF_SIZE,
@@ -139,12 +137,7 @@ namespace pcit::panther::sema{
 			: _kind(Kind::INTERFACE_PTR_EXTRACT_THIS), value{.interface_ptr_extract_this = id} {};
 		explicit Expr(InterfaceCallID id)      : _kind(Kind::INTERFACE_CALL),       value{.interface_call = id}      {};
 		explicit Expr(IndexerID id)            : _kind(Kind::INDEXER),              value{.indexer = id}             {};
-		explicit Expr(DefaultInitPrimitiveID id)
-			: _kind(Kind::DEFAULT_INIT_PRIMITIVE), value{.default_init_primitive = id} {};
-		explicit Expr(DefaultTriviallyInitStructID id)
-			: _kind(Kind::DEFAULT_TRIVIALLY_INIT_STRUCT), value{.default_trivially_init_struct = id} {};
-		explicit Expr(DefaultInitArrayRefID id)
-			: _kind(Kind::DEFAULT_INIT_ARRAY_REF), value{.default_init_array_ref = id} {};
+		explicit Expr(DefaultNewID id)         : _kind(Kind::DEFAULT_NEW),          value{.default_new = id}         {};
 		explicit Expr(InitArrayRefID id)       : _kind(Kind::INIT_ARRAY_REF),       value{.init_array_ref = id}      {};
 		explicit Expr(ArrayRefIndexerID id)    : _kind(Kind::ARRAY_REF_INDEXER),    value{.array_ref_indexer = id}   {};
 		explicit Expr(ArrayRefSizeID id)       : _kind(Kind::ARRAY_REF_SIZE),       value{.array_ref_size = id}      {};
@@ -317,19 +310,9 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
 			return this->value.indexer;
 		}
-		EVO_NODISCARD auto defaultInitPrimitiveID() const -> DefaultInitPrimitiveID {
-			evo::debugAssert(this->kind() == Kind::DEFAULT_INIT_PRIMITIVE, "not a default init primitive");
-			return this->value.default_init_primitive;
-		}
-		EVO_NODISCARD auto defaultTriviallyInitStructID() const -> DefaultTriviallyInitStructID {
-			evo::debugAssert(
-				this->kind() == Kind::DEFAULT_TRIVIALLY_INIT_STRUCT, "not a default trivially init struct"
-			);
-			return this->value.default_trivially_init_struct;
-		}
-		EVO_NODISCARD auto defaultInitArrayRefID() const -> DefaultInitArrayRefID {
-			evo::debugAssert(this->kind() == Kind::DEFAULT_INIT_ARRAY_REF, "not a default init array ref");
-			return this->value.default_init_array_ref;
+		EVO_NODISCARD auto defaultInitID() const -> DefaultNewID {
+			evo::debugAssert(this->kind() == Kind::DEFAULT_NEW, "not a default new");
+			return this->value.default_new;
 		}
 		EVO_NODISCARD auto initArrayRefID() const -> InitArrayRefID {
 			evo::debugAssert(this->kind() == Kind::INIT_ARRAY_REF, "not an init array ref");
@@ -460,9 +443,7 @@ namespace pcit::panther::sema{
 				InterfacePtrExtractThisID interface_ptr_extract_this;
 				InterfaceCallID interface_call;
 				IndexerID indexer;
-				DefaultInitPrimitiveID default_init_primitive;
-				DefaultTriviallyInitStructID default_trivially_init_struct;
-				DefaultInitArrayRefID default_init_array_ref;
+				DefaultNewID default_new;
 				InitArrayRefID init_array_ref;
 				ArrayRefIndexerID array_ref_indexer;
 				ArrayRefSizeID array_ref_size;
