@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.212.0"></a>
+## v0.0.212.0
+
+### Panther
+- Fixed lowering of defers at a return in an erroring function
+- Fixed auto-deletes
+	- sometimes they were in the wrong order
+	- sometimes they didn't occur at all
+- Fixed crashing when lowering constexpr function with named error return
+
+### PIR
+- Added `@meta.lifetimeStart`
+- Added `@meta.lifetimeEnd`
+
+
+
+<!---------------------------------->
 <a name="v0.0.211.1"></a>
 ## v0.0.211.1
 

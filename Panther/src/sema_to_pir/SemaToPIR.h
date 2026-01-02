@@ -22,6 +22,32 @@
 
 namespace pcit::panther{
 
+	struct ManagedLifetimeErrorParam{
+		uint32_t index;
+
+		EVO_NODISCARD auto operator==(const ManagedLifetimeErrorParam&) const -> bool = default;
+	};
+
+}
+
+
+namespace std{
+	
+	template<>
+	struct hash<pcit::panther::ManagedLifetimeErrorParam>{
+		auto operator()(pcit::panther::ManagedLifetimeErrorParam ret_param) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(ret_param.index);
+		};
+	};
+
+}
+
+
+
+
+
+namespace pcit::panther{
+
 
 	class SemaToPIR{
 		public:
@@ -300,6 +326,13 @@ namespace pcit::panther{
 				TypeInfo::ID typeID;
 			};
 
+			using ManagedLifetimeTarget = evo::Variant<pir::Expr, ManagedLifetimeErrorParam>;
+
+			struct AutoDeleteManagedLifetimeTarget{
+				ManagedLifetimeTarget expr;
+				TypeInfo::ID typeID;
+			};
+
 			struct DeferItem{
 				struct Targets{
 					bool on_scope_end;
@@ -309,17 +342,22 @@ namespace pcit::panther{
 					bool on_break;
 				};
 
-				evo::Variant<sema::Defer::ID, std::function<void()>, AutoDeleteTarget> defer_item;
+				evo::Variant<
+					sema::Defer::ID, std::function<void()>, AutoDeleteTarget, AutoDeleteManagedLifetimeTarget
+				> defer_item;
 				Targets targets;
 			};
 
 			struct ScopeLevel{
+				using IsAlive = bool;
+
 				std::string_view label; // empty if no label
 				evo::SmallVector<pir::Expr> label_output_locations; // empty if none
 				std::optional<pir::BasicBlock::ID> begin_block;
 				std::optional<pir::BasicBlock::ID> end_block;
 				bool is_loop;
 				evo::SmallVector<DeferItem> defers{};
+				std::unordered_map<ManagedLifetimeTarget, IsAlive> value_states;
 
 				ScopeLevel() : label(), label_output_locations(), end_block(), is_loop(false) {}
 				ScopeLevel(
@@ -343,7 +381,7 @@ namespace pcit::panther{
 			auto pop_scope_level() -> void;
 			EVO_NODISCARD auto get_current_scope_level() -> ScopeLevel&;
 
-			auto add_auto_delete_target(pir::Expr epxr, TypeInfo::ID type_id) -> void;
+			auto add_auto_delete_target(pir::Expr expr, TypeInfo::ID type_id) -> void;
 
 
 			enum class DeferTarget{

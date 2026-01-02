@@ -500,15 +500,15 @@ namespace pcit::pir{
 				this->printer.print("${}", load.name);
 			} break;
 
-			case Expr::Kind::STORE: evo::debugFatalBreak("Expr::Kind::Store is not a valid expression");
+			case Expr::Kind::STORE: evo::debugFatalBreak("Expr::Kind::STORE is not a valid expression");
 
 			case Expr::Kind::CALC_PTR: {
 				const CalcPtr& calc_ptr = this->reader.getCalcPtr(expr);
 				this->printer.print("${}", calc_ptr.name);
 			} break;
 
-			case Expr::Kind::MEMCPY: evo::debugFatalBreak("Expr::Kind::Memcpy is not a valid expression");
-			case Expr::Kind::MEMSET: evo::debugFatalBreak("Expr::Kind::Memset is not a valid expression");
+			case Expr::Kind::MEMCPY: evo::debugFatalBreak("Expr::Kind::MEMCPY is not a valid expression");
+			case Expr::Kind::MEMSET: evo::debugFatalBreak("Expr::Kind::MEMSET is not a valid expression");
 
 			case Expr::Kind::BIT_CAST: {
 				const BitCast& bitcast = this->reader.getBitCast(expr);
@@ -566,7 +566,7 @@ namespace pcit::pir{
 				this->printer.print("${}", add.name);
 			} break;
 
-			case Expr::Kind::SADD_WRAP: evo::debugFatalBreak("Expr::Kind::SAddWrap is not a valid expression");
+			case Expr::Kind::SADD_WRAP: evo::debugFatalBreak("Expr::Kind::SADD_WRAP is not a valid expression");
 
 			case Expr::Kind::SADD_WRAP_RESULT: {
 				const SAddWrap& sadd_wrap = this->reader.getSAddWrap(expr);
@@ -578,7 +578,7 @@ namespace pcit::pir{
 				this->printer.print("${}", sadd_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::UADD_WRAP: evo::debugFatalBreak("Expr::Kind::UAddWrap is not a valid expression");
+			case Expr::Kind::UADD_WRAP: evo::debugFatalBreak("Expr::Kind::UADD_WRAP is not a valid expression");
 
 			case Expr::Kind::UADD_WRAP_RESULT: {
 				const UAddWrap& uadd_wrap = this->reader.getUAddWrap(expr);
@@ -610,7 +610,7 @@ namespace pcit::pir{
 				this->printer.print("${}", sub.name);
 			} break;
 
-			case Expr::Kind::SSUB_WRAP: evo::debugFatalBreak("Expr::Kind::SSubWrap is not a valid expression");
+			case Expr::Kind::SSUB_WRAP: evo::debugFatalBreak("Expr::Kind::SSUB_WRAP is not a valid expression");
 
 			case Expr::Kind::SSUB_WRAP_RESULT: {
 				const SSubWrap& ssub_wrap = this->reader.getSSubWrap(expr);
@@ -622,7 +622,7 @@ namespace pcit::pir{
 				this->printer.print("${}", ssub_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::USUB_WRAP: evo::debugFatalBreak("Expr::Kind::USubWrap is not a valid expression");
+			case Expr::Kind::USUB_WRAP: evo::debugFatalBreak("Expr::Kind::USUB_WRAP is not a valid expression");
 
 			case Expr::Kind::USUB_WRAP_RESULT: {
 				const USubWrap& usub_wrap = this->reader.getUSubWrap(expr);
@@ -654,7 +654,7 @@ namespace pcit::pir{
 				this->printer.print("${}", mul.name);
 			} break;
 
-			case Expr::Kind::SMUL_WRAP: evo::debugFatalBreak("Expr::Kind::SMulWrap is not a valid expression");
+			case Expr::Kind::SMUL_WRAP: evo::debugFatalBreak("Expr::Kind::SMUL_WRAP is not a valid expression");
 
 			case Expr::Kind::SMUL_WRAP_RESULT: {
 				const SMulWrap& smul_wrap = this->reader.getSMulWrap(expr);
@@ -666,7 +666,7 @@ namespace pcit::pir{
 				this->printer.print("${}", smul_wrap.wrappedName);
 			} break;
 
-			case Expr::Kind::UMUL_WRAP: evo::debugFatalBreak("Expr::Kind::UMulWrap is not a valid expression");
+			case Expr::Kind::UMUL_WRAP: evo::debugFatalBreak("Expr::Kind::UMUL_WRAP is not a valid expression");
 
 			case Expr::Kind::UMUL_WRAP_RESULT: {
 				const UMulWrap& umul_wrap = this->reader.getUMulWrap(expr);
@@ -872,6 +872,12 @@ namespace pcit::pir{
 				const CTTZ& cttz = this->reader.getCTTZ(expr);
 				this->printer.print("${}", cttz.name);
 			} break;
+
+			case Expr::Kind::LIFETIME_START:
+				evo::debugFatalBreak("Expr::Kind::LIFETIME_START is not a valid expression");
+
+			case Expr::Kind::LIFETIME_END:
+				evo::debugFatalBreak("Expr::Kind::LIFETIME_END is not a valid expression");
 		}
 	}
 
@@ -1822,6 +1828,26 @@ namespace pcit::pir{
 				this->printer.printRed("= @cttz ");
 				this->print_expr(cttz.arg);
 				this->printer.println();
+			} break;
+
+			case Expr::Kind::LIFETIME_START: {
+				const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
+
+				this->printer.print(tabs(2));
+				this->printer.printRed("@meta.lifetimeStart ");
+				this->print_expr(lifetime_start.arg);
+				this->printer.print(", ");
+				this->printer.printMagenta("{}\n", lifetime_start.size);
+			} break;
+
+			case Expr::Kind::LIFETIME_END: {
+				const LifetimeEnd& lifetime_end = this->reader.getLifetimeEnd(stmt);
+
+				this->printer.print(tabs(2));
+				this->printer.printRed("@meta.lifetimeEnd ");
+				this->print_expr(lifetime_end.arg);
+				this->printer.print(", ");
+				this->printer.printMagenta("{}\n", lifetime_end.size);
 			} break;
 		}
 	}

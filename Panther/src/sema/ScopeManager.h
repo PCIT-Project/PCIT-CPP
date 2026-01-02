@@ -98,7 +98,7 @@ namespace pcit::panther::sema{
 
 
 					///////////////////////////////////
-					// object scope
+					// encapsulating symbol
 
 					// pushing / popping happens automatically with `pushLevel` / `popLevel`
 
@@ -106,7 +106,7 @@ namespace pcit::panther::sema{
 						return !this->encapsulating_symbols.empty();
 					}
 					EVO_NODISCARD auto getCurrentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
-						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in encapsulating symbol");
 						return this->encapsulating_symbols.back().encapsulating_symbol_id;
 					}
 					EVO_NODISCARD auto getCurrentEncapsulatingSymbolIfExists() const
@@ -115,8 +115,8 @@ namespace pcit::panther::sema{
 						return std::nullopt;
 					}
 					EVO_NODISCARD auto getParentEncapsulatingSymbol() const -> const EncapsulatingSymbolID& {
-						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
-						evo::debugAssert(this->encapsulating_symbols.size() >= 2, "no parent object scope");
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in encapsulating symbol");
+						evo::debugAssert(this->encapsulating_symbols.size() >= 2, "no parent encapsulating symbol");
 
 						const size_t parent_index = this->encapsulating_symbols.size() - 2;
 						return this->encapsulating_symbols[parent_index].encapsulating_symbol_id;
@@ -128,7 +128,7 @@ namespace pcit::panther::sema{
 					}
 
 					EVO_NODISCARD auto inObjectMainScope() const -> bool {
-						evo::debugAssert(this->inEncapsulatingSymbol(), "not in object scope");
+						evo::debugAssert(this->inEncapsulatingSymbol(), "not in encapsulating symbol");
 						return this->encapsulating_symbols.back().scope_level_index - 1 == this->size();
 					}
 
@@ -175,7 +175,7 @@ namespace pcit::panther::sema{
 						evo::debugAssert(
 							this->encapsulating_symbols.empty() == false
 								&& this->encapsulating_symbols.back().encapsulating_symbol_id.is<sema::Func::ID>(),
-							"Cannot set [this] param not in an a func object scope"
+							"Cannot set [this] param not in an a func encapsulating symbol"
 						);
 
 						evo::debugAssert(
@@ -191,7 +191,7 @@ namespace pcit::panther::sema{
 						evo::debugAssert(
 							this->encapsulating_symbols.empty() == false
 								&& this->encapsulating_symbols.back().encapsulating_symbol_id.is<sema::Func::ID>(),
-							"Cannot get [this] param not in an a func object scope"
+							"Cannot get [this] param not in an a func encapsulating symbol"
 						);
 
 						return this->encapsulating_symbols.back().this_param;

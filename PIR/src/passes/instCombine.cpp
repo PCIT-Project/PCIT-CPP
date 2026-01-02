@@ -862,6 +862,9 @@ namespace pcit::pir::passes{
 				agent.replaceExpr(stmt, result_expr);
 				return true;
 			} break;
+
+			case Expr::Kind::LIFETIME_START: return false;
+			case Expr::Kind::LIFETIME_END:   return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -1217,6 +1220,9 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CTPOP:       return false;
 			case Expr::Kind::CTLZ:        return false;
 			case Expr::Kind::CTTZ:        return false;
+
+			case Expr::Kind::LIFETIME_START: return false;
+			case Expr::Kind::LIFETIME_END:   return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -1224,6 +1230,7 @@ namespace pcit::pir::passes{
 
 
 	auto inst_combine_impl(Expr, const Agent&) -> PassManager::MadeTransformation {
+		// TODO(FEATURE): 
 		return false;
 	}
 

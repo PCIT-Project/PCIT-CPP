@@ -532,6 +532,21 @@ namespace pcit::panther::sema{
 		StmtBlock block{};
 	};
 
+	
+	struct LifetimeStart{
+		using ID = LifetimeStartID;
+
+		Expr target;
+		TypeInfo::ID typeID;
+	};
+
+	struct LifetimeEnd{
+		using ID = LifetimeEndID;
+
+		Expr target;
+		TypeInfo::ID typeID;
+	};
+
 
 
 	struct Param{
@@ -682,8 +697,8 @@ namespace pcit::panther::sema{
 
 		EVO_NODISCARD auto isMethod(const class panther::Context& context) const -> bool;
 
-		EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty(); }
-		EVO_NODISCARD auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty(); }
+		EVO_NODISCARD auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty() == false; }
+		EVO_NODISCARD auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty() == false; }
 	};
 
 

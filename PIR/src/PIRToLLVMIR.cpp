@@ -418,7 +418,6 @@ namespace pcit::pir{
 							);
 							this->builder.createUnreachable();
 						}
-
 					} break;
 
 					case Expr::Kind::BREAKPOINT: {
@@ -1416,6 +1415,32 @@ namespace pcit::pir{
 						).asValue();
 						this->stmt_values.emplace(stmt, cttz_value);
 					} break;
+
+					case Expr::Kind::LIFETIME_START: {
+						const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
+
+						this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::LIFETIME_START,
+							this->builder.getTypeVoid(),
+							std::initializer_list<llvmint::Value>{
+								static_cast<llvmint::Value>(this->builder.getValueI64(lifetime_start.size)),
+								this->get_value<ADD_WEAK_DEPS>(lifetime_start.arg)
+							}
+						);
+					} break;
+
+					case Expr::Kind::LIFETIME_END: {
+						const LifetimeEnd& lifetime_end = this->reader.getLifetimeEnd(stmt);
+
+						this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::LIFETIME_END,
+							this->builder.getTypeVoid(),
+							std::initializer_list<llvmint::Value>{
+								static_cast<llvmint::Value>(this->builder.getValueI64(lifetime_end.size)),
+								this->get_value<ADD_WEAK_DEPS>(lifetime_end.arg)
+							}
+						);
+					} break;
 				}
 			}
 		}
@@ -1712,48 +1737,51 @@ namespace pcit::pir{
 			case Expr::Kind::UMUL_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUMulWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SMUL_SAT:    return this->stmt_values.at(expr);
-			case Expr::Kind::UMUL_SAT:    return this->stmt_values.at(expr);
-			case Expr::Kind::FMUL:        return this->stmt_values.at(expr);
+			case Expr::Kind::SMUL_SAT:       return this->stmt_values.at(expr);
+			case Expr::Kind::UMUL_SAT:       return this->stmt_values.at(expr);
+			case Expr::Kind::FMUL:           return this->stmt_values.at(expr);
 
-			case Expr::Kind::SDIV:        return this->stmt_values.at(expr);
-			case Expr::Kind::UDIV:        return this->stmt_values.at(expr);
-			case Expr::Kind::FDIV:        return this->stmt_values.at(expr);
-			case Expr::Kind::SREM:        return this->stmt_values.at(expr);
-			case Expr::Kind::UREM:        return this->stmt_values.at(expr);
-			case Expr::Kind::FREM:        return this->stmt_values.at(expr);
-			case Expr::Kind::FNEG:        return this->stmt_values.at(expr);
+			case Expr::Kind::SDIV:           return this->stmt_values.at(expr);
+			case Expr::Kind::UDIV:           return this->stmt_values.at(expr);
+			case Expr::Kind::FDIV:           return this->stmt_values.at(expr);
+			case Expr::Kind::SREM:           return this->stmt_values.at(expr);
+			case Expr::Kind::UREM:           return this->stmt_values.at(expr);
+			case Expr::Kind::FREM:           return this->stmt_values.at(expr);
+			case Expr::Kind::FNEG:           return this->stmt_values.at(expr);
 
-			case Expr::Kind::IEQ:         return this->stmt_values.at(expr);
-			case Expr::Kind::FEQ:         return this->stmt_values.at(expr);
-			case Expr::Kind::INEQ:        return this->stmt_values.at(expr);
-			case Expr::Kind::FNEQ:        return this->stmt_values.at(expr);
-			case Expr::Kind::SLT:         return this->stmt_values.at(expr);
-			case Expr::Kind::ULT:         return this->stmt_values.at(expr);
-			case Expr::Kind::FLT:         return this->stmt_values.at(expr);
-			case Expr::Kind::SLTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::ULTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::FLTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::SGT:         return this->stmt_values.at(expr);
-			case Expr::Kind::UGT:         return this->stmt_values.at(expr);
-			case Expr::Kind::FGT:         return this->stmt_values.at(expr);
-			case Expr::Kind::SGTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::UGTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::FGTE:        return this->stmt_values.at(expr);
-			case Expr::Kind::AND:         return this->stmt_values.at(expr);
-			case Expr::Kind::OR:          return this->stmt_values.at(expr);
-			case Expr::Kind::XOR:         return this->stmt_values.at(expr);
-			case Expr::Kind::SHL:         return this->stmt_values.at(expr);
-			case Expr::Kind::SSHL_SAT:    return this->stmt_values.at(expr);
-			case Expr::Kind::USHL_SAT:    return this->stmt_values.at(expr);
-			case Expr::Kind::SSHR:        return this->stmt_values.at(expr);
-			case Expr::Kind::USHR:        return this->stmt_values.at(expr);
+			case Expr::Kind::IEQ:            return this->stmt_values.at(expr);
+			case Expr::Kind::FEQ:            return this->stmt_values.at(expr);
+			case Expr::Kind::INEQ:           return this->stmt_values.at(expr);
+			case Expr::Kind::FNEQ:           return this->stmt_values.at(expr);
+			case Expr::Kind::SLT:            return this->stmt_values.at(expr);
+			case Expr::Kind::ULT:            return this->stmt_values.at(expr);
+			case Expr::Kind::FLT:            return this->stmt_values.at(expr);
+			case Expr::Kind::SLTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::ULTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::FLTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::SGT:            return this->stmt_values.at(expr);
+			case Expr::Kind::UGT:            return this->stmt_values.at(expr);
+			case Expr::Kind::FGT:            return this->stmt_values.at(expr);
+			case Expr::Kind::SGTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::UGTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::FGTE:           return this->stmt_values.at(expr);
+			case Expr::Kind::AND:            return this->stmt_values.at(expr);
+			case Expr::Kind::OR:             return this->stmt_values.at(expr);
+			case Expr::Kind::XOR:            return this->stmt_values.at(expr);
+			case Expr::Kind::SHL:            return this->stmt_values.at(expr);
+			case Expr::Kind::SSHL_SAT:       return this->stmt_values.at(expr);
+			case Expr::Kind::USHL_SAT:       return this->stmt_values.at(expr);
+			case Expr::Kind::SSHR:           return this->stmt_values.at(expr);
+			case Expr::Kind::USHR:           return this->stmt_values.at(expr);
 
-			case Expr::Kind::BIT_REVERSE: return this->stmt_values.at(expr);
-			case Expr::Kind::BSWAP:       return this->stmt_values.at(expr);
-			case Expr::Kind::CTPOP:       return this->stmt_values.at(expr);
-			case Expr::Kind::CTLZ:        return this->stmt_values.at(expr);
-			case Expr::Kind::CTTZ:        return this->stmt_values.at(expr);
+			case Expr::Kind::BIT_REVERSE:    return this->stmt_values.at(expr);
+			case Expr::Kind::BSWAP:          return this->stmt_values.at(expr);
+			case Expr::Kind::CTPOP:          return this->stmt_values.at(expr);
+			case Expr::Kind::CTLZ:           return this->stmt_values.at(expr);
+			case Expr::Kind::CTTZ:           return this->stmt_values.at(expr);
+
+			case Expr::Kind::LIFETIME_START: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::LIFETIME_END:   evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

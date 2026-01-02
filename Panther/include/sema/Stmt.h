@@ -50,6 +50,8 @@ namespace pcit::panther::sema{
 			FOR_UNROLL,
 			SWITCH,
 			DEFER,
+			LIFETIME_START,
+			LIFETIME_END,
 		};
 
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),         value{.var_id = var_id}               {}
@@ -75,6 +77,10 @@ namespace pcit::panther::sema{
 		explicit Stmt(ForUnrollID for_unroll_id) : _kind(Kind::FOR_UNROLL),  value{.for_unroll_id = for_unroll_id} {}
 		explicit Stmt(SwitchID switch_id)        : _kind(Kind::SWITCH),      value{.switch_id = switch_id}         {}
 		explicit Stmt(DeferID defer_id)          : _kind(Kind::DEFER),       value{.defer_id = defer_id}           {}
+		explicit Stmt(LifetimeStartID lifetime_start_id)
+			: _kind(Kind::LIFETIME_START), value{.lifetime_start_id = lifetime_start_id} {}
+		explicit Stmt(LifetimeEndID lifetime_end_id)
+			: _kind(Kind::LIFETIME_END), value{.lifetime_end_id = lifetime_end_id} {}
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
 
@@ -181,6 +187,16 @@ namespace pcit::panther::sema{
 			return this->value.defer_id;
 		}
 
+		EVO_NODISCARD auto lifetimeStartID() const -> LifetimeStartID {
+			evo::debugAssert(this->kind() == Kind::LIFETIME_START, "not a lifetime start");
+			return this->value.lifetime_start_id;
+		}
+
+		EVO_NODISCARD auto lifetimeEndID() const -> LifetimeEndID {
+			evo::debugAssert(this->kind() == Kind::LIFETIME_END, "not a lifetime end");
+			return this->value.lifetime_end_id;
+		}
+
 
 		private:
 			Stmt(Token::ID token_id, Kind stmt_kind) : _kind(stmt_kind), value{.token_id = token_id} {}
@@ -209,6 +225,8 @@ namespace pcit::panther::sema{
 				ForUnrollID for_unroll_id;
 				SwitchID switch_id;
 				DeferID defer_id;
+				LifetimeStartID lifetime_start_id;
+				LifetimeEndID lifetime_end_id;
 			} value;
 	};
 

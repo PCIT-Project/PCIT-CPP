@@ -617,6 +617,9 @@ namespace pcit::pir{
 			core::StepAlloc<CTLZ, uint32_t> ctlzs{};
 			core::StepAlloc<CTTZ, uint32_t> cttzs{};
 
+			core::StepAlloc<LifetimeStart, uint32_t> lifetime_starts{};
+			core::StepAlloc<LifetimeEnd, uint32_t> lifetime_ends{};
+
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

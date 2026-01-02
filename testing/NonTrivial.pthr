@@ -1,0 +1,12 @@
+type NonTrivial = struct #pub {
+	func new = () -> (output: NonTrivial) { return...; }
+	func new = (this) -> Void {}
+
+	func delete = (this) -> Void {}
+
+	func copy = (this) -> (output: NonTrivial) { return...; }
+	func copy = (this, target: NonTrivial) -> Void {}
+
+	func move = (this) -> (output: NonTrivial) { return...; }
+	func move = (this, target: NonTrivial) -> Void {}
+}

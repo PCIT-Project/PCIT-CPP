@@ -139,30 +139,33 @@ namespace pcit::llvmint{
 		// llvm/IR/IntrinsicEnums.inc
 		const llvm::Intrinsic::ID intrinsic_id = [&]() -> llvm::Intrinsic::ID {
 			switch(id){
-				case IntrinsicID::TRAP:          return llvm::Intrinsic::IndependentIntrinsics::trap;
-				case IntrinsicID::DEBUG_TRAP:    return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
+				case IntrinsicID::TRAP:           return llvm::Intrinsic::IndependentIntrinsics::trap;
+				case IntrinsicID::DEBUG_TRAP:     return llvm::Intrinsic::IndependentIntrinsics::debugtrap;
 
-				case IntrinsicID::SADD_SAT:      return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;
-				case IntrinsicID::SADD_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
-				case IntrinsicID::SMUL_FIX_SAT:  return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
-				case IntrinsicID::SMUL_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
-				case IntrinsicID::SSHL_SAT:      return llvm::Intrinsic::IndependentIntrinsics::sshl_sat;
-				case IntrinsicID::SSUB_SAT:      return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
-				case IntrinsicID::SSUB_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
+				case IntrinsicID::LIFETIME_START: return llvm::Intrinsic::IndependentIntrinsics::lifetime_start;
+				case IntrinsicID::LIFETIME_END:   return llvm::Intrinsic::IndependentIntrinsics::lifetime_end;
 
-				case IntrinsicID::UADD_SAT:      return llvm::Intrinsic::IndependentIntrinsics::uadd_sat;
-				case IntrinsicID::UADD_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
-				case IntrinsicID::UMUL_FIX_SAT:  return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
-				case IntrinsicID::UMUL_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
-				case IntrinsicID::USHL_SAT:      return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
-				case IntrinsicID::USUB_SAT:      return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
-				case IntrinsicID::USUB_OVERFLOW: return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
+				case IntrinsicID::SADD_SAT:       return llvm::Intrinsic::IndependentIntrinsics::sadd_sat;
+				case IntrinsicID::SADD_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::sadd_with_overflow;
+				case IntrinsicID::SMUL_FIX_SAT:   return llvm::Intrinsic::IndependentIntrinsics::smul_fix_sat;
+				case IntrinsicID::SMUL_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::smul_with_overflow;
+				case IntrinsicID::SSHL_SAT:       return llvm::Intrinsic::IndependentIntrinsics::sshl_sat;
+				case IntrinsicID::SSUB_SAT:       return llvm::Intrinsic::IndependentIntrinsics::ssub_sat;
+				case IntrinsicID::SSUB_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::ssub_with_overflow;
 
-				case IntrinsicID::BIT_REVERSE:   return llvm::Intrinsic::IndependentIntrinsics::bitreverse;
-				case IntrinsicID::BSWAP:         return llvm::Intrinsic::IndependentIntrinsics::bswap;
-				case IntrinsicID::CTPOP:         return llvm::Intrinsic::IndependentIntrinsics::ctpop;
-				case IntrinsicID::CTLZ:          return llvm::Intrinsic::IndependentIntrinsics::ctlz;
-				case IntrinsicID::CTTZ:          return llvm::Intrinsic::IndependentIntrinsics::cttz;
+				case IntrinsicID::UADD_SAT:       return llvm::Intrinsic::IndependentIntrinsics::uadd_sat;
+				case IntrinsicID::UADD_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::uadd_with_overflow;
+				case IntrinsicID::UMUL_FIX_SAT:   return llvm::Intrinsic::IndependentIntrinsics::umul_fix_sat;
+				case IntrinsicID::UMUL_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::umul_with_overflow;
+				case IntrinsicID::USHL_SAT:       return llvm::Intrinsic::IndependentIntrinsics::ushl_sat;
+				case IntrinsicID::USUB_SAT:       return llvm::Intrinsic::IndependentIntrinsics::usub_sat;
+				case IntrinsicID::USUB_OVERFLOW:  return llvm::Intrinsic::IndependentIntrinsics::usub_with_overflow;
+
+				case IntrinsicID::BIT_REVERSE:    return llvm::Intrinsic::IndependentIntrinsics::bitreverse;
+				case IntrinsicID::BSWAP:          return llvm::Intrinsic::IndependentIntrinsics::bswap;
+				case IntrinsicID::CTPOP:          return llvm::Intrinsic::IndependentIntrinsics::ctpop;
+				case IntrinsicID::CTLZ:           return llvm::Intrinsic::IndependentIntrinsics::ctlz;
+				case IntrinsicID::CTTZ:           return llvm::Intrinsic::IndependentIntrinsics::cttz;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported intrinsic id");

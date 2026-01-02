@@ -695,6 +695,17 @@ namespace pcit::pir{
 						if(cttz.arg == original){ cttz.arg = replacement; }
 					} break;
 
+					case Expr::Kind::LIFETIME_START: {
+						LifetimeStart& lifetime_start = this->module.lifetime_starts[stmt.index];
+
+						if(lifetime_start.arg == original){ lifetime_start.arg = replacement; }
+					} break;
+
+					case Expr::Kind::LIFETIME_END: {
+						LifetimeEnd& lifetime_end = this->module.lifetime_ends[stmt.index];
+
+						if(lifetime_end.arg == original){ lifetime_end.arg = replacement; }
+					} break;
 				}
 			}
 		}
@@ -2976,6 +2987,46 @@ namespace pcit::pir{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// optimizations
+
+	auto Agent::createLifetimeStart(const Expr& expr, uint64_t size) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			expr.kind() == Expr::Kind::ALLOCA
+				|| (expr.kind() == Expr::Kind::PARAM_EXPR && this->getExprType(expr).kind() == Type::Kind::PTR), 
+			"Expr must be an alloca or ptr param"
+		);
+
+		const auto new_expr = Expr(Expr::Kind::LIFETIME_START, this->module.lifetime_starts.emplace_back(expr, size));
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getLifetimeStart(const Expr& expr) const -> const LifetimeStart& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeStart(expr);
+	}
+
+
+	auto Agent::createLifetimeEnd(const Expr& expr, uint64_t size) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			expr.kind() == Expr::Kind::ALLOCA
+				|| (expr.kind() == Expr::Kind::PARAM_EXPR && this->getExprType(expr).kind() == Type::Kind::PTR), 
+			"Expr must be an alloca or ptr param"
+		);
+
+		const auto new_expr = Expr(Expr::Kind::LIFETIME_END, this->module.lifetime_ends.emplace_back(expr, size));
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getLifetimeEnd(const Expr& expr) const -> const LifetimeEnd& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeEnd(expr);
+	}
+
+
+
 
 
 
@@ -3098,6 +3149,8 @@ namespace pcit::pir{
 			break; case Expr::Kind::CTPOP:             this->module.ctpops.erase(expr.index);
 			break; case Expr::Kind::CTLZ:              this->module.ctlzs.erase(expr.index);
 			break; case Expr::Kind::CTTZ:              this->module.cttzs.erase(expr.index);
+			break; case Expr::Kind::LIFETIME_START:    this->module.lifetime_starts.erase(expr.index);
+			break; case Expr::Kind::LIFETIME_END:      this->module.lifetime_ends.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -3253,6 +3306,8 @@ namespace pcit::pir{
 					case Expr::Kind::CTPOP:       if(this->getCtPop(stmt).name == name){      return true; } continue;
 					case Expr::Kind::CTLZ:        if(this->getCTLZ(stmt).name == name){       return true; } continue;
 					case Expr::Kind::CTTZ:        if(this->getCTTZ(stmt).name == name){       return true; } continue;
+					case Expr::Kind::LIFETIME_START: continue;
+					case Expr::Kind::LIFETIME_END:   continue;
 				}
 			}
 		}

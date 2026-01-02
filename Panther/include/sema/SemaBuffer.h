@@ -413,6 +413,30 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// lifetime start
+
+			EVO_NODISCARD auto createLifetimeStart(auto&&... args) -> sema::LifetimeStart::ID {
+				return this->lifetime_starts.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getLifetimeStart(sema::LifetimeStart::ID id) const -> const sema::LifetimeStart& {
+				return this->lifetime_starts[id];
+			}
+
+
+			///////////////////////////////////
+			// lifetime end
+
+			EVO_NODISCARD auto createLifetimeEnd(auto&&... args) -> sema::LifetimeEnd::ID {
+				return this->lifetime_ends.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getLifetimeEnd(sema::LifetimeEnd::ID id) const -> const sema::LifetimeEnd& {
+				return this->lifetime_ends[id];
+			}
+
+
+			///////////////////////////////////
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> sema::Copy::ID {
@@ -954,6 +978,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::ForUnroll, sema::ForUnroll::ID> for_unrolls{};
 			core::SyncLinearStepAlloc<sema::Switch, sema::Switch::ID> switches{};
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
+			core::SyncLinearStepAlloc<sema::LifetimeStart, sema::LifetimeStart::ID> lifetime_starts{};
+			core::SyncLinearStepAlloc<sema::LifetimeEnd, sema::LifetimeEnd::ID> lifetime_ends{};
 			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
 			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};
 			core::SyncLinearStepAlloc<sema::Forward, sema::Forward::ID> forwards{};

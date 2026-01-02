@@ -32,6 +32,9 @@ namespace pcit::llvmint{
 				TRAP,
 				DEBUG_TRAP,
 
+				LIFETIME_START,
+				LIFETIME_END,
+
 				SADD_SAT,
 				SADD_OVERFLOW,
 				SMUL_FIX_SAT,

@@ -150,6 +150,8 @@ namespace pcit::pir{
 			case Expr::Kind::CTPOP:             return this->getExprType(this->getCtPop(expr).arg);
 			case Expr::Kind::CTLZ:              return this->getExprType(this->getCTLZ(expr).arg);
 			case Expr::Kind::CTTZ:              return this->getExprType(this->getCTTZ(expr).arg);
+			case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Not a value");
+			case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported expr");
@@ -842,6 +844,20 @@ namespace pcit::pir{
 		return this->module.cttzs[expr.index];
 	}
 
+
+	auto ReaderAgent::getLifetimeStart(const Expr& expr) const -> const LifetimeStart& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::LIFETIME_START, "Not a lifetime start");
+
+		return this->module.lifetime_starts[expr.index];
+	}
+
+	auto ReaderAgent::getLifetimeEnd(const Expr& expr) const -> const LifetimeEnd& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::LIFETIME_END, "Not a lifetime end");
+
+		return this->module.lifetime_ends[expr.index];
+	}
 
 
 }

@@ -35,6 +35,7 @@ namespace pcit::pir{
 				// stmts
 				CALL,
 				CALL_VOID, // is separated from Call to allow for Expr::isValue()
+
 				ABORT,
 				BREAKPOINT,
 
@@ -132,6 +133,9 @@ namespace pcit::pir{
 				CTPOP,
 				CTLZ,
 				CTTZ,
+
+				LIFETIME_START,
+				LIFETIME_END,
 			};
 
 		public:
@@ -215,7 +219,8 @@ namespace pcit::pir{
 					case Kind::XOR:               case Kind::SHL:               case Kind::SSHL_SAT:
 					case Kind::USHL_SAT:          case Kind::SSHR:              case Kind::USHR:
 					case Kind::BIT_REVERSE:       case Kind::BSWAP:             case Kind::CTPOP:
-					case Kind::CTLZ:              case Kind::CTTZ: {
+					case Kind::CTLZ:              case Kind::CTTZ:              case Kind::LIFETIME_START:
+					case Kind::LIFETIME_END: {
 						return true;
 					} break;
 					default: return false;
@@ -361,6 +366,8 @@ namespace pcit::pir{
 		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
 	};
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -885,6 +892,19 @@ namespace pcit::pir{
 	};
 
 
+
+	//////////////////////////////////////////////////////////////////////
+	// optimizations
+
+	struct LifetimeStart{
+		Expr arg;
+		uint64_t size;
+	};
+
+	struct LifetimeEnd{
+		Expr arg;
+		uint64_t size;
+	};
 
 }
 

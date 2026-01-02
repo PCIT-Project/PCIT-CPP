@@ -3,7 +3,7 @@ def build_exp = @import("std_exp/building.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(std.build.Output.RUN);
+	build_exp.setOutput(std.build.Output.PIR);
 	// build_exp.setNumThreads(12);
 
 	build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
@@ -22,7 +22,7 @@ func entry = () #entry -> UI8 {
 		},
 	);
 	test_package.addSourceFile("test.pthr".* as [Char:*]);
-	// test_package.addSourceFile("std_exp/std_exp.pthr".* as [Char:*]);
+	test_package.addSourceFile("NonTrivial.pthr".* as [Char:*]);
 
 	// @buildAddCHeaderFile("test.h".* as [Char:*], true);
 	

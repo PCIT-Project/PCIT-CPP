@@ -259,6 +259,14 @@ namespace pcit::panther::sema{
 	struct DeferID : public core::UniqueID<uint32_t, struct DeferID> {
 		using core::UniqueID<uint32_t, DeferID>::UniqueID;
 	};
+
+	struct LifetimeStartID : public core::UniqueID<uint32_t, struct LifetimeStartID> {
+		using core::UniqueID<uint32_t, LifetimeStartID>::UniqueID;
+	};
+
+	struct LifetimeEndID : public core::UniqueID<uint32_t, struct LifetimeEndID> {
+		using core::UniqueID<uint32_t, LifetimeEndID>::UniqueID;
+	};
 	
 	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {
 		using core::UniqueID<uint32_t, FuncID>::UniqueID;
@@ -812,6 +820,28 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::DeferID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::LifetimeStartID>{
+		static constexpr auto init(panther::sema::LifetimeStartID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::LifetimeStartID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::LifetimeEndID>{
+		static constexpr auto init(panther::sema::LifetimeEndID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::LifetimeEndID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1804,6 +1834,40 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::DeferID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::DeferID>::operator=;
 	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::LifetimeStartID>{
+		auto operator()(pcit::panther::sema::LifetimeStartID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::LifetimeStartID>
+		: public pcit::core::Optional<pcit::panther::sema::LifetimeStartID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::LifetimeStartID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::LifetimeStartID>::operator=;
+	};
+
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::LifetimeEndID>{
+		auto operator()(pcit::panther::sema::LifetimeEndID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::LifetimeEndID>
+		: public pcit::core::Optional<pcit::panther::sema::LifetimeEndID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::LifetimeEndID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::LifetimeEndID>::operator=;
+	};
+
 
 
 

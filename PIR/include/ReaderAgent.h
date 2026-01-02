@@ -149,6 +149,10 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCTLZ(const Expr& expr) const -> const CTLZ&;
 			EVO_NODISCARD auto getCTTZ(const Expr& expr) const -> const CTTZ&;
 
+			EVO_NODISCARD auto getLifetimeStart(const Expr& expr) const -> const LifetimeStart&;
+			EVO_NODISCARD auto getLifetimeEnd(const Expr& expr) const -> const LifetimeEnd&;
+			
+
 		private:
 			const Module& module;
 			const Function* target_func;

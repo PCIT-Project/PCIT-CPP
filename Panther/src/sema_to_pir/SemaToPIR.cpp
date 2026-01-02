@@ -545,6 +545,41 @@ namespace pcit::panther{
 
 			this->push_scope_level();
 
+			if(this->current_func_type->hasNamedReturns){
+				for(size_t i = 0; TypeInfo::VoidableID ret_type : this->current_func_type->returnTypes){
+					this->get_current_scope_level().defers.emplace_back(
+						AutoDeleteManagedLifetimeTarget(func_info.return_params[i].expr, ret_type.asTypeID()),
+						DeferItem::Targets{
+							.on_scope_end = false,
+							.on_return    = false,
+							.on_error     = true,
+							.on_continue  = false,
+							.on_break     = false,
+						}
+					);
+
+					i += 1;
+				}
+			}
+
+			if(this->current_func_type->hasNamedErrorReturns){
+				for(uint32_t i = 0; TypeInfo::VoidableID error_type : this->current_func_type->errorTypes){
+					this->get_current_scope_level().defers.emplace_back(
+						AutoDeleteManagedLifetimeTarget(ManagedLifetimeErrorParam(i), error_type.asTypeID()),
+						DeferItem::Targets{
+							.on_scope_end = false,
+							.on_return    = false,
+							.on_error     = true,
+							.on_continue  = false,
+							.on_break     = false,
+						}
+					);
+
+					i += 1;
+				}
+			}
+
+
 			for(const sema::Stmt& stmt : sema_func.stmtBlock){
 				this->lower_stmt(stmt);
 			}
@@ -818,18 +853,6 @@ namespace pcit::panther{
 			param_i += 1;
 		}
 
-		if(func_type.hasErrorReturnParams()){
-			const pir::Expr param_calc_ptr = this->agent.createCalcPtr(
-				this->agent.createParamExpr(0),
-				this->module.createPtrType(),
-				evo::SmallVector<pir::CalcPtr::Index>{int64_t(param_i)}
-			);
-
-			args.emplace_back(this->agent.createLoad(param_calc_ptr, this->module.createPtrType()));
-
-			param_i += 1;
-		}
-
 
 		if(target_pir_func.getReturnType().kind() == pir::Type::Kind::VOID){
 			this->agent.createCallVoid(pir_func_id, std::move(args));
@@ -1025,6 +1048,17 @@ namespace pcit::panther{
 				this->local_func_exprs.emplace(sema::Expr(stmt.varID()), var_alloca);
 
 				this->get_expr_store(var.expr, var_alloca);
+
+				this->get_current_scope_level().defers.emplace_back(
+					AutoDeleteManagedLifetimeTarget(var_alloca, *var.typeID),
+					DeferItem::Targets{
+						.on_scope_end = true,
+						.on_return    = true,
+						.on_error     = true,
+						.on_continue  = true,
+						.on_break     = true,
+					}
+				);
 			} break;
 
 			case sema::Stmt::Kind::FUNC_CALL: {
@@ -1451,7 +1485,7 @@ namespace pcit::panther{
 
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						if(scope_level.label != label){
-							this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
+							this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(scope_level);
 							continue;
 						}
 
@@ -1459,7 +1493,7 @@ namespace pcit::panther{
 							this->agent.createStore(scope_level.label_output_locations[0], *ret_value);
 						}
 
-						this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
+						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(scope_level);
 
 						this->agent.createJump(*scope_level.end_block);
 						break;
@@ -1475,6 +1509,10 @@ namespace pcit::panther{
 							}
 
 							this->agent.createStore(this->current_func_info->return_params.front().expr, ret_value);
+						}
+
+						for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+							this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 						}
 
 						this->agent.createRet(this->agent.createBoolean(false));
@@ -2195,6 +2233,66 @@ namespace pcit::panther{
 						.on_break     = true,
 					}
 				);
+			} break;
+
+			case sema::Stmt::Kind::LIFETIME_START: {
+				const sema::LifetimeStart& lifetime_start =
+					this->context.getSemaBuffer().getLifetimeStart(stmt.lifetimeStartID());
+
+				switch(lifetime_start.target.kind()){
+					case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+						const sema::ErrorReturnParam& err_ret_param = this->context.getSemaBuffer().getErrorReturnParam(
+							lifetime_start.target.errorReturnParamID()
+						);
+
+						this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
+							= true;
+					} break;
+
+					case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_start.target);
+						this->get_current_scope_level().value_states[pir_target_expr] = true;
+					} break;
+
+					default: {
+						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_start.target);
+
+						this->agent.createLifetimeStart(
+							pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
+						);
+						this->get_current_scope_level().value_states[pir_target_expr] = true;
+					} break;
+				}
+			} break;
+
+			case sema::Stmt::Kind::LIFETIME_END: {
+				const sema::LifetimeEnd& lifetime_end =
+					this->context.getSemaBuffer().getLifetimeEnd(stmt.lifetimeEndID());
+
+				switch(lifetime_end.target.kind()){
+					case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+						const sema::ErrorReturnParam& err_ret_param = this->context.getSemaBuffer().getErrorReturnParam(
+							lifetime_end.target.errorReturnParamID()
+						);
+
+						this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
+							= false;
+					} break;
+
+					case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_end.target);
+						this->get_current_scope_level().value_states[pir_target_expr] = false;
+					} break;
+
+					default: {
+						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_end.target);
+
+						this->agent.createLifetimeStart(
+							pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
+						);
+						this->get_current_scope_level().value_states[pir_target_expr] = false;
+					} break;
+				}
 			} break;
 		}
 
@@ -3342,6 +3440,17 @@ namespace pcit::panther{
 						this->agent.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
 					);
 
+					this->get_current_scope_level().defers.emplace_back(
+						AutoDeleteManagedLifetimeTarget(label_output_locations[0], block_expr.outputs[0].typeID),
+						DeferItem::Targets{
+							.on_scope_end = false,
+							.on_return    = true,
+							.on_error     = true,
+							.on_continue  = false,
+							.on_break     = false,
+						}
+					);
+
 					this->push_scope_level(label, std::move(label_output_locations), std::nullopt, end_block, false);
 
 				}else{
@@ -3352,6 +3461,21 @@ namespace pcit::panther{
 						end_block,
 						false
 					);
+
+					for(size_t i = 0; const pir::Expr store_location : store_locations){
+						this->get_current_scope_level().defers.emplace_back(
+							AutoDeleteManagedLifetimeTarget(store_location, block_expr.outputs[i].typeID),
+							DeferItem::Targets{
+								.on_scope_end = false,
+								.on_return    = true,
+								.on_error     = true,
+								.on_continue  = false,
+								.on_break     = false,
+							}
+						);
+					
+						i += 1;
+					}
 				}
 				
 
@@ -10255,6 +10379,7 @@ namespace pcit::panther{
 	}
 
 
+
 	template<SemaToPIR::DeferTarget TARGET>
 	auto SemaToPIR::output_defers_for_scope_level(const ScopeLevel& scope_level) -> void {
 		for(const DeferItem& defer_item : scope_level.defers | std::views::reverse){
@@ -10278,21 +10403,68 @@ namespace pcit::panther{
 			}
 
 
-			if(defer_item.defer_item.is<sema::Defer::ID>()){
-				const sema::Defer& sema_defer =
-					this->context.getSemaBuffer().getDefer(defer_item.defer_item.as<sema::Defer::ID>());
+			defer_item.defer_item.visit([&](const auto& item) -> void {
+				using ItemType = std::decay_t<decltype(item)>;
 
-				for(const sema::Stmt& stmt : sema_defer.block){
-					this->lower_stmt(stmt);
+				if constexpr(std::is_same<ItemType, sema::Defer::ID>()){
+					const sema::Defer& sema_defer = this->context.getSemaBuffer().getDefer(item);
+
+					for(const sema::Stmt& stmt : sema_defer.block){
+						this->lower_stmt(stmt);
+					}
+
+				}else if constexpr(std::is_same<ItemType, std::function<void()>>()){
+					item();
+
+				}else if constexpr(std::is_same<ItemType, AutoDeleteTarget>()){
+					this->delete_expr(item.expr, item.typeID);
+
+				}else if constexpr(std::is_same<ItemType, AutoDeleteManagedLifetimeTarget>()){
+					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+						const auto find = scope_level.value_states.find(item.expr);
+						if(find == scope_level.value_states.end()){ continue; }
+
+						if(find->second){
+							item.expr.visit([&](const auto& expr) -> void {
+								using ExprType = std::decay_t<decltype(expr)>;
+
+								if constexpr(std::is_same<ExprType, pir::Expr>()){
+									this->delete_expr(expr, item.typeID);
+
+									if(
+										expr.kind() == pir::Expr::Kind::ALLOCA
+										|| expr.kind() == pir::Expr::Kind::PARAM_EXPR
+									){
+										this->agent.createLifetimeEnd(
+											expr, this->context.getTypeManager().numBytes(item.typeID)
+										);
+									}
+
+								}else if constexpr(std::is_same<ExprType, ManagedLifetimeErrorParam>()){
+									if(this->context.getTypeManager().isTriviallyDeletable(item.typeID)){ return; }
+
+									const pir::Expr pir_expr = this->agent.createCalcPtr(
+										*this->current_func_info->error_return_param,
+										*this->current_func_info->error_return_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, expr.index},
+										this->name(".ERR_PARAM.{}", expr.index)
+									);
+
+									this->delete_expr(pir_expr, item.typeID);
+
+								}else{
+									static_assert(false, "unknown managed lifetime target");
+								}
+							});
+						}
+
+						break;
+					}
+
+				}else{
+					static_assert(false, "Unknown defer item");
 				}
-
-			}else if(defer_item.defer_item.is<AutoDeleteTarget>()){
-				const AutoDeleteTarget& auto_delete_target = defer_item.defer_item.as<AutoDeleteTarget>();
-				this->delete_expr(auto_delete_target.expr, auto_delete_target.typeID);
-
-			}else{
-				defer_item.defer_item.as<std::function<void()>>()();
-			}
+			});
 		}
 	}
 

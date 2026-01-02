@@ -416,14 +416,6 @@ namespace pcit::panther{
 			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
 			EVO_NODISCARD auto pop_scope_level() -> evo::Result<>;
 
-			enum class AutoDeleteMode{
-				NORMAL,
-				RETURN,
-				ERROR,
-			};
-			template<AutoDeleteMode AUTO_DELETE_MODE>
-			auto add_auto_delete_calls() -> evo::Result<>;
-
 
 			enum class SpecialMemberKind{
 				DELETE,
@@ -471,6 +463,10 @@ namespace pcit::panther{
 
 			//////////////////
 			// value states
+
+			auto add_ident_value_state(
+				sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
+			) -> void;
 
 			EVO_NODISCARD auto get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
 				-> TermInfo::ValueState;
