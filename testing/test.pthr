@@ -140,5 +140,17 @@ def non_trivial_module = @import("NonTrivial.pthr");
 type NonTrivial = alias non_trivial_module.NonTrivial;
 
 type Struct = struct {
-	var nt: NonTrivial;
+
+	func copy = (this) -> (output: Struct) {
+		// output = new Struct();
+		output.nt1 = copy this.nt1;
+		output.nt2 = copy this.nt2;
+		output.nt3 = copy this.nt3;
+
+		return...;
+	}
+
+	var nt1: NonTrivial;
+	var nt2: NonTrivial;
+	var nt3: NonTrivial;
 }

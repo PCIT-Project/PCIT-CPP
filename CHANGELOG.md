@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.212.2"></a>
+## v0.0.212.2
+
+### Panther
+- Fixed default delete of a struct with one or more non-trivially-destructible members always being marked `#rt`
+
+
+<!---------------------------------->
 <a name="v0.0.212.1"></a>
 ## v0.0.212.1
 

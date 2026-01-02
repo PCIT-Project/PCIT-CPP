@@ -1801,7 +1801,6 @@ namespace pcit::panther{
 			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 				if(this->context.getTypeManager().isTriviallyDeletable(member_var.typeID) == false){
 					is_trivially_deletable = false;
-					is_constexpr_deletable = false;
 					break;
 				}
 
