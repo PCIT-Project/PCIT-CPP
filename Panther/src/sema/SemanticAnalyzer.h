@@ -424,21 +424,21 @@ namespace pcit::panther{
 				MOVE_INIT,
 				MOVE_ASSIGN,
 			};
-			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
-			EVO_NODISCARD auto check_special_member_call_and_get_dependents(
+			template<SpecialMemberKind SPECIAL_MEMBER_KIND, bool CHECK_VALIDITY>
+			EVO_NODISCARD auto get_special_member_call_dependents(
 				TypeInfo::ID type_info_id,
 				TermInfo::ValueCategory value_category,
 				std::unordered_set<sema::Func::ID>& dependent_funcs,
 				const auto& location
 			) -> evo::Result<>;
 
-			template<SpecialMemberKind SPECIAL_MEMBER_KIND>
-			EVO_NODISCARD auto check_special_member_call_and_get_dependents(
+			template<SpecialMemberKind SPECIAL_MEMBER_KIND, bool CHECK_VALIDITY>
+			EVO_NODISCARD auto get_special_member_call_dependents(
 				const TermInfo& term_info,
 				std::unordered_set<sema::Func::ID>& dependent_funcs,
 				const auto& location
 			) -> evo::Result<> {
-				return this->check_special_member_call_and_get_dependents<SPECIAL_MEMBER_KIND>(
+				return this->get_special_member_call_dependents<SPECIAL_MEMBER_KIND, CHECK_VALIDITY>(
 					term_info.type_id.as<TypeInfo::ID>(),
 					term_info.value_category,
 					dependent_funcs,

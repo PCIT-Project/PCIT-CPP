@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.212.1"></a>
+## v0.0.212.1
+
+### Panther
+- Fixed crashing in semantic analysis of a struct with a non-trivial member and a default special member
+
+
+<!---------------------------------->
 <a name="v0.0.212.0"></a>
 ## v0.0.212.0
 

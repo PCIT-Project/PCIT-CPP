@@ -139,20 +139,6 @@
 def non_trivial_module = @import("NonTrivial.pthr");
 type NonTrivial = alias non_trivial_module.NonTrivial;
 
-func test = (cond: Bool) -> (output: NonTrivial) <err: NonTrivial> {
-	var foo: NonTrivial = uninit;
-
-	err = {->block:(be:NonTrivial)
-		be = new NonTrivial();
-		output = new NonTrivial();
-		return...;
-	};
-
-	if(cond){
-		foo = new NonTrivial();
-		output = move foo;
-		return...;
-	}else{
-		error...;
-	}
+type Struct = struct {
+	var nt: NonTrivial;
 }
