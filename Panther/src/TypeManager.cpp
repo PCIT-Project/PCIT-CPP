@@ -1062,18 +1062,15 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->aliases_lock);
-
-		for(uint32_t i = 0; i < this->aliases.size(); i+=1){
-			if(this->aliases[BaseType::Alias::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::ALIAS, i);
-			}
-		}
+	auto TypeManager::createAlias(BaseType::Alias&& new_type) -> BaseType::ID {
+		this->aliases_lock.lock();
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			lookup_type.sourceID, lookup_type.name, lookup_type.parent, lookup_type.aliasedType, lookup_type.isPub
+			new_type.sourceID, new_type.name, new_type.parent, new_type.aliasedType, new_type.isPub
 		);
+
+		this->aliases_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::ALIAS, new_alias.get());
 	}
 
@@ -1092,22 +1089,19 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateDistinctAlias(BaseType::DistinctAlias&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->distinct_aliases_lock);
-
-		for(uint32_t i = 0; i < this->distinct_aliases.size(); i+=1){
-			if(this->distinct_aliases[BaseType::DistinctAlias::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, i);
-			}
-		}
+	auto TypeManager::createDistinctAlias(BaseType::DistinctAlias&& new_type) -> BaseType::ID {
+		this->distinct_aliases_lock.lock();
 
 		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.identTokenID,
-			lookup_type.parent,
-			lookup_type.underlyingType,
-			lookup_type.isPub
+			new_type.sourceID,
+			new_type.identTokenID,
+			new_type.parent,
+			new_type.underlyingType,
+			new_type.isPub
 		);
+
+		this->distinct_aliases_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::DISTINCT_ALIAS, new_distinct_alias.get());
 	}
 
@@ -1127,30 +1121,27 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->structs_lock);
-
-		for(uint32_t i = 0; i < this->structs.size(); i+=1){
-			if(this->structs[BaseType::Struct::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::STRUCT, i);
-			}
-		}
+	auto TypeManager::createStruct(BaseType::Struct&& new_type) -> BaseType::ID {
+		this->structs_lock.lock();
 
 		const BaseType::Struct::ID new_struct = this->structs.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.name,
-			lookup_type.parent,
-			lookup_type.templateID,
-			lookup_type.instantiation,
-			std::move(lookup_type.memberVars),
-			std::move(lookup_type.memberVarsABI),
-			lookup_type.namespacedMembers,
-			lookup_type.scopeLevel,
-			lookup_type.isPub,
-			lookup_type.isOrdered,
-			lookup_type.isPacked,
-			lookup_type.shouldLower
+			new_type.sourceID,
+			new_type.name,
+			new_type.parent,
+			new_type.templateID,
+			new_type.instantiation,
+			std::move(new_type.memberVars),
+			std::move(new_type.memberVarsABI),
+			new_type.namespacedMembers,
+			new_type.scopeLevel,
+			new_type.isPub,
+			new_type.isOrdered,
+			new_type.isPacked,
+			new_type.shouldLower
 		);
+
+		this->structs_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::STRUCT, new_struct.get());
 	}
 
@@ -1177,22 +1168,19 @@ namespace pcit::panther{
 
 
 
-	auto TypeManager::getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->struct_templates_lock);
-
-		for(uint32_t i = 0; i < this->struct_templates.size(); i+=1){
-			if(this->struct_templates[BaseType::StructTemplate::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE, i);
-			}
-		}
+	auto TypeManager::createStructTemplate(BaseType::StructTemplate&& new_type) -> BaseType::ID {
+		this->struct_templates_lock.lock();
 
 		const BaseType::StructTemplate::ID new_struct = this->struct_templates.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.identTokenID,
-			lookup_type.parent,
-			std::move(lookup_type.params),
-			lookup_type.minNumTemplateArgs
+			new_type.sourceID,
+			new_type.identTokenID,
+			new_type.parent,
+			std::move(new_type.params),
+			new_type.minNumTemplateArgs
 		);
+
+		this->struct_templates_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE, new_struct.get());
 	}
 
@@ -1208,10 +1196,13 @@ namespace pcit::panther{
 
 
 	auto TypeManager::createStructTemplateDeducer(BaseType::StructTemplateDeducer&& new_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->struct_template_deducers_lock);
+		this->struct_template_deducers_lock.lock();
 
 		const BaseType::StructTemplateDeducer::ID new_struct =
 			this->struct_template_deducers.emplace_back(std::move(new_type));
+
+		this->struct_template_deducers_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::STRUCT_TEMPLATE_DEDUCER, new_struct.get());
 	}
 
@@ -1231,25 +1222,22 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->unions_lock);
-
-		for(uint32_t i = 0; i < this->unions.size(); i+=1){
-			if(this->unions[BaseType::Union::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::UNION, i);
-			}
-		}
+	auto TypeManager::createUnion(BaseType::Union&& new_type) -> BaseType::ID {
+		this->unions_lock.lock();
 
 		const BaseType::Union::ID new_union = this->unions.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.location,
-			lookup_type.parent,
-			std::move(lookup_type.fields),
-			lookup_type.namespacedMembers,
-			lookup_type.scopeLevel,
-			lookup_type.isPub,
-			lookup_type.isUntagged
+			new_type.sourceID,
+			new_type.location,
+			new_type.parent,
+			std::move(new_type.fields),
+			new_type.namespacedMembers,
+			new_type.scopeLevel,
+			new_type.isPub,
+			new_type.isUntagged
 		);
+
+		this->unions_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::UNION, new_union.get());
 	}
 
@@ -1274,25 +1262,22 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateEnum(BaseType::Enum&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->enums_lock);
-
-		for(uint32_t i = 0; i < this->enums.size(); i+=1){
-			if(this->enums[BaseType::Enum::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::UNION, i);
-			}
-		}
+	auto TypeManager::createEnum(BaseType::Enum&& new_type) -> BaseType::ID {
+		this->enums_lock.lock();
 
 		const BaseType::Enum::ID new_enum = this->enums.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.location,
-			lookup_type.parent,
-			std::move(lookup_type.enumerators),
-			lookup_type.underlyingTypeID,
-			lookup_type.namespacedMembers,
-			lookup_type.scopeLevel,
-			lookup_type.isPub
+			new_type.sourceID,
+			new_type.location,
+			new_type.parent,
+			std::move(new_type.enumerators),
+			new_type.underlyingTypeID,
+			new_type.namespacedMembers,
+			new_type.scopeLevel,
+			new_type.isPub
 		);
+
+		this->enums_lock.unlock();
+
 		return BaseType::ID(BaseType::Kind::ENUM, new_enum.get());
 	}
 
@@ -1307,16 +1292,10 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID {
+	auto TypeManager::createTypeDeducer(BaseType::TypeDeducer&& new_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->type_deducers_lock);
 
-		for(uint32_t i = 0; i < this->type_deducers.size(); i+=1){
-			if(this->type_deducers[BaseType::TypeDeducer::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::TYPE_DEDUCER, i);
-			}
-		}
-
-		const BaseType::TypeDeducer::ID new_type_deducer = this->type_deducers.emplace_back(std::move(lookup_type));
+		const BaseType::TypeDeducer::ID new_type_deducer = this->type_deducers.emplace_back(std::move(new_type));
 		return BaseType::ID(BaseType::Kind::TYPE_DEDUCER, new_type_deducer.get());
 	}
 
@@ -1335,23 +1314,19 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID {
-		const auto lock = std::scoped_lock(this->interfaces_lock);
-
-		for(uint32_t i = 0; i < this->interfaces.size(); i+=1){
-			if(this->interfaces[BaseType::Interface::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::INTERFACE, i);
-			}
-		}
+	auto TypeManager::createInterface(BaseType::Interface&& new_type) -> BaseType::ID {
+		this->interfaces_lock.lock();
 
 		const BaseType::Interface::ID new_interface = this->interfaces.emplace_back(
-			lookup_type.sourceID,
-			lookup_type.name,
-			lookup_type.parent,
-			lookup_type.symbolProcID,
-			lookup_type.isPub,
-			lookup_type.isPolymorphic
+			new_type.sourceID,
+			new_type.name,
+			new_type.parent,
+			new_type.symbolProcID,
+			new_type.isPub,
+			new_type.isPolymorphic
 		);
+
+		this->interfaces_lock.unlock();
 
 		return BaseType::ID(BaseType::Kind::INTERFACE, new_interface.get());
 	}

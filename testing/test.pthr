@@ -141,12 +141,14 @@ type NonTrivial = alias non_trivial_module.NonTrivial;
 
 type Struct = struct {
 
-	func copy = (this) -> (output: Struct) {
-		// output = new Struct();
-		output.nt1 = copy this.nt1;
-		output.nt2 = copy this.nt2;
-		output.nt3 = copy this.nt3;
+	func delete = (this mut) -> Void {
+		delete this.nt2;
+	}
 
+	func copy = (this) -> (output: Struct) {
+		// output.nt1 = new NonTrivial();
+		output = new Struct();
+		var foo: NonTrivial = copy output.nt1;
 		return...;
 	}
 

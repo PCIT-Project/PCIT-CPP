@@ -28,6 +28,12 @@ namespace pcit::panther{
 		EVO_NODISCARD auto operator==(const ManagedLifetimeErrorParam&) const -> bool = default;
 	};
 
+	struct OpDeleteThisAccessor{
+		uint32_t abiIndex;
+
+		EVO_NODISCARD auto operator==(const OpDeleteThisAccessor&) const -> bool = default;
+	};
+
 }
 
 
@@ -37,6 +43,13 @@ namespace std{
 	struct hash<pcit::panther::ManagedLifetimeErrorParam>{
 		auto operator()(pcit::panther::ManagedLifetimeErrorParam ret_param) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(ret_param.index);
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::OpDeleteThisAccessor>{
+		auto operator()(pcit::panther::OpDeleteThisAccessor op_delete_this_accessor) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(op_delete_this_accessor.abiIndex);
 		};
 	};
 
@@ -326,7 +339,7 @@ namespace pcit::panther{
 				TypeInfo::ID typeID;
 			};
 
-			using ManagedLifetimeTarget = evo::Variant<pir::Expr, ManagedLifetimeErrorParam>;
+			using ManagedLifetimeTarget = evo::Variant<pir::Expr, ManagedLifetimeErrorParam, OpDeleteThisAccessor>;
 
 			struct AutoDeleteManagedLifetimeTarget{
 				ManagedLifetimeTarget expr;
@@ -385,8 +398,8 @@ namespace pcit::panther{
 
 
 			enum class DeferTarget{
-				SCOPE_END,
-				RETURN, // includes implicit return
+				SCOPE_END, // includes labeled return
+				RETURN, // includes implicit return, but not labeled return
 				ERROR,
 				CONTINUE,
 				BREAK,

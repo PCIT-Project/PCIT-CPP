@@ -580,6 +580,42 @@ namespace pcit::panther{
 			}
 
 
+			if(
+				sema_func.name.is<Token::ID>() &&
+				this->current_source->getTokenBuffer()[sema_func.name.as<Token::ID>()].kind()
+					== Token::Kind::KEYWORD_DELETE
+			){
+				const TypeInfo& this_type =
+					this->context.getTypeManager().getTypeInfo(this->current_func_type->params[0].typeID);
+				const BaseType::Struct& this_struct_type =
+					this->context.getTypeManager().getStruct(this_type.baseTypeID().structID());
+
+				for(const BaseType::Struct::MemberVar& member_var : this_struct_type.memberVars){
+					const uint32_t abi_index = [&]() -> uint32_t {
+						for(
+							uint32_t i = 0;
+							const BaseType::Struct::MemberVar* abi_member_var : this_struct_type.memberVarsABI
+						){
+							if(abi_member_var == &member_var){ return i; }
+							i += 1;
+						}
+						evo::debugFatalBreak("Didn't find abi member");
+					}();
+
+					this->get_current_scope_level().defers.emplace_back(
+						AutoDeleteManagedLifetimeTarget(OpDeleteThisAccessor(abi_index), member_var.typeID),
+						DeferItem::Targets{
+							.on_scope_end = true,
+							.on_return    = true,
+							.on_error     = false,
+							.on_continue  = false,
+							.on_break     = false,
+						}
+					);
+				}
+			}
+
+
 			for(const sema::Stmt& stmt : sema_func.stmtBlock){
 				this->lower_stmt(stmt);
 			}
@@ -2239,60 +2275,81 @@ namespace pcit::panther{
 				const sema::LifetimeStart& lifetime_start =
 					this->context.getSemaBuffer().getLifetimeStart(stmt.lifetimeStartID());
 
-				switch(lifetime_start.target.kind()){
-					case sema::Expr::Kind::ERROR_RETURN_PARAM: {
-						const sema::ErrorReturnParam& err_ret_param = this->context.getSemaBuffer().getErrorReturnParam(
-							lifetime_start.target.errorReturnParamID()
-						);
+				if(lifetime_start.target.is<sema::Expr>()){
+					const sema::Expr target_expr = lifetime_start.target.as<sema::Expr>();
 
-						this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
-							= true;
-					} break;
+					switch(target_expr.kind()){
+						case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+							const sema::ErrorReturnParam& err_ret_param = 
+								this->context.getSemaBuffer().getErrorReturnParam(
+									target_expr.errorReturnParamID()
+								);
 
-					case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
-						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_start.target);
-						this->get_current_scope_level().value_states[pir_target_expr] = true;
-					} break;
+							this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
+								= true;
+						} break;
 
-					default: {
-						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_start.target);
+						case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
+							this->get_current_scope_level().value_states[pir_target_expr] = true;
+						} break;
 
-						this->agent.createLifetimeStart(
-							pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
-						);
-						this->get_current_scope_level().value_states[pir_target_expr] = true;
-					} break;
+						default: {
+							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
+
+							this->agent.createLifetimeStart(
+								pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
+							);
+							this->get_current_scope_level().value_states[pir_target_expr] = true;
+						} break;
+					}
+				}else{
+					this->get_current_scope_level().value_states[
+						OpDeleteThisAccessor(lifetime_start.target.as<sema::OpDeleteThisAccessor>().abiIndex)
+					] = true;
 				}
+				
 			} break;
 
 			case sema::Stmt::Kind::LIFETIME_END: {
 				const sema::LifetimeEnd& lifetime_end =
 					this->context.getSemaBuffer().getLifetimeEnd(stmt.lifetimeEndID());
 
-				switch(lifetime_end.target.kind()){
-					case sema::Expr::Kind::ERROR_RETURN_PARAM: {
-						const sema::ErrorReturnParam& err_ret_param = this->context.getSemaBuffer().getErrorReturnParam(
-							lifetime_end.target.errorReturnParamID()
-						);
+				if(lifetime_end.target.is<sema::Expr>()){
+					const sema::Expr target_expr = lifetime_end.target.as<sema::Expr>();
 
-						this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
-							= false;
-					} break;
+					switch(target_expr.kind()){
+						case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+							const sema::ErrorReturnParam& err_ret_param =
+								this->context.getSemaBuffer().getErrorReturnParam(
+									target_expr.errorReturnParamID()
+								);
 
-					case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
-						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_end.target);
-						this->get_current_scope_level().value_states[pir_target_expr] = false;
-					} break;
+							this->get_current_scope_level().value_states[ManagedLifetimeErrorParam(err_ret_param.index)]
+								= false;
+						} break;
 
-					default: {
-						const pir::Expr pir_target_expr = this->get_expr_pointer(lifetime_end.target);
+						case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
+							this->get_current_scope_level().value_states[pir_target_expr] = false;
+						} break;
 
-						this->agent.createLifetimeStart(
-							pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
-						);
-						this->get_current_scope_level().value_states[pir_target_expr] = false;
-					} break;
+						default: {
+							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
+
+							this->agent.createLifetimeStart(
+								pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
+							);
+							this->get_current_scope_level().value_states[pir_target_expr] = false;
+						} break;
+					}
+
+				}else{
+					this->get_current_scope_level().value_states[
+						OpDeleteThisAccessor(lifetime_end.target.as<sema::OpDeleteThisAccessor>().abiIndex)
+					] = false;
 				}
+
 			} break;
 		}
 
@@ -10448,6 +10505,18 @@ namespace pcit::panther{
 										*this->current_func_info->error_return_type,
 										evo::SmallVector<pir::CalcPtr::Index>{0, expr.index},
 										this->name(".ERR_PARAM.{}", expr.index)
+									);
+
+									this->delete_expr(pir_expr, item.typeID);
+
+								}else if constexpr(std::is_same<ExprType, OpDeleteThisAccessor>()){
+									if(this->context.getTypeManager().isTriviallyDeletable(item.typeID)){ return; }
+									
+									const pir::Expr pir_expr = this->agent.createCalcPtr(
+										this->agent.createParamExpr(0),
+										*this->current_func_info->params[0].reference_type,
+										evo::SmallVector<pir::CalcPtr::Index>{0, expr.abiIndex},
+										this->name(".ERR_PARAM.{}", expr.abiIndex)
 									);
 
 									this->delete_expr(pir_expr, item.typeID);

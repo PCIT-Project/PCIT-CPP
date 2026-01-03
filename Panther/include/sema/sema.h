@@ -533,17 +533,19 @@ namespace pcit::panther::sema{
 	};
 
 	
+
+	struct OpDeleteThisAccessor{ uint32_t abiIndex;	};
 	struct LifetimeStart{
 		using ID = LifetimeStartID;
 
-		Expr target;
+		evo::Variant<Expr, OpDeleteThisAccessor> target;
 		TypeInfo::ID typeID;
 	};
 
 	struct LifetimeEnd{
 		using ID = LifetimeEndID;
 
-		Expr target;
+		evo::Variant<Expr, OpDeleteThisAccessor> target;
 		TypeInfo::ID typeID;
 	};
 

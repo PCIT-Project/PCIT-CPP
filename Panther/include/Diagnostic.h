@@ -367,6 +367,7 @@ namespace pcit::panther{
 			SEMA_PREFIX_NO_MATCHING_OP,
 			SEMA_STRUCT_MEMBER_INVALID_TYPE,
 			SEMA_FUNC_ALIAS_MUST_BE_FUNC,
+			SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT,
 
 
 			//////////////////
@@ -964,6 +965,7 @@ namespace pcit::panther{
 				case Code::SEMA_PREFIX_NO_MATCHING_OP:
 				case Code::SEMA_STRUCT_MEMBER_INVALID_TYPE:
 				case Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC:
+				case Code::SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT:
 					return "Sxx";
 
 				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:

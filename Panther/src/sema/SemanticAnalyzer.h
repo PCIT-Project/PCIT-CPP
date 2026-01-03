@@ -475,7 +475,14 @@ namespace pcit::panther{
 				sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
 			) -> void;
 
-			auto set_ident_value_state_if_needed(sema::Expr target, sema::ScopeLevel::ValueState value_state) -> void;
+			auto set_ident_value_state_if_needed(
+				sema::Expr target, sema::ScopeLevel::ValueState value_state, Diagnostic::Location location
+			) -> evo::Result<>;
+			auto set_ident_value_state_if_needed(
+				sema::Expr target, sema::ScopeLevel::ValueState value_state, const auto& location
+			) -> evo::Result<> {
+				return this->set_ident_value_state_if_needed(target, value_state, this->get_location(location));
+			}
 
 
 

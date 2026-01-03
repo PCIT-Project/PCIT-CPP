@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.213.0"></a>
+## v0.0.213.0
+
+### Panther
+- Added direct initialization of special member return parameters
+- Fixed missing automatic member `delete`s in `delete` overload
+- Fixed default `delete` overload calling member `delete` in reverse order
+
+
+<!---------------------------------->
 <a name="v0.0.212.2"></a>
 ## v0.0.212.2
 
@@ -30,7 +40,6 @@
 ### PIR
 - Added `@meta.lifetimeStart`
 - Added `@meta.lifetimeEnd`
-
 
 
 <!---------------------------------->

@@ -32,7 +32,7 @@ namespace pcit::panther::sema{
 	};
 
 	struct OpDeleteThisAccessorValueStateID{ // this.[MEMBER] in overload operator [delete]
-		uint32_t index;
+		uint32_t abiIndex;
 
 		EVO_NODISCARD auto operator==(const OpDeleteThisAccessorValueStateID&) const -> bool = default;
 	};
@@ -54,7 +54,7 @@ namespace std{
 	template<>
 	struct hash<pcit::panther::sema::OpDeleteThisAccessorValueStateID>{
 		auto operator()(pcit::panther::sema::OpDeleteThisAccessorValueStateID id) const noexcept -> size_t {
-			return std::hash<uint32_t>{}(id.index);
+			return std::hash<uint32_t>{}(id.abiIndex);
 		};
 	};
 

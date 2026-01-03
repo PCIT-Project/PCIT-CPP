@@ -1418,7 +1418,7 @@ namespace pcit::panther{
 		// create
 
 		if(alias_attrs.value().is_distinct){
-			const BaseType::ID created_alias = this->context.type_manager.getOrCreateDistinctAlias(
+			const BaseType::ID created_alias = this->context.type_manager.createDistinctAlias(
 				BaseType::DistinctAlias(
 					this->source.getID(),
 					instr.alias_def.ident,
@@ -1438,7 +1438,7 @@ namespace pcit::panther{
 			);
 			
 		}else{
-			const BaseType::ID created_alias = this->context.type_manager.getOrCreateAlias(
+			const BaseType::ID created_alias = this->context.type_manager.createAlias(
 				BaseType::Alias(
 					this->source.getID(),
 					instr.alias_def.ident,
@@ -1477,7 +1477,7 @@ namespace pcit::panther{
 		SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
 
 
-		const BaseType::ID created_struct = this->context.type_manager.getOrCreateStruct(
+		const BaseType::ID created_struct = this->context.type_manager.createStruct(
 			BaseType::Struct{
 				.sourceID          = this->source.getID(),
 				.name              = instr.struct_def.ident,
@@ -1684,7 +1684,7 @@ namespace pcit::panther{
 						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_NEW
 					),
 					std::string(),
-					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					EncapsulatingSymbolID(created_struct_id),
 					default_init_func_type.funcID(),
 					evo::SmallVector<sema::Func::Param>(),
 					evo::SmallVector<Token::ID>{created_struct.name.as<Token::ID>()},
@@ -1837,7 +1837,7 @@ namespace pcit::panther{
 						created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_DELETE
 					),
 					std::string(),
-					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					EncapsulatingSymbolID(created_struct_id),
 					default_delete_func_type.funcID(),
 					evo::SmallVector<sema::Func::Param>{
 						sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -1858,7 +1858,7 @@ namespace pcit::panther{
 
 				const sema::Expr this_param = sema::Expr(this->context.sema_buffer.createParam(0, 0));
 
-				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars | std::views::reverse){
 					if(this->context.getTypeManager().isTriviallyDeletable(member_var.typeID)){ continue; }
 
 					const sema::Expr member_var_expr = [&](){
@@ -1990,7 +1990,7 @@ namespace pcit::panther{
 							created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_MOVE
 						),
 						std::string(),
-						this->scope.getCurrentEncapsulatingSymbolIfExists(),
+						EncapsulatingSymbolID(created_struct_id),
 						default_move_func_type.funcID(),
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -2145,7 +2145,7 @@ namespace pcit::panther{
 							created_struct.name.as<Token::ID>(), Token::Kind::KEYWORD_COPY
 						),
 						std::string(),
-						this->scope.getCurrentEncapsulatingSymbolIfExists(),
+						EncapsulatingSymbolID(created_struct_id),
 						default_copy_func_type.funcID(),
 						evo::SmallVector<sema::Func::Param>{
 							sema::Func::Param(created_struct.name.as<Token::ID>(), std::nullopt)
@@ -2439,7 +2439,7 @@ namespace pcit::panther{
 		}
 
 
-		const BaseType::ID created_struct_type_id = this->context.type_manager.getOrCreateStructTemplate(
+		const BaseType::ID created_struct_type_id = this->context.type_manager.createStructTemplate(
 			BaseType::StructTemplate(
 				this->source.getID(),
 				instr.struct_def.ident,
@@ -2477,7 +2477,7 @@ namespace pcit::panther{
 		SymbolProc::UnionInfo& union_info = this->symbol_proc.extra_info.as<SymbolProc::UnionInfo>();
 
 
-		const BaseType::ID created_union = this->context.type_manager.getOrCreateUnion(
+		const BaseType::ID created_union = this->context.type_manager.createUnion(
 			BaseType::Union(
 				this->source.getID(),
 				instr.union_def.ident,
@@ -2677,7 +2677,7 @@ namespace pcit::panther{
 		SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
 
 
-		const BaseType::ID created_enum = this->context.type_manager.getOrCreateEnum(
+		const BaseType::ID created_enum = this->context.type_manager.createEnum(
 			BaseType::Enum(
 				this->source.getID(),
 				instr.enum_def.ident,
@@ -4898,7 +4898,7 @@ namespace pcit::panther{
 				const BaseType::Struct& this_struct_type =
 					this->context.getTypeManager().getStruct(this_type.baseTypeID().structID());
 
-				for(uint32_t i = 0; i < this_struct_type.memberVars.size(); i+=1){
+				for(uint32_t i = 0; i < this_struct_type.memberVarsABI.size(); i+=1){
 					this->add_ident_value_state(
 						sema::OpDeleteThisAccessorValueStateID(i), sema::ScopeLevel::ValueState::INIT
 					);
@@ -5527,7 +5527,7 @@ namespace pcit::panther{
 		);
 		if(interface_attrs.isError()){ return Result::ERROR; }
 
-		const BaseType::ID created_interface_type_id = this->context.type_manager.getOrCreateInterface(
+		const BaseType::ID created_interface_type_id = this->context.type_manager.createInterface(
 			BaseType::Interface(
 				this->source.getID(),
 				instr.interface_def.ident,
@@ -6250,7 +6250,7 @@ namespace pcit::panther{
 
 
 		if(local_alias_attrs.value().is_distinct){
-			const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateDistinctAlias(
+			const BaseType::ID created_alias_id = this->context.type_manager.createDistinctAlias(
 				BaseType::DistinctAlias(
 					this->source.getID(),
 					instr.alias_def.ident,
@@ -6268,7 +6268,7 @@ namespace pcit::panther{
 			}
 			
 		}else{
-			const BaseType::ID created_alias_id = this->context.type_manager.getOrCreateAlias(
+			const BaseType::ID created_alias_id = this->context.type_manager.createAlias(
 				BaseType::Alias(
 					this->source.getID(),
 					instr.alias_def.ident,
@@ -6947,7 +6947,11 @@ namespace pcit::panther{
 			this->context.sema_buffer.createDelete(target.getExpr(), target.type_id.as<TypeInfo::ID>())
 		);
 
-		this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::UNINIT);
+		if(this->set_ident_value_state_if_needed(
+			target.getExpr(), sema::ScopeLevel::ValueState::UNINIT, instr.delete_stmt
+		).isError()){
+			return Result::ERROR;
+		}
 
 		return Result::SUCCESS;
 	}
@@ -8796,8 +8800,15 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(lhs.value_state == TermInfo::ValueState::UNINIT){
-				this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			if(
+				lhs.value_state == TermInfo::ValueState::UNINIT
+				|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+			){
+				if(this->set_ident_value_state_if_needed(
+					lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+				).isError()){
+					return Result::ERROR;
+				}
 			}
 
 			if(rhs.value_category == TermInfo::ValueCategory::NULL_VALUE){
@@ -8980,8 +8991,15 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(lhs.value_state == TermInfo::ValueState::UNINIT){
-							this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+						if(
+							lhs.value_state == TermInfo::ValueState::UNINIT
+							|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+						){
+							if(this->set_ident_value_state_if_needed(
+								lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+							).isError()){
+								return Result::ERROR;
+							}
 						}
 
 						this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9000,8 +9018,15 @@ namespace pcit::panther{
 		if(actual_target_type_info.qualifiers().empty() == false){
 			if(actual_target_type_info.isOptional()){
 				if(instr.args.empty()){
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					if(
+						lhs.value_state == TermInfo::ValueState::UNINIT
+						|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+					){
+						if(this->set_ident_value_state_if_needed(
+							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+						).isError()){
+							return Result::ERROR;
+						}
 					}
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9031,8 +9056,15 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					if(
+						lhs.value_state == TermInfo::ValueState::UNINIT
+						|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+					){
+						if(this->set_ident_value_state_if_needed(
+							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+						).isError()){
+							return Result::ERROR;
+						}
 					}
 
 					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
@@ -9126,8 +9158,15 @@ namespace pcit::panther{
 					}
 
 
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					if(
+						lhs.value_state == TermInfo::ValueState::UNINIT
+						|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+					){
+						if(this->set_ident_value_state_if_needed(
+							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+						).isError()){
+							return Result::ERROR;
+						}
 					}
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9160,8 +9199,15 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					if(
+						lhs.value_state == TermInfo::ValueState::UNINIT
+						|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+					){
+						if(this->set_ident_value_state_if_needed(
+							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+						).isError()){
+							return Result::ERROR;
+						}
 					}
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9207,8 +9253,15 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.value_state == TermInfo::ValueState::UNINIT){
-					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+				){
+					if(this->set_ident_value_state_if_needed(
+						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 
 				this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9223,8 +9276,15 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_REF: {
 				if(instr.args.empty()){
-					if(lhs.value_state == TermInfo::ValueState::UNINIT){
-						this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+					if(
+						lhs.value_state == TermInfo::ValueState::UNINIT
+						|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+					){
+						if(this->set_ident_value_state_if_needed(
+							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+						).isError()){
+							return Result::ERROR;
+						}
 					}
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9330,8 +9390,15 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				if(lhs.value_state == TermInfo::ValueState::UNINIT){
-					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+				){
+					if(this->set_ident_value_state_if_needed(
+						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 
 				this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9364,9 +9431,11 @@ namespace pcit::panther{
 					if(target_struct.newInitOverloads.empty()){
 						if(target_struct.isTriviallyDefaultInitializable){
 							if(lhs.value_state == TermInfo::ValueState::UNINIT){
-								this->set_ident_value_state_if_needed(
-									lhs.getExpr(), sema::ScopeLevel::ValueState::INIT
-								);
+								if(this->set_ident_value_state_if_needed(
+									lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+								).isError()){
+									return Result::ERROR;
+								}
 							}
 							return Result::SUCCESS;
 
@@ -9441,8 +9510,15 @@ namespace pcit::panther{
 				}
 
 
-				if(lhs.value_state == TermInfo::ValueState::UNINIT){
-					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+				){
+					if(this->set_ident_value_state_if_needed(
+						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
@@ -9503,8 +9579,15 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.value_state == TermInfo::ValueState::UNINIT){
-					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+				){
+					if(this->set_ident_value_state_if_needed(
+						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 
 				this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9540,8 +9623,15 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.value_state == TermInfo::ValueState::UNINIT){
-					this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+				if(
+					lhs.value_state == TermInfo::ValueState::UNINIT
+					|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+				){
+					if(this->set_ident_value_state_if_needed(
+						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+					).isError()){
+						return Result::ERROR;
+					}
 				}
 
 				this->get_current_scope_level().stmtBlock().emplace_back(
@@ -9666,7 +9756,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			if(this->set_ident_value_state_if_needed(
+				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+			).isError()){
+				return Result::ERROR;
+			}
 
 		}else{
 			if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_ASSIGN, true>(
@@ -9815,7 +9909,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			if(this->set_ident_value_state_if_needed(
+				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+			).isError()){
+				return Result::ERROR;
+			}
 
 		}else{
 			if(this->get_special_member_call_dependents<SpecialMemberKind::MOVE_ASSIGN, true>(
@@ -9832,7 +9930,11 @@ namespace pcit::panther{
 		);
 
 		if(target.value_state == TermInfo::ValueState::INIT){
-			this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+			if(this->set_ident_value_state_if_needed(
+				target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM, instr.infix.rhs
+			).isError()){
+				return Result::ERROR;
+			}
 		}
 
 		return Result::SUCCESS;
@@ -9884,8 +9986,15 @@ namespace pcit::panther{
 
 		bool is_initialization = false;
 
-		if(lhs.value_state == TermInfo::ValueState::UNINIT){
-			this->set_ident_value_state_if_needed(lhs.getExpr(), sema::ScopeLevel::ValueState::INIT);
+		if(
+			lhs.value_state == TermInfo::ValueState::UNINIT
+			|| lhs.value_state == TermInfo::ValueState::INITIALIZING
+		){
+			if(this->set_ident_value_state_if_needed(
+				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix
+			).isError()){
+				return Result::ERROR;
+			}
 			is_initialization = true;
 		}
 
@@ -9941,7 +10050,11 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueState::INIT: {
-				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+				if(this->set_ident_value_state_if_needed(
+					target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM, instr.infix.rhs
+				).isError()){
+					return Result::ERROR;
+				}
 			} break;
 
 			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
@@ -10060,8 +10173,15 @@ namespace pcit::panther{
 
 			targets.emplace_back(target.getExpr());
 
-			if(target.value_state == TermInfo::ValueState::UNINIT){
-				this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::INIT);
+			if(
+				target.value_state == TermInfo::ValueState::UNINIT
+				|| target.value_state == TermInfo::ValueState::INITIALIZING
+			){
+				if(this->set_ident_value_state_if_needed(
+					target.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.multi_assign.assigns[i]
+				).isError()){
+					return Result::ERROR;
+				}
 
 			}else{
 				if(this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>()) == false){
@@ -12312,7 +12432,11 @@ namespace pcit::panther{
 		);
 
 		if(target.value_state == TermInfo::ValueState::INIT){
-			this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+			if(this->set_ident_value_state_if_needed(
+				target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM, instr.prefix
+			).isError()){
+				return Result::ERROR;
+			}
 		}
 
 		return Result::SUCCESS;
@@ -12401,7 +12525,11 @@ namespace pcit::panther{
 		);
 
 		if(target.value_state == TermInfo::ValueState::INIT){
-			this->set_ident_value_state_if_needed(target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM);
+			if(this->set_ident_value_state_if_needed(
+				target.getExpr(), sema::ScopeLevel::ValueState::MOVED_FROM, instr.prefix
+			).isError()){
+				return Result::ERROR;
+			}
 		}
 
 		return Result::SUCCESS;
@@ -18746,7 +18874,7 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::instr_type_deducer(const Instruction::TypeDeducer& instr) -> Result {
-		const BaseType::ID new_type_deducer = this->context.type_manager.getOrCreateTypeDeducer(
+		const BaseType::ID new_type_deducer = this->context.type_manager.createTypeDeducer(
 			BaseType::TypeDeducer(this->source.getID(), instr.type_deducer_token)
 		);
 
@@ -21958,36 +22086,53 @@ namespace pcit::panther{
 				|| std::is_same<IDType, sema::ReturnParam::ID>()
 				|| std::is_same<IDType, sema::ErrorReturnParam::ID>()
 				|| std::is_same<IDType, sema::BlockExprOutput::ID>()
+				|| std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()
 			){
-				const TypeInfo::ID type_id = [&]() -> TypeInfo::ID {
-					if constexpr(std::is_same<IDType, sema::Var::ID>()){
-						const sema::Var& sema_var = this->context.getSemaBuffer().getVar(id);
-						return *sema_var.typeID;
+				auto type_id = std::optional<TypeInfo::ID>();
+				auto expr = std::optional<evo::Variant<sema::Expr, sema::OpDeleteThisAccessor>>();
 
-					}else if constexpr(std::is_same<IDType, sema::ReturnParam::ID>()){
-						const sema::ReturnParam& sema_return_param = this->context.getSemaBuffer().getReturnParam(id);
+				if constexpr(std::is_same<IDType, sema::Var::ID>()){
+					type_id = *this->context.getSemaBuffer().getVar(id).typeID;
+					expr = sema::Expr(id);
 
-						const BaseType::Function& current_func_type =
-							this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+				}else if constexpr(std::is_same<IDType, sema::ReturnParam::ID>()){
+					const sema::ReturnParam& sema_return_param = this->context.getSemaBuffer().getReturnParam(id);
 
-						return current_func_type.returnTypes[sema_return_param.index].asTypeID();
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 
-					}else if constexpr(std::is_same<IDType, sema::ErrorReturnParam::ID>()){
-						const sema::ErrorReturnParam& sema_error_return_param =
-							this->context.getSemaBuffer().getErrorReturnParam(id);
+					type_id = current_func_type.returnTypes[sema_return_param.index].asTypeID();;
+					expr = sema::Expr(id);
 
-						const BaseType::Function& current_func_type =
-							this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+				}else if constexpr(std::is_same<IDType, sema::ErrorReturnParam::ID>()){
+					const sema::ErrorReturnParam& sema_error_return_param =
+						this->context.getSemaBuffer().getErrorReturnParam(id);
 
-						return current_func_type.errorTypes[sema_error_return_param.index].asTypeID();
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 
-					}else if constexpr(std::is_same<IDType, sema::BlockExprOutput::ID>()){
-						return this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
+					type_id = current_func_type.errorTypes[sema_error_return_param.index].asTypeID();
+					expr = sema::Expr(id);
 
-					}else{
-						static_assert(false, "need to get type of this type");
-					}
-				}();
+				}else if constexpr(std::is_same<IDType, sema::BlockExprOutput::ID>()){
+					type_id = this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
+					expr = sema::Expr(id);
+
+				}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+					const TypeInfo& this_type =
+						this->context.getTypeManager().getTypeInfo(current_func_type.params[0].typeID);
+					const BaseType::Struct& this_struct_type =
+						this->context.getTypeManager().getStruct(this_type.baseTypeID().structID());
+
+					type_id = this_struct_type.memberVars[id.abiIndex].typeID;
+					expr = sema::OpDeleteThisAccessor(id.abiIndex);
+
+				}else{
+					static_assert(false, "need to get type of this type");
+				}
+
 
 				switch(value_state){
 					case sema::ScopeLevel::ValueState::UNINIT: {
@@ -21996,13 +22141,13 @@ namespace pcit::panther{
 
 					case sema::ScopeLevel::ValueState::INIT: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeStart(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeStart(*expr, *type_id)
 						);
 					} break;
 
 					case sema::ScopeLevel::ValueState::INITIALIZING: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeStart(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeStart(*expr, *type_id)
 						);
 					} break;
 
@@ -22020,6 +22165,7 @@ namespace pcit::panther{
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 
 		current_scope_level.setIdentValueState(value_state_id, value_state);
+
 		value_state_id.visit([&](const auto& id) -> void {
 			using IDType = std::decay_t<decltype(id)>;
 
@@ -22028,59 +22174,76 @@ namespace pcit::panther{
 				|| std::is_same<IDType, sema::ReturnParam::ID>()
 				|| std::is_same<IDType, sema::ErrorReturnParam::ID>()
 				|| std::is_same<IDType, sema::BlockExprOutput::ID>()
+				|| std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()
 			){
-				const TypeInfo::ID type_id = [&]() -> TypeInfo::ID {
-					if constexpr(std::is_same<IDType, sema::Var::ID>()){
-						const sema::Var& sema_var = this->context.getSemaBuffer().getVar(id);
-						return *sema_var.typeID;
+				auto type_id = std::optional<TypeInfo::ID>();
+				auto expr = std::optional<evo::Variant<sema::Expr, sema::OpDeleteThisAccessor>>();
 
-					}else if constexpr(std::is_same<IDType, sema::ReturnParam::ID>()){
-						const sema::ReturnParam& sema_return_param = this->context.getSemaBuffer().getReturnParam(id);
+				if constexpr(std::is_same<IDType, sema::Var::ID>()){
+					type_id = *this->context.getSemaBuffer().getVar(id).typeID;
+					expr = sema::Expr(id);
 
-						const BaseType::Function& current_func_type =
-							this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+				}else if constexpr(std::is_same<IDType, sema::ReturnParam::ID>()){
+					const sema::ReturnParam& sema_return_param = this->context.getSemaBuffer().getReturnParam(id);
 
-						return current_func_type.returnTypes[sema_return_param.index].asTypeID();
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 
-					}else if constexpr(std::is_same<IDType, sema::ErrorReturnParam::ID>()){
-						const sema::ErrorReturnParam& sema_error_return_param =
-							this->context.getSemaBuffer().getErrorReturnParam(id);
+					type_id = current_func_type.returnTypes[sema_return_param.index].asTypeID();;
+					expr = sema::Expr(id);
 
-						const BaseType::Function& current_func_type =
-							this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+				}else if constexpr(std::is_same<IDType, sema::ErrorReturnParam::ID>()){
+					const sema::ErrorReturnParam& sema_error_return_param =
+						this->context.getSemaBuffer().getErrorReturnParam(id);
 
-						return current_func_type.errorTypes[sema_error_return_param.index].asTypeID();
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 
-					}else if constexpr(std::is_same<IDType, sema::BlockExprOutput::ID>()){
-						return this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
+					type_id = current_func_type.errorTypes[sema_error_return_param.index].asTypeID();
+					expr = sema::Expr(id);
 
-					}else{
-						static_assert(false, "need to get type of this type");
-					}
-				}();
+				}else if constexpr(std::is_same<IDType, sema::BlockExprOutput::ID>()){
+					type_id = this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
+					expr = sema::Expr(id);
+
+				}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
+					const TypeInfo& this_type =
+						this->context.getTypeManager().getTypeInfo(current_func_type.params[0].typeID);
+					const BaseType::Struct& this_struct_type =
+						this->context.getTypeManager().getStruct(this_type.baseTypeID().structID());
+
+					type_id = this_struct_type.memberVars[id.abiIndex].typeID;
+					expr = sema::OpDeleteThisAccessor(id.abiIndex);
+
+				}else{
+					static_assert(false, "need to get type of this type");
+				}
+
 
 				switch(value_state){
 					case sema::ScopeLevel::ValueState::UNINIT: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeEnd(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeEnd(*expr, *type_id)
 						);
 					} break;
 
 					case sema::ScopeLevel::ValueState::INIT: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeStart(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeStart(*expr, *type_id)
 						);
 					} break;
 
 					case sema::ScopeLevel::ValueState::INITIALIZING: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeStart(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeStart(*expr, *type_id)
 						);
 					} break;
 
 					case sema::ScopeLevel::ValueState::MOVED_FROM: {
 						current_scope_level.stmtBlock().emplace_back(
-							this->context.sema_buffer.createLifetimeEnd(sema::Expr(id), type_id)
+							this->context.sema_buffer.createLifetimeEnd(*expr, *type_id)
 						);
 					} break;
 				}
@@ -22089,41 +22252,103 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::set_ident_value_state_if_needed(sema::Expr target, sema::ScopeLevel::ValueState value_state)
-	-> void {
+	auto SemanticAnalyzer::set_ident_value_state_if_needed(
+		sema::Expr target, sema::ScopeLevel::ValueState value_state, Diagnostic::Location location
+	) -> evo::Result<> {
 		switch(target.kind()){
-			case sema::Expr::Kind::PARAM:
-				return this->set_ident_value_state(target.paramID(), value_state);
+			case sema::Expr::Kind::PARAM: {
+				this->set_ident_value_state(target.paramID(), value_state);
+				return evo::Result<>();
+			} break;
 
-			case sema::Expr::Kind::RETURN_PARAM:
-				return this->set_ident_value_state(target.returnParamID(), value_state);
+			case sema::Expr::Kind::RETURN_PARAM: {
+				const sema::Func& current_func = this->get_current_func();
+				const Token::ID current_func_name_token_id = current_func.name.as<Token::ID>();
+				const Token& current_func_name_token =
+					this->source.getTokenBuffer()[current_func_name_token_id];
 
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:
-				return this->set_ident_value_state(target.errorReturnParamID(), value_state);
+				if(
+					current_func_name_token.kind() == Token::Kind::KEYWORD_NEW
+					|| current_func_name_token.kind() == Token::Kind::KEYWORD_COPY
+					|| current_func_name_token.kind() == Token::Kind::KEYWORD_MOVE
+				){
+					const BaseType::Function& current_func_type =
+						this->context.getTypeManager().getFunction(current_func.typeID);
 
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-				return this->set_ident_value_state(target.blockExprOutputID(), value_state);
+					const TypeInfo& output_type =
+						this->context.getTypeManager().getTypeInfo(current_func_type.returnTypes[0].asTypeID());
+					const BaseType::Struct& output_struct_type = 
+						this->context.getTypeManager().getStruct(output_type.baseTypeID().structID());
 
-			case sema::Expr::Kind::EXCEPT_PARAM:
-				return this->set_ident_value_state(target.exceptParamID(), value_state);
+					for(int32_t i = int32_t(output_struct_type.memberVars.size() - 1); i >= 0; i-=1){
+						const auto accessor_id =
+							sema::ReturnParamAccessorValueStateID(target.returnParamID(), uint32_t(i));
 
-			case sema::Expr::Kind::FOR_PARAM:
-				return this->set_ident_value_state(target.forParamID(), value_state);
+						switch(this->get_ident_value_state(accessor_id)){
+							case TermInfo::ValueState::UNINIT: case TermInfo::ValueState::MOVED_FROM: {
+								this->set_ident_value_state(accessor_id, value_state);
+							} break;
 
-			case sema::Expr::Kind::VAR:
-				return this->set_ident_value_state(target.varID(), value_state);
+							case TermInfo::ValueState::INIT: {
+								this->emit_error(
+									Diagnostic::Code::SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT,
+									location,
+									"Cannot direct initialize output of special member function when one (or more) of "
+										"its members was already initialized"
+								);
+								return evo::resultError;
+							} break;
 
+							case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::NOT_APPLICABLE: {
+								evo::debugFatalBreak("Special func output member should never be in this value state");
+							} break;
+						}
+					}
+
+					SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+					func_info.num_members_of_initializing_are_uninit = 0;
+				}
+
+				this->set_ident_value_state(target.returnParamID(), value_state);
+				return evo::Result<>();
+			} break;
+
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: {
+				this->set_ident_value_state(target.errorReturnParamID(), value_state);
+				return evo::Result<>();
+			} break;
+
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
+				this->set_ident_value_state(target.blockExprOutputID(), value_state);
+				return evo::Result<>();
+			} break;
+
+			case sema::Expr::Kind::EXCEPT_PARAM: {
+				this->set_ident_value_state(target.exceptParamID(), value_state);
+				return evo::Result<>();
+			} break;
+
+			case sema::Expr::Kind::FOR_PARAM: {
+				this->set_ident_value_state(target.forParamID(), value_state);
+				return evo::Result<>();
+			} break;
+
+			case sema::Expr::Kind::VAR: {
+				this->set_ident_value_state(target.varID(), value_state);
+				return evo::Result<>();
+			} break;
 
 			case sema::Expr::Kind::ADDR_OF: {
 				const sema::Expr& addr_of_target = this->context.getSemaBuffer().getAddrOf(target.addrOfID());
-				return this->set_ident_value_state_if_needed(addr_of_target, value_state);
+				this->set_ident_value_state_if_needed(addr_of_target, value_state, location);
+				return evo::Result<>();
 			} break;
 
 			case sema::Expr::Kind::DEREF: {
 				const sema::Deref& deref = this->context.getSemaBuffer().getDeref(target.derefID());
-				return this->set_ident_value_state_if_needed(deref.expr, value_state);
+				this->set_ident_value_state_if_needed(deref.expr, value_state, location);
+				return evo::Result<>();
 			} break;
-
 
 			case sema::Expr::Kind::ACCESSOR: {
 				const sema::Accessor& accessor = this->context.getSemaBuffer().getAccessor(target.accessorID());
@@ -22134,15 +22359,17 @@ namespace pcit::panther{
 						const Token& current_func_name_token =
 							this->source.getTokenBuffer()[current_func_name_token_id];
 
-						if(current_func_name_token.kind() != Token::Kind::KEYWORD_DELETE){ return; }
+						if(current_func_name_token.kind() != Token::Kind::KEYWORD_DELETE){ return evo::Result<>(); }
 
 						this->set_ident_value_state(
 							sema::OpDeleteThisAccessorValueStateID(accessor.memberABIIndex), value_state
 						);
+
+						return evo::Result<>();
 					} break;
 
 					case sema::Expr::Kind::RETURN_PARAM: {
-						if(accessor.target.kind() != sema::Expr::Kind::RETURN_PARAM){ return; }
+						if(accessor.target.kind() != sema::Expr::Kind::RETURN_PARAM){ return evo::Result<>(); }
 
 						this->set_ident_value_state(
 							sema::ReturnParamAccessorValueStateID(
@@ -22159,11 +22386,12 @@ namespace pcit::panther{
 								accessor.target.returnParamID(), sema::ScopeLevel::ValueState::INIT
 							);
 						}
+
+						return evo::Result<>();
 					} break;
 
-					default: return;
+					default: return evo::Result<>();
 				}
-
 			} break;
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
@@ -22190,9 +22418,11 @@ namespace pcit::panther{
 			case sema::Expr::Kind::UNION_TAG_CMP:                 case sema::Expr::Kind::SAME_TYPE_CMP:
 			case sema::Expr::Kind::VARIADIC_PARAM:                case sema::Expr::Kind::GLOBAL_VAR:
 			case sema::Expr::Kind::FUNC: {
-				return;
+				return evo::Result<>();
 			} break;
 		}
+
+		evo::debugFatalBreak("Unknown sema expr kind");
 	}
 
 

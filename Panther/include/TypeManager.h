@@ -1062,21 +1062,21 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id) const -> const BaseType::Alias&;
 			EVO_NODISCARD auto getAlias(BaseType::Alias::ID id)       ->       BaseType::Alias&;
-			EVO_NODISCARD auto getOrCreateAlias(BaseType::Alias&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createAlias(BaseType::Alias&& new_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getDistinctAlias(BaseType::DistinctAlias::ID id) const -> const BaseType::DistinctAlias&;
 			EVO_NODISCARD auto getDistinctAlias(BaseType::DistinctAlias::ID id)       ->       BaseType::DistinctAlias&;
-			EVO_NODISCARD auto getOrCreateDistinctAlias(BaseType::DistinctAlias&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createDistinctAlias(BaseType::DistinctAlias&& new_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id) const -> const BaseType::Struct&;
 			EVO_NODISCARD auto getStruct(BaseType::Struct::ID id)       ->       BaseType::Struct&;
-			EVO_NODISCARD auto getOrCreateStruct(BaseType::Struct&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createStruct(BaseType::Struct&& new_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumStructs() const -> size_t; // I don't love this design
 
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) const
 				-> const BaseType::StructTemplate&;
 			EVO_NODISCARD auto getStructTemplate(BaseType::StructTemplate::ID id) -> BaseType::StructTemplate&;
-			EVO_NODISCARD auto getOrCreateStructTemplate(BaseType::StructTemplate&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createStructTemplate(BaseType::StructTemplate&& new_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getStructTemplateDeducer(BaseType::StructTemplateDeducer::ID id) const
 				-> const BaseType::StructTemplateDeducer&;
@@ -1085,19 +1085,19 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id) const -> const BaseType::Union&;
 			EVO_NODISCARD auto getUnion(BaseType::Union::ID id)       ->       BaseType::Union&;
-			EVO_NODISCARD auto getOrCreateUnion(BaseType::Union&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createUnion(BaseType::Union&& new_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumUnions() const -> size_t; // I don't love this design
 
 			EVO_NODISCARD auto getEnum(BaseType::Enum::ID id) const -> const BaseType::Enum&;
 			EVO_NODISCARD auto getEnum(BaseType::Enum::ID id)       ->       BaseType::Enum&;
-			EVO_NODISCARD auto getOrCreateEnum(BaseType::Enum&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createEnum(BaseType::Enum&& new_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
-			EVO_NODISCARD auto getOrCreateTypeDeducer(BaseType::TypeDeducer&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createTypeDeducer(BaseType::TypeDeducer&& new_type) -> BaseType::ID;
 
 			EVO_NODISCARD auto getInterface(BaseType::Interface::ID id) const -> const BaseType::Interface&;
 			EVO_NODISCARD auto getInterface(BaseType::Interface::ID id)       ->       BaseType::Interface&;
-			EVO_NODISCARD auto getOrCreateInterface(BaseType::Interface&& lookup_type) -> BaseType::ID;
+			EVO_NODISCARD auto createInterface(BaseType::Interface&& new_type) -> BaseType::ID;
 			EVO_NODISCARD auto getNumInterfaces() const -> size_t; // I don't love this design
 			EVO_NODISCARD auto createInterfaceImpl(const AST::InterfaceImpl& ast_node) -> BaseType::Interface::Impl&;
 			EVO_NODISCARD auto createInterfaceDeducerImpl(

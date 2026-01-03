@@ -1270,7 +1270,7 @@ namespace pcit::panther{
 					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
 						alias_decl.name,
 						[&]() -> ClangSource::Symbol {
-							return this->type_manager.getOrCreateAlias(
+							return this->type_manager.createAlias(
 								BaseType::Alias(
 									source_clang_source_id,
 									source_clang_source.createDeclInfo(
@@ -1320,7 +1320,7 @@ namespace pcit::panther{
 					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
 						struct_decl.name,
 						[&]() -> ClangSource::Symbol {
-							const BaseType::ID created_struct_id = this->type_manager.getOrCreateStruct(
+							const BaseType::ID created_struct_id = this->type_manager.createStruct(
 								BaseType::Struct(
 									source_clang_source_id,
 									source_clang_source.createDeclInfo(
@@ -1371,7 +1371,7 @@ namespace pcit::panther{
 					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
 						union_decl.name,
 						[&]() -> ClangSource::Symbol {
-							return this->type_manager.getOrCreateUnion(
+							return this->type_manager.createUnion(
 								BaseType::Union(
 									source_clang_source_id,
 									source_clang_source.createDeclInfo(
@@ -1981,7 +1981,7 @@ namespace pcit::panther{
 
 		const TypeInfo::ID anonymous_type_deducer_type_id = this->type_manager.getOrCreateTypeInfo(
 			TypeInfo(
-				this->type_manager.getOrCreateTypeDeducer(
+				this->type_manager.createTypeDeducer(
 					BaseType::TypeDeducer(std::nullopt, std::nullopt)
 				)
 			)
@@ -2041,7 +2041,7 @@ namespace pcit::panther{
 				package_warning_settings_member_vars_abi.emplace_back(&member);
 			}
 
-			const BaseType::ID package_warning_settings_type = this->type_manager.getOrCreateStruct(
+			const BaseType::ID package_warning_settings_type = this->type_manager.createStruct(
 				BaseType::Struct(
 					BuiltinModule::ID::BUILD,
 					build_module.createString("PackageWarningSettings"),
@@ -2069,7 +2069,7 @@ namespace pcit::panther{
 		// PackageID
 
 		{
-			const BaseType::ID package_id = this->type_manager.getOrCreateAlias(
+			const BaseType::ID package_id = this->type_manager.createAlias(
 				BaseType::Alias(
 					BuiltinModule::ID::BUILD,
 					pthr_module.createString("PackageID"),
@@ -2087,7 +2087,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterator
 
-		const BaseType::ID iterator_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterator_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterator"),
@@ -2145,7 +2145,7 @@ namespace pcit::panther{
 			// func get = (this) -> $$*;
 			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
 				TypeInfo(
-					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					this->type_manager.createTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
 					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
 				)
 			);
@@ -2227,7 +2227,7 @@ namespace pcit::panther{
 		//////////////////
 		// IMutIterator
 
-		const BaseType::ID mut_iterator_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID mut_iterator_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IMutIterator"),
@@ -2285,7 +2285,7 @@ namespace pcit::panther{
 			// func get = (this) -> $$*mut;
 			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
 				TypeInfo(
-					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					this->type_manager.createTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
 					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createMutPtr()}
 				)
 			);
@@ -2366,7 +2366,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterable
 
-		const BaseType::ID iterable_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterable"),
@@ -2484,7 +2484,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterableRef
 
-		const BaseType::ID iterable_ref_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRef"),
@@ -2554,7 +2554,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterableMutRef
 
-		const BaseType::ID iterable_mut_ref_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_mut_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableMutRef"),
@@ -2627,7 +2627,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIteratorRT
 
-		const BaseType::ID iterator_rt_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterator_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIteratorRT"),
@@ -2685,7 +2685,7 @@ namespace pcit::panther{
 			// func get = (this) #rt -> $$*;
 			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
 				TypeInfo(
-					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					this->type_manager.createTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
 					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
 				)
 			);
@@ -2767,7 +2767,7 @@ namespace pcit::panther{
 		//////////////////
 		// IMutIteratorRT
 
-		const BaseType::ID mut_iterator_rt_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID mut_iterator_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IMutIteratorRT"),
@@ -2826,7 +2826,7 @@ namespace pcit::panther{
 			// func get = (this) #rt -> $$*mut;
 			const TypeInfo::ID get_return_type = this->type_manager.getOrCreateTypeInfo(
 				TypeInfo(
-					this->type_manager.getOrCreateTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
+					this->type_manager.createTypeDeducer(BaseType::TypeDeducer(std::nullopt, std::nullopt)),
 					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createMutPtr()}
 				)
 			);
@@ -2907,7 +2907,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterableRT
 
-		const BaseType::ID iterable_rt_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRT"),
@@ -3025,7 +3025,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterableRefRT
 
-		const BaseType::ID iterable_rt_ref_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_rt_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableRefRT"),
@@ -3097,7 +3097,7 @@ namespace pcit::panther{
 		//////////////////
 		// IIterableMutRefRT
 
-		const BaseType::ID iterable_rt_mut_ref_id = this->type_manager.getOrCreateInterface(
+		const BaseType::ID iterable_rt_mut_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
 				pthr_module.createString("IIterableMutRefRT"),

@@ -6,7 +6,7 @@ func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.PIR);
 	// build_exp.setNumThreads(12);
 
-	build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
+	// build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
 	// build_exp.addStdLib("../../Panther-std/std".* as [Char:*]);
 
 
