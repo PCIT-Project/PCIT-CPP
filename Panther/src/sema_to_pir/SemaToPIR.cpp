@@ -2297,9 +2297,9 @@ namespace pcit::panther{
 						default: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 
-							this->agent.createLifetimeStart(
-								pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
-							);
+							// this->agent.createLifetimeStart(
+							// 	pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
+							// );
 							this->get_current_scope_level().value_states[pir_target_expr] = true;
 						} break;
 					}
@@ -2337,9 +2337,9 @@ namespace pcit::panther{
 						default: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 
-							this->agent.createLifetimeStart(
-								pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
-							);
+							// this->agent.createLifetimeStart(
+							// 	pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
+							// );
 							this->get_current_scope_level().value_states[pir_target_expr] = false;
 						} break;
 					}
@@ -9722,6 +9722,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// name mangling
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(BaseType::Struct::ID struct_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
@@ -9730,12 +9731,21 @@ namespace pcit::panther{
 				return std::format("struct.{}", struct_type.getName(this->context.getSourceManager()));
 
 			}else{
-				return std::format(
-					"PTHR.s{}.{}.{}",
-					struct_id.get(),
-					this->get_parent_name(struct_type.parent, struct_type.sourceID),
-					struct_type.getName(this->context.getSourceManager())
-				);
+				if constexpr(PIR_STMT_NAME_SAFE){
+					return std::format(
+						"PTHR.s{}.{}.{}",
+						struct_id.get(),
+						this->get_parent_name<true>(struct_type.parent, struct_type.sourceID),
+						struct_type.getName(this->context.getSourceManager())
+					);
+
+				}else{
+					return std::format(
+						"PTHR.s{}.{}",
+						struct_id.get(),
+						this->context.getTypeManager().printType(BaseType::ID(struct_id), this->context) 
+					);
+				}
 			}
 
 		}else{
@@ -9743,20 +9753,29 @@ namespace pcit::panther{
 		}
 	}
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(BaseType::Union::ID union_id) const -> std::string {
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
-
 
 		if(union_type.isClangType()){
 			return std::format("union.{}", union_type.getName(this->context.getSourceManager()));
 			
 		}else if(this->data.getConfig().useReadableNames){
-			return std::format(
-				"PTHR.u{}.{}.{}",
-				union_id.get(),
-				this->get_parent_name(union_type.parent, union_type.sourceID),
-				union_type.getName(this->context.getSourceManager())
-			);
+			if constexpr(PIR_STMT_NAME_SAFE){
+				return std::format(
+					"PTHR.u{}.{}.{}",
+					union_id.get(),
+					this->get_parent_name<true>(union_type.parent, union_type.sourceID),
+					union_type.getName(this->context.getSourceManager())
+				);
+				
+			}else{
+				return std::format(
+					"PTHR.u{}.{}",
+					union_id.get(),
+					this->context.getTypeManager().printType(BaseType::ID(union_id), this->context)
+				);
+			}
 			
 		}else{
 			return std::format("PTHR.u{}", union_id.get());
@@ -9764,16 +9783,26 @@ namespace pcit::panther{
 	}
 
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(BaseType::Interface::ID interface_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
-			const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
+			if constexpr(PIR_STMT_NAME_SAFE){
+				const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
 
-			return std::format(
-				"PTHR.i{}.{}.{}",
-				interface_id.get(),
-				this->get_parent_name(interface_type.parent, interface_type.sourceID),
-				interface_type.getName(this->context.getSourceManager())
-			);
+				return std::format(
+					"PTHR.i{}.{}.{}",
+					interface_id.get(),
+					this->get_parent_name<true>(interface_type.parent, interface_type.sourceID),
+					interface_type.getName(this->context.getSourceManager())
+				);
+				
+			}else{
+				return std::format(
+					"PTHR.i{}.{}",
+					interface_id.get(),
+					this->context.getTypeManager().printType(BaseType::ID(interface_id), this->context)
+				);
+			}
 
 		}else{
 			return std::format("PTHR.i{}", interface_id.get());
@@ -9799,7 +9828,7 @@ namespace pcit::panther{
 				return std::format(
 					"PTHR.g{}.{}.{}",
 					global_var_id.get(),
-					this->get_parent_name(std::nullopt, global_var.sourceID),
+					this->get_parent_name<PIR_STMT_NAME_SAFE>(std::nullopt, global_var.sourceID),
 					source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString()
 				);
 				
@@ -9831,7 +9860,7 @@ namespace pcit::panther{
 						return std::format(
 							"PTHR.f{}.{}.{}",
 							func_id.get(),
-							this->get_parent_name(func.parent, func.sourceID),
+							this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
 							name_token.getString()
 						);
 					}else{
@@ -9864,13 +9893,13 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_COPY: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_copy_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_copy_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
 							"PTHR.f{}.{}.OP_copy_assign",
 							func_id.get(),
-							this->get_parent_name(func.parent, func.sourceID)
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}
 				} break;
@@ -9878,13 +9907,13 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_MOVE: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_move_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_move_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
 							"PTHR.f{}.{}.OP_move_assign",
 							func_id.get(),
-							this->get_parent_name(func.parent, func.sourceID)
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}
 				} break;
@@ -9892,26 +9921,26 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_NEW: {
 					if(func.params.empty()){
 						return std::format(
-							"PTHR.f{}.{}.OP_new_init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_new_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
 							"PTHR.f{}.{}.OP_new_assign",
 							func_id.get(),
-							this->get_parent_name(func.parent, func.sourceID)
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}
 				} break;
 
 				case Token::Kind::KEYWORD_DELETE: {
 					return std::format(
-						"PTHR.f{}.{}.OP_delete", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_delete", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::Kind::KEYWORD_AS: {
 					return std::format(
-						"PTHR.f{}.{}.OP_as", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_as", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9919,7 +9948,7 @@ namespace pcit::panther{
 				// assignment
 				case Token::lookupKind("+="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_ADD", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_ADD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9927,7 +9956,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_ADD_WRAP",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9935,13 +9964,13 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_ADD_SAT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SUB", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_SUB", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9949,7 +9978,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_SUB_WRAP",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9957,13 +9986,13 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_SUB_SAT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("*="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MUL", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_MUL", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9971,7 +10000,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_MUL_WRAP",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9979,19 +10008,19 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_MUL_SAT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("/="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_DIV", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_DIV", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MOD", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_MOD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9999,7 +10028,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_LEFT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10007,7 +10036,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_LEFT_SAT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10015,7 +10044,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_RIGHT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10023,7 +10052,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_AND",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10031,7 +10060,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_OR",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10039,7 +10068,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_XOR",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10047,67 +10076,77 @@ namespace pcit::panther{
 				// arithmetic
 				case Token::lookupKind("+"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_PLUS", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_PLUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("+%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ADD_WRAP", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ADD_WRAP",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("+|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ADD_SAT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ADD_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MINUS", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_MINUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SUB_WRAP", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_SUB_WRAP",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SUB_SAT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_SUB_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("*"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASTERISK", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASTERISK",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("*%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MUL_WRAP", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_MUL_WRAP",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("*|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MUL_SAT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_MUL_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("/"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_FORWARD_SLASH", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_FORWARD_SLASH",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MOD", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_MOD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10115,19 +10154,23 @@ namespace pcit::panther{
 				// comparative
 				case Token::lookupKind("=="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_EQUAL", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_EQUAL", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("!="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_NOT_EQUAL", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_NOT_EQUAL",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("<"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_LESS_THAN", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_LESS_THAN",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10135,13 +10178,15 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_LESS_THAN_EQUAL",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind(">"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_GREATER_THAN", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_GREATER_THAN",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10149,7 +10194,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_GREATER_THAN_EQUAL",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10157,19 +10202,19 @@ namespace pcit::panther{
 				// logical
 				case Token::lookupKind("!"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_NOT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_NOT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("&&"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_AND", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_AND", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("||"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_OR", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_OR", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10177,7 +10222,9 @@ namespace pcit::panther{
 				// bitwise
 				case Token::lookupKind("<<"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SHIFT_LEFT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_SHIFT_LEFT",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10185,44 +10232,54 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.OP_SHIFT_LEFT_SAT",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID)
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind(">>"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SHIFT_RIGHT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_SHIFT_RIGHT",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("&"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_AND", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_BITWISE_AND",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_OR", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_BITWISE_OR",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("^"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_XOR", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_BITWISE_XOR",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("~"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_NOT", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_BITWISE_NOT",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 
 				case Token::lookupKind("["): {
 					return std::format(
-						"PTHR.f{}.{}.OP_INDEXER", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_INDEXER", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10236,18 +10293,22 @@ namespace pcit::panther{
 			switch(op_kind){
 				case Token::lookupKind("["): {
 					return std::format(
-						"PTHR.f{}.{}.[]", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+						"PTHR.f{}.{}.[]", func_id.get(), this->get_parent_name<false>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::Kind::KEYWORD_COPY: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.copy.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.copy.init",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.copy.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.copy.assign",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
 					}
 				} break;
@@ -10255,11 +10316,15 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_MOVE: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.move.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.move.init",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.move.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.move.assign",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
 					}
 				} break;
@@ -10267,11 +10332,15 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_NEW: {
 					if(func.params.size() == 0){
 						return std::format(
-							"PTHR.f{}.{}.new.init", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.new.init",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.new.assign", func_id.get(), this->get_parent_name(func.parent, func.sourceID)
+							"PTHR.f{}.{}.new.assign",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
 					}
 				} break;
@@ -10280,7 +10349,7 @@ namespace pcit::panther{
 					return std::format(
 						"PTHR.f{}.{}.{}",
 						func_id.get(),
-						this->get_parent_name(func.parent, func.sourceID),
+						this->get_parent_name<false>(func.parent, func.sourceID),
 						Token::printKind(op_kind)
 					);
 				} break;
@@ -10289,6 +10358,7 @@ namespace pcit::panther{
 	}
 
 
+	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::get_parent_name(
 		std::optional<EncapsulatingSymbolID> parent,
 		evo::Variant<Source::ID, ClangSource::ID, BuiltinModule::ID> source_id
@@ -10302,47 +10372,63 @@ namespace pcit::panther{
 				using ParentIDType = std::decay_t<decltype(parent_id)>;
 
 				if constexpr(std::is_same<ParentIDType, BaseType::StructID>()){
-					const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(parent_id);
+					if constexpr(PIR_STMT_NAME_SAFE){
+						const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(parent_id);
+						return std::format(
+							"{}.{}",
+							this->get_parent_name<true>(struct_type.parent, struct_type.sourceID),
+							std::string(struct_type.getName(this->context.getSourceManager()))
+						);
+					}else{
+						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+					}
 					
-					return std::format(
-						"{}.{}",
-						this->get_parent_name(struct_type.parent, struct_type.sourceID),
-						std::string(struct_type.getName(this->context.getSourceManager()))
-					);
-
 				}else if constexpr(std::is_same<ParentIDType, BaseType::UnionID>()){
-					const BaseType::Union& union_type = this->context.getTypeManager().getUnion(parent_id);
-					
-					return std::format(
-						"{}.{}",
-						this->get_parent_name(union_type.parent, union_type.sourceID),
-						std::string(union_type.getName(this->context.getSourceManager()))
-					);
+					if constexpr(PIR_STMT_NAME_SAFE){
+						const BaseType::Union& union_type = this->context.getTypeManager().getUnion(parent_id);
+						
+						return std::format(
+							"{}.{}",
+							this->get_parent_name<true>(union_type.parent, union_type.sourceID),
+							std::string(union_type.getName(this->context.getSourceManager()))
+						);
+					}else{
+						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+					}
 
 				}else if constexpr(std::is_same<ParentIDType, BaseType::EnumID>()){
-					const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(parent_id);
-					
-					return std::format(
-						"{}.{}",
-						this->get_parent_name(enum_type.parent, enum_type.sourceID),
-						std::string(enum_type.getName(this->context.getSourceManager()))
-					);
+					if constexpr(PIR_STMT_NAME_SAFE){
+						const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(parent_id);
+						
+						return std::format(
+							"{}.{}",
+							this->get_parent_name<true>(enum_type.parent, enum_type.sourceID),
+							std::string(enum_type.getName(this->context.getSourceManager()))
+						);
+					}else{
+						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+					}
 
 				}else if constexpr(std::is_same<ParentIDType, BaseType::InterfaceID>()){
-					const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(parent_id);
-					
-					return std::format(
-						"{}.{}",
-						this->get_parent_name(interface_type.parent, interface_type.sourceID),
-						std::string(interface_type.getName(this->context.getSourceManager()))
-					);
+					if constexpr(PIR_STMT_NAME_SAFE){
+						const BaseType::Interface& interface_type =
+							this->context.getTypeManager().getInterface(parent_id);
+						
+						return std::format(
+							"{}.{}",
+							this->get_parent_name<true>(interface_type.parent, interface_type.sourceID),
+							std::string(interface_type.getName(this->context.getSourceManager()))
+						);
+					}else{
+						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+					}
 
 				}else if constexpr(std::is_same<ParentIDType, sema::FuncID>()){
 					const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(parent_id);
 					
 					return std::format(
 						"{}.{}",
-						this->get_parent_name(sema_func.parent, sema_func.sourceID),
+						this->get_parent_name<PIR_STMT_NAME_SAFE>(sema_func.parent, sema_func.sourceID),
 						std::string(sema_func.getName(this->context.getSourceManager()))
 					);
 
@@ -10352,7 +10438,7 @@ namespace pcit::panther{
 
 					return std::format(
 						"{}.{}.impl_t{}",
-						this->get_parent_name(interface_type.parent, interface_type.sourceID),
+						this->get_parent_name<PIR_STMT_NAME_SAFE>(interface_type.parent, interface_type.sourceID),
 						interface_type.getName(this->context.getSourceManager()),
 						parent_id.targetTypeID.get()
 					);
@@ -10371,9 +10457,16 @@ namespace pcit::panther{
 				return parent_package.name;
 
 			}else if(source_id.is<BuiltinModule::ID>()){
-				switch(source_id.as<BuiltinModule::ID>()){
-					break; case BuiltinModule::ID::PTHR:  return "pthr";
-					break; case BuiltinModule::ID::BUILD: return "build";
+				if constexpr(PIR_STMT_NAME_SAFE){
+					switch(source_id.as<BuiltinModule::ID>()){
+						break; case BuiltinModule::ID::PTHR:  return "pthr";
+						break; case BuiltinModule::ID::BUILD: return "build";
+					}
+				}else{
+					switch(source_id.as<BuiltinModule::ID>()){
+						break; case BuiltinModule::ID::PTHR:  return "@pthr";
+						break; case BuiltinModule::ID::BUILD: return "@build";
+					}
 				}
 
 				evo::debugFatalBreak("Unknown builtin module");
@@ -10488,14 +10581,14 @@ namespace pcit::panther{
 								if constexpr(std::is_same<ExprType, pir::Expr>()){
 									this->delete_expr(expr, item.typeID);
 
-									if(
-										expr.kind() == pir::Expr::Kind::ALLOCA
-										|| expr.kind() == pir::Expr::Kind::PARAM_EXPR
-									){
-										this->agent.createLifetimeEnd(
-											expr, this->context.getTypeManager().numBytes(item.typeID)
-										);
-									}
+									// if(
+									// 	expr.kind() == pir::Expr::Kind::ALLOCA
+									// 	|| expr.kind() == pir::Expr::Kind::PARAM_EXPR
+									// ){
+									// 	this->agent.createLifetimeEnd(
+									// 		expr, this->context.getTypeManager().numBytes(item.typeID)
+									// 	);
+									// }
 
 								}else if constexpr(std::is_same<ExprType, ManagedLifetimeErrorParam>()){
 									if(this->context.getTypeManager().isTriviallyDeletable(item.typeID)){ return; }

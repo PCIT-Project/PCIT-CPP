@@ -137,9 +137,24 @@
 // }
 
 
-type NonTrivial = alias @import("NonTrivial.pthr").NonTrivial;
+// type TemplateTest = struct <{T: Type}> {
+// 	func get_val = (this) -> T {
+// 		return copy this.val;
+// 	}
 
+// 	var val: T;
+// }
 
-func test = () -> Void {
-	var foo: @import("NonTrivial.pthr").NonTrivial = new NonTrivial();
+type TemplateTest = struct <{T: Type}> {
+	func get_val = (this) -> T {
+		return copy this.val;
+	}
+
+	var val: T;
+}
+
+func entry = () #entry -> UI8 {
+	var foo = new TemplateTest<{UI8}>{ val = 12 };
+	
+	return foo.get_val();
 }

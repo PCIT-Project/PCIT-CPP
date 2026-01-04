@@ -222,9 +222,14 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_struct_type(const StructType& struct_type) -> void {
-		this->printer.printCyan("type");
-		this->printer.printGreen(" &{} ", struct_type.name);
-		this->printer.printRed("= ");
+		this->printer.printCyan("type ");
+		if(isStandardName(struct_type.name)){
+			this->printer.printGreen("&{}", struct_type.name);
+		}else{
+			this->printer.printGreen("&");
+			this->print_non_standard_name(struct_type.name);
+		}
+		this->printer.printRed(" = ");
 		this->printer.printCyan("struct ");
 
 		if(struct_type.isPacked){
@@ -413,7 +418,12 @@ namespace pcit::pir{
 			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->get_module().getStructType(type);
 				
-				printer.print("&{}", struct_type.name);
+				if(isStandardName(struct_type.name)){
+					printer.print("&{}", struct_type.name);
+				}else{
+					printer.print("&", struct_type.name);
+					this->print_non_standard_name(struct_type.name);
+				}
 			} break;
 
 			case Type::Kind::FUNCTION: {

@@ -260,8 +260,14 @@ namespace pcit::panther{
 			template<bool MAY_LOWER_DEPENDENCY>
 			EVO_NODISCARD auto get_type(BaseType::ID base_type_id) -> pir::Type;
 
+			
+			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(BaseType::Struct::ID struct_id) const -> std::string;
+			
+			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(BaseType::Union::ID union_id) const -> std::string;
+			
+			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(BaseType::Interface::ID interface_id) const -> std::string;
 
 			template<bool PIR_STMT_NAME_SAFE = false>
@@ -273,54 +279,59 @@ namespace pcit::panther{
 			template<bool PIR_STMT_NAME_SAFE = false>
 			EVO_NODISCARD auto mangle_name(sema::Func::ID func_id, Token::Kind op_kind) const -> std::string;
 
-
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id,
 				evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id
 			) const -> std::string;
 
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id,
 				evo::Variant<SourceID, ClangSourceID> source_id
 			) const -> std::string {
 				if(source_id.is<SourceID>()){
-					return this->get_parent_name(parent_id, source_id.as<SourceID>());
+					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<SourceID>());
 				}else{
-					return this->get_parent_name(parent_id, source_id.as<ClangSourceID>());
+					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<ClangSourceID>());
 				}
 			}
 
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id,
 				evo::Variant<SourceID, BuiltinModuleID> source_id
 			) const -> std::string {
 				if(source_id.is<SourceID>()){
-					return this->get_parent_name(parent_id, source_id.as<SourceID>());
+					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<SourceID>());
 				}else{
-					return this->get_parent_name(parent_id, source_id.as<BuiltinModuleID>());
+					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<BuiltinModuleID>());
 				}
 			}
 
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id, SourceID source_id
 			) const -> std::string {
-				return this->get_parent_name(
+				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
 					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
 				);
 			}
 
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id, ClangSourceID source_id
 			) const -> std::string {
-				return this->get_parent_name(
+				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
 					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
 				);
 			}
 
+			template<bool PIR_STMT_NAME_SAFE>
 			EVO_NODISCARD auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id, BuiltinModuleID source_id
 			) const -> std::string {
-				return this->get_parent_name(
+				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
 					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
 				);
 			}

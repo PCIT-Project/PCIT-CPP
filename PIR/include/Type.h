@@ -113,11 +113,6 @@ namespace pcit::pir{
 		std::string name;
 		evo::SmallVector<Type> members;
 		bool isPacked;
-
-		StructType(std::string&& _name, evo::SmallVector<Type> _members, bool is_packed) :
-			name(std::move(_name)), members(std::move(_members)), isPacked(is_packed) {
-			evo::debugAssert(isStandardName(this->name), "Invalid name for struct type ({})", this->name);
-		}
 	};
 
 
