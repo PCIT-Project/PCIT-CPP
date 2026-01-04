@@ -2712,6 +2712,38 @@ namespace pcit::panther{
 				return this->intrinsics[instr._index];
 			}
 
+			//////////////////
+			// TypeThis<true>
+
+			EVO_NODISCARD auto createTypeThisNeedsDef(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TYPE_THIS_NEEDS_DEF,
+					this->type_this_needs_defs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getTypeThisNeedsDef(Instruction instr) const -> const Instruction::TypeThis<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TYPE_THIS_NEEDS_DEF, "Not a TypeThis<true>");
+				return this->type_this_needs_defs[instr._index];
+			}
+
+
+
+			//////////////////
+			// TypeThis<false>
+
+			EVO_NODISCARD auto createTypeThis(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TYPE_THIS,
+					this->type_thiss.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getTypeThis(Instruction instr) const -> const Instruction::TypeThis<false>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TYPE_THIS, "Not a TypeThis<false>");
+				return this->type_thiss[instr._index];
+			}
+
 
 
 			//////////////////
@@ -3093,6 +3125,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Ident<true>, uint32_t> ident_needs_defs{};
 			core::SyncLinearStepAlloc<Instruction::Ident<false>, uint32_t> idents{};
 			core::SyncLinearStepAlloc<Instruction::Intrinsic, uint32_t> intrinsics{};
+			core::SyncLinearStepAlloc<Instruction::TypeThis<true>, uint32_t> type_this_needs_defs{};
+			core::SyncLinearStepAlloc<Instruction::TypeThis<false>, uint32_t> type_thiss{};
 			core::SyncLinearStepAlloc<Instruction::Literal, uint32_t> literals{};
 			core::SyncLinearStepAlloc<Instruction::Uninit, uint32_t> uninits{};
 			core::SyncLinearStepAlloc<Instruction::Zeroinit, uint32_t> zeroinits{};

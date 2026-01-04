@@ -283,6 +283,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_ident(const Instruction::Ident<NEEDS_DEF>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_intrinsic(const Instruction::Intrinsic& instr) -> Result;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto instr_type_this(const Instruction::TypeThis<NEEDS_DEF>& instr) -> Result;
+
 			EVO_NODISCARD auto instr_literal(const Instruction::Literal& instr) -> Result;
 			EVO_NODISCARD auto instr_uninit(const Instruction::Uninit& instr) -> Result;
 			EVO_NODISCARD auto instr_zeroinit(const Instruction::Zeroinit& instr) -> Result;

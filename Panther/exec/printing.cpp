@@ -1544,6 +1544,10 @@ namespace pthr{
 						this->printer.printMagenta("@{}", this->source.getTokenBuffer()[type_token_id].getString());
 					} break;
 
+					case panther::AST::Kind::TYPE_THIS: {
+						this->printer.printMagenta("This");
+					} break;
+
 					case panther::AST::Kind::DEDUCER: {
 						const panther::Token::ID type_token_id = this->ast_buffer.getDeducer(base_type);
 						const panther::Token& type_token = this->source.getTokenBuffer()[type_token_id];
@@ -1786,6 +1790,10 @@ namespace pthr{
 
 					case panther::AST::Kind::INTRINSIC: {
 						this->print_intrinsic(node);
+					} break;
+
+					case panther::AST::Kind::TYPE_THIS: {
+						this->printer.printMagenta("This");
 					} break;
 
 					case panther::AST::Kind::UNINIT: {

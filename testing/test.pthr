@@ -25,27 +25,27 @@
 // 	}
 
 
-// 	// func copy = (this) -> (output: This) {
-// 	// 	output = new This();
+// 	func copy = (this) -> (output: This) {
+// 		output = new This();
 
-// 	// 	for(this as [T:*]) [_; elem: T]{
-// 	// 		output.append().* = copy elem;
-// 	// 	}
+// 		for(this as [T:*]) [_; elem: T]{
+// 			output.append().* = copy elem;
+// 		}
 
-// 	// 	return...;
-// 	// }
+// 		return...;
+// 	}
 
-// 	// func move = (this mut) -> (output: This) {
-// 	// 	output = new This();
+// 	func move = (this mut) -> (output: This) {
+// 		output = new This();
 
-// 	// 	for(this as [T:*mut]) [_; elem: T mut]{
-// 	// 		output.append().* = move elem;
-// 	// 	}
+// 		for(this as [T:*mut]) [_; elem: T mut]{
+// 			output.append().* = move elem;
+// 		}
 
-// 	// 	this._size = 0;
+// 		this._size = 0;
 
-// 	// 	return...;
-// 	// }
+// 		return...;
+// 	}
 
 
 
@@ -136,23 +136,19 @@
 // 	return (sum + nums.size() as Int) as UI8; // 9
 // }
 
-def non_trivial_module = @import("NonTrivial.pthr");
-type NonTrivial = alias non_trivial_module.NonTrivial;
 
 type Struct = struct {
+	type ID = alias USize;
 
-	func delete = (this mut) -> Void {
-		delete this.nt2;
+	func test = (this) -> Void {
+		var foo: This.ID* = &this.id;
 	}
 
-	func copy = (this) -> (output: Struct) {
-		// output.nt1 = new NonTrivial();
-		output = new Struct();
-		var foo: NonTrivial = copy output.nt1;
-		return...;
-	}
+	var id: ID;
+}
 
-	var nt1: NonTrivial;
-	var nt2: NonTrivial;
-	var nt3: NonTrivial;
+func iterate = (arr_ref: [Int:*]) -> Void {
+	for(arr_ref) [_; value: Int] {
+		
+	}
 }

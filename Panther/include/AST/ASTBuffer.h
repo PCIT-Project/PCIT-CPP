@@ -40,6 +40,11 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
+			EVO_NODISCARD static auto getTypeThis(const AST::Node& node) -> Token::ID {
+				evo::debugAssert(node.kind() == AST::Kind::TYPE_THIS, "Node is not a TypeThis");
+				return node._value.token_id;
+			}
+
 			EVO_NODISCARD static auto getLiteral(const AST::Node& node) -> Token::ID {
 				evo::debugAssert(node.kind() == AST::Kind::LITERAL, "Node is not a Literal");
 				return node._value.token_id;

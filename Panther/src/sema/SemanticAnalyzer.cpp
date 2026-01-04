@@ -719,6 +719,12 @@ namespace pcit::panther{
 			case Instruction::Kind::INTRINSIC:
 				return this->instr_intrinsic(this->context.symbol_proc_manager.getIntrinsic(instr));
 
+			case Instruction::Kind::TYPE_THIS_NEEDS_DEF:
+				return this->instr_type_this<true>(this->context.symbol_proc_manager.getTypeThisNeedsDef(instr));
+
+			case Instruction::Kind::TYPE_THIS:
+				return this->instr_type_this<false>(this->context.symbol_proc_manager.getTypeThis(instr));
+
 			case Instruction::Kind::LITERAL:
 				return this->instr_literal(this->context.symbol_proc_manager.getLiteral(instr));
 
@@ -17897,76 +17903,77 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TYPE_THIS: {
-				const std::optional<EncapsulatingSymbolID> current_type_scope = 
-					this->scope.getCurrentTypeScopeIfExists();
+			// TODO(NOW): remove
+			// case Token::Kind::TYPE_THIS: {
+			// 	const std::optional<EncapsulatingSymbolID> current_type_scope = 
+			// 		this->scope.getCurrentTypeScopeIfExists();
 
-				if(current_type_scope.has_value() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
-						instr.ast_type.base,
-						"Type \"This\" not in valid type scope"
-					);
-					return Result::ERROR;
-				}
+			// 	if(current_type_scope.has_value() == false){
+			// 		this->emit_error(
+			// 			Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
+			// 			instr.ast_type.base,
+			// 			"Type \"This\" not in valid type scope"
+			// 		);
+			// 		return Result::ERROR;
+			// 	}
 
-				if(current_type_scope->is<BaseType::Interface::ID>()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
-						instr.ast_type.base,
-						"Type \"This\" not in valid type scope",
-						Diagnostic::Info("\"This\" cannot be used within an interface")
-					);
-					return Result::ERROR;
-				}
+			// 	if(current_type_scope->is<BaseType::Interface::ID>()){
+			// 		this->emit_error(
+			// 			Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
+			// 			instr.ast_type.base,
+			// 			"Type \"This\" not in valid type scope",
+			// 			Diagnostic::Info("\"This\" cannot be used within an interface")
+			// 		);
+			// 		return Result::ERROR;
+			// 	}
 
-				if(current_type_scope->is<EncapsulatingSymbolID::InterfaceImplInfo>()){
-					const TypeInfo& interface_impl_type = this->context.getTypeManager().getTypeInfo(
-						current_type_scope->as<EncapsulatingSymbolID::InterfaceImplInfo>().targetTypeID
-					);
+			// 	if(current_type_scope->is<EncapsulatingSymbolID::InterfaceImplInfo>()){
+			// 		const TypeInfo& interface_impl_type = this->context.getTypeManager().getTypeInfo(
+			// 			current_type_scope->as<EncapsulatingSymbolID::InterfaceImplInfo>().targetTypeID
+			// 		);
 					
-					base_type = interface_impl_type.baseTypeID();
-					qualifiers.append_range(interface_impl_type.qualifiers());
-					break;
-				}
+			// 		base_type = interface_impl_type.baseTypeID();
+			// 		qualifiers.append_range(interface_impl_type.qualifiers());
+			// 		break;
+			// 	}
 
-				const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
-				);
+			// 	const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			// 		TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
+			// 	);
 
 
-				if constexpr(NEEDS_DEF){
-					const BaseType::Struct& struct_type = 
-						this->context.getTypeManager().getStruct(current_type_scope->as<BaseType::Struct::ID>());
+			// 	if constexpr(NEEDS_DEF){
+			// 		const BaseType::Struct& struct_type = 
+			// 			this->context.getTypeManager().getStruct(current_type_scope->as<BaseType::Struct::ID>());
 
-					if(struct_type.defCompleted.load() == false){
-						SymbolProc::ID struct_type_symbol_proc_id =
-							*this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
+			// 		if(struct_type.defCompleted.load() == false){
+			// 			SymbolProc::ID struct_type_symbol_proc_id =
+			// 				*this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
 
-						SymbolProc& struct_type_symbol_proc =
-							this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
+			// 			SymbolProc& struct_type_symbol_proc =
+			// 				this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
 
-						const SymbolProc::WaitOnResult wait_on_result = struct_type_symbol_proc.waitOnDefIfNeeded(
-							this->symbol_proc_id, this->context, struct_type_symbol_proc_id
-						);
+			// 			const SymbolProc::WaitOnResult wait_on_result = struct_type_symbol_proc.waitOnDefIfNeeded(
+			// 				this->symbol_proc_id, this->context, struct_type_symbol_proc_id
+			// 			);
 							
-						switch(wait_on_result){
-							case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
-							case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
-							case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
+			// 			switch(wait_on_result){
+			// 				case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
+			// 				case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
+			// 				case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
 
-							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-								evo::debugFatalBreak("Should be impossible");
+			// 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+			// 					evo::debugFatalBreak("Should be impossible");
 
-							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
-						}
-					}
-				}
+			// 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			// 			}
+			// 		}
+			// 	}
 
-				const TypeInfo& current_type = this->context.getTypeManager().getTypeInfo(current_type_id);
-				base_type = current_type.baseTypeID();
-				qualifiers.append_range(current_type.qualifiers());
-			} break;
+			// 	const TypeInfo& current_type = this->context.getTypeManager().getTypeInfo(current_type_id);
+			// 	base_type = current_type.baseTypeID();
+			// 	qualifiers.append_range(current_type.qualifiers());
+			// } break;
 
 			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
 			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F32:          case Token::Kind::TYPE_F64:
@@ -18710,6 +18717,80 @@ namespace pcit::panther{
 	}
 
 
+
+	template<bool NEEDS_DEF>
+	auto SemanticAnalyzer::instr_type_this(const Instruction::TypeThis<NEEDS_DEF>& instr) -> Result {
+		const std::optional<EncapsulatingSymbolID> current_type_scope = 
+			this->scope.getCurrentTypeScopeIfExists();
+
+		if(current_type_scope.has_value() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
+				instr.type_this,
+				"Type \"This\" not in valid type scope"
+			);
+			return Result::ERROR;
+		}
+
+		if(current_type_scope->is<BaseType::Interface::ID>()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
+				instr.type_this,
+				"Type \"This\" not in valid type scope",
+				Diagnostic::Info("\"This\" cannot be used within an interface")
+			);
+			return Result::ERROR;
+		}
+
+
+		if(current_type_scope->is<EncapsulatingSymbolID::InterfaceImplInfo>()){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::TYPE,
+				TypeInfo::VoidableID(current_type_scope->as<EncapsulatingSymbolID::InterfaceImplInfo>().targetTypeID)
+			);
+			return Result::SUCCESS;
+		}
+
+		const TypeInfo::ID current_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(BaseType::ID(current_type_scope->as<BaseType::Struct::ID>()))
+		);
+
+		if constexpr(NEEDS_DEF){
+			const BaseType::Struct& struct_type = 
+				this->context.getTypeManager().getStruct(current_type_scope->as<BaseType::Struct::ID>());
+
+			if(struct_type.defCompleted.load() == false){
+				SymbolProc::ID struct_type_symbol_proc_id =
+					*this->context.symbol_proc_manager.getTypeSymbolProc(current_type_id);
+
+				SymbolProc& struct_type_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
+
+				const SymbolProc::WaitOnResult wait_on_result = struct_type_symbol_proc.waitOnDefIfNeeded(
+					this->symbol_proc_id, this->context, struct_type_symbol_proc_id
+				);
+					
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
+					case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Should be impossible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				}
+			}
+		}
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TypeInfo::VoidableID(current_type_id)
+		);
+		return Result::SUCCESS;
+	}
+
+
 	auto SemanticAnalyzer::instr_literal(const Instruction::Literal& instr) -> Result {
 		const Token& literal_token = this->source.getTokenBuffer()[instr.literal];
 		switch(literal_token.kind()){
@@ -19051,11 +19132,11 @@ namespace pcit::panther{
 		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
 
 		if(actual_lhs_type.qualifiers().empty() == false){
-			// TODO(FUTURE): better message
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 				instr.infix.lhs,
-				"Accessor operator of this LHS is unsupported"
+				"Accessor operator of this LHS is unsupported",
+				Diagnostic::Info("NOTE: LHS of a type accessor cannot be a type with qualifiers")
 			);
 			return Result::ERROR;
 		}

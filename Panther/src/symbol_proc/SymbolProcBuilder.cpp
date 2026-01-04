@@ -506,8 +506,9 @@ namespace pcit::panther{
 			case AST::Kind::DEDUCER:        case AST::Kind::ARRAY_TYPE:          case AST::Kind::INTERFACE_MAP:
 			case AST::Kind::TYPE:           case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK:
 			case AST::Kind::ATTRIBUTE:      case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:
-			case AST::Kind::INTRINSIC:      case AST::Kind::LITERAL:             case AST::Kind::UNINIT:
-			case AST::Kind::ZEROINIT:       case AST::Kind::THIS:                case AST::Kind::DISCARD: {
+			case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:           case AST::Kind::LITERAL:
+			case AST::Kind::UNINIT:         case AST::Kind::ZEROINIT:            case AST::Kind::THIS:
+			case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1551,6 +1552,11 @@ namespace pcit::panther{
 				return this->analyze_expr_intrinsic(ast_type_base);
 			} break;
 
+
+			case AST::Kind::TYPE_THIS: { 
+				return this->analyze_expr_type_this<NEEDS_DEF>(ast_type_base);
+			} break;
+
 			case AST::Kind::ARRAY_TYPE: {
 				const AST::ArrayType& array_type = ast_buffer.getArrayType(ast_type_base);
 
@@ -1848,6 +1854,7 @@ namespace pcit::panther{
 			case AST::Kind::DISCARD:                evo::debugFatalBreak("Invalid statment");
 
 			case AST::Kind::IDENT:
+			case AST::Kind::TYPE_THIS:
 			case AST::Kind::INTRINSIC:
 			case AST::Kind::LITERAL:
 			case AST::Kind::THIS: {
@@ -3789,10 +3796,10 @@ namespace pcit::panther{
 		return new_term_info_id;
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool NEEDS_DEF>
 	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(NEEDS_DEF){
 			this->add_instruction(
 				this->context.symbol_proc_manager.createIdentNeedsDef(
 					this->source.getASTBuffer().getIdent(node), new_term_info_id
@@ -3815,6 +3822,27 @@ namespace pcit::panther{
 				this->source.getASTBuffer().getIntrinsic(node), new_term_info_id
 			)
 		);
+		return new_term_info_id;
+	}
+
+	template<bool NEEDS_DEF>
+	auto SymbolProcBuilder::analyze_expr_type_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+
+		if constexpr(NEEDS_DEF){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createTypeThisNeedsDef(
+					this->source.getASTBuffer().getTypeThis(node), new_term_info_id
+				)
+			);
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createTypeThis(
+					this->source.getASTBuffer().getTypeThis(node), new_term_info_id
+				)
+			);
+		}
+
 		return new_term_info_id;
 	}
 

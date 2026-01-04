@@ -81,6 +81,7 @@ namespace pcit::panther{
 			case AST::Kind::PRIMITIVE_TYPE:    return Location::get(ast_buffer.getPrimitiveType(node), src);
 			case AST::Kind::IDENT:             return Location::get(ast_buffer.getIdent(node), src);
 			case AST::Kind::INTRINSIC:         return Location::get(ast_buffer.getIntrinsic(node), src);
+			case AST::Kind::TYPE_THIS:         return Location::get(ast_buffer.getTypeThis(node), src);
 			case AST::Kind::LITERAL:           return Location::get(ast_buffer.getLiteral(node), src);
 			case AST::Kind::UNINIT:            return Location::get(ast_buffer.getUninit(node), src);
 			case AST::Kind::ZEROINIT:          return Location::get(ast_buffer.getZeroinit(node), src);

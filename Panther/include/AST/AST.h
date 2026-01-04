@@ -76,6 +76,7 @@ namespace pcit::panther::AST{
 
 		DEDUCER,
 		PRIMITIVE_TYPE,
+		TYPE_THIS,
 		IDENT,
 		INTRINSIC,
 		LITERAL,

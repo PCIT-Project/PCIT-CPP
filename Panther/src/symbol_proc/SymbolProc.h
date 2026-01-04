@@ -980,6 +980,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool NEEDS_DEF>
+		struct TypeThis{
+			Token::ID type_this;
+			SymbolProcTermInfoID output;
+		};
+
 		struct Literal{
 			Token::ID literal;
 			SymbolProcTermInfoID output;
@@ -1183,6 +1189,8 @@ namespace pcit::panther{
 			IDENT_NEEDS_DEF,
 			IDENT,
 			INTRINSIC,
+			TYPE_THIS_NEEDS_DEF,
+			TYPE_THIS,
 			LITERAL,
 			UNINIT,
 			ZEROINIT,

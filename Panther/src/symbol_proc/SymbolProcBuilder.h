@@ -153,10 +153,14 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto analyze_expr_try_else(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			EVO_NODISCARD auto analyze_expr_intrinsic(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto analyze_expr_type_this(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+
 			EVO_NODISCARD auto analyze_expr_literal(const Token::ID& literal) -> evo::Result<SymbolProc::TermInfoID>;
 			EVO_NODISCARD auto analyze_expr_uninit(const Token::ID& uninit_token)
 				-> evo::Result<SymbolProc::TermInfoID>;
