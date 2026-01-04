@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.213.2"></a>
+## v0.0.213.2
+
+### Panther
+- Fixed calls to `@import`, `@importC`, and `@importCPP` in explicit types
+
+
+<!---------------------------------->
 <a name="v0.0.213.1"></a>
 ## v0.0.213.1
 

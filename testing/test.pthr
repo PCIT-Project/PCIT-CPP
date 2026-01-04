@@ -137,18 +137,9 @@
 // }
 
 
-type Struct = struct {
-	type ID = alias USize;
+type NonTrivial = alias @import("NonTrivial.pthr").NonTrivial;
 
-	func test = (this) -> Void {
-		var foo: This.ID* = &this.id;
-	}
 
-	var id: ID;
-}
-
-func iterate = (arr_ref: [Int:*]) -> Void {
-	for(arr_ref) [_; value: Int] {
-		
-	}
+func test = () -> Void {
+	var foo: @import("NonTrivial.pthr").NonTrivial = new NonTrivial();
 }

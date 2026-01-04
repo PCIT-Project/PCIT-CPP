@@ -1544,6 +1544,10 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(ast_type_base.kind()){
+			case AST::Kind::FUNC_CALL: {
+				return this->analyze_expr_func_call<true, false>(ast_type_base);
+			} break;
+
 			case AST::Kind::IDENT: { 
 				return this->analyze_expr_ident<NEEDS_DEF>(ast_type_base);
 			} break;
@@ -1551,7 +1555,6 @@ namespace pcit::panther{
 			case AST::Kind::INTRINSIC: { 
 				return this->analyze_expr_intrinsic(ast_type_base);
 			} break;
-
 
 			case AST::Kind::TYPE_THIS: { 
 				return this->analyze_expr_type_this<NEEDS_DEF>(ast_type_base);
@@ -1773,6 +1776,7 @@ namespace pcit::panther{
 				);
 				return created_base_type_type;
 			} break;
+
 
 			// TODO(FUTURE): separate out into more kinds to be more specific (errors vs fatal)
 			default: {

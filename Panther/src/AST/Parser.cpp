@@ -1787,7 +1787,7 @@ namespace pcit::panther{
 		const Token::ID start_location = this->reader.peek();
 		bool is_primitive = true;
 		bool is_type_deducer = false;
-		switch(this->reader[start_location].kind()){ // TODO(NOW): reorganize
+		switch(this->reader[start_location].kind()){
 			case Token::Kind::TYPE_VOID:    case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
 			case Token::Kind::TYPE_I_N:     case Token::Kind::TYPE_UINT:        case Token::Kind::TYPE_USIZE:
 			case Token::Kind::TYPE_UI_N:    case Token::Kind::TYPE_F16:         case Token::Kind::TYPE_BF16:
@@ -2796,8 +2796,15 @@ namespace pcit::panther{
 
 				case Token::lookupKind("("): {
 					if constexpr(TERM_KIND == TermKind::EXPLICIT_TYPE || TERM_KIND == TermKind::AS_TYPE){
-						should_continue = false;
-						break;
+						if(output.value().kind() == AST::Kind::INTRINSIC){
+							evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
+							if(args.isError()){ return Result::Code::ERROR; }
+
+							output = this->source.ast_buffer.createFuncCall(output.value(), std::move(args.value()));
+						}else{
+							should_continue = false;
+							break;
+						}
 
 					}else{
 						evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
