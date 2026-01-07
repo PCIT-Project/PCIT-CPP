@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.215.0"></a>
+## v0.0.215.0
+
+### Panther
+- Added `unsafe` blocks
+- Added function attribute `#unsafe`
+- Added warning "alreadyUnsafe"
+- Fixed missing checks for constexpr operator `as` of structs
+- Fixed value state determination of method calls
+- Fixed missing checks that initialization `copy`/`move` match their assignment counterparts
+- Fixed missing checks for constexpr assignment `copy`/`move`
+- Fixed race condition in semantic analysis when calling template function
+
+
+<!---------------------------------->
 <a name="v0.0.214.0"></a>
 ## v0.0.214.0
 

@@ -60,6 +60,7 @@ namespace pcit::panther{
 		this->decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
+		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
@@ -82,6 +83,7 @@ namespace pcit::panther{
 		this->pir_decl_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
+		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
@@ -119,6 +121,7 @@ namespace pcit::panther{
 		this->def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
+		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
@@ -142,6 +145,7 @@ namespace pcit::panther{
 		this->pir_def_waited_on_by.emplace_back(id);
 		waiting_symbol.waiting_for.emplace_back(self_id);
 
+		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 

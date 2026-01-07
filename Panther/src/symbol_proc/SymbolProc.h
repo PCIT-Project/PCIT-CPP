@@ -669,6 +669,10 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> func_call_args;
 		};
 
+		struct BeginUnsafe{
+			const AST::Unsafe& unsafe_stmt;
+		};
+
 
 
 
@@ -1108,6 +1112,8 @@ namespace pcit::panther{
 			DISCARDING_ASSIGNMENT,
 			TRY_ELSE_BEGIN,
 			TRY_ELSE_END,
+			BEGIN_UNSAFE,
+			END_UNSAFE,
 
 			// misc expr
 			TYPE_TO_TERM,
@@ -1360,13 +1366,29 @@ namespace pcit::panther{
 					const Status current_status = this->status.load();
 					evo::debugAssert(
 						current_status == Status::WAITING || current_status == Status::SUSPENDED,
-						"Can only set `IN_QUEUE` if status is `WAITING` or `SUSPENDED` (symbol: {})",
+						"Can only set `IN_QUEUE` (with this method) if status is `WAITING` or `SUSPENDED` (symbol: {})",
 						this->ident
 					);
 				#endif
 
 				this->status = Status::IN_QUEUE;
 			}
+
+			// returns true if should be added to queue
+			auto setStatusInQueueIfNotAlreadyDone() -> bool {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WAITING || current_status == Status::DONE,
+						"Can only set `IN_QUEUE` (with this method) if status is `WAITING` or `DONE` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				Status expected = Status::WAITING;
+				return this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
+			}
+
 
 			auto setStatusWorking() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -1424,6 +1446,7 @@ namespace pcit::panther{
 
 			enum class WaitOnResult{
 				NOT_NEEDED,
+				WAITING_UNSUSPEND,
 				WAITING,
 				WAS_ERRORED,
 				WAS_PASSED_ON_BY_WHEN_COND,

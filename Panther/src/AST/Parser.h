@@ -105,6 +105,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto parse_switch() -> Result;
 			template<bool IS_ERROR_DEFER> EVO_NODISCARD auto parse_defer() -> Result;
 			EVO_NODISCARD auto parse_try_stmt() -> Result;
+			EVO_NODISCARD auto parse_unsafe() -> Result;
 
 			EVO_NODISCARD auto parse_assignment() -> Result;
 

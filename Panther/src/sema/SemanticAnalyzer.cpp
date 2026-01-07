@@ -426,6 +426,12 @@ namespace pcit::panther{
 			case Instruction::Kind::TRY_ELSE_END:
 				return this->instr_try_else_end();
 
+			case Instruction::Kind::BEGIN_UNSAFE:
+				return this->instr_begin_unsafe(this->context.symbol_proc_manager.getBeginUnsafe(instr));
+
+			case Instruction::Kind::END_UNSAFE:
+				return this->instr_end_unsafe();
+
 			case Instruction::Kind::TYPE_TO_TERM:
 				return this->instr_type_to_term(this->context.symbol_proc_manager.getTypeToTerm(instr));
 
@@ -1566,21 +1572,152 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_struct_def() -> Result {
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
- 
 		const BaseType::Struct::ID created_struct_id =
 			this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id;
 		BaseType::Struct& created_struct = this->context.type_manager.getStruct(created_struct_id);
 
 
+	 	///////////////////////////////////
+	 	// checking special member
+
+		//////////////////
+		// new
+
 		if(created_struct.newInitOverloads.empty() && created_struct.newAssignOverloads.empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_STRUCT_NEW_REASSIGN_WITHOUT_NEW_INIT,
+				Diagnostic::Code::SEMA_STRUCT_NEW_ASSIGN_WITHOUT_NEW_INIT,
 				this->symbol_proc.ast_node,
 				"Cannot define a struct with a assignment operator [new] overload "
-					"without an initializer operator [new] overload"
+					"without an initialization operator [new] overload"
 			);
 			return Result::ERROR;
 		}
+
+
+		//////////////////
+		// copy
+
+		if(created_struct.copyAssignOverload.load().has_value()){
+			if(created_struct.copyInitOverload.load().funcID.has_value()){
+				const sema::Func& copy_init_sema_func = 
+					this->context.getSemaBuffer().getFunc(*created_struct.copyInitOverload.load().funcID);
+
+				const sema::Func& copy_assign_sema_func = 
+					this->context.getSemaBuffer().getFunc(*created_struct.copyAssignOverload.load());
+
+				if(copy_init_sema_func.isConstexpr != copy_assign_sema_func.isConstexpr){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [copy] does not match the constexpr status of the assignment "
+							"operator [copy]"
+					);
+					return Result::ERROR;
+				}
+
+
+				const BaseType::Function& copy_init_func_type =
+					this->context.getTypeManager().getFunction(copy_init_sema_func.typeID);
+
+				const BaseType::Function& copy_assign_func_type =
+					this->context.getTypeManager().getFunction(copy_assign_sema_func.typeID);
+
+
+				if(copy_init_func_type.hasErrorReturn() != copy_assign_func_type.hasErrorReturn()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [copy] does not match the erroring status of the assignment "
+							"operator [copy]"
+					);
+					return Result::ERROR;
+				}
+
+
+				if(copy_init_func_type.isUnsafe != copy_assign_func_type.isUnsafe){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [copy] does not match the unsafe status of the assignment "
+							"operator [copy]"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_WITHOUT_COPY_INIT,
+					this->symbol_proc.ast_node,
+					"Cannot define a struct with a assignment operator [copy] overload "
+						"without an initialization operator [copy] overload"
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+
+		//////////////////
+		// move
+
+		if(created_struct.moveAssignOverload.load().has_value()){
+			if(created_struct.moveInitOverload.load().funcID.has_value()){
+				const sema::Func& move_init_sema_func = 
+					this->context.getSemaBuffer().getFunc(*created_struct.moveInitOverload.load().funcID);
+
+				const sema::Func& move_assign_sema_func = 
+					this->context.getSemaBuffer().getFunc(*created_struct.moveAssignOverload.load());
+
+				if(move_init_sema_func.isConstexpr != move_assign_sema_func.isConstexpr){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [move] does not match the constexpr status of the assignment "
+							"operator [move]"
+					);
+					return Result::ERROR;
+				}
+
+
+				const BaseType::Function& move_init_func_type =
+					this->context.getTypeManager().getFunction(move_init_sema_func.typeID);
+
+				const BaseType::Function& move_assign_func_type =
+					this->context.getTypeManager().getFunction(move_assign_sema_func.typeID);
+
+
+				if(move_init_func_type.hasErrorReturn() != move_assign_func_type.hasErrorReturn()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [move] does not match the erroring status of the assignment "
+							"operator [move]"
+					);
+					return Result::ERROR;
+				}
+
+
+				if(move_init_func_type.isUnsafe != move_assign_func_type.isUnsafe){
+					this->emit_error(
+						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
+						this->symbol_proc.ast_node,
+						"The initialization operator [move] does not match the unsafe status of the assignment "
+							"operator [move]"
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_WITHOUT_MOVE_INIT,
+					this->symbol_proc.ast_node,
+					"Cannot define a struct with a assignment operator [move] overload "
+						"without an initialization operator [move] overload"
+				);
+				return Result::ERROR;
+			}
+		}
+
 
 
 		///////////////////////////////////
@@ -1624,6 +1761,7 @@ namespace pcit::panther{
 			created_struct.isTriviallyDefaultInitializable = true;
 			created_struct.isConstexprDefaultInitializable = true;
 			created_struct.isNoErrorDefaultInitializable = true;
+			created_struct.isSafeDefaultInitializable = true;
 
 			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 				if(this->context.getTypeManager().isDefaultInitializable(member_var.typeID) == false){
@@ -1668,6 +1806,15 @@ namespace pcit::panther{
 						created_struct.isTriviallyDefaultInitializable = false;
 					}
 				}
+
+				if(created_struct.isSafeDefaultInitializable){
+					if(	
+						member_var.defaultValue.has_value()
+						|| this->context.getTypeManager().isSafeDefaultInitializable(member_var.typeID) == false
+					){
+						created_struct.isSafeDefaultInitializable = false;
+					}
+				}
 			}
 
 			if(created_struct.isDefaultInitializable && created_struct.isTriviallyDefaultInitializable == false){
@@ -1679,6 +1826,7 @@ namespace pcit::panther{
 						evo::SmallVector<BaseType::Function::Param>(),
 						evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
 						evo::SmallVector<TypeInfo::VoidableID>(),
+						!created_struct.isSafeDefaultInitializable,
 						true,
 						false
 					)
@@ -1790,6 +1938,8 @@ namespace pcit::panther{
 					created_struct.isNoErrorDefaultInitializable = true;
 				}
 
+				created_struct.isSafeDefaultInitializable = !new_init_overload_func_type.isUnsafe;
+
 				break;
 			}
 		}
@@ -1832,6 +1982,7 @@ namespace pcit::panther{
 						},
 						evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 						evo::SmallVector<TypeInfo::VoidableID>(),
+						false,
 						false,
 						false
 					)
@@ -1941,12 +2092,14 @@ namespace pcit::panther{
 				bool is_movable = true;
 				bool is_trivially_movable = true;
 				bool is_constexpr_movable = true;
+				bool is_safe_movable = true;
 
 				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 					if(this->context.getTypeManager().isMovable(member_var.typeID) == false){
 						is_movable = false;
 						is_trivially_movable = false;
 						is_constexpr_movable = false;
+						is_safe_movable = false;
 
 						created_struct.moveInitOverload = 
 							BaseType::Struct::DeletableOverload(copy_init_overload.funcID, true);
@@ -1968,6 +2121,13 @@ namespace pcit::panther{
 					) == false){
 						is_constexpr_movable = false;
 					}
+
+					if(is_safe_movable == false){ continue; }
+					if(this->context.getTypeManager().isSafeMovable(
+						member_var.typeID, this->context.getSemaBuffer()
+					) == false){
+						is_safe_movable = false;
+					}
 				}
 
 
@@ -1985,6 +2145,7 @@ namespace pcit::panther{
 							},
 							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							!is_safe_movable,
 							false,
 							false
 						)
@@ -2097,12 +2258,14 @@ namespace pcit::panther{
 				bool is_copyable = true;
 				bool is_trivially_copyable = true;
 				bool is_constexpr_copyable = true;
+				bool is_safe_copyable = true;
 
 				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 					if(this->context.getTypeManager().isCopyable(member_var.typeID) == false){
 						is_copyable = false;
 						is_trivially_copyable = false;
 						is_constexpr_copyable = false;
+						is_safe_copyable = false;
 
 						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(std::nullopt, true);
 						continue;
@@ -2123,6 +2286,13 @@ namespace pcit::panther{
 					) == false){
 						is_constexpr_copyable = false;
 					}
+
+					if(is_safe_copyable == false){ continue; }
+					if(this->context.getTypeManager().isSafeCopyable(
+						member_var.typeID, this->context.getSemaBuffer()
+					) == false){
+						is_safe_copyable = false;
+					}
 				}
 
 
@@ -2140,6 +2310,7 @@ namespace pcit::panther{
 							},
 							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							!is_safe_copyable,
 							false,
 							false
 						)
@@ -2245,11 +2416,16 @@ namespace pcit::panther{
 			SymbolProc& wait_on_func = this->context.symbol_proc_manager.getSymbolProc(*func_to_wait_on.symbolProcID);
 
 			switch(wait_on_func.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, *func_to_wait_on.symbolProcID)){
-				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 // do nothing
-				break; case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true;
-				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*func_to_wait_on.symbolProcID);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
 			}
 		}
 
@@ -2609,11 +2785,16 @@ namespace pcit::panther{
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
 			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, member_stmt_id)){
-				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 // do nothing
-				break; case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true;
-				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(member_stmt_id);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
 			}
 		}
 
@@ -2792,11 +2973,16 @@ namespace pcit::panther{
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
 			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, member_stmt_id)){
-				break; case SymbolProc::WaitOnResult::NOT_NEEDED:                 // do nothing
-				break; case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true;
-				break; case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				break; case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(member_stmt_id);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
 			}
 		}
 
@@ -3255,6 +3441,7 @@ namespace pcit::panther{
 				std::move(params),
 				std::move(return_params),
 				std::move(error_return_params),
+				func_attrs.value().is_unsafe,
 				!return_param_idents.empty(),
 				!error_param_idents.empty()
 			)
@@ -3628,6 +3815,18 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
+					const BaseType::Function& created_func_type =
+						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+					if(created_func_type.isUnsafe){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
+							instr.func_def,
+							"Operator [delete] cannot have the attribute `#unsafe`"
+						);
+						return Result::ERROR;
+					}
+
 
 					if(created_func.params.size() != 1){
 						if(created_func.params.empty()){
@@ -3659,8 +3858,6 @@ namespace pcit::panther{
 					}
 
 
-					const BaseType::Function& created_func_type =
-						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
@@ -4340,6 +4537,7 @@ namespace pcit::panther{
 										},
 										evo::copy(created_func_type.returnTypes),
 										evo::copy(created_func_type.errorTypes),
+										created_func_type.isUnsafe,
 										created_func_type.hasNamedReturns,
 										created_func_type.hasNamedErrorReturns
 									)
@@ -4765,6 +4963,16 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}
+
+
+			if(func_type.isUnsafe){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_ENTRY,
+					instr.func_def,
+					"Functions with the `#entry` attribute cannot have the attribute `#unsafe`"
+				);
+				return Result::ERROR;
+			}
 		}
 
 
@@ -4786,6 +4994,14 @@ namespace pcit::panther{
 			}
 
 			this->propagate_finished_pir_decl();
+		}
+
+
+		//////////////////
+		// setup scope
+
+		if(func_type.isUnsafe){
+			this->get_current_scope_level().setIsUnsafe();
 		}
 
 
@@ -5013,6 +5229,12 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
 						break;
 
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*dependent_func.symbolProcID);
+						[[fallthrough]];
+					}
+
 					case SymbolProc::WaitOnResult::WAITING:
 						any_waiting = true; break;
 
@@ -5134,6 +5356,12 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
 						break;
 
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*dependent_func.symbolProcID);
+						[[fallthrough]];
+					}
+
 					case SymbolProc::WaitOnResult::WAITING:
 						any_waiting = true; break;
 
@@ -5162,6 +5390,12 @@ namespace pcit::panther{
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
 						break;
+
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*dependent_var.symbolProcID);
+						[[fallthrough]];
+					}
 
 					case SymbolProc::WaitOnResult::WAITING:
 						any_waiting = true; break;
@@ -5935,6 +6169,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(instr.symbol_proc_id);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
@@ -6185,6 +6424,10 @@ namespace pcit::panther{
 			this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
 		}else{
 			this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::INIT);
+		}
+
+		if(type_id.has_value() && this->context.getTypeManager().getTypeInfo(*type_id).isUninitPointer()){
+			this->add_ident_value_state(sema::UninitPtrLocalVar(new_sema_var), sema::ScopeLevel::ValueState::UNINIT);
 		}
 
 		return Result::SUCCESS;
@@ -6941,6 +7184,70 @@ namespace pcit::panther{
 			);
 		}
 
+		switch(target.getExpr().kind()){
+			case sema::Expr::Kind::VAR: {
+				// safe, nothing to do...
+			} break;
+
+			case sema::Expr::Kind::ACCESSOR: {
+				if(
+					this->source.getTokenBuffer()[this->get_current_func().name.as<Token::ID>()].kind()
+						!= Token::Kind::KEYWORD_DELETE
+				){
+					if(this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.delete_stmt.value,
+							"Unsafe delete while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+					break;
+				}
+
+				const sema::Accessor& accessor =
+					this->context.getSemaBuffer().getAccessor(target.getExpr().accessorID());
+
+				if(accessor.target.kind() != sema::Expr::Kind::PARAM){
+					if(this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.delete_stmt.value,
+							"Unsafe delete while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+					break;
+				}
+
+				const sema::Param& accessor_lhs_param =
+					this->context.getSemaBuffer().getParam(accessor.target.paramID());
+
+				if(accessor_lhs_param.index != 0){
+					if(this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.delete_stmt.value,
+							"Unsafe delete while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+					break;
+				}
+			} break;
+
+			default: {
+				if(this->currently_in_unsafe() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.delete_stmt.value,
+						"Unsafe delete while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
+			} break;
+		}
+
 
 		if(this->get_special_member_call_dependents<SpecialMemberKind::DELETE, true>(
 			target,
@@ -7424,6 +7731,11 @@ namespace pcit::panther{
 
 					switch(wait_on_result){
 						case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(*instantiating_symbol_proc_id);
+							[[fallthrough]];
+						}
 						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
 						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -8806,6 +9118,75 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+
+
+			switch(lhs.getExpr().kind()){
+				case sema::Expr::Kind::VAR: {
+					this->set_ident_value_state(
+						sema::UninitPtrLocalVar(lhs.getExpr().varID()), sema::ScopeLevel::ValueState::UNINIT
+					);
+				} break;
+
+				case sema::Expr::Kind::DEREF: {
+					if(lhs.value_state != TermInfo::ValueState::UNINIT){ break; }
+
+					const sema::Deref& sema_deref = this->context.getSemaBuffer().getDeref(lhs.getExpr().derefID());
+
+					switch(sema_deref.expr.kind()){
+						case sema::Expr::Kind::VAR: {
+							if(
+								this->get_ident_value_state(sema::UninitPtrLocalVar(sema_deref.expr.varID()))
+									== TermInfo::ValueState::INIT
+							){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNINT_PTR_ALREADY_INIT,
+									instr.infix.lhs,
+									"The pointee was already initialized"
+								);
+								return Result::ERROR;
+							}
+
+							this->set_ident_value_state(
+								sema::UninitPtrLocalVar(sema_deref.expr.varID()), sema::ScopeLevel::ValueState::INIT
+							);
+						} break;
+
+						case sema::Expr::Kind::FUNC_CALL: {
+							// safe, do nothing...
+						} break;
+
+						default: {
+							if(this->currently_in_unsafe() == false){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									instr.infix,
+									"Unsafe assignment while not in an unsafe scope"
+								);
+								return Result::ERROR;
+							}
+						} break;
+					}
+				} break;
+
+				default: {
+					if(
+						this->currently_in_unsafe() == false
+						&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.infix,
+							"Unsafe assignment while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+				} break;
+			}
+
+
+
+
+
 			if(
 				lhs.value_state == TermInfo::ValueState::UNINIT
 				|| lhs.value_state == TermInfo::ValueState::INITIALIZING
@@ -9498,6 +9879,18 @@ namespace pcit::panther{
 					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
 
+				const BaseType::Function& selected_func_type =
+					this->context.getTypeManager().getFunction(selected_func.typeID);
+
+				if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.infix.rhs,
+						"Unsafe operator [new] while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
+
 
 				auto output_args = evo::SmallVector<sema::Expr>();
 				if(should_run_initialization){
@@ -9719,6 +10112,36 @@ namespace pcit::panther{
 		}
 
 		if(
+			this->get_current_func().isConstexpr
+			&& this->context.getTypeManager().isConstexprCopyable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
+				"Type of argument of operator [copy] is not constexpr copyable"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			this->currently_in_unsafe() == false
+			&& this->context.getTypeManager().isSafeCopyable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
+				"Unsafe copy while not in an unsafe scope"
+			);
+			return Result::ERROR;
+		}
+
+
+
+		if(
 			target.value_state != TermInfo::ValueState::INIT
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
@@ -9749,6 +10172,20 @@ namespace pcit::panther{
 		if(this->type_check<true, true>(
 			lhs.type_id.as<TypeInfo::ID>(), target_copy, "RHS of assignment", instr.infix.rhs
 		).ok == false){
+			return Result::ERROR;
+		}
+
+
+		if(
+			this->currently_in_unsafe() == false
+			&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
+			&& lhs.getExpr().kind() != sema::Expr::Kind::VAR
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				instr.infix,
+				"Unsafe assignment while not in an unsafe scope"
+			);
 			return Result::ERROR;
 		}
 
@@ -9857,6 +10294,34 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(
+			this->get_current_func().isConstexpr
+			&& this->context.getTypeManager().isConstexprMovable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE,
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
+				"Type of argument of operator [move] is not constexpr movable"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			this->currently_in_unsafe() == false
+			&& this->context.getTypeManager().isSafeMovable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
+				"Unsafe move while not in an unsafe scope"
+			);
+			return Result::ERROR;
+		}
+
 
 		switch(target.value_state){
 			case TermInfo::ValueState::NOT_APPLICABLE: case TermInfo::ValueState::INIT: {
@@ -9903,6 +10368,24 @@ namespace pcit::panther{
 			lhs.type_id.as<TypeInfo::ID>(), target_move, "RHS of assignment", instr.infix.rhs
 		).ok == false){
 			return Result::ERROR;
+		}
+
+
+		switch(target.getExpr().kind()){
+			case sema::Expr::Kind::VAR: {
+				// safe, nothing to do...
+			} break;
+
+			default: {
+				if(this->currently_in_unsafe() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs),
+						"Unsafe move while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
+			} break;
 		}
 
 
@@ -10429,11 +10912,41 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
-
 	auto SemanticAnalyzer::instr_try_else_end() -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
+
+
+
+	auto SemanticAnalyzer::instr_begin_unsafe(const Instruction::BeginUnsafe& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.unsafe_stmt).isError()){ return Result::ERROR; }
+
+		if(this->get_package().warn.alreadyUnsafe && this->currently_in_unsafe()){
+			this->emit_warning(
+				Diagnostic::Code::SEMA_WARN_ALREADY_UNSAFE,
+				instr.unsafe_stmt,
+				"Unsafe block in a scope that is already unsafe"
+			);
+		}
+
+
+		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope();
+		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
+
+		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];
+
+		this->push_scope_level(&block_scope.block);
+		this->get_current_scope_level().setIsUnsafe();
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_end_unsafe() -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		return Result::SUCCESS;
+	}
+
 
 
 
@@ -10464,6 +10977,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*current_struct_symbol_proc);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
@@ -10487,6 +11005,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*current_union_symbol_proc);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
@@ -10510,6 +11033,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*current_enum_symbol_proc);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
@@ -10547,6 +11075,11 @@ namespace pcit::panther{
 
 		switch(wait_on_result){
 			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+				this->context.symbol_proc_manager.symbol_proc_unsuspended();
+				this->context.add_task_to_work_manager(instr.symbol_proc_id);
+				[[fallthrough]];
+			}
 			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -10581,6 +11114,11 @@ namespace pcit::panther{
 
 		switch(wait_on_result){
 			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+				this->context.symbol_proc_manager.symbol_proc_unsuspended();
+				this->context.add_task_to_work_manager(instr.symbol_proc_id);
+				[[fallthrough]];
+			}
 			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -10608,6 +11146,7 @@ namespace pcit::panther{
 		}
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
+		bool all_args_are_constexpr = true;
 		switch(target_term_info.value_category){
 			case TermInfo::ValueCategory::METHOD_CALL: {
 				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
@@ -10631,6 +11170,10 @@ namespace pcit::panther{
 						}
 					);
 				}
+
+				if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::CONSTEXPR){
+					all_args_are_constexpr = false;
+				}
 			} break;
 
 			case TermInfo::ValueCategory::INTERFACE_CALL: {
@@ -10638,6 +11181,10 @@ namespace pcit::panther{
 					const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
 						target_term_info.getExpr().fakeTermInfoID()
 					);
+
+					if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::CONSTEXPR){
+						all_args_are_constexpr = false;
+					}
 
 					sema_args.emplace_back(fake_term_info.expr);
 				}
@@ -10657,13 +11204,14 @@ namespace pcit::panther{
 						sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
 					);
 				}
+
+				all_args_are_constexpr = false;
 			} break;
 
 			default: break;
 		}
 
 
-		bool all_args_are_constexpr = true;
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			const TermInfo& arg_info = this->get_term_info(arg);
 			sema_args.emplace_back(arg_info.getExpr());
@@ -10892,6 +11440,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*func_call_impl_res.value().selected_func->symbolProcID);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
@@ -12275,17 +12828,6 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-
-		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.prefix,
-				"Operator [copy] must be in function scope"
-			);
-			return Result::ERROR;
-		}
-
-
 		if(
 			this->get_current_func().isConstexpr
 			&& this->context.getTypeManager().isConstexprCopyable(
@@ -12296,6 +12838,32 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
 				instr.prefix,
 				"Type of argument of operator [copy] is not constexpr copyable"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			this->currently_in_unsafe() == false
+			&& this->context.getTypeManager().isSafeCopyable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				instr.prefix,
+				"Unsafe copy while not in an unsafe scope"
+			);
+			return Result::ERROR;
+		}
+
+
+
+
+		if(this->currently_in_func() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
+				instr.prefix,
+				"Operator [copy] must be in function scope"
 			);
 			return Result::ERROR;
 		}
@@ -12370,17 +12938,6 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-
-		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.prefix,
-				"Operator [move] must be in function scope"
-			);
-			return Result::ERROR;
-		}
-
-
 		if(
 			this->get_current_func().isConstexpr
 			&& this->context.getTypeManager().isConstexprMovable(
@@ -12391,6 +12948,30 @@ namespace pcit::panther{
 				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE,
 				instr.prefix,
 				"Type of argument of operator [move] is not constexpr movable"
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			this->currently_in_unsafe() == false
+			&& this->context.getTypeManager().isSafeMovable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				instr.prefix,
+				"Unsafe move while not in an unsafe scope"
+			);
+			return Result::ERROR;
+		}
+
+
+		if(this->currently_in_func() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
+				instr.prefix,
+				"Operator [move] must be in function scope"
 			);
 			return Result::ERROR;
 		}
@@ -12418,6 +12999,23 @@ namespace pcit::panther{
 					Diagnostic::Info("This argument was already moved from")
 				);
 				return Result::ERROR;
+			} break;
+		}
+
+		switch(target.getExpr().kind()){
+			case sema::Expr::Kind::VAR: {
+				// safe, nothing to do...
+			} break;
+
+			default: {
+				if(this->currently_in_unsafe() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.prefix,
+						"Unsafe move while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
 			} break;
 		}
 
@@ -12995,6 +13593,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*resultant_type_symbol_proc_id);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -13472,6 +14075,18 @@ namespace pcit::panther{
 					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
 
+				const BaseType::Function& selected_func_type =
+					this->context.getTypeManager().getFunction(selected_func.typeID);
+
+				if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.ast_new,
+						"Unsafe operator [new] while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
+
 
 				auto output_args = evo::SmallVector<sema::Expr>();
 				output_args.reserve(selected_func.params.size());
@@ -13661,6 +14276,19 @@ namespace pcit::panther{
 				instr.array_init_new.keyword,
 				"Array initializer operator [new] got incorrect number of values",
 				Diagnostic::Info(std::format("Expected {}, got {}", target_type.dimensions[0], instr.values.size()))
+			);
+			return Result::ERROR;
+		}
+
+
+		if(
+			this->context.getTypeManager().getTypeInfo(target_type.elementTypeID).isUninitPointer()
+			&& this->currently_in_unsafe() == false
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				instr.array_init_new,
+				"Array initializer of uninitialized qualified pointers while not in an unsafe scope"
 			);
 			return Result::ERROR;
 		}
@@ -15202,6 +15830,12 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::NOT_NEEDED:
 					evo::debugFatalBreak("Should never be possible");
 
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
+					[[fallthrough]];
+				}
+
 				case SymbolProc::WaitOnResult::WAITING:
 					break;
 
@@ -15249,6 +15883,12 @@ namespace pcit::panther{
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:
 					return Result::SUCCESS;
+
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*instantiation_info.instantiation.symbolProcID.load());
+					[[fallthrough]];
+				}
 				
 				case SymbolProc::WaitOnResult::WAITING:
 					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
@@ -15311,6 +15951,11 @@ namespace pcit::panther{
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(target_symbol_proc_id);
+						[[fallthrough]];
+					}
 					case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -15573,12 +16218,43 @@ namespace pcit::panther{
 			}
 
 
-			if(this->currently_in_func() && this->get_current_func().isConstexpr){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+
+			if(this->currently_in_func()){
+				if(this->get_current_func().isConstexpr){
+					if(selected_func.isConstexpr == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+							instr.infix,
+							"Operator [as] in a constexpr scope must be constexpr"
+						);
+						return Result::ERROR;
+					}
+
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+				}
+
+			}else if(selected_func.isConstexpr == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+					instr.infix,
+					"Operator [as] in a constexpr scope must be constexpr"
+				);
+				return Result::ERROR;
 			}
 
+
+			if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+					instr.infix,
+					"Unsafe operator [as] while not in an unsafe scope"
+				);
+				return Result::ERROR;
+			}
+
+
 			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-				find->second, evo::SmallVector<sema::Expr>{expr.getExpr()}
+				selected_func_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
 			);
 
 			this->return_term_info(instr.output,
@@ -15749,6 +16425,7 @@ namespace pcit::panther{
 		const BaseType::Primitive& to_primitive =
 			type_manager.getPrimitive(to_underlying_type.baseTypeID().primitiveID());
 
+
 		if(from_primitive.kind() == Token::Kind::TYPE_RAWPTR){
 			if(to_primitive.kind() != Token::Kind::TYPE_RAWPTR){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -15764,13 +16441,12 @@ namespace pcit::panther{
 			}
 
 
-			const TypeInfo& from_actual_type = type_manager.getTypeInfo(
-				this->get_actual_type<false, false>(expr.type_id.as<TypeInfo::ID>())
-			);
+			const TypeInfo::ID from_actual_type_id =
+				this->get_actual_type<false, false>(expr.type_id.as<TypeInfo::ID>());
+			const TypeInfo& from_actual_type = type_manager.getTypeInfo(from_actual_type_id);
 
-			const TypeInfo& to_actual_type = type_manager.getTypeInfo(
-				this->get_actual_type<false, false>(target_type.asTypeID())
-			);
+			const TypeInfo::ID to_actual_type_id = this->get_actual_type<false, false>(target_type.asTypeID());
+			const TypeInfo& to_actual_type = type_manager.getTypeInfo(to_actual_type_id);
 
 
 			if(from_actual_type.isPointer() && to_actual_type.isPointer()){
@@ -15778,6 +16454,22 @@ namespace pcit::panther{
 					Diagnostic::Code::SEMA_AS_INVALID_TO,
 					instr.infix,
 					"Operator [as] cannot convert from a pointer to a pointer"
+				);
+				return Result::ERROR;
+			}
+
+
+			if(
+				this->currently_in_unsafe() == false
+				&& from_actual_type_id != to_actual_type_id
+				&& from_actual_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE
+				&& this->context.getTypeManager().getPrimitive(from_actual_type.baseTypeID().primitiveID())
+					== Token::Kind::TYPE_RAWPTR
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+					instr.infix,
+					"Unsafe operator [as] while not in an unsafe scope"
 				);
 				return Result::ERROR;
 			}
@@ -16631,7 +17323,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 				instr.infix.lhs,
-				"LHS of math infix must be initialized"
+				"LHS of math infix operator must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -16643,7 +17335,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
 				instr.infix.rhs,
-				"RHS of math infix must be initialized"
+				"RHS of math infix operator must be initialized"
 			);
 			return Result::ERROR;
 		}
@@ -16687,6 +17379,16 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(target_func.typeID);
 
 
+					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.infix,
+							"Call to unsafe math infix operator while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+
+
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						lhs.value_stage,
@@ -16720,6 +17422,14 @@ namespace pcit::panther{
 					const BaseType::Function& target_func_type =
 						this->context.getTypeManager().getFunction(target_func.typeID);
 
+					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.infix,
+							"Call to unsafe math infix operator while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -17074,6 +17784,15 @@ namespace pcit::panther{
 					const BaseType::Function& target_func_type =
 						this->context.getTypeManager().getFunction(target_func.typeID);
 
+					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+							instr.infix,
+							"Call to unsafe math infix operator while not in an unsafe scope"
+						);
+						return Result::ERROR;
+					}
+
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -17252,6 +17971,14 @@ namespace pcit::panther{
 				const BaseType::Function& target_func_type =
 					this->context.getTypeManager().getFunction(target_func.typeID);
 
+				if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.infix,
+						"Call to unsafe math infix operator while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
@@ -18700,6 +19427,11 @@ namespace pcit::panther{
 					
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(struct_type_symbol_proc_id);
+						[[fallthrough]];
+					}
 					case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
 					case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
 
@@ -19331,6 +20063,11 @@ namespace pcit::panther{
 				
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*target_interface.symbolProcID);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Should be impossible");
@@ -19404,6 +20141,12 @@ namespace pcit::panther{
 					switch(wait_on_result){
 						case SymbolProc::WaitOnResult::NOT_NEEDED:
 							break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(*instantiating_symbol_proc_id);
+							[[fallthrough]];
+						}
 
 						case SymbolProc::WaitOnResult::WAITING:
 							return Result::NEED_TO_WAIT;
@@ -19526,6 +20269,7 @@ namespace pcit::panther{
 							evo::SmallVector<BaseType::Function::Param>(),
 							evo::SmallVector<TypeInfo::VoidableID>{optional_held_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
 							false,
 							false
 						)
@@ -20168,6 +20912,7 @@ namespace pcit::panther{
 							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeUSize()},
 							evo::SmallVector<TypeInfo::VoidableID>(),
 							false,
+							false,
 							false
 						)
 					)
@@ -20205,6 +20950,7 @@ namespace pcit::panther{
 							evo::SmallVector<BaseType::Function::Param>(),
 							evo::SmallVector<TypeInfo::VoidableID>{returned_array_type},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
 							false,
 							false
 						)
@@ -20246,6 +20992,7 @@ namespace pcit::panther{
 							evo::SmallVector<BaseType::Function::Param>(),
 							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
 							false,
 							false
 						)
@@ -20318,6 +21065,7 @@ namespace pcit::panther{
 							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeUSize()},
 							evo::SmallVector<TypeInfo::VoidableID>(),
 							false,
+							false,
 							false
 						)
 					)
@@ -20355,6 +21103,7 @@ namespace pcit::panther{
 							evo::SmallVector<BaseType::Function::Param>(),
 							evo::SmallVector<TypeInfo::VoidableID>{returned_array_type},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
 							false,
 							false
 						)
@@ -20397,6 +21146,7 @@ namespace pcit::panther{
 							evo::SmallVector<BaseType::Function::Param>(),
 							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
+							false,
 							false,
 							false
 						)
@@ -21056,6 +21806,14 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::currently_in_unsafe() const -> bool {
+		for(const sema::ScopeLevel::ID scope_level_id : this->scope | std::views::reverse){
+			if(this->context.sema_buffer.scope_manager.getLevel(scope_level_id).isUnsafe()){ return true; }
+		}
+
+		return false;
+	}
 
 
 
@@ -22478,6 +23236,12 @@ namespace pcit::panther{
 					any_ready = true;
 				} break;
 
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(found_symbol_proc_id);
+					[[fallthrough]];
+				}
+
 				case SymbolProc::WaitOnResult::WAITING: {
 					any_waiting = true;
 				} break;
@@ -23633,6 +24397,11 @@ namespace pcit::panther{
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:                 any_waiting_or_ready = true; break;
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
+						[[fallthrough]];
+					}
 					case SymbolProc::WaitOnResult::WAITING:                    any_waiting_or_ready = true; break;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(true);
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: break;
@@ -23893,6 +24662,15 @@ namespace pcit::panther{
 				);
 				return evo::Unexpected(true);
 			}
+		}
+
+		if(func_infos[selected_func_overload_index.value()].func_type.isUnsafe && this->currently_in_unsafe() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				func_call,
+				"Call to unsafe function while not in an unsafe scope"
+			);
+			return evo::Unexpected(true);
 		}
 
 
@@ -24976,6 +25754,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*interface_type.symbolProcID);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                    return evo::Unexpected(Result::NEED_TO_WAIT);
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(Result::ERROR);
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
@@ -25664,7 +26447,7 @@ namespace pcit::panther{
 
 		if(
 			this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
-			!= Token::Kind::KEYWORD_THIS
+				!= Token::Kind::KEYWORD_THIS
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
@@ -26466,6 +27249,18 @@ namespace pcit::panther{
 				).ok == false){
 					return Result::ERROR;
 				}
+
+				if(
+					this->currently_in_unsafe() == false
+					&& this->context.getTypeManager().getTypeInfo(field.typeID.asTypeID()).isUninitPointer()
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+						instr.designated_init_new.memberInits[0].ident,
+						"Unsafe union designated initializer [new] while not in an unsafe scope"
+					);
+					return Result::ERROR;
+				}
 			}
 
 
@@ -26864,6 +27659,11 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*method.symbolProcID);
+					[[fallthrough]];
+				}
 				case SymbolProc::WaitOnResult::WAITING:                   any_waiting = true; break;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
@@ -27496,6 +28296,7 @@ namespace pcit::panther{
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_rt = ConditionalAttribute(*this, "rt");
+		auto attr_unsafe = ConditionalAttribute(*this, "unsafe");
 		auto attr_export = Attribute(*this, "export");
 		auto attr_entry = Attribute(*this, "entry");
 
@@ -27611,6 +28412,39 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "unsafe"){
+				if(attribute_params_info[i].empty()){
+					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #unsafe",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool unsafe_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_unsafe.set(attribute.attribute, unsafe_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #unsafe does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 			}else if(attribute_str == "export"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
@@ -27714,6 +28548,7 @@ namespace pcit::panther{
 			.is_pub         = attr_pub.is_set(),
 			.is_priv        = attr_priv.is_set(),
 			.is_runtime     = attr_rt.is_set(),
+			.is_unsafe      = attr_unsafe.is_set(),
 			.is_export      = attr_export.is_set(),
 			.is_entry       = attr_entry.is_set(),
 			.is_commutative = attr_commutative.is_set(),
@@ -27975,8 +28810,9 @@ namespace pcit::panther{
 			if(symbol_proc_to_add.hasErroredNoLock()){ continue; }
 
 			if(symbol_proc_to_add.status != SymbolProc::Status::WORKING){ // prevent race condition of setting up waits
-				symbol_proc_to_add.setStatusInQueue();
-				this->context.add_task_to_work_manager(symbol_proc_to_add_id);
+				if(symbol_proc_to_add.setStatusInQueueIfNotAlreadyDone()){
+					this->context.add_task_to_work_manager(symbol_proc_to_add_id);
+				}
 			}
 		}	
 	}
@@ -28046,26 +28882,29 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::type_qualifiers_check(
-		evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifers,
-		evo::ArrayProxy<TypeInfo::Qualifier> got_qualifers
+		evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifiers,
+		evo::ArrayProxy<TypeInfo::Qualifier> got_qualifiers
 	) -> evo::Result<bool> {
+		if(expected_qualifiers.empty() && got_qualifiers.empty()){ return false; }
+
 		bool is_implicit_conversion_to_optional = false;
 
-		if(expected_qualifers.size() != got_qualifers.size()){
+		if(expected_qualifiers.size() != got_qualifiers.size()){
 			if(
-				expected_qualifers.size() == got_qualifers.size() + 1
-				&& expected_qualifers.back().isOptional
-				&& expected_qualifers.back().isPtr == false
+				expected_qualifiers.size() == got_qualifiers.size() + 1
+				&& expected_qualifiers.back().isOptional
+				&& expected_qualifiers.back().isPtr == false
 			){
 				is_implicit_conversion_to_optional = true;
 			}else{
 				return evo::resultError;
 			}
 		}
+			
 
-		for(size_t i = 0; i < got_qualifers.size(); i+=1){
-			const TypeInfo::Qualifier& expected_qualifier = expected_qualifers[i];
-			const TypeInfo::Qualifier& got_qualifier      = got_qualifers[i];
+		for(size_t i = 0; i < got_qualifiers.size(); i+=1){
+			const TypeInfo::Qualifier& expected_qualifier = expected_qualifiers[i];
+			const TypeInfo::Qualifier& got_qualifier      = got_qualifiers[i];
 
 			if(expected_qualifier.isPtr != got_qualifier.isPtr){
 				return evo::resultError;
@@ -28081,7 +28920,8 @@ namespace pcit::panther{
 			}
 		}
 
-		return is_implicit_conversion_to_optional;
+		if(is_implicit_conversion_to_optional){ return true; }
+		return expected_qualifiers.back().isOptional && got_qualifiers.back().isOptional == false; // pointers
 	}
 
 	template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
@@ -28220,15 +29060,27 @@ namespace pcit::panther{
 
 					is_implicit_conversion_to_optional = qualifiers_check_result.value();
 
-					if(is_implicit_conversion_to_optional && got_expr.is_ephemeral() == false){
-						if constexpr(MAY_EMIT_ERROR){
-							this->emit_error(
-								Diagnostic::Code::SEMA_IMPLICIT_CONVERT_TO_OPTIONAL_NOT_EPHEMERAL,
-								location,
-								"A value can only be implicitly converted if the value is ephemeral"
-							);
+					if(is_implicit_conversion_to_optional){
+						if(got_expr.is_ephemeral() == false){
+							if constexpr(MAY_EMIT_ERROR){
+								this->emit_error(
+									Diagnostic::Code::SEMA_IMPLICIT_CONVERT_TO_OPTIONAL_NOT_EPHEMERAL,
+									location,
+									"A value can only be implicitly converted if the value is ephemeral"
+								);
+							}
+							return TypeCheckInfo::fail();
 						}
-						return TypeCheckInfo::fail();
+
+						if(got_type.isUninitPointer() && this->currently_in_unsafe() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+								location,
+								"Unsafe implicit conversion to optional uninitialized qualified pointer while not in "
+									"an unsafe scope"
+							);
+							return TypeCheckInfo::fail();
+						}
 					}
 				}
 

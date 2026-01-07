@@ -29,6 +29,7 @@ namespace pcit::panther::sema{
 						using core::UniqueID<uint32_t, ID>::UniqueID;
 					};
 
+					bool isUnsafe;
 
 				public:
 					Scope() = default;

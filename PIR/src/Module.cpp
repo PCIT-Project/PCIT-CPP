@@ -170,7 +170,7 @@ namespace pcit::pir{
 			}
 		}
 
-		auto Module::check_global_name_reusue(std::string_view global_name) const -> void {
+		auto Module::check_global_name_reuse(std::string_view global_name) const -> void {
 			for(const Function& func : this->functions){
 				evo::debugAssert(func.getName() != global_name, "global \"{}\" already used", global_name);
 			}

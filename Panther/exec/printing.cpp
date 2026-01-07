@@ -348,6 +348,10 @@ namespace pthr{
 						this->print_try_else(this->ast_buffer.getTryElse(stmt));
 					} break;
 
+					case panther::AST::Kind::UNSAFE: {
+						this->print_unsafe(this->ast_buffer.getUnsafe(stmt));
+					} break;
+
 					case panther::AST::Kind::BLOCK: {
 						this->indenter.print();
 						this->print_major_header("Statement Block");
@@ -1833,10 +1837,11 @@ namespace pthr{
 					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
 					case panther::AST::Kind::FOR:              case panther::AST::Kind::SWITCH:
 					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::INTERFACE_MAP:    case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::DEDUCER:          case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::UNSAFE:
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::INTERFACE_MAP:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}
@@ -2387,6 +2392,22 @@ namespace pthr{
 				this->indenter.pop();
 
 				this->indenter.pop();
+			}
+
+
+			auto print_unsafe(const panther::AST::Unsafe& unsafe_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Unsafe");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Block");
+					this->print_block(this->source.getASTBuffer().getBlock(unsafe_stmt.block));
+
+					this->indenter.pop();
+				}
 			}
 
 

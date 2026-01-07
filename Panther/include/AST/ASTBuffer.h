@@ -447,6 +447,16 @@ namespace pcit::panther{
 				return this->try_elses[node._value.node_index];
 			}
 
+			EVO_NODISCARD auto createUnsafe(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->unsafes.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::UNSAFE, node_index);
+			}
+			EVO_NODISCARD auto getUnsafe(const AST::Node& node) const -> const AST::Unsafe& {
+				evo::debugAssert(node.kind() == AST::Kind::UNSAFE, "Node is not a Unsafe");
+				return this->unsafes[node._value.node_index];
+			}
+
 
 			EVO_NODISCARD auto createArrayType(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -552,7 +562,9 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::New, uint32_t> news{};
 			core::LinearStepAlloc<AST::ArrayInitNew, uint32_t> array_init_news{};
 			core::LinearStepAlloc<AST::DesignatedInitNew, uint32_t> designated_init_news{};
+
 			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
+			core::LinearStepAlloc<AST::Unsafe, uint32_t> unsafes{};
 
 			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};
 			core::LinearStepAlloc<AST::InterfaceMap, uint32_t> interface_maps{};

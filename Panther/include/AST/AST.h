@@ -64,7 +64,9 @@ namespace pcit::panther::AST{
 		NEW,
 		ARRAY_INIT_NEW,
 		DESIGNATED_INIT_NEW,
+
 		TRY_ELSE,
+		UNSAFE,
 
 		ARRAY_TYPE,
 		INTERFACE_MAP,
@@ -450,6 +452,11 @@ namespace pcit::panther::AST{
 		Node exceptExpr;
 		evo::SmallVector<Token::ID> exceptParams;
 		Token::ID elseTokenID;
+	};
+
+	struct Unsafe{
+		Token::ID keyword;
+		Node block;
 	};
 
 

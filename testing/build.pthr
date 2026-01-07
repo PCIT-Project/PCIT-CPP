@@ -3,10 +3,10 @@ def build_exp = @import("std_exp/building.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(std.build.Output.PIR);
+	build_exp.setOutput(std.build.Output.RUN);
 	build_exp.setNumThreads(12);
 
-	// build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
+	build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
 	// build_exp.addStdLib("../../Panther-std/std".* as [Char:*]);
 
 
@@ -16,8 +16,9 @@ func entry = () #entry -> UI8 {
 		warnings : new @build.PackageWarningSettings{
 			methodCallOnNonMethod        = true,
 			deleteMovedFromExpr          = true,
-			deleteTriviallyDeletableType = true,
+			deleteTriviallyDeletableType = false, // TODO(FUTURE): set back to true
 			constexprIfCond              = true,
+			alreadyUnsafe                = true,
 			experimentalF80              = true,
 		},
 	);

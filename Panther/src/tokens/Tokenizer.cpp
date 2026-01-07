@@ -236,6 +236,7 @@ namespace pcit::panther{
 		{"errorDefer",  Token::Kind::KEYWORD_ERROR_DEFER},
 
 		{"try",         Token::Kind::KEYWORD_TRY},
+		{"unsafe",      Token::Kind::KEYWORD_UNSAFE},
 
 		// discard
 		{"_", Token::lookupKind("_")},

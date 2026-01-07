@@ -162,6 +162,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else_begin(const Instruction::TryElseBegin& instr) -> Result;
 			EVO_NODISCARD auto instr_try_else_end() -> Result;
+			EVO_NODISCARD auto instr_begin_unsafe(const Instruction::BeginUnsafe& instr) -> Result;
+			EVO_NODISCARD auto instr_end_unsafe() -> Result;
 
 
 			EVO_NODISCARD auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
@@ -449,6 +451,9 @@ namespace pcit::panther{
 					location
 				);
 			}
+
+
+			EVO_NODISCARD auto currently_in_unsafe() const -> bool;
 
 
 			EVO_NODISCARD auto currently_in_func() const -> bool;
@@ -848,6 +853,7 @@ namespace pcit::panther{
 				bool is_pub;
 				bool is_priv;
 				bool is_runtime;
+				bool is_unsafe;
 				bool is_export;
 				bool is_entry;
 				bool is_commutative;
@@ -980,8 +986,8 @@ namespace pcit::panther{
 
 
 			auto type_qualifiers_check(
-				evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifers,
-				evo::ArrayProxy<TypeInfo::Qualifier> got_qualifers
+				evo::ArrayProxy<TypeInfo::Qualifier> expected_qualifiers,
+				evo::ArrayProxy<TypeInfo::Qualifier> got_qualifiers
 			) -> evo::Result<bool>; // bool is if is implicit conversion to optional
 
 
@@ -1333,6 +1339,9 @@ namespace pcit::panther{
 
 					}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
 						return this->get_location(this->get_current_func().params[0].ident.as<Token::ID>());
+
+					}else if constexpr(std::is_same<IDType, sema::UninitPtrLocalVar>()){
+						return this->get_location(id.varID);
 
 					}else{
 						static_assert(false, "Unknown value state ID");

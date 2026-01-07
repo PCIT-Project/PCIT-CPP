@@ -94,7 +94,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> {
 	func append = (this mut) -> T*! {
 		this._size += 1;
 
-		unsafe{ return this._data[this._size - 1].getUninit(); }
+		unsafe{ return this._data[this._size - 1].getUninit();}
 	}
 
 	func pop = (this mut) -> Void {
@@ -128,10 +128,10 @@ func entry = () #entry -> UI8 {
 	var nums = new StaticArrayList<{Int, 5}>();
 
 	var num_uninit: Int*! = nums.append();
-	num_uninit.* = 12;
 	var num: Int* = {->expr:Int*
 		unsafe{ return->expr std.bit.bitCast<{Int*}>(num_uninit); }
 	};
+	// num.* = 12;
 
-	return (num.* == nums.last().*) as UI8; // 1
+	return 0;
 }

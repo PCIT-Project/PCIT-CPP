@@ -37,6 +37,12 @@ namespace pcit::panther::sema{
 		EVO_NODISCARD auto operator==(const OpDeleteThisAccessorValueStateID&) const -> bool = default;
 	};
 
+	struct UninitPtrLocalVar{
+		VarID varID;
+
+		EVO_NODISCARD auto operator==(const UninitPtrLocalVar&) const -> bool = default;
+	};
+
 }
 
 
@@ -55,6 +61,13 @@ namespace std{
 	struct hash<pcit::panther::sema::OpDeleteThisAccessorValueStateID>{
 		auto operator()(pcit::panther::sema::OpDeleteThisAccessorValueStateID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.abiIndex);
+		};
+	};
+
+	template<>
+	struct hash<pcit::panther::sema::UninitPtrLocalVar>{
+		auto operator()(pcit::panther::sema::UninitPtrLocalVar local_var) const noexcept -> size_t {
+			return std::hash<pcit::panther::sema::VarID>{}(local_var.varID);
 		};
 	};
 
@@ -193,7 +206,8 @@ namespace pcit::panther::sema{
 				sema::ExceptParamID,
 				sema::ForParamID,
 				ReturnParamAccessorValueStateID,
-				OpDeleteThisAccessorValueStateID
+				OpDeleteThisAccessorValueStateID,
+				UninitPtrLocalVar
 			>;
 			enum class ValueState{
 				UNINIT,
@@ -255,6 +269,9 @@ namespace pcit::panther::sema{
 
 			auto setDontDoShadowingChecks() -> void { this->do_shadowing_checks = false; }
 			EVO_NODISCARD auto doesShadowingChecks() const -> bool { return this->do_shadowing_checks; }
+
+			auto setIsUnsafe() -> void { this->is_unsafe = true; }
+			EVO_NODISCARD auto isUnsafe() const -> bool { return this->is_unsafe; }
 
 
 			auto addSubScope() -> void;
@@ -376,7 +393,9 @@ namespace pcit::panther::sema{
 			bool is_defer_main_scope = false;
 			bool is_loop_main_scope = false;
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
+			bool is_unsafe = false;
 
+		private:
 			unsigned num_sub_scopes = false;
 			unsigned num_sub_scopes_terminated = 0;
 			mutable evo::SpinLock sub_scopes_and_stmt_block_lock{};

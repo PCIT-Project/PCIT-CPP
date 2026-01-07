@@ -90,6 +90,7 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
 				case SymbolProc::WaitOnResult::WAITING:                    return false;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
@@ -108,6 +109,7 @@ namespace pcit::panther{
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
 				case SymbolProc::WaitOnResult::WAITING:                    return false;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
@@ -147,7 +149,7 @@ namespace pcit::panther{
 
 
 
-		auto SymbolProcManager::debug_dump() -> void {
+		auto SymbolProcManager::debug_dump(bool minimize_done) -> void {
 			evo::printlnGreen("SymbolProcManager debug dump:");
 			evo::printlnGray("-----------------------------");
 
@@ -163,6 +165,61 @@ namespace pcit::panther{
 
 			for(size_t i = 0; const SymbolProc& symbol_proc : this->iterSymbolProcs()){
 				EVO_DEFER([&](){ i += 1; });
+
+
+				if(
+					minimize_done && 
+					(
+						symbol_proc.status.load() == SymbolProc::Status::DONE
+						|| symbol_proc.status.load() == SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD
+					)
+				){
+					evo::printGray("Symbol Proc {} ", i);
+					if(symbol_proc.ident.empty()){
+						evo::printlnGray("(UNNAMED):");
+					}else{
+						evo::printGray("\"{}\"", symbol_proc.ident);
+						evo::printlnGray(":");
+					}
+
+
+					if(symbol_proc.parent == nullptr){
+						evo::printlnGray("\tParent: (NONE)");
+					}else{
+						if(symbol_proc.parent->ident.empty()){
+							evo::printlnGray("\tParent: (UNNAMED)");
+						}else{
+							evo::printlnGray("\tParent: \"{}\"", symbol_proc.parent->ident);
+						}
+					}
+
+					switch(symbol_proc.ast_node.kind()){
+						break; case AST::Kind::VAR_DEF:                evo::printlnGray("\tAST Node: VAR_DEF");
+						break; case AST::Kind::FUNC_DEF:               evo::printlnGray("\tAST Node: FUNC_DEF");
+						break; case AST::Kind::DELETED_SPECIAL_METHOD:
+							evo::printlnGray("\tAST Node: DELETED_SPECIAL_METHOD");
+						break; case AST::Kind::ALIAS_DEF:              evo::printlnGray("\tAST Node: ALIAS_DEF");
+						break; case AST::Kind::STRUCT_DEF:             evo::printlnGray("\tAST Node: STRUCT_DEF");
+						break; case AST::Kind::UNION_DEF:              evo::printlnGray("\tAST Node: UNION_DEF");
+						break; case AST::Kind::ENUM_DEF:               evo::printlnGray("\tAST Node: ENUM_DEF");
+						break; case AST::Kind::INTERFACE_DEF:          evo::printlnGray("\tAST Node: INTERFACE_DEF");
+						break; case AST::Kind::INTERFACE_IMPL:         evo::printlnGray("\tAST Node: INTERFACE_IMPL");
+						break; case AST::Kind::WHEN_CONDITIONAL:       evo::printlnGray("\tAST Node: WHEN_CONDITIONAL");
+						break; case AST::Kind::FUNC_CALL:              evo::printlnGray("\tAST Node: FUNC_CALL");
+						break; default: evo::printlnRed("\nAST Node: {{UNKNOWN}}");
+					}
+
+					switch(symbol_proc.status.load()){
+						break; case SymbolProc::Status::DONE: evo::printlnGray("\tStatus: DONE");
+						break; case SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD:
+							evo::printlnGray("\tStatus: IN_DEF_DEDUCER_IMPL_METHOD");
+						break; default: evo::printlnRed("\tStatus: UNKNOWN MINIMIZED");
+					}
+					
+
+					evo::println();
+					continue;
+				}
 
 
 				evo::printCyan("Symbol Proc {} ", i);

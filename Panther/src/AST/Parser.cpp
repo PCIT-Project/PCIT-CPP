@@ -69,6 +69,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
+			case Token::Kind::KEYWORD_UNSAFE:      return this->parse_unsafe();
 		}
 
 		Result result = this->parse_assignment();
@@ -1514,6 +1515,19 @@ namespace pcit::panther{
 			"[try] statements without [else] are currently unsupported"
 		);
 		return Result::Code::ERROR;
+	}
+
+
+	// TODO(FUTURE): check EOF
+	auto Parser::parse_unsafe() -> Result {
+		const Token::ID start_location = this->reader.peek();
+
+		if(this->assert_token(Token::Kind::KEYWORD_UNSAFE).isError()){ return Result::Code::ERROR; }
+
+		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+		if(this->check_result(block, "block in unsafe").isError()){ return Result::Code::ERROR; }
+
+		return this->source.ast_buffer.createUnsafe(start_location, block.value());
 	}
 
 

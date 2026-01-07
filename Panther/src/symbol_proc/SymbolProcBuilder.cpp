@@ -495,20 +495,20 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:         case AST::Kind::ERROR:               case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:       case AST::Kind::DELETE:              case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:          case AST::Kind::FOR:                 case AST::Kind::SWITCH:
-			case AST::Kind::DEFER:          case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:      case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:              case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:        case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:
-			case AST::Kind::ARRAY_INIT_NEW: case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:
-			case AST::Kind::DEDUCER:        case AST::Kind::ARRAY_TYPE:          case AST::Kind::INTERFACE_MAP:
-			case AST::Kind::TYPE:           case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK:
-			case AST::Kind::ATTRIBUTE:      case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:
-			case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:           case AST::Kind::LITERAL:
-			case AST::Kind::UNINIT:         case AST::Kind::ZEROINIT:            case AST::Kind::THIS:
-			case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:          case AST::Kind::ERROR:               case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:        case AST::Kind::DELETE:              case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:           case AST::Kind::FOR:                 case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:           case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:
+			case AST::Kind::FUNC_CALL:       case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:
+			case AST::Kind::TEMPLATED_EXPR:  case AST::Kind::PREFIX:              case AST::Kind::INFIX:
+			case AST::Kind::POSTFIX:         case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:
+			case AST::Kind::ARRAY_INIT_NEW:  case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:
+			case AST::Kind::UNSAFE:          case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:                case AST::Kind::TYPEID_CONVERTER:
+			case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:           case AST::Kind::PRIMITIVE_TYPE:
+			case AST::Kind::IDENT:           case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:         case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:            case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1845,6 +1845,7 @@ namespace pcit::panther{
 			case AST::Kind::ARRAY_INIT_NEW:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
+			case AST::Kind::UNSAFE:                 return this->analyze_unsafe(ast_buffer.getUnsafe(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::INTERFACE_MAP:          evo::debugFatalBreak("Invalid statment");
@@ -2639,6 +2640,20 @@ namespace pcit::panther{
 		}
 
 		this->add_instruction(this->context.symbol_proc_manager.createTryElseEnd());
+
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_unsafe(const AST::Unsafe& unsafe_stmt) -> evo::Result<> {
+		this->add_instruction(this->context.symbol_proc_manager.createBeginUnsafe(unsafe_stmt));
+
+		const AST::Block& block = this->source.getASTBuffer().getBlock(unsafe_stmt.block);
+		for(const AST::Node& stmt : block.statements){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(this->context.symbol_proc_manager.createEndUnsafe());
 
 		return evo::Result<>();
 	}
@@ -3616,12 +3631,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					node,
-					"Building symbol proc of infix (not [.] or [as]) is unimplemented"
-				);
-				return evo::resultError;
+				evo::debugFatalBreak("Unknown infix op");
 			} break;
 		}
 	}

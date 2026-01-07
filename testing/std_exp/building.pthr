@@ -42,6 +42,7 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 		deleteMovedFromExpr          = true,
 		deleteTriviallyDeletableType = true,
 		constexprIfCond              = true,
+		alreadyUnsafe                = true,
 		experimentalF80              = true,
 	};
 

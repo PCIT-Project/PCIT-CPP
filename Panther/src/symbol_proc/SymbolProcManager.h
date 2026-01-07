@@ -279,7 +279,7 @@ namespace pcit::panther{
 			//////////////////
 			// UnionDef
 
-			EVO_NODISCARD auto createUnionDef(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createUnionDef() -> Instruction {
 				return Instruction(Instruction::Kind::UNION_DEF, 0);
 			}
 
@@ -323,7 +323,7 @@ namespace pcit::panther{
 			//////////////////
 			// EnumDef
 
-			EVO_NODISCARD auto createEnumDef(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createEnumDef() -> Instruction {
 				return Instruction(Instruction::Kind::ENUM_DEF, 0);
 			}
 
@@ -1374,8 +1374,34 @@ namespace pcit::panther{
 			//////////////////
 			// TryElseEnd
 
-			EVO_NODISCARD auto createTryElseEnd(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createTryElseEnd() -> Instruction {
 				return Instruction(Instruction::Kind::TRY_ELSE_END, 0);
+			}
+
+
+
+			//////////////////
+			// BeginUnsafe
+
+			EVO_NODISCARD auto createBeginUnsafe(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_UNSAFE,
+					this->begin_unsafes.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getBeginUnsafe(Instruction instr) const
+			-> const Instruction::BeginUnsafe& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_UNSAFE, "Not a BeginUnsafe");
+				return this->begin_unsafes[instr._index];
+			}
+
+
+			//////////////////
+			// EndUnsafe
+
+			EVO_NODISCARD auto createEndUnsafe() -> Instruction {
+				return Instruction(Instruction::Kind::END_UNSAFE, 0);
 			}
 
 
@@ -1401,7 +1427,7 @@ namespace pcit::panther{
 			//////////////////
 			// RequireThisDef
 
-			EVO_NODISCARD auto createRequireThisDef(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createRequireThisDef() -> Instruction {
 				return Instruction(Instruction::Kind::REQUIRE_THIS_DEF, 0);
 			}
 
@@ -2919,7 +2945,7 @@ namespace pcit::panther{
 
 
 			#if defined(PCIT_CONFIG_DEBUG)
-				auto debug_dump() -> void;
+				auto debug_dump(bool minimize_done) -> void;
 			#endif
 
 	
@@ -3017,6 +3043,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint32_t> multi_assigns{};
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint32_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TryElseBegin, uint32_t> try_else_begins{};
+			core::SyncLinearStepAlloc<Instruction::BeginUnsafe, uint32_t> begin_unsafes{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDecl, uint32_t> wait_on_sub_symbol_proc_decls{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};

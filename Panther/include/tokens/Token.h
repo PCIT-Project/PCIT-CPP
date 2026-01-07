@@ -132,6 +132,7 @@ namespace pcit::panther{
 				KEYWORD_DEFER,
 				KEYWORD_ERROR_DEFER,
 
+				KEYWORD_UNSAFE,
 				KEYWORD_TRY,
 
 
@@ -405,7 +406,7 @@ namespace pcit::panther{
 				switch(kind){
 					break; case Kind::NONE:                   return "{{NONE}}";
 
-					break; case Kind::IDENT:                  return "IDENT";
+					break; case Kind::IDENT:                  return "IDENTIFIER";
 					break; case Kind::INTRINSIC:              return "INTRINSIC";
 					break; case Kind::ATTRIBUTE:              return "ATTRIBUTE";
 					break; case Kind::DEDUCER:                return "DEDUCER";
@@ -479,7 +480,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_UNION:          return "union";
 					break; case Kind::KEYWORD_ENUM:           return "enum";
 
-					break; case Kind::KEYWORD_RETURN:         return "return ";
+					break; case Kind::KEYWORD_RETURN:         return "return";
 					break; case Kind::KEYWORD_ERROR:          return "error";
 					break; case Kind::KEYWORD_UNREACHABLE:    return "unreachable";
 					break; case Kind::KEYWORD_BREAK:          return "break";
@@ -512,6 +513,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_ERROR_DEFER:    return "errorDefer";
 
 					break; case Kind::KEYWORD_TRY:            return "try";
+					break; case Kind::KEYWORD_UNSAFE:         return "unsafe";
 
 
 

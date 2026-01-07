@@ -325,7 +325,9 @@ namespace pcit::panther{
 			return_types.emplace_back(*return_panther_type);
 
 			base_type_id = type_manager.getOrCreateFunction(
-				BaseType::Function(std::move(params), std::move(return_types), std::move(error_types), false, false)
+				BaseType::Function(
+					std::move(params), std::move(return_types), std::move(error_types), true, false, false
+				)
 			);
 		}
 
@@ -574,7 +576,7 @@ namespace pcit::panther{
 					}
 
 					evo::log::debug(
-						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump()`"
+						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump(true)`"
 					);
 
 					// Prevent escape from breakpoint
@@ -2028,6 +2030,12 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("alreadyUnsafe"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("experimentalF80"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
@@ -2115,6 +2123,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2158,6 +2167,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2194,6 +2204,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2255,6 +2266,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2298,6 +2310,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2334,6 +2347,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2404,6 +2418,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2450,6 +2465,7 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2521,6 +2537,7 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2596,6 +2613,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2655,6 +2673,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2698,6 +2717,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2734,6 +2754,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2796,6 +2817,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2839,6 +2861,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2875,6 +2898,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -2945,6 +2969,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -2991,6 +3016,7 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -3064,6 +3090,7 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -3139,6 +3166,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -3181,7 +3209,7 @@ namespace pcit::panther{
 			evo::SmallVector<TypeInfo::VoidableID>&& error_returns
 		) -> TypeInfo::ID {
 			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns), false, false)
+				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns), false, false, false)
 			);
 
 			return type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type));
@@ -3299,6 +3327,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{package_id},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -3327,6 +3356,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)
@@ -3360,6 +3390,7 @@ namespace pcit::panther{
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
 					false,
+					false,
 					false
 				)
 			);
@@ -3383,6 +3414,7 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
+					false,
 					false,
 					false
 				)

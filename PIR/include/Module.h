@@ -49,7 +49,7 @@ namespace pcit::pir{
 			) -> Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
-					this->check_global_name_reusue(func_name);
+					this->check_global_name_reuse(func_name);
 				#endif
 
 				return this->functions.emplace_back(
@@ -98,7 +98,7 @@ namespace pcit::pir{
 			) -> ExternalFunction::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
-					this->check_global_name_reusue(func_name);
+					this->check_global_name_reuse(func_name);
 				#endif
 
 				return this->external_funcs.emplace_back(
@@ -321,7 +321,7 @@ namespace pcit::pir{
 						}
 					});
 						
-					this->check_global_name_reusue(global_name);
+					this->check_global_name_reuse(global_name);
 				#endif
 
 				return this->global_vars.emplace_back(std::move(global_name), type, linkage, value, isConstant);
@@ -397,7 +397,7 @@ namespace pcit::pir{
 				std::string&& struct_name, evo::SmallVector<Type>&& members, bool is_packed
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
-					this->check_global_name_reusue(struct_name);
+					this->check_global_name_reuse(struct_name);
 				#endif
 				evo::debugAssert(members.empty() == false, "Cannot create a struct type with no members");
 
@@ -516,7 +516,7 @@ namespace pcit::pir{
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
 
-				auto check_global_name_reusue(std::string_view global_name) const -> void;
+				auto check_global_name_reuse(std::string_view global_name) const -> void;
 
 				auto check_expr_type_match(Type type, const Expr& expr) const -> void;
 			#endif

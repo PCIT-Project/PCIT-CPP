@@ -334,6 +334,7 @@ namespace pcit::panther{
 			evo::SmallVector<Param> params;
 			evo::SmallVector<TypeInfoVoidableID> returnTypes;
 			evo::SmallVector<TypeInfoVoidableID> errorTypes;
+			bool isUnsafe;
 			bool hasNamedReturns;
 			bool hasNamedErrorReturns;
 
@@ -342,12 +343,14 @@ namespace pcit::panther{
 				evo::SmallVector<Param>&& _params,
 				evo::SmallVector<TypeInfoVoidableID>&& returns_types,
 				evo::SmallVector<TypeInfoVoidableID>&& error_types,
+				bool is_unsafe,
 				bool has_named_returns,
 				bool has_named_error_returns
 			) : 
 				params(std::move(_params)),
 				returnTypes(std::move(returns_types)),
 				errorTypes(std::move(error_types)),
+				isUnsafe(is_unsafe),
 				hasNamedReturns(has_named_returns),
 				hasNamedErrorReturns(has_named_error_returns)
 			{
@@ -610,6 +613,7 @@ namespace pcit::panther{
 			bool isTriviallyDefaultInitializable = false;
 			bool isConstexprDefaultInitializable = false;
 			bool isNoErrorDefaultInitializable = false;
+			bool isSafeDefaultInitializable = false;
 
 			bool isTriviallyComparable = false;
 
@@ -1170,12 +1174,17 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDefaultInitializable(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isSafeDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isSafeDefaultInitializable(BaseType::ID id) const -> bool;
+
+
 
 			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isConstexprDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 
 
 			EVO_NODISCARD auto isCopyable(TypeInfo::ID id) const -> bool;
@@ -1187,6 +1196,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isConstexprCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
+			EVO_NODISCARD auto isSafeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isSafeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
+
 
 			EVO_NODISCARD auto isMovable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isMovable(BaseType::ID id) const -> bool;
@@ -1197,9 +1210,14 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isConstexprMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isConstexprMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
+			EVO_NODISCARD auto isSafeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isSafeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
+
 
 			EVO_NODISCARD auto isTriviallyComparable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyComparable(BaseType::ID id) const -> bool;
+
 
 
 			//////////////////
@@ -1245,6 +1263,31 @@ namespace pcit::panther{
 		private:
 			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)
 				-> BaseType::ID;
+
+
+			enum class SpecialMember{
+				DEFAULT_NEW,
+				DELETE,
+				COPY,
+				MOVE,
+			};
+
+			enum class SpecialMemberProp{
+				AT_ALL,
+				CONSTEXPR,
+				NO_ERROR,
+				SAFE,
+				TRIVIAL,
+			};
+
+			template<SpecialMember SPECIAL_MEMBER, SpecialMemberProp SPECIAL_MEMBER_PROP>
+			EVO_NODISCARD auto special_member_prop_check(TypeInfo::ID id, const class SemaBuffer* sema_buffer) const
+				-> bool;
+
+			template<SpecialMember SPECIAL_MEMBER, SpecialMemberProp SPECIAL_MEMBER_PROP>
+			EVO_NODISCARD auto special_member_prop_check(BaseType::ID id, const class SemaBuffer* sema_buffer) const
+				-> bool;
+
 
 
 			EVO_NODISCARD auto get_parent_name(
