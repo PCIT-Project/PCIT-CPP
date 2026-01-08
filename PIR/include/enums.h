@@ -45,10 +45,10 @@ namespace pcit::pir{
 			ACQUIRE, // (only load) no reordering of reads or writes to before
 			RELEASE, // (only store) no reordering of reads or writes to after
 			ACQUIRE_RELEASE, // (only read-modify-write) an acquire and release 
-			                //   only works if both threads use the same atomic variable
+			                 //   only works if both threads use the same atomic variable
 			SEQUENTIALLY_CONSISTENT, // load = aquire, store = release, rmw = AcquireRelease 
-				                    //   however it works with multiple atomic variables
-			                        //   (slower than raw acquire, release, AcquireRelease)
+				                     //   however it works with multiple atomic variables
+			                         //   (slower than raw acquire, release, AcquireRelease)
 		};
 		using enum class Value;
 

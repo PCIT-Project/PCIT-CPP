@@ -104,7 +104,7 @@ namespace pcit::core{
 
 		EVO_NODISCARD auto getBool() const -> bool {
 			evo::debugAssert(this->num_bytes == 1, "Not a bool");
-			return bool(this->data.small);
+			return bool(this->data.small & 1);
 		}
 
 		EVO_NODISCARD auto getChar() const -> char {

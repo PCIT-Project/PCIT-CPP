@@ -47,7 +47,7 @@ namespace pcit::core{
 			
 
 			EVO_NODISCARD auto emplace_back(auto&&... args) -> ID {
-				const auto lock = std::scoped_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->spin_lock);
 
 				if(this->erased_elems.empty() == false){
 					const ID new_elem_id = this->erased_elems.top();
@@ -62,7 +62,7 @@ namespace pcit::core{
 
 
 			auto erase(ID id) -> void {
-				const auto lock = std::scoped_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->spin_lock);
 
 				this->linear_step_alloc[id].reset();
 				this->erased_elems.push(id);
@@ -75,7 +75,7 @@ namespace pcit::core{
 
 
 			auto operator[](const ID& id) const -> const T& {
-				const auto lock = std::scoped_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				if constexpr(std::is_integral_v<ID>){
 					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
 				}else{
@@ -86,7 +86,7 @@ namespace pcit::core{
 			}
 
 			auto operator[](const ID& id) -> T& {
-				const auto lock = std::scoped_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->spin_lock);
 				if constexpr(std::is_integral_v<ID>){
 					evo::debugAssert(this->linear_step_alloc[id].has_value(), "This element ({}) was erased", id);
 				}else{
@@ -102,7 +102,7 @@ namespace pcit::core{
 
 
 			EVO_NODISCARD auto clear() -> void {
-				const auto lock = std::scoped_lock(this->mutex);
+				const auto lock = std::scoped_lock(this->spin_lock);
 
 				this->clear_without_lock();
 			}
@@ -178,8 +178,12 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> T& { return this->parent->operator[](this->index); }
-			        EVO_NODISCARD auto operator->() const -> T* { return &this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator*() const -> T& {
+			        	return *this->parent->linear_step_alloc.operator[](this->index);
+			        }
+			        EVO_NODISCARD auto operator->() const -> T* {
+			        	return &*this->parent->linear_step_alloc.operator[](this->index);
+			        }
 
 			        EVO_NODISCARD auto operator==(const Iter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -270,8 +274,12 @@ namespace pcit::core{
 			        }
 
 
-			        EVO_NODISCARD auto operator*() const -> const T& { return this->parent->operator[](this->index); }
-			        EVO_NODISCARD auto operator->() const -> const T* { return &this->parent->operator[](this->index); }
+			        EVO_NODISCARD auto operator*() const -> const T& {
+			        	return *this->parent->linear_step_alloc.operator[](this->index);
+			        }
+			        EVO_NODISCARD auto operator->() const -> const T* {
+			        	return &*this->parent->linear_step_alloc.operator[](this->index);
+			        }
 
 			        EVO_NODISCARD auto operator==(const ConstIter& rhs) const -> bool {
 			        	return this->index == rhs.index;
@@ -295,7 +303,7 @@ namespace pcit::core{
 			static_assert(std::bidirectional_iterator<ConstIter>);
 
 
-
+			// iteration is not thread safe
 
 			EVO_NODISCARD auto begin()        ->      Iter { return Iter(ID(0), *this);      }
 			EVO_NODISCARD auto begin()  const -> ConstIter { return ConstIter(ID(0), *this); }
@@ -304,6 +312,13 @@ namespace pcit::core{
 			EVO_NODISCARD auto end()        ->      Iter { return Iter(ID(uint32_t(this->size())), *this);      }
 			EVO_NODISCARD auto end()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
 			EVO_NODISCARD auto cend() const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
+
+
+
+
+			EVO_NODISCARD auto getScopedLock() const -> std::scoped_lock<evo::SpinLock> {
+				return std::scoped_lock(this->spin_lock);
+			}
 
 
 		private:
@@ -315,7 +330,7 @@ namespace pcit::core{
 		private:
 			LinearStepAlloc<std::optional<T>, ID, STARTING_POW_OF_2> linear_step_alloc{};
 			std::stack<ID> erased_elems{};
-			mutable evo::SpinLock mutex{};
+			mutable evo::SpinLock spin_lock{};
 	};
 
 }

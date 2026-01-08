@@ -2516,7 +2516,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F64:           return false;
 			case Token::Kind::TYPE_F80:           return false;
 			case Token::Kind::TYPE_F128:          return false;
-			case Token::Kind::TYPE_BYTE:          return false;
+			case Token::Kind::TYPE_BYTE:          return true;
 			case Token::Kind::TYPE_BOOL:          return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
@@ -2571,7 +2571,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F64:           return false;
 			case Token::Kind::TYPE_F80:           return false;
 			case Token::Kind::TYPE_F128:          return false;
-			case Token::Kind::TYPE_BYTE:          return false;
+			case Token::Kind::TYPE_BYTE:          return true;
 			case Token::Kind::TYPE_BOOL:          return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;

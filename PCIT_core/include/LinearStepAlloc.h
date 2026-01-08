@@ -58,7 +58,7 @@ namespace pcit::core{
 				T* new_elem_ptr = &this->buffers.back()[this->current_end_of_buffer];
 
 				// using placement new to allow for construction of type that have private constructors but are friends
-				::new (static_cast<void*>(new_elem_ptr)) T(std::forward<decltype(args)>(args)...);
+				new(static_cast<void*>(new_elem_ptr)) T(std::forward<decltype(args)>(args)...);
 
 				EVO_DEFER([&](){ this->current_end_of_buffer += 1; });
 
@@ -258,6 +258,9 @@ namespace pcit::core{
 
 		private:
 			EVO_NODISCARD auto size_when_not_fully_deallocated() const -> size_t {
+				evo::debugAssert(
+					this->buffers.empty() == false, "Cannot be fully deallocated, call this->size() instead"
+				);
 				return (size_t(1) << (this->buffers.size() - 1 + STARTING_POW_OF_2)) - (1 << STARTING_POW_OF_2)
 					+ this->current_end_of_buffer;
 			}

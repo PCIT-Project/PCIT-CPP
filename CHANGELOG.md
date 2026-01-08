@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.215.1"></a>
+## v0.0.215.1
+
+### Panther
+- Fixed deduced types and expressions in function parameters being used in function attributes arguments
+- Fixed `Byte` not counting as Integral
+- Fixed `Bool` values returned from constexpr function calls being true when they should be false
+
+### PIR
+- Fixed race condition in debug build (check global name reuse)
+
+
+<!---------------------------------->
 <a name="v0.0.215.0"></a>
 ## v0.0.215.0
 

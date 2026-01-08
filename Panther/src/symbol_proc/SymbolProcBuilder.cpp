@@ -198,10 +198,6 @@ namespace pcit::panther{
 
 		const AST::FuncDef& func_def = ast_buffer.getFuncDef(template_symbol_proc.ast_node);
 
-		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-			this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
-		if(attribute_params_info.isError()){ return evo::resultError; }
-
 
 		auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
 		types.reserve(func_def.params.size() + func_def.returns.size() + func_def.errorReturns.size());
@@ -243,6 +239,10 @@ namespace pcit::panther{
 				default_param_values.emplace_back();
 			}
 		}
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
 
 
 		size_t num_extra_variadics = 0;
@@ -659,11 +659,6 @@ namespace pcit::panther{
 
 
 		if(template_param_infos.empty() && has_type_deducer_param == false && func_def.isVariadic == false){
-			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
-				this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
-			if(attribute_params_info.isError()){ return evo::resultError; }
-
-
 			auto types = evo::SmallVector<std::optional<SymbolProcTypeID>>();
 			types.reserve(func_def.params.size() + func_def.returns.size() + func_def.errorReturns.size());
 
@@ -691,6 +686,11 @@ namespace pcit::panther{
 					default_param_values.emplace_back();
 				}
 			}
+
+			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+				this->analyze_attributes(ast_buffer.getAttributeBlock(func_def.attributeBlock));
+			if(attribute_params_info.isError()){ return evo::resultError; }
+
 
 			for(const AST::FuncDef::Return& return_param : func_def.returns){
 				const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<false>(
