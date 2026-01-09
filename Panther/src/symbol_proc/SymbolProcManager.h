@@ -1651,6 +1651,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// MakeInitPtr
+
+			EVO_NODISCARD auto createMakeInitPtr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::MAKE_INIT_PTR,
+					this->make_init_ptrs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getMakeInitPtr(Instruction instr) const -> const Instruction::MakeInitPtr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::MAKE_INIT_PTR, "Not an MakeInitPtr");
+				return this->make_init_ptrs[instr._index];
+			}
+
+
+
+			//////////////////
 			// TemplateIntrinsicFuncCall<true>
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncCallConstexpr(auto&&... args) -> Instruction {
@@ -3059,6 +3076,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint32_t> import_cs{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint32_t> import_cpps{};
 			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint32_t> is_macro_defineds{};
+			core::SyncLinearStepAlloc<Instruction::MakeInitPtr, uint32_t> make_init_ptrs{};
 
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint32_t>
 				template_intrinsic_func_call_constexprs{};

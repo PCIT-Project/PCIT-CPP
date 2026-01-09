@@ -728,6 +728,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct MakeInitPtr{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID uninit_ptr;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_CONSTEXPR>
 		struct TemplateIntrinsicFuncCall{
 			const AST::FuncCall& func_call;
@@ -1129,6 +1135,7 @@ namespace pcit::panther{
 			IMPORT_C,
 			IMPORT_CPP,
 			IS_MACRO_DEFINED,
+			MAKE_INIT_PTR,
 			TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
 			INDEXER_CONSTEXPR,

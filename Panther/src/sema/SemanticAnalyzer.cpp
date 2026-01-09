@@ -491,6 +491,9 @@ namespace pcit::panther{
 			case Instruction::Kind::IS_MACRO_DEFINED:
 				return this->instr_is_macro_defined(this->context.symbol_proc_manager.getIsMacroDefined(instr));
 
+			case Instruction::Kind::MAKE_INIT_PTR:
+				return this->instr_make_init_ptr(this->context.symbol_proc_manager.getMakeInitPtr(instr));
+
 			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR:
 				return this->instr_template_intrinsic_func_call<true>(
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallConstexpr(instr)
@@ -11934,8 +11937,26 @@ namespace pcit::panther{
 
 
 		if(clang_module_term_info.value_category != TermInfo::ValueCategory::CLANG_MODULE){
-			evo::debugAssert("MUST BE CLANG MODULE");
+			this->emit_error(
+				Diagnostic::Code::SEMA_IS_MACRO_DEFINED_ARG_NOT_MODULE,
+				instr.func_call.args[0].value,
+				"First arugment in `@isMacroDefined` must be a C or C++ module"
+			);
+			return Result::ERROR;
 		}
+
+		if(
+			macro_name_term_info.type_id.is<TypeInfo::ID>() == false
+			|| macro_name_term_info.getExpr().kind() != sema::Expr::Kind::STRING_VALUE
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_IS_MACRO_DEFINED_ARG_NOT_STRING,
+				instr.func_call.args[1].value,
+				"Second arugment in `@isMacroDefined` must be a string"
+			);
+			return Result::ERROR;
+		}
+
 
 		const ClangSource& clang_module = 
 			this->context.source_manager[clang_module_term_info.type_id.as<ClangSourceID>()];
@@ -11951,6 +11972,83 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
+		);
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_make_init_ptr(const Instruction::MakeInitPtr& instr) -> Result {
+		const TermInfo& uninit_ptr_value = this->get_term_info(instr.uninit_ptr);
+
+		if(uninit_ptr_value.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
+				instr.func_call.args[0].value,
+				"Arugment in `@makeInitPtr` must be an uninitialized qualified pointer value"
+			);
+			return Result::ERROR;
+		}
+
+		if(uninit_ptr_value.is_concrete() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
+				instr.func_call.args[0].value,
+				"Arugment in `@makeInitPtr` must be concrete"
+			);
+			return Result::ERROR;
+		}
+
+		if(uninit_ptr_value.getExpr().kind() != sema::Expr::Kind::VAR){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
+				instr.func_call.args[0].value,
+				"Arugment in `@makeInitPtr` must be a value"
+			);
+			return Result::ERROR;
+		}
+
+		const TypeInfo& uninit_ptr_type =
+			this->context.getTypeManager().getTypeInfo(uninit_ptr_value.type_id.as<TypeInfo::ID>());
+
+		if(uninit_ptr_type.isUninitPointer() == false){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
+				instr.func_call.args[0].value,
+				"Arugment in `@makeInitPtr` must be an uninitialized qualified pointer value"
+			);
+			return Result::ERROR;;
+		}
+
+
+		if(
+			this->get_ident_value_state(sema::UninitPtrLocalVar(uninit_ptr_value.getExpr().varID()))
+				!= TermInfo::ValueState::INIT
+		){
+			this->emit_error(
+				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
+				instr.func_call.args[0].value,
+				"Pointee of argument in `@makeInitPtr` must be initialized"
+			);
+			return Result::ERROR;;
+		}
+
+
+		auto output_qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
+			uninit_ptr_type.qualifiers().begin(), uninit_ptr_type.qualifiers().end()
+		);
+		output_qualifiers.back().isUninit = false;
+
+		const TypeInfo::ID output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(uninit_ptr_type.baseTypeID(), std::move(output_qualifiers))
+		);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			output_type_id,
+			sema::Expr(this->context.sema_buffer.createCopy(uninit_ptr_value.getExpr(), output_type_id, true))
 		);
 		return Result::SUCCESS;
 	}

@@ -2906,10 +2906,12 @@ namespace pcit::panther{
 
 		if(func_call.target.kind() == AST::Kind::INTRINSIC){
 			const Token::ID intrin_tok_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
-			if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "import"){
+			const std::string_view intrin_string = this->source.getTokenBuffer()[intrin_tok_id].getString();
+
+			if(intrin_string == "import"){
 				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
 						intrin_tok_id,
 						"Intrinsic @import does not error"
 					);
@@ -2947,10 +2949,10 @@ namespace pcit::panther{
 					return new_term_info_id;
 				}
 
-			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "importC"){
+			}else if(intrin_string == "importC"){
 				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
 						intrin_tok_id,
 						"Intrinsic @importC does not error"
 					);
@@ -2988,10 +2990,10 @@ namespace pcit::panther{
 					return new_term_info_id;
 				}
 
-			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "importCPP"){
+			}else if(intrin_string == "importCPP"){
 				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
 						intrin_tok_id,
 						"Intrinsic @importCPP does not error"
 					);
@@ -3029,10 +3031,10 @@ namespace pcit::panther{
 					return new_term_info_id;
 				}
 
-			}else if(this->source.getTokenBuffer()[intrin_tok_id].getString() == "isMacroDefined"){
+			}else if(intrin_string == "isMacroDefined"){
 				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_IMPORT_DOESNT_ERROR,
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
 						intrin_tok_id,
 						"Intrinsic @isMacroDefined does not error"
 					);
@@ -3056,7 +3058,7 @@ namespace pcit::panther{
 							this->emit_error(
 								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 								func_call,
-								"Calls to @isMacroDefined requires a macro name string"
+								"Calls to @isMacroDefined requires two parameters"
 							);
 						}
 						return evo::resultError;
@@ -3077,6 +3079,48 @@ namespace pcit::panther{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createIsMacroDefined(
 							func_call, module_value.value(), macro_name_value.value(), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				}
+
+			}else if(intrin_string == "makeInitPtr"){
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
+						intrin_tok_id,
+						"Intrinsic @makeInitPtr does not error"
+					);
+					return evo::resultError;
+
+				}else{
+					if(func_call.args.size() != 1){
+						if(func_call.args.empty()){
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+								intrin_tok_id,
+								"Calls to @makeInitPtr requires an uninitialized qualified pointer value"
+							);
+						}else{
+							this->emit_error(
+								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+								func_call.args[1].value,
+								"Calls to @makeInitPtr requires an uninitialized qualified pointer value, "
+									"and no other arguments"
+							);
+						}
+						return evo::resultError;
+					}
+
+					const evo::Result<SymbolProc::TermInfoID> uninit_ptr = this->analyze_expr<true>(
+						func_call.args[0].value
+					);
+					if(uninit_ptr.isError()){ return evo::resultError; }
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createMakeInitPtr(
+							func_call, uninit_ptr.value(), new_term_info_id
 						)
 					);
 					return new_term_info_id;

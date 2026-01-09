@@ -6,10 +6,10 @@ def sal = @import("StaticArrayList.pthr");
 func entry = () #entry -> UI8 {
 	var nums = new sal.StaticArrayList<{Int, 5}>();
 
-	var num_uninit: Int*! = nums.append();
-	num_uninit.* = 12;
 	var num: Int* = {->expr:Int*
-		return->expr std.bit.bitCast<{Int*}>(num_uninit);
+		var num_uninit: Int*! = nums.append();
+		num_uninit.* = 12;
+		return->expr @makeInitPtr(num_uninit);
 	};
 
 	return (num.* == 12 as Int) as UI8; // 1

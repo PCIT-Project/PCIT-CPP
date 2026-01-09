@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.216.0"></a>
+## v0.0.216.0
+
+### Panther
+- Added `@makeInitPtr`
+- Fixed missing checking of arguments in `@isMacroDefined`
+
+
+<!---------------------------------->
 <a name="v0.0.215.1"></a>
 ## v0.0.215.1
 
