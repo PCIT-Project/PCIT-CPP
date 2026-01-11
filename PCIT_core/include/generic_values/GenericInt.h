@@ -251,7 +251,7 @@ namespace pcit::core{
 				return GenericInt(this->ap_int.reverseBits());
 			}
 
-			EVO_NODISCARD auto bSwap() const -> GenericInt {
+			EVO_NODISCARD auto byteSwap() const -> GenericInt {
 				return GenericInt(this->ap_int.byteSwap());
 			}
 

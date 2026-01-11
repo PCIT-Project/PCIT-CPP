@@ -144,7 +144,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getUSHR(const Expr& expr) const -> const USHR&;
 
 			EVO_NODISCARD auto getBitReverse(const Expr& expr) const -> const BitReverse&;
-			EVO_NODISCARD auto getBSwap(const Expr& expr) const -> const BSwap&;
+			EVO_NODISCARD auto getByteSwap(const Expr& expr) const -> const ByteSwap&;
 			EVO_NODISCARD auto getCtPop(const Expr& expr) const -> const CtPop&;
 			EVO_NODISCARD auto getCTLZ(const Expr& expr) const -> const CTLZ&;
 			EVO_NODISCARD auto getCTTZ(const Expr& expr) const -> const CTTZ&;

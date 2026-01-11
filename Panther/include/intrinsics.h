@@ -95,7 +95,7 @@ namespace pcit::panther{
 			SHL_SAT,
 			SHR,
 			BIT_REVERSE,
-			BSWAP,
+			BYTE_SWAP,
 			CTPOP,
 			CTLZ,
 			CTTZ,

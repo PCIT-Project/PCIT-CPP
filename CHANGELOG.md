@@ -1,6 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.217.0"></a>
+## v0.0.217.0
+
+### Panther
+- Added unsafe checking for `@bitCast`
+- Changed `@bSwap` to `@byteSwap`
+- Added check that shift operator with a fluid LHS and explicitly typed RHS is valid (valid type for LHS)
+- Fixed missing checks for intrinsic template arguments
+- Fixed lowering `@bitCast`
+
+### PIR
+- Added checking that `@bitCast` cast types are primitives
+- Changed `@bSwap` to `@byteSwap`
+- Changed default calling convesion to fast
+
+### Misc
+- Updated to [Panther-std v0.0.11.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.11.0)
+
+
+<!---------------------------------->
 <a name="v0.0.216.0"></a>
 ## v0.0.216.0
 
@@ -21,6 +41,9 @@
 ### PIR
 - Fixed race condition in debug build (check global name reuse)
 
+### Misc
+- Updated to [Panther-std v0.0.10.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.10.0)
+
 
 <!---------------------------------->
 <a name="v0.0.215.0"></a>
@@ -35,6 +58,9 @@
 - Fixed missing checks that initialization `copy`/`move` match their assignment counterparts
 - Fixed missing checks for constexpr assignment `copy`/`move`
 - Fixed race condition in semantic analysis when calling template function
+
+### Misc
+- Updated to [Panther-std v0.0.9.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.9.0)
 
 
 <!---------------------------------->

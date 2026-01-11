@@ -612,7 +612,7 @@ namespace pcit::pir{
 			core::StepAlloc<USHR, uint32_t> ushrs{};
 
 			core::StepAlloc<BitReverse, uint32_t> bit_reverses{};
-			core::StepAlloc<BSwap, uint32_t> bswaps{};
+			core::StepAlloc<ByteSwap, uint32_t> byte_swaps{};
 			core::StepAlloc<CtPop, uint32_t> ctpops{};
 			core::StepAlloc<CTLZ, uint32_t> ctlzs{};
 			core::StepAlloc<CTTZ, uint32_t> cttzs{};

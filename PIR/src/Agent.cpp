@@ -671,10 +671,10 @@ namespace pcit::pir{
 						if(bit_reverse.arg == original){ bit_reverse.arg = replacement; }
 					} break;
 
-					case Expr::Kind::BSWAP: {
-						BSwap& bswap = this->module.bswaps[stmt.index];
+					case Expr::Kind::BYTE_SWAP: {
+						ByteSwap& byte_swap = this->module.byte_swaps[stmt.index];
 
-						if(bswap.arg == original){ bswap.arg = replacement; }
+						if(byte_swap.arg == original){ byte_swap.arg = replacement; }
 					} break;
 
 					case Expr::Kind::CTPOP: {
@@ -1116,7 +1116,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Must return value");
 		evo::debugAssert(
-			this->getExprType(expr) == this->target_func->getReturnType(), "Return type must match function"
+			this->module.typesEquivalent(this->getExprType(expr), this->target_func->getReturnType()),
+			"Return type must match function"
 		);
 
 		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(expr));
@@ -1448,12 +1449,21 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createBitCast(const Expr& fromValue, const Type& toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) == this->module.getSize(toType),
-			"Cannot convert to a type of a different size ({} != {})",
-			this->module.getSize(this->getExprType(fromValue)),
-			this->module.getSize(toType)
-		);
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			const pir::Type from_type = this->getExprType(fromValue);
+
+			evo::debugAssert(
+				this->module.getSize(from_type) == this->module.getSize(toType),
+				"Cannot convert to a type of a different size ({} != {})",
+				this->module.getSize(from_type),
+				this->module.getSize(toType)
+			);
+
+			evo::debugAssert(from_type.isPrimitive(), "Cast type must be a primitive");
+			evo::debugAssert(toType.isPrimitive(), "Cast type must be a primitive");
+		#endif
+
 
 		const auto new_expr = Expr(
 			Expr::Kind::BIT_CAST,
@@ -2910,22 +2920,22 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createBSwap(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createByteSwap(const Expr& expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @bswap instruction only supports integers"
+			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @byteSwaP instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
-			Expr::Kind::BSWAP, this->module.bswaps.emplace_back(this->get_stmt_name(std::move(name)), expr)
+			Expr::Kind::BYTE_SWAP, this->module.byte_swaps.emplace_back(this->get_stmt_name(std::move(name)), expr)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::getBSwap(const Expr& expr) const -> const BSwap& {
-		return ReaderAgent(this->module, this->getTargetFunction()).getBSwap(expr);
+	auto Agent::getByteSwap(const Expr& expr) const -> const ByteSwap& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getByteSwap(expr);
 	}
 
 
@@ -3145,7 +3155,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::SSHR:              this->module.sshrs.erase(expr.index);
 			break; case Expr::Kind::USHR:              this->module.ushrs.erase(expr.index);
 			break; case Expr::Kind::BIT_REVERSE:       this->module.bit_reverses.erase(expr.index);
-			break; case Expr::Kind::BSWAP:             this->module.bswaps.erase(expr.index);
+			break; case Expr::Kind::BYTE_SWAP:         this->module.byte_swaps.erase(expr.index);
 			break; case Expr::Kind::CTPOP:             this->module.ctpops.erase(expr.index);
 			break; case Expr::Kind::CTLZ:              this->module.ctlzs.erase(expr.index);
 			break; case Expr::Kind::CTTZ:              this->module.cttzs.erase(expr.index);
@@ -3302,7 +3312,7 @@ namespace pcit::pir{
 					case Expr::Kind::SSHR:        if(this->getSSHR(stmt).name == name){       return true; } continue;
 					case Expr::Kind::USHR:        if(this->getUSHR(stmt).name == name){       return true; } continue;
 					case Expr::Kind::BIT_REVERSE: if(this->getBitReverse(stmt).name == name){ return true; } continue;
-					case Expr::Kind::BSWAP:       if(this->getBSwap(stmt).name == name){      return true; } continue;
+					case Expr::Kind::BYTE_SWAP:   if(this->getByteSwap(stmt).name == name){   return true; } continue;
 					case Expr::Kind::CTPOP:       if(this->getCtPop(stmt).name == name){      return true; } continue;
 					case Expr::Kind::CTLZ:        if(this->getCTLZ(stmt).name == name){       return true; } continue;
 					case Expr::Kind::CTTZ:        if(this->getCTTZ(stmt).name == name){       return true; } continue;

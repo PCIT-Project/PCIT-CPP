@@ -78,6 +78,14 @@ namespace pcit::pir{
 				return this->_kind == Kind::ARRAY || this->_kind == Kind::STRUCT;
 			}
 
+			EVO_NODISCARD auto isPrimitive() const -> bool {
+				return this->_kind == Kind::INTEGER
+					|| this->_kind == Kind::BOOL
+					|| this->_kind == Kind::FLOAT
+					|| this->_kind == Kind::BFLOAT
+					|| this->_kind == Kind::PTR;
+			}
+
 			EVO_NODISCARD auto hasWidth() const -> bool {
 				return this->_kind == Kind::INTEGER || this->_kind == Kind::FLOAT;
 			}

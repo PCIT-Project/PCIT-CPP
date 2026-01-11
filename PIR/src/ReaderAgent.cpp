@@ -146,7 +146,7 @@ namespace pcit::pir{
 			case Expr::Kind::SSHR:              return this->getExprType(this->getSSHR(expr).lhs);
 			case Expr::Kind::USHR:              return this->getExprType(this->getUSHR(expr).lhs);
 			case Expr::Kind::BIT_REVERSE:       return this->getExprType(this->getBitReverse(expr).arg);
-			case Expr::Kind::BSWAP:             return this->getExprType(this->getBSwap(expr).arg);
+			case Expr::Kind::BYTE_SWAP:         return this->getExprType(this->getByteSwap(expr).arg);
 			case Expr::Kind::CTPOP:             return this->getExprType(this->getCtPop(expr).arg);
 			case Expr::Kind::CTLZ:              return this->getExprType(this->getCTLZ(expr).arg);
 			case Expr::Kind::CTTZ:              return this->getExprType(this->getCTTZ(expr).arg);
@@ -816,11 +816,11 @@ namespace pcit::pir{
 		return this->module.bit_reverses[expr.index];
 	}
 
-	auto ReaderAgent::getBSwap(const Expr& expr) const -> const BSwap& {
+	auto ReaderAgent::getByteSwap(const Expr& expr) const -> const ByteSwap& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.kind() == Expr::Kind::BSWAP, "Not a bSwap");
+		evo::debugAssert(expr.kind() == Expr::Kind::BYTE_SWAP, "Not a byteSwap");
 
-		return this->module.bswaps[expr.index];
+		return this->module.byte_swaps[expr.index];
 	}
 
 	auto ReaderAgent::getCtPop(const Expr& expr) const -> const CtPop& {

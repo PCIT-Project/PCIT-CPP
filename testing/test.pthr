@@ -14,3 +14,9 @@ func entry = () #entry -> UI8 {
 
 	return (num.* == 12 as Int) as UI8; // 1
 }
+
+
+
+func test = () -> Void {
+	_ = @shl<{UI64, UI6, false}>(12, 14);
+}

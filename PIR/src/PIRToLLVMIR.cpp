@@ -1360,18 +1360,18 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, bit_reverse_value);
 					} break;
 
-					case Expr::Kind::BSWAP: {
-						const BSwap& bswap = this->reader.getBSwap(stmt);
+					case Expr::Kind::BYTE_SWAP: {
+						const ByteSwap& byte_swap = this->reader.getByteSwap(stmt);
 
-						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(bswap.arg);
+						const llvmint::Value arg = this->get_value<ADD_WEAK_DEPS>(byte_swap.arg);
 
-						const llvmint::Value bswap_value = this->builder.createIntrinsicCall(
+						const llvmint::Value byte_swap_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::BSWAP,
-							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(bswap.arg)),
+							this->get_type<ADD_WEAK_DEPS>(this->reader.getExprType(byte_swap.arg)),
 							arg,
-							bswap.name
+							byte_swap.name
 						).asValue();
-						this->stmt_values.emplace(stmt, bswap_value);
+						this->stmt_values.emplace(stmt, byte_swap_value);
 					} break;
 
 					case Expr::Kind::CTPOP: {
@@ -1775,7 +1775,7 @@ namespace pcit::pir{
 			case Expr::Kind::USHR:           return this->stmt_values.at(expr);
 
 			case Expr::Kind::BIT_REVERSE:    return this->stmt_values.at(expr);
-			case Expr::Kind::BSWAP:          return this->stmt_values.at(expr);
+			case Expr::Kind::BYTE_SWAP:      return this->stmt_values.at(expr);
 			case Expr::Kind::CTPOP:          return this->stmt_values.at(expr);
 			case Expr::Kind::CTLZ:           return this->stmt_values.at(expr);
 			case Expr::Kind::CTTZ:           return this->stmt_values.at(expr);
@@ -1927,7 +1927,7 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv {
 		switch(calling_conv){
-			case CallingConvention::DEFAULT: return llvmint::CallingConv::C;
+			case CallingConvention::DEFAULT: return llvmint::CallingConv::Fast;
 			case CallingConvention::C:       return llvmint::CallingConv::C;
 			case CallingConvention::FAST:    return llvmint::CallingConv::Fast;
 			case CallingConvention::COLD:    return llvmint::CallingConv::Cold;

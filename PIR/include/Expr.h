@@ -129,7 +129,7 @@ namespace pcit::pir{
 				USHR,
 
 				BIT_REVERSE,
-				BSWAP,
+				BYTE_SWAP,
 				CTPOP,
 				CTLZ,
 				CTTZ,
@@ -172,7 +172,7 @@ namespace pcit::pir{
 					case Kind::UGTE:              case Kind::FGTE:              case Kind::AND:
 					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
 					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
-					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BSWAP:
+					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BYTE_SWAP:
 					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ: {
 						return true;
 					} break;
@@ -218,7 +218,7 @@ namespace pcit::pir{
 					case Kind::FGTE:              case Kind::AND:               case Kind::OR:
 					case Kind::XOR:               case Kind::SHL:               case Kind::SSHL_SAT:
 					case Kind::USHL_SAT:          case Kind::SSHR:              case Kind::USHR:
-					case Kind::BIT_REVERSE:       case Kind::BSWAP:             case Kind::CTPOP:
+					case Kind::BIT_REVERSE:       case Kind::BYTE_SWAP:         case Kind::CTPOP:
 					case Kind::CTLZ:              case Kind::CTTZ:              case Kind::LIFETIME_START:
 					case Kind::LIFETIME_END: {
 						return true;
@@ -871,7 +871,7 @@ namespace pcit::pir{
 		Expr arg;
 	};
 
-	struct BSwap{
+	struct ByteSwap{
 		std::string name;
 		Expr arg;
 	};

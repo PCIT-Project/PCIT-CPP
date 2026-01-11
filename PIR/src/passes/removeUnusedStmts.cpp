@@ -137,7 +137,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::SSHR:              func_metadata.emplace(expr);
 					break; case Expr::Kind::USHR:              func_metadata.emplace(expr);
 					break; case Expr::Kind::BIT_REVERSE:       func_metadata.emplace(expr);
-					break; case Expr::Kind::BSWAP:             func_metadata.emplace(expr);
+					break; case Expr::Kind::BYTE_SWAP:         func_metadata.emplace(expr);
 					break; case Expr::Kind::CTPOP:             func_metadata.emplace(expr);
 					break; case Expr::Kind::CTLZ:              func_metadata.emplace(expr);
 					break; case Expr::Kind::CTTZ:              func_metadata.emplace(expr);
@@ -959,11 +959,11 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::BSWAP: {
+				case Expr::Kind::BYTE_SWAP: {
 					if(remove_unused_stmt()){ return true; }
 
-					const BSwap& bswap = agent.getBSwap(stmt);
-					see_expr(bswap.arg);
+					const ByteSwap& byte_swap = agent.getByteSwap(stmt);
+					see_expr(byte_swap.arg);
 
 					return false;
 				} break;

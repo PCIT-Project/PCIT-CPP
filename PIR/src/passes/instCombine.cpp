@@ -815,14 +815,14 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::BSWAP: {
-				const BSwap& bswap = agent.getBSwap(stmt);
-				if(bswap.arg.kind() != Expr::Kind::NUMBER){
+			case Expr::Kind::BYTE_SWAP: {
+				const ByteSwap& byte_swap = agent.getByteSwap(stmt);
+				if(byte_swap.arg.kind() != Expr::Kind::NUMBER){
 					return false;
 				}
-				const Number& arg = agent.getNumber(bswap.arg);
+				const Number& arg = agent.getNumber(byte_swap.arg);
 
-				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().bSwap());
+				const Expr result_expr = agent.createNumber(arg.type, arg.getInt().byteSwap());
 				agent.replaceExpr(stmt, result_expr);
 				return true;
 			} break;
@@ -1216,7 +1216,7 @@ namespace pcit::pir::passes{
 
 			// TODO(FEATURE): 
 			case Expr::Kind::BIT_REVERSE: return false;
-			case Expr::Kind::BSWAP:       return false;
+			case Expr::Kind::BYTE_SWAP:   return false;
 			case Expr::Kind::CTPOP:       return false;
 			case Expr::Kind::CTLZ:        return false;
 			case Expr::Kind::CTTZ:        return false;

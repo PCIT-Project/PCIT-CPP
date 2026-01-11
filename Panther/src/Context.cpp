@@ -3861,7 +3861,7 @@ namespace pcit::panther{
 			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
 		};
 
-		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::BSWAP) = TemplateIntrinsicFuncInfo{
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::BYTE_SWAP) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},

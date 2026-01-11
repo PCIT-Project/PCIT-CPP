@@ -247,7 +247,7 @@ namespace pcit::panther{
 
 
 			EVO_NODISCARD auto bitReverse(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;
-			EVO_NODISCARD auto bSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;
+			EVO_NODISCARD auto byteSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;
 			EVO_NODISCARD auto ctPop(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;
 			EVO_NODISCARD auto ctlz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;
 			EVO_NODISCARD auto cttz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo;

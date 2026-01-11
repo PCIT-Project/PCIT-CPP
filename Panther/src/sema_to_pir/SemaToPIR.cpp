@@ -119,7 +119,7 @@ namespace pcit::panther{
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type<false>(*sema_global_var.typeID),
-			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::PRIVATE,
+			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::INTERNAL,
 			pir::GlobalVar::NoValue{},
 			sema_global_var.kind == AST::VarDef::Kind::CONST
 		);
@@ -8036,35 +8036,37 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
-				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
-
-				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
-				const pir::Expr register_value =
-					this->agent.createBitCast(from_value, to_type, this->name("BIT_CAST"));
-
 				if constexpr(MODE == GetExprMode::REGISTER){
-					return register_value;
+					const pir::Type to_type =
+						this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+
+					if(
+						to_type.isPrimitive()
+						&& this->context.getTypeManager().isPrimitive(
+								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
+							)
+					){
+						const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
+						return this->agent.createBitCast(from_value, to_type, this->name("BIT_CAST"));
+						
+					}else{
+						const pir::Expr from_value = this->get_expr_pointer(func_call.args[0]);
+						return this->agent.createLoad(from_value, to_type, this->name("BIT_CAST"));
+					}
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr pointer_alloca = this->agent.createAlloca(to_type);
-					this->agent.createStore(pointer_alloca, register_value);
-					return pointer_alloca;
+					return this->get_expr_pointer(func_call.args[0]);
 
 				}else if constexpr(MODE == GetExprMode::STORE){
-					this->agent.createStore(store_locations[0], register_value);
+					this->get_expr_store(func_call.args[0], store_locations);
 					return std::nullopt;
+
 				}else{
 					return std::nullopt;
 				}
 			} break;
 
-
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
 				const pir::Type to_type =
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
@@ -8088,8 +8090,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
 				const pir::Type to_type =
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
@@ -8113,8 +8113,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
 				const pir::Type to_type =
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
@@ -8138,8 +8136,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
 				const pir::Type to_type =
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
@@ -8163,8 +8159,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
-				const pir::Type from_type =
-					this->get_type<false>(instantiation.templateArgs[0].as<TypeInfo::VoidableID>());
 				const pir::Type to_type =
 					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
 
@@ -9163,10 +9157,10 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplateIntrinsicFunc::Kind::BSWAP: {
+			case TemplateIntrinsicFunc::Kind::BYTE_SWAP: {
 				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createBSwap(rhs, this->name("BSWAP"));
+				const pir::Expr register_value = this->agent.createByteSwap(rhs, this->name("BYTE_SWAP"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;

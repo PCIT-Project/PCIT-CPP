@@ -863,9 +863,9 @@ namespace pcit::pir{
 				this->printer.print("${}", bit_reverse.name);
 			} break;
 
-			case Expr::Kind::BSWAP: {
-				const BSwap& bswap = this->reader.getBSwap(expr);
-				this->printer.print("${}", bswap.name);
+			case Expr::Kind::BYTE_SWAP: {
+				const ByteSwap& byte_swap = this->reader.getByteSwap(expr);
+				this->printer.print("${}", byte_swap.name);
 			} break;
 
 			case Expr::Kind::CTPOP: {
@@ -1804,12 +1804,12 @@ namespace pcit::pir{
 				this->printer.println();
 			} break;
 			
-			case Expr::Kind::BSWAP: {
-				const BSwap& bswap = this->reader.getBSwap(stmt);
+			case Expr::Kind::BYTE_SWAP: {
+				const ByteSwap& byte_swap = this->reader.getByteSwap(stmt);
 
-				this->printer.print("{}${} ", tabs(2), bswap.name);
-				this->printer.printRed("= @bSwap ");
-				this->print_expr(bswap.arg);
+				this->printer.print("{}${} ", tabs(2), byte_swap.name);
+				this->printer.printRed("= @byteSwap ");
+				this->print_expr(byte_swap.arg);
 				this->printer.println();
 			} break;
 			
@@ -1977,16 +1977,7 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_calling_convention(CallingConvention convention) -> void {
 		switch(convention){
-			case CallingConvention::DEFAULT: {
-				// do nothing
-			} break;
-
-			case CallingConvention::C: {
-				this->printer.printRed("#callConv");
-				this->printer.print("(c)");
-			} break;
-
-			case CallingConvention::FAST: {
+			case CallingConvention::DEFAULT: case CallingConvention::FAST:  {
 				this->printer.printRed("#callConv");
 				this->printer.print("(fast)");
 			} break;
@@ -1995,22 +1986,23 @@ namespace pcit::pir{
 				this->printer.printRed("#callConv");
 				this->printer.print("(cold)");
 			} break;
+
+			case CallingConvention::C: {
+				this->printer.printRed("#callConv");
+				this->printer.print("(c)");
+			} break;
 		}
 	}
 
 
 	auto ModulePrinter::print_linkage(Linkage linkage) -> void {
 		switch(linkage){
-			case Linkage::DEFAULT: {
-				// do nothing
-			} break;
-
 			case Linkage::PRIVATE: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(private)");
 			} break;
 
-			case Linkage::INTERNAL: {
+			case Linkage::DEFAULT: case Linkage::INTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(internal)");
 			} break;

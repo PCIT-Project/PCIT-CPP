@@ -131,7 +131,7 @@ namespace pcit::panther{
 			{"shlSat",                Kind::SHL_SAT},
 			{"shr",                   Kind::SHR},
 			{"bitReverse",            Kind::BIT_REVERSE},
-			{"bSwap",                 Kind::BSWAP},
+			{"byteSwap",              Kind::BYTE_SWAP},
 			{"ctPop",                 Kind::CTPOP},
 			{"ctlz",                  Kind::CTLZ},
 			{"cttz",                  Kind::CTTZ},

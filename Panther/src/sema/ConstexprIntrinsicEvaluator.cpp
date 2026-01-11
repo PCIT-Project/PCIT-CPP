@@ -1116,7 +1116,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ConstexprIntrinsicEvaluator::byteSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1128,7 +1128,7 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).bSwap();
+		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).byteSwap();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,

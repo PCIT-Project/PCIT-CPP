@@ -1260,6 +1260,29 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getMax(BaseType::ID id) const -> core::GenericValue;
 
 
+
+			//////////////////
+			// decay type
+
+			template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
+			EVO_NODISCARD auto decayType(TypeInfo::ID type_id) -> TypeInfo::ID {
+				if constexpr(DECAY_DISTINCT_ALIAS){
+					if constexpr(DECAY_INTERFACE_MAP){
+						return this->decay_type_true_true(type_id);
+					}else{
+						return this->decay_type_true_false(type_id);
+					}
+				}else{
+					if constexpr(DECAY_INTERFACE_MAP){
+						return this->decay_type_false_true(type_id);
+					}else{
+						return this->decay_type_false_false(type_id);
+					}
+				}
+			}
+
+
+
 		private:
 			EVO_NODISCARD auto get_or_create_primitive_base_type_impl(const BaseType::Primitive& lookup_type)
 				-> BaseType::ID;
@@ -1287,6 +1310,9 @@ namespace pcit::panther{
 			template<SpecialMember SPECIAL_MEMBER, SpecialMemberProp SPECIAL_MEMBER_PROP>
 			EVO_NODISCARD auto special_member_prop_check(BaseType::ID id, const class SemaBuffer* sema_buffer) const
 				-> bool;
+
+
+			EVO_NODISCARD auto is_safe_byte_bit_cast_base_type(BaseType::ID id) const -> bool;
 
 
 
@@ -1365,6 +1391,14 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto get_func_name(sema::FuncID sema_func_id, const class Context& context) const
 				-> std::string;
+
+
+			template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
+			EVO_NODISCARD auto decay_type_impl(TypeInfo::ID type_id) -> TypeInfo::ID;
+			EVO_NODISCARD auto decay_type_false_false(TypeInfo::ID type_id) -> TypeInfo::ID;
+			EVO_NODISCARD auto decay_type_false_true(TypeInfo::ID type_id) -> TypeInfo::ID;
+			EVO_NODISCARD auto decay_type_true_false(TypeInfo::ID type_id) -> TypeInfo::ID;
+			EVO_NODISCARD auto decay_type_true_true(TypeInfo::ID type_id) -> TypeInfo::ID;
 
 
 		private:

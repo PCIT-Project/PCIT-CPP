@@ -9,6 +9,8 @@
 
 #include "../include/TypeManager.h"
 
+#include <ranges>
+
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
 #endif
@@ -1150,6 +1152,37 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
+
+
+	auto TypeManager::is_safe_byte_bit_cast_base_type(BaseType::ID id) const -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				return this->getPrimitive(id.primitiveID()).kind() == Token::Kind::TYPE_BYTE;
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type = this->getArray(id.arrayID());
+
+				const TypeInfo& elem_type = this->getTypeInfo(array_type.elementTypeID);
+				if(elem_type.qualifiers().size() > 0){ return false; }
+
+				return this->is_safe_byte_bit_cast_base_type(elem_type.baseTypeID());
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
+
+				const TypeInfo& aliased_type = this->getTypeInfo(alias_type.aliasedType);
+				if(aliased_type.qualifiers().size() > 0){ return false; }
+
+				return this->is_safe_byte_bit_cast_base_type(aliased_type.baseTypeID());
+			} break;
+
+			default: {
+				return false;
+			} break;
+		}
+	}
 
 
 
@@ -3198,6 +3231,116 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Not a type");
 		}
 	}
+
+
+
+
+	template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
+	auto TypeManager::decay_type_impl(TypeInfo::ID type_id) -> TypeInfo::ID {
+		BaseType::ID base_type_id = BaseType::ID::dummy();
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+
+		bool should_continue = true;
+		while(should_continue){
+			const TypeInfo& type_info = this->getTypeInfo(type_id);
+
+			base_type_id = type_info.baseTypeID();
+
+			for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers() | std::views::reverse){
+				qualifiers.insert(qualifiers.begin(), qualifier);
+			}
+
+
+			switch(base_type_id.kind()){
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type = this->getArray(type_info.baseTypeID().arrayID());
+
+					base_type_id = this->getOrCreateArray(
+						BaseType::Array(
+							this->decay_type_impl<DECAY_DISTINCT_ALIAS, DECAY_INTERFACE_MAP>(
+								array_type.elementTypeID
+							),
+							evo::copy(array_type.dimensions),
+							evo::copy(array_type.terminator)
+						)
+					);
+
+					should_continue = false;
+				} break;
+
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref_type =
+						this->getArrayRef(type_info.baseTypeID().arrayRefID());
+
+					base_type_id = this->getOrCreateArrayRef(
+						BaseType::ArrayRef(
+							this->decay_type_impl<DECAY_DISTINCT_ALIAS, DECAY_INTERFACE_MAP>(
+								array_ref_type.elementTypeID
+							),
+							evo::copy(array_ref_type.dimensions),
+							evo::copy(array_ref_type.terminator),
+							array_ref_type.isMut
+						)
+					);
+
+					should_continue = false;
+				} break;
+
+				case BaseType::Kind::ALIAS: {
+					const BaseType::Alias& alias = this->getAlias(type_info.baseTypeID().aliasID());
+					type_id = alias.aliasedType;
+				} break;
+
+				case BaseType::Kind::DISTINCT_ALIAS: {
+					if constexpr(DECAY_DISTINCT_ALIAS){
+						const BaseType::DistinctAlias& distinct_alias = 
+							this->getDistinctAlias(type_info.baseTypeID().distinctAliasID());
+
+						type_id = distinct_alias.underlyingType;
+
+					}else{
+						should_continue = false;
+					}
+				} break;
+
+				case BaseType::Kind::INTERFACE_MAP: {
+					if constexpr(DECAY_INTERFACE_MAP){
+						const BaseType::InterfaceMap& interface_map = 
+							this->getInterfaceMap(type_info.baseTypeID().interfaceMapID());
+
+						type_id = interface_map.underlyingTypeID;
+
+					}else{
+						should_continue = false;
+					}
+				} break;
+
+				default: {
+					should_continue = false;
+				} break;
+			}
+		}
+
+		return this->getOrCreateTypeInfo(TypeInfo(base_type_id, std::move(qualifiers)));
+	}
+
+
+	auto TypeManager::decay_type_false_false(TypeInfo::ID type_id) -> TypeInfo::ID {
+		return this->decay_type_impl<false, false>(type_id);
+	}
+
+	auto TypeManager::decay_type_false_true(TypeInfo::ID type_id) -> TypeInfo::ID {
+		return this->decay_type_impl<false, true>(type_id);
+	}
+
+	auto TypeManager::decay_type_true_false(TypeInfo::ID type_id) -> TypeInfo::ID {
+		return this->decay_type_impl<true, false>(type_id);
+	}
+
+	auto TypeManager::decay_type_true_true(TypeInfo::ID type_id) -> TypeInfo::ID {
+		return this->decay_type_impl<true, true>(type_id);
+	}
+
 
 
 }
