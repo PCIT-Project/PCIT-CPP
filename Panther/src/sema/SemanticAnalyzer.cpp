@@ -4944,7 +4944,7 @@ namespace pcit::panther{
 
 			if(
 				func_type.returnTypes[0].isVoid() ||
-				this->get_actual_type<false, false>(func_type.returnTypes[0].asTypeID())
+				this->context.type_manager.decayType<false, false>(func_type.returnTypes[0].asTypeID())
 					!= TypeManager::getTypeUI8()
 			){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -7815,10 +7815,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 
 			}else if(
-				const TypeInfo::ID got_actual_type = this->get_actual_type<false, false>(got_type_id.asTypeID());
-				got_actual_type == this->get_actual_type<false, false>(iterator_get_type_id)
+				const TypeInfo::ID got_decayed_type =
+					this->context.type_manager.decayType<false, false>(got_type_id.asTypeID());
+				got_decayed_type == this->context.type_manager.decayType<false, false>(iterator_get_type_id)
 			){
-				param_type_ids.emplace_back(got_actual_type);
+				param_type_ids.emplace_back(got_decayed_type);
 
 			}else if(this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false){
 				for_param_type_mismatch();
@@ -8050,10 +8051,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 
 			}else if(
-				const TypeInfo::ID got_actual_type = this->get_actual_type<false, false>(for_param_type.asTypeID());
-				got_actual_type == this->get_actual_type<false, false>(variadic_param_type)
+				const TypeInfo::ID got_decayed_type =
+					this->context.type_manager.decayType<false, false>(for_param_type.asTypeID());
+				got_decayed_type == this->context.type_manager.decayType<false, false>(variadic_param_type)
 			){
-				param_type_ids.emplace_back(got_actual_type);
+				param_type_ids.emplace_back(got_decayed_type);
 
 			}else if(this->context.getTypeManager().isTypeDeducer(for_param_type.asTypeID()) == false){
 				for_param_type_mismatch();
@@ -8255,15 +8257,15 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo::ID cond_type_id = cond.type_id.as<TypeInfo::ID>();
-		const TypeInfo::ID actual_cond_type_id = this->get_actual_type<true, false>(cond_type_id);
-		const TypeInfo& actual_cond_type = this->context.getTypeManager().getTypeInfo(actual_cond_type_id);
+		const TypeInfo::ID decayed_cond_type_id = this->context.type_manager.decayType<true, false>(cond_type_id);
+		const TypeInfo& decayed_cond_type = this->context.getTypeManager().getTypeInfo(decayed_cond_type_id);
 
 
 		if(instr.is_no_jump){
 			// TODO(FUTURE): when structs can delete ==
 
 		}else{
-			if(actual_cond_type.qualifiers().empty() == false){
+			if(decayed_cond_type.qualifiers().empty() == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
 					instr.switch_stmt.cond,
@@ -8277,10 +8279,10 @@ namespace pcit::panther{
 			}
 				
 
-			switch(actual_cond_type.baseTypeID().kind()){
+			switch(decayed_cond_type.baseTypeID().kind()){
 				case BaseType::Kind::PRIMITIVE: {
 					const BaseType::Primitive& primitive_type =
-						this->context.getTypeManager().getPrimitive(actual_cond_type.baseTypeID().primitiveID());
+						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
 					
 					switch(primitive_type.kind()){
 						case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
@@ -8331,7 +8333,7 @@ namespace pcit::panther{
 
 				case BaseType::Kind::UNION: {
 					const BaseType::Union& union_type =
-						this->context.getTypeManager().getUnion(actual_cond_type.baseTypeID().unionID());
+						this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
 
 					if(union_type.isUntagged){
 						this->emit_error(
@@ -8396,9 +8398,10 @@ namespace pcit::panther{
 		sema::Switch& current_switch = this->context.sema_buffer.switches[current_switch_id];
 		sema::Switch::Case& current_case = current_switch.cases[instr.index];
 
-		const TypeInfo::ID actual_cond_type_id = this->get_actual_type<false, false>(current_switch.condTypeID);
-		const TypeInfo& actual_cond_type = this->context.getTypeManager().getTypeInfo(actual_cond_type_id);
-		const bool cond_type_is_union = actual_cond_type.baseTypeID().kind() == BaseType::Kind::UNION;
+		const TypeInfo::ID decay_cond_type_id =
+			this->context.type_manager.decayType<false, false>(current_switch.condTypeID);
+		const TypeInfo& decay_cond_type = this->context.getTypeManager().getTypeInfo(decay_cond_type_id);
+		const bool cond_type_is_union = decay_cond_type.baseTypeID().kind() == BaseType::Kind::UNION;
 
 		for(const SymbolProc::TermInfoID value_id : instr.values){
 			TermInfo& value = this->get_term_info(value_id);
@@ -8416,7 +8419,7 @@ namespace pcit::panther{
 				const TermInfo::TaggedUnionFieldAccessor& tagged_union_field_accessor =
 					value.type_id.as<TermInfo::TaggedUnionFieldAccessor>();
 
-				if(tagged_union_field_accessor.union_id != actual_cond_type.baseTypeID().unionID()){
+				if(tagged_union_field_accessor.union_id != decay_cond_type.baseTypeID().unionID()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_SWITCH_INVALID_CASE_VALUE,
 						instr.switch_case.values[current_case.values.size()],
@@ -8426,7 +8429,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::Union& union_type =
-					this->context.getTypeManager().getUnion(actual_cond_type.baseTypeID().unionID());
+					this->context.getTypeManager().getUnion(decay_cond_type.baseTypeID().unionID());
 
 				const unsigned union_type_tag_bit_width = std::bit_ceil(unsigned(union_type.fields.size()));
 
@@ -8509,16 +8512,17 @@ namespace pcit::panther{
 				i += 1;
 			}
 
-			const TypeInfo::ID actual_cond_type_id = this->get_actual_type<false, false>(current_switch.condTypeID);
-			const TypeInfo& actual_cond_type = this->context.getTypeManager().getTypeInfo(actual_cond_type_id);
+			const TypeInfo::ID decayed_cond_type_id =
+				this->context.type_manager.decayType<false, false>(current_switch.condTypeID);
+			const TypeInfo& decayed_cond_type = this->context.getTypeManager().getTypeInfo(decayed_cond_type_id);
 			evo::debugAssert(
-				actual_cond_type.qualifiers().empty(), "switch cond without #noJump cannot have qualifiers"
+				decayed_cond_type.qualifiers().empty(), "switch cond without #noJump cannot have qualifiers"
 			);
 
-			switch(actual_cond_type.baseTypeID().kind()){
+			switch(decayed_cond_type.baseTypeID().kind()){
 				case BaseType::Kind::PRIMITIVE: {
 					const BaseType::Primitive& primitive_type =
-						this->context.getTypeManager().getPrimitive(actual_cond_type.baseTypeID().primitiveID());
+						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
 					
 					switch(primitive_type.kind()){
 						case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
@@ -8531,7 +8535,7 @@ namespace pcit::panther{
 						case Token::Kind::TYPE_C_ULONG:      case Token::Kind::TYPE_C_LONG_LONG:
 						case Token::Kind::TYPE_C_ULONG_LONG: {
 							const size_t bit_width =
-								this->context.getTypeManager().numBits(actual_cond_type.baseTypeID(), false);
+								this->context.getTypeManager().numBits(decayed_cond_type.baseTypeID(), false);
 
 							const size_t expected_num_cases = size_t(1) << bit_width; // 0 means > 2^64
 
@@ -8662,7 +8666,7 @@ namespace pcit::panther{
 
 				case BaseType::Kind::UNION: {
 					const BaseType::Union& union_type =
-						this->context.getTypeManager().getUnion(actual_cond_type.baseTypeID().unionID());
+						this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
 
 					evo::debugAssert(union_type.isUntagged == false, "Invalid switch cond type (base type)");
 
@@ -8705,7 +8709,7 @@ namespace pcit::panther{
 
 				case BaseType::Kind::ENUM: {
 					const BaseType::Enum& enum_type =
-						this->context.getTypeManager().getEnum(actual_cond_type.baseTypeID().enumID());
+						this->context.getTypeManager().getEnum(decayed_cond_type.baseTypeID().enumID());
 
 					if(else_index.has_value()){
 						if(used_values.size() == enum_type.enumerators.size()){
@@ -9222,12 +9226,13 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
-			const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+			const TypeInfo::ID lhs_decayed_type_id =
+				this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);
 
-			if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			if(lhs_decayed_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
 				const BaseType::Struct& lhs_struct =
-					this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+					this->context.getTypeManager().getStruct(lhs_decayed_type.baseTypeID().structID());
 
 				const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
 					this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
@@ -9346,11 +9351,12 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo::ID actual_target_type_id = this->get_actual_type<true, true>(target_type_id.asTypeID());
+		const TypeInfo::ID decayed_target_type_id =
+			this->context.type_manager.decayType<true, true>(target_type_id.asTypeID());
 
 		if(instr.args.size() == 1){ // check distinct alias from underlying
 			const TypeInfo::ID maybe_distinct_alias_target_type_id =
-				this->get_actual_type<false, true>(target_type_id.asTypeID());
+				this->context.type_manager.decayType<false, true>(target_type_id.asTypeID());
 
 			const TypeInfo& maybe_distinct_alias_target_type_info =
 				this->context.getTypeManager().getTypeInfo(maybe_distinct_alias_target_type_id);
@@ -9359,10 +9365,10 @@ namespace pcit::panther{
 				const TermInfo& arg = this->get_term_info(instr.args[0]);
 
 				if(arg.type_id.is<TypeInfo::ID>()){
-					const TypeInfo::ID actual_arg_type_id =
-						this->get_actual_type<true, true>(arg.type_id.as<TypeInfo::ID>());
+					const TypeInfo::ID decayed_arg_type_id =
+						this->context.type_manager.decayType<true, true>(arg.type_id.as<TypeInfo::ID>());
 
-					if(actual_target_type_id == actual_arg_type_id){ // matched with distinct alias from underlying
+					if(decayed_target_type_id == decayed_arg_type_id){ // matched with distinct alias from underlying
 						if(arg.is_ephemeral() == false){
 							this->emit_error(
 								Diagnostic::Code::SEMA_NEW_DISTINCT_ALIAS_ARG_VAL_NOT_EPHEMERAL,
@@ -9403,10 +9409,10 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(actual_target_type_id);
+		const TypeInfo& decayed_target_type_info = this->context.getTypeManager().getTypeInfo(decayed_target_type_id);
 
-		if(actual_target_type_info.qualifiers().empty() == false){
-			if(actual_target_type_info.isOptional()){
+		if(decayed_target_type_info.qualifiers().empty() == false){
+			if(decayed_target_type_info.isOptional()){
 				if(instr.args.empty()){
 					if(
 						lhs.value_state == TermInfo::ValueState::UNINIT
@@ -9481,10 +9487,10 @@ namespace pcit::panther{
 
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
-								actual_target_type_info.baseTypeID(),
+								decayed_target_type_info.baseTypeID(),
 								evo::SmallVector<TypeInfo::Qualifier>(
-									actual_target_type_info.qualifiers().begin(),
-									std::prev(actual_target_type_info.qualifiers().end())
+									decayed_target_type_info.qualifiers().begin(),
+									std::prev(decayed_target_type_info.qualifiers().end())
 								)
 							)
 						);
@@ -9532,11 +9538,11 @@ namespace pcit::panther{
 		}
 
 
-		switch(actual_target_type_info.baseTypeID().kind()){
+		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				if(instr.args.empty()){
 					const BaseType::Primitive& primitive =
-						this->context.getTypeManager().getPrimitive(actual_target_type_info.baseTypeID().primitiveID());
+						this->context.getTypeManager().getPrimitive(decayed_target_type_info.baseTypeID().primitiveID());
 
 					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
 						this->emit_error(
@@ -9562,7 +9568,7 @@ namespace pcit::panther{
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
-							sema::Expr(this->context.sema_buffer.createDefaultNew(actual_target_type_id, false))
+							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
 						)
 					);
 
@@ -9631,7 +9637,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::Array& array_type =
-					this->context.getTypeManager().getArray(actual_target_type_info.baseTypeID().arrayID());
+					this->context.getTypeManager().getArray(decayed_target_type_info.baseTypeID().arrayID());
 
 				if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
 					this->emit_error(
@@ -9657,7 +9663,7 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(actual_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
 					)
 				);
 
@@ -9680,7 +9686,7 @@ namespace pcit::panther{
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
-							sema::Expr(this->context.sema_buffer.createDefaultNew(actual_target_type_id, false))
+							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
 						)
 					);
 
@@ -9688,7 +9694,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::ArrayRef& array_ref =
-					this->context.getTypeManager().getArrayRef(actual_target_type_info.baseTypeID().arrayRefID());
+					this->context.getTypeManager().getArrayRef(decayed_target_type_info.baseTypeID().arrayRefID());
 
 				const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
 
@@ -9805,7 +9811,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& target_struct =
-					this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
+					this->context.getTypeManager().getStruct(decayed_target_type_info.baseTypeID().structID());
 
 
 				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
@@ -9932,7 +9938,7 @@ namespace pcit::panther{
 				if(should_run_initialization){
 					if(
 						is_semantically_initialization == false
-						&& this->context.getTypeManager().isTriviallyDeletable(actual_target_type_info.baseTypeID())
+						&& this->context.getTypeManager().isTriviallyDeletable(decayed_target_type_info.baseTypeID())
 							== false
 					){
 						if(this->get_special_member_call_dependents<SpecialMemberKind::DELETE, true>(
@@ -9972,7 +9978,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->context.getTypeManager().isDefaultInitializable(actual_target_type_info.baseTypeID())==false){
+				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
 						ast_new.type,
@@ -9995,7 +10001,7 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(actual_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
 					)
 				);
 
@@ -10016,7 +10022,7 @@ namespace pcit::panther{
 				}
 
 
-				if(this->context.getTypeManager().isDefaultInitializable(actual_target_type_info.baseTypeID())==false){
+				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
 						ast_new.type,
@@ -10039,7 +10045,7 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(actual_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
 					)
 				);
 
@@ -12154,58 +12160,7 @@ namespace pcit::panther{
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
 				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
 			}else{
-				const sema::Expr& value_expr = template_arg.getExpr();
-
-				// TODO(NOW): do this using sema_expr_to_generic_value?
-				switch(value_expr.kind()){
-					case sema::Expr::Kind::INT_VALUE: {
-						template_args.emplace_back(
-							core::GenericValue(
-								evo::copy(this->context.sema_buffer.getIntValue(value_expr.intValueID()).value)
-							)
-						);
-					} break;
-					case sema::Expr::Kind::FLOAT_VALUE: {
-						template_args.emplace_back(
-							core::GenericValue(
-								evo::copy(this->context.sema_buffer.getFloatValue(value_expr.floatValueID()).value)
-							)
-						);
-					} break;
-					case sema::Expr::Kind::BOOL_VALUE: {
-						template_args.emplace_back(
-							core::GenericValue(
-								this->context.sema_buffer.getBoolValue(value_expr.boolValueID()).value
-							)
-						);
-					} break;
-					case sema::Expr::Kind::STRING_VALUE: {
-						template_args.emplace_back(
-							core::GenericValue(
-								evo::copy(this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value)
-							)
-						);
-					} break;
-					case sema::Expr::Kind::AGGREGATE_VALUE: {
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							instr.func_call.target,
-							"Func calls with aggregate template parameters are unimplemented"
-						);
-						return Result::ERROR;
-
-						// template_args.emplace_back(
-						// 	core::GenericValue(
-						// 		this->context.sema_buffer.getStringValue(value_expr.stringValueID()).value
-						// 	)
-						// );
-					} break;
-					case sema::Expr::Kind::CHAR_VALUE: {
-						template_args.emplace_back(
-							core::GenericValue(this->context.sema_buffer.getCharValue(value_expr.charValueID()).value)
-						);
-					} break;
-				}
+				template_args.emplace_back(this->sema_expr_to_generic_value(template_arg.getExpr()));
 			}
 		}
 
@@ -12354,7 +12309,9 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.arrayElementTypeID(this->get_actual_type<true, true>(arg_t_type_id))
+					constexpr_intrinsic_evaluator.arrayElementTypeID(
+						this->context.type_manager.decayType<true, true>(arg_t_type_id)
+					)
 				);
 			} break;
 
@@ -12377,7 +12334,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					constexpr_intrinsic_evaluator.arrayRefElementTypeID(
-						this->get_actual_type<true, true>(arg_t_type_id)
+						this->context.type_manager.decayType<true, true>(arg_t_type_id)
 					)
 				);
 			} break;
@@ -14824,13 +14781,13 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(target_type_id.asTypeID())
+		const TypeInfo& decayed_target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->context.type_manager.decayType<true, true>(target_type_id.asTypeID())
 		);
 
 
-		if(actual_target_type_info.qualifiers().empty() == false){
-			if(actual_target_type_info.isOptional()){
+		if(decayed_target_type_info.qualifiers().empty() == false){
+			if(decayed_target_type_info.isOptional()){
 				if(instr.args.empty()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -14875,10 +14832,10 @@ namespace pcit::panther{
 
 						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 							TypeInfo(
-								actual_target_type_info.baseTypeID(),
+								decayed_target_type_info.baseTypeID(),
 								evo::SmallVector<TypeInfo::Qualifier>(
-									actual_target_type_info.qualifiers().begin(),
-									std::prev(actual_target_type_info.qualifiers().end())
+									decayed_target_type_info.qualifiers().begin(),
+									std::prev(decayed_target_type_info.qualifiers().end())
 								)
 							)
 						);
@@ -14927,11 +14884,11 @@ namespace pcit::panther{
 		}
 
 
-		switch(actual_target_type_info.baseTypeID().kind()){
+		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				if(instr.args.empty()){
 					const BaseType::Primitive& primitive =
-						this->context.getTypeManager().getPrimitive(actual_target_type_info.baseTypeID().primitiveID());
+						this->context.getTypeManager().getPrimitive(decayed_target_type_info.baseTypeID().primitiveID());
 
 					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
 						this->emit_error(
@@ -15000,7 +14957,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::Array& array_type =
-					this->context.getTypeManager().getArray(actual_target_type_info.baseTypeID().arrayID());
+					this->context.getTypeManager().getArray(decayed_target_type_info.baseTypeID().arrayID());
 
 				if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
 					this->emit_error(
@@ -15036,7 +14993,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::ArrayRef& array_ref =
-					this->context.getTypeManager().getArrayRef(actual_target_type_info.baseTypeID().arrayRefID());
+					this->context.getTypeManager().getArrayRef(decayed_target_type_info.baseTypeID().arrayRefID());
 
 				const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
 
@@ -15139,7 +15096,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& target_struct =
-					this->context.getTypeManager().getStruct(actual_target_type_info.baseTypeID().structID());
+					this->context.getTypeManager().getStruct(decayed_target_type_info.baseTypeID().structID());
 
 				if(instr.args.empty()){
 					if(target_struct.isTriviallyDefaultInitializable){
@@ -15291,7 +15248,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->context.getTypeManager().isDefaultInitializable(actual_target_type_info.baseTypeID())==false){
+				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
 						instr.ast_new.type,
@@ -15325,7 +15282,7 @@ namespace pcit::panther{
 				}
 
 
-				if(this->context.getTypeManager().isDefaultInitializable(actual_target_type_info.baseTypeID())==false){
+				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
 						instr.ast_new.type,
@@ -15371,13 +15328,13 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& actual_target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(target_type_id.asTypeID())
+		const TypeInfo& decayed_target_type_info = this->context.getTypeManager().getTypeInfo(
+			this->context.type_manager.decayType<true, true>(target_type_id.asTypeID())
 		);
 
 		if(
-			actual_target_type_info.qualifiers().empty() == false
-			|| actual_target_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY
+			decayed_target_type_info.qualifiers().empty() == false
+			|| decayed_target_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY
 		){
 			this->emit_error(
 				Diagnostic::Code::SEMA_NEW_ARRAY_INIT_NOT_ARRAY,
@@ -15388,7 +15345,7 @@ namespace pcit::panther{
 		}
 
 		const BaseType::Array& target_type = this->context.getTypeManager().getArray(
-			actual_target_type_info.baseTypeID().arrayID()
+			decayed_target_type_info.baseTypeID().arrayID()
 		);
 
 		if(target_type.dimensions.size() > 1){
@@ -15459,7 +15416,7 @@ namespace pcit::panther{
 		}
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-			std::move(values), actual_target_type_info.baseTypeID()
+			std::move(values), decayed_target_type_info.baseTypeID()
 		);
 
 		const TermInfo::ValueStage value_stage = [&](){
@@ -15504,7 +15461,7 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(target_type_id.asTypeID())
+			this->context.type_manager.decayType<true, true>(target_type_id.asTypeID())
 		);
 		if(target_type_info.qualifiers().empty() == false){
 			this->emit_error(
@@ -16127,8 +16084,8 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& actual_target_type = this->context.getTypeManager().getTypeInfo(
-			this->get_actual_type<true, true>(target.type_id.as<TypeInfo::ID>())
+		const TypeInfo& decayed_target_type = this->context.getTypeManager().getTypeInfo(
+			this->context.type_manager.decayType<true, true>(target.type_id.as<TypeInfo::ID>())
 		);
 
 
@@ -16142,13 +16099,13 @@ namespace pcit::panther{
 		const TypeInfo* element_type = nullptr;
 
 
-		switch(actual_target_type.baseTypeID().kind()){
+		switch(decayed_target_type.baseTypeID().kind()){
 			case BaseType::Kind::ARRAY: {
-				if(actual_target_type.qualifiers().empty() == false){
-					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isPointer()){
+				if(decayed_target_type.qualifiers().empty() == false){
+					if(decayed_target_type.qualifiers().size() == 1 && decayed_target_type.isPointer()){
 						is_ptr = true;
 					}else{
-						if(actual_target_type.isOptional()){
+						if(decayed_target_type.isOptional()){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 								instr.indexer,
@@ -16172,7 +16129,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::Array& target_array_type =
-					this->context.getTypeManager().getArray(actual_target_type.baseTypeID().arrayID());
+					this->context.getTypeManager().getArray(decayed_target_type.baseTypeID().arrayID());
 
 				if(target_array_type.dimensions.size() != instr.indices.size()){
 					this->emit_error(
@@ -16193,11 +16150,11 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY_REF: {
 				is_arr_ref = true;
 
-				if(actual_target_type.qualifiers().empty() == false){
-					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isPointer()){
+				if(decayed_target_type.qualifiers().empty() == false){
+					if(decayed_target_type.qualifiers().size() == 1 && decayed_target_type.isPointer()){
 						is_ptr = true;
 					}else{
-						if(actual_target_type.isOptional()){
+						if(decayed_target_type.isOptional()){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 								instr.indexer,
@@ -16221,7 +16178,7 @@ namespace pcit::panther{
 				}
 
 				const BaseType::ArrayRef& target_array_ref_type =
-					this->context.getTypeManager().getArrayRef(actual_target_type.baseTypeID().arrayRefID());
+					this->context.getTypeManager().getArrayRef(decayed_target_type.baseTypeID().arrayRefID());
 
 				is_mut_arr_ref = target_array_ref_type.isMut;
 
@@ -16245,13 +16202,13 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& target_struct_type = 
-					this->context.getTypeManager().getStruct(actual_target_type.baseTypeID().structID());
+					this->context.getTypeManager().getStruct(decayed_target_type.baseTypeID().structID());
 
-				if(actual_target_type.qualifiers().empty() == false){
-					if(actual_target_type.qualifiers().size() == 1 && actual_target_type.isPointer()){
+				if(decayed_target_type.qualifiers().empty() == false){
+					if(decayed_target_type.qualifiers().size() == 1 && decayed_target_type.isPointer()){
 						is_ptr = true;
 					}else{
-						if(actual_target_type.isOptional()){
+						if(decayed_target_type.isOptional()){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
 								instr.indexer,
@@ -16298,10 +16255,10 @@ namespace pcit::panther{
 				arg_infos.reserve(instr.indices.size());
 				if(is_ptr){
 					const TypeInfo::ID target_deref_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						actual_target_type.copyWithPoppedQualifier()
+						decayed_target_type.copyWithPoppedQualifier()
 					);
 
-					target.value_category = actual_target_type.qualifiers().back().isMut
+					target.value_category = decayed_target_type.qualifiers().back().isMut
 						? TermInfo::ValueCategory::CONCRETE_MUT
 						: TermInfo::ValueCategory::CONCRETE_CONST;
 
@@ -16404,7 +16361,7 @@ namespace pcit::panther{
 		}
 		resultant_qualifiers.emplace_back(
 			true,
-			target.is_mutable() || (is_ptr && actual_target_type.qualifiers().back().isMut) || is_mut_arr_ref,
+			target.is_mutable() || (is_ptr && decayed_target_type.qualifiers().back().isMut) || is_mut_arr_ref,
 			false,
 			false
 		);
@@ -16417,13 +16374,13 @@ namespace pcit::panther{
 			const sema::Expr target_expr = [&]() -> sema::Expr {
 				if(is_ptr){
 					auto derefed_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-					derefed_qualifiers.reserve(actual_target_type.qualifiers().size() - 1);
-					for(size_t i = 0; i < actual_target_type.qualifiers().size() - 1; i+=1){
-						derefed_qualifiers.emplace_back(actual_target_type.qualifiers()[i]);
+					derefed_qualifiers.reserve(decayed_target_type.qualifiers().size() - 1);
+					for(size_t i = 0; i < decayed_target_type.qualifiers().size() - 1; i+=1){
+						derefed_qualifiers.emplace_back(decayed_target_type.qualifiers()[i]);
 					}
 
 					const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(actual_target_type.baseTypeID(), std::move(derefed_qualifiers))
+						TypeInfo(decayed_target_type.baseTypeID(), std::move(derefed_qualifiers))
 					);
 
 					return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id));
@@ -16435,7 +16392,7 @@ namespace pcit::panther{
 
 			if(is_arr_ref){
 				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
-					target_expr, actual_target_type.baseTypeID().arrayRefID(), std::move(indices)
+					target_expr, decayed_target_type.baseTypeID().arrayRefID(), std::move(indices)
 				));
 
 			}else{
@@ -16602,11 +16559,11 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					const TypeInfo::VoidableID actual_arg_type_id =
-						this->get_actual_voidable_type<false, true>(arg_type_voidable_id);
+					const TypeInfo::VoidableID decayed_arg_type_id =
+						this->context.type_manager.decayVoidableType<false, true>(arg_type_voidable_id);
 
-					instantiation_lookup_args.emplace_back(actual_arg_type_id);
-					instantiation_args.emplace_back(actual_arg_type_id);
+					instantiation_lookup_args.emplace_back(decayed_arg_type_id);
+					instantiation_args.emplace_back(decayed_arg_type_id);
 					continue;
 				}
 
@@ -16749,13 +16706,15 @@ namespace pcit::panther{
 				}
 
 
-				const TypeInfo::VoidableID actual_type_id = this->get_actual_voidable_type<false, true>(type_id);
+				const TypeInfo::VoidableID decayed_type_id =
+					this->context.type_manager.decayVoidableType<false, true>(type_id);
 
-				instantiation_lookup_args.emplace_back(actual_type_id);
-				instantiation_args.emplace_back(actual_type_id);
+				instantiation_lookup_args.emplace_back(decayed_type_id);
+				instantiation_args.emplace_back(decayed_type_id);
 
 				this->scope.addTemplateDeclInstantiationType(
-					instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(), actual_type_id
+					instantiation_source.getTokenBuffer()[ast_template_pack.params[i].ident].getString(),
+					decayed_type_id
 				);
 			}
 		}
@@ -17287,7 +17246,7 @@ namespace pcit::panther{
 			);
 
 			const auto find = from_struct.operatorAsOverloads.find(
-				this->get_actual_type<false, false>(target_type.asTypeID())
+				this->context.type_manager.decayType<false, false>(target_type.asTypeID())
 			);
 
 			if(find == from_struct.operatorAsOverloads.end()){
@@ -17446,8 +17405,8 @@ namespace pcit::panther{
 				this->context.getTypeManager().getArrayRef(to_underlying_type.baseTypeID().arrayRefID());
 
 			if(
-				this->get_actual_type<false, false>(from_array.elementTypeID)
-				!= this->get_actual_type<false, false>(to_array_ref.elementTypeID)
+				this->context.type_manager.decayType<false, false>(from_array.elementTypeID)
+				!= this->context.type_manager.decayType<false, false>(to_array_ref.elementTypeID)
 			){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
@@ -17571,15 +17530,16 @@ namespace pcit::panther{
 			}
 
 
-			const TypeInfo::ID from_actual_type_id =
-				this->get_actual_type<false, false>(expr.type_id.as<TypeInfo::ID>());
-			const TypeInfo& from_actual_type = type_manager.getTypeInfo(from_actual_type_id);
+			const TypeInfo::ID from_decayed_type_id =
+				this->context.type_manager.decayType<false, false>(expr.type_id.as<TypeInfo::ID>());
+			const TypeInfo& from_decayed_type = type_manager.getTypeInfo(from_decayed_type_id);
 
-			const TypeInfo::ID to_actual_type_id = this->get_actual_type<false, false>(target_type.asTypeID());
-			const TypeInfo& to_actual_type = type_manager.getTypeInfo(to_actual_type_id);
+			const TypeInfo::ID to_decayed_type_id =
+				this->context.type_manager.decayType<false, false>(target_type.asTypeID());
+			const TypeInfo& to_decayed_type = type_manager.getTypeInfo(to_decayed_type_id);
 
 
-			if(from_actual_type.isPointer() && to_actual_type.isPointer()){
+			if(from_decayed_type.isPointer() && to_decayed_type.isPointer()){
 				this->emit_error(
 					Diagnostic::Code::SEMA_AS_INVALID_TO,
 					instr.infix,
@@ -17591,9 +17551,9 @@ namespace pcit::panther{
 
 			if(
 				this->currently_in_unsafe() == false
-				&& from_actual_type_id != to_actual_type_id
-				&& from_actual_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE
-				&& this->context.getTypeManager().getPrimitive(from_actual_type.baseTypeID().primitiveID())
+				&& from_decayed_type_id != to_decayed_type_id
+				&& from_decayed_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE
+				&& this->context.getTypeManager().getPrimitive(from_decayed_type.baseTypeID().primitiveID())
 					== Token::Kind::TYPE_RAWPTR
 			){
 				this->emit_error(
@@ -18224,32 +18184,32 @@ namespace pcit::panther{
 		SymbolProc::TermInfoID output_id,
 		const AST::Infix& ast_infix
 	) -> std::optional<Result> {
-		const TypeInfo::ID actual_from_type_id = this->get_actual_type<false, false>(from_type_id);
-		const TypeInfo& actual_from_type = this->context.getTypeManager().getTypeInfo(actual_from_type_id);
+		const TypeInfo::ID decayed_from_type_id = this->context.type_manager.decayType<false, false>(from_type_id);
+		const TypeInfo& decayed_from_type = this->context.getTypeManager().getTypeInfo(decayed_from_type_id);
 
 
-		const TypeInfo::ID actual_to_type_id = this->get_actual_type<false, false>(to_type_id);
-		const TypeInfo& actual_to_type = this->context.getTypeManager().getTypeInfo(actual_to_type_id);
+		const TypeInfo::ID decayed_to_type_id = this->context.type_manager.decayType<false, false>(to_type_id);
+		const TypeInfo& decayed_to_type = this->context.getTypeManager().getTypeInfo(decayed_to_type_id);
 
 
-		TypeInfo::ID target_interface_impl_type_id = actual_from_type_id;
+		TypeInfo::ID target_interface_impl_type_id = decayed_from_type_id;
 
 		const evo::Result<bool> qualifiers_check_result = 
-			this->type_qualifiers_check(actual_to_type.qualifiers(), actual_from_type.qualifiers());
+			this->type_qualifiers_check(decayed_to_type.qualifiers(), decayed_from_type.qualifiers());
 
 		if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
 			// if there are qualifiers, didn't match
 			// Allows for qualified type that implement the interface to pass
-			if(actual_to_type.qualifiers().empty() == false){ return std::nullopt; }
+			if(decayed_to_type.qualifiers().empty() == false){ return std::nullopt; }
 			
 		}else{
 			// remove matching qualifiers
 			target_interface_impl_type_id =
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(actual_from_type.baseTypeID()));
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(decayed_from_type.baseTypeID()));
 		}
 
 
-		switch(actual_to_type.baseTypeID().kind()){
+		switch(decayed_to_type.baseTypeID().kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
 
 			case BaseType::Kind::PRIMITIVE:               return std::nullopt;
@@ -18270,7 +18230,7 @@ namespace pcit::panther{
 			case BaseType::Kind::POLY_INTERFACE_REF: {
 				const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
 					this->context.getTypeManager().getPolyInterfaceRef(
-						actual_to_type.baseTypeID().polyInterfaceRefID()
+						decayed_to_type.baseTypeID().polyInterfaceRefID()
 					);
 
 				BaseType::Interface& target_interface =
@@ -18316,7 +18276,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& target_interface_map = 
-					this->context.getTypeManager().getInterfaceMap(actual_to_type.baseTypeID().interfaceMapID());
+					this->context.getTypeManager().getInterfaceMap(decayed_to_type.baseTypeID().interfaceMapID());
 
 				BaseType::Interface& target_interface =
 					this->context.type_manager.getInterface(target_interface_map.interfaceID);
@@ -18375,10 +18335,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>());
-		const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+		const TypeInfo::ID lhs_decayed_type_id =
+			this->context.type_manager.decayType<true, false>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);
 
-		if(lhs_actual_type.isOptional() == false){
+		if(lhs_decayed_type.isOptional() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
 				instr.infix.lhs,
@@ -18395,7 +18356,7 @@ namespace pcit::panther{
 			lhs.value_stage,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_actual_type_id, is_equal))
+			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_decayed_type_id, is_equal))
 		);
 		return Result::SUCCESS;
 	}
@@ -18473,23 +18434,23 @@ namespace pcit::panther{
 
 		if(lhs.type_id.is<TypeInfo::ID>()){
 			if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
-				const TypeInfo::ID lhs_actual_type_id =
-					this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID lhs_decayed_type_id =
+					this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
-				const TypeInfo::ID rhs_actual_type_id =
-					this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID rhs_decayed_type_id =
+					this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 
-				const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
-				const TypeInfo& rhs_actual_type = this->context.getTypeManager().getTypeInfo(rhs_actual_type_id);
+				const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);
+				const TypeInfo& rhs_decayed_type = this->context.getTypeManager().getTypeInfo(rhs_decayed_type_id);
 
 
 				if(
-					lhs_actual_type.qualifiers().empty()
-					&& lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT
+					lhs_decayed_type.qualifiers().empty()
+					&& lhs_decayed_type.baseTypeID().kind() == BaseType::Kind::STRUCT
 				){
 					const BaseType::Struct& lhs_struct =
-						this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+						this->context.getTypeManager().getStruct(lhs_decayed_type.baseTypeID().structID());
 
 					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
 						this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
@@ -18529,11 +18490,11 @@ namespace pcit::panther{
 					return Result::SUCCESS;
 
 				}else if(
-					rhs_actual_type.qualifiers().empty()
-					&& rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT
+					rhs_decayed_type.qualifiers().empty()
+					&& rhs_decayed_type.baseTypeID().kind() == BaseType::Kind::STRUCT
 				){
 					const BaseType::Struct& rhs_struct =
-						this->context.getTypeManager().getStruct(rhs_actual_type.baseTypeID().structID());
+						this->context.getTypeManager().getStruct(rhs_decayed_type.baseTypeID().structID());
 
 					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
 						this->infix_overload_impl(rhs_struct.infixOverloads, lhs, rhs, instr.infix);
@@ -18589,9 +18550,9 @@ namespace pcit::panther{
 					}
 
 					if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
-						if(lhs_actual_type.qualifiers().empty() == false){
-							if(lhs_actual_type.qualifiers().back().isPtr){
-								if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+						if(lhs_decayed_type.qualifiers().empty() == false){
+							if(lhs_decayed_type.qualifiers().back().isPtr){
+								if(lhs_decayed_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 									auto infos = evo::SmallVector<Diagnostic::Info>();
 									this->diagnostic_print_type_info(
 										lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: "
@@ -18610,10 +18571,10 @@ namespace pcit::panther{
 
 							}else{
 								evo::debugAssert(
-									lhs_actual_type.qualifiers().back().isOptional, "Unknown type qualifiers"
+									lhs_decayed_type.qualifiers().back().isOptional, "Unknown type qualifiers"
 								);
 
-								if(this->type_is_comparable(lhs_actual_type) == false){
+								if(this->type_is_comparable(lhs_decayed_type) == false){
 									auto infos = evo::SmallVector<Diagnostic::Info>();
 									this->diagnostic_print_type_info(
 										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
@@ -18631,7 +18592,7 @@ namespace pcit::panther{
 								}
 
 								const sema::SameTypeCmp::ID same_type_cmp = this->context.sema_buffer.createSameTypeCmp(
-									lhs_actual_type_id, lhs.getExpr(), rhs.getExpr(), op_kind == Token::lookupKind("==")
+									lhs_decayed_type_id, lhs.getExpr(), rhs.getExpr(), op_kind == Token::lookupKind("==")
 								);
 
 								this->return_term_info(instr.output,
@@ -18645,7 +18606,7 @@ namespace pcit::panther{
 							}
 
 						}else{
-							switch(lhs_actual_type.baseTypeID().kind()){
+							switch(lhs_decayed_type.baseTypeID().kind()){
 								case BaseType::Kind::PRIMITIVE: {
 									// do nothing...
 								} break;
@@ -18663,7 +18624,7 @@ namespace pcit::panther{
 								} break;
 
 								case BaseType::Kind::ARRAY: case BaseType::Kind::ARRAY_REF: case BaseType::Kind::UNION:{
-									if(this->type_is_comparable(lhs_actual_type) == false){
+									if(this->type_is_comparable(lhs_decayed_type) == false){
 										auto infos = evo::SmallVector<Diagnostic::Info>();
 										this->diagnostic_print_type_info(
 											lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
@@ -18682,7 +18643,7 @@ namespace pcit::panther{
 
 									const sema::SameTypeCmp::ID same_type_cmp = 
 										this->context.sema_buffer.createSameTypeCmp(
-											lhs_actual_type_id,
+											lhs_decayed_type_id,
 											lhs.getExpr(),
 											rhs.getExpr(),
 											op_kind == Token::lookupKind("==")
@@ -18715,7 +18676,7 @@ namespace pcit::panther{
 
 
 								case BaseType::Kind::ALIAS: case BaseType::Kind::DISTINCT_ALIAS: {
-									evo::debugFatalBreak("Should have been skipped by getting actual type");
+									evo::debugFatalBreak("Should have been skipped by getting decayed type");
 								} break;
 
 								case BaseType::Kind::STRUCT: {
@@ -18726,10 +18687,10 @@ namespace pcit::panther{
 
 					}else{ // <, <=, >, >=
 						if(
-							lhs_actual_type.qualifiers().empty() == false
-							|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+							lhs_decayed_type.qualifiers().empty() == false
+							|| lhs_decayed_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 							|| this->context.getTypeManager().getPrimitive(
-									lhs_actual_type.baseTypeID().primitiveID()
+									lhs_decayed_type.baseTypeID().primitiveID()
 								).kind() == Token::Kind::TYPE_TYPEID
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -18750,7 +18711,7 @@ namespace pcit::panther{
 					}
 
 				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
+					if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
@@ -18765,7 +18726,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
+					if(this->context.getTypeManager().isUnsignedIntegral(rhs_decayed_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 						this->emit_error(
@@ -18781,10 +18742,10 @@ namespace pcit::panther{
 					}
 
 					const uint64_t num_bits_lhs_type =
-						this->context.getTypeManager().numBits(lhs_actual_type_id);
+						this->context.getTypeManager().numBits(lhs_decayed_type_id);
 
 					const uint64_t num_bits_rhs_type =
-						this->context.getTypeManager().numBits(rhs_actual_type_id);
+						this->context.getTypeManager().numBits(rhs_decayed_type_id);
 
 					const uint64_t expected_num_bits_rhs_type =
 						uint64_t(std::ceil(std::log2(double(num_bits_lhs_type))));
@@ -18819,8 +18780,8 @@ namespace pcit::panther{
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
-							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
-							&& this->context.getTypeManager().isFloatingPoint(lhs_actual_type_id) == false
+							this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs_decayed_type_id) == false
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -18834,7 +18795,7 @@ namespace pcit::panther{
 						}
 					
 					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -18851,8 +18812,8 @@ namespace pcit::panther{
 						|| MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL
 					){
 						if(
-							lhs_actual_type.qualifiers().empty() == false
-							|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
+							lhs_decayed_type.qualifiers().empty() == false
+							|| lhs_decayed_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -18865,12 +18826,12 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						const BaseType::Primitive& lhs_actual_primitive =
-							this->context.getTypeManager().getPrimitive(lhs_actual_type.baseTypeID().primitiveID());
+						const BaseType::Primitive& lhs_decayed_primitive =
+							this->context.getTypeManager().getPrimitive(lhs_decayed_type.baseTypeID().primitiveID());
 
 						if(
-							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
-							&& lhs_actual_primitive.kind() != Token::Kind::TYPE_BOOL
+							this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
+							&& lhs_decayed_primitive.kind() != Token::Kind::TYPE_BOOL
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -18888,14 +18849,14 @@ namespace pcit::panther{
 
 
 			}else{ // rhs fluid
-				const TypeInfo::ID lhs_actual_type_id =
-					this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
+				const TypeInfo::ID lhs_decayed_type_id =
+					this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
-				const TypeInfo& lhs_actual_type = this->context.getTypeManager().getTypeInfo(lhs_actual_type_id);
+				const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);
 
-				if(lhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				if(lhs_decayed_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
 					const BaseType::Struct& lhs_struct =
-						this->context.getTypeManager().getStruct(lhs_actual_type.baseTypeID().structID());
+						this->context.getTypeManager().getStruct(lhs_decayed_type.baseTypeID().structID());
 
 					const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
 						this->infix_overload_impl(lhs_struct.infixOverloads, lhs, rhs, instr.infix);
@@ -18936,7 +18897,7 @@ namespace pcit::panther{
 
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-					if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
+					if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
@@ -18952,7 +18913,7 @@ namespace pcit::panther{
 					}
 
 					const uint64_t num_bits_lhs_type =
-						this->context.getTypeManager().numBits(lhs_actual_type_id);
+						this->context.getTypeManager().numBits(lhs_decayed_type_id);
 
 					const uint32_t expected_num_bits_rhs_type =
 						uint32_t(std::ceil(std::log2(double(num_bits_lhs_type))));
@@ -18987,9 +18948,9 @@ namespace pcit::panther{
 									rhs.type_id.as<TermInfo::TaggedUnionFieldAccessor>();
 
 								if(
-									lhs_actual_type.qualifiers().empty() == false
-									|| lhs_actual_type.baseTypeID().kind() != BaseType::Kind::UNION
-									|| lhs_actual_type.baseTypeID().unionID() != tagged_union_field_accessor.union_id
+									lhs_decayed_type.qualifiers().empty() == false
+									|| lhs_decayed_type.baseTypeID().kind() != BaseType::Kind::UNION
+									|| lhs_decayed_type.baseTypeID().unionID() != tagged_union_field_accessor.union_id
 								){
 									this->error_type_mismatch(
 										this->context.type_manager.getOrCreateTypeInfo(
@@ -19018,7 +18979,7 @@ namespace pcit::panther{
 										sema::Expr(
 											this->context.sema_buffer.createUnionTagCmp(
 												lhs.getExpr(),
-												lhs_actual_type.baseTypeID().unionID(),
+												lhs_decayed_type.baseTypeID().unionID(),
 												tagged_union_field_accessor.field_index,
 												op_kind == Token::lookupKind("==")
 											)
@@ -19033,7 +18994,7 @@ namespace pcit::panther{
 
 
 					if(this->type_check<true, true>(
-						lhs_actual_type_id,
+						lhs_decayed_type_id,
 						rhs,
 						std::format(
 							"RHS of operator [{}]", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
@@ -19045,11 +19006,11 @@ namespace pcit::panther{
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
-							this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false
-							&& this->context.getTypeManager().isFloatingPoint(lhs_actual_type_id) == false
+							this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
+							&& this->context.getTypeManager().isFloatingPoint(lhs_decayed_type_id) == false
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
-							this->diagnostic_print_type_info(lhs_actual_type_id, infos, "Argument type: ");
+							this->diagnostic_print_type_info(lhs_decayed_type_id, infos, "Argument type: ");
 							this->emit_error(
 								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
 								instr.infix,
@@ -19060,7 +19021,7 @@ namespace pcit::panther{
 						}
 					
 					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id) == false){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -19076,13 +19037,14 @@ namespace pcit::panther{
 			}
 
 		}else if(rhs.type_id.is<TypeInfo::ID>()){ // lhs fluid
-			const TypeInfo::ID rhs_actual_type_id = this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo::ID rhs_decayed_type_id =
+				this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
-			const TypeInfo& rhs_actual_type = this->context.getTypeManager().getTypeInfo(rhs_actual_type_id);
+			const TypeInfo& rhs_decayed_type = this->context.getTypeManager().getTypeInfo(rhs_decayed_type_id);
 
-			if(rhs_actual_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			if(rhs_decayed_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
 				const BaseType::Struct& rhs_struct =
-					this->context.getTypeManager().getStruct(rhs_actual_type.baseTypeID().structID());
+					this->context.getTypeManager().getStruct(rhs_decayed_type.baseTypeID().structID());
 
 				const evo::Expected<sema::FuncCall::ID, Result> infix_overload_result = 
 					this->infix_overload_impl(rhs_struct.infixOverloads, lhs, rhs, instr.infix);
@@ -19121,7 +19083,7 @@ namespace pcit::panther{
 			}
 
 			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::SHIFT){
-				if(this->context.getTypeManager().isUnsignedIntegral(rhs_actual_type_id) == false){
+				if(this->context.getTypeManager().isUnsignedIntegral(rhs_decayed_type_id) == false){
 					auto infos = evo::SmallVector<Diagnostic::Info>();
 					this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 					this->emit_error(
@@ -19138,7 +19100,7 @@ namespace pcit::panther{
 
 
 				const uint64_t num_bits_rhs_type =
-					this->context.getTypeManager().numBits(rhs_actual_type_id);
+					this->context.getTypeManager().numBits(rhs_decayed_type_id);
 
 				if(num_bits_rhs_type > 23){
 					this->emit_error(
@@ -19178,7 +19140,7 @@ namespace pcit::panther{
 
 			}else{
 				if(this->type_check<true, true>(
-					rhs_actual_type_id,
+					rhs_decayed_type_id,
 					lhs,
 					std::format(
 						"LHS of [{}] operator",
@@ -19191,8 +19153,8 @@ namespace pcit::panther{
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 					if(
-						this->context.getTypeManager().isIntegral(rhs_actual_type_id) == false
-						&& this->context.getTypeManager().isFloatingPoint(rhs_actual_type_id) == false
+						this->context.getTypeManager().isIntegral(rhs_decayed_type_id) == false
+						&& this->context.getTypeManager().isFloatingPoint(rhs_decayed_type_id) == false
 					){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
@@ -19206,7 +19168,7 @@ namespace pcit::panther{
 					}
 				
 				}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::INTEGRAL_MATH){
-					if(this->context.getTypeManager().isIntegral(rhs_actual_type_id) == false){
+					if(this->context.getTypeManager().isIntegral(rhs_decayed_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 						this->emit_error(
@@ -19279,7 +19241,7 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
 						lhs.getExpr(),
 						rhs.getExpr(),
-						this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>())
+						this->context.type_manager.decayType<true, false>(lhs.type_id.as<TypeInfo::ID>())
 					)
 				);
 			}
@@ -19288,7 +19250,10 @@ namespace pcit::panther{
 		}else{
 			auto resultant_type = std::optional<TypeInfo::ID>();
 
-			const TypeInfo::ID lhs_actual_type_id = this->get_actual_type<false, false>(lhs.type_id.as<TypeInfo::ID>());
+			const TypeInfo::ID lhs_decayed_type_id 
+
+			=
+				this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
 			const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
 
@@ -19321,7 +19286,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::EQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19330,7 +19297,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::NEQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19339,7 +19308,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19348,7 +19319,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19357,7 +19330,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19366,7 +19341,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19375,7 +19352,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::AND,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19384,7 +19363,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::OR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19393,48 +19374,50 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::XOR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
 					case Token::lookupKind("<<"): case Token::lookupKind("<<="): {
-						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+						const TypeInfo::ID rhs_decayed_type_id = 
+							this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, rhs_actual_type_id, core::GenericValue(true)
+								lhs_decayed_type_id, rhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
 
 					case Token::lookupKind("<<|"): case Token::lookupKind("<<|="): {
-						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+						const TypeInfo::ID rhs_decayed_type_id = 
+							this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL_SAT,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, rhs_actual_type_id
+								lhs_decayed_type_id, rhs_decayed_type_id
 							}
 						);
 					} break;
 
 					case Token::lookupKind(">>"): case Token::lookupKind(">>="): {
-						const TypeInfo::ID rhs_actual_type_id = 
-							this->get_actual_type<false, false>(rhs.type_id.as<TypeInfo::ID>());
+						const TypeInfo::ID rhs_decayed_type_id = 
+							this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
 
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHR,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, rhs_actual_type_id, core::GenericValue(true)
+								lhs_decayed_type_id, rhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -19442,18 +19425,18 @@ namespace pcit::panther{
 					case Token::lookupKind("+"): case Token::lookupKind("+="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::ADD,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id, core::GenericValue(false)
+									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FADD,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id
+									lhs_decayed_type_id
 								}
 							);
 						}
@@ -19465,7 +19448,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, core::GenericValue(true)
+								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -19475,25 +19458,27 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
 					case Token::lookupKind("-"): case Token::lookupKind("-="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::SUB,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id, core::GenericValue(false)
+									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FSUB,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id
+									lhs_decayed_type_id
 								}
 							);
 						}
@@ -19505,7 +19490,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, core::GenericValue(true)
+								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -19515,25 +19500,27 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
 					case Token::lookupKind("*"): case Token::lookupKind("*="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::MUL,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id, core::GenericValue(false)
+									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FMUL,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id
+									lhs_decayed_type_id
 								}
 							);
 						}
@@ -19545,7 +19532,7 @@ namespace pcit::panther{
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL,
 							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_actual_type_id, core::GenericValue(true)
+								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
 					} break;
@@ -19555,25 +19542,27 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
 					case Token::lookupKind("/"): case Token::lookupKind("/="): {
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
-						if(this->context.getTypeManager().isIntegral(lhs_actual_type_id)){
+						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::DIV,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id, core::GenericValue(false)
+									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FDIV,
 								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_actual_type_id
+									lhs_decayed_type_id
 								}
 							);
 						}
@@ -19584,7 +19573,9 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::REM,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{lhs_actual_type_id}
+							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								lhs_decayed_type_id
+							}
 						);
 					} break;
 
@@ -19651,12 +19642,13 @@ namespace pcit::panther{
 		}
 
 
-		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true, false>(lhs.type_id.as<TypeInfo::ID>());
-		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
+		const TypeInfo::ID decayed_lhs_type_id =
+			this->context.type_manager.decayType<true, false>(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo& decayed_lhs_type = this->context.getTypeManager().getTypeInfo(decayed_lhs_type_id);
 
 		bool is_pointer = false;
 
-		if(actual_lhs_type.qualifiers().empty() == false){
+		if(decayed_lhs_type.qualifiers().empty() == false){
 			if(lhs.value_stage == TermInfo::ValueStage::CONSTEXPR){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -19665,13 +19657,13 @@ namespace pcit::panther{
 				);
 				return Result::ERROR;
 			}else{
-				if(actual_lhs_type.qualifiers().size() > 1){
+				if(decayed_lhs_type.qualifiers().size() > 1){
 					if(
-						actual_lhs_type.qualifiers().back().isOptional == false
-						&& actual_lhs_type.qualifiers()[actual_lhs_type.qualifiers().size() - 2].isOptional
+						decayed_lhs_type.qualifiers().back().isOptional == false
+						&& decayed_lhs_type.qualifiers()[decayed_lhs_type.qualifiers().size() - 2].isOptional
 					){
 						return this->optional_accessor<NEEDS_DEF>(
-							instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, true
+							instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
 						);
 					}
 
@@ -19683,9 +19675,9 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(actual_lhs_type.qualifiers().back().isOptional){
+				if(decayed_lhs_type.qualifiers().back().isOptional){
 					return this->optional_accessor<NEEDS_DEF>(
-						instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, false
+						instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
 					);
 				}
 
@@ -19694,46 +19686,46 @@ namespace pcit::panther{
 		}
 
 
-		switch(actual_lhs_type.baseTypeID().kind()){
+		switch(decayed_lhs_type.baseTypeID().kind()){
 			case BaseType::Kind::STRUCT: {
 				return this->struct_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::UNION: {
 				return this->union_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ENUM: {
 				return this->enum_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ARRAY: {
 				return this->array_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
 				return this->array_ref_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, is_pointer
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return this->interface_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, true
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
 				);
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				return this->interface_accessor<NEEDS_DEF>(
-					instr, rhs_ident_str, lhs, actual_lhs_type_id, actual_lhs_type, false
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
 				);
 			} break;
 
@@ -20929,12 +20921,12 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID actual_lhs_type_id = this->get_actual_type<true, true>(
+		const TypeInfo::ID decayed_lhs_type_id = this->context.type_manager.decayType<true, true>(
 			lhs.type_id.as<TypeInfo::VoidableID>().asTypeID()
 		);
-		const TypeInfo& actual_lhs_type = this->context.getTypeManager().getTypeInfo(actual_lhs_type_id);
+		const TypeInfo& decayed_lhs_type = this->context.getTypeManager().getTypeInfo(decayed_lhs_type_id);
 
-		if(actual_lhs_type.qualifiers().empty() == false){
+		if(decayed_lhs_type.qualifiers().empty() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
 				instr.infix.lhs,
@@ -20952,10 +20944,10 @@ namespace pcit::panther{
 		sema::ScopeLevel const * scope_level = nullptr;
 		Source const * type_source = nullptr;
 
-		switch(actual_lhs_type.baseTypeID().kind()){
+		switch(decayed_lhs_type.baseTypeID().kind()){
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
-					actual_lhs_type.baseTypeID().structID()
+					decayed_lhs_type.baseTypeID().structID()
 				);
 
 				namespaced_members = lhs_struct.namespacedMembers;
@@ -20968,7 +20960,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& lhs_union = this->context.getTypeManager().getUnion(
-					actual_lhs_type.baseTypeID().unionID()
+					decayed_lhs_type.baseTypeID().unionID()
 				);
 
 				for(uint32_t i = 0; const BaseType::Union::Field& field : lhs_union.fields){
@@ -20984,7 +20976,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR,
-							TermInfo::TaggedUnionFieldAccessor(actual_lhs_type.baseTypeID().unionID(), i)
+							TermInfo::TaggedUnionFieldAccessor(decayed_lhs_type.baseTypeID().unionID(), i)
 						);
 						return Result::SUCCESS;
 					}
@@ -21002,7 +20994,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ENUM: {
 				const BaseType::Enum& lhs_enum = this->context.getTypeManager().getEnum(
-					actual_lhs_type.baseTypeID().enumID()
+					decayed_lhs_type.baseTypeID().enumID()
 				);
 
 				for(const BaseType::Enum::Enumerator& enumerator : lhs_enum.enumerators){
@@ -21011,9 +21003,11 @@ namespace pcit::panther{
 							TermInfo::ValueCategory::EPHEMERAL,
 							TermInfo::ValueStage::CONSTEXPR,
 							TermInfo::ValueState::NOT_APPLICABLE,
-							actual_lhs_type_id,
+							decayed_lhs_type_id,
 							sema::Expr(
-								this->context.sema_buffer.createIntValue(enumerator.value, actual_lhs_type.baseTypeID())
+								this->context.sema_buffer.createIntValue(
+									enumerator.value, decayed_lhs_type.baseTypeID()
+								)
 							)
 						);
 						return Result::SUCCESS;
@@ -21165,8 +21159,8 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_ref
 	) -> Result {
 		auto impl_instantiation_type_id = std::optional<TypeInfo::ID>();
@@ -21177,7 +21171,7 @@ namespace pcit::panther{
 			if(is_ref){
 				const BaseType::PolyInterfaceRef& poly_interface_ref = 
 					this->context.getTypeManager().getPolyInterfaceRef(
-						actual_lhs_type.baseTypeID().polyInterfaceRefID()
+						decayed_lhs_type.baseTypeID().polyInterfaceRefID()
 					);
 
 				ref_is_mut = poly_interface_ref.isMut;
@@ -21186,7 +21180,7 @@ namespace pcit::panther{
 
 			}else{
 				const BaseType::InterfaceMap& interface_map = 
-					this->context.getTypeManager().getInterfaceMap(actual_lhs_type.baseTypeID().interfaceMapID());
+					this->context.getTypeManager().getInterfaceMap(decayed_lhs_type.baseTypeID().interfaceMapID());
 
 				impl_instantiation_type_id = interface_map.underlyingTypeID;
 
@@ -21329,15 +21323,15 @@ namespace pcit::panther{
 			}
 
 			const TypeInfo::ID this_type_id = [&](){
-				if(actual_lhs_type.qualifiers().empty()){
-					return actual_lhs_type_id;
+				if(decayed_lhs_type.qualifiers().empty()){
+					return decayed_lhs_type_id;
 				}else{
-					return this->context.type_manager.getOrCreateTypeInfo(actual_lhs_type.copyWithPoppedQualifier());
+					return this->context.type_manager.getOrCreateTypeInfo(decayed_lhs_type.copyWithPoppedQualifier());
 				}
 			}();
 
 			const sema::Expr this_expr = [&](){
-				if(actual_lhs_type.qualifiers().empty()){
+				if(decayed_lhs_type.qualifiers().empty()){
 					return lhs.getExpr();
 				}else{
 					return sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), this_type_id));
@@ -21370,27 +21364,27 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		const TypeInfo::ID optional_type_id = [&](){
 			if(is_pointer){
-				return this->context.type_manager.getOrCreateTypeInfo(actual_lhs_type.copyWithPoppedQualifier());
+				return this->context.type_manager.getOrCreateTypeInfo(decayed_lhs_type.copyWithPoppedQualifier());
 			}else{
-				return actual_lhs_type_id;
+				return decayed_lhs_type_id;
 			}
 		}();
 
 		const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			actual_lhs_type.copyWithPoppedQualifier(1 + size_t(is_pointer))
+			decayed_lhs_type.copyWithPoppedQualifier(1 + size_t(is_pointer))
 		);
 
 
 		const sema::Expr method_this = [&](){
 			sema::Expr lhs_expr = lhs.getExpr();
 			if(is_pointer){
-				lhs_expr = sema::Expr(this->context.sema_buffer.createDeref(lhs_expr, actual_lhs_type_id));
+				lhs_expr = sema::Expr(this->context.sema_buffer.createDeref(lhs_expr, decayed_lhs_type_id));
 			}
 
 			return sema::Expr(
@@ -21450,12 +21444,12 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		const BaseType::Struct& lhs_type_struct = this->context.getTypeManager().getStruct(
-			actual_lhs_type.baseTypeID().structID()
+			decayed_lhs_type.baseTypeID().structID()
 		);
 
 		const Source* struct_source = [&]() -> const Source* {
@@ -21481,7 +21475,7 @@ namespace pcit::panther{
 						if(
 							current_type_scope.has_value() == false
 							|| current_type_scope->is<BaseType::Struct::ID>() == false
-							|| current_type_scope->as<BaseType::Struct::ID>() != actual_lhs_type.baseTypeID().structID()
+							|| current_type_scope->as<BaseType::Struct::ID>() != decayed_lhs_type.baseTypeID().structID()
 						){
 							this->emit_error(
 								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
@@ -21528,7 +21522,7 @@ namespace pcit::panther{
 						const sema::Expr sema_expr = [&](){
 							if(is_pointer){
 								const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-									TypeInfo(actual_lhs_type.baseTypeID())
+									TypeInfo(decayed_lhs_type.baseTypeID())
 								);
 
 								const sema::Deref::ID deref =
@@ -21542,7 +21536,7 @@ namespace pcit::panther{
 							}else{
 								return sema::Expr(
 									this->context.sema_buffer.createAccessor(
-										lhs.getExpr(), actual_lhs_type_id, uint32_t(i)
+										lhs.getExpr(), decayed_lhs_type_id, uint32_t(i)
 									)
 								);
 							}
@@ -21640,10 +21634,10 @@ namespace pcit::panther{
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(actual_lhs_type.baseTypeID())
+					TypeInfo(decayed_lhs_type.baseTypeID())
 				);
 
-				const sema::FakeTermInfo::ValueCategory value_category = actual_lhs_type.qualifiers().back().isMut
+				const sema::FakeTermInfo::ValueCategory value_category = decayed_lhs_type.qualifiers().back().isMut
 					? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
 					: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 
@@ -21660,7 +21654,7 @@ namespace pcit::panther{
 					TermInfo::convertValueCategory(lhs.value_category),
 					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
-					actual_lhs_type_id,
+					decayed_lhs_type_id,
 					lhs.getExpr()
 				);
 			}
@@ -21684,12 +21678,12 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		const BaseType::Union& lhs_type_union = this->context.getTypeManager().getUnion(
-			actual_lhs_type.baseTypeID().unionID()
+			decayed_lhs_type.baseTypeID().unionID()
 		);
 
 		const Source* union_source = [&]() -> const Source* {
@@ -21752,7 +21746,7 @@ namespace pcit::panther{
 				const sema::Expr sema_expr = [&](){
 					if(is_pointer){
 						const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(actual_lhs_type.baseTypeID())
+							TypeInfo(decayed_lhs_type.baseTypeID())
 						);
 
 						const sema::Deref::ID deref =
@@ -21769,7 +21763,7 @@ namespace pcit::panther{
 						return sema::Expr(
 							this->context.sema_buffer.createUnionAccessor(
 								lhs.getExpr(),
-								actual_lhs_type_id,
+								decayed_lhs_type_id,
 								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
 							)
 						);
@@ -21849,7 +21843,7 @@ namespace pcit::panther{
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(actual_lhs_type.baseTypeID())
+					TypeInfo(decayed_lhs_type.baseTypeID())
 				);
 
 				return this->context.sema_buffer.createFakeTermInfo(
@@ -21865,7 +21859,7 @@ namespace pcit::panther{
 					TermInfo::convertValueCategory(lhs.value_category),
 					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
-					actual_lhs_type_id,
+					decayed_lhs_type_id,
 					lhs.getExpr()
 				);
 			}
@@ -21888,12 +21882,12 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		const BaseType::Enum& lhs_type_enum = this->context.getTypeManager().getEnum(
-			actual_lhs_type.baseTypeID().enumID()
+			decayed_lhs_type.baseTypeID().enumID()
 		);
 
 		const Source* enum_source = [&]() -> const Source* {
@@ -21991,7 +21985,7 @@ namespace pcit::panther{
 		const sema::FakeTermInfo::ID method_this = [&](){
 			if(is_pointer){
 				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(actual_lhs_type.baseTypeID())
+					TypeInfo(decayed_lhs_type.baseTypeID())
 				);
 
 				return this->context.sema_buffer.createFakeTermInfo(
@@ -22007,7 +22001,7 @@ namespace pcit::panther{
 					TermInfo::convertValueCategory(lhs.value_category),
 					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
-					actual_lhs_type_id,
+					decayed_lhs_type_id,
 					lhs.getExpr()
 				);
 			}
@@ -22032,8 +22026,8 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		std::ignore = is_pointer;
@@ -22042,7 +22036,7 @@ namespace pcit::panther{
 			TermInfo::convertValueCategory(lhs.value_category),
 			TermInfo::convertValueStage(lhs.value_stage),
 			TermInfo::convertValueState(lhs.value_state),
-			actual_lhs_type_id,
+			decayed_lhs_type_id,
 			lhs.getExpr()
 		);
 
@@ -22073,7 +22067,7 @@ namespace pcit::panther{
 
 		}else if(rhs_ident_str == "dimensions"){
 			const BaseType::Array& array_type =
-				this->context.getTypeManager().getArray(actual_lhs_type.baseTypeID().arrayID());
+				this->context.getTypeManager().getArray(decayed_lhs_type.baseTypeID().arrayID());
 
 			const BaseType::ID returned_array_base_type = this->context.type_manager.getOrCreateArray(
 				BaseType::Array(
@@ -22112,7 +22106,7 @@ namespace pcit::panther{
 
 		}else if(rhs_ident_str == "data"){
 			const BaseType::Array& array_type =
-				this->context.getTypeManager().getArray(actual_lhs_type.baseTypeID().arrayID());
+				this->context.getTypeManager().getArray(decayed_lhs_type.baseTypeID().arrayID());
 
 			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
 				const TypeInfo& arr_elem_type = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
@@ -22170,22 +22164,22 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
-		TypeInfo::ID actual_lhs_type_id,
-		const TypeInfo& actual_lhs_type,
+		TypeInfo::ID decayed_lhs_type_id,
+		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
 		const TypeInfo::ID array_ref_target_type = [&](){
 			if(is_pointer){
-				return this->context.type_manager.getOrCreateTypeInfo(actual_lhs_type.copyWithPoppedQualifier());
+				return this->context.type_manager.getOrCreateTypeInfo(decayed_lhs_type.copyWithPoppedQualifier());
 			}else{
-				return actual_lhs_type_id;
+				return decayed_lhs_type_id;
 			}
 		}();
 
 		const sema::Expr method_this = [&](){
 			sema::Expr lhs_expr = lhs.getExpr();
 			if(is_pointer){
-				lhs_expr = sema::Expr(this->context.sema_buffer.createDeref(lhs_expr, actual_lhs_type_id));
+				lhs_expr = sema::Expr(this->context.sema_buffer.createDeref(lhs_expr, decayed_lhs_type_id));
 			}
 
 			return sema::Expr(
@@ -22226,7 +22220,7 @@ namespace pcit::panther{
 
 		}else if(rhs_ident_str == "dimensions"){
 			const BaseType::ArrayRef& array_ref_type =
-				this->context.getTypeManager().getArrayRef(actual_lhs_type.baseTypeID().arrayRefID());
+				this->context.getTypeManager().getArrayRef(decayed_lhs_type.baseTypeID().arrayRefID());
 
 			const BaseType::ID returned_array_base_type = this->context.type_manager.getOrCreateArray(
 				BaseType::Array(
@@ -22265,7 +22259,7 @@ namespace pcit::panther{
 
 		}else if(rhs_ident_str == "data"){
 			const BaseType::ArrayRef& array_ref_type =
-				this->context.getTypeManager().getArrayRef(actual_lhs_type.baseTypeID().arrayRefID());
+				this->context.getTypeManager().getArrayRef(decayed_lhs_type.baseTypeID().arrayRefID());
 
 			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
 				const TypeInfo& arr_elem_type =
@@ -24483,24 +24477,6 @@ namespace pcit::panther{
 	}
 
 
-	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_MAP>
-	auto SemanticAnalyzer::get_actual_voidable_type(TypeInfo::VoidableID type_id) const -> TypeInfo::VoidableID {
-		if(type_id.isVoid()){ return TypeInfo::VoidableID::Void(); }
-
-		return TypeInfo::VoidableID(
-			this->get_actual_type<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_MAP>(
-				type_id.asTypeID()
-			)
-		);
-	}
-
-
-	template<bool LOOK_THROUGH_DISTINCT_ALIAS, bool LOOK_THROUGH_INTERFACE_MAP>
-	auto SemanticAnalyzer::get_actual_type(TypeInfo::ID type_id) const -> TypeInfo::ID {
-		// TODO(NOW): inline
-		return this->context.type_manager.decayType<LOOK_THROUGH_DISTINCT_ALIAS, LOOK_THROUGH_INTERFACE_MAP>(type_id);
-	}
-
 
 
 	auto SemanticAnalyzer::select_func_overload(
@@ -24615,7 +24591,7 @@ namespace pcit::panther{
 				// check type mismatch
 
 				const TypeCheckInfo& type_check_info = this->type_check<false, false>(
-					this->get_actual_type<false, false>(func_info.func_type.params[arg_i].typeID),
+					this->context.type_manager.decayType<false, false>(func_info.func_type.params[arg_i].typeID),
 					arg_info.term_info,
 					"",
 					arg_info.ast_node
@@ -25110,7 +25086,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().getTypeInfo(selected_func.func_type.params[i].typeID);
 			if(param_id_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){
 				if(this->type_check<true, true>(
-					this->get_actual_type<false, false>(selected_func.func_type.params[i].typeID),
+					this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
 					arg_info.term_info,
 					"Function call argument",
 					arg_info.ast_node
@@ -30013,9 +29989,10 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT:
 			case TermInfo::ValueCategory::FORWARDABLE: {
-				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<false, false>(expected_type_id);
+				const TypeInfo::ID decayed_expected_type_id =
+					this->context.type_manager.decayType<false, false>(expected_type_id);
 
-				TypeInfo::ID actual_got_type_id = TypeInfo::ID::dummy();
+				TypeInfo::ID decayed_got_type_id = TypeInfo::ID::dummy();
 				if(got_expr.isMultiValue()) [[unlikely]] {
 					if(multi_type_index.has_value() == false){
 						this->emit_error(
@@ -30026,24 +30003,25 @@ namespace pcit::panther{
 						return TypeCheckInfo::fail();
 					}
 
-					actual_got_type_id = this->get_actual_type<false, false>(
+					decayed_got_type_id = this->context.type_manager.decayType<false, false>(
 						got_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()[*multi_type_index]
 					);
 
 				}else{
-					actual_got_type_id = this->get_actual_type<false, false>(got_expr.type_id.as<TypeInfo::ID>());
+					decayed_got_type_id =
+						this->context.type_manager.decayType<false, false>(got_expr.type_id.as<TypeInfo::ID>());
 				}
 
 
 				// if types are not exact, check if implicit conversion is valid
 				bool is_implicit_conversion_to_optional = false;
-				if(actual_expected_type_id != actual_got_type_id){
-					const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
-					const TypeInfo& got_type      = type_manager.getTypeInfo(actual_got_type_id);
+				if(decayed_expected_type_id != decayed_got_type_id){
+					const TypeInfo& expected_type = type_manager.getTypeInfo(decayed_expected_type_id);
+					const TypeInfo& got_type      = type_manager.getTypeInfo(decayed_got_type_id);
 
-					if(type_manager.isTypeDeducer(actual_expected_type_id)){
+					if(type_manager.isTypeDeducer(decayed_expected_type_id)){
 						DeducerMatchOutput deducer_match_output =
-							this->deducer_matches_and_extract(actual_expected_type_id, actual_got_type_id);
+							this->deducer_matches_and_extract(decayed_expected_type_id, decayed_got_type_id);
 
 						switch(deducer_match_output.outcome()){
 							case DeducerMatchOutput::Outcome::MATCH: {
@@ -30056,7 +30034,7 @@ namespace pcit::panther{
 									// TODO(FUTURE): better messaging
 									auto infos = evo::SmallVector<Diagnostic::Info>();
 									this->diagnostic_print_type_info(expected_type_id, infos, "Deducer type:       ");
-									this->diagnostic_print_type_info(actual_got_type_id, infos, "Type of expression: ");
+									this->diagnostic_print_type_info(decayed_got_type_id, infos,"Type of expression: ");
 									this->emit_error(
 										Diagnostic::Code::SEMA_TYPE_MISMATCH, // TODO(FUTURE): more specific code
 										location,
@@ -30168,10 +30146,11 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
-				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<true, true>(expected_type_id);
+				const TypeInfo::ID decayed_expected_type_id =
+					this->context.type_manager.decayType<true, true>(expected_type_id);
 
 				const TypeInfo& expected_type_info = 
-					type_manager.getTypeInfo(actual_expected_type_id);
+					type_manager.getTypeInfo(decayed_expected_type_id);
 
 
 				if(expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
@@ -30461,8 +30440,9 @@ namespace pcit::panther{
 
 
 			case TermInfo::ValueCategory::NULL_VALUE: {
-				const TypeInfo::ID actual_expected_type_id = this->get_actual_type<true, true>(expected_type_id);
-				const TypeInfo& expected_type = type_manager.getTypeInfo(actual_expected_type_id);
+				const TypeInfo::ID decayed_expected_type_id =
+					this->context.type_manager.decayType<true, true>(expected_type_id);
+				const TypeInfo& expected_type = type_manager.getTypeInfo(decayed_expected_type_id);
 				
 				if(expected_type.isOptional() == false){
 					this->emit_error(
@@ -30473,7 +30453,7 @@ namespace pcit::panther{
 					return TypeCheckInfo::fail();
 				}
 
-				if(type_manager.isTypeDeducer(actual_expected_type_id)){
+				if(type_manager.isTypeDeducer(decayed_expected_type_id)){
 					this->emit_error(
 						Diagnostic::Code::SEMA_CANNOT_EXTRACT_DEDUCERS_FROM_NULL,
 						location,
@@ -30644,12 +30624,12 @@ namespace pcit::panther{
 
 
 		while(true){
-			const TypeInfo& actual_expected_type = this->context.getTypeManager().getTypeInfo(type_id);
-			if(actual_expected_type.qualifiers().empty() == false){ break; }
-			if(actual_expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
+			const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(type_id);
+			if(expected_type.qualifiers().empty() == false){ break; }
+			if(expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
 
 			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
-				actual_expected_type.baseTypeID().aliasID()
+				expected_type.baseTypeID().aliasID()
 			);
 
 			type_id = expected_alias.aliasedType;

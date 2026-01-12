@@ -952,7 +952,7 @@ namespace pcit::panther{
 		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
 		const pir::Type new_type = [&](){
-			const pir::Type data_type = this->module.createArrayType(
+			const pir::Type data_type = this->module.getOrCreateArrayType(
 				this->module.createIntegerType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
 			);
 
@@ -1058,7 +1058,7 @@ namespace pcit::panther{
 
 		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
 			std::move(vtable_name),
-			this->module.createArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
+			this->module.getOrCreateArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
 			pir::Linkage::EXTERNAL,
 			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
 			true
@@ -1273,7 +1273,7 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Type func_pir_type = this->module.createFunctionType(
+				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
 					std::move(param_types),
 					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
 					this->module.createBoolType()
@@ -1416,7 +1416,7 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Type func_pir_type = this->module.createFunctionType(
+				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
 					std::move(param_types),
 					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
 					return_type
@@ -3692,7 +3692,7 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Type func_pir_type = this->module.createFunctionType(
+				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
 					std::move(param_types),
 					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
 					return_type
@@ -4225,7 +4225,7 @@ namespace pcit::panther{
 					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
 
 					const pir::Type return_type =
-						this->module.createArrayType(type_usize, array_ref_type.dimensions.size());
+						this->module.getOrCreateArrayType(type_usize, array_ref_type.dimensions.size());
 
 
 					const pir::Expr output_memory = [&](){
@@ -4663,7 +4663,7 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Type func_pir_type = this->module.createFunctionType(
+				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
 					std::move(param_types),
 					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
 					this->module.createBoolType()
@@ -9604,16 +9604,16 @@ namespace pcit::panther{
 				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY>(array.elementTypeID);
 
 				if(array.dimensions.size() == 1){
-					return this->module.createArrayType(
+					return this->module.getOrCreateArrayType(
 						elem_type, array.dimensions.back() + uint64_t(array.terminator.has_value())
 					);
 					
 				}else{
-					pir::Type array_type = this->module.createArrayType(elem_type, array.dimensions.back());
+					pir::Type array_type = this->module.getOrCreateArrayType(elem_type, array.dimensions.back());
 
 					if(array.dimensions.size() > 1){
 						for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
-							array_type = this->module.createArrayType(array_type, array.dimensions[i]);
+							array_type = this->module.getOrCreateArrayType(array_type, array.dimensions[i]);
 						}
 					}
 

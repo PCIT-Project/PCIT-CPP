@@ -141,7 +141,7 @@ namespace pcit::pir{
 			// global values
 
 			EVO_NODISCARD auto createGlobalString(std::string&& string) -> GlobalVar::String::ID {
-				const Type str_type = this->createArrayType(this->createIntegerType(8), string.size() + 1);
+				const Type str_type = this->getOrCreateArrayType(this->createIntegerType(8), string.size() + 1);
 				return this->global_strings.emplace_back(std::move(string), str_type);
 			}
 
@@ -175,20 +175,17 @@ namespace pcit::pir{
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 								evo::debugAssert(
-									this->typesEquivalent(element_type, this->getGlobalString(element).type),
-									"Array element must match type"
+									element_type == this->getGlobalString(element).type, "Array element must match type"
 								);
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
 								evo::debugAssert(
-									this->typesEquivalent(element_type, this->getGlobalArray(element).type),
-									"Array element must match type"
+									element_type == this->getGlobalArray(element).type, "Array element must match type"
 								);
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 								evo::debugAssert(
-									this->typesEquivalent(element_type, this->getGlobalStruct(element).type),
-									"Array element must match type"
+									element_type == this->getGlobalStruct(element).type, "Array element must match type"
 								);
 
 							}else{
@@ -198,7 +195,7 @@ namespace pcit::pir{
 					}
 				#endif
 
-				const Type array_type = this->createArrayType(element_type, values.size());
+				const Type array_type = this->getOrCreateArrayType(element_type, values.size());
 				return this->global_arrays.emplace_back(array_type, std::move(values));
 			}
 
@@ -238,20 +235,20 @@ namespace pcit::pir{
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
 			 					evo::debugAssert(
-			 						this->typesEquivalent(member_type, this->getGlobalString(member_value).type),
+			 						member_type == this->getGlobalString(member_value).type,
 			 						"Struct member value must match type"
 			 					);
 			 					
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
 			 					evo::debugAssert(
-			 						this->typesEquivalent(member_type, this->getGlobalArray(member_value).type),
+			 						member_type == this->getGlobalArray(member_value).type,
 			 						"Struct member value must match type"
 			 					);
 			 					
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 			 					evo::debugAssert(
-			 						this->typesEquivalent(member_type, this->getGlobalStruct(member_value).type),
+			 						member_type == this->getGlobalStruct(member_value).type,
 			 						"Struct member value must match type"
 			 					);
 
@@ -299,20 +296,20 @@ namespace pcit::pir{
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
 							evo::debugAssert(
-								this->typesEquivalent(type, this->getGlobalString(member_value).type),
+								type == this->getGlobalString(member_value).type,
 								"Global variable value must match type"
 							);
 							
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
 							evo::debugAssert(
-								this->typesEquivalent(type, this->getGlobalArray(member_value).type),
+								type == this->getGlobalArray(member_value).type,
 								"Global variable value must match type"
 							);
 							
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 							evo::debugAssert(
-								this->typesEquivalent(type, this->getGlobalStruct(member_value).type),
+								type == this->getGlobalStruct(member_value).type,
 								"Global variable value must match type"
 							);
 
@@ -380,14 +377,26 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto createBFloatType() -> Type { return Type(Type::Kind::BFLOAT); }
 
 
+			EVO_NODISCARD auto getOrCreateArrayType(Type elem_type, uint64_t length) -> Type {
+				const auto lock = std::scoped_lock(array_types_lock);
 
-			EVO_NODISCARD auto createArrayType(Type elem_type, uint64_t length) -> Type {
+				// TODO(FUTURE): lookup with a hash map
+				for(uint32_t i = 0; const ArrayType& array_type : this->array_types){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(array_type.elemType == elem_type && array_type.length == length){
+						return Type(Type::Kind::ARRAY, i);
+					}
+				}
+
 				const uint32_t array_type_index = this->array_types.emplace_back(elem_type, length);
 				return Type(Type::Kind::ARRAY, array_type_index);
 			}
 
 			EVO_NODISCARD auto getArrayType(const Type& arr_type) const -> const ArrayType& {
 				evo::debugAssert(arr_type.kind() == Type::Kind::ARRAY, "Not an array");
+
+				const auto lock = std::scoped_lock(array_types_lock);
 				return this->array_types[arr_type.number];
 			}
 
@@ -436,68 +445,37 @@ namespace pcit::pir{
 
 
 
-			EVO_NODISCARD auto createFunctionType(auto&&... args) -> Type {
-				const uint32_t array_type_index = this->func_types.emplace_back(std::forward<decltype(args)>(args)...);
-				return Type(Type::Kind::FUNCTION, array_type_index);
+			EVO_NODISCARD auto getOrCreateFunctionType(
+				evo::SmallVector<Type>&& parameters, CallingConvention calling_convension, Type return_type
+			) -> Type {
+				const auto lock = std::scoped_lock(func_types_lock);
+
+				// TODO(FUTURE): lookup with hash map
+				for(uint32_t i = 0; const FunctionType& func_type : this->func_types){
+					if(
+						func_type.parameters == parameters
+						&& func_type.callingConvention == calling_convension
+						&& func_type.returnType == return_type
+					){
+						return Type(Type::Kind::FUNCTION, i);
+					}
+				
+					i += 1;
+				}
+
+				const uint32_t func_type_index = this->func_types.emplace_back(
+					std::move(parameters), calling_convension, return_type
+				);
+				return Type(Type::Kind::FUNCTION, func_type_index);
 			}
 
 			EVO_NODISCARD auto getFunctionType(const Type& func_type) const -> const FunctionType& {
 				evo::debugAssert(func_type.kind() == Type::Kind::FUNCTION, "Not an function");
+
+				const auto lock = std::scoped_lock(func_types_lock);
 				return this->func_types[func_type.number];
 			}
 
-
-
-			EVO_NODISCARD auto typesEquivalent(const Type& lhs, const Type& rhs) const -> bool {
-				if(lhs.kind() != rhs.kind()){ return false; }
-
-				switch(lhs.kind()){
-					case Type::Kind::VOID:    return true;
-					case Type::Kind::INTEGER: return lhs.getWidth() == rhs.getWidth();
-					case Type::Kind::BOOL:    return true;
-					case Type::Kind::FLOAT:   return lhs.getWidth() == rhs.getWidth();
-					case Type::Kind::BFLOAT:  return true;
-					case Type::Kind::PTR:     return true;
-
-					case Type::Kind::ARRAY: {
-						const ArrayType& lhs_array = this->getArrayType(lhs);
-						const ArrayType& rhs_array = this->getArrayType(rhs);
-
-						if(lhs_array.length != rhs_array.length){ return false; }
-						return this->typesEquivalent(lhs_array.elemType, rhs_array.elemType);
-					} break;
-
-					case Type::Kind::STRUCT: {
-						const StructType& lhs_struct = this->getStructType(lhs);
-						const StructType& rhs_struct = this->getStructType(rhs);
-
-						if(lhs_struct.isPacked != rhs_struct.isPacked){ return false; }
-						if(lhs_struct.members.size() != rhs_struct.members.size()){ return false; }
-						for(size_t i = 0; i < lhs_struct.members.size(); i+=1){
-							if(this->typesEquivalent(lhs_struct.members[i], rhs_struct.members[i]) == false){
-								return false;
-							}
-						}
-						return true;
-					} break;
-
-					case Type::Kind::FUNCTION: {
-						const FunctionType& lhs_func = this->getFunctionType(lhs);
-						const FunctionType& rhs_func = this->getFunctionType(rhs);
-
-						if(lhs_func.callingConvention != rhs_func.callingConvention){ return false; }
-						if(lhs_func.parameters.size() != rhs_func.parameters.size()){ return false; }
-						for(size_t i = 0; i < lhs_func.parameters.size(); i+=1){
-							if(this->typesEquivalent(lhs_func.parameters[i], rhs_func.parameters[i]) == false){
-								return false;
-							}
-						}
-						return this->typesEquivalent(lhs_func.returnType, rhs_func.returnType);
-					} break;
-				}
-
-				evo::unreachable();
-			}
 
 
 			///////////////////////////////////
@@ -532,9 +510,15 @@ namespace pcit::pir{
 			core::StepAlloc<BasicBlock, BasicBlock::ID> basic_blocks{};
 			core::StepAlloc<Number, uint32_t> numbers{};
 
-			core::SyncLinearStepAlloc<ArrayType, uint32_t> array_types{};
+
+			core::LinearStepAlloc<ArrayType, uint32_t> array_types{};
+			mutable evo::SpinLock array_types_lock{};
+
 			core::SyncLinearStepAlloc<StructType, uint32_t> struct_types{};
-			core::SyncLinearStepAlloc<FunctionType, uint32_t> func_types{};
+
+			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
+			mutable evo::SpinLock func_types_lock{};
+
 
 			// exprs
 			core::StepAlloc<Call, uint32_t> calls{};

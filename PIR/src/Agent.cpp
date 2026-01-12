@@ -1116,7 +1116,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Must return value");
 		evo::debugAssert(
-			this->module.typesEquivalent(this->getExprType(expr), this->target_func->getReturnType()),
+			this->getExprType(expr) == this->target_func->getReturnType(),
 			"Return type must match function"
 		);
 

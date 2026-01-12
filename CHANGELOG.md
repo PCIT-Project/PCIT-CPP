@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.217.1"></a>
+## v0.0.217.1
+
+### PIR
+- Fixed type equivalence checking for array types and function types
+	- No longer needs `Module::typesEquivalent` to check equivalence properly
+
+
+<!---------------------------------->
 <a name="v0.0.217.0"></a>
 ## v0.0.217.0
 

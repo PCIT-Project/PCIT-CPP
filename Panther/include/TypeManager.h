@@ -1265,6 +1265,15 @@ namespace pcit::panther{
 			// decay type
 
 			template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
+			EVO_NODISCARD auto decayVoidableType(TypeInfo::VoidableID type_id) -> TypeInfo::VoidableID {
+				if(type_id.isVoid()){ return TypeInfo::VoidableID::Void(); }
+
+				return TypeInfo::VoidableID(
+					this->decayType<DECAY_DISTINCT_ALIAS, DECAY_INTERFACE_MAP>(type_id.asTypeID())
+				);
+			}
+
+			template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
 			EVO_NODISCARD auto decayType(TypeInfo::ID type_id) -> TypeInfo::ID {
 				if constexpr(DECAY_DISTINCT_ALIAS){
 					if constexpr(DECAY_INTERFACE_MAP){

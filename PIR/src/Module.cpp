@@ -194,9 +194,7 @@ namespace pcit::pir{
 		}
 
 		auto Module::check_expr_type_match(Type type, const Expr& expr) const -> void {
-			evo::debugAssert(
-				this->typesEquivalent(type, ReaderAgent(*this).getExprType(expr)), "Type and value must match"
-			);
+			evo::debugAssert(type == ReaderAgent(*this).getExprType(expr), "Type and value must match");
 		}
 	#endif
 
