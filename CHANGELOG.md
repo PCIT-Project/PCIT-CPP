@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.218.0"></a>
+## v0.0.218.0
+
+### Panther
+- Added instantiation context to diagnostic messages
+- Fixed missing checks that function parameters are valid when they are instantiated deducers
+
+
+<!---------------------------------->
 <a name="v0.0.217.1"></a>
 ## v0.0.217.1
 

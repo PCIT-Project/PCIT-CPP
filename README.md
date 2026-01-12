@@ -35,14 +35,14 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 - 0.1: (the first release, ready for testers)
 	- `Panther`/`pthr`
 		- Missing a lot of C++ support
-		- Full tutorial with some documentation
 	- Small Panther standard library
 	- PLNK C++ library
 	- PIR C++ library
 - 0.2:
 	- More C++ support
 	- Richer Panther standard library
-	- More complete documentation
+	- Vectors
+	- Bitpacked
 - *in-between*:
 	- TBD
 - 1.0:

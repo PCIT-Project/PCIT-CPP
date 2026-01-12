@@ -611,6 +611,7 @@ namespace pcit::panther{
 			};
 
 			EVO_NODISCARD auto get_select_func_overload_func_info_for_template(
+				const AST::FuncCall& func_call,
 				sema::TemplatedFunc::ID func_id,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
 				evo::ArrayProxy<SymbolProcTermInfoID> template_args,
@@ -639,7 +640,7 @@ namespace pcit::panther{
 			// success of returned expected is the generated type (or nullopt if interface doesn't match) 
 			// error of returned expected should just be the returned Result of the current instruction
 			EVO_NODISCARD auto type_implements_interface(
-				BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+				BaseType::Interface& interface_type, TypeInfo::ID target_type_id, Diagnostic::Location location
 			) -> evo::Expected<bool, Result>;
 
 
@@ -1094,16 +1095,103 @@ namespace pcit::panther{
 			EVO_NODISCARD auto check_scope_isnt_terminated(const auto& location) -> evo::Result<>;
 
 
-			auto emit_fatal(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitFatal(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+			auto add_instantiation_locations_to_infos(evo::SmallVector<Diagnostic::Info>& infos) -> void {
+				if(this->symbol_proc.instantiation_locations.size() == 1){
+					infos.emplace_back("Instantiated here:", this->symbol_proc.instantiation_locations[0]);
+
+				}else if(this->symbol_proc.instantiation_locations.size() > 1){
+					auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+					sub_infos.reserve(this->symbol_proc.instantiation_locations.size());
+
+					for(
+						size_t i = this->symbol_proc.instantiation_locations.size() - 1;
+						const Diagnostic::Location& instantiation_location
+						: this->symbol_proc.instantiation_locations | std::views::reverse
+					){
+						sub_infos.emplace_back(std::format("Instantiation depth {}:", i), instantiation_location);
+						i -= 1;
+					}
+
+					infos.emplace_back("Instantiation context:", Diagnostic::Location::NONE, std::move(sub_infos));
+				}
 			}
 
-			auto emit_error(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitError(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+
+			auto emit_fatal(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				evo::SmallVector<Diagnostic::Info>&& infos
+			) -> void {
+				this->add_instantiation_locations_to_infos(infos);
+				this->context.emitFatal(code, this->get_location(node), std::move(string), std::move(infos));
+			}
+			auto emit_fatal(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				Diagnostic::Info info
+			) -> void {
+				this->emit_fatal(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			}
+			auto emit_fatal(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string
+			) -> void {
+				this->emit_fatal(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
 			}
 
-			auto emit_warning(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitWarning(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+
+			auto emit_error(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				evo::SmallVector<Diagnostic::Info>&& infos
+			) -> void {
+				this->add_instantiation_locations_to_infos(infos);
+				this->context.emitError(code, this->get_location(node), std::move(string), std::move(infos));
+			}
+			auto emit_error(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				Diagnostic::Info info
+			) -> void {
+				this->emit_error(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			}
+			auto emit_error(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string
+			) -> void {
+				this->emit_error(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
+			}
+
+
+			auto emit_warning(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				evo::SmallVector<Diagnostic::Info>&& infos
+			) -> void {
+				this->add_instantiation_locations_to_infos(infos);
+				this->context.emitWarning(code, this->get_location(node), std::move(string), std::move(infos));
+			}
+			auto emit_warning(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string,
+				Diagnostic::Info info
+			) -> void {
+				this->emit_warning(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			}
+			auto emit_warning(
+				Diagnostic::Code code,
+				const auto& node,
+				std::string&& string
+			) -> void {
+				this->emit_warning(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
 			}
 
 

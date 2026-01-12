@@ -34,7 +34,8 @@ namespace pcit::panther{
 				BaseType::StructTemplate::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				BaseType::StructTemplate::ID struct_template_id,
-				uint32_t instantiation_id
+				uint32_t instantiation_id,
+				evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 			) -> evo::Result<SymbolProc::ID>;
 
 			// for func
@@ -43,7 +44,8 @@ namespace pcit::panther{
 				sema::TemplatedFunc::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				uint32_t instantiation_id,
-				evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
+				evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types,
+				evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 			) -> evo::Result<SymbolProc::ID>;
 
 			EVO_NODISCARD auto buildInterfaceImplDeducer(
@@ -51,7 +53,8 @@ namespace pcit::panther{
 				BaseType::Interface::Impl& created_impl,
 				SymbolProc* parent_interface_symbol_proc,
 				sema::ScopeManager::Scope::ID sema_scope_id,
-				TypeInfo::ID instantiation_type_id
+				TypeInfo::ID instantiation_type_id,
+				evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 			) -> SymbolProc::ID;
 
 		private:

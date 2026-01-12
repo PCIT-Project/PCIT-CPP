@@ -34,6 +34,10 @@ namespace pcit::panther{
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
 
+		if(this->symbol_proc_infos.empty() == false){
+			symbol_proc.instantiation_locations = this->symbol_proc_infos.back().symbol_proc.instantiation_locations;
+		}
+
 		this->symbol_proc_infos.emplace_back(symbol_proc_id, symbol_proc);
 		
 		switch(stmt.kind()){
@@ -103,7 +107,8 @@ namespace pcit::panther{
 		BaseType::StructTemplate::Instantiation& instantiation,
 		sema::ScopeManager::Scope::ID sema_scope_id,
 		BaseType::StructTemplate::ID struct_template_id,
-		uint32_t instantiation_id
+		uint32_t instantiation_id,
+		evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -114,6 +119,7 @@ namespace pcit::panther{
 			template_symbol_proc.parent
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
+		symbol_proc.instantiation_locations = std::move(instantiation_locations);
 
 		symbol_proc.sema_scope_id = sema_scope_id;
 
@@ -169,7 +175,8 @@ namespace pcit::panther{
 		sema::TemplatedFunc::Instantiation& instantiation,
 		sema::ScopeManager::Scope::ID sema_scope_id,
 		uint32_t instantiation_id,
-		evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types
+		evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types,
+		evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 	) -> evo::Result<SymbolProc::ID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -180,6 +187,7 @@ namespace pcit::panther{
 			template_symbol_proc.parent
 		);
 		SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(symbol_proc_id);
+		symbol_proc.instantiation_locations = std::move(instantiation_locations);
 
 		symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
 		symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation = &instantiation;
@@ -343,7 +351,8 @@ namespace pcit::panther{
 		BaseType::Interface::Impl& created_impl,
 		SymbolProc* parent_interface_symbol_proc,
 		sema::ScopeManager::Scope::ID sema_scope_id,
-		TypeInfo::ID instantiation_type_id
+		TypeInfo::ID instantiation_type_id,
+		evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 	) -> SymbolProc::ID {
 		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			deducer_impl.astInterfaceImpl, this->source.getID(), "impl", parent_interface_symbol_proc
@@ -381,6 +390,8 @@ namespace pcit::panther{
 
 			SymbolProc& deducer_method_cloned_symbol_proc =
 				this->context.symbol_proc_manager.getSymbolProc(deducer_method_cloned_symbol_proc_id);
+
+			deducer_method_cloned_symbol_proc.instantiation_locations = instantiation_locations; // copy
 
 			deducer_method_cloned_symbol_proc.instructions = deducer_impl_method.instructions;
 
@@ -422,6 +433,8 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// done
+
+		symbol_proc.instantiation_locations = std::move(instantiation_locations); // move after all methods have copies
 
 		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
 		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);

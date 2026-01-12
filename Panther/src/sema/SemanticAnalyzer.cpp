@@ -3134,18 +3134,38 @@ namespace pcit::panther{
 
 
 			if(symbol_proc_param_type_id.has_value()){ // regular param
-				const TypeInfo::VoidableID param_type_id = this->get_type(*symbol_proc_param_type_id);
+				const TypeInfo::VoidableID decl_param_type_id = this->get_type(*symbol_proc_param_type_id);
 
-				if(param_type_id.isVoid()){
+				if(decl_param_type_id.isVoid()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type `Void`"
 					);
 					return Result::ERROR;
 				}
 
-				const TypeInfo& param_type_info = this->context.getTypeManager().getTypeInfo(param_type_id.asTypeID());
+				const bool decl_param_type_is_deducer =
+					this->context.getTypeManager().isTypeDeducer(decl_param_type_id.asTypeID());
 
-				if(param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
+
+				auto [param_type_id, param_type] = [&]() -> std::pair<TypeInfo::ID, const TypeInfo&> {
+					if(decl_param_type_is_deducer){
+						const TypeInfo::ID type_id =
+							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)];
+
+						return std::pair<TypeInfo::ID, const TypeInfo&>(
+							type_id, this->context.getTypeManager().getTypeInfo(type_id)
+						);
+					}else{
+						return std::pair<TypeInfo::ID, const TypeInfo&>(
+							decl_param_type_id.asTypeID(),
+							this->context.getTypeManager().getTypeInfo(decl_param_type_id.asTypeID())
+						);
+					}
+				}();
+
+
+
+				if(param_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 					this->emit_error(
 						Diagnostic::Code::SEMA_PARAM_TYPE_INTERFACE,
 						*param.type,
@@ -3154,49 +3174,31 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(param_type_info.isUninitPointer()){
+				if(param_type.isUninitPointer()){
 					this->emit_error(
 						Diagnostic::Code::SEMA_PARAM_TYPE_UNINIT_PTR,
 						*param.type,
-						"Function parameter cannot be type uninitialized pointer"
+						"Type of function parameter cannot be a uninitialized-qualified pointer"
 					);
 					return Result::ERROR;
 				}
 
 
-				const bool param_type_is_deducer =
-					this->context.getTypeManager().isTypeDeducer(param_type_id.asTypeID());
 
 				// saving types to check if param should be copy
 				// 	(need to do later after definitions of types are gotten)
 				if(param.kind == AST::FuncDef::Param::Kind::READ){
-					if(param_type_is_deducer){
-						func_info.param_type_to_check_if_is_copy.emplace_back(
-							*func_info.instantiation_param_arg_types[i - size_t(has_this_param)]
-						);
-					}else{
-						func_info.param_type_to_check_if_is_copy.emplace_back(param_type_id.asTypeID());
-					}
-					
+					func_info.param_type_to_check_if_is_copy.emplace_back(param_type_id);
 				}else{
 					func_info.param_type_to_check_if_is_copy.emplace_back();
 				}
-
 
 
 				if(param.kind == AST::FuncDef::Param::Kind::IN){
 					has_in_param = true;
 				}
 
-
-				if(param_type_is_deducer){
-					params.emplace_back(
-						*func_info.instantiation_param_arg_types[i - size_t(has_this_param)], type_param_kind, false
-					);
-
-				}else{
-					params.emplace_back(param_type_id.asTypeID(), type_param_kind, false);
-				}
+				params.emplace_back(param_type_id, type_param_kind, false);
 
 				if(instr.default_param_values[i - size_t(has_this_param)].has_value()){
 					TermInfo default_param_value =
@@ -3204,7 +3206,7 @@ namespace pcit::panther{
 
 					if(
 						this->type_check<true, true>(
-							param_type_id.asTypeID(),
+							param_type_id,
 							default_param_value,
 							"Default value of function parameter",
 							*instr.func_def.params[i].defaultValue
@@ -7658,8 +7660,11 @@ namespace pcit::panther{
 
 			const InterfaceToCheck* selected_interface = nullptr;
 			for(const InterfaceToCheck& interface_to_check : interfaces_to_check){
-				const evo::Expected<bool, Result> implements_result = 
-					this->type_implements_interface(interface_to_check.interface, iterable.type_id.as<TypeInfo::ID>());
+				const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+					interface_to_check.interface,
+					iterable.type_id.as<TypeInfo::ID>(),
+					this->get_location(instr.for_stmt.iterables[i])
+				);
 
 				if(implements_result.has_value()){
 					if(implements_result.value()){
@@ -11991,7 +11996,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
 				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be an uninitialized qualified pointer value"
+				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value"
 			);
 			return Result::ERROR;
 		}
@@ -12021,7 +12026,7 @@ namespace pcit::panther{
 			this->emit_error(
 				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
 				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be an uninitialized qualified pointer value"
+				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value"
 			);
 			return Result::ERROR;;
 		}
@@ -16820,12 +16825,17 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// build instantiation
 
+			auto instantiation_locations =
+				evo::SmallVector<Diagnostic::Location>(this->symbol_proc.instantiation_locations);
+			instantiation_locations.emplace_back(this->get_location(instr.templated_expr));
+
 			const evo::Result<SymbolProc::ID> instantiation_symbol_proc_id = symbol_proc_builder.buildTemplateInstance(
 				sema_templated_struct.symbolProc,
 				instantiation_info.instantiation,
 				instantiation_sema_scope_id,
 				sema_templated_struct.templateID,
-				*instantiation_info.instantiationID
+				*instantiation_info.instantiationID,
+				std::move(instantiation_locations)
 			);
 			if(instantiation_symbol_proc_id.isError()){ return Result::ERROR; }
 
@@ -18236,8 +18246,9 @@ namespace pcit::panther{
 				BaseType::Interface& target_interface =
 					this->context.type_manager.getInterface(target_poly_interface_ref.interfaceID);
 
-				const evo::Expected<bool, Result> implements_result = 
-					this->type_implements_interface(target_interface, target_interface_impl_type_id);
+				const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+					target_interface, target_interface_impl_type_id, this->get_location(ast_infix)
+				);
 
 				if(implements_result.has_value() == false){ return implements_result.error(); }
 				if(implements_result.value() == false){
@@ -18281,8 +18292,9 @@ namespace pcit::panther{
 				BaseType::Interface& target_interface =
 					this->context.type_manager.getInterface(target_interface_map.interfaceID);
 
-				const evo::Expected<bool, Result> implements_result = 
-					this->type_implements_interface(target_interface, target_interface_impl_type_id);
+				const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+					target_interface, target_interface_impl_type_id, this->get_location(ast_infix)
+				);
 
 				if(implements_result.has_value() == false){ return implements_result.error(); }
 				if(implements_result.value() == false){
@@ -20308,8 +20320,9 @@ namespace pcit::panther{
 		if(this->context.getTypeManager().isTypeDeducer(base_type_id.asTypeID())){
 			// do nothing
 		}else{
-			const evo::Expected<bool, Result> implements_result = 
-				this->type_implements_interface(got_interface, base_type_id.asTypeID());
+			const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+				got_interface, base_type_id.asTypeID(), this->get_location(instr.interface_map)
+			);
 
 			if(implements_result.has_value()){
 				if(implements_result.value() == false){
@@ -25134,7 +25147,7 @@ namespace pcit::panther{
 						
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
+								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
 							);
 
 						if(template_res.has_value() == false){
@@ -25162,7 +25175,7 @@ namespace pcit::panther{
 						
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, true
+								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, true
 							);
 
 						if(template_res.has_value() == false){
@@ -25924,6 +25937,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::get_select_func_overload_func_info_for_template(
+		const AST::FuncCall& func_call,
 		sema::TemplatedFunc::ID func_id,
 		evo::ArrayProxy<SymbolProc::TermInfoID> args,
 		evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
@@ -26230,12 +26244,17 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// build instantiation
 
+			auto instantiation_locations =
+				evo::SmallVector<Diagnostic::Location>(this->symbol_proc.instantiation_locations);
+			instantiation_locations.emplace_back(this->get_location(func_call));
+
 			const evo::Result<SymbolProc::ID> instantiation_symbol_proc_id = symbol_proc_builder.buildTemplateInstance(
 				templated_func.symbolProc,
 				instantiation_info.instantiation,
 				instantiation_sema_scope_id,
 				*instantiation_info.instantiationID,
-				std::move(arg_types)
+				std::move(arg_types),
+				std::move(instantiation_locations)
 			);
 			if(instantiation_symbol_proc_id.isError()){
 				return evo::Unexpected<TemplateOverloadMatchFail>(
@@ -26773,7 +26792,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::type_implements_interface(
-		BaseType::Interface& interface_type, TypeInfo::ID target_type_id
+		BaseType::Interface& interface_type, TypeInfo::ID target_type_id, Diagnostic::Location location
 	) -> evo::Expected<bool, Result> {
 		//////////////////
 		// wait for definition of interface
@@ -26859,13 +26878,19 @@ namespace pcit::panther{
 						deducer_match_source.getASTBuffer().getInterfaceImpl(deducer_match.astInterfaceImpl)
 					);
 
+
+					auto instantiation_locations =
+						evo::SmallVector<Diagnostic::Location>(this->symbol_proc.instantiation_locations);
+					instantiation_locations.emplace_back(location);
+
 					auto symbol_proc_builder = SymbolProcBuilder(this->context, deducer_match_source);
 					const SymbolProc::ID created_symbol_proc_id = symbol_proc_builder.buildInterfaceImplDeducer(
 						deducer_match,
 						created_impl,
 						parent_interface_symbol_proc,
 						copy_scope_id,
-						target_type_id
+						target_type_id,
+						std::move(instantiation_locations)
 					);
 					SymbolProc& created_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(created_symbol_proc_id);
@@ -26902,7 +26927,7 @@ namespace pcit::panther{
 
 				this->emit_error(
 					Diagnostic::Code::SEMA_INTERFACE_MULTIPLE_DEDUCER_IMPLS_MATCH,
-					Diagnostic::Location::NONE, // TODO(FUTURE): location?
+					Diagnostic::Location::NONE, // TODO(FUTURE): location? add it to instantiation locations?
 					"Interface has multiple deducer multiple impls that match this type",
 					std::move(infos)
 				);
@@ -30837,20 +30862,21 @@ namespace pcit::panther{
 				infos.emplace_back("Note: shadowing is not allowed");
 			}
 
-			const std::string message = [&](){
-				if constexpr(IS_FUNC_OVERLOAD_COLLISION){
-					return std::format(
-						"Function \"{}\" has an overload that collides with this declaration", ident_str
-					);
-				}else{
-					return std::format("Identifier \"{}\" was already defined in this scope", ident_str);
-				}
-			}();
-
-
-			this->emit_error(
-				Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE, redef_id, std::move(message), std::move(infos)
-			);
+			if constexpr(IS_FUNC_OVERLOAD_COLLISION){
+				this->emit_error(
+					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
+					redef_id,
+					std::format("Function \"{}\" has an overload that collides with this declaration", ident_str),
+					std::move(infos)
+				);
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
+					redef_id,
+					std::format("Identifier \"{}\" was already defined in this scope", ident_str),
+					std::move(infos)
+				);
+			}
 		});
 	};
 

@@ -20,6 +20,7 @@
 #include "./symbol_proc_ids.h"
 #include "../../include/TypeManager.h"
 #include "../sema/ScopeManager.h"
+#include "../../include/Diagnostic.h"
 
 
 namespace pcit::panther{
@@ -1505,6 +1506,8 @@ namespace pcit::panther{
 			std::optional<BuiltinSymbolKind> builtin_symbol_proc_kind;
 
 			evo::StepVector<Instruction> instructions{};
+
+			evo::SmallVector<Diagnostic::Location> instantiation_locations{};
 
 
 			struct StructInstantiationInfo{
