@@ -1577,7 +1577,9 @@ namespace pcit::panther{
 
 						return this->parse_expr();
 					}();
-					if(assignment.code() != Result::Code::SUCCESS){ return Result::Code::ERROR; }
+					if(this->check_result(assignment, "assignment target in multiple assignment").isError()){
+						return Result::Code::ERROR;
+					}
 
 					assignments.emplace_back(assignment.value());
 

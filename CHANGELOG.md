@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.218.1"></a>
+## v0.0.218.1
+
+### Panther
+- Fixed crashing or parsing failure when certain invalid statements are used
+
+
+<!---------------------------------->
 <a name="v0.0.218.0"></a>
 ## v0.0.218.0
 

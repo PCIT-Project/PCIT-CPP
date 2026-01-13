@@ -306,6 +306,36 @@ namespace pthr{
 						this->print_delete(this->ast_buffer.getDelete(stmt));
 					} break;
 
+					case panther::AST::Kind::FUNC_CALL: {
+						this->indenter.print();
+						this->print_func_call(this->ast_buffer.getFuncCall(stmt));
+					} break;
+
+					case panther::AST::Kind::INDEXER: {
+						this->indenter.print();
+						this->print_indexer(this->ast_buffer.getIndexer(stmt));
+					} break;
+
+					case panther::AST::Kind::PREFIX: {
+						this->indenter.print();
+						this->print_prefix(this->ast_buffer.getPrefix(stmt));
+					} break;
+
+					case panther::AST::Kind::INFIX: {
+						this->indenter.print();
+						this->print_infix(this->ast_buffer.getInfix(stmt));
+					} break;
+
+					case panther::AST::Kind::POSTFIX: {
+						this->indenter.print();
+						this->print_postfix(this->ast_buffer.getPostfix(stmt));
+					} break;
+
+					case panther::AST::Kind::TEMPLATED_EXPR: {
+						this->indenter.print();
+						this->print_templated_expr(this->ast_buffer.getTemplatedExpr(stmt));
+					} break;
+
 					case panther::AST::Kind::CONDITIONAL: {
 						this->print_conditional(this->ast_buffer.getConditional(stmt));
 					} break;
@@ -330,17 +360,8 @@ namespace pthr{
 						this->print_defer(this->ast_buffer.getDefer(stmt));
 					} break;
 
-					case panther::AST::Kind::INFIX: {
-						this->print_assignment(this->ast_buffer.getInfix(stmt));
-					} break;
-
 					case panther::AST::Kind::MULTI_ASSIGN: {
 						this->print_multi_assign(this->ast_buffer.getMultiAssign(stmt));
-					} break;
-
-					case panther::AST::Kind::FUNC_CALL: {
-						this->indenter.print();
-						this->print_func_call(this->ast_buffer.getFuncCall(stmt));
 					} break;
 
 					case panther::AST::Kind::TRY_ELSE: {
@@ -2207,7 +2228,7 @@ namespace pthr{
 
 
 			auto print_templated_expr(const panther::AST::TemplatedExpr& templated_expr) -> void {
-				this->print_major_header("Templated Expressions");
+				this->print_major_header("Templated Expression");
 
 				{
 					this->indenter.push();

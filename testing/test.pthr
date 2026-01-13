@@ -1,15 +1,13 @@
 
+func foo = <{T: Type}> () -> Void {
+	var val: T = false;
+}
 
-
-func test = (ptr: $$) -> Void {
-	
+func bar = <{T: Type}> () -> Void {
+	foo<{T}>();
 }
 
 
-
-func entry = () #entry -> UI8 {
-	var foo: Int = uninit;
-	test(&foo);
-	
-	return 0;
+func test = () -> Void {
+	bar<{Int}>;
 }
