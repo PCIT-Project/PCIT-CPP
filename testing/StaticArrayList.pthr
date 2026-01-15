@@ -11,7 +11,7 @@ type TypeSystemEscape = struct <{T: Type}> {
 }
 
 
-type StaticArrayList = struct <{T: Type, CAPACITY: USize}>  #pub {
+type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	func new = () -> (output: This) {
 		output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
 		output._size = 0;

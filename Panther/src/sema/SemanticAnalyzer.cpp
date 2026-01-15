@@ -694,12 +694,10 @@ namespace pcit::panther{
 				return this->instr_expr_accessor<false>(this->context.symbol_proc_manager.getAccessor(instr));
 
 			case Instruction::Kind::PRIMITIVE_TYPE:
-				return this->instr_primitive_type<false>(this->context.symbol_proc_manager.getPrimitiveType(instr));
+				return this->instr_primitive_type(this->context.symbol_proc_manager.getPrimitiveType(instr));
 
-			case Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF:
-				return this->instr_primitive_type<true>(
-					this->context.symbol_proc_manager.getPrimitiveTypeNeedsDef(instr)
-				);
+			case Instruction::Kind::PRIMITIVE_TYPE_TERM:
+				return this->instr_primitive_type_term(this->context.symbol_proc_manager.getPrimitiveTypeTerm(instr));
 
 			case Instruction::Kind::ARRAY_TYPE:
 				return this->instr_array_type(this->context.symbol_proc_manager.getArrayType(instr));
@@ -713,8 +711,11 @@ namespace pcit::panther{
 			case Instruction::Kind::TYPE_ID_CONVERTER:
 				return this->instr_type_id_converter(this->context.symbol_proc_manager.getTypeIDConverter(instr));
 
-			case Instruction::Kind::USER_TYPE:
-				return this->instr_user_type(this->context.symbol_proc_manager.getUserType(instr));
+			case Instruction::Kind::QUALIFIED_TYPE:
+				return this->instr_qualified_type(this->context.symbol_proc_manager.getQualifiedType(instr));
+
+			case Instruction::Kind::QUALIFIED_TYPE_TERM:
+				return this->instr_qualified_type_term(this->context.symbol_proc_manager.getQualifiedTypeTerm(instr));
 
 			case Instruction::Kind::BASE_TYPE_IDENT:
 				return this->instr_base_type_ident(this->context.symbol_proc_manager.getBaseTypeIdent(instr));
@@ -1415,10 +1416,49 @@ namespace pcit::panther{
 		if(alias_attrs.isError()){ return Result::ERROR; }
 
 
+		const TermInfo& aliased_type_term = this->get_term_info(instr.aliased_type);
+
+		if(
+			aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
+			|| aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+		){
+			const auto aliased_id = [&]() -> evo::Variant<sema::TemplatedStruct::ID, sema::StructTemplateAlias::ID> {
+				if(aliased_type_term.type_id.is<sema::TemplatedStruct::ID>()){
+					return aliased_type_term.type_id.as<sema::TemplatedStruct::ID>();
+				}else{
+					return aliased_type_term.type_id.as<sema::StructTemplateAlias::ID>();
+				}
+			}();
+
+
+			const sema::StructTemplateAlias::ID struct_template_alias_id = 
+				this->context.sema_buffer.createStructTemplateAlias(
+					this->source.getID(),
+					instr.alias_def.ident,
+					this->scope.getCurrentEncapsulatingSymbolIfExists(),
+					aliased_id,
+					aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED,
+					alias_attrs.value().is_distinct,
+					alias_attrs.value().is_pub
+				);
+
+			const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
+			if(this->add_ident_to_scope(ident_str, instr.alias_def, true, struct_template_alias_id).isError()){
+				return Result::ERROR;
+			}
+
+			this->propagate_finished_decl_def();
+			return Result::SUCCESS;
+		}
+
+		evo::debugAssert(
+			aliased_type_term.value_category == TermInfo::ValueCategory::TYPE, "Unknown type term"
+		);
+
 		///////////////////////////////////
 		// check type
 
-		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
+		const TypeInfo::VoidableID aliased_type = aliased_type_term.type_id.as<TypeInfo::VoidableID>();
 		if(aliased_type.isVoid()){
 			this->emit_error(
 				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
@@ -16436,9 +16476,29 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const sema::TemplatedStruct& sema_templated_struct = this->context.sema_buffer.templated_structs[
-			templated_type_term_info.type_id.as<sema::TemplatedStruct::ID>()
-		];
+		const sema::TemplatedStruct& sema_templated_struct = [&]() -> const sema::TemplatedStruct& {
+			if(templated_type_term_info.type_id.is<sema::StructTemplateAlias::ID>()){
+				const sema::StructTemplateAlias* target_alias =
+					&this->context.getSemaBuffer().getStructTemplateAlias(
+						templated_type_term_info.type_id.as<sema::StructTemplateAlias::ID>()
+					);
+
+				while(target_alias->aliasedID.is<sema::StructTemplateAlias::ID>()){
+					target_alias = &this->context.getSemaBuffer().getStructTemplateAlias(
+						target_alias->aliasedID.as<sema::StructTemplateAlias::ID>()
+					);
+				}
+
+				return this->context.getSemaBuffer().getTemplatedStruct(
+					target_alias->aliasedID.as<sema::TemplatedStruct::ID>()
+				);
+
+			}else{
+				return this->context.getSemaBuffer().getTemplatedStruct(
+					templated_type_term_info.type_id.as<sema::TemplatedStruct::ID>()
+				);
+			}
+		}();
 
 		Source& instantiation_source = this->context.source_manager[sema_templated_struct.symbolProc.source_id];
 
@@ -19755,7 +19815,6 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result {
 		auto base_type = std::optional<BaseType::ID>();
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
@@ -19868,6 +19927,124 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+
+
+
+	auto SemanticAnalyzer::instr_primitive_type_term(const Instruction::PrimitiveTypeTerm& instr) -> Result {
+		auto base_type = std::optional<BaseType::ID>();
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
+
+		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
+		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
+
+		switch(primitive_type_token.kind()){
+			case Token::Kind::TYPE_VOID: {
+				if(instr.ast_type.qualifiers.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
+						instr.ast_type.base,
+						"Type \"Void\" cannot have qualifiers"
+					);
+					return Result::ERROR;
+				}
+				this->return_term_info(instr.output, TermInfo::ValueCategory::TYPE, TypeInfo::VoidableID::Void());
+				return Result::SUCCESS;
+			} break;
+
+			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F32:          case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_BYTE:          case Token::Kind::TYPE_BOOL:         case Token::Kind::TYPE_CHAR:
+			case Token::Kind::TYPE_RAWPTR:        case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:
+			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
+			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_C_LONG_DOUBLE: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(
+					primitive_type_token.kind(), primitive_type_token.getBitWidth()
+				);
+			} break;
+
+
+			case Token::Kind::TYPE_F16: {
+				// TODO(FUTURE): not supported on WASM
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_BF16: {
+				// TODO(FUTURE): not supported on WASM, SPIR
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_F80: {
+				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
+					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
+					this->emit_error(
+						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+						instr.ast_type,
+						"Type `F80` is currenlty unimplemented on this platform"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->get_package().warn.experimentalF80){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_EXPERIMENTAL_F80,
+						instr.ast_type,
+						"Type `F80` is experimental, and may not work as expected"
+					);
+				}
+
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
+			} break;
+
+			case Token::Kind::TYPE_F128: {
+				this->emit_error(
+					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+					instr.ast_type,
+					"Type `F128` is currenlty unimplemented"
+				);
+				return Result::ERROR;
+			} break;
+
+
+			case Token::Kind::TYPE_TYPE: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
+					instr.ast_type,
+					"Type `Type` may only be used in a template pack declaration"
+				);
+				return Result::ERROR;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown or unsupported PrimitiveType: {}", primitive_type_token.kind());
+			} break;
+		}
+
+		evo::debugAssert(base_type.has_value(), "Base type was not set");
+
+		qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
+		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
+			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+		}
+
+		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+
+		this->return_term_info(
+			instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type, std::move(qualifiers)))
+			)
+		);
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_array_type(const Instruction::ArrayType& instr) -> Result {
@@ -20375,14 +20552,14 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_user_type(const Instruction::UserType& instr) -> Result {
+	auto SemanticAnalyzer::instr_qualified_type(const Instruction::QualifiedType& instr) -> Result {
 		auto base_type_id = std::optional<TypeInfo::ID>();
 		const TermInfo& term_info = this->get_term_info(instr.base_type);
 		switch(term_info.value_category){
 			case TermInfo::ValueCategory::TYPE: {
 				evo::debugAssert(
 					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
-					"`Void` is not a user-type"
+					"`Void` cannot be a qualified type"
 				);
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
 			} break;
@@ -20429,6 +20606,76 @@ namespace pcit::panther{
 
 		this->return_type(
 			instr.output,
+			TypeInfo::VoidableID(
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type.baseTypeID(), std::move(qualifiers)))
+			)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_qualified_type_term(const Instruction::QualifiedTypeTerm& instr) -> Result {
+		auto base_type_id = std::optional<TypeInfo::ID>();
+		const TermInfo& term_info = this->get_term_info(instr.base_type);
+		switch(term_info.value_category){
+			case TermInfo::ValueCategory::TYPE: {
+				evo::debugAssert(
+					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
+					"`Void` cannot be a qualified type"
+				);
+				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
+			} break;
+
+			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
+				if(instr.ast_type.qualifiers.empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_TYPE,
+						instr.ast_type.base,
+						"Invalid base type",
+						Diagnostic::Info("NOTE: non-instantiated struct templates cannot have qualifiers")
+					);
+					return Result::ERROR;
+				}
+
+				this->return_term_info(instr.output, term_info);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE: {
+				this->return_term_info(
+					instr.output,
+					TermInfo::ValueCategory::TYPE,
+					TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
+				);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_TYPE,
+					instr.ast_type.base,
+					"Invalid base type"
+				);
+				return Result::ERROR;
+			} break;
+		}
+
+		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
+
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
+			base_type.qualifiers().begin(), base_type.qualifiers().end()
+		);
+		qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
+		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
+			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+		}
+
+		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+
+
+		this->return_term_info(
+			instr.output,
+			TermInfo::ValueCategory::TYPE,
 			TypeInfo::VoidableID(
 				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type.baseTypeID(), std::move(qualifiers)))
 			)
@@ -23817,6 +24064,31 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::TemplatedStruct::ID>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
+					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED, ident_id));
+				}else{
+					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
+				}
+
+			}else if constexpr(std::is_same<IdentIDType, sema::StructTemplateAlias::ID>()){
+				const sema::StructTemplateAlias& struct_template_alias = 
+					this->context.getSemaBuffer().getStructTemplateAlias(ident_id);
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
+					if(struct_template_alias.isPub == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
+							ident,
+							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
+							Diagnostic::Info(
+								"Alias declared here:",
+								this->get_location(ident_id)
+							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if(struct_template_alias.requiresPub){
 					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED, ident_id));
 				}else{
 					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
@@ -30938,6 +31210,10 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
 				// TODO(FEATURE): actual name
 				return "{TEMPLATED STRUCT}";
+
+			}else if constexpr(std::is_same<TypeID, sema::StructTemplateAlias::ID>()){
+				// TODO(FEATURE): actual name
+				return "{STRUCT TEMPLATE ALIAS}";
 
 			}else if constexpr(std::is_same<TypeID, TemplateIntrinsicFunc::Kind>()){
 				// TODO(FEATURE): actual name

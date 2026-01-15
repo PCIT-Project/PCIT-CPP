@@ -77,6 +77,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_type(const AST::Type& ast_type) -> evo::Result<SymbolProc::TypeID>;
 
 			template<bool NEEDS_DEF>
+			EVO_NODISCARD auto analyze_type_term(const AST::Type& ast_type) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID>;
 
 

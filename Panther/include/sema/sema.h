@@ -815,4 +815,16 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct StructTemplateAlias{
+		using ID = StructTemplateAliasID;
+
+		SourceID sourceID;
+		Token::ID ident;
+		std::optional<EncapsulatingSymbolID> parent;
+		evo::Variant<TemplatedStruct::ID, ID> aliasedID;
+		bool requiresPub;
+		bool isDistinct;
+		bool isPub;
+	};
+
 }

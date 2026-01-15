@@ -306,8 +306,11 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
-
 	auto ScopeLevel::addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult {
+		return this->add_ident_default_impl(ident, id);
+	}
+
+	auto ScopeLevel::addIdent(std::string_view ident, sema::StructTemplateAliasID id) -> AddIdentResult {
 		return this->add_ident_default_impl(ident, id);
 	}
 

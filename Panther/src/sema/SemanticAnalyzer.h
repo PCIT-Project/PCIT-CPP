@@ -272,14 +272,14 @@ namespace pcit::panther{
 			template<bool IS_CONSTEXPR>
 			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_CONSTEXPR>& instr) -> Result;
 
-			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
-
+			EVO_NODISCARD auto instr_primitive_type_term(const Instruction::PrimitiveTypeTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
 			EVO_NODISCARD auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
 			EVO_NODISCARD auto instr_interface_map(const Instruction::InterfaceMap& instr) -> Result;
 			EVO_NODISCARD auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;
-			EVO_NODISCARD auto instr_user_type(const Instruction::UserType& instr) -> Result;
+			EVO_NODISCARD auto instr_qualified_type(const Instruction::QualifiedType& instr) -> Result;
+			EVO_NODISCARD auto instr_qualified_type_term(const Instruction::QualifiedTypeTerm& instr) -> Result;
 			EVO_NODISCARD auto instr_base_type_ident(const Instruction::BaseTypeIdent& instr) -> Result;
 
 			template<bool NEEDS_DEF>
@@ -1389,6 +1389,19 @@ namespace pcit::panther{
 					this->context.getSourceManager()[templated_struct.symbolProc.source_id]
 				);
 			}
+
+			EVO_NODISCARD auto get_location(sema::StructTemplateAlias::ID struct_template_alias_id) const
+			-> Diagnostic::Location {
+				const sema::StructTemplateAlias& struct_template_alias =
+					this->context.sema_buffer.getStructTemplateAlias(struct_template_alias_id);					
+
+				return Diagnostic::Location::get(
+					struct_template_alias.ident,
+					this->context.getSourceManager()[struct_template_alias.sourceID]
+				);
+			}
+
+
 
 
 			EVO_NODISCARD auto get_location(sema::ScopeLevel::ValueStateID value_state_id) const

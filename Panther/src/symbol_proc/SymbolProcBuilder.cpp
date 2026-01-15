@@ -1036,8 +1036,8 @@ namespace pcit::panther{
 		if(attribute_params_info.isError()){ return evo::resultError; }
 
 		
-		const evo::Result<SymbolProc::TypeID> aliased_type =
-			this->analyze_type<false>(ast_buffer.getType(alias_def.type));
+		const evo::Result<SymbolProc::TermInfoID> aliased_type =
+			this->analyze_type_term<false>(ast_buffer.getType(alias_def.type));
 		if(aliased_type.isError()){ return evo::resultError; }
 
 		this->add_instruction(
@@ -1521,13 +1521,7 @@ namespace pcit::panther{
 		const SymbolProc::TypeID created_type_id = this->create_type();
 
 		if(ast_type.base.kind() == AST::Kind::PRIMITIVE_TYPE){
-			if constexpr(NEEDS_DEF){
-				this->add_instruction(
-					this->context.symbol_proc_manager.createPrimitiveTypeNeedsDef(ast_type, created_type_id)
-				);
-			}else{
-				this->add_instruction(this->context.symbol_proc_manager.createPrimitiveType(ast_type, created_type_id));
-			}
+			this->add_instruction(this->context.symbol_proc_manager.createPrimitiveType(ast_type, created_type_id));
 			return created_type_id;
 		}else{
 			const evo::Result<SymbolProc::TermInfoID> type_base = [&](){
@@ -1544,9 +1538,42 @@ namespace pcit::panther{
 			if(type_base.isError()){ return evo::resultError; }
 
 			this->add_instruction(
-				this->context.symbol_proc_manager.createUserType(ast_type, type_base.value(), created_type_id)
+				this->context.symbol_proc_manager.createQualifiedType(ast_type, type_base.value(), created_type_id)
 			);
 			return created_type_id;
+		}
+	}
+
+	template<bool NEEDS_DEF>
+	auto SymbolProcBuilder::analyze_type_term(const AST::Type& ast_type) -> evo::Result<SymbolProc::TermInfoID> {
+		const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+		if(ast_type.base.kind() == AST::Kind::PRIMITIVE_TYPE){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createPrimitiveTypeTerm(ast_type, created_term_info_id)
+			);
+			return created_term_info_id;
+
+		}else{
+			const evo::Result<SymbolProc::TermInfoID> type_base = [&](){
+				if constexpr(NEEDS_DEF){
+					if(ast_type.qualifiers.empty() == false && ast_type.qualifiers.back().isPtr){
+						return this->analyze_type_base<false>(ast_type.base);
+					}else{
+						return this->analyze_type_base<true>(ast_type.base);
+					}
+				}else{
+					return this->analyze_type_base<false>(ast_type.base);
+				}
+			}();
+			if(type_base.isError()){ return evo::resultError; }
+
+			this->add_instruction(
+				this->context.symbol_proc_manager.createQualifiedTypeTerm(
+					ast_type, type_base.value(), created_term_info_id
+				)
+			);
+			return created_term_info_id;
 		}
 	}
 

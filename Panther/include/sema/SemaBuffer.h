@@ -81,6 +81,19 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// struct template alias
+
+			EVO_NODISCARD auto createStructTemplateAlias(auto&&... args) -> sema::StructTemplateAlias::ID {
+				return this->struct_template_aliases.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getStructTemplateAlias(sema::StructTemplateAlias::ID id) const
+			-> const sema::StructTemplateAlias& {
+				return this->struct_template_aliases[id];
+			}
+
+
+			///////////////////////////////////
 			// vars
 
 			EVO_NODISCARD auto createVar(auto&&... args) -> sema::Var::ID {
@@ -951,6 +964,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::FuncAlias, sema::FuncAlias::ID> func_aliases{};
 			core::SyncLinearStepAlloc<sema::TemplatedFunc, sema::TemplatedFunc::ID> templated_funcs{};
 			core::SyncLinearStepAlloc<sema::TemplatedStruct, sema::TemplatedStruct::ID> templated_structs{};
+			core::SyncLinearStepAlloc<sema::StructTemplateAlias, sema::StructTemplateAlias::ID>
+				struct_template_aliases{};
 			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};
 			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
 			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};

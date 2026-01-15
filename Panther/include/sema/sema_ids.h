@@ -286,6 +286,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, TemplatedStructID>::UniqueID;
 	};
 
+	struct StructTemplateAliasID : public core::UniqueID<uint32_t, struct StructTemplateAliasID> {
+		using core::UniqueID<uint32_t, StructTemplateAliasID>::UniqueID;
+	};
+
 
 	struct VarID : public core::UniqueID<uint32_t, struct VarID> {
 		using core::UniqueID<uint32_t, VarID>::UniqueID;
@@ -886,6 +890,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::TemplatedStructID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::StructTemplateAliasID>{
+		static constexpr auto init(panther::sema::StructTemplateAliasID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::StructTemplateAliasID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1929,6 +1944,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::TemplatedStructID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::TemplatedStructID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::StructTemplateAliasID>{
+		auto operator()(pcit::panther::sema::StructTemplateAliasID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::StructTemplateAliasID>
+		: public pcit::core::Optional<pcit::panther::sema::StructTemplateAliasID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::StructTemplateAliasID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::StructTemplateAliasID>::operator=;
 	};
 
 

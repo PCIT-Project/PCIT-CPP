@@ -183,6 +183,7 @@ namespace pcit::panther::sema{
 				BaseType::EnumID,
 				BaseType::InterfaceID,
 				sema::TemplatedStructID,
+				sema::StructTemplateAliasID,
 				TemplateTypeParam,
 				TemplateExprParam,
 				DeducedType,
@@ -320,6 +321,7 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::EnumID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(std::string_view ident, sema::StructTemplateAliasID id) -> AddIdentResult;
 
 
 			//////////////////

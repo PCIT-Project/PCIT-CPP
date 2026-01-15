@@ -118,6 +118,7 @@ namespace pcit::panther{
 			BuiltinModuleID,                // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
+			sema::StructTemplateAlias::ID,  // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
 			TemplateIntrinsicFunc::Kind,    // TEMPLATE_INTRINSIC_FUNC
 			TaggedUnionFieldAccessor,       // TAGGED_UNION_FIELD_ACCESSOR
 			VariadicParamTypes              // VARIADIC_PARAM
@@ -303,10 +304,18 @@ namespace pcit::panther{
 						evo::debugAssert(this->type_id.is<BuiltinTypeMethod>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::TEMPLATE_TYPE:
-						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
+						evo::debugAssert(
+							this->type_id.is<sema::TemplatedStruct::ID>()
+								|| this->type_id.is<sema::StructTemplateAlias::ID>(),
+							"Incorrect TermInfo creation"
+						);
 
 					break; case ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED:
-						evo::debugAssert(this->type_id.is<sema::TemplatedStruct::ID>(), "Incorrect TermInfo creation");
+						evo::debugAssert(
+							this->type_id.is<sema::TemplatedStruct::ID>()
+								|| this->type_id.is<sema::StructTemplateAlias::ID>(),
+							"Incorrect TermInfo creation"
+						);
 
 					break; case ValueCategory::TYPE:
 						evo::debugAssert(this->type_id.is<TypeInfo::VoidableID>(), "Incorrect TermInfo creation");

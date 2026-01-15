@@ -2583,22 +2583,19 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
-			// PrimitiveType needs def
+			// PrimitiveTypeTerm
 
-			EVO_NODISCARD auto createPrimitiveTypeNeedsDef(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createPrimitiveTypeTerm(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF,
-					this->primitive_types.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::PRIMITIVE_TYPE_TERM,
+					this->primitive_type_terms.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getPrimitiveTypeNeedsDef(Instruction instr) const -> const Instruction::PrimitiveType& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::PRIMITIVE_TYPE_NEEDS_DEF, "Not a PrimitiveType needs def"
-				);
-				return this->primitive_types[instr._index];
+			EVO_NODISCARD auto getPrimitiveTypeTerm(Instruction instr) const -> const Instruction::PrimitiveTypeTerm& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::PRIMITIVE_TYPE_TERM, "Not a PrimitiveTypeTerm");
+				return this->primitive_type_terms[instr._index];
 			}
 
 
@@ -2673,18 +2670,34 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// UserType
+			// QualifiedType
 
-			EVO_NODISCARD auto createUserType(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createQualifiedType(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::USER_TYPE,
-					this->user_types.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::QUALIFIED_TYPE,
+					this->qualified_types.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getUserType(Instruction instr) const -> const Instruction::UserType& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::USER_TYPE, "Not a UserType");
-				return this->user_types[instr._index];
+			EVO_NODISCARD auto getQualifiedType(Instruction instr) const -> const Instruction::QualifiedType& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::QUALIFIED_TYPE, "Not a QualifiedType");
+				return this->qualified_types[instr._index];
+			}
+
+
+			//////////////////
+			// QualifiedTypeTerm
+
+			EVO_NODISCARD auto createQualifiedTypeTerm(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::QUALIFIED_TYPE_TERM,
+					this->qualified_type_terms.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getQualifiedTypeTerm(Instruction instr) const -> const Instruction::QualifiedTypeTerm& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::QUALIFIED_TYPE_TERM, "Not a QualifiedTypeTerm");
+				return this->qualified_type_terms[instr._index];
 			}
 
 
@@ -3161,11 +3174,13 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint32_t> accessor_needs_defs{};
 			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint32_t> accessors{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};
+			core::SyncLinearStepAlloc<Instruction::PrimitiveTypeTerm, uint32_t> primitive_type_terms{};
 			core::SyncLinearStepAlloc<Instruction::ArrayType, uint32_t> array_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint32_t> array_refs{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceMap, uint32_t> interface_maps{};
 			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint32_t> type_id_converters{};
-			core::SyncLinearStepAlloc<Instruction::UserType, uint32_t> user_types{};
+			core::SyncLinearStepAlloc<Instruction::QualifiedType, uint32_t> qualified_types{};
+			core::SyncLinearStepAlloc<Instruction::QualifiedTypeTerm, uint32_t> qualified_type_terms{};
 			core::SyncLinearStepAlloc<Instruction::BaseTypeIdent, uint32_t> base_type_idents{};
 			core::SyncLinearStepAlloc<Instruction::Ident<true>, uint32_t> ident_needs_defs{};
 			core::SyncLinearStepAlloc<Instruction::Ident<false>, uint32_t> idents{};

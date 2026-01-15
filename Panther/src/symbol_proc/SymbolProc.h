@@ -197,7 +197,7 @@ namespace pcit::panther{
 		struct Alias{
 			const AST::AliasDef& alias_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
-			SymbolProcTypeID aliased_type;
+			SymbolProcTermInfoID aliased_type;
 		};
 
 
@@ -934,6 +934,11 @@ namespace pcit::panther{
 			SymbolProcTypeID output;
 		};
 
+		struct PrimitiveTypeTerm{
+			const AST::Type& ast_type;
+			SymbolProcTermInfoID output;
+		};
+
 		struct ArrayType{
 			const AST::ArrayType& array_type;
 			SymbolProcTypeID elem_type;
@@ -963,10 +968,16 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;	
 		};
 
-		struct UserType{
+		struct QualifiedType{
 			const AST::Type& ast_type;
 			SymbolProcTermInfoID base_type;
 			SymbolProcTypeID output;
+		};
+
+		struct QualifiedTypeTerm{
+			const AST::Type& ast_type;
+			SymbolProcTermInfoID base_type;
+			SymbolProcTermInfoID output;
 		};
 
 		struct BaseTypeIdent{
@@ -1191,12 +1202,13 @@ namespace pcit::panther{
 
 			// types
 			PRIMITIVE_TYPE,
-			PRIMITIVE_TYPE_NEEDS_DEF,
+			PRIMITIVE_TYPE_TERM,
 			ARRAY_TYPE,
 			ARRAY_REF,
 			INTERFACE_MAP,
 			TYPE_ID_CONVERTER,
-			USER_TYPE,
+			QUALIFIED_TYPE,
+			QUALIFIED_TYPE_TERM,
 			BASE_TYPE_IDENT,
 
 			// single token value
