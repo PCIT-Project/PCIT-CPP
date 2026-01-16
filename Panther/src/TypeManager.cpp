@@ -1128,11 +1128,15 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
-				return false;
+				return true;
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return false;
+				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
+					return false;
+				}else{
+					return true;
+				}
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:

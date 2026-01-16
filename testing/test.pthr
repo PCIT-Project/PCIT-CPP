@@ -1,13 +1,38 @@
 
 
-type SAL = alias @import("StaticArrayList.pthr").StaticArrayList;
-type StaticArrayList = alias SAL;
+// type SAL = alias @import("StaticArrayList.pthr").StaticArrayList;
+// type StaticArrayList = alias SAL;
+
+// func entry = () #entry -> UI8 {
+// 	var arr = new StaticArrayList<{Int, 4}>();
+
+// 	arr.append().* = 12;
+// 	arr.append().* = 14;
+	
+// 	return arr.size() as UI8;
+// }
+
+
+type Direction = enum { // default underlying type is UI32
+	NORTH,     // 0
+	EAST,      // 1
+	SOUTH = 4, // 4
+	WEST,      // 5
+}
+
+
+type Color = enum(UI8) {
+	RED   = 1 << 0,
+	GREEN = 1 << 1,
+	BLUE  = 1 << 2,
+
+	func containsRed = (this) -> Bool {
+		return (this & Color.RED) as Bool;
+	}
+}
+
 
 func entry = () #entry -> UI8 {
-	var arr = new StaticArrayList<{Int, 4}>();
-
-	arr.append().* = 12;
-	arr.append().* = 14;
-	
-	return arr.size() as UI8;
+	const purple: Color = Color.RED | Color.BLUE;
+	return purple.containsRed() as UI8;
 }

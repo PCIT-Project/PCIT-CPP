@@ -18879,14 +18879,8 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-					}else if constexpr(
-						MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL
-						|| MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL
-					){
-						if(
-							lhs_decayed_type.qualifiers().empty() == false
-							|| lhs_decayed_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE
-						){
+					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL){
+						if(lhs_decayed_type_id != TypeManager::getTypeBool()){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -18898,13 +18892,8 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						const BaseType::Primitive& lhs_decayed_primitive =
-							this->context.getTypeManager().getPrimitive(lhs_decayed_type.baseTypeID().primitiveID());
-
-						if(
-							this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
-							&& lhs_decayed_primitive.kind() != Token::Kind::TYPE_BOOL
-						){
+					}else if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::BITWISE_LOGICAL){
+						if(lhs_decayed_type.qualifiers().empty() == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
 							this->emit_error(
@@ -18915,7 +18904,50 @@ namespace pcit::panther{
 							);
 							return Result::ERROR;
 						}
-						
+
+						switch(lhs_decayed_type.baseTypeID().kind()){
+							case BaseType::Kind::PRIMITIVE: {
+								const BaseType::Primitive& lhs_decayed_primitive = 
+									this->context.getTypeManager().getPrimitive(
+										lhs_decayed_type.baseTypeID().primitiveID()
+									);
+
+								if(
+									this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
+									&& lhs_decayed_primitive.kind() != Token::Kind::TYPE_BOOL
+								){
+									auto infos = evo::SmallVector<Diagnostic::Info>();
+									this->diagnostic_print_type_info(
+										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
+									);
+									this->emit_error(
+										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+										instr.infix,
+										"No matching operation for this type",
+										std::move(infos)
+									);
+									return Result::ERROR;
+								}
+							} break;
+
+							case BaseType::Kind::ENUM: {
+								// do nothing...
+							} break;
+
+							default: {
+								auto infos = evo::SmallVector<Diagnostic::Info>();
+								this->diagnostic_print_type_info(
+									lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
+								);
+								this->emit_error(
+									Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
+									instr.infix,
+									"No matching operation for this type",
+									std::move(infos)
+								);
+								return Result::ERROR;
+							} break;
+						}
 					}
 				}
 

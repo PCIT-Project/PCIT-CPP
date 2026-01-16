@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.218.3"></a>
+## v0.0.218.3
+
+### Panther
+- Fixed type traits for enums
+- Fixed delete, copy, and move type traits for polymorphic interface references
+- Fixed checking of valid types for logical and bitwise logical math infix operators
+
+
+<!---------------------------------->
 <a name="v0.0.218.2"></a>
 ## v0.0.218.2
 
