@@ -7388,12 +7388,6 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::instr_end_cond_set(const Instruction::EndCondSet& instr) -> Result {
-		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
-
-		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
-			current_scope_level.stmtBlock().setTerminated();
-		}
-
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
@@ -8806,12 +8800,6 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-
-		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
-
-		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
-			current_scope_level.stmtBlock().setTerminated();
-		}
 
 		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
 
@@ -10453,7 +10441,7 @@ namespace pcit::panther{
 			}
 
 			if(this->set_ident_value_state_if_needed(
-				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
+				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.lhs
 			).isError()){
 				return Result::ERROR;
 			}
@@ -10998,6 +10986,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_end_unsafe() -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(Diagnostic::Location::NONE).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -24215,6 +24204,10 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<> {
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
+
+		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
+			current_scope_level.stmtBlock().setTerminated();
+		}
 
 		for(auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
 			if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){

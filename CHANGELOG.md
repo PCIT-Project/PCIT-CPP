@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.218.4"></a>
+## v0.0.218.4
+
+### Panther
+- Fixed value state tracking when state is changed within an unsafe block
+- Fixed function termination checking at end of statement block
+
+### PIR
+- Changed printing of non-standard names to not have yellow for the name string
+
+
+<!---------------------------------->
 <a name="v0.0.218.3"></a>
 ## v0.0.218.3
 

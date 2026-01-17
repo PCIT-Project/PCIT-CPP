@@ -45,7 +45,7 @@ namespace pcit::pir{
 
 			auto print_function_decl_impl(const struct FuncDeclRef& func_decl) -> void;
 
-			auto print_non_standard_name(std::string_view) -> void;
+			auto print_non_standard_name(std::string_view, bool is_declaration) -> void;
 
 			auto print_atomic_ordering(AtomicOrdering ordering) -> void;
 			auto print_calling_convention(CallingConvention convention) -> void;

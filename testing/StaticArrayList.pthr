@@ -102,6 +102,12 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 		this._size -= 1;
 	}
 
+	func popExtract = (this mut) -> (output: T) {
+		unsafe{ output = move this.last().*; }
+		this._size -= 1;
+		return...;
+	}
+
 
 	///////////////////////////////////
 	// type conversion

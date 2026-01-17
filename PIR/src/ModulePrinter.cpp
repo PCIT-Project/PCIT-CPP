@@ -90,7 +90,7 @@ namespace pcit::pir{
 			this->printer.printGreen("&{} ", func_decl.name);
 		}else{
 			this->printer.printGreen("&");
-			this->print_non_standard_name(func_decl.name);
+			this->print_non_standard_name(func_decl.name, true);
 			this->printer.print(" ");
 		}
 		this->printer.printRed("= ");
@@ -227,7 +227,7 @@ namespace pcit::pir{
 			this->printer.printGreen("&{}", struct_type.name);
 		}else{
 			this->printer.printGreen("&");
-			this->print_non_standard_name(struct_type.name);
+			this->print_non_standard_name(struct_type.name, true);
 		}
 		this->printer.printRed(" = ");
 		this->printer.printCyan("struct ");
@@ -260,7 +260,7 @@ namespace pcit::pir{
 		if(isStandardName(global_var.name)){
 			this->printer.print("&{}", global_var.name);
 		}else{
-			this->print_non_standard_name(global_var.name);
+			this->print_non_standard_name(global_var.name, true);
 		}	
 		this->printer.printRed(": ");
 		this->print_type(global_var.type);
@@ -422,7 +422,7 @@ namespace pcit::pir{
 					printer.print("&{}", struct_type.name);
 				}else{
 					printer.print("&", struct_type.name);
-					this->print_non_standard_name(struct_type.name);
+					this->print_non_standard_name(struct_type.name, false);
 				}
 			} break;
 
@@ -1878,7 +1878,7 @@ namespace pcit::pir{
 					this->printer.print("&{}", name);
 				}else{
 					this->printer.print("&");
-					this->print_non_standard_name(name);
+					this->print_non_standard_name(name, false);
 				}
 
 			}else if constexpr(std::is_same_v<ValueT, ExternalFunction::ID>){
@@ -1888,7 +1888,7 @@ namespace pcit::pir{
 					this->printer.print("&{}", name);
 				}else{
 					this->printer.print("&");
-					this->print_non_standard_name(name);
+					this->print_non_standard_name(name, false);
 				}
 
 				
@@ -1918,7 +1918,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_non_standard_name(std::string_view name) -> void {
+	auto ModulePrinter::print_non_standard_name(std::string_view name, bool is_declaration) -> void {
 		auto converted_name = std::string();
 
 		for(char c : name){
@@ -1936,7 +1936,11 @@ namespace pcit::pir{
 			}
 		}
 
-		this->printer.printYellow("\"{}\"", converted_name);
+		if(is_declaration){
+			this->printer.printGreen("\"{}\"", converted_name);
+		}else{
+			this->printer.print("\"{}\"", converted_name);
+		}
 	}
 
 
