@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.219.0"></a>
+## v0.0.219.0
+
+### Panther
+- Added implicit conversion of array to array reference
+
+
+<!---------------------------------->
 <a name="v0.0.218.4"></a>
 ## v0.0.218.4
 

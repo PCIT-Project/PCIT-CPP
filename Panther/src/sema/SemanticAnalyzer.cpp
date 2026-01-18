@@ -17493,6 +17493,21 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+
+			if(to_array_ref.terminator.has_value() && from_array.terminator != to_array_ref.terminator){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
+				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
+				this->emit_error(
+					Diagnostic::Code::SEMA_AS_INVALID_TO,
+					instr.infix.rhs,
+					"No valid operator [as] to this type",
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+
+
 			if(to_array_ref.isMut && expr.is_const()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
@@ -30375,7 +30390,167 @@ namespace pcit::panther{
 
 					if(expected_type.baseTypeID() != got_type.baseTypeID()){
 						if(
-							expected_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF 
+							expected_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF
+							&& got_type.baseTypeID().kind() == BaseType::Kind::ARRAY
+						){
+							if(expected_type.qualifiers().empty() == false || got_type.qualifiers().size() > 1){
+								if constexpr(MAY_EMIT_ERROR){
+									this->error_type_mismatch(
+										expected_type_id,
+										got_expr,
+										expected_type_location_name,
+										location,
+										multi_type_index
+									);
+								}
+								return TypeCheckInfo::fail();
+							}
+
+							bool got_is_ptr = false;
+							if(got_type.qualifiers().size() == 1){
+								if(got_type.qualifiers()[0].isUninit | got_type.qualifiers()[0].isOptional){
+									if constexpr(MAY_EMIT_ERROR){
+										this->error_type_mismatch(
+											expected_type_id,
+											got_expr,
+											expected_type_location_name,
+											location,
+											multi_type_index
+										);
+									}
+									return TypeCheckInfo::fail();
+								}
+
+								got_is_ptr = true;
+							}
+
+							const BaseType::ArrayRef& expected_array_ref =
+								this->context.getTypeManager().getArrayRef(expected_type.baseTypeID().arrayRefID());
+
+							const BaseType::Array& got_array =
+								this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
+
+							if(
+								this->context.type_manager.decayType<false, false>(expected_array_ref.elementTypeID)
+								!= this->context.type_manager.decayType<false, false>(got_array.elementTypeID)
+							){
+								if constexpr(MAY_EMIT_ERROR){
+									this->error_type_mismatch(
+										expected_type_id,
+										got_expr,
+										expected_type_location_name,
+										location,
+										multi_type_index
+									);
+								}
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_array_ref.dimensions.size() != got_array.dimensions.size()){
+								if constexpr(MAY_EMIT_ERROR){
+									this->error_type_mismatch(
+										expected_type_id,
+										got_expr,
+										expected_type_location_name,
+										location,
+										multi_type_index
+									);
+								}
+								return TypeCheckInfo::fail();
+							}
+
+							if(
+								expected_array_ref.terminator.has_value()
+								&& expected_array_ref.terminator != got_array.terminator
+							){
+								if constexpr(MAY_EMIT_ERROR){
+									this->error_type_mismatch(
+										expected_type_id,
+										got_expr,
+										expected_type_location_name,
+										location,
+										multi_type_index
+									);
+								}
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_array_ref.isMut){
+								if(got_is_ptr){
+									if(got_type.qualifiers()[0].isMut == false){
+										if constexpr(MAY_EMIT_ERROR){
+											this->error_type_mismatch(
+												expected_type_id,
+												got_expr,
+												expected_type_location_name,
+												location,
+												multi_type_index
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
+								}else{
+									if(got_expr.is_const()){
+										if constexpr(MAY_EMIT_ERROR){
+											this->error_type_mismatch(
+												expected_type_id,
+												got_expr,
+												expected_type_location_name,
+												location,
+												multi_type_index
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+								}
+							}
+
+
+							auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+							dimensions.reserve(got_array.dimensions.size());
+							for(size_t i = 0; uint64_t dimension : got_array.dimensions){
+								if(expected_array_ref.dimensions[i].isPtr()){
+									dimensions.emplace_back(dimension);
+								}else{
+									if(dimension != expected_array_ref.dimensions[i].length()){
+										if constexpr(MAY_EMIT_ERROR){
+											this->error_type_mismatch(
+												expected_type_id,
+												got_expr,
+												expected_type_location_name,
+												location,
+												multi_type_index
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+								}
+
+								i += 1;
+							}
+
+
+							if constexpr(MAY_IMPLICITLY_CONVERT){
+								const sema::Expr data_ptr = [&]() -> sema::Expr {
+									if(got_is_ptr){
+										return got_expr.getExpr();
+									}else{
+										return sema::Expr(this->context.sema_buffer.createAddrOf(got_expr.getExpr()));
+									}
+								}();
+
+								got_expr.getExpr() = sema::Expr(
+									this->context.sema_buffer.createInitArrayRef(data_ptr, std::move(dimensions))
+								);
+							}
+
+							return TypeCheckInfo::success(true);
+						}
+
+
+						if(
+							expected_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
 							|| got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
 						){
 							if constexpr(MAY_EMIT_ERROR){

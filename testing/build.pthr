@@ -6,13 +6,13 @@ func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.PIR);
 	build_exp.setNumThreads(12);
 
-	build_exp.addStdLib("../extern/Panther-std/std/".* as [Char:*]); // shipped path
-	// build_exp.addStdLib("../../Panther-std/std".* as [Char:*]);
+	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build_exp.addStdLib("../../Panther-std/std");
 
 
 	const test_package = new build_exp.Package(
-		path     : "./".* as [Char:*],
-		name     : "test".* as [Char:*],
+		path     : "./",
+		name     : "test",
 		warnings : new @build.PackageWarningSettings{
 			methodCallOnNonMethod        = true,
 			deleteMovedFromExpr          = true,
@@ -22,11 +22,12 @@ func entry = () #entry -> UI8 {
 			experimentalF80              = true,
 		},
 	);
-	test_package.addSourceFile("test.pthr".* as [Char:*]);
-	test_package.addSourceFile("StaticArrayList.pthr".* as [Char:*]);
-	// test_package.addSourceFile("NonTrivial.pthr".* as [Char:*]);
+	test_package.addSourceFile("test.pthr");
+	test_package.addSourceFile("StaticArrayList.pthr");
+	// test_package.addSourceFile("NonTrivial.pthr");
 
-	// @buildAddCHeaderFile("test.h".* as [Char:*], true);
+	// @buildAddCHeaderFile("test.h", true);
+
 	
 	return 0;
 }

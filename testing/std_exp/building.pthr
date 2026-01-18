@@ -46,7 +46,7 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 		experimentalF80              = true,
 	};
 
-	const std_lib_package = new Package(path, "std".* as [Char:*], copy warns);
-	std_lib_package.addSourceDirectory("./".* as [Char:*], true);
+	const std_lib_package = new Package(path, "std", copy warns);
+	std_lib_package.addSourceDirectory("./", true);
 	setStdLibPackage(std_lib_package);
 }
