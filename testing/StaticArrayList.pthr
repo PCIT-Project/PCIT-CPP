@@ -112,8 +112,8 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// type conversion
 
-	func as = (this) -> [T:*] { return new [T:*](this.data(), this.size()); }
-	func as = (this mut) -> [T:*mut] { return new [T:*mut](this.data(), this.size()); }
+	func as = (this) #implicit -> [T:*] { return new [T:*](this.data(), this.size()); }
+	func as = (this mut) #implicit -> [T:*mut] { return new [T:*mut](this.data(), this.size()); }
 
 
 	///////////////////////////////////

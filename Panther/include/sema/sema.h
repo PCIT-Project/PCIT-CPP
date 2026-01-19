@@ -668,13 +668,14 @@ namespace pcit::panther::sema{
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		evo::SmallVector<Token::ID> returnParamIdents; // empty if not named
-		evo::SmallVector<Token::ID> errorParamIdents; // empty if not named
+		evo::SmallVector<Token::ID> errorParamIdents;  // empty if not named
 		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
 		uint32_t minNumArgs;
-		bool isPub; // meaningless if is Clang or builtin type
-		bool isPriv; // meaningless if not member
+		bool isPub;      // meaningless if is Clang or builtin type
+		bool isPriv;     // meaningless if not member
 		bool isConstexpr;
-		bool isExport; // always true if is clang type
+		bool isExport;   // always true if is clang type
+		bool isImplicit; // meaningless if not member
 		bool hasInParam; // always false if is clang type
 		
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation

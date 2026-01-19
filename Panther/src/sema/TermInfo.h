@@ -513,6 +513,20 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// value state checking
+
+		EVO_NODISCARD constexpr auto isInitialized() const -> bool {
+			return this->value_state == ValueState::NOT_APPLICABLE
+				|| this->value_state == ValueState::INIT;
+		}
+
+		EVO_NODISCARD constexpr auto isUninitialized() const -> bool {
+			return !this->isInitialized();
+		}
+
+
+
+		///////////////////////////////////
 		// value
 
 		EVO_NODISCARD auto isSingleValue() const -> bool {

@@ -854,6 +854,7 @@ namespace pcit::panther{
 				bool is_entry;
 				bool is_commutative;
 				bool is_swapped;
+				bool is_implicit;
 			};
 			EVO_NODISCARD auto analyze_func_attrs(
 				const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
@@ -932,33 +933,48 @@ namespace pcit::panther{
 				evo::SmallVector<DeducerMatchOutput::DeducedTerm> deduced_terms;
 				std::optional<Result> special_result_from_interface_match; // only set if should be checked
 
+				struct InitAssignFunc{ sema::Func::ID func_id; };
+				struct AssignFunc{ sema::Func::ID func_id; };
+				using NonAutoImplicitConversionTarget = evo::Variant<std::monostate, InitAssignFunc, AssignFunc>;
+				NonAutoImplicitConversionTarget non_auto_implicit_conversion_target;
+
 				#if defined(PCIT_CONFIG_DEBUG)
 					~TypeCheckInfo(){
 						evo::debugAssert(
 							this->special_result_from_interface_match.has_value() == false,
 							"If a special result from interface match has value, it should be checked and cleared"
 						);
+						evo::debugAssert(
+							this->non_auto_implicit_conversion_target.is<std::monostate>(),
+							"If a non auto implicit conversion target has value, handle_non_auto_implicit_conversion()"
+						);
 					}
 				#endif
 
 				public:
 					EVO_NODISCARD static auto fail() -> TypeCheckInfo {
-						return TypeCheckInfo(false, false, {}, std::nullopt);
+						return TypeCheckInfo(false, false, {}, std::nullopt, std::monostate());
 					}
 					EVO_NODISCARD static auto fail(Result result) -> TypeCheckInfo {
-						return TypeCheckInfo(false, false, {}, result);
+						return TypeCheckInfo(false, false, {}, result, std::monostate());
 					}
 
 					EVO_NODISCARD static auto success(bool requires_implicit_conversion) -> TypeCheckInfo {
-						return TypeCheckInfo(true, requires_implicit_conversion, {}, std::nullopt);
+						return TypeCheckInfo(true, requires_implicit_conversion, {}, std::nullopt, std::monostate());
 					}
 					EVO_NODISCARD static auto success(
 						bool requires_implicit_conversion,
 						evo::SmallVector<DeducerMatchOutput::DeducedTerm>&& deduced_terms
 					) -> TypeCheckInfo {
 						return TypeCheckInfo(
-							true, requires_implicit_conversion, std::move(deduced_terms), std::nullopt
+							true, requires_implicit_conversion, std::move(deduced_terms), std::nullopt, std::monostate()
 						);
+					}
+					EVO_NODISCARD static auto success(InitAssignFunc init_func) -> TypeCheckInfo {
+						return TypeCheckInfo(true, true, {}, std::nullopt, init_func);
+					}
+					EVO_NODISCARD static auto success(AssignFunc assign_func) -> TypeCheckInfo {
+						return TypeCheckInfo(true, true, {}, std::nullopt, assign_func);
 					}
 
 					auto extractSpecialResultFromInterfaceMatch() -> Result {
@@ -970,13 +986,15 @@ namespace pcit::panther{
 				private:
 					TypeCheckInfo(
 						bool _ok,
-						bool ric,
+						bool _requires_implicit_conversion,
 						evo::SmallVector<DeducerMatchOutput::DeducedTerm>&& _deduced_terms,
-						std::optional<Result> _special_result_from_interface_match
+						std::optional<Result> _special_result_from_interface_match,
+						evo::Variant<std::monostate, InitAssignFunc, AssignFunc> _non_auto_implicit_conversion_target
 					) : ok(_ok),
-						requires_implicit_conversion(ric),
+						requires_implicit_conversion(_requires_implicit_conversion),
 						deduced_terms(std::move(_deduced_terms)),
-						special_result_from_interface_match(_special_result_from_interface_match)
+						special_result_from_interface_match(_special_result_from_interface_match),
+						non_auto_implicit_conversion_target(_non_auto_implicit_conversion_target)
 					{}
 			};
 
@@ -987,14 +1005,24 @@ namespace pcit::panther{
 			) -> evo::Result<bool>; // bool is if is implicit conversion to optional
 
 
-			template<bool MAY_IMPLICITLY_CONVERT, bool MAY_EMIT_ERROR>
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR>
 			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id,
 				TermInfo& got_expr,
 				std::string_view expected_type_location_name,
 				const auto& location,
+				bool is_initialization = true,
 				std::optional<unsigned> multi_type_index = std::nullopt
 			) -> TypeCheckInfo;
+
+
+			EVO_NODISCARD auto handle_non_auto_implicit_conversion(
+				TypeCheckInfo::NonAutoImplicitConversionTarget& non_auto_implicit_conversion_target,
+				const TermInfo& lhs,
+				sema::Expr value,
+				const AST::Infix& infix
+			) -> Result;
+
 
 			auto error_type_mismatch(
 				TypeInfo::ID expected_type_id,

@@ -1438,6 +1438,7 @@ namespace pcit::panther{
 								false,
 								false,
 								true,
+								false,
 								false
 							);
 						}
@@ -2143,6 +2144,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2187,6 +2189,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2221,6 +2224,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2286,6 +2290,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2330,6 +2335,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2364,6 +2370,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2438,6 +2445,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2482,6 +2490,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2554,6 +2563,7 @@ namespace pcit::panther{
 				evo::SmallVector<Token::ID>(),
 				std::nullopt,
 				1,
+				false,
 				false,
 				false,
 				false,
@@ -2633,6 +2643,7 @@ namespace pcit::panther{
 				false,
 				false,
 				false,
+				false,
 				false
 			);
 
@@ -2693,6 +2704,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -2737,6 +2749,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -2774,6 +2787,7 @@ namespace pcit::panther{
 				false,
 				false,
 				true,
+				false,
 				false,
 				false
 			);
@@ -2837,6 +2851,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -2881,6 +2896,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -2918,6 +2934,7 @@ namespace pcit::panther{
 				false,
 				false,
 				true,
+				false,
 				false,
 				false
 			);
@@ -2989,6 +3006,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -3036,6 +3054,7 @@ namespace pcit::panther{
 				false,
 				false,
 				true,
+				false,
 				false,
 				false
 			);
@@ -3111,6 +3130,7 @@ namespace pcit::panther{
 				false,
 				true,
 				false,
+				false,
 				false
 			);
 
@@ -3185,6 +3205,7 @@ namespace pcit::panther{
 				false,
 				false,
 				true,
+				false,
 				false,
 				false
 			);

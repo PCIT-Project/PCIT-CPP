@@ -3856,7 +3856,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::DEFAULT_NEW: {
 				const sema::DefaultNew& default_new =
-					this->context.getSemaBuffer().getDefaultNew(expr.defaultInitID());
+					this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
 
 				return this->default_new_expr<MODE>(
 					default_new.targetTypeID, default_new.isInitialization, store_locations
@@ -9887,7 +9887,9 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_COPY: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_copy_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_copy_init",
+							func_id.get(),
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
@@ -9901,7 +9903,9 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_MOVE: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_move_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_move_init",
+							func_id.get(),
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
@@ -9915,7 +9919,9 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_NEW: {
 					if(func.params.empty()){
 						return std::format(
-							"PTHR.f{}.{}.OP_new_init", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+							"PTHR.f{}.{}.OP_new_init",
+							func_id.get(),
+							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
@@ -9942,7 +9948,9 @@ namespace pcit::panther{
 				// assignment
 				case Token::lookupKind("+="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_ADD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_ADD",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9964,7 +9972,9 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SUB", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_SUB",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -9986,7 +9996,9 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MUL", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_MUL",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10008,13 +10020,17 @@ namespace pcit::panther{
 
 				case Token::lookupKind("/="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_DIV", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_DIV",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MOD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}.OP_ASSIGN_MOD",
+						func_id.get(),
+						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -10337,6 +10353,18 @@ namespace pcit::panther{
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
 					}
+				} break;
+
+
+				case Token::Kind::KEYWORD_AS: {
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+					return std::format(
+						"PTHR.f{}.{}.as.{}",
+						func_id.get(),
+						this->get_parent_name<false>(func.parent, func.sourceID),
+						this->context.getTypeManager().printType(func_type.returnTypes[0].asTypeID(), this->context)
+					);
 				} break;
 
 				default: {

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.220.0"></a>
+## v0.0.220.0
+
+### Panther
+- Added function attribute `#implicit`
+- Fixed missing type checking in assignment `new`
+- Fixed missing unsafe checking in `forward` (both initialization and assignment)
+
+
+<!---------------------------------->
 <a name="v0.0.219.0"></a>
 ## v0.0.219.0
 

@@ -310,7 +310,7 @@ namespace pcit::panther::sema{
 			evo::debugAssert(this->kind() == Kind::INDEXER, "not an indexer");
 			return this->value.indexer;
 		}
-		EVO_NODISCARD auto defaultInitID() const -> DefaultNewID {
+		EVO_NODISCARD auto defaultNewID() const -> DefaultNewID {
 			evo::debugAssert(this->kind() == Kind::DEFAULT_NEW, "not a default new");
 			return this->value.default_new;
 		}
