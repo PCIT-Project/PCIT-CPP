@@ -14444,23 +14444,24 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(this->currently_in_unsafe() == false && target.isUninitialized()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+				instr.prefix,
+				"Unsafe prefix operator [&] while not in an unsafe scope",
+				Diagnostic::Info("NOTE: the target is uninitialized")
+			);
+			return Result::ERROR;
+		}
+
+
 
 		const TypeInfo& target_type = this->context.type_manager.getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
-		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-		resultant_qualifiers.reserve(target_type.qualifiers().size() + 1);
-		for(const TypeInfo::Qualifier& qualifier : target_type.qualifiers()){
-			resultant_qualifiers.emplace_back(qualifier);
-		}
-		resultant_qualifiers.emplace_back(
-			true,
-			target.is_mutable(),
-			target.isUninitialized(),
-			false
-		);
-
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+			target_type.copyWithPushedQualifier(
+				TypeInfo::Qualifier(true, target.is_mutable(), target.isUninitialized(), false)
+			)
 		);
 
 
@@ -14853,16 +14854,9 @@ namespace pcit::panther{
 		}
 
 
-		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-		if(resultant_qualifiers.empty() == false){
-			resultant_qualifiers.reserve(target_type.qualifiers().size() - 1);
-			for(size_t i = 0; i < target_type.qualifiers().size() - 1; i+=1){
-				resultant_qualifiers.emplace_back(target_type.qualifiers()[i]);
-			}
-		}
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+			target_type.copyWithPoppedQualifier()
 		);
 
 

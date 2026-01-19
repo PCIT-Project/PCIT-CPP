@@ -1,39 +1,10 @@
-type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
-
-
-
-type ArrRef = struct {
-	func new = (arr_ref: StaticArrayList<{Int, 4}>) #implicit -> (output: ArrRef) {
-		output.data = copy arr_ref;
-		return...;
-	}
-
-	// func new = (this mut, arr_ref: StaticArrayList<{Int, 4}>) #implicit #unsafe -> Void {
-	// 	this.data = copy arr_ref;
-	// }
-
-	func delete = (this mut) -> Void {
-		
-	}
-
-	func as = (this) #implicit -> [Int:*] { return copy this.data; }
-
-	var data: [Int:*] #priv;
-}
-
-
-func test = (arr: ArrRef in) -> [Int:*] {
-	return forward arr;
-}
-
 
 func entry = () #entry -> UI8 {
-	var arr = new StaticArrayList<{Int, 4}>();
-
-	var arr_ref = new ArrRef(arr);
-	arr_ref = copy arr;
-
-	_ = test(copy arr);
+	const foo: Int = uninit;
+	
+	// unsafe{
+		const foo_ptr: Int*! = &foo;
+	// }
 	
 	return 0;
 }

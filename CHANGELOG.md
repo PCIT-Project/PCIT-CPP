@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.220.1"></a>
+## v0.0.220.1
+
+### Panther
+- Fixed missing unsafe checks for address-of of uninitialized value
+
+
+<!---------------------------------->
 <a name="v0.0.220.0"></a>
 ## v0.0.220.0
 
