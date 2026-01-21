@@ -9917,7 +9917,9 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_NEW: {
-					if(func.params.empty()){
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+					if(func_type.returnTypes.size() == 1){
 						return std::format(
 							"PTHR.f{}.{}.OP_new_init",
 							func_id.get(),
@@ -10340,7 +10342,9 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_NEW: {
-					if(func.params.size() == 0){
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+					if(func_type.returnTypes.size() == 1){
 						return std::format(
 							"PTHR.f{}.{}.new.init",
 							func_id.get(),

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.220.3"></a>
+## v0.0.220.3
+
+### Panther
+- Fixed lowered name of operator `new` initialization containing "assign" if it has parameters
+
+
+<!---------------------------------->
 <a name="v0.0.220.2"></a>
 ## v0.0.220.2
 

@@ -25,7 +25,7 @@ namespace pcit::core{
 		.major   = 0,
 		.release = 0,
 		.minor   = 220,
-		.patch   = 2,
+		.patch   = 3,
 	};
 
 }

@@ -2,12 +2,16 @@ type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
 
 
 func entry = () #entry -> UI8 {
-	const arr = new StaticArrayList<{Int, 4}>(new [Int:3][1, 2, 3]);
+	const arr = {->expr:(arr_output:StaticArrayList<{Int,4}>)
+		arr_output = new StaticArrayList<{Int, 4}>(new [Int:3][1, 2, 3]);
+		arr_output.append().* = 4;
+		return->expr ...;
+	};
 
 	var total: Int = 0;
 	for(arr) [_; value: Int] {
 		total += value;
 	}
 	
-	return total as UI8; // 6
+	return total as UI8; // 10
 }
