@@ -2967,7 +2967,7 @@ namespace pcit::panther{
 			BaseType::Interface& iterable_rt_type = this->type_manager.getInterface(iterable_rt_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
+			// func createIterator = (this) #rt -> impl($$:@pthr.IIteratorRT);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -2978,7 +2978,7 @@ namespace pcit::panther{
 							TypeInfo(
 								this->type_manager.getOrCreateInterfaceMap(
 									BaseType::InterfaceMap(
-										anonymous_type_deducer_type_id, iterator_id.interfaceID()
+										anonymous_type_deducer_type_id, iterator_rt_id.interfaceID()
 									)
 								)
 							)
@@ -3016,7 +3016,7 @@ namespace pcit::panther{
 
 
 
-			// func createIterator = (this mut) #rt -> impl($$:@pthr.IMutIterator);
+			// func createIterator = (this mut) #rt -> impl($$:@pthr.IMutIteratorRT);
 			const BaseType::ID create_mut_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -3027,7 +3027,7 @@ namespace pcit::panther{
 							TypeInfo(
 								this->type_manager.getOrCreateInterfaceMap(
 									BaseType::InterfaceMap(
-										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
+										anonymous_type_deducer_type_id, mut_iterator_rt_id.interfaceID()
 									)
 								)
 							)
@@ -3091,7 +3091,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_ref_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
+			// func createIterator = (this) #rt -> impl($$:@pthr.IIteratorRT);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -3102,7 +3102,7 @@ namespace pcit::panther{
 							TypeInfo(
 								this->type_manager.getOrCreateInterfaceMap(
 									BaseType::InterfaceMap(
-										anonymous_type_deducer_type_id, iterator_id.interfaceID()
+										anonymous_type_deducer_type_id, iterator_rt_id.interfaceID()
 									)
 								)
 							)
@@ -3165,7 +3165,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_mut_ref_id.interfaceID());
 
 
-			// func createIterator = (this) #rt -> impl($$:@pthr.IMutIterator);
+			// func createIterator = (this) #rt -> impl($$:@pthr.IMutIteratorRT);
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
@@ -3178,7 +3178,7 @@ namespace pcit::panther{
 							TypeInfo(
 								this->type_manager.getOrCreateInterfaceMap(
 									BaseType::InterfaceMap(
-										anonymous_type_deducer_type_id, mut_iterator_id.interfaceID()
+										anonymous_type_deducer_type_id, mut_iterator_rt_id.interfaceID()
 									)
 								)
 							)

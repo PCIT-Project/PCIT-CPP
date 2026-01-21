@@ -1,10 +1,13 @@
+type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
+
 
 func entry = () #entry -> UI8 {
-	const foo: Int = uninit;
+	const arr = new StaticArrayList<{Int, 4}>(new [Int:3][1, 2, 3]);
+
+	var total: Int = 0;
+	for(arr) [_; value: Int] {
+		total += value;
+	}
 	
-	// unsafe{
-		const foo_ptr: Int*! = &foo;
-	// }
-	
-	return 0;
+	return total as UI8; // 6
 }

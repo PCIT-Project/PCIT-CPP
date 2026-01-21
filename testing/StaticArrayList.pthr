@@ -18,6 +18,18 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 		return...;
 	}
 
+
+	func new = (data: [T:*]) -> (output: This) {
+		output = new This();
+
+		for(data) [_; value: T] {
+			output.append().* = copy value;
+		}
+
+		return...;
+	}
+
+
 	func delete = (this mut) -> Void {
 		for(this as [T:*mut]) [_; elem: T mut] {
 			unsafe{ delete elem; }
@@ -119,7 +131,26 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// iterators
 
-	// TODO(FUTURE): 
+	impl @pthr.IIterable{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIterator) {
+			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIterator)(this as [T:*]);
+		},
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIterator) {
+			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIterator)(this as [T:*mut]);
+		},
+	}
+
+
+	impl @pthr.IIterableRT{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIteratorRT) {
+			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIteratorRT)(this as [T:*]);
+		},
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIteratorRT) {
+			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIteratorRT)(this as [T:*mut]);
+		},
+	}
+
+
 
 
 	///////////////////////////////////

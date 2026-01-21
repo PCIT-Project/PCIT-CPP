@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.220.2"></a>
+## v0.0.220.2
+
+### Panther
+- Fixed signatures of createInterface methods of `@pthr.IIterableRT`, `@pthr.IIterableRefRT`, and `@pthr.IIterableMutRefRT`
+	- Fixed to return correct RT version of iterator
+
+### Misc
+- Updated to [Panther-std v0.0.12.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.12.0)
+
+
+<!---------------------------------->
 <a name="v0.0.220.1"></a>
 ## v0.0.220.1
 
