@@ -18,22 +18,22 @@
 namespace pcit::pir{
 
 	enum class CallingConvention{
-		DEFAULT, // FAST
-
 		FAST,
 		COLD,
 		C,
+
+		DEFAULT = FAST,
 	};
 
 
 	enum class Linkage{
-		DEFAULT, // Internal
-
 		INTERNAL,
 		PRIVATE, // Like internal, but doesn't shows up as a local symbol in the object file
 		EXTERNAL,
 		WEAK,
 		WEAK_EXTERNAL,
+
+		DEFAULT = INTERNAL,
 	};
 
 

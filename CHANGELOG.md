@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.221.0"></a>
+## v0.0.221.0
+
+### PIR
+- Changed lowering to LLVMIR of `fast` calliing convention from `fastcc` to `tailcc`
+- Fixed lowering to LLVMIR of calls to functions with `fast` or `cold` calling conventions
+
+
+<!---------------------------------->
 <a name="v0.0.220.3"></a>
 ## v0.0.220.3
 

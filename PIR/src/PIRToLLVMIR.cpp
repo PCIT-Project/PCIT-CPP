@@ -320,9 +320,14 @@ namespace pcit::pir{
 								if constexpr(std::is_same<TargetT, Function::ID>()){
 									const Function& func_target = this->module.getFunction(target);
 
-									return this->builder.createCall(
+									llvmint::CallInst call_inst = this->builder.createCall(
 										this->get_func<ADD_WEAK_DEPS>(func_target), call_args, call.name
-									).asValue();
+									);
+									call_inst.setCallingConv(
+										this->get_calling_conv(func_target.getCallingConvention())
+									);
+
+									return call_inst.asValue();
 
 								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 									const ExternalFunction& func_target = this->module.getExternalFunction(target);
@@ -373,7 +378,9 @@ namespace pcit::pir{
 
 							if constexpr(std::is_same<TargetT, Function::ID>()){
 								const Function& func_target = this->module.getFunction(target);
-								this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
+								llvmint::CallInst call_inst =
+									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
+								call_inst.setCallingConv(this->get_calling_conv(func_target.getCallingConvention()));
 
 							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 								const ExternalFunction& func_target = this->module.getExternalFunction(target);
@@ -1913,7 +1920,6 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_linkage(const Linkage& linkage) -> llvmint::LinkageType {
 		switch(linkage){
-			case Linkage::DEFAULT:       return llvmint::LinkageType::Internal;
 			case Linkage::PRIVATE:       return llvmint::LinkageType::Private;
 			case Linkage::INTERNAL:      return llvmint::LinkageType::Internal;
 			case Linkage::EXTERNAL:      return llvmint::LinkageType::External;
@@ -1927,9 +1933,8 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv {
 		switch(calling_conv){
-			case CallingConvention::DEFAULT: return llvmint::CallingConv::Fast;
 			case CallingConvention::C:       return llvmint::CallingConv::C;
-			case CallingConvention::FAST:    return llvmint::CallingConv::Fast;
+			case CallingConvention::FAST:    return llvmint::CallingConv::Tail;
 			case CallingConvention::COLD:    return llvmint::CallingConv::Cold;
 		}
 

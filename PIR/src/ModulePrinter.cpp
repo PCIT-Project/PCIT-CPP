@@ -1981,7 +1981,7 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_calling_convention(CallingConvention convention) -> void {
 		switch(convention){
-			case CallingConvention::DEFAULT: case CallingConvention::FAST:  {
+			case CallingConvention::FAST:  {
 				this->printer.printRed("#callConv");
 				this->printer.print("(fast)");
 			} break;
@@ -2006,7 +2006,7 @@ namespace pcit::pir{
 				this->printer.print("(private)");
 			} break;
 
-			case Linkage::DEFAULT: case Linkage::INTERNAL: {
+			case Linkage::INTERNAL: {
 				this->printer.printRed("#linkage");
 				this->printer.print("(internal)");
 			} break;
