@@ -27,7 +27,7 @@ namespace pcit::core{
 		EVO_NODISCARD constexpr operator Value() const { return this->_value; }
 
 
-		EVO_NODISCARD constexpr static auto getCurrent() -> TargetArchitecture {
+		EVO_NODISCARD constexpr static auto getNative() -> TargetArchitecture {
 			#if defined(EVO_ARCH_X86_64)
 				return TargetArchitecture::X86_64;
 			#else
@@ -55,7 +55,7 @@ namespace pcit::core{
 		EVO_NODISCARD constexpr operator Value() const { return this->_value; }
 
 
-		EVO_NODISCARD constexpr static auto getCurrent() -> TargetPlatform {
+		EVO_NODISCARD constexpr static auto getNative() -> TargetPlatform {
 			#if defined(EVO_PLATFORM_WINDOWS)
 				return TargetPlatform::WINDOWS;
 			#elif defined(EVO_PLATFORM_LINUX)
@@ -80,8 +80,8 @@ namespace pcit::core{
 
 		constexpr Target(Architecture arch, Platform _platform) : architecture(arch), platform(_platform) {}
 
-		EVO_NODISCARD constexpr static auto getCurrent() -> Target {
-			return Target(Architecture::getCurrent(), Platform::getCurrent());
+		EVO_NODISCARD constexpr static auto getNative() -> Target {
+			return Target(Architecture::getNative(), Platform::getNative());
 		}
 	};
 

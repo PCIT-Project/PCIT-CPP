@@ -20,7 +20,6 @@ namespace llvm{
 	class NoFolder;
 	class IRBuilderDefaultInserter;
 
-	class ExecutionEngine;
 	
 	class Function;
 	class Argument;

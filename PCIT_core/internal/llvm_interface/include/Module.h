@@ -16,7 +16,6 @@
 #include "./class_impls/types.h"
 #include "./class_impls/enums.h"
 #include "./Function.h"
-#include "./ExecutionEngine.h"
 
 #include "../../../include/Target.h"
 
@@ -121,7 +120,7 @@ namespace pcit::llvmint{
 
 
 			EVO_NODISCARD auto setTargetAndDataLayout(
-				core::Target target   = core::Target::getCurrent(),
+				core::Target target   = core::Target::getNative(),
 				Relocation relocation = Relocation::DEFAULT,
 				CodeSize code_size    = CodeSize::DEFAULT,
 				OptLevel opt_level    = OptLevel::DEFAULT,
@@ -162,22 +161,6 @@ namespace pcit::llvmint{
 
 			auto optimize(OptMode opt_mode) -> void;
 
-
-			template<typename ReturnType>
-			EVO_NODISCARD auto run(std::string_view func_name, core::Printer& printer) -> evo::Result<ReturnType> {
-				auto execution_engine = ExecutionEngine();
-				execution_engine.createEngine(*this);
-				execution_engine.setupLinkedFuncs(printer);
-
-				const evo::Result<ReturnType> result = execution_engine.runFunctionDirectly<ReturnType>(func_name);
-				
-				execution_engine.shutdownEngine();
-
-				return result;
-			};
-
-
-
 			// `module_to_absorb` will be deleted
 			auto merge(llvm::Module* module_to_absorb) -> void;
 
@@ -193,15 +176,11 @@ namespace pcit::llvmint{
 
 		private:
 			EVO_NODISCARD auto get_clone() const -> std::unique_ptr<llvm::Module>;
-
-			auto setup_linked_funcs(ExecutionEngine& execution_engine) -> void;
 	
 
 		private:
 			llvm::Module* _native = nullptr;
 			llvm::TargetMachine* target_machine = nullptr;
-
-			friend class ExecutionEngine;
 	};
 
 	

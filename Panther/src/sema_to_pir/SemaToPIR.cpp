@@ -5204,7 +5204,28 @@ namespace pcit::panther{
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 		if(expr_type.qualifiers().empty() == false){
-			evo::debugAssert(expr_type.isOptionalNotPointer(), "Unknown non-trivial default-initializable qualifier");
+			if(expr_type.qualifiers().back().isPtr){
+				evo::debugAssert(expr_type.isOptional(), "Unknown non-trivial default-initializable qualifier");
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createNullptr();
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr ptr_alloca =
+						this->agent.createAlloca(this->module.createPtrType(), "DEFAULT_NEW_OPT_PTR");
+						
+					this->agent.createStore(ptr_alloca, this->agent.createNullptr());
+
+					return ptr_alloca;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->agent.createStore(store_locations[0], this->agent.createNullptr());
+					return std::nullopt;
+					
+				}else{
+					return std::nullopt;
+				}
+			}
 
 			const pir::Type opt_pir_type = this->get_type<false>(expr_type_id);
 

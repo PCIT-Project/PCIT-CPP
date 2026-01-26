@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.222.0"></a>
+## v0.0.222.0
+
+### Panther
+- Fixed crashing when lowering a local `def` variable
+- Fixed lowering of default initialization of optional pointer
+- Fixed race condition in semantic analysis when using `#builtin` symbols
+- Fixed `for` for `mut` `IIterable`
+
+### PIR
+- Added `ExecutionEngine`
+	- missing support for global variables, external functions, function pointers
+
+
+<!---------------------------------->
 <a name="v0.0.221.0"></a>
 ## v0.0.221.0
 

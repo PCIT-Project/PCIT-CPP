@@ -385,6 +385,7 @@ namespace pcit::panther{
 			SEMA_FUNC_ALIAS_MUST_BE_FUNC,
 			SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT,
 			SEMA_UNSAFE_IN_SAFE_SCOPE,
+			SEMA_ERROR_IN_CONSTEXPR_CALL,
 
 
 			//////////////////
@@ -998,6 +999,7 @@ namespace pcit::panther{
 				case Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC:
 				case Code::SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT:
 				case Code::SEMA_UNSAFE_IN_SAFE_SCOPE:
+				case Code::SEMA_ERROR_IN_CONSTEXPR_CALL:
 					return "Sxx";
 
 				case Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD:

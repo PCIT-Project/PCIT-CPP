@@ -26,7 +26,7 @@ namespace pcit::core{
 	//////////////////////////////////////////////////////////////////////
 
 	struct GenericValue{
-		explicit GenericValue() : data{.small = 0}, num_bytes(0) {} // TODO(FUTURE): remove?
+		explicit GenericValue() : data{.small = 0}, num_bytes(0) {}
 
 		explicit GenericValue(bool val) : data{.small = uint64_t(val)}, num_bytes(1) {}
 		explicit GenericValue(char val) : data{.small = uint64_t(val)}, num_bytes(1) {}
@@ -61,6 +61,16 @@ namespace pcit::core{
 		explicit GenericValue(const core::GenericFloat& val) {
 			std::construct_at(this, val.bitCastToGenericInt());
 		}
+
+
+		EVO_NODISCARD static auto createPtr(auto* ptr) -> GenericValue {
+			return GenericValue(GenericInt::create<size_t>(reinterpret_cast<size_t>(ptr)));
+		}
+
+		EVO_NODISCARD static auto createPtr(std::nullptr_t) -> GenericValue {
+			return GenericValue(GenericInt::create<size_t>(0));
+		}
+
 
 
 		EVO_NODISCARD static auto createUninit(size_t num_bytes) -> GenericValue {
@@ -160,6 +170,14 @@ namespace pcit::core{
 
 		EVO_NODISCARD auto getF128() const -> core::GenericFloat {
 			return core::GenericFloat::createF128(this->getInt(128));
+		}
+
+
+		template<class T>
+		EVO_NODISCARD auto getPtr() const -> T {
+			evo::debugAssert(std::is_pointer<T>(), "Not a pointer");
+			evo::debugAssert(this->num_bytes == sizeof(T), "Not a pointer");
+			return reinterpret_cast<T>(this->data.small);
 		}
 
 

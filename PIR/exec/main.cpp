@@ -103,7 +103,7 @@ auto main(int argc, const char* argv[]) -> int {
 	//////////////////////////////////////////////////////////////////////
 	// begin test
 
-	auto module = pcit::pir::Module("PIR testing", pcit::core::Platform::getCurrent());
+	auto module = pcit::pir::Module("PIR testing", pcit::core::Platform::getNative());
 	auto agent = pcit::pir::Agent(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(

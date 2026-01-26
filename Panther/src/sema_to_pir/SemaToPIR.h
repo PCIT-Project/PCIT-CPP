@@ -111,6 +111,12 @@ namespace pcit::panther{
 				-> pir::Function::ID;
 
 
+
+			EVO_NODISCARD auto mangleName(sema::Func::ID func_id) -> std::string {
+				return this->mangle_name(func_id);
+			}
+
+
 		private:
 			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe if true
 			EVO_NODISCARD auto lower_struct(BaseType::Struct::ID struct_id) -> pir::Type;

@@ -388,7 +388,6 @@ namespace pcit::panther{
 				);
 				return evo::resultError;
 			}
-
 		}
 
 			
@@ -872,7 +871,7 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		auto module = pir::Module(evo::copy(this->_config.title), core::Target::getCurrent());
+		auto module = pir::Module(evo::copy(this->_config.title), core::Target::getNative());
 
 		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -3267,7 +3266,7 @@ namespace pcit::panther{
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
+			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
 			.allowedInCompile   = true,  .allowedInScript   = false, .allowedInBuildSystem = true,
 		};
 			

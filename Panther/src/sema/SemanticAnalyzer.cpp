@@ -6538,15 +6538,16 @@ namespace pcit::panther{
 
 		if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){ return Result::ERROR; }
 
+		if(instr.var_def.kind != AST::VarDef::Kind::DEF){
+			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+				this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
+			}else{
+				this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::INIT);
+			}
 
-		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-			this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
-		}else{
-			this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::INIT);
-		}
-
-		if(type_id.has_value() && this->context.getTypeManager().getTypeInfo(*type_id).isUninitPointer()){
-			this->add_ident_value_state(sema::UninitPtrLocalVar(new_sema_var), sema::ScopeLevel::ValueState::UNINIT);
+			if(type_id.has_value() && this->context.getTypeManager().getTypeInfo(*type_id).isUninitPointer()){
+				this->add_ident_value_state(sema::UninitPtrLocalVar(new_sema_var), sema::ScopeLevel::ValueState::UNINIT);
+			}
 		}
 
 		return Result::SUCCESS;
@@ -7861,9 +7862,18 @@ namespace pcit::panther{
 			}
 
 
+			const size_t create_iterator_func_index = [&]() -> size_t {
+				if(selected_interface->kind == InterfaceKind::ITERABLE){
+					return size_t(instr.for_stmt.values[i].isMut);
+				}else{
+					return 0;
+				}
+			}();
+
+
 			const TypeInfo::ID created_iterator_type_id = [&]() -> TypeInfo::ID {
 				const sema::Func& create_iterator_func =
-					this->context.getSemaBuffer().getFunc(iterable_impl.methods[0]);
+					this->context.getSemaBuffer().getFunc(iterable_impl.methods[create_iterator_func_index]);
 
 				const BaseType::Function& create_iterator_func_type =
 					this->context.getTypeManager().getFunction(create_iterator_func.typeID);
@@ -7882,10 +7892,14 @@ namespace pcit::panther{
 				return created_iterator_map_type.underlyingTypeID;
 			}();
 
-
 			const BaseType::Interface::Impl& iterator_impl = [&]() -> const BaseType::Interface::Impl& {
-				const auto lock = std::scoped_lock(selected_interface->iterator_interface.implsLock);
-				return selected_interface->iterator_interface.impls.at(created_iterator_type_id);
+				if(create_iterator_func_index == 0){
+					const auto lock = std::scoped_lock(selected_interface->iterator_interface.implsLock);
+					return selected_interface->iterator_interface.impls.at(created_iterator_type_id);
+				}else{
+					const auto lock = std::scoped_lock(selected_interface->auxiliary_interface->implsLock);
+					return selected_interface->auxiliary_interface->impls.at(created_iterator_type_id);
+				}
 			}();
 
 
@@ -7963,15 +7977,6 @@ namespace pcit::panther{
 
 			//////////////////
 			// iterable passed
-
-			const size_t create_iterator_func_index = [&]() -> size_t {
-				if(selected_interface->kind == InterfaceKind::ITERABLE){
-					return size_t(instr.for_stmt.values[i].isMut);
-				}else{
-					return 0;
-				}
-			}();
-
 
 			if(in_constexpr_func){
 				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
@@ -11921,12 +11926,15 @@ namespace pcit::panther{
 		const bool uses_rvo = target_func_type.hasNamedReturns 
 			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
 
+
+		auto output = core::GenericValue();
+
 		if(uses_rvo){
-			jit_args.emplace_back(
-				core::GenericValue::createUninit(
-					this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
-				)
+			output = core::GenericValue::createUninit(
+				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
 			);
+
+			jit_args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
 		}
 
 		// Uncomment this to print out the state of the constexpr pir module (for debugging purposes)
@@ -11941,6 +11949,57 @@ namespace pcit::panther{
 			jit_args,
 			this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
 		);
+
+
+		// evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
+		// 	this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, jit_args);
+
+		// if(run_result.has_value() == false){
+		// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+
+		// 	switch(run_result.error()){
+		// 		case pir::ExecutionEngine::FuncRunError::ABORT: {
+		// 			infos.emplace_back("Cause of error: abort");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::BREAKPOINT: {
+		// 			infos.emplace_back("Cause of error: breakpoint");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::OUT_OF_BOUNDS_ACCESS: {
+		// 			infos.emplace_back("Cause of error: out-of-bounds access");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::NULLPTR_ACCESS: {
+		// 			infos.emplace_back("Cause of error: null-pointer access");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::SEG_FAULT: {
+		// 			infos.emplace_back("Cause of error: segmentation fault");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::ARITHMETIC_WRAP: {
+		// 			infos.emplace_back("Cause of error: arithmetic wrap");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::FLOATING_POINT_EXCEPTION: {
+		// 			infos.emplace_back("Cause of error: floating-point exception");
+		// 		} break;
+
+		// 		case pir::ExecutionEngine::FuncRunError::UNKNOWN_EXCEPTION: {
+		// 			infos.emplace_back("Cause of error: unknown exception");
+		// 		} break;
+		// 	}
+
+		// 	this->emit_error(
+		// 		Diagnostic::Code::SEMA_ERROR_IN_CONSTEXPR_CALL,
+		// 		instr.func_call,
+		// 		"Error occured while running constexpr function call",
+		// 		std::move(infos)
+		// 	);
+		// 	return Result::ERROR;
+		// }
+
 
 		if(target_func_type.hasErrorReturn()){
 			// 	// TODO(FUTURE): better messaging
@@ -11964,8 +12023,8 @@ namespace pcit::panther{
 			);
 
 
-			if(uses_rvo){
-				run_result = std::move(jit_args.back());
+			if(uses_rvo == false){
+				output = std::move(run_result);
 			}
 
 			if(target_func_return_type.qualifiers().empty() == false){
@@ -11979,7 +12038,8 @@ namespace pcit::panther{
 			}
 
 
-			const sema::Expr return_sema_expr = this->generic_value_to_sema_expr(run_result, target_func_return_type);
+			const sema::Expr return_sema_expr =
+				this->generic_value_to_sema_expr(output, target_func_return_type);
 
 			this->return_term_info(instr.output,
 				TermInfo(

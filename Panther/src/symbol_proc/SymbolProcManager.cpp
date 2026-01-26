@@ -81,6 +81,9 @@ namespace pcit::panther{
 	) -> bool {
 		BuiltinSymbolInfo& builtin_symbol = this->builtin_symbols[size_t(kind)];
 
+		//////////////////
+		// try without having to take the lock
+
 		std::optional<SymbolProc::ID> builtin_symbol_proc_id = builtin_symbol.symbol_proc_id.load();
 		if(builtin_symbol_proc_id.has_value()){
 			SymbolProc& builtin_symbol_proc = this->getSymbolProc(*builtin_symbol_proc_id);
@@ -89,16 +92,24 @@ namespace pcit::panther{
 				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
-				case SymbolProc::WaitOnResult::WAITING:                    return false;
+				case SymbolProc::WaitOnResult::WAITING:                    return true;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
 			}
 		}
 
+
+		//////////////////
+		// not ready, take the lock
+
 		const auto lock = std::scoped_lock(builtin_symbol.waited_on_by_lock);
+
+
+		//////////////////
+		// try again just in case (prevent race condition)
 
 		builtin_symbol_proc_id = builtin_symbol.symbol_proc_id.load();
 		if(builtin_symbol_proc_id.has_value()){
@@ -108,14 +119,18 @@ namespace pcit::panther{
 				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return true;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
-				case SymbolProc::WaitOnResult::WAITING:                    return false;
+				case SymbolProc::WaitOnResult::WAITING:                    return true;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
 			}
 		}
+
+
+		//////////////////
+		// not ready, need to wait on
 
 		if(builtin_symbol.waited_on_by.empty()){
 			this->num_builtin_symbols_waited_on += 1;

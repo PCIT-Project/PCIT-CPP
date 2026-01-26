@@ -121,7 +121,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const auto context_config = ContextConfig{
 		.mode             = ContextConfig::Mode::BUILD_SYSTEM,
 		.title            = "<Panther-Build-System>",
-		.target           = core::Target::getCurrent(),
+		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
 
 		.numThreads = cmd_args_config.numBuildThreads,
@@ -222,7 +222,7 @@ EVO_NODISCARD static auto run_compile(
 	const auto context_config = ContextConfig{
 		.mode             = ContextConfig::Mode::COMPILE,
 		.title            = "Panther Testing",
-		.target           = core::Target::getCurrent(),
+		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
 
 		.numThreads = config.numThreads,
