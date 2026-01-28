@@ -271,6 +271,30 @@ namespace pcit::llvmint{
 	}
 
 
+
+	auto Module::lookupFunction(std::string_view name) -> std::optional<Function> {
+		llvm::Function* func_lookup = this->native()->getFunction(llvm::StringRef(name));
+
+		if(func_lookup != nullptr){
+			return Function(func_lookup);
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	auto Module::lookupGlobal(std::string_view name) -> std::optional<GlobalVariable> {
+		llvm::GlobalVariable* global_lookup = this->native()->getGlobalVariable(llvm::StringRef(name), true);
+
+		if(global_lookup != nullptr){
+			return GlobalVariable(global_lookup);
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+
 	auto Module::print() const -> std::string {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 

@@ -444,7 +444,7 @@ namespace pcit::pir{
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
 			case Expr::Kind::GLOBAL_VALUE: {
-				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
+				const GlobalVar& global_var = this->reader.getModule().getGlobalVar(this->reader.getGlobalValue(expr));
 				this->printer.print("&{}", global_var.name);
 			} break;
 

@@ -159,7 +159,7 @@ namespace pcit::pir{
 		}();
 
 		using FuncPtrType = void(*)(void*, void*);
-		const FuncPtrType func_ptr = this->getFuncPtr<FuncPtrType>(func.getName());
+		const FuncPtrType func_ptr = this->getSymbol<FuncPtrType>(func.getName());
 		func_ptr(arg_ptrs.data(), return_value.writableDataRange().data());
 
 		return return_value;
@@ -168,10 +168,10 @@ namespace pcit::pir{
 
 
 
-	auto JITEngine::get_func_ptr(std::string_view name) -> void* {
+	auto JITEngine::get_symbol_ptr(std::string_view name) -> void* {
 		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
 
-		return this->data->orc_jit.lookupFunc(name);
+		return this->data->orc_jit.lookupSymbol(name);
 	}
 
 

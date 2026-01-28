@@ -123,7 +123,7 @@ namespace pcit::llvmint{
 
 
 
-	auto OrcJIT::lookupFunc(std::string_view name) -> void* {
+	auto OrcJIT::lookupSymbol(std::string_view name) -> void* {
 		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
 
 		const auto lock = std::scoped_lock(this->mutex);

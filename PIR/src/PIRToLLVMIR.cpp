@@ -1496,7 +1496,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::GLOBAL_VALUE: {
-				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
+				const GlobalVar& global_var = this->reader.getModule().getGlobalVar(this->reader.getGlobalValue(expr));
 				return this->get_global_var<ADD_WEAK_DEPS>(global_var).asConstant();
 			} break;
 
@@ -1599,7 +1599,7 @@ namespace pcit::pir{
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not a valid expr");
 
 			case Expr::Kind::GLOBAL_VALUE: {
-				const GlobalVar& global_var = this->reader.getGlobalValue(expr);
+				const GlobalVar& global_var = this->reader.getModule().getGlobalVar(this->reader.getGlobalValue(expr));
 				return this->get_global_var<ADD_WEAK_DEPS>(global_var).asValue();
 			} break;
 

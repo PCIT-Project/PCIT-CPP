@@ -544,7 +544,7 @@ namespace pcit::panther{
 
 			pir::Module constexpr_pir_module;
 			SemaToPIR::Data constexpr_sema_to_pir_data;
-			pir::JITEngine constexpr_jit_engine{};
+			// pir::JITEngine constexpr_jit_engine{};
 			pir::ExecutionEngine constexpr_execution_engine{constexpr_pir_module};
 
 			friend class SymbolProcBuilder;

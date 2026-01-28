@@ -14,7 +14,15 @@
 
 namespace pcit::pir{
 
-	#if !defined(EVO_PLATFORM_WINDOWS)
+	#if defined(EVO_PLATFORM_WINDOWS)
+
+		ExecutionEngine::ExecutionEngine(Module& _module) : module(_module) {}
+
+		ExecutionEngine::~ExecutionEngine(){
+			if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }
+		}
+
+	#else
 
 		static std::atomic<ExecutionEngine*> execution_engine_signal_ptr = nullptr;
 		static std::atomic<bool> installed_signal_handlers = false;
@@ -60,11 +68,17 @@ namespace pcit::pir{
 
 		ExecutionEngine::~ExecutionEngine(){
 			execution_engine_signal_ptr = nullptr;
+
+			if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }
 		}
 
 	#endif
 
 
+
+	auto ExecutionEngine::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
+		return this->jit_engine.init(config);
+	}
 
 
 

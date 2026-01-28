@@ -1550,8 +1550,34 @@ namespace pcit::pir{
 	auto ExecutionEngineExecutor::get_expr_maybe_ptr(Expr expr, StackFrame& stack_frame) -> core::GenericValue* {
 		switch(expr.kind()){
 			case Expr::Kind::GLOBAL_VALUE: {
-				// TODO(FUTURE): 
-				evo::unimplemented("Expr::Kind::GLOBAL_VALUE");
+				const GlobalVar::ID global_var_id = stack_frame.reader_agent.getGlobalValue(expr);
+
+				ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(global_var_id);
+
+				if(lowered_result.needs_to_be_lowered){
+					const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
+						this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
+							this->engine.module, JITEngine::ModuleSubsets{ .globalVars = global_var_id }
+						);
+
+					evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
+
+					lowered_result.was_finished_being_lowered.store(true);
+
+				}else{
+					while(lowered_result.was_finished_being_lowered.load() == false){
+						std::this_thread::yield();
+					}
+				}
+
+				const GlobalVar& global_var = this->engine.module.getGlobalVar(global_var_id);
+
+				std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+
+				const size_t type_size = this->engine.module.getSize(global_var.type);
+				return &stack_frame.registers.emplace(
+					expr, core::GenericValue::fromData(evo::ArrayProxy<std::byte>(global_ptr, type_size))
+				).first->second;
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
@@ -1617,6 +1643,32 @@ namespace pcit::pir{
 			case Expr::Kind::PARAM_EXPR: {
 				const ParamExpr& param_expr = stack_frame.reader_agent.getParamExpr(expr);
 				return stack_frame.params[param_expr.index];
+			} break;
+
+			case Expr::Kind::GLOBAL_VALUE: {
+				const GlobalVar::ID global_var_id = stack_frame.reader_agent.getGlobalValue(expr);
+
+				ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(global_var_id);
+
+				if(lowered_result.needs_to_be_lowered){
+					const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
+						this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
+							this->engine.module, JITEngine::ModuleSubsets{ .globalVars = global_var_id }
+						);
+
+					evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
+
+					lowered_result.was_finished_being_lowered.store(true);
+
+				}else{
+					while(lowered_result.was_finished_being_lowered.load() == false){
+						std::this_thread::yield();
+					}
+				}
+
+				const GlobalVar& global_var = this->engine.module.getGlobalVar(global_var_id);
+
+				return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
 			} break;
 
 			case Expr::Kind::ALLOCA: {

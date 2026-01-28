@@ -179,9 +179,9 @@ namespace pcit::pir{
 		return ParamExpr(expr.index);
 	}
 
-	auto ReaderAgent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
+	auto ReaderAgent::getGlobalValue(const Expr& expr) -> GlobalVar::ID {
 		evo::debugAssert(expr.kind() == Expr::Kind::GLOBAL_VALUE, "Not a global");
-		return this->module.getGlobalVar(GlobalVar::ID(expr.index));
+		return GlobalVar::ID(expr.index);
 	}
 
 	auto ReaderAgent::getFunctionPointer(const Expr& expr) const -> const Function& {

@@ -860,8 +860,8 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::GLOBAL_VALUE, global_id.get());
 	}
 
-	auto Agent::getGlobalValue(const Expr& expr) const -> const GlobalVar& {
-		return ReaderAgent(this->module).getGlobalValue(expr);
+	auto Agent::getGlobalValue(const Expr& expr) -> GlobalVar::ID {
+		return ReaderAgent::getGlobalValue(expr);
 	}
 
 

@@ -1,38 +1,21 @@
-def std = @import("std");
+// def std = @import("std");
 
 
-func trigger_exception = () #unsafe -> Void {
-	const bad_ptr: Int*mut = std.bit.bitCast<{Int*mut}>(121212 as USize);
-	const c: Int = copy bad_ptr.*;
-
-	// var foo: UI8 = 255;
-	// var bar: UI8 = foo + 1;
-}
-
-
-// func set_num = (num: Int) -> (output: Int) {
-// 	output = copy num;
-// 	return...;
+// func trigger_exception = () #unsafe -> Void {
+// 	const bad_ptr: Int*mut = std.bit.bitCast<{Int*mut}>(121212 as USize);
+// 	const c: Int = copy bad_ptr.*;
 // }
 
-func test = (num: Int, index: USize) -> Int {
-	// var arr = new [Int:3][copy num, copy num, copy num];
-	
-	// for(arr) [i: I128; value: Int mut] {
-	// 	value += i as F32 as Int;
-	// }
 
-	// return copy arr[index].*;
+const global: Int = 12;
 
-	var value: I8 = uninit;
-	var wrapped: Bool = uninit;
-	[value, wrapped] = @addWrap<{I8}>(127, 127);
-	return wrapped as Int << 2;
+func test = () -> Int {
+	return copy global;
 }
 
 
 func entry = () #entry -> UI8 {
-	def VAL: Int = test(12, 2);
+	def VAL: Int = test();
 	const foo: Int = VAL;
 
 	return 0;

@@ -81,3 +81,29 @@ namespace pcit::pir{
 
 }
 
+
+
+namespace std{
+
+	template<>
+	struct hash<pcit::pir::GlobalVar::ID>{
+		auto operator()(pcit::pir::GlobalVar::ID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::GlobalVar::Array::ID>{
+		auto operator()(pcit::pir::GlobalVar::Array::ID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	
+	template<>
+	struct hash<pcit::pir::GlobalVar::Struct::ID>{
+		auto operator()(pcit::pir::GlobalVar::Struct::ID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+}

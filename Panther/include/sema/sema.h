@@ -686,7 +686,7 @@ namespace pcit::panther::sema{
 		std::atomic<Status> status = Status::NOT_DONE;
 
 		std::optional<pir::Function::ID> constexprJITFunc{};
-		std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
+		// std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
 
 		EVO_NODISCARD auto isClangFunc() const -> bool { return this->sourceID.is<ClangSourceID>(); }
 		EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }

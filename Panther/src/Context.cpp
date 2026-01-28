@@ -54,9 +54,9 @@ namespace pcit::panther{
 
 
 	Context::~Context(){
-		if(this->constexpr_jit_engine.isInitialized()){
-			this->constexpr_jit_engine.deinit();
-		}
+		// if(this->constexpr_jit_engine.isInitialized()){
+		// 	this->constexpr_jit_engine.deinit();
+		// }
 	}
 
 
@@ -368,22 +368,44 @@ namespace pcit::panther{
 
 		this->init_intrinsic_infos();
 
-		if(this->constexpr_jit_engine.isInitialized() == false){
-			const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
-				this->constexpr_jit_engine.init(pir::JITEngine::InitConfig{
+		// if(this->constexpr_jit_engine.isInitialized() == false){
+		// 	const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
+		// 		this->constexpr_jit_engine.init(pir::JITEngine::InitConfig{
+		// 			.allowDefaultSymbolLinking = false,
+		// 		});
+
+		// 	if(jit_init_result.has_value() == false){
+		// 		auto infos = evo::SmallVector<Diagnostic::Info>();
+		// 		for(const std::string& error : jit_init_result.error()){
+		// 			infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+		// 		}
+
+		// 		this->emitError(
+		// 			Diagnostic::Code::MISC_LLVM_ERROR,
+		// 			Diagnostic::Location::NONE,
+		// 			"Error trying to initalize PIR JITEngine",
+		// 			std::move(infos)
+		// 		);
+		// 		return evo::resultError;
+		// 	}
+		// }
+
+		if(this->constexpr_execution_engine.isInitialized() == false){
+			const evo::Expected<void, evo::SmallVector<std::string>> execution_engine_init_result = 
+				this->constexpr_execution_engine.init(pir::ExecutionEngine::InitConfig{
 					.allowDefaultSymbolLinking = false,
 				});
 
-			if(jit_init_result.has_value() == false){
+			if(execution_engine_init_result.has_value() == false){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
-				for(const std::string& error : jit_init_result.error()){
+				for(const std::string& error : execution_engine_init_result.error()){
 					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
 				}
 
 				this->emitError(
 					Diagnostic::Code::MISC_LLVM_ERROR,
 					Diagnostic::Location::NONE,
-					"Error trying to initalize PIR JITEngine",
+					"Error trying to initalize PIR ExecutionEngine",
 					std::move(infos)
 				);
 				return evo::resultError;
@@ -955,7 +977,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// run
 
-		return jit_engine.getFuncPtr<uint8_t(*)(void)>("PTHR.entry")();
+		return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
 	}
 
 

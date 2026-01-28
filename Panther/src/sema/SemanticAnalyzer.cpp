@@ -989,26 +989,31 @@ namespace pcit::panther{
 
 				sema_to_pir.lowerGlobalDef(sema_var_id);
 
-				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-						this->context.constexpr_pir_module,
-						pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
-					);
 
-				if(add_module_subset_result.has_value() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					for(const std::string& error : add_module_subset_result.error()){
-						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-					}
+				///////////////////////////////////
+				// The following code commented code is for lowering directly to JIT
+				// I'm purposely keeping this here (at least for now)
 
-					this->emit_fatal(
-						Diagnostic::Code::MISC_LLVM_ERROR,
-						instr.var_def,
-						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-						std::move(infos)
-					);
-					return Result::ERROR;
-				}
+				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.constexpr_pir_module,
+				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				// 	);
+
+				// if(add_module_subset_result.has_value() == false){
+				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+				// 	for(const std::string& error : add_module_subset_result.error()){
+				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				// 	}
+
+				// 	this->emit_fatal(
+				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		instr.var_def,
+				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+				// 		std::move(infos)
+				// 	);
+				// 	return Result::ERROR;
+				// }
 			}
 
 		}else if(instr.value_id.has_value()){ // member var with default value
@@ -1258,26 +1263,31 @@ namespace pcit::panther{
 				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 				sema_to_pir.lowerGlobalDef(new_sema_var);
 
-				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-						this->context.constexpr_pir_module,
-						pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
-					);
 
-				if(add_module_subset_result.has_value() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					for(const std::string& error : add_module_subset_result.error()){
-						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-					}
+				///////////////////////////////////
+				// The following code commented code is for lowering directly to JIT
+				// I'm purposely keeping this here (at least for now)
 
-					this->emit_fatal(
-						Diagnostic::Code::MISC_LLVM_ERROR,
-						instr.var_def,
-						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-						std::move(infos)
-					);
-					return Result::ERROR;
-				}
+				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.constexpr_pir_module,
+				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				// 	);
+
+				// if(add_module_subset_result.has_value() == false){
+				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+				// 	for(const std::string& error : add_module_subset_result.error()){
+				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				// 	}
+
+				// 	this->emit_fatal(
+				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		instr.var_def,
+				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
+				// 		std::move(infos)
+				// 	);
+				// 	return Result::ERROR;
+				// }
 			}
 
 		}else{
@@ -2510,37 +2520,41 @@ namespace pcit::panther{
 
 			sema_to_pir.lowerFuncDef(target_func_id);
 
-			target_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-				target_func_id, *target_func.constexprJITFunc
-			);
+			///////////////////////////////////
+			// The following code commented code is for lowering directly to JIT
+			// I'm purposely keeping this here (at least for now)
+
+			// target_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+			// 	target_func_id, *target_func.constexprJITFunc
+			// );
 
 
-			auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
-				*target_func.constexprJITFunc, *target_func.constexprJITInterfaceFunc
-			};
+			// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
+			// 	*target_func.constexprJITFunc, *target_func.constexprJITInterfaceFunc
+			// };
 
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-					this->context.constexpr_pir_module,
-					pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
-				);
+			// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+			// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+			// 		this->context.constexpr_pir_module,
+			// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
+			// 	);
 
-			if(add_module_subset_result.has_value() == false){
-				auto infos = evo::SmallVector<Diagnostic::Info>();
-				for(const std::string& error : add_module_subset_result.error()){
-					infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-				}
+			// if(add_module_subset_result.has_value() == false){
+			// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+			// 	for(const std::string& error : add_module_subset_result.error()){
+			// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+			// 	}
 
-				this->emit_fatal(
-					Diagnostic::Code::MISC_LLVM_ERROR,
-					this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id,
-					Diagnostic::createFatalMessage(
-						"Failed to setup PIR JIT interface generated default operator [new]"
-					),
-					std::move(infos)
-				);
-				return evo::resultError;
-			}
+			// 	this->emit_fatal(
+			// 		Diagnostic::Code::MISC_LLVM_ERROR,
+			// 		this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id,
+			// 		Diagnostic::createFatalMessage(
+			// 			"Failed to setup PIR JIT interface generated default operator [new]"
+			// 		),
+			// 		std::move(infos)
+			// 	);
+			// 	return evo::resultError;
+			// }
 
 			return evo::Result<>();
 		};
@@ -5386,10 +5400,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_prepare_constexpr_pir_if_needed(
-		const Instruction::FuncPrepareConstexprPIRIfNeeded& instr
+		const Instruction::FuncPrepareConstexprPIRIfNeeded& instr [[maybe_unused]]
 	) -> Result {
 		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 		if(current_func.isConstexpr){
 			{
@@ -5398,59 +5411,66 @@ namespace pcit::panther{
 				);
 
 				const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-				sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
+				
 
 				sema_to_pir.lowerFuncDef(sema_func_id);
 
 
-				const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+				///////////////////////////////////
+				// The following code commented code is for lowering directly to JIT
+				// I'm purposely keeping this here (at least for now)
 
-				auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 4>();
-				module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
+				// const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
+				// sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
 
+				// const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
-				// create jit interface if needed
-				if(func_type.returnsVoid() == false && func_type.returnTypes.size() == 1){
-					sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-						sema_func_id, *sema_func.constexprJITFunc
-					);
-					module_subset_funcs.emplace_back(*sema_func.constexprJITInterfaceFunc);
-
-
-					if(func_info.flipped_version.has_value()){
-						sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
-
-						sema_to_pir.lowerFuncDef(*func_info.flipped_version);
-						module_subset_funcs.emplace_back(*flipped_version.constexprJITFunc);
-
-						flipped_version.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-							*func_info.flipped_version, *flipped_version.constexprJITFunc
-						);
-						module_subset_funcs.emplace_back(*flipped_version.constexprJITInterfaceFunc);
-					}
-				}
+				// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 4>();
+				// module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
 
 
-				const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-					this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-						this->context.constexpr_pir_module,
-						pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
-					);
+				// // create jit interface if needed
+				// if(func_type.returnsVoid() == false && func_type.returnTypes.size() == 1){
+				// 	sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+				// 		sema_func_id, *sema_func.constexprJITFunc
+				// 	);
+				// 	module_subset_funcs.emplace_back(*sema_func.constexprJITInterfaceFunc);
 
-				if(add_module_subset_result.has_value() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					for(const std::string& error : add_module_subset_result.error()){
-						infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-					}
 
-					this->emit_fatal(
-						Diagnostic::Code::MISC_LLVM_ERROR,
-						instr.func_def,
-						Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for constexpr function"),
-						std::move(infos)
-					);
-					return Result::ERROR;
-				}
+				// 	if(func_info.flipped_version.has_value()){
+				// 		sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
+
+				// 		sema_to_pir.lowerFuncDef(*func_info.flipped_version);
+				// 		module_subset_funcs.emplace_back(*flipped_version.constexprJITFunc);
+
+				// 		flipped_version.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+				// 			*func_info.flipped_version, *flipped_version.constexprJITFunc
+				// 		);
+				// 		module_subset_funcs.emplace_back(*flipped_version.constexprJITInterfaceFunc);
+				// 	}
+				// }
+
+
+				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
+				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.constexpr_pir_module,
+				// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
+				// 	);
+
+				// if(add_module_subset_result.has_value() == false){
+				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+				// 	for(const std::string& error : add_module_subset_result.error()){
+				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
+				// 	}
+
+				// 	this->emit_fatal(
+				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		instr.func_def,
+				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for constexpr function"),
+				// 		std::move(infos)
+				// 	);
+				// 	return Result::ERROR;
+				// }
 			}
 
 
@@ -11943,62 +11963,62 @@ namespace pcit::panther{
 		// 	pir::printModule(this->context.constexpr_pir_module, printer);
 		// }
 
-		core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
-			this->context.constexpr_pir_module,
-			*target_func.constexprJITInterfaceFunc,
-			jit_args,
-			this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
-		);
+		// core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
+		// 	this->context.constexpr_pir_module,
+		// 	*target_func.constexprJITInterfaceFunc,
+		// 	jit_args,
+		// 	this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
+		// );
 
 
-		// evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-		// 	this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, jit_args);
+		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
+			this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, jit_args);
 
-		// if(run_result.has_value() == false){
-		// 	auto infos = evo::SmallVector<Diagnostic::Info>();
+		if(run_result.has_value() == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
 
-		// 	switch(run_result.error()){
-		// 		case pir::ExecutionEngine::FuncRunError::ABORT: {
-		// 			infos.emplace_back("Cause of error: abort");
-		// 		} break;
+			switch(run_result.error()){
+				case pir::ExecutionEngine::FuncRunError::ABORT: {
+					infos.emplace_back("Cause of error: abort");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::BREAKPOINT: {
-		// 			infos.emplace_back("Cause of error: breakpoint");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::BREAKPOINT: {
+					infos.emplace_back("Cause of error: breakpoint");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::OUT_OF_BOUNDS_ACCESS: {
-		// 			infos.emplace_back("Cause of error: out-of-bounds access");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::OUT_OF_BOUNDS_ACCESS: {
+					infos.emplace_back("Cause of error: out-of-bounds access");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::NULLPTR_ACCESS: {
-		// 			infos.emplace_back("Cause of error: null-pointer access");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::NULLPTR_ACCESS: {
+					infos.emplace_back("Cause of error: null-pointer access");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::SEG_FAULT: {
-		// 			infos.emplace_back("Cause of error: segmentation fault");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::SEG_FAULT: {
+					infos.emplace_back("Cause of error: segmentation fault");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::ARITHMETIC_WRAP: {
-		// 			infos.emplace_back("Cause of error: arithmetic wrap");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::ARITHMETIC_WRAP: {
+					infos.emplace_back("Cause of error: arithmetic wrap");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::FLOATING_POINT_EXCEPTION: {
-		// 			infos.emplace_back("Cause of error: floating-point exception");
-		// 		} break;
+				case pir::ExecutionEngine::FuncRunError::FLOATING_POINT_EXCEPTION: {
+					infos.emplace_back("Cause of error: floating-point exception");
+				} break;
 
-		// 		case pir::ExecutionEngine::FuncRunError::UNKNOWN_EXCEPTION: {
-		// 			infos.emplace_back("Cause of error: unknown exception");
-		// 		} break;
-		// 	}
+				case pir::ExecutionEngine::FuncRunError::UNKNOWN_EXCEPTION: {
+					infos.emplace_back("Cause of error: unknown exception");
+				} break;
+			}
 
-		// 	this->emit_error(
-		// 		Diagnostic::Code::SEMA_ERROR_IN_CONSTEXPR_CALL,
-		// 		instr.func_call,
-		// 		"Error occured while running constexpr function call",
-		// 		std::move(infos)
-		// 	);
-		// 	return Result::ERROR;
-		// }
+			this->emit_error(
+				Diagnostic::Code::SEMA_ERROR_IN_CONSTEXPR_CALL,
+				instr.func_call,
+				"Error occured while running constexpr function call",
+				std::move(infos)
+			);
+			return Result::ERROR;
+		}
 
 
 		if(target_func_type.hasErrorReturn()){
@@ -12024,7 +12044,7 @@ namespace pcit::panther{
 
 
 			if(uses_rvo == false){
-				output = std::move(run_result);
+				output = std::move(run_result.value());
 			}
 
 			if(target_func_return_type.qualifiers().empty() == false){

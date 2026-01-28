@@ -28,6 +28,7 @@ namespace llvm{
 
 namespace pcit::pir{
 
+	// Thread-safe
 
 	class JITEngine{
 		public:
@@ -105,10 +106,11 @@ namespace pcit::pir{
 
 
 			template<class T>
-			EVO_NODISCARD auto getFuncPtr(std::string_view name) -> T {
-				static_assert(std::is_pointer<T>(), "Must be function pointer");
-				return (T)this->get_func_ptr(name);
+			EVO_NODISCARD auto getSymbol(std::string_view name) -> T {
+				static_assert(std::is_pointer<T>(), "Must be a pointer");
+				return reinterpret_cast<T>(this->get_symbol_ptr(name));
 			}
+
 
 			struct FuncRegisterInfo{
 				std::string_view name;
@@ -125,7 +127,7 @@ namespace pcit::pir{
 
 
 		private:
-			auto get_func_ptr(std::string_view name) -> void*;
+			auto get_symbol_ptr(std::string_view name) -> void*;
 
 
 		private:

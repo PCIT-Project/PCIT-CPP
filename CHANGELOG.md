@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.223.0"></a>
+## v0.0.223.0
+
+### Panther
+- Updated semantic analysis to use `pir::ExecutionEngine` for constexpr evaluation instead of `pir::JITEngine`
+	- Improves both functionality and performance
+
+### PIR
+- Added global variable support to `ExecutionEngine`
+
+
+<!---------------------------------->
 <a name="v0.0.222.0"></a>
 ## v0.0.222.0
 

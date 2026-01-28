@@ -128,7 +128,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD static auto createGlobalValue(const GlobalVar::ID& global_id) -> Expr;
 
-			EVO_NODISCARD auto getGlobalValue(const Expr& expr) const -> const GlobalVar&;
+			EVO_NODISCARD static auto getGlobalValue(const Expr& expr) -> GlobalVar::ID;
 
 
 			///////////////////////////////////

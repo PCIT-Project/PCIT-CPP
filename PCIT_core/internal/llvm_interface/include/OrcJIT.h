@@ -65,7 +65,7 @@ namespace pcit::llvmint{
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
 
-			EVO_NODISCARD auto lookupFunc(std::string_view name) -> void*;
+			EVO_NODISCARD auto lookupSymbol(std::string_view name) -> void*;
 
 			struct FuncRegisterInfo{
 				std::string_view name;

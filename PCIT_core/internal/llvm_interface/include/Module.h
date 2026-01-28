@@ -155,6 +155,12 @@ namespace pcit::llvmint{
 			) -> GlobalVariable;
 
 
+			// nullopt if not found
+			EVO_NODISCARD auto lookupFunction(std::string_view name) -> std::optional<Function>;
+			EVO_NODISCARD auto lookupGlobal(std::string_view name) -> std::optional<GlobalVariable>;
+
+
+
 			EVO_NODISCARD auto print() const -> std::string;
 			EVO_NODISCARD auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
 			EVO_NODISCARD auto lowerToAssembly() -> evo::Result<std::string>;
