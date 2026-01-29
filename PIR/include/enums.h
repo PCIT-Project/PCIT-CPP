@@ -39,16 +39,16 @@ namespace pcit::pir{
 
 	// Note: if you want a good default (that's not NONE), use SEQUENTIALLY_CONSISTENT
 	struct AtomicOrdering{
-		enum class Value{
-			NONE, // not atomic
-			MONOTONIC, // allows reordering of reads or writes
-			ACQUIRE, // (only load) no reordering of reads or writes to before
-			RELEASE, // (only store) no reordering of reads or writes to after
-			ACQUIRE_RELEASE, // (only read-modify-write) an acquire and release 
-			                 //   only works if both threads use the same atomic variable
-			SEQUENTIALLY_CONSISTENT, // load = aquire, store = release, rmw = AcquireRelease 
-				                     //   however it works with multiple atomic variables
-			                         //   (slower than raw acquire, release, AcquireRelease)
+		enum class Value : uint32_t {
+			NONE = 0, // not atomic
+			MONOTONIC = 1, // allows reordering of reads or writes
+			ACQUIRE = 2, // (only load) no reordering of reads or writes to before
+			RELEASE = 3, // (only store) no reordering of reads or writes to after
+			ACQUIRE_RELEASE = 4, // (only read-modify-write) an acquire and release 
+			                     //   only works if both threads use the same atomic variable
+			SEQUENTIALLY_CONSISTENT = 5, // load = aquire, store = release, rmw = AcquireRelease 
+				                         //   however it works with multiple atomic variables
+			                             //   (slower than raw acquire, release, AcquireRelease)
 		};
 		using enum class Value;
 

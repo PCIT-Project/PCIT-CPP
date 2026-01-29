@@ -2098,19 +2098,49 @@ namespace pcit::panther{
 		//////////////////
 		// PackageID
 
-		{
-			const BaseType::ID package_id = this->type_manager.createAlias(
-				BaseType::Alias(
-					BuiltinModule::ID::BUILD,
-					pthr_module.createString("PackageID"),
-					std::nullopt,
-					TypeManager::getTypeUI32(),
-					false
-				)
-			);
+		build_module.createSymbol("PackageID", this->type_manager.createAlias(
+			BaseType::Alias(
+				BuiltinModule::ID::BUILD,
+				pthr_module.createString("PackageID"),
+				std::nullopt,
+				TypeManager::getTypeUI32(),
+				false
+			)
+		));
 
-			build_module.createSymbol("PackageID", package_id);
-		}
+
+		//////////////////
+		// AtomicOrdering
+
+		pthr_module.createSymbol("AtomicOrdering", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("AtomicOrdering"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("MONOTONIC"), core::GenericInt::create<uint32_t>(0)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("ACQUIRE"), core::GenericInt::create<uint32_t>(1)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("RELEASE"), core::GenericInt::create<uint32_t>(2)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("ACQ_REL"), core::GenericInt::create<uint32_t>(3)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SEQ_CST"), core::GenericInt::create<uint32_t>(4)
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				true
+			)
+		));
 
 
 
@@ -3931,8 +3961,37 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+
+		///////////////////////////////////
+		// atomics
+
+		const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
+
+		const TypeInfo::ID atomic_ordering_type_id = this->type_manager.getOrCreateTypeInfo(
+			TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+		);
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_LOAD) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt, atomic_ordering_type_id},
+			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
+			.returns        = evo::SmallVector<Return>{1ul},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_STORE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt, atomic_ordering_type_id},
+			.params         = evo::SmallVector<Param>{
+				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 1ul)
+			},
+			.returns        = evo::SmallVector<Return>{TypeInfo::VoidableID::Void()},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
 		};
 	}
 

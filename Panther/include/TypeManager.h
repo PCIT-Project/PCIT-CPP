@@ -761,31 +761,33 @@ namespace pcit::panther{
 			using ID = EnumID;
 
 			struct Enumerator{
-				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 				core::GenericInt value;
 			};
 			
-			evo::Variant<SourceID, ClangSourceID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Enumerator> enumerators;
 			BaseType::Primitive::ID underlyingTypeID;
-			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
-			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
-			bool isPub; // meaningless if clang type
+			SymbolProcNamespace* namespacedMembers; // nullptr if pthr src
+			sema::ScopeLevel* scopeLevel; // nullopt if not pthr src type (although temporarily nullopt during creation)
+			bool isPub; // meaningless not pthr type
 
-			std::atomic<bool> defCompleted = false;
+			std::atomic<bool> defCompleted = false;  // meaningless not pthr type
 
 
 			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 
 			EVO_NODISCARD auto getEnumeratorName(
 				const Enumerator& enumerator, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
 			EVO_NODISCARD auto operator==(const Enum& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->location == rhs.location && this->parent == rhs.parent;
+				return this->sourceID == rhs.sourceID && this->name == rhs.name && this->parent == rhs.parent;
 			}
 		};
 
@@ -978,6 +980,24 @@ namespace pcit::panther{
 				return this->qualifiers().empty() == false && this->qualifiers().back().isPtr;
 			}
 
+			EVO_NODISCARD auto isMutPointer() const -> bool {
+				return this->qualifiers().empty() == false
+					&& this->qualifiers().back().isPtr
+					&& this->qualifiers().back().isMut;
+			}
+
+			EVO_NODISCARD auto isPointerNotOptional() const -> bool {
+				return this->qualifiers().empty() == false
+					&& this->qualifiers().back().isPtr
+					&& this->qualifiers().back().isOptional == false;
+			}
+
+			EVO_NODISCARD auto isMutPointerNotOptional() const -> bool {
+				return this->qualifiers().empty() == false
+					&& this->qualifiers().back().isPtr
+					&& this->qualifiers().back().isMut
+					&& this->qualifiers().back().isOptional == false;
+			}
 
 			EVO_NODISCARD auto isOptional() const -> bool {
 				return this->qualifiers().empty() == false && this->qualifiers().back().isOptional;
@@ -1157,6 +1177,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallySized(BaseType::ID id) const -> bool;
+
+
+			EVO_NODISCARD auto maxAtomicNumBytes() const -> uint64_t;
+			EVO_NODISCARD auto maxAtomicNumBits() const -> uint64_t;
+
 
 
 			//////////////////

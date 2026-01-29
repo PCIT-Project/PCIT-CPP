@@ -253,6 +253,8 @@ namespace pcit::panther{
 
 			auto intrinsic_func_call(const sema::FuncCall& func_call) -> void;
 
+			auto template_intrinsic_func_call(const sema::FuncCall& func_call) -> void;
+
 
 			auto create_fatal() -> void;
 

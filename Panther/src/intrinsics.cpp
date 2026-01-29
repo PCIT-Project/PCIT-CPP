@@ -135,6 +135,9 @@ namespace pcit::panther{
 			{"ctPop",                 Kind::CTPOP},
 			{"ctlz",                  Kind::CTLZ},
 			{"cttz",                  Kind::CTTZ},
+
+			{"atomicLoad",            Kind::ATOMIC_LOAD},
+			{"atomicStore",           Kind::ATOMIC_STORE},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

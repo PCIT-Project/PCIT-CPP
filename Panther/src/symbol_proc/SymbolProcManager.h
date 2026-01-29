@@ -1666,45 +1666,70 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
-			// TemplateIntrinsicFuncCall<true>
-
-			EVO_NODISCARD auto createTemplateIntrinsicFuncCallConstexpr(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
-					this->template_intrinsic_func_call_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			EVO_NODISCARD auto getTemplateIntrinsicFuncCallConstexpr(Instruction instr) const
-			-> const Instruction::TemplateIntrinsicFuncCall<true>& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
-					"Not a TemplateIntrinsicFuncCall<true>"
-				);
-				return this->template_intrinsic_func_call_constexprs[instr._index];
-			}
-
-
-
-			//////////////////
-			// TemplateIntrinsicFuncCall<false>
+			// TemplateIntrinsicFuncCall
 
 			EVO_NODISCARD auto createTemplateIntrinsicFuncCall(auto&&... args) -> Instruction {
 				return Instruction(
 					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL,
-					this->template_intrinsic_func_calls.emplace_back(std::forward<decltype(args)>(args)...)
+					this->template_intrinsic_func_calls.emplace_back(
+						std::forward<decltype(args)>(args)...
+					)
 				);
 			}
 
 			EVO_NODISCARD auto getTemplateIntrinsicFuncCall(Instruction instr) const
-			-> const Instruction::TemplateIntrinsicFuncCall<false>& {
+			-> const Instruction::TemplateIntrinsicFuncCall& {
 				evo::debugAssert(
 					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL,
-					"Not a TemplateIntrinsicFuncCall<false>"
+					"Not a TemplateIntrinsicFuncCall"
 				);
 				return this->template_intrinsic_func_calls[instr._index];
+			}
+
+
+
+
+			//////////////////
+			// TemplateIntrinsicFuncCallExpr<true>
+
+			EVO_NODISCARD auto createTemplateIntrinsicFuncCallExprConstexpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
+					this->template_intrinsic_func_call_expr_constexprs.emplace_back(
+						std::forward<decltype(args)>(args)...
+					)
+				);
+			}
+
+			EVO_NODISCARD auto getTemplateIntrinsicFuncCallExprConstexpr(Instruction instr) const
+			-> const Instruction::TemplateIntrinsicFuncCallExpr<true>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
+					"Not a TemplateIntrinsicFuncCallExpr<true>"
+				);
+				return this->template_intrinsic_func_call_expr_constexprs[instr._index];
+			}
+
+
+
+			//////////////////
+			// TemplateIntrinsicFuncCallExpr<false>
+
+			EVO_NODISCARD auto createTemplateIntrinsicFuncCallExpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,
+					this->template_intrinsic_func_call_exprs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getTemplateIntrinsicFuncCallExpr(Instruction instr) const
+			-> const Instruction::TemplateIntrinsicFuncCallExpr<false>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,
+					"Not a TemplateIntrinsicFuncCallExpr<false>"
+				);
+				return this->template_intrinsic_func_call_exprs[instr._index];
 			}
 
 
@@ -3090,12 +3115,15 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint32_t> import_cpps{};
 			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint32_t> is_macro_defineds{};
 			core::SyncLinearStepAlloc<Instruction::MakeInitPtr, uint32_t> make_init_ptrs{};
-
-			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<true>, uint32_t>
-				template_intrinsic_func_call_constexprs{};
-
-			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall<false>, uint32_t>
+			
+			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall, uint32_t>
 				template_intrinsic_func_calls{};
+
+			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCallExpr<true>, uint32_t>
+				template_intrinsic_func_call_expr_constexprs{};
+
+			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCallExpr<false>, uint32_t>
+				template_intrinsic_func_call_exprs{};
 
 			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint32_t> indexer_constexprs{};
 			core::SyncLinearStepAlloc<Instruction::Indexer<false>, uint32_t> indexers{};

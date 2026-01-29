@@ -148,10 +148,15 @@ namespace pcit::panther{
 	auto BaseType::Enum::getName(const SourceManager& source_manager) const -> std::string_view {
 		if(this->isClangType()){
 			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
-		}else{
+			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
 
@@ -160,10 +165,15 @@ namespace pcit::panther{
 	-> std::string_view {
 		if(this->isClangType()){
 			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(enumerator.location.as<ClangSource::DeclInfoID>()).name;
-		}else{
+			return clang_source.getDeclInfo(enumerator.name.as<ClangSource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[enumerator.location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[enumerator.name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(enumerator.name.as<BuiltinModule::StringID>());
 		}
 	}
 
@@ -959,14 +969,14 @@ namespace pcit::panther{
 			case BaseType::Kind::PRIMITIVE: {
 				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 
-				if constexpr(SPECIAL_MEMBER == SpecialMember::DELETE){
-					return true;
-
-				}else{
+				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
 						return false;
 					}
 
+					return true;
+
+				}else{
 					return true;
 				}
 			} break;
@@ -1608,7 +1618,7 @@ namespace pcit::panther{
 
 		const BaseType::Enum::ID new_enum = this->enums.emplace_back(
 			new_type.sourceID,
-			new_type.location,
+			new_type.name,
 			new_type.parent,
 			std::move(new_type.enumerators),
 			new_type.underlyingTypeID,
@@ -2235,6 +2245,54 @@ namespace pcit::panther{
 		return this->numBytes(id) <= this->numBytesOfPtr();
 	}
 
+
+
+	///////////////////////////////////
+	// maxAtomicBytes
+
+
+	auto TypeManager::maxAtomicNumBytes() const -> uint64_t {
+		return 8;
+
+		// aarch64    = 16
+		// aarch64_be = 16
+		// arm        = 4
+		// armeb      = 4
+
+		// riscv32    = 4
+		// riscv64    = 8
+
+		// spirv32    = 8
+		// spirv64    = 8
+
+		// wasm32     = 4
+		// wasm64     = 8
+
+		// x86        = 4
+		// x86_64     = 8
+	}
+
+
+	auto TypeManager::maxAtomicNumBits() const -> uint64_t {
+		return 8;
+
+		// aarch64    = 128
+		// aarch64_be = 128
+		// arm        = 32
+		// armeb      = 32
+
+		// riscv32    = 32
+		// riscv64    = 64
+
+		// spirv32    = 64
+		// spirv64    = 64
+
+		// wasm32     = 32
+		// wasm64     = 64
+
+		// x86        = 32
+		// x86_64     = 64
+	}
 
 
 

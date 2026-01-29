@@ -100,6 +100,10 @@ namespace pcit::panther{
 			CTLZ,
 			CTTZ,
 
+			// atomics
+			ATOMIC_LOAD,
+			ATOMIC_STORE,
+
 			_MAX_,
 		};
 		

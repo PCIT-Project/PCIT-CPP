@@ -2462,9 +2462,12 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
+		bool is_target_template = false;
 		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
 		const auto target = [&]() -> evo::Result<SymbolProc::TermInfoID> {
 			if(func_call.target.kind() == AST::Kind::TEMPLATED_EXPR){
+				is_target_template = true;
+
 				const AST::TemplatedExpr& target_templated_expr = 
 					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
 
@@ -2492,6 +2495,18 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+
+		if(is_target_template){
+			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createTemplateIntrinsicFuncCall(
+						func_call, std::move(template_args), std::move(args), target.value()
+					)
+				);
+
+				return evo::Result<>();
+			}
+		}
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createFuncCall(
@@ -3201,13 +3216,13 @@ namespace pcit::panther{
 			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){
 				if constexpr(IS_CONSTEXPR){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallConstexpr(
+						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallExprConstexpr(
 							func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 						)
 					);
 				}else{
 					this->add_instruction(
-						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCall(
+						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallExpr(
 							func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 						)
 					);

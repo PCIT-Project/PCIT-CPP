@@ -1967,12 +1967,12 @@ namespace pcit::pir{
 
 			case AtomicOrdering::ACQUIRE_RELEASE: {
 				this->printer.printRed(" #atomic");
-				this->printer.print("(acquireRelease)");
+				this->printer.print("(acq_rel)");
 			} break;
 
 			case AtomicOrdering::SEQUENTIALLY_CONSISTENT: {
 				this->printer.printRed(" #atomic");
-				this->printer.print("(sequentiallyConsistent)");
+				this->printer.print("(seq_cst)");
 			} break;
 
 		}

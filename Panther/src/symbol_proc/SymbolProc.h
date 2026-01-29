@@ -735,8 +735,15 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_CONSTEXPR>
 		struct TemplateIntrinsicFuncCall{
+			const AST::FuncCall& func_call;
+			evo::SmallVector<SymbolProcTermInfoID> template_args;
+			evo::SmallVector<SymbolProcTermInfoID> args;
+			SymbolProcTermInfoID target;
+		};
+
+		template<bool IS_CONSTEXPR>
+		struct TemplateIntrinsicFuncCallExpr{
 			const AST::FuncCall& func_call;
 			evo::SmallVector<SymbolProcTermInfoID> template_args;
 			evo::SmallVector<SymbolProcTermInfoID> args;
@@ -1148,8 +1155,9 @@ namespace pcit::panther{
 			IMPORT_CPP,
 			IS_MACRO_DEFINED,
 			MAKE_INIT_PTR,
-			TEMPLATE_INTRINSIC_FUNC_CALL_CONSTEXPR,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
+			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
+			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,
 			INDEXER_CONSTEXPR,
 			INDEXER,
 			TEMPLATED_TERM,

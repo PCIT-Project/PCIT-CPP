@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.224.0"></a>
+## v0.0.224.0
+
+### Panther
+- Added `@atomicLoad`
+- Added `@atomicStore`
+- Added `@pthr.AtomicOrdering`
+- Fixed parsing of template arguments considering an infix without qualifiers is always a type
+- Fixed copy and move type traits of primitives
+- Fixed lowering functions with both in and non-in parameters
+
+
+<!---------------------------------->
 <a name="v0.0.223.0"></a>
 ## v0.0.223.0
 

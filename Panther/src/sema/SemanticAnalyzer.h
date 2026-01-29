@@ -197,9 +197,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_is_macro_defined(const Instruction::IsMacroDefined& instr) -> Result;
 			EVO_NODISCARD auto instr_make_init_ptr(const Instruction::MakeInitPtr& instr) -> Result;
 
+			EVO_NODISCARD auto instr_template_intrinsic_func_call(const Instruction::TemplateIntrinsicFuncCall& instr)
+				-> Result;
+
 			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_template_intrinsic_func_call(
-				const Instruction::TemplateIntrinsicFuncCall<IS_CONSTEXPR>& instr
+			EVO_NODISCARD auto instr_template_intrinsic_func_call_expr(
+				const Instruction::TemplateIntrinsicFuncCallExpr<IS_CONSTEXPR>& instr
 			) -> Result;
 
 			template<bool IS_CONSTEXPR>
@@ -1124,10 +1127,7 @@ namespace pcit::panther{
 
 
 			auto add_instantiation_locations_to_infos(evo::SmallVector<Diagnostic::Info>& infos) -> void {
-				if(this->symbol_proc.instantiation_locations.size() == 1){
-					infos.emplace_back("Instantiated here:", this->symbol_proc.instantiation_locations[0]);
-
-				}else if(this->symbol_proc.instantiation_locations.size() > 1){
+				if(this->symbol_proc.instantiation_locations.size() > 1){
 					auto sub_infos = evo::SmallVector<Diagnostic::Info>();
 					sub_infos.reserve(this->symbol_proc.instantiation_locations.size());
 
@@ -1140,7 +1140,9 @@ namespace pcit::panther{
 						i -= 1;
 					}
 
-					infos.emplace_back("Instantiation context:", Diagnostic::Location::NONE, std::move(sub_infos));
+					infos.emplace_back(
+						"Template instantiation context:", Diagnostic::Location::NONE, std::move(sub_infos)
+					);
 				}
 			}
 

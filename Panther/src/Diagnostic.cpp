@@ -416,12 +416,15 @@ namespace pcit::panther{
 	auto Diagnostic::Location::get(const BaseType::Enum& enum_type, const Context& context) -> Location {
 		if(enum_type.isClangType()){
 			const ClangSource& clang_source = context.getSourceManager()[enum_type.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(enum_type.location.as<ClangSource::DeclInfoID>()).location;
+			return clang_source.getDeclInfo(enum_type.name.as<ClangSource::DeclInfoID>()).location;
 			
-		}else{
+		}else if(enum_type.isPTHRSourceType()){
 			return Location::get(
-				enum_type.location.as<Token::ID>(), context.getSourceManager()[enum_type.sourceID.as<Source::ID>()]
+				enum_type.name.as<Token::ID>(), context.getSourceManager()[enum_type.sourceID.as<Source::ID>()]
 			);
+
+		}else{
+			return Location::BUILTIN;
 		}
 	}
 

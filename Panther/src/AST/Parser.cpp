@@ -2347,9 +2347,15 @@ namespace pcit::panther{
 				}
 			}
 
-			// just an ident
+			// just an ident or infix
 			if constexpr(KIND == TypeKind::TEMPLATE_ARG){
-				if(base_type_res.value().kind() == AST::Kind::IDENT && qualifiers.empty()){
+				if(
+					qualifiers.empty()
+					&& (
+							base_type_res.value().kind() == AST::Kind::IDENT
+							|| base_type_res.value().kind() == AST::Kind::INFIX
+						)
+				){
 					this->reader.go_back(start_location);
 					return Result::Code::WRONG_TYPE;
 				}

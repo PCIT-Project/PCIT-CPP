@@ -447,6 +447,8 @@ namespace pcit::panther{
 			size_t non_movable_bitmap = 0;
 
 			for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
+				if(param.kind != BaseType::Function::Param::Kind::IN){ continue; }
+
 				if(this->context.getTypeManager().isCopyable(param.typeID) == false){
 					non_copyable_bitmap |= size_t(1) << i;
 				}
@@ -455,10 +457,8 @@ namespace pcit::panther{
 					non_movable_bitmap |= size_t(1) << i;
 				}
 
-
 				i += 1;
 			}
-
 
 
 			for(size_t i = 0; i < num_instantiations; i+=1){
@@ -1102,6 +1102,11 @@ namespace pcit::panther{
 
 				if(func_call.target.is<IntrinsicFunc::Kind>()){
 					this->intrinsic_func_call(func_call);
+					break;
+				}
+
+				if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
+					this->template_intrinsic_func_call(func_call);
 					break;
 				}
 
@@ -9156,9 +9161,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_REVERSE: {
-				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createBitReverse(rhs, this->name("BIT_REVERSE"));
+				const pir::Expr register_value = this->agent.createBitReverse(value, this->name("BIT_REVERSE"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -9179,9 +9184,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BYTE_SWAP: {
-				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createByteSwap(rhs, this->name("BYTE_SWAP"));
+				const pir::Expr register_value = this->agent.createByteSwap(value, this->name("BYTE_SWAP"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -9202,9 +9207,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTPOP: {
-				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createCtPop(rhs, this->name("CTPOP"));
+				const pir::Expr register_value = this->agent.createCtPop(value, this->name("CTPOP"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -9225,9 +9230,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTLZ: {
-				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createCTLZ(rhs, this->name("CTLZ"));
+				const pir::Expr register_value = this->agent.createCTLZ(value, this->name("CTLZ"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -9248,9 +9253,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTTZ: {
-				const pir::Expr rhs = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-				const pir::Expr register_value = this->agent.createCTTZ(rhs, this->name("CTTZ"));
+				const pir::Expr register_value = this->agent.createCTTZ(value, this->name("CTTZ"));
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -9270,6 +9275,52 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD: {
+				const pir::Expr value = this->get_expr_register(func_call.args[0]);
+
+
+				const pir::AtomicOrdering atomic_ordering = [&]() -> pir::AtomicOrdering {
+					const uint32_t atomic_ordering_number = static_cast<uint32_t>(
+						instantiation.templateArgs[2].as<core::GenericValue>().getInt(32)
+					);
+
+					evo::debugAssert(
+						atomic_ordering_number + 1 <= evo::to_underlying(pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT)
+						&& atomic_ordering_number + 1 != 0,
+						"Invalid ordering"
+					);
+
+					return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
+				}();
+
+				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+				const pir::Type pir_type = this->get_type<false>(type_id);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->agent.createLoad(value, pir_type, this->name("ATOMIC_LOAD"), false, atomic_ordering);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->agent.createAlloca(pir_type);
+					const pir::Expr atomic_load = this->agent.createLoad(
+						value, pir_type, this->name(".ATOMIC_LOAD"), false, atomic_ordering
+					);
+					this->agent.createStore(pointer_alloca, atomic_load);
+					return pointer_alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					const pir::Expr atomic_load = this->agent.createLoad(
+						value, pir_type, this->name(".ATOMIC_LOAD"), false, atomic_ordering
+					);
+					this->agent.createStore(store_locations[0], atomic_load);
+					return std::nullopt;
+
+				}else{
+					std::ignore = this->agent.createLoad(
+						value, pir_type, this->name(".DISCARD_ATOMIC_LOAD"), false, atomic_ordering
+					);
+					return std::nullopt;
+				}
+			} break;
 
 			case TemplateIntrinsicFunc::Kind::_MAX_: {
 				evo::debugFatalBreak("not a valid template intrinsic func");
@@ -9390,6 +9441,42 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
 	}
+
+
+
+	auto SemaToPIR::template_intrinsic_func_call(const sema::FuncCall& func_call) -> void {
+		const sema::TemplateIntrinsicFuncInstantiation& instantiation = 
+			this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(
+				func_call.target.as<sema::TemplateIntrinsicFuncInstantiation::ID>()
+			);
+
+		switch(instantiation.kind){
+			case TemplateIntrinsicFunc::Kind::ATOMIC_STORE: {
+				const pir::Expr dst = this->get_expr_register(func_call.args[0]);
+				const pir::Expr value = this->get_expr_register(func_call.args[1]);
+
+				const pir::AtomicOrdering atomic_ordering = [&]() -> pir::AtomicOrdering {
+					const uint32_t atomic_ordering_number = static_cast<uint32_t>(
+						instantiation.templateArgs[2].as<core::GenericValue>().getInt(32)
+					);
+
+					evo::debugAssert(
+						atomic_ordering_number + 1 <= evo::to_underlying(pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT)
+						&& atomic_ordering_number + 1 != 0,
+						"Invalid ordering"
+					);
+
+					return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
+				}();
+
+				this->agent.createStore(dst, value, false, atomic_ordering);
+			} break;
+
+			default: evo::debugFatalBreak("Unknown intrinsic");
+		}
+	}
+
+
 
 
 	auto SemaToPIR::create_fatal() -> void {
