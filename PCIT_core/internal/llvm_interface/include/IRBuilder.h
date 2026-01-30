@@ -263,6 +263,20 @@ namespace pcit::llvmint{
 
 
 			//////////////////////////////////////////////////////////////////////
+			// atomics
+
+			EVO_NODISCARD auto createCmpXchg(
+				const Value& target,
+				const Value& expected,
+				const Value& desired,
+				bool isWeak = false,
+				AtomicOrdering success_ordering = AtomicOrdering::SequentiallyConsistent,
+				AtomicOrdering failure_ordering = AtomicOrdering::SequentiallyConsistent,
+				evo::CStrProxy name = '\0'
+			) -> Value;
+
+
+			//////////////////////////////////////////////////////////////////////
 			// insertion point
 
 			auto setInsertionPoint(const BasicBlock& block) -> void;

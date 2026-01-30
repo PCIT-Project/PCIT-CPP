@@ -3987,9 +3987,23 @@ namespace pcit::panther{
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_STORE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt, atomic_ordering_type_id},
 			.params         = evo::SmallVector<Param>{
-				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 1ul)
+				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::IN, 1ul)
 			},
 			.returns        = evo::SmallVector<Return>{TypeInfo::VoidableID::Void()},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::CMPXCHG) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{
+				std::nullopt, std::nullopt, TypeManager::getTypeBool(), atomic_ordering_type_id, atomic_ordering_type_id
+			},
+			.params         = evo::SmallVector<Param>{
+				Param(BaseType::Function::Param::Kind::READ, 0ul),
+				Param(BaseType::Function::Param::Kind::READ, 1ul),
+				Param(BaseType::Function::Param::Kind::IN, 1ul)
+			},
+			.returns        = evo::SmallVector<Return>{1ul, TypeManager::getTypeBool()},
 			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
 			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
 		};

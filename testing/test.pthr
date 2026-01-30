@@ -19,16 +19,78 @@ type AtomicRef = struct <{T: Type}> {
 		@atomicStore<{T*mut, T, ORDERING}>(this.ptr, forward new_val);
 	}
 
+
+
+
+	func compareExchange = 
+		<{SUCCESS_ORDERING: @pthr.AtomicOrdering, FAILURE_ORDERING: @pthr.AtomicOrdering}> 
+		(this, expected: T, desired: T in)
+	->
+		(loaded: T, succeeded: Bool)
+	{
+		[loaded, succeeded] = 
+			@cmpxchg<{T*mut, T, false, SUCCESS_ORDERING, FAILURE_ORDERING}>(this.ptr, expected, forward desired);
+		return...;
+	}
+
+	func compareExchange = 
+		<{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}>
+		(this, expected: T, desired: T in)
+	->
+		(loaded: T, succeeded: Bool)
+	{
+		[loaded, succeeded] =
+			@cmpxchg<{T*mut, T, false, ORDERING, ORDERING}>(this.ptr, expected, forward desired);
+		return...;
+	}
+
+
+
+	func compareExchangeWeak = 
+		<{SUCCESS_ORDERING: @pthr.AtomicOrdering, FAILURE_ORDERING: @pthr.AtomicOrdering}> 
+		(this, expected: T, desired: T in)
+	-> 
+		(loaded: T, succeeded: Bool)
+	{
+		[loaded, succeeded] = 
+			@cmpxchg<{T*mut, T, true, SUCCESS_ORDERING, FAILURE_ORDERING}>(this.ptr, expected, forward desired);
+		return...;
+	}
+
+
+	func compareExchangeWeak = 
+		<{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}>
+		(this, expected: T, desired: T in)
+	->
+		(loaded: T, succeeded: Bool)
+	{
+		[loaded, succeeded] = 
+			@cmpxchg<{T*mut, T, true, ORDERING, ORDERING}>(this.ptr, expected, forward desired);
+		return...;
+	}
+
+
 	const ptr: T*mut #priv;
 }
 
 
 
-func entry = () #entry -> UI8 {
-	var num: UI8 = 9;
 
-	var num_ref = new AtomicRef<{UI8}>(&num);
+func test = () -> UI32 {
+	var num: UI32 = 9;
 
-	num_ref.store<{@pthr.AtomicOrdering.MONOTONIC}>(12);
+	var num_ref = new AtomicRef<{UI32}>(&num);
+
+	num_ref.store<{@pthr.AtomicOrdering.MONOTONIC}>(14);
+
+	[_, _] = num_ref.compareExchange(14, 12);
+
 	return num_ref.load();
+}
+
+
+
+func entry = () #entry -> UI8 {
+	def NUM: UI32 = test();
+	return NUM as UI8;
 }

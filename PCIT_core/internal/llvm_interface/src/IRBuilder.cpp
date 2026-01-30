@@ -447,6 +447,33 @@ namespace pcit::llvmint{
 	}
 
 
+	//////////////////////////////////////////////////////////////////////
+	// atomics
+
+	auto IRBuilder::createCmpXchg(
+		const Value& target,
+		const Value& expected,
+		const Value& desired,
+		bool isWeak,
+		AtomicOrdering success_ordering,
+		AtomicOrdering failure_ordering,
+		evo::CStrProxy name
+	) -> Value {
+		llvm::AtomicCmpXchgInst* const instr = this->builder->CreateAtomicCmpXchg(
+			target.native(),
+			expected.native(),
+			desired.native(),
+			llvm::MaybeAlign(),
+			static_cast<llvm::AtomicOrdering>(success_ordering),
+			static_cast<llvm::AtomicOrdering>(failure_ordering)
+		);
+		instr->setWeak(isWeak);
+		instr->setName(llvm::Twine(name.c_str()));
+
+		return Value(instr);
+	}
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// insertion point

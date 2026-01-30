@@ -12,6 +12,11 @@
 #include "../include/ExecutionEngine.h"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 namespace pcit::pir{
 
 	static EVO_NODISCARD auto generic_value_to_float(const core::GenericValue& generic_value, Type type)
@@ -1519,6 +1524,89 @@ namespace pcit::pir{
 
 					stack_frame->registers[expr] = core::GenericValue(arg.cttz());
 				} break;
+
+				case Expr::Kind::CMPXCHG: {
+					const CmpXchg& cmpxchg = stack_frame->reader_agent.getCmpXchg(expr);
+
+					std::byte* target_ptr = this->get_expr_ptr(cmpxchg.target, *stack_frame);
+
+					const Type expected_type = stack_frame->reader_agent.getExprType(cmpxchg.expected);
+					const unsigned num_bytes = unsigned(this->engine.module.getSize(expected_type));
+					const unsigned num_bits = num_bytes * 8;
+
+					const core::GenericValue& generic_expected = this->get_expr(cmpxchg.expected, *stack_frame);
+					const core::GenericValue& generic_desired = this->get_expr(cmpxchg.desired, *stack_frame);
+
+					stack_frame->registers[ReaderAgent::extractCmpXchgLoaded(expr)] = generic_expected;
+
+					switch(num_bytes){
+						case 1: {
+							uint8_t expected = static_cast<uint8_t>(generic_expected.getInt(num_bits));
+							const uint8_t desired = static_cast<uint8_t>(generic_desired.getInt(num_bits));
+
+							auto atomic_ref = std::atomic_ref<uint8_t>(*reinterpret_cast<uint8_t*>(target_ptr));
+
+							const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
+
+							stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+								= core::GenericValue(succeeded);
+						} break;
+
+						case 2: {
+							uint16_t expected = static_cast<uint16_t>(generic_expected.getInt(num_bits));
+							const uint16_t desired = static_cast<uint16_t>(generic_desired.getInt(num_bits));
+
+							auto atomic_ref = std::atomic_ref<uint16_t>(*reinterpret_cast<uint16_t*>(target_ptr));
+
+							const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
+
+							stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+								= core::GenericValue(succeeded);
+						} break;
+
+						case 4: {
+							uint32_t expected = static_cast<uint32_t>(generic_expected.getInt(num_bits));
+							const uint32_t desired = static_cast<uint32_t>(generic_desired.getInt(num_bits));
+
+							auto atomic_ref = std::atomic_ref<uint32_t>(*reinterpret_cast<uint32_t*>(target_ptr));
+
+							const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
+
+							stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+								= core::GenericValue(succeeded);
+						} break;
+
+						case 8: {
+							uint64_t expected = static_cast<uint64_t>(generic_expected.getInt(num_bits));
+							const uint64_t desired = static_cast<uint64_t>(generic_desired.getInt(num_bits));
+
+							auto atomic_ref = std::atomic_ref<uint64_t>(*reinterpret_cast<uint64_t*>(target_ptr));
+
+							const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
+
+							stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+								= core::GenericValue(succeeded);
+						} break;
+
+						default: {
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+
+							if(std::memcmp(target_ptr, generic_expected.dataRange().data(), num_bytes) == 0){
+								std::memcpy(target_ptr, generic_desired.dataRange().data(), num_bytes);
+
+								stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+									= core::GenericValue(true);
+
+							}else{
+								stack_frame->registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+									= core::GenericValue(false);
+							}
+						} break;
+					}
+				} break;
+
+				case Expr::Kind::CMPXCHG_LOADED:    evo::debugFatalBreak("Not a valid stmt");
+				case Expr::Kind::CMPXCHG_SUCCEEDED: evo::debugFatalBreak("Not a valid stmt");
 
 				case Expr::Kind::LIFETIME_START: {
 					// do nothing...

@@ -64,6 +64,11 @@ namespace pcit::pir{
 				return LoweredResult(true, new_lowered_flag);
 			}
 
+			EVO_NODISCARD auto get_atomic_lock(void* ptr) -> evo::SpinLock& {
+				return this->atomic_locks[(std::bit_cast<size_t>(ptr) >> 3) % this->atomic_locks.size()];
+			}
+
+
 		private:
 			Module& module;
 
@@ -75,6 +80,8 @@ namespace pcit::pir{
 			evo::StepVector<std::atomic<bool>> finished_lowered_flags{};
 			std::unordered_map<GlobalVar::ID, std::atomic<bool>&> lowered_globals{};
 			mutable evo::SpinLock lowered_lock{};
+
+			std::array<evo::SpinLock, 64> atomic_locks{};
 
 			friend class ExecutionEngineExecutor;
 			friend void pcit::pir::_internal_signal_handler(int);

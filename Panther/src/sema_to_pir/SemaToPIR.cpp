@@ -9278,20 +9278,8 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD: {
 				const pir::Expr value = this->get_expr_register(func_call.args[0]);
 
-
-				const pir::AtomicOrdering atomic_ordering = [&]() -> pir::AtomicOrdering {
-					const uint32_t atomic_ordering_number = static_cast<uint32_t>(
-						instantiation.templateArgs[2].as<core::GenericValue>().getInt(32)
-					);
-
-					evo::debugAssert(
-						atomic_ordering_number + 1 <= evo::to_underlying(pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT)
-						&& atomic_ordering_number + 1 != 0,
-						"Invalid ordering"
-					);
-
-					return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
-				}();
+				const pir::AtomicOrdering atomic_ordering =	
+					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[2].as<core::GenericValue>());
 
 				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
 				const pir::Type pir_type = this->get_type<false>(type_id);
@@ -9318,6 +9306,48 @@ namespace pcit::panther{
 					std::ignore = this->agent.createLoad(
 						value, pir_type, this->name(".DISCARD_ATOMIC_LOAD"), false, atomic_ordering
 					);
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::CMPXCHG: {
+				const pir::Expr target = this->get_expr_register(func_call.args[0]);
+				const pir::Expr expected = this->get_expr_register(func_call.args[1]);
+				const pir::Expr desired = this->get_expr_register(func_call.args[2]);
+
+				const bool is_weak = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
+
+				const pir::AtomicOrdering success_atomic_ordering =	
+					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[3].as<core::GenericValue>());
+
+				const pir::AtomicOrdering failure_atomic_ordering =	
+					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[4].as<core::GenericValue>());
+
+
+				const pir::Expr result = this->agent.createCmpXchg(
+					target,
+					expected,
+					desired,
+					this->name(".CMPXCHG.LOADED"),
+					this->name(".CMPXCHG.SUCCEEDED"),
+					is_weak,
+					success_atomic_ordering,
+					failure_atomic_ordering
+				);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					evo::debugFatalBreak("@addWrap returns multiple values");
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					evo::debugFatalBreak("@addWrap returns multiple values");
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->agent.createStore(store_locations[0], this->agent.extractCmpXchgLoaded(result));
+					this->agent.createStore(store_locations[1], this->agent.extractCmpXchgSucceeded(result));
+
+					return std::nullopt;
+				}else{
 					return std::nullopt;
 				}
 			} break;
@@ -9455,19 +9485,8 @@ namespace pcit::panther{
 				const pir::Expr dst = this->get_expr_register(func_call.args[0]);
 				const pir::Expr value = this->get_expr_register(func_call.args[1]);
 
-				const pir::AtomicOrdering atomic_ordering = [&]() -> pir::AtomicOrdering {
-					const uint32_t atomic_ordering_number = static_cast<uint32_t>(
-						instantiation.templateArgs[2].as<core::GenericValue>().getInt(32)
-					);
-
-					evo::debugAssert(
-						atomic_ordering_number + 1 <= evo::to_underlying(pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT)
-						&& atomic_ordering_number + 1 != 0,
-						"Invalid ordering"
-					);
-
-					return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
-				}();
+				const pir::AtomicOrdering atomic_ordering =	
+					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[2].as<core::GenericValue>());
 
 				this->agent.createStore(dst, value, false, atomic_ordering);
 			} break;
@@ -9945,13 +9964,17 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(sema::Func::ID func_id) const -> std::string {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
-		if(func.isExport || func.isClangFunc()){
+		if(func.isClangFunc()){
 			if constexpr(PIR_STMT_NAME_SAFE){
 				return std::string(func.getName(this->context.getSourceManager()));
 			}else{
 				return func.clangMangledName;
 			}
-			
+
+		}else if(func.isExport){
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
+
 		}else{
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
 
@@ -10764,6 +10787,19 @@ namespace pcit::panther{
 		}
 	}
 
+
+
+	auto SemaToPIR::get_atomic_ordering(const core::GenericValue& generic_value) -> pir::AtomicOrdering {
+		const uint32_t atomic_ordering_number = static_cast<uint32_t>(generic_value.getInt(32));
+
+		evo::debugAssert(
+			atomic_ordering_number + 1 <= evo::to_underlying(pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT)
+			&& atomic_ordering_number + 1 != 0,
+			"Invalid ordering"
+		);
+
+		return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
+	}
 
 
 }

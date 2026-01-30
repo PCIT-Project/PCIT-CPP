@@ -103,6 +103,7 @@ namespace pcit::panther{
 			// atomics
 			ATOMIC_LOAD,
 			ATOMIC_STORE,
+			CMPXCHG,
 
 			_MAX_,
 		};

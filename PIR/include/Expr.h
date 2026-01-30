@@ -134,6 +134,10 @@ namespace pcit::pir{
 				CTLZ,
 				CTTZ,
 
+				CMPXCHG,
+				CMPXCHG_LOADED,
+				CMPXCHG_SUCCEEDED,
+
 				LIFETIME_START,
 				LIFETIME_END,
 			};
@@ -173,7 +177,8 @@ namespace pcit::pir{
 					case Kind::OR:                case Kind::XOR:               case Kind::SHL:
 					case Kind::SSHL_SAT:          case Kind::USHL_SAT:          case Kind::SSHR:
 					case Kind::USHR:              case Kind::BIT_REVERSE:       case Kind::BYTE_SWAP:
-					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ: {
+					case Kind::CTPOP:             case Kind::CTLZ:              case Kind::CTTZ:
+					case Kind::CMPXCHG:           case Kind::CMPXCHG_LOADED:    case Kind::CMPXCHG_SUCCEEDED: {
 						return true;
 					} break;
 					default: return false;
@@ -219,7 +224,8 @@ namespace pcit::pir{
 					case Kind::XOR:               case Kind::SHL:               case Kind::SSHL_SAT:
 					case Kind::USHL_SAT:          case Kind::SSHR:              case Kind::USHR:
 					case Kind::BIT_REVERSE:       case Kind::BYTE_SWAP:         case Kind::CTPOP:
-					case Kind::CTLZ:              case Kind::CTTZ:              case Kind::LIFETIME_START:
+					case Kind::CTLZ:              case Kind::CTTZ:              case Kind::CMPXCHG:
+					case Kind::CMPXCHG_LOADED:    case Kind::CMPXCHG_SUCCEEDED: case Kind::LIFETIME_START:
 					case Kind::LIFETIME_END: {
 						return true;
 					} break;
@@ -890,6 +896,22 @@ namespace pcit::pir{
 		std::string name;
 		Expr arg;
 	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// atomic
+
+	struct CmpXchg{
+		std::string loadedName;
+		std::string succeededName;
+		Expr target;
+		Expr expected;
+		Expr desired;
+		AtomicOrdering successOrdering;
+		AtomicOrdering failureOrdering;
+		bool isWeak;
+	};
+
 
 
 

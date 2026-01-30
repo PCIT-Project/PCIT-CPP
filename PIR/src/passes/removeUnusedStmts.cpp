@@ -141,6 +141,9 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::CTPOP:             func_metadata.emplace(expr);
 					break; case Expr::Kind::CTLZ:              func_metadata.emplace(expr);
 					break; case Expr::Kind::CTTZ:              func_metadata.emplace(expr);
+					break; case Expr::Kind::CMPXCHG:           evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
+					break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
 					break; case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Should never see this expr kind");
 				}
@@ -222,9 +225,10 @@ namespace pcit::pir::passes{
 
 
 				case Expr::Kind::LOAD: {
-					if(remove_unused_stmt()){ return true; }
-
 					const Load& load = agent.getLoad(stmt);
+
+					if(load.atomicOrdering == AtomicOrdering::NONE && remove_unused_stmt()){ return true; }
+
 					see_expr(load.source);
 
 					return false;
@@ -352,7 +356,7 @@ namespace pcit::pir::passes{
 					if(func_metadata.contains(agent.extractSAddWrapWrapped(stmt)) == false){
 						if(func_metadata.contains(agent.extractSAddWrapResult(stmt)) == false){
 							agent.removeStmt(stmt);
-							return true;		
+							return true;
 						}
 
 						// if wrapped value is never used, replace addWrap with just an add
@@ -996,8 +1000,19 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::LIFETIME_START: return false;
-				case Expr::Kind::LIFETIME_END:   return false;
+				case Expr::Kind::CMPXCHG: {
+					const CmpXchg& cmpxchg = agent.getCmpXchg(stmt);
+					see_expr(cmpxchg.target);
+					see_expr(cmpxchg.expected);
+					see_expr(cmpxchg.desired);
+
+					return false;
+				} break;
+
+				case Expr::Kind::CMPXCHG_LOADED:    return false;
+				case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
+				case Expr::Kind::LIFETIME_START:    return false;
+				case Expr::Kind::LIFETIME_END:      return false;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));

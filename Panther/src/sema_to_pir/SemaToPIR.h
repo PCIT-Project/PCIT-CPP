@@ -427,6 +427,10 @@ namespace pcit::panther{
 			template<DeferTarget TARGET>
 			auto output_defers_for_scope_level(const ScopeLevel& scope_level) -> void;
 
+
+			EVO_NODISCARD static auto get_atomic_ordering(const core::GenericValue& generic_value)
+				-> pir::AtomicOrdering;
+
 	
 		private:
 			class Context& context;

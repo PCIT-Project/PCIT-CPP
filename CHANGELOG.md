@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.225.0"></a>
+## v0.0.225.0
+
+### Panther
+- Added `@cmpxchg`
+- Fixed value parameter of `@atomicStore` being `read` (correct: `in`)
+
+
+<!---------------------------------->
 <a name="v0.0.224.0"></a>
 ## v0.0.224.0
 

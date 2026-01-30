@@ -883,6 +883,18 @@ namespace pcit::pir{
 				this->printer.print("${}", cttz.name);
 			} break;
 
+			case Expr::Kind::CMPXCHG: evo::debugFatalBreak("Expr::Kind::CMPXCHG is not a valid expression");
+
+			case Expr::Kind::CMPXCHG_LOADED: {
+				const CmpXchg& cmpxchg = this->reader.getCmpXchg(expr);
+				this->printer.print("${}", cmpxchg.loadedName);
+			} break;
+
+			case Expr::Kind::CMPXCHG_SUCCEEDED: {
+				const CmpXchg& cmpxchg = this->reader.getCmpXchg(expr);
+				this->printer.print("${}", cmpxchg.succeededName);
+			} break;
+
 			case Expr::Kind::LIFETIME_START:
 				evo::debugFatalBreak("Expr::Kind::LIFETIME_START is not a valid expression");
 
@@ -1839,6 +1851,34 @@ namespace pcit::pir{
 				this->print_expr(cttz.arg);
 				this->printer.println();
 			} break;
+
+			case Expr::Kind::CMPXCHG: {
+				const CmpXchg& cmpxchg = this->reader.getCmpXchg(stmt);
+
+				this->printer.print("{}${}, ${} ", tabs(2), cmpxchg.loadedName, cmpxchg.succeededName);
+				this->printer.printRed("= @cmpxchg ");
+
+				this->print_expr(cmpxchg.target);
+				this->printer.print(", ");
+				this->print_expr(cmpxchg.expected);
+				this->printer.print(", ");
+				this->print_expr(cmpxchg.desired);
+
+				if(cmpxchg.isWeak){
+					this->printer.printRed(" #weak");
+				}
+
+				this->print_atomic_ordering(cmpxchg.successOrdering);
+				this->print_atomic_ordering(cmpxchg.failureOrdering);
+
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::CMPXCHG_LOADED:
+				evo::debugFatalBreak("Expr::Kind::CMPXCHG_LOADED is not a valid statement");
+
+			case Expr::Kind::CMPXCHG_SUCCEEDED:
+				evo::debugFatalBreak("Expr::Kind::CMPXCHG_SUCCEEDED is not a valid statement");
 
 			case Expr::Kind::LIFETIME_START: {
 				const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);

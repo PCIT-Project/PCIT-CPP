@@ -863,8 +863,11 @@ namespace pcit::pir::passes{
 				return true;
 			} break;
 
-			case Expr::Kind::LIFETIME_START: return false;
-			case Expr::Kind::LIFETIME_END:   return false;
+			case Expr::Kind::CMPXCHG:           return false;
+			case Expr::Kind::CMPXCHG_LOADED:    return false;
+			case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
+			case Expr::Kind::LIFETIME_START:    return false;
+			case Expr::Kind::LIFETIME_END:      return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
@@ -1221,6 +1224,10 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CTLZ:        return false;
 			case Expr::Kind::CTTZ:        return false;
 
+			case Expr::Kind::CMPXCHG:           return false;
+			case Expr::Kind::CMPXCHG_LOADED:    return false;
+			case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
+			
 			case Expr::Kind::LIFETIME_START: return false;
 			case Expr::Kind::LIFETIME_END:   return false;
 		}

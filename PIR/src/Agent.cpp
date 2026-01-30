@@ -95,7 +95,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// misc expr stuff
 
-	auto Agent::getExprType(const Expr& expr) const -> Type {
+	auto Agent::getExprType(Expr expr) const -> Type {
 		if(this->hasTargetFunction()){
 			return ReaderAgent(this->module, this->getTargetFunction()).getExprType(expr);
 		}else{
@@ -695,6 +695,17 @@ namespace pcit::pir{
 						if(cttz.arg == original){ cttz.arg = replacement; }
 					} break;
 
+					case Expr::Kind::CMPXCHG: {
+						CmpXchg& cmpxchg = this->module.cmpxchgs[stmt.index];
+
+						if(cmpxchg.target == original){ cmpxchg.target = replacement; }
+						if(cmpxchg.expected == original){ cmpxchg.expected = replacement; }
+						if(cmpxchg.desired == original){ cmpxchg.desired = replacement; }
+					} break;
+
+					case Expr::Kind::CMPXCHG_LOADED:    continue;
+					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
+
 					case Expr::Kind::LIFETIME_START: {
 						LifetimeStart& lifetime_start = this->module.lifetime_starts[stmt.index];
 
@@ -728,7 +739,7 @@ namespace pcit::pir{
 			for(const BasicBlock::ID& basic_block_id : *this->target_func){
 				BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
 	
-				for(size_t i = 0; const Expr& stmt : basic_block){
+				for(size_t i = 0; Expr stmt : basic_block){
 					if(stmt == stmt_to_remove){
 						basic_block.remove(i);
 						this->delete_expr(stmt_to_remove);
@@ -815,7 +826,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, value));
 	}
 
-	auto Agent::getNumber(const Expr& expr) const -> const Number& {
+	auto Agent::getNumber(Expr expr) const -> const Number& {
 		return ReaderAgent(this->module).getNumber(expr);
 	}
 
@@ -827,7 +838,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::BOOLEAN, uint32_t(value));
 	}
 
-	auto Agent::getBoolean(const Expr& expr) -> bool {
+	auto Agent::getBoolean(Expr expr) -> bool {
 		return ReaderAgent::getBoolean(expr);
 	}
 
@@ -848,7 +859,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::PARAM_EXPR, index);
 	}
 
-	auto Agent::getParamExpr(const Expr& expr) -> ParamExpr {
+	auto Agent::getParamExpr(Expr expr) -> ParamExpr {
 		return ReaderAgent::getParamExpr(expr);
 	}
 
@@ -860,7 +871,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::GLOBAL_VALUE, global_id.get());
 	}
 
-	auto Agent::getGlobalValue(const Expr& expr) -> GlobalVar::ID {
+	auto Agent::getGlobalValue(Expr expr) -> GlobalVar::ID {
 		return ReaderAgent::getGlobalValue(expr);
 	}
 
@@ -872,7 +883,7 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::FUNCTION_POINTER, func_id.get());
 	}
 
-	auto Agent::getFunctionPointer(const Expr& expr) const -> const Function& {
+	auto Agent::getFunctionPointer(Expr expr) const -> const Function& {
 		return ReaderAgent(this->module).getFunctionPointer(expr);
 	}
 
@@ -950,7 +961,7 @@ namespace pcit::pir{
 
 
 	auto Agent::createCall(
-		const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name
+		Expr func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -970,7 +981,7 @@ namespace pcit::pir{
 	}
 
 	auto Agent::createCall(
-		const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name
+		Expr func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -988,7 +999,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::getCall(const Expr& expr) const -> const Call& {
+	auto Agent::getCall(Expr expr) const -> const Call& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCall(expr);
 	}
 
@@ -1054,7 +1065,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallVoid(const Expr& func, const Type& func_type, evo::SmallVector<Expr>&& args) const
+	auto Agent::createCallVoid(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -1071,7 +1082,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(const Expr& func, const Type& func_type, const evo::SmallVector<Expr>& args) const
+	auto Agent::createCallVoid(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -1088,7 +1099,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::getCallVoid(const Expr& expr) const -> const CallVoid& {
+	auto Agent::getCallVoid(Expr expr) const -> const CallVoid& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCallVoid(expr);
 	}
 
@@ -1112,7 +1123,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ret instructions
 
-	auto Agent::createRet(const Expr& expr) const -> Expr {
+	auto Agent::createRet(Expr expr) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Must return value");
 		evo::debugAssert(
@@ -1134,7 +1145,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getRet(const Expr& expr) const -> const Ret& {
+	auto Agent::getRet(Expr expr) const -> const Ret& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getRet(expr);
 	}
 
@@ -1150,7 +1161,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getJump(const Expr& expr) -> Jump {
+	auto Agent::getJump(Expr expr) -> Jump {
 		return ReaderAgent::getJump(expr);
 	}
 
@@ -1158,7 +1169,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// branch instructions
 
-	auto Agent::createBranch(const Expr& cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr {
+	auto Agent::createBranch(Expr cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(cond).kind() == Type::Kind::BOOL, "Cond must be of type Bool");
 
@@ -1169,7 +1180,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getBranch(const Expr& expr) const -> Branch {
+	auto Agent::getBranch(Expr expr) const -> Branch {
 		return ReaderAgent(this->module, this->getTargetFunction()).getBranch(expr);
 	}
 
@@ -1210,7 +1221,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getPhi(const Expr& expr) const -> Phi {
+	auto Agent::getPhi(Expr expr) const -> Phi {
 		return ReaderAgent(this->module, this->getTargetFunction()).getPhi(expr);
 	}
 
@@ -1243,7 +1254,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSwitch(const Expr& expr) const -> Switch {
+	auto Agent::getSwitch(Expr expr) const -> Switch {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSwitch(expr);
 	}
 
@@ -1259,7 +1270,7 @@ namespace pcit::pir{
 		);
 	}
 
-	auto Agent::getAlloca(const Expr& expr) const -> const Alloca& {
+	auto Agent::getAlloca(Expr expr) const -> const Alloca& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getAlloca(expr);
 	}
 
@@ -1268,7 +1279,7 @@ namespace pcit::pir{
 	// load
 
 	auto Agent::createLoad(
-		const Expr& source, const Type& type, std::string&& name, bool is_volatile, AtomicOrdering atomic_ordering
+		Expr source, const Type& type, std::string&& name, bool is_volatile, AtomicOrdering atomic_ordering
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");
@@ -1284,7 +1295,7 @@ namespace pcit::pir{
 		return new_stmt;
 	}
 
-	auto Agent::getLoad(const Expr& expr) const -> const Load& {
+	auto Agent::getLoad(Expr expr) const -> const Load& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getLoad(expr);
 	}
 
@@ -1293,7 +1304,7 @@ namespace pcit::pir{
 	// store
 
 	auto Agent::createStore(
-		const Expr& destination, const Expr& value, bool is_volatile, AtomicOrdering atomic_ordering
+		Expr destination, Expr value, bool is_volatile, AtomicOrdering atomic_ordering
 	) const -> void {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForStore(), "This atomic ordering is not valid for a store");
@@ -1307,7 +1318,7 @@ namespace pcit::pir{
 		this->insert_stmt(new_stmt);
 	}
 
-	auto Agent::getStore(const Expr& expr) const -> const Store& {
+	auto Agent::getStore(Expr expr) const -> const Store& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getStore(expr);
 	}
 
@@ -1316,7 +1327,7 @@ namespace pcit::pir{
 	// calc ptr
 
 	EVO_NODISCARD auto Agent::createCalcPtr(
-		const Expr& base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
+		Expr base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(base_ptr).kind() == Type::Kind::PTR, "Base ptr must be of type Ptr");
@@ -1384,7 +1395,7 @@ namespace pcit::pir{
 		return new_stmt;
 	}
 
-	EVO_NODISCARD auto Agent::getCalcPtr(const Expr& expr) const -> const CalcPtr& {
+	EVO_NODISCARD auto Agent::getCalcPtr(Expr expr) const -> const CalcPtr& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCalcPtr(expr);
 	}
 
@@ -1392,14 +1403,13 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// memcpy
 
-	auto Agent::createMemcpy(const Expr& dst, const Expr& src, const Expr& num_bytes, bool is_volatile) const -> Expr {
+	auto Agent::createMemcpy(Expr dst, Expr src, Expr num_bytes, bool is_volatile) const -> Expr {
 		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
 		evo::debugAssert(this->getExprType(src).kind() == Type::Kind::PTR, "src must be pointer");
 		evo::debugAssert(
 			this->getExprType(num_bytes).kind() == Type::Kind::INTEGER && this->getExprType(num_bytes).getWidth() <= 64,
 			"num bytes must be integral and have a max width of 64"
 		);
-
 
 
 		const auto new_stmt = Expr(
@@ -1409,7 +1419,7 @@ namespace pcit::pir{
 		return new_stmt;
 	}
 
-	auto Agent::getMemcpy(const Expr& expr) const -> const Memcpy& {
+	auto Agent::getMemcpy(Expr expr) const -> const Memcpy& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getMemcpy(expr);
 	}
 
@@ -1417,7 +1427,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// memset
 
-	auto Agent::createMemset(const Expr& dst, const Expr& value, const Expr& num_bytes, bool is_volatile) const 
+	auto Agent::createMemset(Expr dst, Expr value, Expr num_bytes, bool is_volatile) const 
 	-> Expr {
 		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
 		evo::debugAssert(
@@ -1438,7 +1448,7 @@ namespace pcit::pir{
 		return new_stmt;
 	}
 
-	auto Agent::getMemset(const Expr& expr) const -> const Memset& {
+	auto Agent::getMemset(Expr expr) const -> const Memset& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getMemset(expr);
 	}
 
@@ -1446,7 +1456,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// BitCast
 	
-	EVO_NODISCARD auto Agent::createBitCast(const Expr& fromValue, const Type& toType, std::string&& name) const
+	EVO_NODISCARD auto Agent::createBitCast(Expr fromValue, const Type& toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
@@ -1473,7 +1483,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getBitCast(const Expr& expr) const -> const BitCast& {
+	EVO_NODISCARD auto Agent::getBitCast(Expr expr) const -> const BitCast& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getBitCast(expr);
 	}
 
@@ -1481,7 +1491,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// Trunc
 	
-	EVO_NODISCARD auto Agent::createTrunc(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createTrunc(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
@@ -1498,7 +1508,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getTrunc(const Expr& expr) const -> const Trunc& {
+	EVO_NODISCARD auto Agent::getTrunc(Expr expr) const -> const Trunc& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getTrunc(expr);
 	}
 
@@ -1506,7 +1516,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FTrunc
 	
-	EVO_NODISCARD auto Agent::createFTrunc(const Expr& fromValue, const Type& toType, std::string&& name) const
+	EVO_NODISCARD auto Agent::createFTrunc(Expr fromValue, const Type& toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -1524,7 +1534,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFTrunc(const Expr& expr) const -> const FTrunc& {
+	EVO_NODISCARD auto Agent::getFTrunc(Expr expr) const -> const FTrunc& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFTrunc(expr);
 	}
 
@@ -1532,7 +1542,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// SExt
 	
-	EVO_NODISCARD auto Agent::createSExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createSExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
@@ -1549,7 +1559,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getSExt(const Expr& expr) const -> const SExt& {
+	EVO_NODISCARD auto Agent::getSExt(Expr expr) const -> const SExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSExt(expr);
 	}
 
@@ -1557,7 +1567,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ZExt
 	
-	EVO_NODISCARD auto Agent::createZExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createZExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
@@ -1578,7 +1588,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getZExt(const Expr& expr) const -> const ZExt& {
+	EVO_NODISCARD auto Agent::getZExt(Expr expr) const -> const ZExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getZExt(expr);
 	}
 
@@ -1586,7 +1596,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FExt
 	
-	EVO_NODISCARD auto Agent::createFExt(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
@@ -1603,7 +1613,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFExt(const Expr& expr) const -> const FExt& {
+	EVO_NODISCARD auto Agent::getFExt(Expr expr) const -> const FExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFExt(expr);
 	}
 
@@ -1611,7 +1621,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// IToF
 	
-	EVO_NODISCARD auto Agent::createIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createIToF(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
@@ -1624,7 +1634,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getIToF(const Expr& expr) const -> const IToF& {
+	EVO_NODISCARD auto Agent::getIToF(Expr expr) const -> const IToF& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getIToF(expr);
 	}
 
@@ -1632,7 +1642,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// UIToF
 	
-	EVO_NODISCARD auto Agent::createUIToF(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createUIToF(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
@@ -1645,7 +1655,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getUIToF(const Expr& expr) const -> const UIToF& {
+	EVO_NODISCARD auto Agent::getUIToF(Expr expr) const -> const UIToF& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUIToF(expr);
 	}
 
@@ -1653,7 +1663,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToI
 	
-	EVO_NODISCARD auto Agent::createFToI(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFToI(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
@@ -1666,7 +1676,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFToI(const Expr& expr) const -> const FToI& {
+	EVO_NODISCARD auto Agent::getFToI(Expr expr) const -> const FToI& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFToI(expr);
 	}
 
@@ -1674,7 +1684,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToUI
 	
-	EVO_NODISCARD auto Agent::createFToUI(const Expr& fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFToUI(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(
@@ -1690,7 +1700,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFToUI(const Expr& expr) const -> const FToUI& {
+	EVO_NODISCARD auto Agent::getFToUI(Expr expr) const -> const FToUI& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFToUI(expr);
 	}
 
@@ -1700,7 +1710,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// add
 
-	auto Agent::createAdd(const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
+	auto Agent::createAdd(Expr lhs, Expr rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1716,7 +1726,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getAdd(const Expr& expr) const -> const Add& {
+	auto Agent::getAdd(Expr expr) const -> const Add& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getAdd(expr);
 	}
 
@@ -1725,7 +1735,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// signed add wrap
 
-	auto Agent::createSAddWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createSAddWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -1745,16 +1755,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSAddWrap(const Expr& expr) const -> const SAddWrap& {
+	auto Agent::getSAddWrap(Expr expr) const -> const SAddWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSAddWrap(expr);
 	}
 
 
-	auto Agent::extractSAddWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractSAddWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractSAddWrapResult(expr);
 	}
 
-	auto Agent::extractSAddWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractSAddWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractSAddWrapWrapped(expr);
 	}
 
@@ -1763,7 +1773,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// unsigned add wrap
 
-	auto Agent::createUAddWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createUAddWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -1783,16 +1793,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUAddWrap(const Expr& expr) const -> const UAddWrap& {
+	auto Agent::getUAddWrap(Expr expr) const -> const UAddWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUAddWrap(expr);
 	}
 
 
-	auto Agent::extractUAddWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractUAddWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractUAddWrapResult(expr);
 	}
 
-	auto Agent::extractUAddWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractUAddWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractUAddWrapWrapped(expr);
 	}
 
@@ -1800,7 +1810,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// saddSat
 
-	auto Agent::createSAddSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSAddSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1816,7 +1826,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSAddSat(const Expr& expr) const -> const SAddSat& {
+	auto Agent::getSAddSat(Expr expr) const -> const SAddSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSAddSat(expr);
 	}
 
@@ -1824,7 +1834,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// uaddSat
 
-	auto Agent::createUAddSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUAddSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1840,7 +1850,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUAddSat(const Expr& expr) const -> const UAddSat& {
+	auto Agent::getUAddSat(Expr expr) const -> const UAddSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUAddSat(expr);
 	}
 
@@ -1848,7 +1858,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// fadd
 
-	auto Agent::createFAdd(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFAdd(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1861,7 +1871,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFAdd(const Expr& expr) const -> const FAdd& {
+	auto Agent::getFAdd(Expr expr) const -> const FAdd& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFAdd(expr);
 	}
 
@@ -1870,7 +1880,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// sub
 
-	auto Agent::createSub(const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
+	auto Agent::createSub(Expr lhs, Expr rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1886,7 +1896,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSub(const Expr& expr) const -> const Sub& {
+	auto Agent::getSub(Expr expr) const -> const Sub& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSub(expr);
 	}
 
@@ -1895,7 +1905,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// signed sub wrap
 
-	auto Agent::createSSubWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createSSubWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -1915,16 +1925,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSSubWrap(const Expr& expr) const -> const SSubWrap& {
+	auto Agent::getSSubWrap(Expr expr) const -> const SSubWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSSubWrap(expr);
 	}
 
 
-	auto Agent::extractSSubWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractSSubWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractSSubWrapResult(expr);
 	}
 
-	auto Agent::extractSSubWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractSSubWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractSSubWrapWrapped(expr);
 	}
 
@@ -1933,7 +1943,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// unsigned sub wrap
 
-	auto Agent::createUSubWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createUSubWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -1953,16 +1963,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUSubWrap(const Expr& expr) const -> const USubWrap& {
+	auto Agent::getUSubWrap(Expr expr) const -> const USubWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUSubWrap(expr);
 	}
 
 
-	auto Agent::extractUSubWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractUSubWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractUSubWrapResult(expr);
 	}
 
-	auto Agent::extractUSubWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractUSubWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractUSubWrapWrapped(expr);
 	}
 
@@ -1970,7 +1980,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ssubSat
 
-	auto Agent::createSSubSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSSubSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -1986,7 +1996,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSSubSat(const Expr& expr) const -> const SSubSat& {
+	auto Agent::getSSubSat(Expr expr) const -> const SSubSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSSubSat(expr);
 	}
 
@@ -1994,7 +2004,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// usubSat
 
-	auto Agent::createUSubSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUSubSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2010,7 +2020,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUSubSat(const Expr& expr) const -> const USubSat& {
+	auto Agent::getUSubSat(Expr expr) const -> const USubSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUSubSat(expr);
 	}
 
@@ -2018,7 +2028,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// fsub
 
-	auto Agent::createFSub(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFSub(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2031,7 +2041,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFSub(const Expr& expr) const -> const FSub& {
+	auto Agent::getFSub(Expr expr) const -> const FSub& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFSub(expr);
 	}
 
@@ -2040,7 +2050,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// mul
 
-	auto Agent::createMul(const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
+	auto Agent::createMul(Expr lhs, Expr rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2056,7 +2066,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getMul(const Expr& expr) const -> const Mul& {
+	auto Agent::getMul(Expr expr) const -> const Mul& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getMul(expr);
 	}
 
@@ -2065,7 +2075,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// signed mul wrap
 
-	auto Agent::createSMulWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createSMulWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -2085,16 +2095,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSMulWrap(const Expr& expr) const -> const SMulWrap& {
+	auto Agent::getSMulWrap(Expr expr) const -> const SMulWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSMulWrap(expr);
 	}
 
 
-	auto Agent::extractSMulWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractSMulWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractSMulWrapResult(expr);
 	}
 
-	auto Agent::extractSMulWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractSMulWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractSMulWrapWrapped(expr);
 	}
 
@@ -2103,7 +2113,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// unsigned mul wrap
 
-	auto Agent::createUMulWrap(const Expr& lhs, const Expr& rhs, std::string&& result_name, std::string&& wrapped_name)
+	auto Agent::createUMulWrap(Expr lhs, Expr rhs, std::string&& result_name, std::string&& wrapped_name)
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
@@ -2123,16 +2133,16 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUMulWrap(const Expr& expr) const -> const UMulWrap& {
+	auto Agent::getUMulWrap(Expr expr) const -> const UMulWrap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUMulWrap(expr);
 	}
 
 
-	auto Agent::extractUMulWrapResult(const Expr& expr) -> Expr {
+	auto Agent::extractUMulWrapResult(Expr expr) -> Expr {
 		return ReaderAgent::extractUMulWrapResult(expr);
 	}
 
-	auto Agent::extractUMulWrapWrapped(const Expr& expr) -> Expr {
+	auto Agent::extractUMulWrapWrapped(Expr expr) -> Expr {
 		return ReaderAgent::extractUMulWrapWrapped(expr);
 	}
 
@@ -2140,7 +2150,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// smulSat
 
-	auto Agent::createSMulSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSMulSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2156,7 +2166,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSMulSat(const Expr& expr) const -> const SMulSat& {
+	auto Agent::getSMulSat(Expr expr) const -> const SMulSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSMulSat(expr);
 	}
 
@@ -2164,7 +2174,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// umulSat
 
-	auto Agent::createUMulSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUMulSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2180,7 +2190,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUMulSat(const Expr& expr) const -> const UMulSat& {
+	auto Agent::getUMulSat(Expr expr) const -> const UMulSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUMulSat(expr);
 	}
 
@@ -2188,7 +2198,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// fmul
 
-	auto Agent::createFMul(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFMul(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2201,7 +2211,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFMul(const Expr& expr) const -> const FMul& {
+	auto Agent::getFMul(Expr expr) const -> const FMul& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFMul(expr);
 	}
 
@@ -2210,7 +2220,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// sdiv
 
-	auto Agent::createSDiv(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+	auto Agent::createSDiv(Expr lhs, Expr rhs, bool is_exact, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2226,7 +2236,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSDiv(const Expr& expr) const -> const SDiv& {
+	auto Agent::getSDiv(Expr expr) const -> const SDiv& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSDiv(expr);
 	}
 
@@ -2235,7 +2245,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// udiv
 
-	auto Agent::createUDiv(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+	auto Agent::createUDiv(Expr lhs, Expr rhs, bool is_exact, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2251,7 +2261,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUDiv(const Expr& expr) const -> const UDiv& {
+	auto Agent::getUDiv(Expr expr) const -> const UDiv& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUDiv(expr);
 	}
 
@@ -2260,7 +2270,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// fdiv
 
-	auto Agent::createFDiv(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFDiv(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2273,7 +2283,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFDiv(const Expr& expr) const -> const FDiv& {
+	auto Agent::getFDiv(Expr expr) const -> const FDiv& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFDiv(expr);
 	}
 
@@ -2282,7 +2292,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// srem
 
-	auto Agent::createSRem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSRem(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2298,7 +2308,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSRem(const Expr& expr) const -> const SRem& {
+	auto Agent::getSRem(Expr expr) const -> const SRem& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSRem(expr);
 	}
 
@@ -2307,7 +2317,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// urem
 
-	auto Agent::createURem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createURem(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2323,7 +2333,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getURem(const Expr& expr) const -> const URem& {
+	auto Agent::getURem(Expr expr) const -> const URem& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getURem(expr);
 	}
 
@@ -2332,7 +2342,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// frem
 
-	auto Agent::createFRem(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFRem(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2345,7 +2355,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFRem(const Expr& expr) const -> const FRem& {
+	auto Agent::getFRem(Expr expr) const -> const FRem& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFRem(expr);
 	}
 
@@ -2354,7 +2364,7 @@ namespace pcit::pir{
 	// fneg
 
 
-	auto Agent::createFNeg(const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFNeg(Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(rhs.isValue(), "Argument must be value");
 		evo::debugAssert(this->getExprType(rhs).isFloat(), "The @fneg instruction only supports float values");
@@ -2366,7 +2376,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFNeg(const Expr& expr) const -> const FNeg& {
+	auto Agent::getFNeg(Expr expr) const -> const FNeg& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFNeg(expr);
 	}
 
@@ -2375,7 +2385,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// equal
 
-	auto Agent::createIEq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createIEq(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2394,12 +2404,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getIEq(const Expr& expr) const -> const IEq& {
+	auto Agent::getIEq(Expr expr) const -> const IEq& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getIEq(expr);
 	}
 
 
-	auto Agent::createFEq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFEq(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2412,7 +2422,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFEq(const Expr& expr) const -> const FEq& {
+	auto Agent::getFEq(Expr expr) const -> const FEq& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFEq(expr);
 	}
 
@@ -2421,7 +2431,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// not equal
 
-	auto Agent::createINeq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createINeq(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2440,12 +2450,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getINeq(const Expr& expr) const -> const INeq& {
+	auto Agent::getINeq(Expr expr) const -> const INeq& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getINeq(expr);
 	}
 
 
-	auto Agent::createFNeq(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFNeq(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2458,7 +2468,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFNeq(const Expr& expr) const -> const FNeq& {
+	auto Agent::getFNeq(Expr expr) const -> const FNeq& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFNeq(expr);
 	}
 
@@ -2467,7 +2477,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// less than
 
-	auto Agent::createSLT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSLT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2483,12 +2493,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSLT(const Expr& expr) const -> const SLT& {
+	auto Agent::getSLT(Expr expr) const -> const SLT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSLT(expr);
 	}
 
 
-	auto Agent::createULT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createULT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2504,12 +2514,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getULT(const Expr& expr) const -> const ULT& {
+	auto Agent::getULT(Expr expr) const -> const ULT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getULT(expr);
 	}
 
 
-	auto Agent::createFLT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFLT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2522,7 +2532,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFLT(const Expr& expr) const -> const FLT& {
+	auto Agent::getFLT(Expr expr) const -> const FLT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFLT(expr);
 	}
 
@@ -2531,7 +2541,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// less than or equal to
 
-	auto Agent::createSLTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSLTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2547,12 +2557,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSLTE(const Expr& expr) const -> const SLTE& {
+	auto Agent::getSLTE(Expr expr) const -> const SLTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSLTE(expr);
 	}
 
 
-	auto Agent::createULTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createULTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2568,12 +2578,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getULTE(const Expr& expr) const -> const ULTE& {
+	auto Agent::getULTE(Expr expr) const -> const ULTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getULTE(expr);
 	}
 
 
-	auto Agent::createFLTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFLTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2586,7 +2596,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFLTE(const Expr& expr) const -> const FLTE& {
+	auto Agent::getFLTE(Expr expr) const -> const FLTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFLTE(expr);
 	}
 
@@ -2595,7 +2605,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// greater than
 
-	auto Agent::createSGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSGT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2611,12 +2621,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSGT(const Expr& expr) const -> const SGT& {
+	auto Agent::getSGT(Expr expr) const -> const SGT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSGT(expr);
 	}
 
 
-	auto Agent::createUGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUGT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2632,12 +2642,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUGT(const Expr& expr) const -> const UGT& {
+	auto Agent::getUGT(Expr expr) const -> const UGT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUGT(expr);
 	}
 
 
-	auto Agent::createFGT(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFGT(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2650,7 +2660,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFGT(const Expr& expr) const -> const FGT& {
+	auto Agent::getFGT(Expr expr) const -> const FGT& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFGT(expr);
 	}
 
@@ -2659,7 +2669,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// greater than or equal to
 
-	auto Agent::createSGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSGTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2675,12 +2685,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSGTE(const Expr& expr) const -> const SGTE& {
+	auto Agent::getSGTE(Expr expr) const -> const SGTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSGTE(expr);
 	}
 
 
-	auto Agent::createUGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUGTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2696,12 +2706,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUGTE(const Expr& expr) const -> const UGTE& {
+	auto Agent::getUGTE(Expr expr) const -> const UGTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUGTE(expr);
 	}
 
 
-	auto Agent::createFGTE(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createFGTE(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2714,7 +2724,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getFGTE(const Expr& expr) const -> const FGTE& {
+	auto Agent::getFGTE(Expr expr) const -> const FGTE& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFGTE(expr);
 	}
 
@@ -2724,7 +2734,7 @@ namespace pcit::pir{
 	// bitwise
 
 
-	auto Agent::createAnd(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createAnd(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2742,12 +2752,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getAnd(const Expr& expr) const -> const And& {
+	auto Agent::getAnd(Expr expr) const -> const And& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getAnd(expr);
 	}
 
 
-	auto Agent::createOr(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createOr(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2765,12 +2775,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getOr(const Expr& expr) const -> const Or& {
+	auto Agent::getOr(Expr expr) const -> const Or& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getOr(expr);
 	}
 
 
-	auto Agent::createXor(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createXor(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2788,12 +2798,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getXor(const Expr& expr) const -> const Xor& {
+	auto Agent::getXor(Expr expr) const -> const Xor& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getXor(expr);
 	}
 
 
-	auto Agent::createSHL(const Expr& lhs, const Expr& rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
+	auto Agent::createSHL(Expr lhs, Expr rhs, bool nsw, bool nuw, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2809,12 +2819,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSHL(const Expr& expr) const -> const SHL& {
+	auto Agent::getSHL(Expr expr) const -> const SHL& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSHL(expr);
 	}
 
 
-	auto Agent::createSSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createSSHLSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2830,12 +2840,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSSHLSat(const Expr& expr) const -> const SSHLSat& {
+	auto Agent::getSSHLSat(Expr expr) const -> const SSHLSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSSHLSat(expr);
 	}
 
 
-	auto Agent::createUSHLSat(const Expr& lhs, const Expr& rhs, std::string&& name) const -> Expr {
+	auto Agent::createUSHLSat(Expr lhs, Expr rhs, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2851,12 +2861,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUSHLSat(const Expr& expr) const -> const USHLSat& {
+	auto Agent::getUSHLSat(Expr expr) const -> const USHLSat& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUSHLSat(expr);
 	}
 
 
-	auto Agent::createSSHR(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+	auto Agent::createSSHR(Expr lhs, Expr rhs, bool is_exact, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2872,12 +2882,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSSHR(const Expr& expr) const -> const SSHR& {
+	auto Agent::getSSHR(Expr expr) const -> const SSHR& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSSHR(expr);
 	}
 
 
-	auto Agent::createUSHR(const Expr& lhs, const Expr& rhs, bool is_exact, std::string&& name) const -> Expr {
+	auto Agent::createUSHR(Expr lhs, Expr rhs, bool is_exact, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
@@ -2893,7 +2903,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getUSHR(const Expr& expr) const -> const USHR& {
+	auto Agent::getUSHR(Expr expr) const -> const USHR& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUSHR(expr);
 	}
 
@@ -2901,7 +2911,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// bit operations
 
-	auto Agent::createBitReverse(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createBitReverse(Expr expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
@@ -2915,12 +2925,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getBitReverse(const Expr& expr) const -> const BitReverse& {
+	auto Agent::getBitReverse(Expr expr) const -> const BitReverse& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getBitReverse(expr);
 	}
 
 
-	auto Agent::createByteSwap(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createByteSwap(Expr expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
@@ -2934,12 +2944,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getByteSwap(const Expr& expr) const -> const ByteSwap& {
+	auto Agent::getByteSwap(Expr expr) const -> const ByteSwap& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getByteSwap(expr);
 	}
 
 
-	auto Agent::createCtPop(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createCtPop(Expr expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
@@ -2953,12 +2963,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getCtPop(const Expr& expr) const -> const CtPop& {
+	auto Agent::getCtPop(Expr expr) const -> const CtPop& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCtPop(expr);
 	}
 
 
-	auto Agent::createCTLZ(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createCTLZ(Expr expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
@@ -2972,12 +2982,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getCTLZ(const Expr& expr) const -> const CTLZ& {
+	auto Agent::getCTLZ(Expr expr) const -> const CTLZ& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCTLZ(expr);
 	}
 
 
-	auto Agent::createCTTZ(const Expr& expr, std::string&& name) const -> Expr {
+	auto Agent::createCTTZ(Expr expr, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
@@ -2991,8 +3001,72 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getCTTZ(const Expr& expr) const -> const CTTZ& {
+	auto Agent::getCTTZ(Expr expr) const -> const CTTZ& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCTTZ(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// atomics
+
+	auto Agent::createCmpXchg(
+		Expr target,
+		Expr expected,
+		Expr desired,
+		std::string&& loaded_name,
+		std::string&& succeeded_name,
+		bool isWeak,
+		AtomicOrdering success_ordering,
+		AtomicOrdering failure_ordering
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+
+		evo::debugAssert(target.isValue(), "Target must be value");
+		evo::debugAssert(this->getExprType(target).kind() == Type::Kind::PTR, "Target must be a pointer");
+
+		evo::debugAssert(expected.isValue(), "Expected must be value");
+		evo::debugAssert(desired.isValue(), "Desired must be value");
+		evo::debugAssert(
+			this->getExprType(expected) == this->getExprType(desired), "Expected must be same type as desired"
+		);
+
+		evo::debugAssert(success_ordering != AtomicOrdering::NONE, "Success ordering is invalid for @cmpxchg");
+
+		evo::debugAssert(
+			failure_ordering == AtomicOrdering::MONOTONIC
+			|| failure_ordering == AtomicOrdering::ACQUIRE
+			|| failure_ordering == AtomicOrdering::SEQUENTIALLY_CONSISTENT,
+			"Failure ordering is invalid for @cmpxchg"
+		);
+		
+		const auto new_expr = Expr(
+			Expr::Kind::CMPXCHG,
+			this->module.cmpxchgs.emplace_back(
+				this->get_stmt_name(std::move(loaded_name)),
+				this->get_stmt_name(std::move(succeeded_name)),
+				target,
+				expected,
+				desired,
+				success_ordering,
+				failure_ordering,
+				isWeak
+			)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getCmpXchg(Expr expr) const -> const CmpXchg& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCmpXchg(expr);
+	}
+
+
+	auto Agent::extractCmpXchgLoaded(Expr expr) -> Expr {
+		return ReaderAgent::extractCmpXchgLoaded(expr);
+	}
+
+	auto Agent::extractCmpXchgSucceeded(Expr expr) -> Expr {
+		return ReaderAgent::extractCmpXchgSucceeded(expr);
 	}
 
 
@@ -3000,7 +3074,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// optimizations
 
-	auto Agent::createLifetimeStart(const Expr& expr, uint64_t size) const -> Expr {
+	auto Agent::createLifetimeStart(Expr expr, uint64_t size) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			expr.kind() == Expr::Kind::ALLOCA
@@ -3013,12 +3087,12 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getLifetimeStart(const Expr& expr) const -> const LifetimeStart& {
+	auto Agent::getLifetimeStart(Expr expr) const -> const LifetimeStart& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeStart(expr);
 	}
 
 
-	auto Agent::createLifetimeEnd(const Expr& expr, uint64_t size) const -> Expr {
+	auto Agent::createLifetimeEnd(Expr expr, uint64_t size) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			expr.kind() == Expr::Kind::ALLOCA
@@ -3031,7 +3105,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getLifetimeEnd(const Expr& expr) const -> const LifetimeEnd& {
+	auto Agent::getLifetimeEnd(Expr expr) const -> const LifetimeEnd& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeEnd(expr);
 	}
 
@@ -3044,7 +3118,7 @@ namespace pcit::pir{
 	// internal
 
 
-	auto Agent::insert_stmt(const Expr& stmt) const -> void {
+	auto Agent::insert_stmt(Expr stmt) const -> void {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
 		if(this->getInsertIndexAtEnd()){
@@ -3056,7 +3130,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::delete_expr(const Expr& expr) const -> void {
+	auto Agent::delete_expr(Expr expr) const -> void {
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
 
 		switch(expr.kind()){
@@ -3159,6 +3233,9 @@ namespace pcit::pir{
 			break; case Expr::Kind::CTPOP:             this->module.ctpops.erase(expr.index);
 			break; case Expr::Kind::CTLZ:              this->module.ctlzs.erase(expr.index);
 			break; case Expr::Kind::CTTZ:              this->module.cttzs.erase(expr.index);
+			break; case Expr::Kind::CMPXCHG:           this->module.cmpxchgs.erase(expr.index);
+			break; case Expr::Kind::CMPXCHG_LOADED:    return;
+			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
 			break; case Expr::Kind::LIFETIME_START:    this->module.lifetime_starts.erase(expr.index);
 			break; case Expr::Kind::LIFETIME_END:      this->module.lifetime_ends.erase(expr.index);
 		}
@@ -3185,7 +3262,7 @@ namespace pcit::pir{
 			const BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
 			if(basic_block.getName() == name){ return true; }
 
-			for(const Expr& stmt : basic_block){
+			for(Expr stmt : basic_block){
 				switch(stmt.kind()){
 					case Expr::Kind::NONE:             evo::debugFatalBreak("Invalid expr");
 					case Expr::Kind::GLOBAL_VALUE:     continue;
@@ -3316,8 +3393,16 @@ namespace pcit::pir{
 					case Expr::Kind::CTPOP:       if(this->getCtPop(stmt).name == name){      return true; } continue;
 					case Expr::Kind::CTLZ:        if(this->getCTLZ(stmt).name == name){       return true; } continue;
 					case Expr::Kind::CTTZ:        if(this->getCTTZ(stmt).name == name){       return true; } continue;
-					case Expr::Kind::LIFETIME_START: continue;
-					case Expr::Kind::LIFETIME_END:   continue;
+					case Expr::Kind::CMPXCHG: {
+						const CmpXchg& cmpxchg = this->getCmpXchg(stmt);
+						if(cmpxchg.loadedName == name){ return true; }
+						if(cmpxchg.succeededName == name){ return true; }
+						continue;
+					} break;
+					case Expr::Kind::CMPXCHG_LOADED:    continue;
+					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
+					case Expr::Kind::LIFETIME_START:    continue;
+					case Expr::Kind::LIFETIME_END:      continue;
 				}
 			}
 		}

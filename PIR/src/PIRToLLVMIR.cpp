@@ -1423,6 +1423,32 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, cttz_value);
 					} break;
 
+					case Expr::Kind::CMPXCHG: {
+						const CmpXchg& cmpxchg = this->reader.getCmpXchg(stmt);
+						
+						const llvmint::Value cmpxchg_value = this->builder.createCmpXchg(
+							this->get_value<ADD_WEAK_DEPS>(cmpxchg.target),
+							this->get_value<ADD_WEAK_DEPS>(cmpxchg.expected),
+							this->get_value<ADD_WEAK_DEPS>(cmpxchg.desired),
+							cmpxchg.isWeak,
+							PIRToLLVMIR::get_atomic_ordering(cmpxchg.successOrdering),
+							PIRToLLVMIR::get_atomic_ordering(cmpxchg.failureOrdering)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractCmpXchgLoaded(stmt),
+							this->builder.createExtractValue(cmpxchg_value, {0}, cmpxchg.loadedName)
+						);
+
+						this->stmt_values.emplace(
+							this->reader.extractCmpXchgSucceeded(stmt),
+							this->builder.createExtractValue(cmpxchg_value, {1}, cmpxchg.succeededName)
+						);
+					} break;
+
+					case Expr::Kind::CMPXCHG_LOADED:    evo::debugFatalBreak("Not valid stmt");
+					case Expr::Kind::CMPXCHG_SUCCEEDED: evo::debugFatalBreak("Not valid stmt");
+
 					case Expr::Kind::LIFETIME_START: {
 						const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
 
@@ -1786,6 +1812,14 @@ namespace pcit::pir{
 			case Expr::Kind::CTPOP:          return this->stmt_values.at(expr);
 			case Expr::Kind::CTLZ:           return this->stmt_values.at(expr);
 			case Expr::Kind::CTTZ:           return this->stmt_values.at(expr);
+
+			case Expr::Kind::CMPXCHG: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CMPXCHG_LOADED: {
+				return this->stmt_values.at(this->reader.extractCmpXchgLoaded(expr));
+			} break;
+			case Expr::Kind::CMPXCHG_SUCCEEDED: {
+				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
+			} break;
 
 			case Expr::Kind::LIFETIME_START: evo::debugFatalBreak("Not a value");
 			case Expr::Kind::LIFETIME_END:   evo::debugFatalBreak("Not a value");

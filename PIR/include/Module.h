@@ -601,6 +601,8 @@ namespace pcit::pir{
 			core::StepAlloc<CTLZ, uint32_t> ctlzs{};
 			core::StepAlloc<CTTZ, uint32_t> cttzs{};
 
+			core::StepAlloc<CmpXchg, uint32_t> cmpxchgs{};
+
 			core::StepAlloc<LifetimeStart, uint32_t> lifetime_starts{};
 			core::StepAlloc<LifetimeEnd, uint32_t> lifetime_ends{};
 
