@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.225.1"></a>
+## v0.0.225.1
+
+### Panther
+- Fixed intrinsic template expression parameters not accepting type aliases properly
+
+
+<!---------------------------------->
 <a name="v0.0.225.0"></a>
 ## v0.0.225.0
 

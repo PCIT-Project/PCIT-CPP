@@ -12464,7 +12464,7 @@ namespace pcit::panther{
 			}
 
 			const TermInfo& arg_term_info = this->get_term_info(instr.template_args[arg_index]);
-			if(arg_term_info.type_id.as<TypeInfo::ID>() != type_id){
+			if(this->context.type_manager.decayType<false, false>(arg_term_info.type_id.as<TypeInfo::ID>()) != type_id){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
@@ -12854,7 +12854,7 @@ namespace pcit::panther{
 			}
 
 			const TermInfo& arg_term_info = this->get_term_info(instr.template_args[arg_index]);
-			if(arg_term_info.type_id.as<TypeInfo::ID>() != type_id){
+			if(this->context.type_manager.decayType<false, false>(arg_term_info.type_id.as<TypeInfo::ID>()) != type_id){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],

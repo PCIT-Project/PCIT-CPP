@@ -1,87 +1,14 @@
 // def std = @import("std");
 
-
-type AtomicRef = struct <{T: Type}> {
-	func new = (ptr: T*mut) -> (output: This) {
-		output.ptr = copy ptr;
-		return...;
-	}
-
-	func copy = delete;
-	func move = delete;
-
-
-	func load = <{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}> (this) -> T {
-		return @atomicLoad<{T*, T, ORDERING}>(this.ptr);
-	}
-
-	func store = <{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}> (this, new_val: T in) -> Void {
-		@atomicStore<{T*mut, T, ORDERING}>(this.ptr, forward new_val);
-	}
-
-
-
-
-	func compareExchange = 
-		<{SUCCESS_ORDERING: @pthr.AtomicOrdering, FAILURE_ORDERING: @pthr.AtomicOrdering}> 
-		(this, expected: T, desired: T in)
-	->
-		(loaded: T, succeeded: Bool)
-	{
-		[loaded, succeeded] = 
-			@cmpxchg<{T*mut, T, false, SUCCESS_ORDERING, FAILURE_ORDERING}>(this.ptr, expected, forward desired);
-		return...;
-	}
-
-	func compareExchange = 
-		<{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}>
-		(this, expected: T, desired: T in)
-	->
-		(loaded: T, succeeded: Bool)
-	{
-		[loaded, succeeded] =
-			@cmpxchg<{T*mut, T, false, ORDERING, ORDERING}>(this.ptr, expected, forward desired);
-		return...;
-	}
-
-
-
-	func compareExchangeWeak = 
-		<{SUCCESS_ORDERING: @pthr.AtomicOrdering, FAILURE_ORDERING: @pthr.AtomicOrdering}> 
-		(this, expected: T, desired: T in)
-	-> 
-		(loaded: T, succeeded: Bool)
-	{
-		[loaded, succeeded] = 
-			@cmpxchg<{T*mut, T, true, SUCCESS_ORDERING, FAILURE_ORDERING}>(this.ptr, expected, forward desired);
-		return...;
-	}
-
-
-	func compareExchangeWeak = 
-		<{ORDERING: @pthr.AtomicOrdering = @pthr.AtomicOrdering.SEQ_CST}>
-		(this, expected: T, desired: T in)
-	->
-		(loaded: T, succeeded: Bool)
-	{
-		[loaded, succeeded] = 
-			@cmpxchg<{T*mut, T, true, ORDERING, ORDERING}>(this.ptr, expected, forward desired);
-		return...;
-	}
-
-
-	const ptr: T*mut #priv;
-}
-
-
+def atomic = @import("atomic.pthr");
 
 
 func test = () -> UI32 {
 	var num: UI32 = 9;
 
-	var num_ref = new AtomicRef<{UI32}>(&num);
+	var num_ref = new atomic.AtomicRef<{UI32}>(&num);
 
-	num_ref.store<{@pthr.AtomicOrdering.MONOTONIC}>(14);
+	num_ref.store<{atomic.AtomicOrdering.MONOTONIC}>(14);
 
 	[_, _] = num_ref.compareExchange(14, 12);
 
