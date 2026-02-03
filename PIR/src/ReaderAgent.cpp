@@ -153,6 +153,7 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG:           evo::debugFatalBreak("Not a value");
 			case Expr::Kind::CMPXCHG_LOADED:    return this->getExprType(this->getCmpXchg(expr).expected);
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return this->module.createBoolType();
+			case Expr::Kind::ATOMIC_RMW:        return this->getExprType(this->getAtomicRMW(expr).value);
 			case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Not a value");
 			case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Not a value");
 		}
@@ -865,6 +866,13 @@ namespace pcit::pir{
 
 	auto ReaderAgent::extractCmpXchgSucceeded(Expr expr) -> Expr {
 		return Expr(Expr::Kind::CMPXCHG_SUCCEEDED, expr.index);
+	}
+
+	auto ReaderAgent::getAtomicRMW(Expr expr) const -> const AtomicRMW& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::ATOMIC_RMW, "Not an atomic rmw");
+
+		return this->module.atomic_rmws[expr.index];
 	}
 
 

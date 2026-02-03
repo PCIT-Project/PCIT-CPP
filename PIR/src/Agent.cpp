@@ -706,6 +706,13 @@ namespace pcit::pir{
 					case Expr::Kind::CMPXCHG_LOADED:    continue;
 					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
 
+					case Expr::Kind::ATOMIC_RMW: {
+						AtomicRMW& atomic_rmw = this->module.atomic_rmws[stmt.index];
+
+						if(atomic_rmw.target == original){ atomic_rmw.target = replacement; }
+						if(atomic_rmw.value == original){ atomic_rmw.value = replacement; }
+					} break;
+
 					case Expr::Kind::LIFETIME_START: {
 						LifetimeStart& lifetime_start = this->module.lifetime_starts[stmt.index];
 
@@ -1285,6 +1292,32 @@ namespace pcit::pir{
 		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");
 		evo::debugAssert(this->getExprType(source).kind() == Type::Kind::PTR, "Source must be of type Ptr");
 
+		#if defined(PCIT_CONFIG_DEBUG)
+			if(atomic_ordering != AtomicOrdering::NONE){
+				// evo::debugAssert(
+				// 	type.kind() == Type::Kind::INTEGER
+				// 	|| type.kind() == Type::Kind::FLOAT
+				// 	|| type.kind() == Type::Kind::BFLOAT
+				// 	|| type.kind() == Type::Kind::BOOL
+				// 	|| type.kind() == Type::Kind::PTR,
+				// 	"Atomic load must be integral, float, bfloat, Bool, or Ptr"
+				// );
+
+				if(type.kind() == Type::Kind::INTEGER){
+					evo::debugAssert(
+						std::has_single_bit(type.getWidth()),
+						"atomic load of integral must have bit-width of a power of 2"
+					);
+					evo::debugAssert(
+						type.getWidth() >= 8, "atomic load of integral cannot have bit-width smaller than 8"
+					);
+
+				}else if(type.kind() == Type::Kind::FLOAT){
+					evo::debugAssert(type.getWidth() != 80, "atomic load cannot be F80");
+				}
+			}
+		#endif
+
 		const auto new_stmt = Expr(
 			Expr::Kind::LOAD,
 			this->module.loads.emplace_back(
@@ -1311,6 +1344,34 @@ namespace pcit::pir{
 		evo::debugAssert(
 			this->getExprType(destination).kind() == Type::Kind::PTR, "Destination must be of type Ptr"
 		);
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			if(atomic_ordering != AtomicOrdering::NONE){
+				const Type value_type = this->getExprType(value);
+
+				// evo::debugAssert(
+				// 	value_type.kind() == Type::Kind::INTEGER
+				// 	|| value_type.kind() == Type::Kind::FLOAT
+				// 	|| value_type.kind() == Type::Kind::BFLOAT
+				// 	|| value_type.kind() == Type::Kind::BOOL
+				// 	|| value_type.kind() == Type::Kind::PTR,
+				// 	"Atomic store must be integral, float, bfloat, Bool, or Ptr"
+				// );
+
+				if(value_type.kind() == Type::Kind::INTEGER){
+					evo::debugAssert(
+						std::has_single_bit(value_type.getWidth()),
+						"atomic store of integral must have bit-width of a power of 2"
+					);
+					evo::debugAssert(
+						value_type.getWidth() >= 8, "atomic store of integral cannot have bit-width smaller than 8"
+					);
+
+				}else if(value_type.kind() == Type::Kind::FLOAT){
+					evo::debugAssert(value_type.getWidth() != 80, "atomic store cannot be F80");
+				}
+			}
+		#endif
 
 		const auto new_stmt = Expr(
 			Expr::Kind::STORE, this->module.stores.emplace_back(destination, value, is_volatile, atomic_ordering)
@@ -3030,6 +3091,7 @@ namespace pcit::pir{
 			this->getExprType(expected) == this->getExprType(desired), "Expected must be same type as desired"
 		);
 
+
 		evo::debugAssert(success_ordering != AtomicOrdering::NONE, "Success ordering is invalid for @cmpxchg");
 
 		evo::debugAssert(
@@ -3038,6 +3100,27 @@ namespace pcit::pir{
 			|| failure_ordering == AtomicOrdering::SEQUENTIALLY_CONSISTENT,
 			"Failure ordering is invalid for @cmpxchg"
 		);
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			const Type value_type = this->getExprType(expected);
+
+			evo::debugAssert(
+				value_type.kind() == Type::Kind::INTEGER
+				|| value_type.kind() == Type::Kind::BOOL
+				|| value_type.kind() == Type::Kind::PTR,
+				"Expected must be integral, Bool, or Ptr"
+			);
+
+			if(value_type.kind() == Type::Kind::INTEGER){
+				evo::debugAssert(
+					std::has_single_bit(value_type.getWidth()),
+					"bit-width of integral value type must be a power of 2"
+				);
+				evo::debugAssert(
+					value_type.getWidth() >= 8, "bit-width of integral value type cannot be smaller than 8"
+				);
+			}
+		#endif
 		
 		const auto new_expr = Expr(
 			Expr::Kind::CMPXCHG,
@@ -3067,6 +3150,164 @@ namespace pcit::pir{
 
 	auto Agent::extractCmpXchgSucceeded(Expr expr) -> Expr {
 		return ReaderAgent::extractCmpXchgSucceeded(expr);
+	}
+
+
+
+	auto Agent::createAtomicRMW(
+		AtomicRMW::Op op, Expr target, Expr value, std::string&& name, AtomicOrdering ordering
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->getExprType(target).kind() == Type::Kind::PTR, "Target must be a pointer");
+
+		#if defined(PCIT_CONFIG_DEBUG)
+			const Type value_type = this->getExprType(value);
+
+			switch(value_type.kind()){
+				case Type::Kind::VOID: {
+					evo::debugFatalBreak("Cannot be Void");
+				} break;
+
+				case Type::Kind::INTEGER: {
+					evo::debugAssert(
+						std::has_single_bit(value_type.getWidth()),
+						"bit-width of integral value type must be a power of 2"
+					);
+					evo::debugAssert(
+						value_type.getWidth() >= 8, "bit-width of integral value type cannot be smaller than 8"
+					);
+				} break;
+
+				case Type::Kind::BOOL: {
+					// fine...
+				} break;
+
+				case Type::Kind::FLOAT: {
+					evo::debugAssert(value_type.getWidth() != 80, "Cannot be F80");
+				} break;
+
+				case Type::Kind::BFLOAT: {
+					// fine...
+				} break;
+
+				case Type::Kind::PTR: {
+					// fine...
+				} break;
+
+				case Type::Kind::ARRAY: {
+					evo::debugFatalBreak("Cannot be array");
+				} break;
+
+				case Type::Kind::STRUCT: {
+					evo::debugFatalBreak("Cannot be struct");
+				} break;
+
+				case Type::Kind::FUNCTION: {
+					evo::debugFatalBreak("Cannot be funciton");
+				} break;
+			}
+
+			switch(op){
+				case AtomicRMW::Op::XCHG: {
+
+				} break;
+
+				case AtomicRMW::Op::ADD: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER,
+						"value of atomicrmw add must be integral"
+					);
+				} break;
+
+				case AtomicRMW::Op::SUB: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER,
+						"value of atomicrmw sub must be integral"
+					);
+				} break;
+
+				case AtomicRMW::Op::AND: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw and must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::NAND: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw nand must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::OR: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw or must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::XOR: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw xor must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::SMAX: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER, "value of atomicrmw smax must be integral"
+					);
+				} break;
+
+				case AtomicRMW::Op::SMIN: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER, "value of atomicrmw smin must be integral"
+					);
+				} break;
+
+				case AtomicRMW::Op::UMAX: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw umax must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::UMIN: {
+					evo::debugAssert(
+						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						"value of atomicrmw umin must be integral or Bool"
+					);
+				} break;
+
+				case AtomicRMW::Op::FADD: {
+					evo::debugAssert(value_type.isFloat(), "value of atomicrmw fadd must be float");
+				} break;
+
+				case AtomicRMW::Op::FSUB: {
+					evo::debugAssert(value_type.isFloat(), "value of atomicrmw fsub must be float");
+				} break;
+
+				case AtomicRMW::Op::FMAX: {
+					evo::debugAssert(value_type.isFloat(), "value of atomicrmw fmax must be float");
+				} break;
+
+				case AtomicRMW::Op::FMIN: {
+					evo::debugAssert(value_type.isFloat(), "value of atomicrmw fmin must be float");
+				} break;
+			}
+		#endif
+
+		const auto new_expr = Expr(
+			Expr::Kind::ATOMIC_RMW,
+			this->module.atomic_rmws.emplace_back(this->get_stmt_name(std::move(name)), op, target, value, ordering)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getAtomicRMW(Expr expr) const -> const AtomicRMW& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getAtomicRMW(expr);
 	}
 
 
@@ -3236,6 +3477,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::CMPXCHG:           this->module.cmpxchgs.erase(expr.index);
 			break; case Expr::Kind::CMPXCHG_LOADED:    return;
 			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
+			break; case Expr::Kind::ATOMIC_RMW:        this->module.atomic_rmws.erase(expr.index);
 			break; case Expr::Kind::LIFETIME_START:    this->module.lifetime_starts.erase(expr.index);
 			break; case Expr::Kind::LIFETIME_END:      this->module.lifetime_ends.erase(expr.index);
 		}
@@ -3401,6 +3643,7 @@ namespace pcit::pir{
 					} break;
 					case Expr::Kind::CMPXCHG_LOADED:    continue;
 					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
+					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){  return true; } continue;
 					case Expr::Kind::LIFETIME_START:    continue;
 					case Expr::Kind::LIFETIME_END:      continue;
 				}

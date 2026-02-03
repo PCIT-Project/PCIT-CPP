@@ -337,11 +337,14 @@ namespace pcit::panther{
 
 
 
-	auto Diagnostic::Location::get(const sema::TemplatedFunc::ID& func_id, const Source& src, const Context& context)
+	auto Diagnostic::Location::get(sema::TemplatedFunc::ID templated_func_id, const Context& context)
 	-> Location {
+		return Location::get(context.getSemaBuffer().getTemplatedFunc(templated_func_id), context);
+	}
+
+	auto Diagnostic::Location::get(const sema::TemplatedFunc& templated_func, const Context& context) -> Location {
 		return Location::get(
-			Diagnostic::get_ast_node_from_symbol_proc(context.getSemaBuffer().getTemplatedFunc(func_id).symbolProc),
-			src
+			templated_func.symbolProc.getASTNode(), context.getSourceManager()[templated_func.symbolProc.getSourceID()]
 		);
 	}
 
@@ -446,10 +449,6 @@ namespace pcit::panther{
 	}
 
 
-
-	auto Diagnostic::get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> AST::Node {
-		return symbol_proc.getASTNode();
-	}
 
 
 }

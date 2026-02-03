@@ -1449,6 +1449,56 @@ namespace pcit::pir{
 					case Expr::Kind::CMPXCHG_LOADED:    evo::debugFatalBreak("Not valid stmt");
 					case Expr::Kind::CMPXCHG_SUCCEEDED: evo::debugFatalBreak("Not valid stmt");
 
+					case Expr::Kind::ATOMIC_RMW: {
+						const AtomicRMW& atomic_rmw = this->reader.getAtomicRMW(stmt);
+
+						const llvmint::AtomicRMWOp atomic_rmw_op = [&]() -> llvmint::AtomicRMWOp {
+							switch(atomic_rmw.op){
+								case AtomicRMW::Op::XCHG: return llvmint::AtomicRMWOp::Xchg;
+								case AtomicRMW::Op::ADD:  return llvmint::AtomicRMWOp::Add;
+								case AtomicRMW::Op::SUB:  return llvmint::AtomicRMWOp::Sub;
+								case AtomicRMW::Op::AND:  return llvmint::AtomicRMWOp::And;
+								case AtomicRMW::Op::NAND: return llvmint::AtomicRMWOp::Nand;
+								case AtomicRMW::Op::OR:   return llvmint::AtomicRMWOp::Or;
+								case AtomicRMW::Op::XOR:  return llvmint::AtomicRMWOp::Xor;
+								case AtomicRMW::Op::SMAX: return llvmint::AtomicRMWOp::Max;
+								case AtomicRMW::Op::SMIN: return llvmint::AtomicRMWOp::Min;
+								case AtomicRMW::Op::UMAX: return llvmint::AtomicRMWOp::UMax;
+								case AtomicRMW::Op::UMIN: return llvmint::AtomicRMWOp::UMin;
+								case AtomicRMW::Op::FADD: return llvmint::AtomicRMWOp::FAdd;
+								case AtomicRMW::Op::FSUB: return llvmint::AtomicRMWOp::FSub;
+								case AtomicRMW::Op::FMAX: return llvmint::AtomicRMWOp::FMax;
+								case AtomicRMW::Op::FMIN: return llvmint::AtomicRMWOp::FMin;
+							}
+							evo::debugFatalBreak("Unknown atomicRMW op");
+						}();
+
+
+						llvmint::Value value = this->get_value<ADD_WEAK_DEPS>(atomic_rmw.value);
+
+						const bool value_is_bool =
+							this->reader.getExprType(atomic_rmw.value).kind() == Type::Kind::BOOL;
+
+						if(value_is_bool){
+							value = this->builder.createZExt(value, this->builder.getTypeI8().asType());
+						}
+
+						llvmint::Value output_value = this->builder.createAtomicRMW(
+							atomic_rmw_op,
+							this->get_value<ADD_WEAK_DEPS>(atomic_rmw.target),
+							value,
+							PIRToLLVMIR::get_atomic_ordering(atomic_rmw.ordering),
+							atomic_rmw.name
+						);
+
+						if(value_is_bool){
+							output_value =
+								this->builder.createTrunc(output_value, this->builder.getTypeBool().asType());
+						}
+
+						this->stmt_values.emplace(stmt, output_value);
+					} break;
+
 					case Expr::Kind::LIFETIME_START: {
 						const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
 
@@ -1820,6 +1870,8 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_SUCCEEDED: {
 				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
 			} break;
+
+			case Expr::Kind::ATOMIC_RMW:     return this->stmt_values.at(expr);
 
 			case Expr::Kind::LIFETIME_START: evo::debugFatalBreak("Not a value");
 			case Expr::Kind::LIFETIME_END:   evo::debugFatalBreak("Not a value");

@@ -73,6 +73,41 @@ type AtomicRef = struct <{T: Type}> #pub {
 	}
 
 
+
+	func exchange = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.XCHG, ORDERING}>(this.ptr, forward value);
+	}
+
+
+	func fetchAdd = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.ADD, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchSub = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.SUB, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchAnd = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.AND, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchOr = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.OR, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchXor = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.XOR, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchMin = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.MIN, ORDERING}>(this.ptr, forward value);
+	}
+
+	func fetchMax = <{ORDERING: AtomicOrdering = AtomicOrdering.SEQ_CST}> (this, value: T in) -> T {
+		return @atomicRMW<{T*mut, T, @pthr.AtomicRMWOp.MAX, ORDERING}>(this.ptr, forward value);
+	}
+
+
 	const ptr: T*mut #priv;
 }
 

@@ -33,7 +33,7 @@ namespace pcit::panther{
 			BUILD_ADD_C_HEADER_FILE,
 			BUILD_ADD_CPP_HEADER_FILE,
 
-			_MAX_,
+			_LAST_ = BUILD_ADD_CPP_HEADER_FILE,
 		};
 
 		EVO_NODISCARD auto lookupKind(std::string_view name) -> std::optional<Kind>;
@@ -104,13 +104,41 @@ namespace pcit::panther{
 			ATOMIC_LOAD,
 			ATOMIC_STORE,
 			CMPXCHG,
+			ATOMIC_RMW,
 
-			_MAX_,
+			_LAST_ = ATOMIC_RMW,
 		};
 		
 
 		EVO_NODISCARD auto lookupKind(std::string_view name) -> std::optional<Kind>;
 		auto initLookupTableIfNeeded() -> void;
+
+
+		enum class AtomicOrdering : uint32_t {
+			MONOTONIC,
+			ACQUIRE,
+			RELEASE,
+			ACQ_REL,
+			SEQ_CST,
+
+			// _LAST_ = SEQ_CST,
+		};
+
+
+		enum class AtomicRMWOp : uint32_t {
+			XCHG,
+			ADD,
+			SUB,
+			AND,
+			NAND,
+			OR,
+			XOR,
+			MIN,
+			MAX,
+
+			_LAST_ = MAX,
+		};
+
 	}
 
 

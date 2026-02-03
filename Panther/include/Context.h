@@ -537,9 +537,9 @@ namespace pcit::panther{
 
 			std::optional<sema::Func::ID> entry{};
 
-			std::array<IntrinsicFuncInfo, evo::to_underlying(IntrinsicFunc::Kind::_MAX_)> intrinsic_infos{};
+			std::array<IntrinsicFuncInfo, size_t(IntrinsicFunc::Kind::_LAST_) + 1> intrinsic_infos{};
 			std::array<
-				TemplateIntrinsicFuncInfo, evo::to_underlying(TemplateIntrinsicFunc::Kind::_MAX_)
+				TemplateIntrinsicFuncInfo, size_t(TemplateIntrinsicFunc::Kind::_LAST_) + 1
 			> template_intrinsic_infos{};
 
 			pir::Module constexpr_pir_module;

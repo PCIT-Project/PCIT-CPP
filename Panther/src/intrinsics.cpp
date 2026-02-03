@@ -139,6 +139,7 @@ namespace pcit::panther{
 			{"atomicLoad",            Kind::ATOMIC_LOAD},
 			{"atomicStore",           Kind::ATOMIC_STORE},
 			{"cmpxchg",               Kind::CMPXCHG},
+			{"atomicRMW",             Kind::ATOMIC_RMW},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

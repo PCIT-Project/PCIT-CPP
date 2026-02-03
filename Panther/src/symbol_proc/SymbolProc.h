@@ -1497,7 +1497,7 @@ namespace pcit::panther{
 				ARRAY_MUT_REF_ITERABLE_MUT_REF,
 				ARRAY_MUT_REF_ITERABLE_MUT_REF_RT,
 
-				_MAX_
+				_LAST_ = ARRAY_MUT_REF_ITERABLE_MUT_REF_RT,
 			};
 
 

@@ -276,6 +276,15 @@ namespace pcit::llvmint{
 			) -> Value;
 
 
+			EVO_NODISCARD auto createAtomicRMW(
+				AtomicRMWOp op,
+				const Value& target,
+				const Value& value,
+				AtomicOrdering ordering,
+				evo::CStrProxy name = '\0'
+			) -> Value;
+
+
 			//////////////////////////////////////////////////////////////////////
 			// insertion point
 

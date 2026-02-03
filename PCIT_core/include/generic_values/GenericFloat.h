@@ -207,6 +207,15 @@ namespace pcit::core{
 			EVO_NODISCARD auto ge(const GenericFloat& rhs)  const -> bool { return this->ap_float >= rhs.ap_float; }
 
 
+			EVO_NODISCARD auto min(const GenericFloat& rhs) const -> GenericFloat {
+				return llvmint::minnum(this->ap_float, rhs.ap_float);
+			}
+
+			EVO_NODISCARD auto max(const GenericFloat& rhs) const -> GenericFloat {
+				return llvmint::maxnum(this->ap_float, rhs.ap_float);
+			}
+
+
 
 			//////////////////////////////////////////////////////////////////////
 			// type conversions

@@ -602,6 +602,7 @@ namespace pcit::pir{
 			core::StepAlloc<CTTZ, uint32_t> cttzs{};
 
 			core::StepAlloc<CmpXchg, uint32_t> cmpxchgs{};
+			core::StepAlloc<AtomicRMW, uint32_t> atomic_rmws{};
 
 			core::StepAlloc<LifetimeStart, uint32_t> lifetime_starts{};
 			core::StepAlloc<LifetimeEnd, uint32_t> lifetime_ends{};

@@ -144,6 +144,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::CMPXCHG:           evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
 					break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
+					break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
 					break; case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Should never see this expr kind");
 				}
@@ -227,7 +228,9 @@ namespace pcit::pir::passes{
 				case Expr::Kind::LOAD: {
 					const Load& load = agent.getLoad(stmt);
 
-					if(load.atomicOrdering == AtomicOrdering::NONE && remove_unused_stmt()){ return true; }
+					if(load.atomicOrdering == AtomicOrdering::NONE || load.atomicOrdering == AtomicOrdering::MONOTONIC){
+						if(remove_unused_stmt()){ return true; }
+					}
 
 					see_expr(load.source);
 
@@ -1011,6 +1014,15 @@ namespace pcit::pir::passes{
 
 				case Expr::Kind::CMPXCHG_LOADED:    return false;
 				case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
+
+				case Expr::Kind::ATOMIC_RMW: {
+					const AtomicRMW& atomic_rmw = agent.getAtomicRMW(stmt);
+					see_expr(atomic_rmw.target);
+					see_expr(atomic_rmw.value);
+
+					return false;
+				} break;
+
 				case Expr::Kind::LIFETIME_START:    return false;
 				case Expr::Kind::LIFETIME_END:      return false;
 			}

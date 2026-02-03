@@ -3021,7 +3021,7 @@ namespace pcit::panther{
 				mutable evo::SpinLock waited_on_by_lock{};
 			};
 
-			std::array<BuiltinSymbolInfo, size_t(SymbolProc::BuiltinSymbolKind::_MAX_)> builtin_symbols{};
+			std::array<BuiltinSymbolInfo, size_t(SymbolProc::BuiltinSymbolKind::_LAST_) + 1> builtin_symbols{};
 			std::atomic<size_t> num_builtin_symbols_waited_on = 0;
 			std::unordered_map<std::string_view, SymbolProc::BuiltinSymbolKind> builtin_symbol_kind_lookup{};
 

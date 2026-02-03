@@ -895,6 +895,11 @@ namespace pcit::pir{
 				this->printer.print("${}", cmpxchg.succeededName);
 			} break;
 
+			case Expr::Kind::ATOMIC_RMW: {
+				const AtomicRMW& atomic_rmw = this->reader.getAtomicRMW(expr);
+				this->printer.print("${}", atomic_rmw.name);
+			} break;
+
 			case Expr::Kind::LIFETIME_START:
 				evo::debugFatalBreak("Expr::Kind::LIFETIME_START is not a valid expression");
 
@@ -1879,6 +1884,39 @@ namespace pcit::pir{
 
 			case Expr::Kind::CMPXCHG_SUCCEEDED:
 				evo::debugFatalBreak("Expr::Kind::CMPXCHG_SUCCEEDED is not a valid statement");
+
+			case Expr::Kind::ATOMIC_RMW: {
+				const AtomicRMW& atomic_rmw = this->reader.getAtomicRMW(stmt);
+
+				this->printer.print("{}${} ", tabs(2), atomic_rmw.name);
+				this->printer.printRed("= @atomicrmw ");
+
+				switch(atomic_rmw.op){
+					break; case AtomicRMW::Op::XCHG: this->printer.printRed("xchg ");
+					break; case AtomicRMW::Op::ADD:  this->printer.printRed("add ");
+					break; case AtomicRMW::Op::SUB:  this->printer.printRed("sub ");
+					break; case AtomicRMW::Op::AND:  this->printer.printRed("and ");
+					break; case AtomicRMW::Op::NAND: this->printer.printRed("nand ");
+					break; case AtomicRMW::Op::OR:   this->printer.printRed("or ");
+					break; case AtomicRMW::Op::XOR:  this->printer.printRed("xor ");
+					break; case AtomicRMW::Op::SMAX: this->printer.printRed("smax ");
+					break; case AtomicRMW::Op::SMIN: this->printer.printRed("smin ");
+					break; case AtomicRMW::Op::UMAX: this->printer.printRed("umax ");
+					break; case AtomicRMW::Op::UMIN: this->printer.printRed("umin ");
+					break; case AtomicRMW::Op::FADD: this->printer.printRed("fadd ");
+					break; case AtomicRMW::Op::FSUB: this->printer.printRed("fsub ");
+					break; case AtomicRMW::Op::FMAX: this->printer.printRed("fmax ");
+					break; case AtomicRMW::Op::FMIN: this->printer.printRed("fmin ");
+				}
+
+				this->print_expr(atomic_rmw.target);
+				this->printer.print(", ");
+				this->print_expr(atomic_rmw.value);
+
+				this->print_atomic_ordering(atomic_rmw.ordering);
+
+				this->printer.println();
+			} break;
 
 			case Expr::Kind::LIFETIME_START: {
 				const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);

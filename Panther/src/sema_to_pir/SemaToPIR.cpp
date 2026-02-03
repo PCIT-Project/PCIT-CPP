@@ -2797,7 +2797,8 @@ namespace pcit::panther{
 						const size_t current_num_args = args.size();
 						for(size_t i = current_num_args; i < target_func.getParameters().size(); i+=1){
 							const pir::Expr ret_alloca = this->agent.createAlloca(
-								target_func.getParameters()[i].getType(), this->name(".DISCARD")
+								target_func_info.return_params[i - current_num_args].reference_type,
+								this->name(".DISCARD")
 							);
 							args.emplace_back(ret_alloca);
 
@@ -8004,10 +8005,6 @@ namespace pcit::panther{
 					return this->agent.createCall(this->data.getJITBuildFuncs().build_create_package, std::move(args));
 				} break;
 
-				case IntrinsicFunc::Kind::_MAX_: {
-					evo::debugFatalBreak("Invalid intrinsic func");
-				} break;
-
 				default: evo::debugFatalBreak("Unknown intrinsic expr");
 			}
 		}();
@@ -9284,37 +9281,55 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
 				const pir::Type pir_type = this->get_type<false>(type_id);
 
+				std::string expr_name = [&]() -> std::string {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->name("ATOMIC_LOAD");
+
+					}else if constexpr(MODE == GetExprMode::POINTER || MODE == GetExprMode::STORE){
+						return this->name(".ATOMIC_LOAD");
+
+					}else{
+						return this->name(".DISCARD_ATOMIC_LOAD");
+					}
+				}();
+
+				const pir::Expr atomic_load = [&]() -> pir::Expr {
+					if(pir_type.kind() == pir::Type::Kind::INTEGER){
+						if(pir_type.getWidth() < 8 || std::has_single_bit(pir_type.getWidth()) == false){
+							const pir::Expr intermediate = this->agent.createLoad(
+								value,
+								this->module.createIntegerType(std::bit_ceil(pir_type.getWidth())),
+								this->name(".ATOMIC_LOAD_INTERMEDIATE"),
+								false,
+								atomic_ordering
+							);
+
+							return this->agent.createTrunc(intermediate, pir_type, std::move(expr_name));
+						}
+					}
+
+					return this->agent.createLoad(value, pir_type, std::move(expr_name), false, atomic_ordering);
+				}();
+
 				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->agent.createLoad(value, pir_type, this->name("ATOMIC_LOAD"), false, atomic_ordering);
+					return atomic_load;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const pir::Expr pointer_alloca = this->agent.createAlloca(pir_type);
-					const pir::Expr atomic_load = this->agent.createLoad(
-						value, pir_type, this->name(".ATOMIC_LOAD"), false, atomic_ordering
-					);
 					this->agent.createStore(pointer_alloca, atomic_load);
 					return pointer_alloca;
 
 				}else if constexpr(MODE == GetExprMode::STORE){
-					const pir::Expr atomic_load = this->agent.createLoad(
-						value, pir_type, this->name(".ATOMIC_LOAD"), false, atomic_ordering
-					);
 					this->agent.createStore(store_locations[0], atomic_load);
 					return std::nullopt;
 
 				}else{
-					std::ignore = this->agent.createLoad(
-						value, pir_type, this->name(".DISCARD_ATOMIC_LOAD"), false, atomic_ordering
-					);
+					// NOTE: yes, it's correct that the load is made
 					return std::nullopt;
 				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CMPXCHG: {
-				const pir::Expr target = this->get_expr_register(func_call.args[0]);
-				const pir::Expr expected = this->get_expr_register(func_call.args[1]);
-				const pir::Expr desired = this->get_expr_register(func_call.args[2]);
-
 				const bool is_weak = instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
 				const pir::AtomicOrdering success_atomic_ordering =	
@@ -9323,13 +9338,38 @@ namespace pcit::panther{
 				const pir::AtomicOrdering failure_atomic_ordering =	
 					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[4].as<core::GenericValue>());
 
+				const pir::Expr target = this->get_expr_register(func_call.args[0]);
+				pir::Expr expected = this->get_expr_register(func_call.args[1]);
+				pir::Expr desired = this->get_expr_register(func_call.args[2]);
+
+				const pir::Type value_pir_type = this->agent.getExprType(expected);
+
+				bool requires_type_conversion = false;
+				if(value_pir_type.kind() == pir::Type::Kind::INTEGER){
+					if(value_pir_type.getWidth() < 8 || std::has_single_bit(value_pir_type.getWidth()) == false){
+						requires_type_conversion = true;
+
+						const uint32_t target_width = std::bit_ceil(value_pir_type.getWidth());
+						
+						const TypeInfo::ID value_type_id =
+							instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+
+						if(this->context.getTypeManager().isUnsignedIntegral(value_type_id)){
+							expected = this->agent.createZExt(expected, this->module.createIntegerType(target_width));
+							desired = this->agent.createZExt(desired, this->module.createIntegerType(target_width));
+						}else{
+							expected = this->agent.createSExt(expected, this->module.createIntegerType(target_width));
+							desired = this->agent.createSExt(desired, this->module.createIntegerType(target_width));
+						}
+					}
+				}
 
 				const pir::Expr result = this->agent.createCmpXchg(
 					target,
 					expected,
 					desired,
-					this->name(".CMPXCHG.LOADED"),
-					this->name(".CMPXCHG.SUCCEEDED"),
+					this->name("CMPXCHG.LOADED"),
+					this->name("CMPXCHG.SUCCEEDED"),
 					is_weak,
 					success_atomic_ordering,
 					failure_atomic_ordering
@@ -9343,7 +9383,15 @@ namespace pcit::panther{
 					evo::debugFatalBreak("@addWrap returns multiple values");
 
 				}else if constexpr(MODE == GetExprMode::STORE){
-					this->agent.createStore(store_locations[0], this->agent.extractCmpXchgLoaded(result));
+					if(requires_type_conversion){
+						this->agent.createStore(
+							store_locations[0],
+							this->agent.createTrunc(this->agent.extractCmpXchgLoaded(result), value_pir_type)
+						);
+					}else{
+						this->agent.createStore(store_locations[0], this->agent.extractCmpXchgLoaded(result));
+					}
+
 					this->agent.createStore(store_locations[1], this->agent.extractCmpXchgSucceeded(result));
 
 					return std::nullopt;
@@ -9352,8 +9400,153 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case TemplateIntrinsicFunc::Kind::_MAX_: {
-				evo::debugFatalBreak("not a valid template intrinsic func");
+			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
+				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+
+				const pir::Expr target = this->get_expr_register(func_call.args[0]);
+
+				pir::Expr value = this->get_expr_register(func_call.args[1]);
+				bool requires_type_conversion = false;
+				if(this->context.getTypeManager().isIntegral(type_id)){
+					const size_t bit_width = this->context.getTypeManager().numBits(type_id, false);
+					if(bit_width < 8 || std::has_single_bit(bit_width) == false){
+						requires_type_conversion = true;
+
+						if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+							value = this->agent.createZExt(
+								value,
+								this->module.createIntegerType(uint32_t(std::bit_ceil(bit_width))),
+								this->name(".ATOMIC_RMW_EXT")
+							);
+						}else{
+							value = this->agent.createSExt(
+								value,
+								this->module.createIntegerType(uint32_t(std::bit_ceil(bit_width))),
+								this->name(".ATOMIC_RMW_EXT")
+							);
+						}
+					}
+				}
+
+
+				const pir::AtomicOrdering atomic_ordering =	
+					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[3].as<core::GenericValue>());
+
+				const pir::AtomicRMW::Op op = [&]() -> pir::AtomicRMW::Op {
+					switch(
+						static_cast<TemplateIntrinsicFunc::AtomicRMWOp>(
+							static_cast<uint32_t>(instantiation.templateArgs[2].as<core::GenericValue>().getInt(32))
+						)
+					){
+						case TemplateIntrinsicFunc::AtomicRMWOp::XCHG: {
+							return pir::AtomicRMW::Op::XCHG;
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::ADD: {
+							if(this->context.getTypeManager().isFloatingPoint(type_id)){
+								return pir::AtomicRMW::Op::FADD;
+							}else{
+								return pir::AtomicRMW::Op::ADD;
+							}
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::SUB: {
+							if(this->context.getTypeManager().isFloatingPoint(type_id)){
+								return pir::AtomicRMW::Op::FSUB;
+							}else{
+								return pir::AtomicRMW::Op::SUB;
+							}
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::AND: {
+							return pir::AtomicRMW::Op::AND;
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::NAND: {
+							return pir::AtomicRMW::Op::NAND;
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::OR: {
+							return pir::AtomicRMW::Op::OR;
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::XOR: {
+							return pir::AtomicRMW::Op::XOR;
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::MIN: {
+							if(this->context.getTypeManager().isFloatingPoint(type_id)){
+								return pir::AtomicRMW::Op::FMIN;
+
+							}else if(this->context.getTypeManager().isSignedIntegral(type_id)){
+								return pir::AtomicRMW::Op::SMIN;
+
+							}else{
+								return pir::AtomicRMW::Op::UMIN;
+							}
+						} break;
+
+						case TemplateIntrinsicFunc::AtomicRMWOp::MAX: {
+							if(this->context.getTypeManager().isFloatingPoint(type_id)){
+								return pir::AtomicRMW::Op::FMAX;
+
+							}else if(this->context.getTypeManager().isSignedIntegral(type_id)){
+								return pir::AtomicRMW::Op::SMAX;
+
+							}else{
+								return pir::AtomicRMW::Op::UMAX;
+							}
+						} break;
+					}
+
+					evo::debugFatalBreak("Unknown @pthr.AtomicRMWOp");
+				}();
+
+				std::string expr_name = [&]() -> std::string {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->name("ATOMIC_RMW");
+
+					}else if constexpr(MODE == GetExprMode::POINTER || MODE == GetExprMode::STORE){
+						return this->name(".ATOMIC_RMW");
+
+					}else{
+						return this->name(".DISCARD_ATOMIC_RMW");
+					}
+				}();
+
+				const pir::Expr atomic_rmw_expr = [&]() -> pir::Expr {
+					if(requires_type_conversion){
+						const pir::Expr intermediate = this->agent.createAtomicRMW(
+							op, target, value, this->name(".ATOMIC_RMW_CALC"), atomic_ordering
+						);
+
+						const uint32_t num_bits = uint32_t(this->context.getTypeManager().numBits(type_id, false));
+						return this->agent.createTrunc(
+							intermediate, this->module.createIntegerType(num_bits), std::move(expr_name)
+						);
+					}
+
+					return this->agent.createAtomicRMW(op, target, value, std::move(expr_name), atomic_ordering);
+				}();
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return atomic_rmw_expr;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Type pir_type = this->get_type<false>(type_id);
+
+					const pir::Expr pointer_alloca = this->agent.createAlloca(pir_type);
+					this->agent.createStore(pointer_alloca, atomic_rmw_expr);
+					return pointer_alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->agent.createStore(store_locations[0], atomic_rmw_expr);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 		}
 
@@ -9463,11 +9656,6 @@ namespace pcit::panther{
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_add_cpp_header_file, std::move(args));
 			} break;
 
-
-			case IntrinsicFunc::Kind::_MAX_: {
-				evo::debugFatalBreak("Invalid intrinsic func");
-			} break;
-
 			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
 	}
@@ -9483,10 +9671,28 @@ namespace pcit::panther{
 		switch(instantiation.kind){
 			case TemplateIntrinsicFunc::Kind::ATOMIC_STORE: {
 				const pir::Expr dst = this->get_expr_register(func_call.args[0]);
-				const pir::Expr value = this->get_expr_register(func_call.args[1]);
+				pir::Expr value = this->get_expr_register(func_call.args[1]);
 
 				const pir::AtomicOrdering atomic_ordering =	
 					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[2].as<core::GenericValue>());
+
+				const pir::Type value_type = this->agent.getExprType(value);
+
+				if(value_type.kind() == pir::Type::Kind::INTEGER){
+					if(value_type.getWidth() < 8 || std::has_single_bit(value_type.getWidth()) == false){
+						const TypeInfo::ID type_id = 
+							instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+						if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+							value = this->agent.createZExt(
+								value, this->module.createIntegerType(std::bit_ceil(value_type.getWidth()))
+							);
+						}else{
+							value = this->agent.createSExt(
+								value, this->module.createIntegerType(std::bit_ceil(value_type.getWidth()))
+							);
+						}
+					}
+				}
 
 				this->agent.createStore(dst, value, false, atomic_ordering);
 			} break;

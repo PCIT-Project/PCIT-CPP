@@ -1127,7 +1127,7 @@ namespace pcit::panther{
 
 
 			auto add_instantiation_locations_to_infos(evo::SmallVector<Diagnostic::Info>& infos) -> void {
-				if(this->symbol_proc.instantiation_locations.size() > 1){
+				if(this->symbol_proc.instantiation_locations.empty() == false){
 					auto sub_infos = evo::SmallVector<Diagnostic::Info>();
 					sub_infos.reserve(this->symbol_proc.instantiation_locations.size());
 
@@ -1299,7 +1299,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto get_location(const sema::TemplatedFuncID& templated_func) const -> Diagnostic::Location {
-				return Diagnostic::Location::get(templated_func, this->source, this->context);
+				return Diagnostic::Location::get(templated_func, this->context);
 			}
 
 			EVO_NODISCARD auto get_location(const sema::GlobalVarID& var) const -> Diagnostic::Location {

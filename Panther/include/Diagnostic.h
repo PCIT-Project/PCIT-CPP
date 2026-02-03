@@ -544,11 +544,10 @@ namespace pcit::panther{
 				EVO_NODISCARD static auto get(const sema::FuncAlias& func_alias, const class Context& context)
 					-> Location;
 
-				EVO_NODISCARD static auto get(
-					const sema::TemplatedFunc::ID& templated_func_id,
-					const class Source& src,
-					const class Context& context
-				) -> Location;
+				EVO_NODISCARD static auto get(sema::TemplatedFunc::ID templated_func_id, const class Context& context)
+					-> Location;
+				EVO_NODISCARD static auto get(const sema::TemplatedFunc& templated_func, const class Context& context)
+					-> Location;
 
 				EVO_NODISCARD static auto get(BaseType::Alias::ID alias_id, const class Context& context)
 					-> Location;
@@ -1064,8 +1063,6 @@ namespace pcit::panther{
 
 
 		private:
-			EVO_NODISCARD static auto get_ast_node_from_symbol_proc(const SymbolProc& symbol_proc) -> AST::Node;
-
 			friend class Location;
 	};
 

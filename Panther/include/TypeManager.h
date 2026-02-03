@@ -976,6 +976,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto operator==(const TypeInfo&) const -> bool = default;
 
+			// only includes qualifiers, doesn't check for RawPtr
 			EVO_NODISCARD auto isPointer() const -> bool {
 				return this->qualifiers().empty() == false && this->qualifiers().back().isPtr;
 			}
@@ -1149,8 +1150,9 @@ namespace pcit::panther{
 			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(7);  }
 			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8);  }
 			EVO_NODISCARD static auto getTypeI256()   -> TypeInfo::ID { return TypeInfo::ID(9);  }
-			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(10); } 
-			EVO_NODISCARD static auto getTypeByte()   -> TypeInfo::ID { return TypeInfo::ID(11); } 
+			EVO_NODISCARD static auto getTypeF80()    -> TypeInfo::ID { return TypeInfo::ID(10); } 
+			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(11); } 
+			EVO_NODISCARD static auto getTypeByte()   -> TypeInfo::ID { return TypeInfo::ID(12); } 
 
 
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::VoidableID id) const -> bool;
@@ -1268,8 +1270,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isFloatingPoint(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isFloatingPoint(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto isPointer(TypeInfo::VoidableID id) const -> bool;
+			EVO_NODISCARD auto isPointer(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isPointer(BaseType::ID id) const -> bool;
+
 			EVO_NODISCARD auto getUnderlyingType(TypeInfo::ID id) -> TypeInfo::ID; // yes, this operation is not const
 			EVO_NODISCARD auto getUnderlyingType(BaseType::ID id) -> TypeInfo::ID; // yes, this operation is not const
+
 
 
 			//////////////////

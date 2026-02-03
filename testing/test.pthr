@@ -3,21 +3,17 @@
 def atomic = @import("atomic.pthr");
 
 
-func test = () -> UI32 {
-	var num: UI32 = 9;
+func test = () -> I32 {
+	var num: I12 = 9;
 
-	var num_ref = new atomic.AtomicRef<{UI32}>(&num);
+	var num_ref = new atomic.AtomicRef<{I12}>(&num);
 
-	num_ref.store<{atomic.AtomicOrdering.MONOTONIC}>(14);
-
-	[_, _] = num_ref.compareExchange(14, 12);
-
-	return num_ref.load();
+	return num_ref.exchange(12) as I32;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	def NUM: UI32 = test();
-	return NUM as UI8;
+	// def NUM: UI32 = ;
+	return test() as UI8;
 }

@@ -207,7 +207,7 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_F16);
 		this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		this->primitives.emplace_back(Token::Kind::TYPE_F64);
-		this->primitives.emplace_back(Token::Kind::TYPE_F80);
+		const BaseType::Primitive::ID type_f80     = this->primitives.emplace_back(Token::Kind::TYPE_F80);
 		const BaseType::Primitive::ID type_f128    = this->primitives.emplace_back(Token::Kind::TYPE_F128);
 		const BaseType::Primitive::ID type_byte    = this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
 		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
@@ -249,6 +249,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_i256.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f80.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f128.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_byte.get())));
 	}
@@ -2794,7 +2795,38 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Not a type");
 		}
 	}
+
+
+
+	///////////////////////////////////
+	// isPointer
+
+
+	auto TypeManager::isPointer(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return false; }
+		return this->isPointer(id.asTypeID());
+	}
+
+
+	auto TypeManager::isPointer(TypeInfo::ID id) const -> bool {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.qualifiers().empty()){
+			return this->isPointer(type_info.baseTypeID());
+		}else{
+			return type_info.isPointer();
+		}
+	}
+
+
+	auto TypeManager::isPointer(BaseType::ID id) const -> bool {
+		if(id.kind() != BaseType::Kind::PRIMITIVE){ return false; }
+		return this->getPrimitive(id.primitiveID()).kind() == Token::Kind::TYPE_RAWPTR;
+	}
+
 	
+
+
 	///////////////////////////////////
 	// getUnderlyingType
 

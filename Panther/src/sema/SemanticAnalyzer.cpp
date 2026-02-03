@@ -1825,6 +1825,7 @@ namespace pcit::panther{
 			created_struct.isNoErrorDefaultInitializable = true;
 			created_struct.isSafeDefaultInitializable = true;
 
+
 			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 				if(this->context.getTypeManager().isDefaultInitializable(member_var.typeID) == false){
 					if(member_var.defaultValue.has_value()){
@@ -1870,10 +1871,7 @@ namespace pcit::panther{
 				}
 
 				if(created_struct.isSafeDefaultInitializable){
-					if(	
-						member_var.defaultValue.has_value()
-						|| this->context.getTypeManager().isSafeDefaultInitializable(member_var.typeID) == false
-					){
+					if(this->context.getTypeManager().isSafeDefaultInitializable(member_var.typeID) == false){
 						created_struct.isSafeDefaultInitializable = false;
 					}
 				}
@@ -12520,7 +12518,25 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Destination type of `@atomicStore` must be a pointer of the value type"
+						"Value type of `@atomicStore` must be the pointee type of the target type"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicStore` must be trivially copyable"
+					);
+					return Result::ERROR;
+				}
+
+				if(value_type_id == TypeManager::getTypeF80()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicStore` cannot be F80"
 					);
 					return Result::ERROR;
 				}
@@ -12530,15 +12546,17 @@ namespace pcit::panther{
 					template_args[2].as<core::GenericValue>().getInt(32)
 				);
 
-				const pir::AtomicOrdering atomic_ordering =
-					std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
+				const TemplateIntrinsicFunc::AtomicOrdering atomic_ordering =
+					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(atomic_ordering_number);
+
 
 				switch(atomic_ordering){
-					case pir::AtomicOrdering::MONOTONIC:               break;
-					case pir::AtomicOrdering::RELEASE:                 break;
-					case pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
 
-					case pir::AtomicOrdering::ACQUIRE: case pir::AtomicOrdering::ACQUIRE_RELEASE: {
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
@@ -12547,7 +12565,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					} break;
 
-					case pir::AtomicOrdering::NONE: default: {
+					default: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
@@ -12611,10 +12629,6 @@ namespace pcit::panther{
 					"Discarding return value of function call"
 				);
 				return Result::ERROR;
-			} break;
-
-			case TemplateIntrinsicFunc::Kind::_MAX_: {
-				evo::debugFatalBreak("Invalid template intrinsic func");
 			} break;
 
 			default: {
@@ -14494,8 +14508,8 @@ namespace pcit::panther{
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-				const TypeInfo::ID output_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& output_type = this->context.getTypeManager().getTypeInfo(output_type_id);
+				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
 				if(target_type.isPointerNotOptional() == false){
 					auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -14512,11 +14526,29 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(target_type.copyWithPoppedQualifier() != output_type){
+				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Target type of `@atomicLoad` must be a pointer of the output type"
+						"Value type of `@atomicLoad` must be the pointee type of the target type"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicLoad` must be trivially copyable"
+					);
+					return Result::ERROR;
+				}
+
+				if(value_type_id == TypeManager::getTypeF80()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicLoad` cannot be F80"
 					);
 					return Result::ERROR;
 				}
@@ -14526,15 +14558,16 @@ namespace pcit::panther{
 					template_args[2].as<core::GenericValue>().getInt(32)
 				);
 
-				const pir::AtomicOrdering atomic_ordering =
-					std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
+				const TemplateIntrinsicFunc::AtomicOrdering atomic_ordering =
+					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(atomic_ordering_number);
 
 				switch(atomic_ordering){
-					case pir::AtomicOrdering::MONOTONIC:               break;
-					case pir::AtomicOrdering::ACQUIRE:                 break;
-					case pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
 
-					case pir::AtomicOrdering::RELEASE: case pir::AtomicOrdering::ACQUIRE_RELEASE: {
+					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
@@ -14543,7 +14576,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					} break;
 
-					case pir::AtomicOrdering::NONE: default: {
+					default: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
@@ -14584,7 +14617,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@cmpxchg` must be a pointer",
+						"Target type of `@cmpxchg` must be a typed pointer",
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -14594,37 +14627,78 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Target type of `@cmpxchg` must be a pointer of the value type"
+						"Value type of `@cmpxchg` must be the pointee type of the target type"
 					);
 					return Result::ERROR;
 				}
+
+				if(
+					this->context.getTypeManager().isIntegral(value_type_id) == false
+					&& this->context.getTypeManager().isPointer(value_type_id) == false
+					&& value_type_id != TypeManager::getTypeBool()
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@cmpxchg` must be integral, pointer, or Bool"
+					);
+					return Result::ERROR;
+				}
+
+
+				const uint32_t success_atomic_ordering_number = static_cast<uint32_t>(
+					template_args[3].as<core::GenericValue>().getInt(32)
+				);
+
+				const TemplateIntrinsicFunc::AtomicOrdering success_atomic_ordering =
+					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(success_atomic_ordering_number);
+
+				switch(success_atomic_ordering){
+					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
+
+					default: {
+						this->emit_error(
+							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3],
+							"Unknown atomic order"
+						);
+						return Result::ERROR;
+					} break;
+				}
+
+
 
 
 				const uint32_t failure_atomic_ordering_number = static_cast<uint32_t>(
 					template_args[4].as<core::GenericValue>().getInt(32)
 				);
 
-				const pir::AtomicOrdering failure_atomic_ordering =
-					std::bit_cast<pir::AtomicOrdering>(failure_atomic_ordering_number + 1);
+				const TemplateIntrinsicFunc::AtomicOrdering failure_atomic_ordering =
+					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(failure_atomic_ordering_number);
 
 				switch(failure_atomic_ordering){
-					case pir::AtomicOrdering::MONOTONIC:               break;
-					case pir::AtomicOrdering::ACQUIRE:                 break;
-					case pir::AtomicOrdering::SEQUENTIALLY_CONSISTENT: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
 
-					case pir::AtomicOrdering::RELEASE: case pir::AtomicOrdering::ACQUIRE_RELEASE: {
+					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
+					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3],
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
 							"Invalid atomic order for `@cmpxchg`"
 						);
 						return Result::ERROR;
 					} break;
 
-					case pir::AtomicOrdering::NONE: default: {
+					default: {
 						this->emit_error(
 							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3],
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
 							"Unknown atomic order"
 						);
 						return Result::ERROR;
@@ -14644,8 +14718,67 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 
-			case TemplateIntrinsicFunc::Kind::_MAX_: {
-				evo::debugFatalBreak("Invalid template intrinsic func");
+			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
+				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+
+				const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+				);
+
+				const TypeInfo::ID atomic_rmw_op_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
+				);
+
+				if(check_correct_num_template_args(4).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_is_expr(2, atomic_rmw_op_type_id).isError()){ return Result::ERROR; }
+				if(check_template_arg_is_expr(3, atomic_ordering_type_id).isError()){ return Result::ERROR; }
+
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
+
+				if(target_type.isPointerNotOptional() == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					if(target_type.qualifiers().back().isOptional){
+						infos.emplace_back("NOTE: cannot be optional");
+					}
+
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
+						"Target type of `@atomicRMW` must be a pointer",
+						std::move(infos)
+					);
+					return Result::ERROR;
+				}
+
+				if(target_type.copyWithPoppedQualifier() != value_type){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicRMW` must be the pointee type of the target type"
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->context.getTypeManager().isIntegral(value_type_id) == false
+					&& this->context.getTypeManager().isPointer(value_type_id) == false
+					&& value_type_id != TypeManager::getTypeBool()
+				){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
+						"Value type of `@atomicRMW` must be integral, pointer, or Bool"
+					);
+					return Result::ERROR;
+				}
+
+				if(create_runtime_call().isError()){ return Result::ERROR; }
 			} break;
 		}
 
@@ -17164,14 +17297,8 @@ namespace pcit::panther{
 		const sema::Expr sema_indexer_expr = [&](){
 			const sema::Expr target_expr = [&]() -> sema::Expr {
 				if(is_ptr){
-					auto derefed_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-					derefed_qualifiers.reserve(decayed_target_type.qualifiers().size() - 1);
-					for(size_t i = 0; i < decayed_target_type.qualifiers().size() - 1; i+=1){
-						derefed_qualifiers.emplace_back(decayed_target_type.qualifiers()[i]);
-					}
-
 					const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(decayed_target_type.baseTypeID(), std::move(derefed_qualifiers))
+						decayed_target_type.copyWithPoppedQualifier()
 					);
 
 					return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id));
@@ -17184,6 +17311,15 @@ namespace pcit::panther{
 			if(is_arr_ref){
 				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
 					target_expr, decayed_target_type.baseTypeID().arrayRefID(), std::move(indices)
+				));
+
+			}else if(is_ptr){
+				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>()).copyWithPoppedQualifier()
+				);
+
+				return sema::Expr(this->context.sema_buffer.createIndexer(
+					target_expr, derefed_type_id, std::move(indices)
 				));
 
 			}else{

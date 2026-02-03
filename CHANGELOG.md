@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.226.0"></a>
+## v0.0.226.0
+
+### Panther
+- Added `@atomicRMW`
+- Added `@pthr.AtomicRMWOp`
+- Fixed instantiation context not showing up in diagnostics if the depth == 1
+- Fixed lowering of discarding function return when it's RVO always creating a target pir `@alloca` of type `Ptr`
+- Fixed getting location of template function for diagnostics in semantic analysis
+- Flxed lowering of indexer on array pointer
+
+### PIR
+- Added `@atomicrmw`
+
+
+<!---------------------------------->
 <a name="v0.0.225.1"></a>
 ## v0.0.225.1
 
@@ -15,6 +31,9 @@
 ### Panther
 - Added `@cmpxchg`
 - Fixed value parameter of `@atomicStore` being `read` (correct: `in`)
+
+### PIR
+- Added `@cmpxchg`
 
 
 <!---------------------------------->

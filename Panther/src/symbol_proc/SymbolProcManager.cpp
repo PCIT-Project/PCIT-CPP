@@ -20,7 +20,7 @@ namespace pcit::panther{
 
 
 	SymbolProcManager::SymbolProcManager(){
-		this->builtin_symbol_kind_lookup.reserve(size_t(SymbolProc::BuiltinSymbolKind::_MAX_));
+		this->builtin_symbol_kind_lookup.reserve(size_t(SymbolProc::BuiltinSymbolKind::_LAST_) + 1);
 
 		this->builtin_symbol_kind_lookup.emplace(
 			"array.IIterable", constevalLookupBuiltinSymbolKind("array.IIterable")

@@ -2119,19 +2119,34 @@ namespace pcit::panther{
 				std::nullopt,
 				evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("MONOTONIC"), core::GenericInt::create<uint32_t>(0)
+						pthr_module.createString("MONOTONIC"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC)
+						)
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("ACQUIRE"), core::GenericInt::create<uint32_t>(1)
+						pthr_module.createString("ACQUIRE"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE)
+						)
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("RELEASE"), core::GenericInt::create<uint32_t>(2)
+						pthr_module.createString("RELEASE"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(TemplateIntrinsicFunc::AtomicOrdering::RELEASE)
+						)
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("ACQ_REL"), core::GenericInt::create<uint32_t>(3)
+						pthr_module.createString("ACQ_REL"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL)
+						)
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("SEQ_CST"), core::GenericInt::create<uint32_t>(4)
+						pthr_module.createString("SEQ_CST"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST)
+						)
 					),
 				},
 				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
@@ -2141,6 +2156,62 @@ namespace pcit::panther{
 				true
 			)
 		));
+
+
+		//////////////////
+		// AtomicRMWOp
+
+		pthr_module.createSymbol("AtomicRMWOp", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("AtomicRMWOp"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("XCHG"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::XCHG))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("ADD"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::ADD))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SUB"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::SUB))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("AND"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::AND))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("NAND"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::NAND))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("OR"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::OR))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("XOR"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::XOR))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("MIN"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::MIN))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("MAX"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::MAX))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				true
+			)
+		));
+
 
 
 
@@ -3975,6 +4046,10 @@ namespace pcit::panther{
 			TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
 		);
 
+		const TypeInfo::ID atomic_rmw_op_type_id = this->type_manager.getOrCreateTypeInfo(
+			TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
+		);
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_LOAD) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt, atomic_ordering_type_id},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
@@ -4004,6 +4079,19 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::IN, 1ul)
 			},
 			.returns        = evo::SmallVector<Return>{1ul, TypeManager::getTypeBool()},
+			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
+			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_RMW) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{
+				std::nullopt, std::nullopt, atomic_ordering_type_id, atomic_rmw_op_type_id
+			},
+			.params         = evo::SmallVector<Param>{
+				Param(BaseType::Function::Param::Kind::READ, 0ul),
+				Param(BaseType::Function::Param::Kind::IN, 1ul)
+			},
+			.returns        = evo::SmallVector<Return>{1ul},
 			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
 			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
 		};

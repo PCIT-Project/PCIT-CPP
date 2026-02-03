@@ -192,6 +192,21 @@ namespace pcit::core{
 			EVO_NODISCARD auto sge(const GenericInt& rhs) const -> bool { return this->ap_int.sge(rhs.ap_int); }
 
 
+			EVO_NODISCARD auto umin(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(evo::copy(llvmint::APIntOps::umin(this->ap_int, rhs.ap_int)));
+			}
+			EVO_NODISCARD auto umax(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(evo::copy(llvmint::APIntOps::umax(this->ap_int, rhs.ap_int)));
+			}
+
+			EVO_NODISCARD auto smin(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(evo::copy(llvmint::APIntOps::smin(this->ap_int, rhs.ap_int)));
+			}
+			EVO_NODISCARD auto smax(const GenericInt& rhs) const -> GenericInt {
+				return GenericInt(evo::copy(llvmint::APIntOps::smax(this->ap_int, rhs.ap_int)));
+			}
+
+
 			///////////////////////////////////
 			// bitwise
 

@@ -103,13 +103,46 @@ namespace pcit::llvmint{
 		NotAtomic = 0,
 		Unordered = 1,
 		Monotonic = 2, // Equivalent to C++'s relaxed.
-		// Consume = 3,  // Not specified yet.
+		// Consume = 3,  // Not supported
 		Acquire = 4,
 		Release = 5,
 		AcquireRelease = 6,
 		SequentiallyConsistent = 7,
 		LAST = SequentiallyConsistent
 	};
+
+
+
+
+	enum AtomicRMWOp : unsigned {
+		Xchg,
+		Add,
+		Sub,
+		And,
+		Nand,
+		Or,
+		Xor,
+		Max,
+		Min,
+		UMax,
+		UMin,
+		FAdd,
+		FSub,
+		FMax,
+		FMin,
+		FMaximum,
+		FMinimum,
+		UIncWrap,
+		UDecWrap,
+		USubCond,
+		USubSat,
+
+		FIRST_BINOP = Xchg,
+		LAST_BINOP = USubSat,
+		BAD_BINOP
+	};
+
+
 
 	
 }

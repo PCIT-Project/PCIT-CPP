@@ -3,7 +3,7 @@ def build_exp = @import("std_exp/building.pthr");
 
 
 func entry = () #entry -> UI8 {
-	build_exp.setOutput(std.build.Output.PIR);
+	build_exp.setOutput(std.build.Output.RUN);
 	// build_exp.setNumThreads(12);
 
 	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path

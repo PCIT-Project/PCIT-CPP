@@ -1532,7 +1532,6 @@ namespace pcit::pir{
 
 					const Type expected_type = stack_frame->reader_agent.getExprType(cmpxchg.expected);
 					const unsigned num_bytes = unsigned(this->engine.module.getSize(expected_type));
-					const unsigned num_bits = num_bytes * 8;
 
 					const core::GenericValue& generic_expected = this->get_expr(cmpxchg.expected, *stack_frame);
 					const core::GenericValue& generic_desired = this->get_expr(cmpxchg.desired, *stack_frame);
@@ -1541,8 +1540,8 @@ namespace pcit::pir{
 
 					switch(num_bytes){
 						case 1: {
-							uint8_t expected = static_cast<uint8_t>(generic_expected.getInt(num_bits));
-							const uint8_t desired = static_cast<uint8_t>(generic_desired.getInt(num_bits));
+							uint8_t expected = static_cast<uint8_t>(generic_expected.getInt(num_bytes * 8));
+							const uint8_t desired = static_cast<uint8_t>(generic_desired.getInt(num_bytes * 8));
 
 							auto atomic_ref = std::atomic_ref<uint8_t>(*reinterpret_cast<uint8_t*>(target_ptr));
 
@@ -1553,8 +1552,8 @@ namespace pcit::pir{
 						} break;
 
 						case 2: {
-							uint16_t expected = static_cast<uint16_t>(generic_expected.getInt(num_bits));
-							const uint16_t desired = static_cast<uint16_t>(generic_desired.getInt(num_bits));
+							uint16_t expected = static_cast<uint16_t>(generic_expected.getInt(num_bytes * 8));
+							const uint16_t desired = static_cast<uint16_t>(generic_desired.getInt(num_bytes * 8));
 
 							auto atomic_ref = std::atomic_ref<uint16_t>(*reinterpret_cast<uint16_t*>(target_ptr));
 
@@ -1565,8 +1564,8 @@ namespace pcit::pir{
 						} break;
 
 						case 4: {
-							uint32_t expected = static_cast<uint32_t>(generic_expected.getInt(num_bits));
-							const uint32_t desired = static_cast<uint32_t>(generic_desired.getInt(num_bits));
+							uint32_t expected = static_cast<uint32_t>(generic_expected.getInt(num_bytes * 8));
+							const uint32_t desired = static_cast<uint32_t>(generic_desired.getInt(num_bytes * 8));
 
 							auto atomic_ref = std::atomic_ref<uint32_t>(*reinterpret_cast<uint32_t*>(target_ptr));
 
@@ -1577,8 +1576,8 @@ namespace pcit::pir{
 						} break;
 
 						case 8: {
-							uint64_t expected = static_cast<uint64_t>(generic_expected.getInt(num_bits));
-							const uint64_t desired = static_cast<uint64_t>(generic_desired.getInt(num_bits));
+							uint64_t expected = static_cast<uint64_t>(generic_expected.getInt(num_bytes * 8));
+							const uint64_t desired = static_cast<uint64_t>(generic_desired.getInt(num_bytes * 8));
 
 							auto atomic_ref = std::atomic_ref<uint64_t>(*reinterpret_cast<uint64_t*>(target_ptr));
 
@@ -1607,6 +1606,260 @@ namespace pcit::pir{
 
 				case Expr::Kind::CMPXCHG_LOADED:    evo::debugFatalBreak("Not a valid stmt");
 				case Expr::Kind::CMPXCHG_SUCCEEDED: evo::debugFatalBreak("Not a valid stmt");
+
+				case Expr::Kind::ATOMIC_RMW: {
+					const AtomicRMW& atomic_rmw = stack_frame->reader_agent.getAtomicRMW(expr);
+
+					std::byte* target_ptr = this->get_expr_ptr(atomic_rmw.target, *stack_frame);
+
+					const Type value_type = stack_frame->reader_agent.getExprType(atomic_rmw.value);
+					const unsigned num_bytes = unsigned(this->engine.module.getSize(value_type));
+
+					const core::GenericValue& generic_value = this->get_expr(atomic_rmw.value, *stack_frame);
+
+
+					switch(atomic_rmw.op){
+						case AtomicRMW::Op::XCHG: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+							std::memcpy(target_ptr, generic_value.dataRange().data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::ADD: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.uadd(generic_value.getInt(value_type.getWidth())).result;
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::SUB: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+								
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.usub(generic_value.getInt(value_type.getWidth())).result;
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::AND: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+	
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.bitwiseAnd(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::NAND: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+	
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.bitwiseAnd(generic_value.getInt(value_type.getWidth()))
+									.bitwiseNot();
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::OR: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+	
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.bitwiseOr(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::XOR: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+	
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.bitwiseXor(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::SMAX: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.smax(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::SMIN: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.smin(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::UMAX: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.umax(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::UMIN: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const core::GenericInt result = 
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes))
+									.getInt(value_type.getWidth())
+									.umin(generic_value.getInt(value_type.getWidth()));
+
+							std::memcpy(target_ptr, result.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::FADD: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+	
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const auto generic_target =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+							const core::GenericFloat generic_float_target =
+								generic_value_to_float(generic_target, value_type);
+
+							const core::GenericFloat result =
+								generic_float_target.add(generic_value_to_float(generic_value, value_type));
+
+							const core::GenericInt result_data = result.bitCastToGenericInt();
+
+							std::memcpy(target_ptr, result_data.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::FSUB: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const auto generic_target =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+							const core::GenericFloat generic_float_target =
+								generic_value_to_float(generic_target, value_type);
+
+							const core::GenericFloat result =
+								generic_float_target.sub(generic_value_to_float(generic_value, value_type));
+
+							const core::GenericInt result_data = result.bitCastToGenericInt();
+
+							std::memcpy(target_ptr, result_data.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::FMAX: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const auto generic_target =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+							const core::GenericFloat generic_float_target =
+								generic_value_to_float(generic_target, value_type);
+
+							const core::GenericFloat result =
+								generic_float_target.max(generic_value_to_float(generic_value, value_type));
+
+							const core::GenericInt result_data = result.bitCastToGenericInt();
+
+							std::memcpy(target_ptr, result_data.data(), num_bytes);
+						} break;
+
+						case AtomicRMW::Op::FMIN: {
+							// TODO(PERF): non-locking implementations
+							const auto lock = std::scoped_lock(this->engine.get_atomic_lock(target_ptr));
+							
+							stack_frame->registers[expr] =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+
+							const auto generic_target =
+								core::GenericValue::fromData(evo::ArrayProxy<std::byte>(target_ptr, num_bytes));
+							const core::GenericFloat generic_float_target =
+								generic_value_to_float(generic_target, value_type);
+
+							const core::GenericFloat result =
+								generic_float_target.min(generic_value_to_float(generic_value, value_type));
+
+							const core::GenericInt result_data = result.bitCastToGenericInt();
+
+							std::memcpy(target_ptr, result_data.data(), num_bytes);
+						} break;
+					}
+				} break;
 
 				case Expr::Kind::LIFETIME_START: {
 					// do nothing...

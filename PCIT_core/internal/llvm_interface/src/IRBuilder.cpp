@@ -475,6 +475,23 @@ namespace pcit::llvmint{
 
 
 
+	auto IRBuilder::createAtomicRMW(
+		AtomicRMWOp op, const Value& target, const Value& value, AtomicOrdering ordering, evo::CStrProxy name
+	) -> Value {
+		llvm::AtomicRMWInst* const instr = this->builder->CreateAtomicRMW(
+			static_cast<llvm::AtomicRMWInst::BinOp>(op),
+			target.native(),
+			value.native(),
+			llvm::MaybeAlign(),
+			static_cast<llvm::AtomicOrdering>(ordering)
+		);
+		instr->setName(llvm::Twine(name.c_str()));
+
+		return Value(instr);
+	}
+
+
+
 	//////////////////////////////////////////////////////////////////////
 	// insertion point
 

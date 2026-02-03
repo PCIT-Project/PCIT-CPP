@@ -694,6 +694,17 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto extractCmpXchgSucceeded(Expr) -> Expr;
 
 
+
+			EVO_NODISCARD auto createAtomicRMW(
+				AtomicRMW::Op op,
+				Expr target,
+				Expr value,
+				std::string&& name = "",
+				AtomicOrdering ordering = AtomicOrdering::SEQUENTIALLY_CONSISTENT
+			) const -> Expr;
+			EVO_NODISCARD auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
+
+
 			//////////////////////////////////////////////////////////////////////
 			// optimizations
 
