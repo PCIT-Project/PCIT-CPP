@@ -146,6 +146,10 @@ namespace pcit::pir{
 							func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
 						);
 
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+						}
+
 						stack_frame->params = std::move(params);
 
 						this->setup_allocas(*stack_frame);
@@ -193,6 +197,9 @@ namespace pcit::pir{
 						stack_frame = &this->stack_frames.emplace_back(
 							func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
 						);
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+						}
 
 						stack_frame->params = std::move(params);
 
@@ -1943,6 +1950,7 @@ namespace pcit::pir{
 				const ParamExpr& param_expr = stack_frame.reader_agent.getParamExpr(expr);
 
 				std::byte* param_ptr = static_cast<std::byte*>(stack_frame.params[param_expr.index]);
+
 
 				if(param_ptr == nullptr){ return nullptr; }
 

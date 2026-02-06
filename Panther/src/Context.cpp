@@ -602,6 +602,7 @@ namespace pcit::panther{
 
 					// Prevent escape from breakpoint
 					while(true){
+
 						evo::breakpoint(); // not temporary debugging
 					}
 				#endif

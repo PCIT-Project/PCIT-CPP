@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.227.0"></a>
+## v0.0.227.0
+
+### Panther
+- Changed `@importCPP` to `@importCpp`
+- Fixed stalling in semantic analysis of recursive constexpr functions
+
+### PIR
+- Added max call depth to `ExecutionEngine`
+
+### Misc
+- Updated to [Panther-std v0.0.13.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.13.0)
+
+
+<!---------------------------------->
 <a name="v0.0.226.0"></a>
 ## v0.0.226.0
 

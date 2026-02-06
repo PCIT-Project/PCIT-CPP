@@ -1616,14 +1616,14 @@ namespace pcit::panther{
 			//////////////////
 			// Import<Language::CPP>
 
-			EVO_NODISCARD auto createImportCPP(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createImportCpp(auto&&... args) -> Instruction {
 				return Instruction(
 					Instruction::Kind::IMPORT_CPP,
 					this->import_cpps.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getImportCPP(Instruction instr) const
+			EVO_NODISCARD auto getImportCpp(Instruction instr) const
 			-> const Instruction::Import<Instruction::Language::CPP>& {
 				evo::debugAssert(
 					instr.kind() == Instruction::Kind::IMPORT_CPP, "Not a Import<Language::CPP>"

@@ -3039,12 +3039,12 @@ namespace pcit::panther{
 					return new_term_info_id;
 				}
 
-			}else if(intrin_string == "importCPP"){
+			}else if(intrin_string == "importCpp"){
 				if constexpr(ERRORS){
 					this->emit_error(
 						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
 						intrin_tok_id,
-						"Intrinsic @importCPP does not error"
+						"Intrinsic @importCpp does not error"
 					);
 					return evo::resultError;
 				}else{
@@ -3052,7 +3052,7 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							intrin_tok_id,
-							"Calls to @importCPP requires a path"
+							"Calls to @importCpp requires a path"
 						);
 						return evo::resultError;
 					}
@@ -3061,7 +3061,7 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
 							func_call.args[1].value,
-							"Calls to @importCPP requires a path, and no other arguments"
+							"Calls to @importCpp requires a path, and no other arguments"
 						);
 						return evo::resultError;
 					}
@@ -3073,7 +3073,7 @@ namespace pcit::panther{
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 					this->add_instruction(
-						this->context.symbol_proc_manager.createImportCPP(
+						this->context.symbol_proc_manager.createImportCpp(
 							func_call, path_value.value(), new_term_info_id
 						)
 					);

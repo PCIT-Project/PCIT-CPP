@@ -16,7 +16,8 @@ namespace pcit::pir{
 
 	#if defined(EVO_PLATFORM_WINDOWS)
 
-		ExecutionEngine::ExecutionEngine(Module& _module) : module(_module) {}
+		ExecutionEngine::ExecutionEngine(Module& _module, uint32_t _max_call_depth)
+			: module(_module), max_call_depth(_max_call_depth) {}
 
 		ExecutionEngine::~ExecutionEngine(){
 			if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }

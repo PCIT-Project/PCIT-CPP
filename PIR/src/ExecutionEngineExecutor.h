@@ -28,6 +28,7 @@ namespace pcit::pir{
 		public:
 			enum class FuncRunError{
 				ABORT,
+				EXCEEDED_MAX_CALL_DEPTH,
 				BREAKPOINT,
 				OUT_OF_BOUNDS_ACCESS,
 				NULLPTR_ACCESS,

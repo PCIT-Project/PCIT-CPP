@@ -29,7 +29,7 @@ namespace pcit::pir{
 			using InitConfig = JITEngine::InitConfig;
 
 		public:
-			ExecutionEngine(Module& _module);
+			ExecutionEngine(Module& _module, uint32_t _max_call_depth = 128);
 			~ExecutionEngine();
 
 
@@ -38,9 +38,10 @@ namespace pcit::pir{
 			EVO_NODISCARD auto init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>>;
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->jit_engine.isInitialized(); }
 
+			EVO_NODISCARD auto maxCallDepth() const -> uint32_t { return this->max_call_depth; }
 
 
-			auto runFunction(Function::ID func_id, std::span<core::GenericValue> arguments)
+			EVO_NODISCARD auto runFunction(Function::ID func_id, std::span<core::GenericValue> arguments)
 				-> evo::Expected<core::GenericValue, FuncRunError>;
 
 		
@@ -71,6 +72,7 @@ namespace pcit::pir{
 
 		private:
 			Module& module;
+			const uint32_t max_call_depth;
 
 			evo::StepVector<Executor> executors_alloc{};
 			std::unordered_map<std::thread::id, Executor&> executors{};
@@ -84,7 +86,7 @@ namespace pcit::pir{
 			std::array<evo::SpinLock, 64> atomic_locks{};
 
 			friend class ExecutionEngineExecutor;
-			friend void pcit::pir::_internal_signal_handler(int);
+			friend void ::pcit::pir::_internal_signal_handler(int);
 	};
 
 

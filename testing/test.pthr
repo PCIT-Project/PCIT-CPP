@@ -1,19 +1,16 @@
-// def std = @import("std");
-
-def atomic = @import("atomic.pthr");
 
 
-func test = () -> I32 {
-	var num: I12 = 9;
-
-	var num_ref = new atomic.AtomicRef<{I12}>(&num);
-
-	return num_ref.exchange(12) as I32;
+func test = (depth: USize) -> Int {
+	if(depth < 128){
+		return test(depth + 1);
+	}else{
+		return 12;
+	}
 }
 
 
 
 func entry = () #entry -> UI8 {
-	// def NUM: UI32 = ;
-	return test() as UI8;
+	def NUM: Int = test(0);
+	return NUM as UI8;
 }

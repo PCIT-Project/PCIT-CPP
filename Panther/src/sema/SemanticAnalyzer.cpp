@@ -485,7 +485,7 @@ namespace pcit::panther{
 
 			case Instruction::Kind::IMPORT_CPP:
 				return this->instr_import<Instruction::Language::CPP>(
-					this->context.symbol_proc_manager.getImportCPP(instr)
+					this->context.symbol_proc_manager.getImportCpp(instr)
 				);
 
 			case Instruction::Kind::IS_MACRO_DEFINED:
@@ -5298,7 +5298,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
-		sema::Func& current_func = this->get_current_func();
+		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
+		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 
@@ -5350,6 +5351,8 @@ namespace pcit::panther{
 			bool any_waiting = false;
 			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
+				if(dependent_func_id == current_func_id){ continue; }
+
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
 
 				if(dependent_func.symbolProcID.has_value() == false){ continue; }
@@ -5408,14 +5411,14 @@ namespace pcit::panther{
 		const sema::Func& current_func = this->get_current_func();
 
 		if(current_func.isConstexpr){
+			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
+
 			{
 				auto sema_to_pir = SemaToPIR(
 					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
 				);
 
-				const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 				
-
 				sema_to_pir.lowerFuncDef(sema_func_id);
 
 
@@ -5483,6 +5486,8 @@ namespace pcit::panther{
 				sema::Func::ID dependent_func_id
 				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs
 			){
+				if(dependent_func_id == sema_func_id){ continue; }
+
 				const sema::Func& dependent_func = this->context.getSemaBuffer().getFunc(dependent_func_id);
 
 				if(dependent_func.symbolProcID.has_value() == false){ continue; }
@@ -11993,6 +11998,15 @@ namespace pcit::panther{
 			switch(run_result.error()){
 				case pir::ExecutionEngine::FuncRunError::ABORT: {
 					infos.emplace_back("Cause of error: abort");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::EXCEEDED_MAX_CALL_DEPTH: {
+					infos.emplace_back(
+						std::format(
+							"Cause of error: exceeded max call depth ({})",
+							this->context.constexpr_execution_engine.maxCallDepth()
+						)
+					);
 				} break;
 
 				case pir::ExecutionEngine::FuncRunError::BREAKPOINT: {
