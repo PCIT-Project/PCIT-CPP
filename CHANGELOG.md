@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.227.1"></a>
+## v0.0.227.1
+
+### Panther
+- Fixed constexpr function calls with default arguments
+
+
+<!---------------------------------->
 <a name="v0.0.227.0"></a>
 ## v0.0.227.0
 

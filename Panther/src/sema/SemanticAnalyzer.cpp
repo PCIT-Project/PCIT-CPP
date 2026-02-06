@@ -11951,14 +11951,18 @@ namespace pcit::panther{
 		evo::debugAssert(target_func_type.returnsVoid() == false, "Constexpr function call expr cannot return void");
 		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
 
-		auto jit_args = evo::SmallVector<core::GenericValue>();
-		jit_args.reserve(instr.args.size() && size_t(target_func_type.hasNamedReturns));
+		auto args = evo::SmallVector<core::GenericValue>();
+		args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 			const TermInfo& arg = this->get_term_info(arg_id);
 
-			jit_args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
+			args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
 
 			i += 1;
+		}
+
+		for(size_t i = args.size(); i < target_func.params.size(); i+=1){
+			args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
 		}
 
 		const bool uses_rvo = target_func_type.hasNamedReturns 
@@ -11972,7 +11976,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
 			);
 
-			jit_args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
+			args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
 		}
 
 		// Uncomment this to print out the state of the constexpr pir module (for debugging purposes)
@@ -11984,13 +11988,13 @@ namespace pcit::panther{
 		// core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
 		// 	this->context.constexpr_pir_module,
 		// 	*target_func.constexprJITInterfaceFunc,
-		// 	jit_args,
+		// 	args,
 		// 	this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
 		// );
 
 
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, jit_args);
+			this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, args);
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();

@@ -1,7 +1,7 @@
 
 
-func test = (depth: USize) -> Int {
-	if(depth < 128){
+func test = (depth: USize = 0) -> Int {
+	if(depth < 127){
 		return test(depth + 1);
 	}else{
 		return 12;
@@ -11,6 +11,6 @@ func test = (depth: USize) -> Int {
 
 
 func entry = () #entry -> UI8 {
-	def NUM: Int = test(0);
+	def NUM: Int = test();
 	return NUM as UI8;
 }
