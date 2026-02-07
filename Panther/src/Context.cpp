@@ -2088,8 +2088,8 @@ namespace pcit::panther{
 		//////////////////
 		// PackageID
 
-		build_module.createSymbol("PackageID", this->type_manager.createAlias(
-			BaseType::Alias(
+		build_module.createSymbol("PackageID", this->type_manager.createDistinctAlias(
+			BaseType::DistinctAlias(
 				BuiltinModule::ID::BUILD,
 				pthr_module.createString("PackageID"),
 				std::nullopt,

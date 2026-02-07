@@ -527,15 +527,19 @@ namespace pcit::panther{
 		struct DistinctAlias{
 			using ID = DistinctAliasID;
 
-			SourceID sourceID;
-			Token::ID identTokenID;
+			evo::Variant<SourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID underlyingType;
-			bool isPub;
+			bool isPub; // meaningless if not pthr source type
+
+			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
+			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
+			EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 			
 			EVO_NODISCARD auto operator==(const DistinctAlias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
-					&& this->identTokenID == rhs.identTokenID
+					&& this->name == rhs.name
 					&& this->parent == rhs.parent;
 			}
 		};

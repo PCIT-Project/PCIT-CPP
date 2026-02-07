@@ -372,9 +372,14 @@ namespace pcit::panther{
 	}
 	auto Diagnostic::Location::get(const BaseType::DistinctAlias& distinct_alias_type, const Context& context)
 	-> Location {
-		return Location::get(
-			distinct_alias_type.identTokenID, context.getSourceManager()[distinct_alias_type.sourceID]
-		);
+		if(distinct_alias_type.isPTHRSourceType()){
+			return Location::get(
+				distinct_alias_type.name.as<Token::ID>(),
+				context.getSourceManager()[distinct_alias_type.sourceID.as<Source::ID>()]
+			);
+		}else{
+			return Location::BUILTIN;
+		}
 	}
 
 

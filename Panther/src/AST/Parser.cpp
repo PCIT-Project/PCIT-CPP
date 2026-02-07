@@ -207,8 +207,20 @@ namespace pcit::panther{
 		}
 
 
-		const Result attributes = this->parse_attribute_block();
-		if(this->check_result(attributes, "attributes in function definition").isError()){ return Result::Code::ERROR; }
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				Diagnostic::Location::get(this->reader.peek(), this->source),
+				"Attributes for function definition in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(
+						"Attributes should be after the parentheses if function definition "
+							"or after keyword [alias] if function alias definition"
+					)
+				}
+			);
+			return Result::Code::ERROR;
+		}
 
 
 		if(this->expect_token(Token::lookupKind("="), "after identifier in function definition").isError()){
@@ -217,16 +229,6 @@ namespace pcit::panther{
 
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
-			const AST::AttributeBlock& attribute_block = this->source.ast_buffer.getAttributeBlock(attributes.value());
-			if(attribute_block.attributes.empty() == false){
-				this->context.emitError(
-					Diagnostic::Code::PARSER_INVALID_DELETED_SPECIAL_METHOD,
-					Diagnostic::Location::get(attribute_block.attributes[0].attribute, this->source),
-					"Deleted special members cannot accept attributes"
-				);
-				return Result::Code::ERROR;
-			}
-
 			if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
 
 			const Token::Kind member_token_kind = this->reader[name].kind();
@@ -258,6 +260,9 @@ namespace pcit::panther{
 		}else if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
 			this->reader.skip();
 
+			const Result attributes = this->parse_attribute_block();
+			if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
 			if(this->reader[name].kind() != Token::Kind::IDENT){
 				this->context.emitError(
 					Diagnostic::Code::PARSER_FUNC_ALIAS_CANNOT_BE_AN_OPERATOR,
@@ -280,19 +285,6 @@ namespace pcit::panther{
 		}
 
 
-		if(this->source.ast_buffer.getAttributeBlock(attributes.value()).attributes.empty() == false){
-			this->context.emitError(
-				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				Diagnostic::Location::get(this->reader.peek(), this->source),
-				"Attributes for function definition in the wrong place",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("Attributes should be after the parameters block")
-				}
-			);
-			return Result::Code::ERROR;
-		}
-
-
 		auto template_pack_node = std::optional<AST::Node>();
 		const Result template_pack_result = this->parse_template_pack();
 		switch(template_pack_result.code()){
@@ -305,8 +297,8 @@ namespace pcit::panther{
 		if(params.isError()){ return Result::Code::ERROR; }
 
 
-		const Result attribute_block = this->parse_attribute_block();
-		if(attribute_block.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
 		if(this->expect_token(Token::lookupKind("->"), "in function definition").isError()){
@@ -341,7 +333,7 @@ namespace pcit::panther{
 				template_pack_node,
 				std::move(params.value().params),
 				params.value().is_variadic,
-				attribute_block.value(),
+				attributes.value(),
 				std::move(returns.value()),
 				std::move(error_returns.value()),
 				block.value()
@@ -355,7 +347,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
-						attribute_block.value(),
+						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
 						block.value()
@@ -374,7 +366,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
-						attribute_block.value(),
+						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
 						std::nullopt
@@ -399,16 +391,29 @@ namespace pcit::panther{
 		const Result ident = this->parse_ident();
 		if(this->check_result(ident, "identifier in type definition").isError()){ return Result::Code::ERROR; }
 
-		const Result attributes = this->parse_attribute_block();
-		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
+			this->context.emitError(
+				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
+				Diagnostic::Location::get(this->reader.peek(), this->source),
+				"Attributes for type definition in the wrong place",
+				evo::SmallVector<Diagnostic::Info>{
+					Diagnostic::Info(
+						"Attributes should be after the type kind keyword ([struct], [union], [enum], or [alias])"
+					)
+				}
+			);
+			return Result::Code::ERROR;
+		}
+
 
 		if(this->expect_token(Token::lookupKind("="), "in type definition").isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
-			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_def(ident.value(), attributes.value());
-			case Token::Kind::KEYWORD_UNION:  return this->parse_union_def(ident.value(), attributes.value());
-			case Token::Kind::KEYWORD_ENUM:   return this->parse_enum_def(ident.value(), attributes.value());
-			case Token::Kind::KEYWORD_ALIAS:  return this->parse_type_alias(ident.value(), attributes.value());
+			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_def(ident.value());
+			case Token::Kind::KEYWORD_UNION:  return this->parse_union_def(ident.value());
+			case Token::Kind::KEYWORD_ENUM:   return this->parse_enum_def(ident.value());
+			case Token::Kind::KEYWORD_ALIAS:  return this->parse_type_alias(ident.value());
 		}
 
 		this->expected_but_got("valid type kind ([struct], [union], [enum], or [alias])", this->reader.peek());
@@ -417,24 +422,8 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_struct_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_struct_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_STRUCT).isError()){ return Result::Code::ERROR; }
-
-		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
-			this->context.emitError(
-				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				Diagnostic::Location::get(
-					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
-					this->source
-				),
-				"Attributes for struct definition in the wrong place",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("Attributes should be after the [struct] keyword"
-						" and after the template parameter block (if there is one)")
-				}
-			);
-			return Result::Code::ERROR;
-		}
 
 		auto template_pack_node = std::optional<AST::Node>();
 		const Result template_pack_result = this->parse_template_pack();
@@ -459,23 +448,8 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_union_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_union_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_UNION).isError()){ return Result::Code::ERROR; }
-
-		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
-			this->context.emitError(
-				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				Diagnostic::Location::get(
-					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
-					this->source
-				),
-				"Attributes for union definition in the wrong place",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("Attributes should be after the [union] keyword")
-				}
-			);
-			return Result::Code::ERROR;
-		}
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
@@ -543,23 +517,8 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_enum_def(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_enum_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_ENUM).isError()){ return Result::Code::ERROR; }
-
-		if(this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.empty() == false){
-			this->context.emitError(
-				Diagnostic::Code::PARSER_ATTRIBUTES_IN_WRONG_PLACE,
-				Diagnostic::Location::get(
-					this->source.getASTBuffer().getAttributeBlock(attrs_pre_equals).attributes.front().attribute,
-					this->source
-				),
-				"Attributes for enum definition in the wrong place",
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("Attributes should be after the [enum] keyword")
-				}
-			);
-			return Result::Code::ERROR;
-		}
 
 		auto underlying_type = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
@@ -651,17 +610,20 @@ namespace pcit::panther{
 
 
 
-	auto Parser::parse_type_alias(const AST::Node& ident, const AST::Node& attrs_pre_equals) -> Result {
+	auto Parser::parse_type_alias(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
 
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
-		if(this->check_result(type, "type in type alias definition").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(type, "type in type alias definition").isError()){ return Result::Code::ERROR; } 
 
 		if(this->expect_token(Token::lookupKind(";"), "at end of type alias definition").isError()){
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createAliasDef(ASTBuffer::getIdent(ident), attrs_pre_equals, type.value());
+		return this->source.ast_buffer.createAliasDef(ASTBuffer::getIdent(ident), attributes.value(), type.value());
 	}
 
 

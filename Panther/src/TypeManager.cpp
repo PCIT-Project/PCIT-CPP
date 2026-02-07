@@ -53,6 +53,18 @@ namespace pcit::panther{
 		}
 	}
 
+	auto BaseType::DistinctAlias::getName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
+
+
 
 	auto BaseType::Struct::getName(const SourceManager& source_manager) const -> std::string_view {
 		if(this->isPTHRSourceType()){
@@ -620,10 +632,9 @@ namespace pcit::panther{
 				const BaseType::DistinctAlias::ID distinct_alias_id = base_type_id.distinctAliasID();
 				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(distinct_alias_id);
 
-				const Source& source = context.getSourceManager()[distinct_alias_type.sourceID];
 
 				return this->get_parent_name(distinct_alias_type.parent, distinct_alias_type.sourceID, context) +
-					std::string(source.getTokenBuffer()[distinct_alias_type.identTokenID].getString());
+					std::string(distinct_alias_type.getName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1446,7 +1457,7 @@ namespace pcit::panther{
 
 		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
 			new_type.sourceID,
-			new_type.identTokenID,
+			new_type.name,
 			new_type.parent,
 			new_type.underlyingType,
 			new_type.isPub

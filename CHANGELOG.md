@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.229.0"></a>
+## v0.0.229.0
+
+### Panther
+- Made `@pthr.ProjectID` alias distinct
+- Moved type alias attributes to after the keyword `alias`
+- Moved function alias attributes to after the keyword `alias`
+
+### Misc
+- Updated to [Panther-std v0.0.14.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.14.0)
+
+
+<!---------------------------------->
 <a name="v0.0.228.0"></a>
 ## v0.0.228.0
 
@@ -27,7 +40,7 @@
 ## v0.0.227.0
 
 ### Panther
-- Changed `@importCPP` to `@importCpp`
+- Renamed `@importCPP` to `@importCpp`
 - Fixed stalling in semantic analysis of recursive constexpr functions
 
 ### PIR
