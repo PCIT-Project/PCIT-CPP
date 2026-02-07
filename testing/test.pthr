@@ -1,16 +1,35 @@
+def c_test = @importC("test.h");
 
 
-func test = (depth: USize = 0) -> Int {
-	if(depth < 127){
-		return test(depth + 1);
-	}else{
-		return 12;
+type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
+
+func test = () -> USize {
+	var arr = new StaticArrayList<{USize, 5}>();
+	arr.append().* = 1;
+	arr.append().* = 2;
+	arr.append().* = 3;
+
+	var sum: USize = 0;
+	for(arr) [_; value: USize] {
+		sum += value;
 	}
+
+	return copy sum;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	def NUM: Int = test();
-	return NUM as UI8;
+	def TEST: USize = test();
+	var arr = new StaticArrayList<{USize, 5}>();
+	arr.append().* = TEST;
+
+	for(arr) [_; value: USize] {
+		
+	}
+
+
+	unsafe{
+		return c_test.get_num(copy arr[0].*) as UI8;
+	}
 }

@@ -4,9 +4,9 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.RUN);
-	// build_exp.setNumThreads(12);
+	build_exp.setNumThreads(12);
 
-	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build_exp.addStdLib("../../Panther-std/std");
 
 
@@ -17,17 +17,17 @@ func entry = () #entry -> UI8 {
 			methodCallOnNonMethod        = true,
 			deleteMovedFromExpr          = true,
 			deleteTriviallyDeletableType = false, // TODO(FUTURE): set back to true
-			constexprIfCond              = true,
+			comptimeIfCond               = true,
 			alreadyUnsafe                = true,
 			experimentalF80              = true,
 		},
 	);
 	test_package.addSourceFile("test.pthr");
-	// test_package.addSourceFile("StaticArrayList.pthr");
+	test_package.addSourceFile("StaticArrayList.pthr");
 	// test_package.addSourceFile("NonTrivial.pthr");
 	// test_package.addSourceFile("atomic.pthr");
 
-	// @buildAddCHeaderFile("test.h", true);
+	@buildAddCHeaderFile("test.h", true);
 
 	
 	return 0;

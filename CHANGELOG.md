@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.228.0"></a>
+## v0.0.228.0
+
+### Panther
+- Renamed "comptime" to "interptime"
+- Renamed "constexpr" to "comptime"
+- Improved lowering performance
+	- Lowered for running comptime functions is saved
+
+### PIR
+- Fixed `@sub` not being considered a statement
+
+
+<!---------------------------------->
 <a name="v0.0.227.1"></a>
 ## v0.0.227.1
 

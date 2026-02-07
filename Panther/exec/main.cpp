@@ -486,9 +486,8 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
-			pir::printModule(module, printer);
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
+			pir::printModule(context.getPIRModule(), printer);
 
 			return evo::Result<>();
 		} break;
@@ -499,10 +498,9 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
 
-			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR(module);
+			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR();
 			if(llvmir_string.isError()){ return evo::resultError; }
 
 			printer.print(llvmir_string.value());
@@ -516,10 +514,9 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
 
-			const evo::Result<std::string> asm_result = context.lowerToAssembly(module);
+			const evo::Result<std::string> asm_result = context.lowerToAssembly();
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -541,10 +538,9 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE, module).isError()){ return evo::resultError; }
+			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
 
-			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject(module);
+			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -587,8 +583,6 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
-			auto module = pir::Module(evo::copy(context.getConfig().title), context.getConfig().target);
-
 			const panther::Context::EntryKind entry_kind = [&](){
 				if(config.output == BuildSystemConfig::Output::CONSOLE_EXECUTABLE){
 					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
@@ -597,11 +591,11 @@ EVO_NODISCARD static auto run_compile(
 				}
 			}();
 
-			if(context.lowerToPIR(entry_kind, module).isError()){
+			if(context.lowerToPIR(entry_kind).isError()){
 				return evo::resultError;
 			}
 
-			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject(module);
+			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,

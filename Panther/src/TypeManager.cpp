@@ -881,7 +881,7 @@ namespace pcit::panther{
 
 		if constexpr(
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
-			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::CONSTEXPR
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
@@ -896,7 +896,7 @@ namespace pcit::panther{
 			if constexpr(
 				SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL
 				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR
-				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::CONSTEXPR
+				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME
 				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE
 			){
 				if(type_info.qualifiers().empty()){
@@ -953,7 +953,7 @@ namespace pcit::panther{
 
 		if constexpr(
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
-			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::CONSTEXPR
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
@@ -1024,8 +1024,8 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
 						return struct_info.isSafeDefaultInitializable;
 
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::CONSTEXPR){
-						return struct_info.isConstexprDefaultInitializable;
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
+						return struct_info.isComptimeDefaultInitializable;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
 						return struct_info.isTriviallyDefaultInitializable;
@@ -1035,10 +1035,10 @@ namespace pcit::panther{
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
 						return struct_info.deleteOverload.load().has_value() == false;
 
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::CONSTEXPR){
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						const std::optional<sema::Func::ID> delete_overload = struct_info.deleteOverload.load();
 						if(delete_overload.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*delete_overload).isConstexpr;
+						return sema_buffer->getFunc(*delete_overload).isComptime;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
@@ -1056,11 +1056,11 @@ namespace pcit::panther{
 						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
 						return this->getFunction(copy_overload_sema_func.typeID).isUnsafe == false;
 
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::CONSTEXPR){
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						const BaseType::Struct::DeletableOverload copy_overload = struct_info.copyInitOverload.load();
 						if(copy_overload.wasDeleted){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*copy_overload.funcID).isConstexpr;
+						return sema_buffer->getFunc(*copy_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
 						const BaseType::Struct::DeletableOverload delete_overload = struct_info.copyInitOverload.load();
@@ -1082,11 +1082,11 @@ namespace pcit::panther{
 						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
 						return this->getFunction(move_overload_sema_func.typeID).isUnsafe == false;
 
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::CONSTEXPR){
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						const BaseType::Struct::DeletableOverload move_overload = struct_info.moveInitOverload.load();
 						if(move_overload.wasDeleted){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*move_overload.funcID).isConstexpr;
+						return sema_buffer->getFunc(*move_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
 						const BaseType::Struct::DeletableOverload delete_overload = struct_info.moveInitOverload.load();
@@ -2325,14 +2325,14 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isConstexprDefaultInitializable
+	// isComptimeDefaultInitializable
 
-	auto TypeManager::isConstexprDefaultInitializable(TypeInfo::ID id) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::CONSTEXPR>(id, nullptr);
+	auto TypeManager::isComptimeDefaultInitializable(TypeInfo::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::COMPTIME>(id, nullptr);
 	}
 
-	auto TypeManager::isConstexprDefaultInitializable(BaseType::ID id) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::CONSTEXPR>(id, nullptr);
+	auto TypeManager::isComptimeDefaultInitializable(BaseType::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::COMPTIME>(id, nullptr);
 	}
 
 
@@ -2375,14 +2375,14 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isConstexprDeletable
+	// isComptimeDeletable
 
-	auto TypeManager::isConstexprDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
-	auto TypeManager::isConstexprDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
@@ -2411,14 +2411,14 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isConstexprCopyable
+	// isComptimeCopyable
 
-	auto TypeManager::isConstexprCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
-	auto TypeManager::isConstexprCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
@@ -2460,14 +2460,14 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isConstexprMovable
+	// isComptimeMovable
 
-	auto TypeManager::isConstexprMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
-	auto TypeManager::isConstexprMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
-		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::CONSTEXPR>(id, &sema_buffer);
+	auto TypeManager::isComptimeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 

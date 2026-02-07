@@ -58,7 +58,6 @@ namespace pcit::panther{
 			struct Config{
 				bool useReadableNames;
 				bool checkedMath;
-				bool isJIT;
 				bool addSourceLocations;
 
 				bool useDebugUnreachables;

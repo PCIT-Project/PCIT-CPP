@@ -87,10 +87,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
 			EVO_NODISCARD auto instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result;
 			EVO_NODISCARD auto instr_func_def(const Instruction::FuncDef& instr) -> Result;
-			EVO_NODISCARD auto instr_func_prepare_constexpr_pir_if_needed(
-				const Instruction::FuncPrepareConstexprPIRIfNeeded& instr
+			EVO_NODISCARD auto instr_func_prepare_comptime_pir_if_needed(
+				const Instruction::FuncPrepareComptimePIRIfNeeded& instr
 			) -> Result;
-			EVO_NODISCARD auto instr_func_constexpr_pir_ready_if_needed() -> Result;
+			EVO_NODISCARD auto instr_func_comptime_pir_ready_if_needed() -> Result;
 
 			EVO_NODISCARD auto instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result;
 			EVO_NODISCARD auto instr_template_set_param_is_deducer(
@@ -115,7 +115,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_interface_in_def_impl_method(const Instruction::InterfaceInDefImplMethod& instr)
 				-> Result;
 			EVO_NODISCARD auto instr_interface_impl_def(const Instruction::InterfaceImplDef& instr) -> Result;
-			EVO_NODISCARD auto instr_interface_impl_constexpr_pir() -> Result;
+			EVO_NODISCARD auto instr_interface_impl_comptime_pir() -> Result;
 
 
 
@@ -173,15 +173,15 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_wait_on_sub_symbol_proc_def(const Instruction::WaitOnSubSymbolProcDef& instr)
 				-> Result;
 
-			template<bool IS_CONSTEXPR, bool ERRORS>
-			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
+			template<bool IS_COMPTIME, bool ERRORS>
+			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_COMPTIME, ERRORS>& instr)
 				-> Result;
 
 			EVO_NODISCARD auto builtin_type_method_call(
 				const TermInfo& target_term_info, evo::SmallVector<sema::Expr>&& args, SymbolProc::TermInfoID output
 			) -> Result;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto interface_func_call(
 				const TermInfo& target_term_info,
 				evo::SmallVector<sema::Expr>&& args,
@@ -189,7 +189,7 @@ namespace pcit::panther{
 				SymbolProc::TermInfoID output
 			) -> Result;
 
-			EVO_NODISCARD auto instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result;
+			EVO_NODISCARD auto instr_comptime_func_call_run(const Instruction::ComptimeFuncCallRun& instr) -> Result;
 
 			template<Instruction::Language LANGUAGE>
 			EVO_NODISCARD auto instr_import(const Instruction::Import<LANGUAGE>& instr) -> Result;
@@ -200,13 +200,13 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_template_intrinsic_func_call(const Instruction::TemplateIntrinsicFuncCall& instr)
 				-> Result;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto instr_template_intrinsic_func_call_expr(
-				const Instruction::TemplateIntrinsicFuncCallExpr<IS_CONSTEXPR>& instr
+				const Instruction::TemplateIntrinsicFuncCallExpr<IS_COMPTIME>& instr
 			) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_indexer(const Instruction::Indexer<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_indexer(const Instruction::Indexer<IS_COMPTIME>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_templated_term(const Instruction::TemplatedTerm& instr) -> Result;
 
@@ -224,27 +224,27 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_forward(const Instruction::Forward& instr) -> Result;
 			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_prefix_negate(const Instruction::PrefixNegate<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_prefix_negate(const Instruction::PrefixNegate<IS_COMPTIME>& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_prefix_not(const Instruction::PrefixNot<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_prefix_not(const Instruction::PrefixNot<IS_COMPTIME>& instr) -> Result;
 			
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_CONSTEXPR>& instr)
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_COMPTIME>& instr)
 				-> Result;
 
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
 			EVO_NODISCARD auto instr_unwrap(const Instruction::Unwrap& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_new(const Instruction::New<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_COMPTIME>& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_designated_init_new(const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr)
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_designated_init_new(const Instruction::DesignatedInitNew<IS_COMPTIME>& instr)
 				-> Result;
 
 			EVO_NODISCARD auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
@@ -252,8 +252,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			EVO_NODISCARD auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_expr_as(const Instruction::As<IS_COMPTIME>& instr) -> Result;
 
 			// return nullopt to type has no interface maps 
 			EVO_NODISCARD auto operator_as_check_interface_map(
@@ -268,12 +268,12 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
 
-			template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
-			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
+			template<bool IS_COMPTIME, Instruction::MathInfixKind MATH_INFIX_KIND>
+			EVO_NODISCARD auto instr_expr_math_infix(const Instruction::MathInfix<IS_COMPTIME, MATH_INFIX_KIND>& instr)
 				-> Result;
 
-			template<bool IS_CONSTEXPR>
-			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_CONSTEXPR>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_COMPTIME>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_primitive_type_term(const Instruction::PrimitiveTypeTerm& instr) -> Result;
@@ -585,7 +585,7 @@ namespace pcit::panther{
 
 				EVO_NODISCARD auto is_src_func() const -> bool { return this->selected_func_id.has_value(); }
 			};
-			template<bool IS_CONSTEXPR, bool ERRORS>
+			template<bool IS_COMPTIME, bool ERRORS>
 			EVO_NODISCARD auto func_call_impl(
 				const AST::FuncCall& func_call,
 				const TermInfo& target_term_info,
@@ -753,7 +753,7 @@ namespace pcit::panther{
 				SymbolProc::TermInfoID output
 			) -> Result;
 
-			EVO_NODISCARD auto constexpr_infix_math(
+			EVO_NODISCARD auto comptime_infix_math(
 				Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
 			) -> TermInfo;
 
@@ -761,9 +761,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto type_is_comparable(const TypeInfo& type_info) -> bool;
 
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto union_designated_init_new(
-				const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr, TypeInfo::ID target_type_info_id
+				const Instruction::DesignatedInitNew<IS_COMPTIME>& instr, TypeInfo::ID target_type_info_id
 			) -> Result;
 
 

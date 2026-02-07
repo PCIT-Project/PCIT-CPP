@@ -547,7 +547,7 @@ namespace pcit::panther{
 			struct MemberVar{
 				struct DefaultValue{
 					sema::Expr value;
-					bool isConstexpr;
+					bool isComptime;
 				};
 
 				AST::VarDef::Kind kind;
@@ -611,7 +611,7 @@ namespace pcit::panther{
 
 			bool isDefaultInitializable = false;
 			bool isTriviallyDefaultInitializable = false;
-			bool isConstexprDefaultInitializable = false;
+			bool isComptimeDefaultInitializable = false;
 			bool isNoErrorDefaultInitializable = false;
 			bool isSafeDefaultInitializable = false;
 
@@ -1192,8 +1192,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isDefaultInitializable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isDefaultInitializable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isConstexprDefaultInitializable(TypeInfo::ID id) const -> bool;
-			EVO_NODISCARD auto isConstexprDefaultInitializable(BaseType::ID id) const -> bool;
+			EVO_NODISCARD auto isComptimeDefaultInitializable(TypeInfo::ID id) const -> bool;
+			EVO_NODISCARD auto isComptimeDefaultInitializable(BaseType::ID id) const -> bool;
 
 			EVO_NODISCARD auto isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isNoErrorDefaultInitializable(BaseType::ID id) const -> bool;
@@ -1209,8 +1209,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isConstexprDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			EVO_NODISCARD auto isConstexprDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 
 
@@ -1220,8 +1220,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isConstexprCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			EVO_NODISCARD auto isConstexprCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 			EVO_NODISCARD auto isSafeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isSafeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
@@ -1234,8 +1234,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallyMovable(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallyMovable(BaseType::ID id) const -> bool;
 
-			EVO_NODISCARD auto isConstexprMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			EVO_NODISCARD auto isConstexprMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			EVO_NODISCARD auto isComptimeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 			EVO_NODISCARD auto isSafeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			EVO_NODISCARD auto isSafeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
@@ -1338,7 +1338,7 @@ namespace pcit::panther{
 
 			enum class SpecialMemberProp{
 				AT_ALL,
-				CONSTEXPR,
+				COMPTIME,
 				NO_ERROR,
 				SAFE,
 				TRIVIAL,

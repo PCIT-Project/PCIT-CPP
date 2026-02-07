@@ -327,8 +327,8 @@ namespace pcit::panther{
 		this->symbol_scopes.pop_back();
 
 		this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
-		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_def));
-		this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
 
 
 		///////////////////////////////////
@@ -428,7 +428,7 @@ namespace pcit::panther{
 
 
 		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplDef(ast_interface_impl));
-		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplConstexprPIR());
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplComptimePIR());
 
 
 		///////////////////////////////////
@@ -781,9 +781,9 @@ namespace pcit::panther{
 
 				this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
 				this->add_instruction(
-					this->context.symbol_proc_manager.createFuncPrepareConstexprPIRIfNeeded(func_def)
+					this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def)
 				);
-				this->add_instruction(this->context.symbol_proc_manager.createFuncConstexprPIRReadyIfNeeded());
+				this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
 
 			}else{
 				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_def));
@@ -1427,7 +1427,7 @@ namespace pcit::panther{
 		}
 
 		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplDef(interface_impl));
-		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplConstexprPIR());
+		this->add_instruction(this->context.symbol_proc_manager.createInterfaceImplComptimePIR());
 
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -2709,23 +2709,23 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_CONSTEXPR, false, false>(expr);
+		return this->analyze_term_impl<IS_COMPTIME, false, false>(expr);
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_CONSTEXPR, true, false>(expr);
+		return this->analyze_term_impl<IS_COMPTIME, true, false>(expr);
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_erroring_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_CONSTEXPR, true, true>(expr);
+		return this->analyze_term_impl<IS_COMPTIME, true, true>(expr);
 	}
 
 
-	template<bool IS_CONSTEXPR, bool MUST_BE_EXPR, bool ERRORS>
+	template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
 	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -2739,7 +2739,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			return this->analyze_expr_func_call<IS_CONSTEXPR, true>(expr);
+			return this->analyze_expr_func_call<IS_COMPTIME, true>(expr);
 
 		}else{
 			switch(expr.kind()){
@@ -2747,18 +2747,18 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Invalid AST::Node");
 				} break;
 
-				case AST::Kind::BLOCK:               return this->analyze_expr_block<IS_CONSTEXPR>(expr);
-				case AST::Kind::FUNC_CALL:           return this->analyze_expr_func_call<IS_CONSTEXPR, false>(expr);
-				case AST::Kind::INDEXER:             return this->analyze_expr_indexer<IS_CONSTEXPR>(expr);
-				case AST::Kind::TEMPLATED_EXPR:      return this->analyze_expr_templated<IS_CONSTEXPR>(expr);
-				case AST::Kind::PREFIX:              return this->analyze_expr_prefix<IS_CONSTEXPR>(expr);
-				case AST::Kind::INFIX:               return this->analyze_expr_infix<IS_CONSTEXPR>(expr);
-				case AST::Kind::POSTFIX:             return this->analyze_expr_postfix<IS_CONSTEXPR>(expr);
-				case AST::Kind::NEW:                 return this->analyze_expr_new<IS_CONSTEXPR>(expr);
-				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_CONSTEXPR>(expr);
-				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_CONSTEXPR>(expr);
-				case AST::Kind::TRY_ELSE:            return this->analyze_expr_try_else<IS_CONSTEXPR>(expr);
-				case AST::Kind::IDENT:               return this->analyze_expr_ident<IS_CONSTEXPR>(expr);
+				case AST::Kind::BLOCK:               return this->analyze_expr_block<IS_COMPTIME>(expr);
+				case AST::Kind::FUNC_CALL:           return this->analyze_expr_func_call<IS_COMPTIME, false>(expr);
+				case AST::Kind::INDEXER:             return this->analyze_expr_indexer<IS_COMPTIME>(expr);
+				case AST::Kind::TEMPLATED_EXPR:      return this->analyze_expr_templated<IS_COMPTIME>(expr);
+				case AST::Kind::PREFIX:              return this->analyze_expr_prefix<IS_COMPTIME>(expr);
+				case AST::Kind::INFIX:               return this->analyze_expr_infix<IS_COMPTIME>(expr);
+				case AST::Kind::POSTFIX:             return this->analyze_expr_postfix<IS_COMPTIME>(expr);
+				case AST::Kind::NEW:                 return this->analyze_expr_new<IS_COMPTIME>(expr);
+				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_COMPTIME>(expr);
+				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_COMPTIME>(expr);
+				case AST::Kind::TRY_ELSE:            return this->analyze_expr_try_else<IS_COMPTIME>(expr);
+				case AST::Kind::IDENT:               return this->analyze_expr_ident<IS_COMPTIME>(expr);
 				case AST::Kind::INTRINSIC:           return this->analyze_expr_intrinsic(expr);
 				case AST::Kind::LITERAL:             return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
 				case AST::Kind::UNINIT:              return this->analyze_expr_uninit(ast_buffer.getUninit(expr));
@@ -2910,15 +2910,15 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Block& block = this->source.getASTBuffer().getBlock(node);
 
 		evo::debugAssert(block.label.has_value(), "Block expr must have label");
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			this->emit_error(
-				Diagnostic::Code::SYMBOL_PROC_CONSTEXPR_BLOCK_EXPR, block, "Block expressions cannot be constexpr"
+				Diagnostic::Code::SYMBOL_PROC_COMPTIME_BLOCK_EXPR, block, "Block expressions cannot be constexpr"
 			);
 			return evo::resultError;
 
@@ -2949,7 +2949,7 @@ namespace pcit::panther{
 
 	
 
-	template<bool IS_CONSTEXPR, bool ERRORS>
+	template<bool IS_COMPTIME, bool ERRORS>
 	auto SymbolProcBuilder::analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(node);
 
@@ -3194,10 +3194,10 @@ namespace pcit::panther{
 					template_args.emplace_back(arg_value.value());
 				}
 
-				return this->analyze_expr<IS_CONSTEXPR>(target_templated_expr.base);
+				return this->analyze_expr<IS_COMPTIME>(target_templated_expr.base);
 
 			}else{
-				return this->analyze_expr<IS_CONSTEXPR>(func_call.target);
+				return this->analyze_expr<IS_COMPTIME>(func_call.target);
 			}
 		}();
 		if(target.isError()){ return evo::resultError; }
@@ -3205,7 +3205,7 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
 		args.reserve(func_call.args.size());
 		for(const AST::FuncCall::Arg& arg : func_call.args){
-			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<IS_CONSTEXPR>(arg.value);
+			const evo::Result<SymbolProc::TermInfoID> arg_value = this->analyze_expr<IS_COMPTIME>(arg.value);
 			if(arg_value.isError()){ return evo::resultError; }
 			args.emplace_back(arg_value.value());
 		}
@@ -3214,9 +3214,9 @@ namespace pcit::panther{
 
 		if(is_target_template){
 			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallExprConstexpr(
+						this->context.symbol_proc_manager.createTemplateIntrinsicFuncCallExprComptime(
 							func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 						)
 					);
@@ -3233,7 +3233,7 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			if constexpr(ERRORS){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
@@ -3243,14 +3243,14 @@ namespace pcit::panther{
 				return evo::resultError;
 			}else{
 				this->add_instruction(
-					this->context.symbol_proc_manager.createFuncCallExprConstexpr(
+					this->context.symbol_proc_manager.createFuncCallExprComptime(
 						func_call, std::move(template_args), args, target.value(), new_term_info_id
 					)
 				);
 
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
-					this->context.symbol_proc_manager.createConstexprFuncCallRun(
+					this->context.symbol_proc_manager.createComptimeFuncCallRun(
 						func_call, new_term_info_id, comptime_res_term_info_id, std::move(args)
 					)
 				);
@@ -3278,25 +3278,25 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_indexer(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::Indexer& indexer = ast_buffer.getIndexer(node);
 
-		const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(indexer.target);
+		const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(indexer.target);
 		if(target.isError()){ return evo::resultError; }
 		
 		auto indices = evo::SmallVector<SymbolProc::TermInfoID>();
 		indices.reserve(indexer.indices.size());
 		for(const AST::Node& index : indexer.indices){
-			const evo::Result<SymbolProc::TermInfoID> index_res = this->analyze_expr<IS_CONSTEXPR>(index);
+			const evo::Result<SymbolProc::TermInfoID> index_res = this->analyze_expr<IS_COMPTIME>(index);
 			if(index_res.isError()){ return evo::resultError; }
 			indices.emplace_back(index_res.value());
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			this->context.symbol_proc_manager.createIndexerConstexpr(
+			this->context.symbol_proc_manager.createIndexerComptime(
 				indexer, target.value(), new_term_info_id, std::move(indices)
 			)
 		);
@@ -3304,12 +3304,12 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(node);
 
-		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_CONSTEXPR>(templated_expr.base);
+		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_COMPTIME>(templated_expr.base);
 		if(base_type.isError()){ return evo::resultError; }
 
 		auto args = evo::SmallVector<evo::Variant<SymbolProc::TermInfoID, SymbolProc::TypeID>>();
@@ -3347,7 +3347,7 @@ namespace pcit::panther{
 		return created_base_term_info_id;
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Prefix& prefix = this->source.getASTBuffer().getPrefix(node);
 
@@ -3355,7 +3355,7 @@ namespace pcit::panther{
 			case Token::lookupKind("&"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3368,7 +3368,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_COPY: {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3381,7 +3381,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_MOVE: {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3394,7 +3394,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_FORWARD: {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3407,12 +3407,12 @@ namespace pcit::panther{
 			case Token::lookupKind("-"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createPrefixNegateConstexpr(
+						this->context.symbol_proc_manager.createPrefixNegateComptime(
 							prefix, expr.value(), created_term_info_id
 						)
 					);
@@ -3430,12 +3430,12 @@ namespace pcit::panther{
 			case Token::lookupKind("!"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createPrefixNotConstexpr(
+						this->context.symbol_proc_manager.createPrefixNotComptime(
 							prefix, expr.value(), created_term_info_id
 						)
 					);
@@ -3451,12 +3451,12 @@ namespace pcit::panther{
 			case Token::lookupKind("~"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(prefix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(expr.isError()){ return evo::resultError; }
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createPrefixBitwiseNotConstexpr(
+						this->context.symbol_proc_manager.createPrefixBitwiseNotComptime(
 							prefix, expr.value(), created_term_info_id
 						)
 					);
@@ -3475,13 +3475,13 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported prefix operator");
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Infix& infix = this->source.getASTBuffer().getInfix(node);
 
 		switch(this->source.getTokenBuffer()[infix.opTokenID].kind()){
 			case Token::lookupKind("."): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
 				if(infix.rhs.kind() != AST::Kind::IDENT){
@@ -3496,7 +3496,7 @@ namespace pcit::panther{
 				const Token::ID rhs = this->source.getASTBuffer().getIdent(infix.rhs);
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
 						this->context.symbol_proc_manager.createAccessorNeedsDef(
 							infix, lhs.value(), rhs, new_term_info_id
@@ -3511,7 +3511,7 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::KEYWORD_AS: {
-				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> expr = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(expr.isError()){ return evo::resultError; }
 
 				const evo::Result<SymbolProc::TypeID> target_type =
@@ -3519,9 +3519,9 @@ namespace pcit::panther{
 				if(target_type.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createAsConstexpr(
+						this->context.symbol_proc_manager.createAsComptime(
 							infix, expr.value(), target_type.value(), new_term_info_id
 						)
 					);
@@ -3536,16 +3536,16 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("||"): case Token::lookupKind("&&"): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprLogical(
+						this->context.symbol_proc_manager.createMathInfixComptimeLogical(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3561,7 +3561,7 @@ namespace pcit::panther{
 
 
 			case Token::lookupKind("=="): case Token::lookupKind("!="): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
 				const bool rhs_is_null = [&](){
@@ -3578,13 +3578,13 @@ namespace pcit::panther{
 					return new_term_info_id;
 
 				}else{
-					const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+					const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 					if(rhs.isError()){ return evo::resultError; }
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					if constexpr(IS_CONSTEXPR){
+					if constexpr(IS_COMPTIME){
 						this->add_instruction(
-							this->context.symbol_proc_manager.createMathInfixConstexprComparative(
+							this->context.symbol_proc_manager.createMathInfixComptimeComparative(
 								infix, lhs.value(), rhs.value(), new_term_info_id
 							)
 						);
@@ -3601,16 +3601,16 @@ namespace pcit::panther{
 
 			case Token::lookupKind("<"): case Token::lookupKind("<="): case Token::lookupKind(">"):
 			case Token::lookupKind(">="): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprComparative(
+						this->context.symbol_proc_manager.createMathInfixComptimeComparative(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3625,16 +3625,16 @@ namespace pcit::panther{
 			} break;
 
 			case Token::lookupKind("&"):  case Token::lookupKind("|"): case Token::lookupKind("^"): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprBitwiseLogical(
+						this->context.symbol_proc_manager.createMathInfixComptimeBitwiseLogical(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3650,16 +3650,16 @@ namespace pcit::panther{
 
 			case Token::lookupKind("+%"): case Token::lookupKind("+|"): case Token::lookupKind("-%"):
 			case Token::lookupKind("-|"): case Token::lookupKind("*%"): case Token::lookupKind("*|"): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprIntegralMath(
+						this->context.symbol_proc_manager.createMathInfixComptimeIntegralMath(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3675,16 +3675,16 @@ namespace pcit::panther{
 
 			case Token::lookupKind("+"): case Token::lookupKind("-"): case Token::lookupKind("*"):
 			case Token::lookupKind("/"): case Token::lookupKind("%"): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprMath(
+						this->context.symbol_proc_manager.createMathInfixComptimeMath(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3700,16 +3700,16 @@ namespace pcit::panther{
 
 
 			case Token::lookupKind("<<"): case Token::lookupKind("<<|"): case Token::lookupKind(">>"): {
-				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_CONSTEXPR>(infix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }
 
-				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_CONSTEXPR>(infix.rhs);
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
 				if(rhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createMathInfixConstexprShift(
+						this->context.symbol_proc_manager.createMathInfixComptimeShift(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
@@ -3729,7 +3729,7 @@ namespace pcit::panther{
 		}
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Postfix& postfix = this->source.getASTBuffer().getPostfix(node);
 
@@ -3737,7 +3737,7 @@ namespace pcit::panther{
 			case Token::lookupKind(".*"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3750,7 +3750,7 @@ namespace pcit::panther{
 			case Token::lookupKind(".?"): {
 				const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
 
-				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_CONSTEXPR>(postfix.lhs);
+				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
 				this->add_instruction(
@@ -3764,7 +3764,7 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported postfix operator");
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::New& ast_new = this->source.getASTBuffer().getNew(node);
 
@@ -3776,16 +3776,16 @@ namespace pcit::panther{
 		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
 		args.reserve(ast_new.args.size());
 		for(const AST::FuncCall::Arg& arg : ast_new.args){
-			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_CONSTEXPR>(arg.value);
+			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_COMPTIME>(arg.value);
 			if(value_expr.isError()){ return evo::resultError; }
 
 			args.emplace_back(value_expr.value());
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			this->add_instruction(
-				this->context.symbol_proc_manager.createNewConstexpr(
+				this->context.symbol_proc_manager.createNewComptime(
 					ast_new, type_id.value(), new_term_info_id, std::move(args)
 				)
 			);
@@ -3800,7 +3800,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_array_init_new(const AST::Node& node)
 	-> evo::Result<SymbolProc::TermInfoID> {
 		const AST::ArrayInitNew& array_init_new =  this->source.getASTBuffer().getArrayInitNew(node);
@@ -3813,16 +3813,16 @@ namespace pcit::panther{
 		auto values = evo::SmallVector<SymbolProc::TermInfoID>();
 		values.reserve(array_init_new.values.size());
 		for(const AST::Node& value : array_init_new.values){
-			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_CONSTEXPR>(value);
+			const evo::Result<SymbolProc::TermInfoID> value_expr = this->analyze_expr<IS_COMPTIME>(value);
 			if(value_expr.isError()){ return evo::resultError; }
 
 			values.emplace_back(value_expr.value());
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			this->add_instruction(
-				this->context.symbol_proc_manager.createArrayInitNewConstexpr(
+				this->context.symbol_proc_manager.createArrayInitNewComptime(
 					array_init_new, type_id.value(), new_term_info_id, std::move(values)
 				)
 			);
@@ -3838,7 +3838,7 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_designated_init_new(const AST::Node& node)
 	-> evo::Result<SymbolProc::TermInfoID> {
 		const AST::DesignatedInitNew& designated_init_new =  this->source.getASTBuffer().getDesignatedInitNew(node);
@@ -3852,16 +3852,16 @@ namespace pcit::panther{
 		member_inits.reserve(designated_init_new.memberInits.size());
 		for(const AST::DesignatedInitNew::MemberInit& member_init : designated_init_new.memberInits){
 			const evo::Result<SymbolProc::TermInfoID> member_init_expr =
-				this->analyze_expr<IS_CONSTEXPR>(member_init.expr);
+				this->analyze_expr<IS_COMPTIME>(member_init.expr);
 			if(member_init_expr.isError()){ return evo::resultError; }
 
 			member_inits.emplace_back(member_init_expr.value());
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			this->add_instruction(
-				this->context.symbol_proc_manager.createDesignatedInitNewConstexpr(
+				this->context.symbol_proc_manager.createDesignatedInitNewComptime(
 					designated_init_new, type_id.value(), new_term_info_id, std::move(member_inits)
 				)
 			);
@@ -3875,12 +3875,12 @@ namespace pcit::panther{
 		return new_term_info_id;
 	}
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_try_else(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::TryElse& try_else = this->source.getASTBuffer().getTryElse(node);
  
 		const evo::Result<SymbolProc::TermInfoID> attempt_expr =
-			this->analyze_erroring_expr<IS_CONSTEXPR>(try_else.attemptExpr);
+			this->analyze_erroring_expr<IS_COMPTIME>(try_else.attemptExpr);
 		if(attempt_expr.isError()){ return evo::resultError; }
 
 		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
@@ -3891,7 +3891,7 @@ namespace pcit::panther{
 		);
 
 		const evo::Result<SymbolProc::TermInfoID> except_expr =
-			this->analyze_expr<IS_CONSTEXPR>(try_else.exceptExpr);
+			this->analyze_expr<IS_COMPTIME>(try_else.exceptExpr);
 		if(except_expr.isError()){ return evo::resultError; }
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();

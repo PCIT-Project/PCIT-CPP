@@ -14,7 +14,7 @@
 
 #include "../symbol_proc/SymbolProcBuilder.h"
 #include "./attributes.h"
-#include "./ConstexprIntrinsicEvaluator.h"
+#include "./ComptimeIntrinsicEvaluator.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -225,13 +225,13 @@ namespace pcit::panther{
 			case Instruction::Kind::FUNC_DEF:
 				return this->instr_func_def(this->context.symbol_proc_manager.getFuncDef(instr));
 
-			case Instruction::Kind::FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED:
-				return this->instr_func_prepare_constexpr_pir_if_needed(
-					this->context.symbol_proc_manager.getFuncPrepareConstexprPIRIfNeeded(instr)
+			case Instruction::Kind::FUNC_PREPARE_COMPTIME_PIR_IF_NEEDED:
+				return this->instr_func_prepare_comptime_pir_if_needed(
+					this->context.symbol_proc_manager.getFuncPrepareComptimePIRIfNeeded(instr)
 				);
 
-			case Instruction::Kind::FUNC_CONSTEXPR_PIR_READY_IF_NEEDED:
-				return this->instr_func_constexpr_pir_ready_if_needed();
+			case Instruction::Kind::FUNC_COMPTIME_PIR_READY_IF_NEEDED:
+				return this->instr_func_comptime_pir_ready_if_needed();
 
 			case Instruction::Kind::TEMPLATE_FUNC_BEGIN:
 				return this->instr_template_func_begin(this->context.symbol_proc_manager.getTemplateFuncBegin(instr));
@@ -290,8 +290,8 @@ namespace pcit::panther{
 			case Instruction::Kind::INTERFACE_IMPL_DEF:
 				return this->instr_interface_impl_def(this->context.symbol_proc_manager.getInterfaceImplDef(instr));
 
-			case Instruction::Kind::INTERFACE_IMPL_CONSTEXPR_PIR:
-				return this->instr_interface_impl_constexpr_pir();
+			case Instruction::Kind::INTERFACE_IMPL_COMPTIME_PIR:
+				return this->instr_interface_impl_comptime_pir();
 
 			case Instruction::Kind::LOCAL_VAR:
 				return this->instr_local_var(this->context.symbol_proc_manager.getLocalVar(instr));
@@ -448,14 +448,14 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getWaitOnSubSymbolProcDef(instr)
 				);
 
-			case Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR_ERRORS:
+			case Instruction::Kind::FUNC_CALL_EXPR_COMPTIME_ERRORS:
 				return this->instr_func_call_expr<true, true>(
-					this->context.symbol_proc_manager.getFuncCallExprConstexprErrors(instr)
+					this->context.symbol_proc_manager.getFuncCallExprComptimeErrors(instr)
 				);
 
-			case Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR:
+			case Instruction::Kind::FUNC_CALL_EXPR_COMPTIME:
 				return this->instr_func_call_expr<true, false>(
-					this->context.symbol_proc_manager.getFuncCallExprConstexpr(instr)
+					this->context.symbol_proc_manager.getFuncCallExprComptime(instr)
 				);
 
 			case Instruction::Kind::FUNC_CALL_EXPR_ERRORS:
@@ -468,9 +468,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getFuncCallExpr(instr)
 				);
 
-			case Instruction::Kind::CONSTEXPR_FUNC_CALL_RUN:
-				return this->instr_constexpr_func_call_run(
-					this->context.symbol_proc_manager.getConstexprFuncCallRun(instr)
+			case Instruction::Kind::COMPTIME_FUNC_CALL_RUN:
+				return this->instr_comptime_func_call_run(
+					this->context.symbol_proc_manager.getComptimeFuncCallRun(instr)
 				);
 
 			case Instruction::Kind::IMPORT_PANTHER:
@@ -499,9 +499,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCall(instr)
 				);
 
-			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR:
+			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME:
 				return this->instr_template_intrinsic_func_call_expr<true>(
-					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallExprConstexpr(instr)
+					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallExprComptime(instr)
 				);
 
 			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR:
@@ -509,8 +509,8 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCallExpr(instr)
 				);
 
-			case Instruction::Kind::INDEXER_CONSTEXPR:
-				return this->instr_indexer<true>(this->context.symbol_proc_manager.getIndexerConstexpr(instr));
+			case Instruction::Kind::INDEXER_COMPTIME:
+				return this->instr_indexer<true>(this->context.symbol_proc_manager.getIndexerComptime(instr));
 
 			case Instruction::Kind::INDEXER:
 				return this->instr_indexer<false>(this->context.symbol_proc_manager.getIndexer(instr));
@@ -551,23 +551,23 @@ namespace pcit::panther{
 			case Instruction::Kind::ADDR_OF:
 				return this->instr_addr_of(this->context.symbol_proc_manager.getAddrOf(instr));
 
-			case Instruction::Kind::PREFIX_NEGATE_CONSTEXPR:
+			case Instruction::Kind::PREFIX_NEGATE_COMPTIME:
 				return this->instr_prefix_negate<true>(
-					this->context.symbol_proc_manager.getPrefixNegateConstexpr(instr)
+					this->context.symbol_proc_manager.getPrefixNegateComptime(instr)
 				);
 
 			case Instruction::Kind::PREFIX_NEGATE:
 				return this->instr_prefix_negate<false>(this->context.symbol_proc_manager.getPrefixNegate(instr));
 
-			case Instruction::Kind::PREFIX_NOT_CONSTEXPR:
-				return this->instr_prefix_not<true>(this->context.symbol_proc_manager.getPrefixNotConstexpr(instr));
+			case Instruction::Kind::PREFIX_NOT_COMPTIME:
+				return this->instr_prefix_not<true>(this->context.symbol_proc_manager.getPrefixNotComptime(instr));
 
 			case Instruction::Kind::PREFIX_NOT:
 				return this->instr_prefix_not<false>(this->context.symbol_proc_manager.getPrefixNot(instr));
 
-			case Instruction::Kind::PREFIX_BITWISE_NOT_CONSTEXPR:
+			case Instruction::Kind::PREFIX_BITWISE_NOT_COMPTIME:
 				return this->instr_prefix_bitwise_not<true>(
-					this->context.symbol_proc_manager.getPrefixBitwiseNotConstexpr(instr)
+					this->context.symbol_proc_manager.getPrefixBitwiseNotComptime(instr)
 				);
 
 			case Instruction::Kind::PREFIX_BITWISE_NOT:
@@ -581,9 +581,9 @@ namespace pcit::panther{
 			case Instruction::Kind::UNWRAP:
 				return this->instr_unwrap(this->context.symbol_proc_manager.getUnwrap(instr));
 
-			case Instruction::Kind::NEW_CONSTEXPR:
+			case Instruction::Kind::NEW_COMPTIME:
 				return this->instr_new<true>(
-					this->context.symbol_proc_manager.getNewConstexpr(instr)
+					this->context.symbol_proc_manager.getNewComptime(instr)
 				);
 
 			case Instruction::Kind::NEW:
@@ -591,9 +591,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getNew(instr)
 				);
 
-			case Instruction::Kind::ARRAY_INIT_NEW_CONSTEXPR:
+			case Instruction::Kind::ARRAY_INIT_NEW_COMPTIME:
 				return this->instr_array_init_new<true>(
-					this->context.symbol_proc_manager.getArrayInitNewConstexpr(instr)
+					this->context.symbol_proc_manager.getArrayInitNewComptime(instr)
 				);
 
 			case Instruction::Kind::ARRAY_INIT_NEW:
@@ -601,9 +601,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getArrayInitNew(instr)
 				);
 
-			case Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR:
+			case Instruction::Kind::DESIGNATED_INIT_NEW_COMPTIME:
 				return this->instr_designated_init_new<true>(
-					this->context.symbol_proc_manager.getDesignatedInitNewConstexpr(instr)
+					this->context.symbol_proc_manager.getDesignatedInitNewComptime(instr)
 				);
 
 			case Instruction::Kind::DESIGNATED_INIT_NEW:
@@ -624,7 +624,7 @@ namespace pcit::panther{
 				return this->instr_end_expr_block(this->context.symbol_proc_manager.getEndExprBlock(instr));
 
 			case Instruction::Kind::AS_CONTEXPR:
-				return this->instr_expr_as<true>(this->context.symbol_proc_manager.getAsConstexpr(instr));
+				return this->instr_expr_as<true>(this->context.symbol_proc_manager.getAsComptime(instr));
 
 			case Instruction::Kind::AS:
 				return this->instr_expr_as<false>(this->context.symbol_proc_manager.getAs(instr));
@@ -632,34 +632,34 @@ namespace pcit::panther{
 			case Instruction::Kind::OPTIONAL_NULL_CHECK:
 				return this->instr_optional_null_check(this->context.symbol_proc_manager.getOptionalNullCheck(instr));
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_COMPARATIVE:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_COMPARATIVE:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::COMPARATIVE>(
-					this->context.symbol_proc_manager.getMathInfixConstexprComparative(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeComparative(instr)
 				);
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_MATH:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_MATH:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::MATH>(
-					this->context.symbol_proc_manager.getMathInfixConstexprMath(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeMath(instr)
 				);
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_INTEGRAL_MATH:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_INTEGRAL_MATH:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::INTEGRAL_MATH>(
-					this->context.symbol_proc_manager.getMathInfixConstexprIntegralMath(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeIntegralMath(instr)
 				);
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_LOGICAL:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::LOGICAL>(
-					this->context.symbol_proc_manager.getMathInfixConstexprLogical(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeLogical(instr)
 				);
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_BITWISE_LOGICAL:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>(
-					this->context.symbol_proc_manager.getMathInfixConstexprBitwiseLogical(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeBitwiseLogical(instr)
 				);
 
-			case Instruction::Kind::MATH_INFIX_CONSTEXPR_SHIFT:
+			case Instruction::Kind::MATH_INFIX_COMPTIME_SHIFT:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::SHIFT>(
-					this->context.symbol_proc_manager.getMathInfixConstexprShift(instr)
+					this->context.symbol_proc_manager.getMathInfixComptimeShift(instr)
 				);
 
 			case Instruction::Kind::MATH_INFIX_COMPARATIVE:
@@ -845,12 +845,10 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.emplace<SymbolProc::NonLocalVarInfo>(new_sema_var);
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
-				auto sema_to_pir = SemaToPIR(
-					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-				);
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_var.comptimeJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
 		}else{
 			if(var_attrs.value().is_pub){
@@ -988,9 +986,7 @@ namespace pcit::panther{
 			sema_var.expr = this->get_term_info(*instr.value_id).getExpr();
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
-				auto sema_to_pir = SemaToPIR(
-					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-				);
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema_to_pir.lowerGlobalDef(sema_var_id);
 
@@ -1000,9 +996,9 @@ namespace pcit::panther{
 				// I'm purposely keeping this here (at least for now)
 
 				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.constexpr_pir_module,
-				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.pir_module,
+				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.comptimeJITGlobal, }
 				// 	);
 
 				// if(add_module_subset_result.has_value() == false){
@@ -1033,7 +1029,7 @@ namespace pcit::panther{
 
 			const auto lock = std::scoped_lock(current_struct.memberVarsLock);
 			current_struct.memberVars[member_index].defaultValue = BaseType::Struct::MemberVar::DefaultValue(
-				default_term.getExpr(), default_term.value_stage == TermInfo::ValueStage::CONSTEXPR
+				default_term.getExpr(), default_term.value_stage == TermInfo::ValueStage::COMPTIME
 			);
 		}
 		
@@ -1260,12 +1256,10 @@ namespace pcit::panther{
 
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
-				auto sema_to_pir = SemaToPIR(
-					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-				);
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-				sema_var.constexprJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_var.comptimeJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 				sema_to_pir.lowerGlobalDef(new_sema_var);
 
 
@@ -1274,9 +1268,9 @@ namespace pcit::panther{
 				// I'm purposely keeping this here (at least for now)
 
 				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.constexpr_pir_module,
-				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.constexprJITGlobal, }
+				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.pir_module,
+				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.comptimeJITGlobal, }
 				// 	);
 
 				// if(add_module_subset_result.has_value() == false){
@@ -1316,7 +1310,7 @@ namespace pcit::panther{
 					instr.var_def.ident,
 					*type_id,
 					BaseType::Struct::MemberVar::DefaultValue(
-						value_term_info.getExpr(), value_term_info.value_stage == TermInfo::ValueStage::CONSTEXPR
+						value_term_info.getExpr(), value_term_info.value_stage == TermInfo::ValueStage::COMPTIME
 					)
 				);
 			}
@@ -1665,11 +1659,11 @@ namespace pcit::panther{
 					*created_struct.copyAssignOverload.load(std::memory_order::relaxed)
 				);
 
-				if(copy_init_sema_func.isConstexpr != copy_assign_sema_func.isConstexpr){
+				if(copy_init_sema_func.isComptime != copy_assign_sema_func.isComptime){
 					this->emit_error(
 						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
 						this->symbol_proc.ast_node,
-						"The initialization operator [copy] does not match the constexpr status of the assignment "
+						"The initialization operator [copy] does not match the comptime status of the assignment "
 							"operator [copy]"
 					);
 					return Result::ERROR;
@@ -1730,11 +1724,11 @@ namespace pcit::panther{
 					*created_struct.moveAssignOverload.load(std::memory_order::relaxed)
 				);
 
-				if(move_init_sema_func.isConstexpr != move_assign_sema_func.isConstexpr){
+				if(move_init_sema_func.isComptime != move_assign_sema_func.isComptime){
 					this->emit_error(
 						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
 						this->symbol_proc.ast_node,
-						"The initialization operator [move] does not match the constexpr status of the assignment "
+						"The initialization operator [move] does not match the comptime status of the assignment "
 							"operator [move]"
 					);
 					return Result::ERROR;
@@ -1800,11 +1794,9 @@ namespace pcit::panther{
 		}
 
 		///////////////////////////////////
-		// PIR lowering for constexpr
+		// PIR lowering for comptime
 
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 		sema_to_pir.lowerStruct(created_struct_id);
 
@@ -1821,7 +1813,7 @@ namespace pcit::panther{
 		if(created_struct.newInitOverloads.empty()){
 			created_struct.isDefaultInitializable = true;
 			created_struct.isTriviallyDefaultInitializable = true;
-			created_struct.isConstexprDefaultInitializable = true;
+			created_struct.isComptimeDefaultInitializable = true;
 			created_struct.isNoErrorDefaultInitializable = true;
 			created_struct.isSafeDefaultInitializable = true;
 
@@ -1831,14 +1823,14 @@ namespace pcit::panther{
 					if(member_var.defaultValue.has_value()){
 						created_struct.isTriviallyDefaultInitializable = false;
 
-						if(member_var.defaultValue->isConstexpr == false){
-							created_struct.isConstexprDefaultInitializable = false;
+						if(member_var.defaultValue->isComptime == false){
+							created_struct.isComptimeDefaultInitializable = false;
 						}
 						
 					}else{
 						created_struct.isDefaultInitializable = false;
 						created_struct.isTriviallyDefaultInitializable = false;
-						created_struct.isConstexprDefaultInitializable = false;
+						created_struct.isComptimeDefaultInitializable = false;
 						created_struct.isNoErrorDefaultInitializable = false;
 						break;
 					}
@@ -1847,17 +1839,17 @@ namespace pcit::panther{
 				if(this->context.getTypeManager().isNoErrorDefaultInitializable(member_var.typeID) == false){
 					created_struct.isDefaultInitializable = false;
 					created_struct.isTriviallyDefaultInitializable = false;
-					created_struct.isConstexprDefaultInitializable = false;
+					created_struct.isComptimeDefaultInitializable = false;
 					created_struct.isNoErrorDefaultInitializable = false;
 					break;
 				}
 
-				if(created_struct.isConstexprDefaultInitializable){
+				if(created_struct.isComptimeDefaultInitializable){
 					if(
-						(member_var.defaultValue.has_value() && member_var.defaultValue->isConstexpr == false)
-						|| this->context.getTypeManager().isConstexprDefaultInitializable(member_var.typeID) == false
+						(member_var.defaultValue.has_value() && member_var.defaultValue->isComptime == false)
+						|| this->context.getTypeManager().isComptimeDefaultInitializable(member_var.typeID) == false
 					){
-						created_struct.isConstexprDefaultInitializable = false;
+						created_struct.isComptimeDefaultInitializable = false;
 					}
 				}
 
@@ -1907,7 +1899,7 @@ namespace pcit::panther{
 					0,
 					false,
 					false,
-					created_struct.isConstexprDefaultInitializable,
+					created_struct.isComptimeDefaultInitializable,
 					false,
 					false,
 					false
@@ -1975,7 +1967,7 @@ namespace pcit::panther{
 
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
 
-				if(created_struct.isConstexprDefaultInitializable){
+				if(created_struct.isComptimeDefaultInitializable){
 					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().init_func = 
 						created_default_init_new_id;
 				}
@@ -1991,8 +1983,8 @@ namespace pcit::panther{
 
 				created_struct.isDefaultInitializable = true;
 
-				if(new_init_overload.isConstexpr){
-					created_struct.isConstexprDefaultInitializable = true;
+				if(new_init_overload.isComptime){
+					created_struct.isComptimeDefaultInitializable = true;
 				}
 
 				if(new_init_overload_func_type.errorTypes.empty()){
@@ -2012,7 +2004,7 @@ namespace pcit::panther{
 
 		if(created_struct.deleteOverload.load(std::memory_order::relaxed).has_value() == false){
 			bool is_trivially_deletable = true;
-			bool is_constexpr_deletable = true;
+			bool is_comptime_deletable = true;
 
 
 			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
@@ -2021,11 +2013,11 @@ namespace pcit::panther{
 					break;
 				}
 
-				if(is_constexpr_deletable == false){ continue; }
-				if(this->context.getTypeManager().isConstexprDeletable(
+				if(is_comptime_deletable == false){ continue; }
+				if(this->context.getTypeManager().isComptimeDeletable(
 					member_var.typeID, this->context.getSemaBuffer()
 				) == false){
-					is_constexpr_deletable = false;
+					is_comptime_deletable = false;
 				}
 			}
 
@@ -2066,7 +2058,7 @@ namespace pcit::panther{
 					1,
 					false,
 					false,
-					is_constexpr_deletable,
+					is_comptime_deletable,
 					false,
 					false,
 					false
@@ -2118,7 +2110,7 @@ namespace pcit::panther{
 
 				created_struct.deleteOverload = created_default_delete_id;
 
-				if(is_constexpr_deletable){
+				if(is_comptime_deletable){
 					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().delete_func = 
 						created_default_delete_id;
 				}
@@ -2156,14 +2148,14 @@ namespace pcit::panther{
 
 				bool is_movable = true;
 				bool is_trivially_movable = true;
-				bool is_constexpr_movable = true;
+				bool is_comptime_movable = true;
 				bool is_safe_movable = true;
 
 				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 					if(this->context.getTypeManager().isMovable(member_var.typeID) == false){
 						is_movable = false;
 						is_trivially_movable = false;
-						is_constexpr_movable = false;
+						is_comptime_movable = false;
 						is_safe_movable = false;
 
 						created_struct.moveInitOverload = 
@@ -2180,11 +2172,11 @@ namespace pcit::panther{
 					}
 
 
-					if(is_constexpr_movable == false){ continue; }
-					if(this->context.getTypeManager().isConstexprMovable(
+					if(is_comptime_movable == false){ continue; }
+					if(this->context.getTypeManager().isComptimeMovable(
 						member_var.typeID, this->context.getSemaBuffer()
 					) == false){
-						is_constexpr_movable = false;
+						is_comptime_movable = false;
 					}
 
 					if(is_safe_movable == false){ continue; }
@@ -2233,7 +2225,7 @@ namespace pcit::panther{
 						1,
 						false,
 						false,
-						is_constexpr_movable,
+						is_comptime_movable,
 						false,
 						false,
 						false
@@ -2294,7 +2286,7 @@ namespace pcit::panther{
 					created_struct.moveInitOverload = 
 						BaseType::Struct::DeletableOverload(created_default_move_id, false);
 
-					if(is_constexpr_movable){
+					if(is_comptime_movable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().move_func = 
 							created_default_move_id;
 					}
@@ -2323,14 +2315,14 @@ namespace pcit::panther{
 
 				bool is_copyable = true;
 				bool is_trivially_copyable = true;
-				bool is_constexpr_copyable = true;
+				bool is_comptime_copyable = true;
 				bool is_safe_copyable = true;
 
 				for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
 					if(this->context.getTypeManager().isCopyable(member_var.typeID) == false){
 						is_copyable = false;
 						is_trivially_copyable = false;
-						is_constexpr_copyable = false;
+						is_comptime_copyable = false;
 						is_safe_copyable = false;
 
 						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(std::nullopt, true);
@@ -2346,11 +2338,11 @@ namespace pcit::panther{
 					}
 
 
-					if(is_constexpr_copyable == false){ continue; }
-					if(this->context.getTypeManager().isConstexprCopyable(
+					if(is_comptime_copyable == false){ continue; }
+					if(this->context.getTypeManager().isComptimeCopyable(
 						member_var.typeID, this->context.getSemaBuffer()
 					) == false){
-						is_constexpr_copyable = false;
+						is_comptime_copyable = false;
 					}
 
 					if(is_safe_copyable == false){ continue; }
@@ -2399,7 +2391,7 @@ namespace pcit::panther{
 						1,
 						false,
 						false,
-						is_constexpr_copyable,
+						is_comptime_copyable,
 						false,
 						false,
 						false
@@ -2461,7 +2453,7 @@ namespace pcit::panther{
 					created_struct.copyInitOverload = 
 						BaseType::Struct::DeletableOverload(created_default_copy_id, false);
 
-					if(is_constexpr_copyable){
+					if(is_comptime_copyable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
 							created_default_copy_id;
 					}
@@ -2506,9 +2498,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_struct_created_sepcial_members_pir_if_needed() -> Result {
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 
 		const SymbolProc::StructSpecialMemberFuncs& struct_special_member_funcs = 
@@ -2519,7 +2509,7 @@ namespace pcit::panther{
 			sema::Func& target_func = this->context.sema_buffer.funcs[target_func_id];
 
 
-			target_func.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(target_func_id);
+			target_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(target_func_id);
 
 			sema_to_pir.lowerFuncDef(target_func_id);
 
@@ -2527,18 +2517,18 @@ namespace pcit::panther{
 			// The following code commented code is for lowering directly to JIT
 			// I'm purposely keeping this here (at least for now)
 
-			// target_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-			// 	target_func_id, *target_func.constexprJITFunc
+			// target_func.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+			// 	target_func_id, *target_func.comptimeJITFunc
 			// );
 
 
 			// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
-			// 	*target_func.constexprJITFunc, *target_func.constexprJITInterfaceFunc
+			// 	*target_func.comptimeJITFunc, *target_func.comptimeJITInterfaceFunc
 			// };
 
 			// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-			// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-			// 		this->context.constexpr_pir_module,
+			// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
+			// 		this->context.pir_module,
 			// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
 			// 	);
 
@@ -2884,9 +2874,7 @@ namespace pcit::panther{
 		union_type.defCompleted = true;
 
 
-		auto sema_to_pir = SemaToPIR(
-			this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-		);
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 		sema_to_pir.lowerUnion(union_info.union_id);
 
@@ -3006,11 +2994,11 @@ namespace pcit::panther{
 			if(enumerator.value.has_value()){
 				TermInfo& value_term_info = this->get_term_info(*instr.enumerator_values[i]);
 
-				if(value_term_info.value_stage != TermInfo::ValueStage::CONSTEXPR){
+				if(value_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+						Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 						*enumerator.value,
-						"Enumerator value is not constexpr"
+						"Enumerator value is not comptime"
 					);
 					return Result::ERROR;
 				}
@@ -3555,7 +3543,7 @@ namespace pcit::panther{
 		);
 
 
-		const bool is_constexpr = !func_attrs.value().is_runtime;
+		const bool is_comptime = !func_attrs.value().is_runtime;
 
 		const sema::Func::ID created_func_id = this->context.sema_buffer.createFunc(
 			this->source.getID(),
@@ -3570,7 +3558,7 @@ namespace pcit::panther{
 			min_num_args,
 			func_attrs.value().is_pub,
 			func_attrs.value().is_priv,
-			is_constexpr,
+			is_comptime,
 			func_attrs.value().is_export,
 			func_attrs.value().is_implicit,
 			has_in_param,
@@ -4691,7 +4679,7 @@ namespace pcit::panther{
 									2,
 									false,
 									false,
-									created_func.isConstexpr,
+									created_func.isComptime,
 									false,
 									false,
 									created_func.hasInParam
@@ -5115,18 +5103,16 @@ namespace pcit::panther{
 		//////////////////
 		// prepare pir
 
-		if(current_func.isConstexpr){
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
+		if(current_func.isComptime){
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-			current_func.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(current_func_id);
+			current_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(current_func_id);
 
 
 			if(func_info.flipped_version.has_value()){
 				sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
 
-				flipped_version.constexprJITFunc = sema_to_pir.lowerFuncDeclConstexpr(*func_info.flipped_version);
+				flipped_version.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
 			}
 
 			this->propagate_finished_pir_decl();
@@ -5347,7 +5333,7 @@ namespace pcit::panther{
 		this->propagate_finished_def();
 
 
-		if(current_func.isConstexpr){
+		if(current_func.isComptime){
 			bool any_waiting = false;
 			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
@@ -5405,18 +5391,16 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_prepare_constexpr_pir_if_needed(
-		const Instruction::FuncPrepareConstexprPIRIfNeeded& instr [[maybe_unused]]
+	auto SemanticAnalyzer::instr_func_prepare_comptime_pir_if_needed(
+		const Instruction::FuncPrepareComptimePIRIfNeeded& instr [[maybe_unused]]
 	) -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.isConstexpr){
+		if(current_func.isComptime){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
 			{
-				auto sema_to_pir = SemaToPIR(
-					this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-				);
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				
 				sema_to_pir.lowerFuncDef(sema_func_id);
@@ -5432,34 +5416,34 @@ namespace pcit::panther{
 				// const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
 				// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 4>();
-				// module_subset_funcs.emplace_back(*sema_func.constexprJITFunc);
+				// module_subset_funcs.emplace_back(*sema_func.comptimeJITFunc);
 
 
 				// // create jit interface if needed
 				// if(func_type.returnsVoid() == false && func_type.returnTypes.size() == 1){
-				// 	sema_func.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-				// 		sema_func_id, *sema_func.constexprJITFunc
+				// 	sema_func.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+				// 		sema_func_id, *sema_func.comptimeJITFunc
 				// 	);
-				// 	module_subset_funcs.emplace_back(*sema_func.constexprJITInterfaceFunc);
+				// 	module_subset_funcs.emplace_back(*sema_func.comptimeJITInterfaceFunc);
 
 
 				// 	if(func_info.flipped_version.has_value()){
 				// 		sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
 
 				// 		sema_to_pir.lowerFuncDef(*func_info.flipped_version);
-				// 		module_subset_funcs.emplace_back(*flipped_version.constexprJITFunc);
+				// 		module_subset_funcs.emplace_back(*flipped_version.comptimeJITFunc);
 
-				// 		flipped_version.constexprJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-				// 			*func_info.flipped_version, *flipped_version.constexprJITFunc
+				// 		flipped_version.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
+				// 			*func_info.flipped_version, *flipped_version.comptimeJITFunc
 				// 		);
-				// 		module_subset_funcs.emplace_back(*flipped_version.constexprJITInterfaceFunc);
+				// 		module_subset_funcs.emplace_back(*flipped_version.comptimeJITInterfaceFunc);
 				// 	}
 				// }
 
 
 				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.constexpr_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.constexpr_pir_module,
+				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
+				// 		this->context.pir_module,
 				// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
 				// 	);
 
@@ -5472,7 +5456,7 @@ namespace pcit::panther{
 				// 	this->emit_fatal(
 				// 		Diagnostic::Code::MISC_LLVM_ERROR,
 				// 		instr.func_def,
-				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for constexpr function"),
+				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for comptime function"),
 				// 		std::move(infos)
 				// 	);
 				// 	return Result::ERROR;
@@ -5574,10 +5558,10 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_constexpr_pir_ready_if_needed() -> Result {
+	auto SemanticAnalyzer::instr_func_comptime_pir_ready_if_needed() -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.isConstexpr){
+		if(current_func.isComptime){
 			this->propagate_finished_pir_def();
 		}
 
@@ -5970,9 +5954,7 @@ namespace pcit::panther{
 			}
 
 
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 			sema_to_pir.lowerInterface(current_interface_id);
 		}
 
@@ -6351,7 +6333,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_interface_impl_constexpr_pir() -> Result {
+	auto SemanticAnalyzer::instr_interface_impl_comptime_pir() -> Result {
 		SymbolProc::InterfaceImplInfo& info = this->symbol_proc.extra_info.as<SymbolProc::InterfaceImplInfo>();
 
 		if(info.target_interface.isPolymorphic){
@@ -6372,11 +6354,9 @@ namespace pcit::panther{
 			}();
 
 
-			auto sema_to_pir = SemaToPIR(
-				this->context, this->context.constexpr_pir_module, this->context.constexpr_sema_to_pir_data
-			);
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-			sema_to_pir.lowerInterfaceVTableConstexpr(
+			sema_to_pir.lowerInterfaceVTableComptime(
 				info.target_interface_id, current_type_id, interface_impl.methods
 			);
 		}
@@ -7436,11 +7416,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.constexprIfCond && cond.value_stage == TermInfo::ValueStage::CONSTEXPR){
+		if(this->get_package().warn.comptimeIfCond && cond.value_stage == TermInfo::ValueStage::COMPTIME){
 			this->emit_warning(
-				Diagnostic::Code::SEMA_WARN_CONSTEXPR_IF_COND,
+				Diagnostic::Code::SEMA_WARN_COMPTIME_IF_COND,
 				instr.conditional.cond,
-				"Condition in [if] condition is constexpr",
+				"Condition in [if] condition is comptime",
 				Diagnostic::Info("Consider converting it to a [when] condition")
 			);
 		}
@@ -7576,7 +7556,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_for(const Instruction::BeginFor& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
 
-		const bool in_constexpr_func = this->get_current_func().isConstexpr;
+		const bool in_comptime_func = this->get_current_func().isComptime;
 
 
 		const AST::AttributeBlock& attribute_block =
@@ -7648,7 +7628,7 @@ namespace pcit::panther{
 			interface_iterator         = get_interface("IIterator");
 			interface_mut_iterator     = get_interface("IMutIterator");
 
-			if(in_constexpr_func == false){
+			if(in_comptime_func == false){
 				interface_iterable_rt         = get_interface("IIterableRT");
 				interface_iterable_ref_rt     = get_interface("IIterableRefRT");
 				interface_iterable_mut_ref_rt = get_interface("IIterableMutRefRT");
@@ -7716,7 +7696,7 @@ namespace pcit::panther{
 			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 6>();
 
 			if(instr.for_stmt.values[i].isMut){
-				if(in_constexpr_func){
+				if(in_comptime_func){
 					interfaces_to_check.emplace_back(
 						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
 					);
@@ -7748,7 +7728,7 @@ namespace pcit::panther{
 					);
 				}
 			}else{
-				if(in_constexpr_func){
+				if(in_comptime_func){
 					interfaces_to_check.emplace_back(
 						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
 					);
@@ -8006,7 +7986,7 @@ namespace pcit::panther{
 			//////////////////
 			// iterable passed
 
-			if(in_constexpr_func){
+			if(in_comptime_func){
 				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
 				func_info.dependent_funcs.emplace(iterable_impl.methods[create_iterator_func_index]);
@@ -9005,12 +8985,12 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_current_func().isConstexpr && func_call_impl_res.value().is_src_func()){
-			if(func_call_impl_res.value().selected_func->isConstexpr == false){
+		if(this->get_current_func().isComptime && func_call_impl_res.value().is_src_func()){
+			if(func_call_impl_res.value().selected_func->isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					instr.func_call.target,
-					"Cannot call a non-constexpr function within a constexpr function",
+					"Cannot call a non-comptime function within a comptime function",
 					Diagnostic::Info(
 						"Called function was defined here:",
 						this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -9096,12 +9076,12 @@ namespace pcit::panther{
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
 
-			if(this->get_current_func().isConstexpr){
-				if(intrinsic_func_info.allowedInComptime == false){
+			if(this->get_current_func().isComptime){
+				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 						instr.func_call.target,
-						"Cannot call a non-constexpr function within a constexpr function"
+						"Cannot call a non-comptime function within a comptime function"
 					);
 					return Result::ERROR;
 				}
@@ -9141,11 +9121,11 @@ namespace pcit::panther{
 				} break;
 
 				case Context::Config::Mode::BUILD_SYSTEM: {
-					if(intrinsic_func_info.allowedInBuildSystem == false){
+					if(intrinsic_func_info.allowedInBuild == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
 							instr.func_call.target,
-							"Calling this intrinsic is not allowed in build system mode"
+							"Calling this intrinsic is not allowed in build mode"
 						);
 						return Result::ERROR;
 					}
@@ -10246,15 +10226,15 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isConstexpr
-			&& this->context.getTypeManager().isConstexprCopyable(
+			this->get_current_func().isComptime
+			&& this->context.getTypeManager().isComptimeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
+				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_COMPTIME_COPYABLE,
 				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Type of argument of operator [copy] is not constexpr copyable"
+				"Type of argument of operator [copy] is not comptime copyable"
 			);
 			return Result::ERROR;
 		}
@@ -10438,15 +10418,15 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isConstexpr
-			&& this->context.getTypeManager().isConstexprMovable(
+			this->get_current_func().isComptime
+			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE,
+				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_COMPTIME_MOVABLE,
 				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Type of argument of operator [move] is not constexpr movable"
+				"Type of argument of operator [move] is not comptime movable"
 			);
 			return Result::ERROR;
 		}
@@ -10639,7 +10619,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->get_current_func().isConstexpr){
+		if(this->get_current_func().isComptime){
 			if(is_initialization){
 				if(target_is_copyable){
 					if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
@@ -11331,12 +11311,12 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR, bool ERRORS>
-	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_CONSTEXPR, ERRORS>& instr)
+	template<bool IS_COMPTIME, bool ERRORS>
+	auto SemanticAnalyzer::instr_func_call_expr(const Instruction::FuncCallExpr<IS_COMPTIME, ERRORS>& instr)
 	-> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<IS_CONSTEXPR, ERRORS>(
+		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<IS_COMPTIME, ERRORS>(
 			instr.func_call, target_term_info, instr.args, instr.template_args
 		);
 		if(func_call_impl_res.has_value() == false){
@@ -11348,7 +11328,7 @@ namespace pcit::panther{
 		}
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
-		bool all_args_are_constexpr = true;
+		bool all_args_are_comptime = true;
 		switch(target_term_info.value_category){
 			case TermInfo::ValueCategory::METHOD_CALL: {
 				const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
@@ -11373,8 +11353,8 @@ namespace pcit::panther{
 					);
 				}
 
-				if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::CONSTEXPR){
-					all_args_are_constexpr = false;
+				if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::COMPTIME){
+					all_args_are_comptime = false;
 				}
 			} break;
 
@@ -11384,8 +11364,8 @@ namespace pcit::panther{
 						target_term_info.getExpr().fakeTermInfoID()
 					);
 
-					if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::CONSTEXPR){
-						all_args_are_constexpr = false;
+					if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::COMPTIME){
+						all_args_are_comptime = false;
 					}
 
 					sema_args.emplace_back(fake_term_info.expr);
@@ -11407,7 +11387,7 @@ namespace pcit::panther{
 					);
 				}
 
-				all_args_are_constexpr = false;
+				all_args_are_comptime = false;
 			} break;
 
 			default: break;
@@ -11417,7 +11397,7 @@ namespace pcit::panther{
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			const TermInfo& arg_info = this->get_term_info(arg);
 			sema_args.emplace_back(arg_info.getExpr());
-			if(arg_info.value_stage != TermInfo::ValueStage::CONSTEXPR){ all_args_are_constexpr = false; }
+			if(arg_info.value_stage != TermInfo::ValueStage::COMPTIME){ all_args_are_comptime = false; }
 		}
 
 
@@ -11430,12 +11410,12 @@ namespace pcit::panther{
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-			if(this->get_current_func().isConstexpr){
-				if(intrinsic_func_info.allowedInComptime == false){
+			if(this->get_current_func().isComptime){
+				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 						instr.func_call.target,
-						"Cannot call a non-constexpr function within a constexpr function"
+						"Cannot call a non-comptime function within a comptime function"
 					);
 					return Result::ERROR;
 				}
@@ -11475,11 +11455,11 @@ namespace pcit::panther{
 				} break;
 
 				case Context::Config::Mode::BUILD_SYSTEM: {
-					if(intrinsic_func_info.allowedInBuildSystem == false){
+					if(intrinsic_func_info.allowedInBuild == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
 							instr.func_call.target,
-							"Calling this intrinsic is not allowed in build system mode"
+							"Calling this intrinsic is not allowed in build mode"
 						);
 						return Result::ERROR;
 					}
@@ -11492,11 +11472,11 @@ namespace pcit::panther{
 
 
 			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_CONSTEXPR){
-					return TermInfo::ValueStage::CONSTEXPR;
+				if constexpr(IS_COMPTIME){
+					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					if(this->get_current_func().isConstexpr){
-						return TermInfo::ValueStage::COMPTIME;
+					if(this->get_current_func().isComptime){
+						return TermInfo::ValueStage::INTERPTIME;
 					}else{
 						return TermInfo::ValueStage::RUNTIME;
 					}
@@ -11532,16 +11512,16 @@ namespace pcit::panther{
 			}
 
 
-			if constexpr(IS_CONSTEXPR){
-				evo::debugFatalBreak("No constexpr non-templated intrinsics exist");
+			if constexpr(IS_COMPTIME){
+				evo::debugFatalBreak("No comptime non-templated intrinsics exist");
 
 			}else{
-				if(this->get_current_func().isConstexpr){
-					if(func_call_impl_res.value().selected_func->isConstexpr == false){
+				if(this->get_current_func().isComptime){
+					if(func_call_impl_res.value().selected_func->isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 							instr.func_call.target,
-							"Cannot call a non-constexpr function within a constexpr function",
+							"Cannot call a non-comptime function within a comptime function",
 							Diagnostic::Info(
 								"Called function was defined here:",
 								this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11563,7 +11543,7 @@ namespace pcit::panther{
 
 
 		if(target_term_info.value_category == TermInfo::ValueCategory::POLY_INTERFACE_CALL){
-			return this->interface_func_call<IS_CONSTEXPR>(
+			return this->interface_func_call<IS_COMPTIME>(
 				target_term_info, std::move(sema_args), *func_call_impl_res.value().selected_func_id, instr.output
 			);
 		}
@@ -11584,15 +11564,15 @@ namespace pcit::panther{
 		);
 
 		const TermInfo::ValueStage value_stage = [&](){
-			if constexpr(IS_CONSTEXPR){
-				return TermInfo::ValueStage::CONSTEXPR;
+			if constexpr(IS_COMPTIME){
+				return TermInfo::ValueStage::COMPTIME;
 			}else{
-				if(all_args_are_constexpr && func_call_impl_res.value().selected_func->isConstexpr){
-					return TermInfo::ValueStage::CONSTEXPR;
+				if(all_args_are_comptime && func_call_impl_res.value().selected_func->isComptime){
+					return TermInfo::ValueStage::COMPTIME;
 				}
 
-				if(this->get_current_func().isConstexpr){
-					return TermInfo::ValueStage::COMPTIME;
+				if(this->get_current_func().isComptime){
+					return TermInfo::ValueStage::INTERPTIME;
 				}else{
 					return TermInfo::ValueStage::RUNTIME;
 				}
@@ -11628,12 +11608,12 @@ namespace pcit::panther{
 			);
 		}
 
-		if constexpr(IS_CONSTEXPR){
-			if(func_call_impl_res.value().selected_func->isConstexpr == false){
+		if constexpr(IS_COMPTIME){
+			if(func_call_impl_res.value().selected_func->isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					instr.func_call.target,
-					"Constexpr value cannot be a call to a function that is not constexpr",
+					"Comptime value cannot be a call to a function that is not comptime",
 					Diagnostic::Info(
 						"Called function was defined here:",
 						this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11667,12 +11647,12 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			if(this->get_current_func().isConstexpr){
-				if(func_call_impl_res.value().selected_func->isConstexpr == false){
+			if(this->get_current_func().isComptime){
+				if(func_call_impl_res.value().selected_func->isComptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 						instr.func_call.target,
-						"Cannot call a non-constexpr function within a constexpr function",
+						"Cannot call a non-comptime function within a comptime function",
 						Diagnostic::Info(
 							"Called function was defined here:",
 							this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11868,7 +11848,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::interface_func_call(
 		const TermInfo& target_term_info,
 		evo::SmallVector<sema::Expr>&& args,
@@ -11937,7 +11917,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_constexpr_func_call_run(const Instruction::ConstexprFuncCallRun& instr) -> Result {
+	auto SemanticAnalyzer::instr_comptime_func_call_run(const Instruction::ComptimeFuncCallRun& instr) -> Result {
 		const TermInfo& func_call_term = this->get_term_info(instr.target);
 
 		const sema::FuncCall& sema_func_call =
@@ -11948,7 +11928,7 @@ namespace pcit::panther{
 
 		const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
 
-		evo::debugAssert(target_func_type.returnsVoid() == false, "Constexpr function call expr cannot return void");
+		evo::debugAssert(target_func_type.returnsVoid() == false, "Comptime function call expr cannot return void");
 		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
 
 		auto args = evo::SmallVector<core::GenericValue>();
@@ -11979,22 +11959,22 @@ namespace pcit::panther{
 			args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
 		}
 
-		// Uncomment this to print out the state of the constexpr pir module (for debugging purposes)
+		// Uncomment this to print out the state of the comptime pir module (for debugging purposes)
 		// {
 		// 	auto printer = core::Printer::createConsole();
-		// 	pir::printModule(this->context.constexpr_pir_module, printer);
+		// 	pir::printModule(this->context.pir_module, printer);
 		// }
 
-		// core::GenericValue run_result = this->context.constexpr_jit_engine.runFunc(
-		// 	this->context.constexpr_pir_module,
-		// 	*target_func.constexprJITInterfaceFunc,
+		// core::GenericValue run_result = this->context.comptime_jit_engine.runFunc(
+		// 	this->context.pir_module,
+		// 	*target_func.comptimeJITInterfaceFunc,
 		// 	args,
-		// 	this->context.constexpr_pir_module.getFunction(*target_func.constexprJITFunc).getReturnType()
+		// 	this->context.pir_module.getFunction(*target_func.comptimeJITFunc).getReturnType()
 		// );
 
 
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.constexpr_execution_engine.runFunction(*target_func.constexprJITFunc, args);
+			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, args);
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -12008,7 +11988,7 @@ namespace pcit::panther{
 					infos.emplace_back(
 						std::format(
 							"Cause of error: exceeded max call depth ({})",
-							this->context.constexpr_execution_engine.maxCallDepth()
+							this->context.comptime_execution_engine.maxCallDepth()
 						)
 					);
 				} break;
@@ -12043,9 +12023,9 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_IN_CONSTEXPR_CALL,
+				Diagnostic::Code::SEMA_ERROR_IN_COMPTIME_CALL,
 				instr.func_call,
-				"Error occured while running constexpr function call",
+				"Error occured while running comptime function call",
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -12055,16 +12035,16 @@ namespace pcit::panther{
 		if(target_func_type.hasErrorReturn()){
 			// 	// TODO(FUTURE): better messaging
 			// 	this->emit_error(
-			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_CONSTEXPR_FUNC_RUN,
+			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_COMPTIME_FUNC_RUN,
 			// 		instr.func_call,
-			// 		"Constexpr function returned error"
+			// 		"Comptime function returned error"
 			// 	);
 			// 	return Result::ERROR;
 
 			this->emit_error(
 				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 				instr.func_call,
-				"Running a constexpr function that has error returns is unimplemented"
+				"Running a comptime function that has error returns is unimplemented"
 			);
 			return Result::ERROR;
 
@@ -12082,7 +12062,7 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.func_call,
-					"Running a constexpr function as a constexpr expression that returns "
+					"Running a comptime function as a comptime expression that returns "
 						"a qualified type is unimplemented"
 				);
 				return Result::ERROR;
@@ -12095,7 +12075,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo(
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					func_call_term.type_id,
 					return_sema_expr
@@ -12246,7 +12226,7 @@ namespace pcit::panther{
 			
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
@@ -12323,7 +12303,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			output_type_id,
 			sema::Expr(this->context.sema_buffer.createCopy(uninit_ptr_value.getExpr(), output_type_id, true))
@@ -12340,12 +12320,12 @@ namespace pcit::panther{
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
-		if(this->get_current_func().isConstexpr){
-			if(template_intrinsic_func_info.allowedInComptime == false){
+		if(this->get_current_func().isComptime){
+			if(template_intrinsic_func_info.allowedInInterptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+					Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
 					instr.func_call.target,
-					"Cannot call a non-comptime function within a comptime function"
+					"Cannot call a non-interptime intrinsic function within a comptime function"
 				);
 				return Result::ERROR;
 			}
@@ -12386,11 +12366,11 @@ namespace pcit::panther{
 			} break;
 
 			case Context::Config::Mode::BUILD_SYSTEM: {
-				if(template_intrinsic_func_info.allowedInBuildSystem == false){
+				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
 						instr.func_call.target,
-						"Calling this intrinsic is not allowed in build system mode"
+						"Calling this intrinsic is not allowed in build mode"
 					);
 					return Result::ERROR;
 				}
@@ -12680,9 +12660,9 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::instr_template_intrinsic_func_call_expr(
-		const Instruction::TemplateIntrinsicFuncCallExpr<IS_CONSTEXPR>& instr
+		const Instruction::TemplateIntrinsicFuncCallExpr<IS_COMPTIME>& instr
 	) -> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
@@ -12690,23 +12670,23 @@ namespace pcit::panther{
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
-		if constexpr(IS_CONSTEXPR){
-			if(template_intrinsic_func_info.allowedInConstexpr == false){
+		if constexpr(IS_COMPTIME){
+			if(template_intrinsic_func_info.allowedInComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					instr.func_call.target,
-					"Cannot call a non-constexpr function as a constexpr value"
+					"Cannot call a non-comptime function as a comptime value"
 				);
 				return Result::ERROR;
 			}
 
 		}else{
-			if(this->get_current_func().isConstexpr){
-				if(template_intrinsic_func_info.allowedInComptime == false){
+			if(this->get_current_func().isComptime){
+				if(template_intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
 						instr.func_call.target,
-						"Cannot call a non-comptime function within a comptime function"
+						"Cannot call a non-interptime intrinsic function within a comptime function"
 					);
 					return Result::ERROR;
 				}
@@ -12748,11 +12728,11 @@ namespace pcit::panther{
 			} break;
 
 			case Context::Config::Mode::BUILD_SYSTEM: {
-				if(template_intrinsic_func_info.allowedInBuildSystem == false){
+				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
 						instr.func_call.target,
-						"Calling this intrinsic is not allowed in build system mode"
+						"Calling this intrinsic is not allowed in build mode"
 					);
 					return Result::ERROR;
 				}
@@ -12782,7 +12762,7 @@ namespace pcit::panther{
 		// helper funcs
 
 		const auto create_runtime_call = [&]() -> evo::Result<> {
-			const evo::Expected<FuncCallImplData, bool> selected_func = this->func_call_impl<IS_CONSTEXPR, false>(
+			const evo::Expected<FuncCallImplData, bool> selected_func = this->func_call_impl<IS_COMPTIME, false>(
 				instr.func_call, target_term_info, instr.args, instr.template_args
 			);
 			if(selected_func.has_value() == false){
@@ -12806,7 +12786,7 @@ namespace pcit::panther{
 			if(return_types.size() == 1){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -12815,7 +12795,7 @@ namespace pcit::panther{
 			}else{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -12906,7 +12886,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// select intrinsic
 
-		auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+		auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 			this->context.type_manager, this->context.sema_buffer
 		);
 
@@ -12917,7 +12897,7 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					comptime_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
 				);
 			} break;
 
@@ -12939,7 +12919,7 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.arrayElementTypeID(
+					comptime_intrinsic_evaluator.arrayElementTypeID(
 						this->context.type_manager.decayType<true, true>(arg_t_type_id)
 					)
 				);
@@ -12963,7 +12943,7 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.arrayRefElementTypeID(
+					comptime_intrinsic_evaluator.arrayRefElementTypeID(
 						this->context.type_manager.decayType<true, true>(arg_t_type_id)
 					)
 				);
@@ -12976,7 +12956,7 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.numBytes(
+					comptime_intrinsic_evaluator.numBytes(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool()
 					)
@@ -12990,7 +12970,7 @@ namespace pcit::panther{
 
 				this->return_term_info(
 					instr.output,
-					constexpr_intrinsic_evaluator.numBits(
+					comptime_intrinsic_evaluator.numBits(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool()
 					)
@@ -13069,8 +13049,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.trunc(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.trunc(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -13118,8 +13098,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ftrunc(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ftrunc(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
@@ -13167,8 +13147,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.sext(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.sext(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -13217,8 +13197,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.zext(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.zext(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -13266,8 +13246,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fext(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fext(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
@@ -13303,8 +13283,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.iToF(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.iToF(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -13340,8 +13320,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fToI(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fToI(
 						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
@@ -13367,8 +13347,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.add(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.add(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -13378,9 +13358,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @add wrapped"
+							"Comptime intrinsic @add wrapped"
 						);
 						return Result::ERROR;
 					}
@@ -13426,8 +13406,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.addSat(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.addSat(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13453,8 +13433,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fadd(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fadd(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
@@ -13481,8 +13461,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.sub(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.sub(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -13492,9 +13472,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @sub wrapped"
+							"Comptime intrinsic @sub wrapped"
 						);
 						return Result::ERROR;
 					}
@@ -13539,8 +13519,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.subSat(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.subSat(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13566,8 +13546,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fsub(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fsub(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
@@ -13594,8 +13574,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.mul(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.mul(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -13605,9 +13585,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @mul wrapped"
+							"Comptime intrinsic @mul wrapped"
 						);
 						return Result::ERROR;
 					}
@@ -13653,8 +13633,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.mulSat(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.mulSat(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13680,8 +13660,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fmul(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fmul(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
@@ -13708,8 +13688,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.div(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.div(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -13719,9 +13699,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @div was not exact"
+							"Comptime intrinsic @div was not exact"
 						);
 						return Result::ERROR;
 					}
@@ -13748,8 +13728,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fdiv(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fdiv(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
@@ -13778,17 +13758,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.rem(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.rem(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.rem(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.rem(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13816,8 +13796,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.fneg(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fneg(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
@@ -13842,17 +13822,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.eq(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.eq(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.eq(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.eq(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13879,17 +13859,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.neq(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.neq(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.neq(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.neq(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13933,17 +13913,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output,  constexpr_intrinsic_evaluator.lt(
+						this->return_term_info(instr.output,  comptime_intrinsic_evaluator.lt(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output,  constexpr_intrinsic_evaluator.lt(
+						this->return_term_info(instr.output,  comptime_intrinsic_evaluator.lt(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -13986,17 +13966,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.lte(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.lte(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.lte(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.lte(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14039,17 +14019,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gt(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gt(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gt(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gt(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14092,17 +14072,17 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gte(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gte(
 							arg_type,
 							this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 						));
 					}else{
-						this->return_term_info(instr.output, constexpr_intrinsic_evaluator.gte(
+						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gte(
 							arg_type,
 							this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 							this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14129,8 +14109,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseAnd(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseAnd(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14156,8 +14136,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseOr(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseOr(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14183,8 +14163,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitwiseXor(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseXor(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14238,8 +14218,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shl(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.shl(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -14249,9 +14229,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @shl wrapped"
+							"Comptime intrinsic @shl wrapped"
 						);
 						return Result::ERROR;
 					}
@@ -14304,8 +14284,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.shlSat(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.shlSat(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14359,8 +14339,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					evo::Result<TermInfo> result = constexpr_intrinsic_evaluator.shr(
+				if constexpr(IS_COMPTIME){
+					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.shr(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
@@ -14370,9 +14350,9 @@ namespace pcit::panther{
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
 						this->emit_error(
-							Diagnostic::Code::SEMA_CONSTEXPR_INTRIN_MATH_ERROR,
+							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
 							instr.func_call,
-							"Constexpr intrinsic @shr wrapped"
+							"Comptime intrinsic @shr wrapped"
 						);
 						return Result::ERROR;
 					}
@@ -14399,8 +14379,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.bitReverse(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitReverse(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -14425,8 +14405,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.byteSwap(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.byteSwap(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -14450,8 +14430,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ctPop(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ctPop(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -14476,8 +14456,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.ctlz(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ctlz(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -14502,8 +14482,8 @@ namespace pcit::panther{
 				}
 
 
-				if constexpr(IS_CONSTEXPR){
-					this->return_term_info(instr.output, constexpr_intrinsic_evaluator.cttz(
+				if constexpr(IS_COMPTIME){
+					this->return_term_info(instr.output, comptime_intrinsic_evaluator.cttz(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
@@ -14829,15 +14809,15 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isConstexpr
-			&& this->context.getTypeManager().isConstexprCopyable(
+			this->get_current_func().isComptime
+			&& this->context.getTypeManager().isComptimeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_CONSTEXPR_COPYABLE,
+				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_COMPTIME_COPYABLE,
 				instr.prefix,
-				"Type of argument of operator [copy] is not constexpr copyable"
+				"Type of argument of operator [copy] is not comptime copyable"
 			);
 			return Result::ERROR;
 		}
@@ -14939,15 +14919,15 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isConstexpr
-			&& this->context.getTypeManager().isConstexprMovable(
+			this->get_current_func().isComptime
+			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_CONSTEXPR_MOVABLE,
+				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_COMPTIME_MOVABLE,
 				instr.prefix,
-				"Type of argument of operator [move] is not constexpr movable"
+				"Type of argument of operator [move] is not comptime movable"
 			);
 			return Result::ERROR;
 		}
@@ -15073,7 +15053,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->get_current_func().isConstexpr){
+		if(this->get_current_func().isComptime){
 			if(target_is_copyable){
 				if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
 					target,
@@ -15229,8 +15209,8 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_prefix_negate(const Instruction::PrefixNegate<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_prefix_negate(const Instruction::PrefixNegate<IS_COMPTIME>& instr) -> Result {
 		TermInfo& expr = this->get_term_info(instr.expr);
 
 		if(expr.isSingleValue() == false){
@@ -15242,7 +15222,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 				sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
 				int_value.value = core::GenericInt(int_value.value.getBitWidth(), 0).ssub(int_value.value).result;
@@ -15372,8 +15352,8 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_prefix_not(const Instruction::PrefixNot<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_prefix_not(const Instruction::PrefixNot<IS_COMPTIME>& instr) -> Result {
 		TermInfo& expr = this->get_term_info(instr.expr);
 
 		if(expr.type_id.is<TypeInfo::ID>()){
@@ -15411,7 +15391,7 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			sema::BoolValue& bool_value = this->context.sema_buffer.bool_values[expr.getExpr().boolValueID()];
 			bool_value.value = !bool_value.value;
 
@@ -15447,8 +15427,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_CONSTEXPR>& instr)
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_COMPTIME>& instr)
 	-> Result {
 		TermInfo& expr = this->get_term_info(instr.expr);
 
@@ -15508,7 +15488,7 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
 			int_value.value =
 				int_value.value.bitwiseXor(core::GenericInt(int_value.value.getBitWidth(), 0).bitwiseNot());
@@ -15711,8 +15691,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
@@ -15733,7 +15713,7 @@ namespace pcit::panther{
 				if(instr.args.empty()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15756,7 +15736,7 @@ namespace pcit::panther{
 					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15793,7 +15773,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(
@@ -15843,7 +15823,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15913,7 +15893,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15926,7 +15906,7 @@ namespace pcit::panther{
 				if(instr.args.empty()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -16026,7 +16006,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(this->context.sema_buffer.createInitArrayRef(
@@ -16044,8 +16024,8 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							this->get_current_func().isConstexpr
-								? TermInfo::ValueStage::COMPTIME
+							this->get_current_func().isComptime
+								? TermInfo::ValueStage::INTERPTIME
 								: TermInfo::ValueStage::RUNTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
@@ -16130,21 +16110,21 @@ namespace pcit::panther{
 
 
 
-				if constexpr(IS_CONSTEXPR){
+				if constexpr(IS_COMPTIME){
 					this->emit_error(
 						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 						instr.ast_new,
-						"Constexpr operator [new] is unimplemented"
+						"Comptime operator [new] is unimplemented"
 					);
 					return Result::ERROR;
 
 				}else{
-					if(this->get_current_func().isConstexpr){
-						if(selected_func.isConstexpr == false){
+					if(this->get_current_func().isComptime){
+						if(selected_func.isComptime == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+								Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 								instr.ast_new,
-								"Cannot call a non-constexpr operator [new] within a constexpr function",
+								"Cannot call a non-comptime operator [new] within a comptime function",
 								Diagnostic::Info(
 									"Called operator [new] was defined here:", this->get_location(selected_func_id)
 								)
@@ -16166,8 +16146,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						this->get_current_func().isConstexpr
-							? TermInfo::ValueStage::COMPTIME
+						this->get_current_func().isComptime
+							? TermInfo::ValueStage::INTERPTIME
 							: TermInfo::ValueStage::RUNTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
@@ -16201,7 +16181,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -16236,7 +16216,7 @@ namespace pcit::panther{
 			
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -16258,8 +16238,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_array_init_new(const Instruction::ArrayInitNew<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_array_init_new(const Instruction::ArrayInitNew<IS_COMPTIME>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
@@ -16362,14 +16342,14 @@ namespace pcit::panther{
 		);
 
 		const TermInfo::ValueStage value_stage = [&](){
-			if constexpr(IS_CONSTEXPR){
-				return TermInfo::ValueStage::CONSTEXPR;
+			if constexpr(IS_COMPTIME){
+				return TermInfo::ValueStage::COMPTIME;
 			}else{
 				if(this->currently_in_func() == false){
-					return TermInfo::ValueStage::CONSTEXPR;
-
-				}else if(this->get_current_func().isConstexpr){
 					return TermInfo::ValueStage::COMPTIME;
+
+				}else if(this->get_current_func().isComptime){
+					return TermInfo::ValueStage::INTERPTIME;
 
 				}else{
 					return TermInfo::ValueStage::RUNTIME;
@@ -16389,8 +16369,8 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_designated_init_new(const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr)
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_designated_init_new(const Instruction::DesignatedInitNew<IS_COMPTIME>& instr)
 	-> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
@@ -16471,14 +16451,14 @@ namespace pcit::panther{
 			);
 
 			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_CONSTEXPR){
-					return TermInfo::ValueStage::CONSTEXPR;
+				if constexpr(IS_COMPTIME){
+					return TermInfo::ValueStage::COMPTIME;
 				}else{
 					if(this->currently_in_func() == false){
-						return TermInfo::ValueStage::CONSTEXPR;
-
-					}else if(this->get_current_func().isConstexpr){
 						return TermInfo::ValueStage::COMPTIME;
+
+					}else if(this->get_current_func().isComptime){
+						return TermInfo::ValueStage::INTERPTIME;
 
 					}else{
 						return TermInfo::ValueStage::RUNTIME;
@@ -16634,14 +16614,14 @@ namespace pcit::panther{
 		);
 
 		const TermInfo::ValueStage value_stage = [&](){
-			if constexpr(IS_CONSTEXPR){
-				return TermInfo::ValueStage::CONSTEXPR;
+			if constexpr(IS_COMPTIME){
+				return TermInfo::ValueStage::COMPTIME;
 			}else{
 				if(this->currently_in_func() == false){
-					return TermInfo::ValueStage::CONSTEXPR;
-
-				}else if(this->get_current_func().isConstexpr){
 					return TermInfo::ValueStage::COMPTIME;
+
+				}else if(this->get_current_func().isComptime){
+					return TermInfo::ValueStage::INTERPTIME;
 
 				}else{
 					return TermInfo::ValueStage::RUNTIME;
@@ -16765,7 +16745,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
-			this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 			TermInfo::ExceptParamPack{},
 			std::move(except_params)
 		);
@@ -16837,12 +16817,12 @@ namespace pcit::panther{
 
 		using ValueStage = TermInfo::ValueStage;
 		const ValueStage value_stage = [&](){
-			if(attempt_expr.value_stage == ValueStage::CONSTEXPR && except_expr.value_stage == ValueStage::CONSTEXPR){
-				return TermInfo::ValueStage::CONSTEXPR;
+			if(attempt_expr.value_stage == ValueStage::COMPTIME && except_expr.value_stage == ValueStage::COMPTIME){
+				return TermInfo::ValueStage::COMPTIME;
 			}
 
-			if(attempt_expr.value_stage >= ValueStage::COMPTIME && except_expr.value_stage >= ValueStage::COMPTIME){
-				return TermInfo::ValueStage::COMPTIME;
+			if(attempt_expr.value_stage >= ValueStage::INTERPTIME && except_expr.value_stage >= ValueStage::INTERPTIME){
+				return TermInfo::ValueStage::INTERPTIME;
 			}
 
 			return TermInfo::ValueStage::RUNTIME;
@@ -16972,7 +16952,7 @@ namespace pcit::panther{
 		if(sema_block_expr.outputs.size() == 1){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
@@ -16986,7 +16966,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+				this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
@@ -17001,8 +16981,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_indexer(const Instruction::Indexer<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_indexer(const Instruction::Indexer<IS_COMPTIME>& instr) -> Result {
 		TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.type_id.is<TypeInfo::ID>() == false){
@@ -17228,14 +17208,14 @@ namespace pcit::panther{
 				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
 
 
-				if(this->get_current_func().isConstexpr){
+				if(this->get_current_func().isComptime){
 					const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
 
-					if(selected_overload.isConstexpr == false){
+					if(selected_overload.isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 							instr.indexer,
-							"Cannot call a non-constexpr operator overload within a constexpr function",
+							"Cannot call a non-comptime operator overload within a comptime function",
 							Diagnostic::Info(
 								"Called operator overload was defined here:", this->get_location(selected_overload_id)
 							)
@@ -18070,8 +18050,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
-	auto SemanticAnalyzer::instr_expr_as(const Instruction::As<IS_CONSTEXPR>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_expr_as(const Instruction::As<IS_COMPTIME>& instr) -> Result {
 		TermInfo& expr = this->get_term_info(instr.expr);
 		const TypeInfo::VoidableID target_type = this->get_type(instr.target_type);
 
@@ -18095,7 +18075,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
@@ -18113,7 +18093,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_float_value)
@@ -18137,7 +18117,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_int_value)
@@ -18154,7 +18134,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
@@ -18283,12 +18263,12 @@ namespace pcit::panther{
 
 
 			if(this->currently_in_func()){
-				if(this->get_current_func().isConstexpr){
-					if(selected_func.isConstexpr == false){
+				if(this->get_current_func().isComptime){
+					if(selected_func.isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+							Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 							instr.infix,
-							"Operator [as] in a constexpr scope must be constexpr"
+							"Operator [as] in a comptime scope must be comptime"
 						);
 						return Result::ERROR;
 					}
@@ -18296,11 +18276,11 @@ namespace pcit::panther{
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 				}
 
-			}else if(selected_func.isConstexpr == false){
+			}else if(selected_func.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+					Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 					instr.infix,
-					"Operator [as] in a constexpr scope must be constexpr"
+					"Operator [as] in a comptime scope must be comptime"
 				);
 				return Result::ERROR;
 			}
@@ -18591,14 +18571,14 @@ namespace pcit::panther{
 
 
 		if(from_underlying_type_id == TypeManager::getTypeBool()){
-			if constexpr(IS_CONSTEXPR){
+			if constexpr(IS_COMPTIME){
 				const TypeInfo& to_type = type_manager.getTypeInfo(target_type.asTypeID());
 
 				switch(to_primitive.kind()){
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createIntValue(
@@ -18616,7 +18596,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F16: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18633,7 +18613,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_BF16: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18650,7 +18630,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F32: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18667,7 +18647,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F64: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18684,7 +18664,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F80: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18701,7 +18681,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -18795,8 +18775,8 @@ namespace pcit::panther{
 			}
 
 		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
-			if constexpr(IS_CONSTEXPR){
-				auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+			if constexpr(IS_COMPTIME){
+				auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 					this->context.type_manager, this->context.sema_buffer
 				);
 
@@ -18804,7 +18784,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getIntValue(expr.getExpr().intValueID()).value,
 								core::GenericInt(from_primitive.bitWidth(), 0)
@@ -18815,7 +18795,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F16: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF16(0)
@@ -18826,7 +18806,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_BF16: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createBF16(0)
@@ -18837,7 +18817,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F32: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF32(0)
@@ -18848,7 +18828,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F64: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF64(0)
@@ -18859,7 +18839,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F80: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF80(0)
@@ -18870,7 +18850,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128: {
 						this->return_term_info(
 							instr.output,
-							constexpr_intrinsic_evaluator.neq(
+							comptime_intrinsic_evaluator.neq(
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF128(0)
@@ -18986,8 +18966,8 @@ namespace pcit::panther{
 		const TypeConversionData to_data = get_type_conversion_data(to_primitive);
 
 
-		if constexpr(IS_CONSTEXPR){
-			auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+		if constexpr(IS_COMPTIME){
+			auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 				this->context.type_manager, this->context.sema_buffer
 			);
 
@@ -18997,14 +18977,14 @@ namespace pcit::panther{
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.sext(
+									comptime_intrinsic_evaluator.sext(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 									)
 								);
 							}else{
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.trunc(
+									comptime_intrinsic_evaluator.trunc(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 									)
@@ -19014,7 +18994,7 @@ namespace pcit::panther{
 
 						case TypeConversionData::Kind::FLOAT: {
 							this->return_term_info(instr.output,
-								constexpr_intrinsic_evaluator.iToF(
+								comptime_intrinsic_evaluator.iToF(
 									target_type.asTypeID(),
 									this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 								)
@@ -19028,14 +19008,14 @@ namespace pcit::panther{
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.iToF(
+									comptime_intrinsic_evaluator.iToF(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 									)
 								);
 							}else{
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.trunc(
+									comptime_intrinsic_evaluator.trunc(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 									)
@@ -19045,7 +19025,7 @@ namespace pcit::panther{
 
 						case TypeConversionData::Kind::FLOAT: {
 							this->return_term_info(instr.output,
-								constexpr_intrinsic_evaluator.iToF(
+								comptime_intrinsic_evaluator.iToF(
 									target_type.asTypeID(),
 									this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 								)
@@ -19058,7 +19038,7 @@ namespace pcit::panther{
 					switch(to_data.kind){
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							this->return_term_info(instr.output,
-								constexpr_intrinsic_evaluator.fToI(
+								comptime_intrinsic_evaluator.fToI(
 									target_type.asTypeID(),
 									this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
 								)
@@ -19068,14 +19048,14 @@ namespace pcit::panther{
 						case TypeConversionData::Kind::FLOAT: {
 							if(from_data.width < to_data.width){
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.fext(
+									comptime_intrinsic_evaluator.fext(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
 									)
 								);
 							}else{
 								this->return_term_info(instr.output,
-									constexpr_intrinsic_evaluator.ftrunc(
+									comptime_intrinsic_evaluator.ftrunc(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID()).value
 									)
@@ -19354,8 +19334,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR, Instruction::MathInfixKind MATH_INFIX_KIND>
-	auto SemanticAnalyzer::instr_expr_math_infix(const Instruction::MathInfix<IS_CONSTEXPR, MATH_INFIX_KIND>& instr)
+	template<bool IS_COMPTIME, Instruction::MathInfixKind MATH_INFIX_KIND>
+	auto SemanticAnalyzer::instr_expr_math_infix(const Instruction::MathInfix<IS_COMPTIME, MATH_INFIX_KIND>& instr)
 	-> Result {
 		TermInfo& lhs = this->get_term_info(instr.lhs);
 		TermInfo& rhs = this->get_term_info(instr.rhs);
@@ -19986,11 +19966,11 @@ namespace pcit::panther{
 									return Result::ERROR;
 								}
 								
-								if constexpr(IS_CONSTEXPR){
+								if constexpr(IS_COMPTIME){
 									this->emit_error(
 										Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 										instr.infix,
-										"Constexpr comparison of union tag is unimplemented"
+										"Comptime comparison of union tag is unimplemented"
 									);
 									return Result::ERROR;
 								}else{
@@ -20220,7 +20200,7 @@ namespace pcit::panther{
 
 
 			this->return_term_info(instr.output,
-				this->constexpr_infix_math(
+				this->comptime_infix_math(
 					this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
 					lhs.getExpr(),
 					rhs.getExpr(),
@@ -20231,7 +20211,7 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(IS_CONSTEXPR){
+		if constexpr(IS_COMPTIME){
 			if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::LOGICAL){
 				const bool lhs_bool_value = this->context.sema_buffer.getBoolValue(lhs.getExpr().boolValueID()).value;
 				const bool rhs_bool_value = this->context.sema_buffer.getBoolValue(rhs.getExpr().boolValueID()).value;
@@ -20252,7 +20232,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value))
@@ -20260,7 +20240,7 @@ namespace pcit::panther{
 
 			}else{
 				this->return_term_info(instr.output,
-					this->constexpr_infix_math(
+					this->comptime_infix_math(
 						this->source.getTokenBuffer()[instr.infix.opTokenID].kind(),
 						lhs.getExpr(),
 						rhs.getExpr(),
@@ -20672,7 +20652,7 @@ namespace pcit::panther{
 		bool is_pointer = false;
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
-			if(lhs.value_stage == TermInfo::ValueStage::CONSTEXPR){
+			if(lhs.value_stage == TermInfo::ValueStage::COMPTIME){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.infix.lhs,
@@ -21676,7 +21656,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTRINSIC_FUNC,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				intrinsic_type,
 				sema::Expr(*intrinsic_kind)
@@ -21803,7 +21783,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_INT: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
@@ -21816,7 +21796,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_FLOAT: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -21829,7 +21809,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_BOOL: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
@@ -21840,7 +21820,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_STRING: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(
@@ -21862,7 +21842,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_CHAR: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
@@ -21873,7 +21853,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_NULL: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::NULL_VALUE,
-					TermInfo::ValueStage::CONSTEXPR,
+					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::NullType(),
 					sema::Expr(this->context.sema_buffer.createNull(instr.literal))
@@ -21889,7 +21869,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_uninit(const Instruction::Uninit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
@@ -21900,7 +21880,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
@@ -21951,7 +21931,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			value_category,
-			current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+			current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 			TermInfo::ValueState::INIT,
 			param.typeID,
 			sema::Expr(*this_param_id)
@@ -22092,7 +22072,7 @@ namespace pcit::panther{
 				if(global_var.kind == AST::VarDef::Kind::DEF){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						TermInfo::ValueStage::INTERPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
 						*global_var.expr.load(std::memory_order::relaxed)
@@ -22212,7 +22192,7 @@ namespace pcit::panther{
 					if(lhs_enum.getEnumeratorName(enumerator, this->context.getSourceManager()) == rhs_ident_str){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::CONSTEXPR,
+							TermInfo::ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							decayed_lhs_type_id,
 							sema::Expr(
@@ -22559,7 +22539,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTERFACE_CALL,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(func_overload_list),
 				sema::Expr(method_this)
@@ -22627,7 +22607,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(
 					method_type, TermInfo::BuiltinTypeMethod::Kind::OPT_EXTRACT
@@ -22717,13 +22697,13 @@ namespace pcit::panther{
 					using ValueStage = TermInfo::ValueStage;
 
 
-					if(lhs.value_stage == ValueStage::CONSTEXPR){
+					if(lhs.value_stage == ValueStage::COMPTIME){
 						const sema::AggregateValue& lhs_aggregate_value =
 							this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							ValueStage::CONSTEXPR,
+							ValueStage::COMPTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							member_var->typeID,
 							lhs_aggregate_value.values[i]
@@ -22773,7 +22753,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							value_category,
-							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 							value_state,
 							member_var->typeID,
 							sema_expr
@@ -22945,11 +22925,11 @@ namespace pcit::panther{
 
 			using ValueStage = TermInfo::ValueStage;
 
-			if(lhs.value_stage == ValueStage::CONSTEXPR){
+			if(lhs.value_stage == ValueStage::COMPTIME){
 				this->emit_error(
 					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 					instr.infix,
-					"Constexpr union accessor is currenlty unsupported"
+					"Comptime union accessor is currenlty unsupported"
 				);
 				return Result::ERROR;
 				
@@ -22983,7 +22963,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					value_category,
-					this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+					this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[
 						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
@@ -23269,7 +23249,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE),
 				sema::Expr(method_this)
@@ -23308,7 +23288,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS),
 				sema::Expr(method_this)
@@ -23350,7 +23330,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA),
 				sema::Expr(method_this)
@@ -23422,7 +23402,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
 				sema::Expr(method_this)
@@ -23461,7 +23441,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS),
 				sema::Expr(method_this)
@@ -23504,7 +23484,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::CONSTEXPR,
+				TermInfo::ValueStage::COMPTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA),
 				sema::Expr(method_this)
@@ -23712,13 +23692,13 @@ namespace pcit::panther{
 					if(delete_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*delete_overload).isConstexpr == false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [delete] within a constexpr function",
+									"Cannot call a non-comptime [delete] within a comptime function",
 									Diagnostic::Info(
 										"Called operator [delete] was defined here:",
 										this->get_location(*delete_overload)
@@ -23750,13 +23730,13 @@ namespace pcit::panther{
 					if(copy_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*copy_overload.funcID).isConstexpr == false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*copy_overload.funcID).isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [copy] initialization within a constexpr function",
+									"Cannot call a non-comptime [copy] initialization within a comptime function",
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
 										this->get_location(*copy_overload.funcID)
@@ -23804,13 +23784,13 @@ namespace pcit::panther{
 					if(copy_assign_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*copy_assign_overload).isConstexpr == false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*copy_assign_overload).isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [copy] assignment within a constexpr function",
+									"Cannot call a non-comptime [copy] assignment within a comptime function",
 									Diagnostic::Info(
 										"Called special member was defined here:",
 										this->get_location(*copy_assign_overload)
@@ -23843,13 +23823,13 @@ namespace pcit::panther{
 					if(copy_init_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID).isConstexpr==false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID).isComptime==false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [copy] initialization within a constexpr function",
+									"Cannot call a non-comptime [copy] initialization within a comptime function",
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [copy] initialization was defined here:",
@@ -23893,13 +23873,13 @@ namespace pcit::panther{
 						if(delete_overload.has_value()){
 							if constexpr(CHECK_VALIDITY){
 								if(
-									this->get_current_func().isConstexpr
-									&& this->context.getSemaBuffer().getFunc(*delete_overload).isConstexpr == false
+									this->get_current_func().isComptime
+									&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
 								){
 									this->emit_error(
-										Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
-										"Cannot call a non-constexpr [delete] within a constexpr function",
+										"Cannot call a non-comptime [delete] within a comptime function",
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -23937,13 +23917,13 @@ namespace pcit::panther{
 					if(move_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*move_overload.funcID).isConstexpr == false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*move_overload.funcID).isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [move] initialization within a constexpr function",
+									"Cannot call a non-comptime [move] initialization within a comptime function",
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
 										this->get_location(*move_overload.funcID)
@@ -23992,13 +23972,13 @@ namespace pcit::panther{
 					if(move_assign_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*move_assign_overload).isConstexpr == false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*move_assign_overload).isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [move] assignment within a constexpr function",
+									"Cannot call a non-comptime [move] assignment within a comptime function",
 									Diagnostic::Info(
 										"Called operator [move] assignment was defined here:",
 										this->get_location(*move_assign_overload)
@@ -24030,13 +24010,13 @@ namespace pcit::panther{
 					if(move_init_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isConstexpr
-								&& this->context.getSemaBuffer().getFunc(*move_init_overload.funcID).isConstexpr==false
+								this->get_current_func().isComptime
+								&& this->context.getSemaBuffer().getFunc(*move_init_overload.funcID).isComptime==false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
-									"Cannot call a non-constexpr [move] initialization within a constexpr function",
+									"Cannot call a non-comptime [move] initialization within a comptime function",
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [move] initialization was defined here:",
@@ -24080,13 +24060,13 @@ namespace pcit::panther{
 						if(delete_overload.has_value()){
 							if constexpr(CHECK_VALIDITY){
 								if(
-									this->get_current_func().isConstexpr
-									&& this->context.getSemaBuffer().getFunc(*delete_overload).isConstexpr == false
+									this->get_current_func().isComptime
+									&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
 								){
 									this->emit_error(
-										Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
-										"Cannot call a non-constexpr [delete] within a constexpr function",
+										"Cannot call a non-comptime [delete] within a comptime function",
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -24414,7 +24394,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::VAR: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
-							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -24424,7 +24404,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::CONST: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
-							this->get_current_func().isConstexpr ? ValueStage::COMPTIME : ValueStage::RUNTIME,
+							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -24435,7 +24415,7 @@ namespace pcit::panther{
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
-								ValueStage::CONSTEXPR,
+								ValueStage::COMPTIME,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								sema_var.expr
@@ -24443,7 +24423,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
-								ValueStage::CONSTEXPR,
+								ValueStage::COMPTIME,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								sema_var.expr
@@ -24507,8 +24487,8 @@ namespace pcit::panther{
 
 							const sema::Func& parent_sema_func =
 								this->context.getSemaBuffer().getFunc(sema_var.parent->as<sema::Func::ID>());
-							if(parent_sema_func.isConstexpr){
-								return ValueStage::COMPTIME;
+							if(parent_sema_func.isComptime){
+								return ValueStage::INTERPTIME;
 							}else{
 								return ValueStage::RUNTIME;
 							}
@@ -24533,14 +24513,14 @@ namespace pcit::panther{
 						}
 
 						const ValueStage value_stage = [&](){
-							if(is_global_scope){ return ValueStage::COMPTIME; }
+							if(is_global_scope){ return ValueStage::INTERPTIME; }
 
 							if(this->currently_in_func() == false){
-								return ValueStage::COMPTIME;
+								return ValueStage::INTERPTIME;
 							}
 
-							if(this->get_current_func().isConstexpr){
-								return ValueStage::COMPTIME;
+							if(this->get_current_func().isComptime){
+								return ValueStage::INTERPTIME;
 							}else{
 								return ValueStage::RUNTIME;
 							}
@@ -24548,7 +24528,7 @@ namespace pcit::panther{
 
 
 
-						if(this->currently_in_func() && this->get_current_func().isConstexpr){
+						if(this->currently_in_func() && this->get_current_func().isComptime){
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
 						}
 
@@ -24565,7 +24545,7 @@ namespace pcit::panther{
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
-								ValueStage::CONSTEXPR,
+								ValueStage::COMPTIME,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								*sema_var.expr.load(std::memory_order::relaxed)
@@ -24573,7 +24553,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
-								ValueStage::CONSTEXPR,
+								ValueStage::COMPTIME,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								*sema_var.expr.load(std::memory_order::relaxed)
@@ -24623,7 +24603,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
@@ -24650,7 +24630,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::VARIADIC_PARAM,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
 						sema::Expr(ident_id)
@@ -24686,7 +24666,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id.param_id),
 						ident_id.type_id,
 						sema::Expr(ident_id.param_id)
@@ -24705,7 +24685,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						return_type.asTypeID(),
 						sema::Expr(ident_id)
@@ -24723,7 +24703,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						error_param.asTypeID(),
 						sema::Expr(ident_id)
@@ -24739,7 +24719,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						sema_block_expr_output.typeID,
 						sema::Expr(ident_id)
@@ -24753,7 +24733,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						except_param.typeID,
 						sema::Expr(ident_id)
@@ -24769,7 +24749,7 @@ namespace pcit::panther{
 						for_param.isMut
 							? TermInfo::ValueCategory::CONCRETE_MUT
 							: TermInfo::ValueCategory::CONCRETE_CONST,
-						current_func.isConstexpr ? TermInfo::ValueStage::COMPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						for_param.typeID,
 						sema::Expr(ident_id)
@@ -24795,7 +24775,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::MODULE,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
@@ -24821,7 +24801,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CLANG_MODULE,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.clangSourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
@@ -25061,7 +25041,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -25075,7 +25055,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -25126,7 +25106,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::CONSTEXPR,
+						TermInfo::ValueStage::COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -26352,7 +26332,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR, bool ERRORS>
+	template<bool IS_COMPTIME, bool ERRORS>
 	auto SemanticAnalyzer::func_call_impl(
 		const AST::FuncCall& func_call,
 		const TermInfo& target_term_info,
@@ -26885,16 +26865,16 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TermInfoID& arg : args){
 			TermInfo& arg_term_info = this->get_term_info(arg);
 
-			if constexpr(IS_CONSTEXPR){
-				if(arg_term_info.value_stage != TermInfo::ValueStage::CONSTEXPR){
+			if constexpr(IS_COMPTIME){
+				if(arg_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_NOT_CONSTEXPR,
+						Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 						func_call.args[i].value,
-						"Arguments in a constexpr function call must have a value stage of constexpr",
+						"Arguments in a comptime function call must have a value stage of comptime",
 						Diagnostic::Info(
 							std::format(
 								"Value stage of the argument is {}",
-								arg_term_info.value_stage == TermInfo::ValueStage::COMPTIME ? "comptime" : "runtime"
+								arg_term_info.value_stage == TermInfo::ValueStage::INTERPTIME ? "interptime" : "runtime"
 							)
 						)
 					);
@@ -27604,14 +27584,14 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(const TermInfo& term_info, const auto& node_location)
 	-> bool {
-		if(this->get_current_func().isConstexpr == false){ return true; }
+		if(this->get_current_func().isComptime == false){ return true; }
 
 		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
 
 		this->emit_error(
-			Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
+			Diagnostic::Code::SEMA_EXPR_NOT_INTERPTIME,
 			node_location,
-			"Expressions in a constexpr function cannot have a value stage of runtime"
+			"Expressions in a comptime function cannot have a value stage of runtime"
 		);
 
 		return false;
@@ -28017,7 +27997,7 @@ namespace pcit::panther{
 				return core::GenericValue(this->context.getSemaBuffer().getCharValue(expr.charValueID()).value);
 			} break;
 
-			default: evo::debugFatalBreak("Invalid constexpr value");
+			default: evo::debugFatalBreak("Invalid comptime value");
 		}
 	}
 
@@ -28892,13 +28872,13 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->get_current_func().isConstexpr){
+		if(this->get_current_func().isComptime){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			if(infix_op_sema_func.isConstexpr == false){
+			if(infix_op_sema_func.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					ast_infix.opTokenID,
-					"Cannot call a non-constexpr operator overload within a constexpr function",
+					"Cannot call a non-comptime operator overload within a comptime function",
 					Diagnostic::Info(
 						"Called operator overload was defined here:", this->get_location(selected_overload_id)
 					)
@@ -28960,13 +28940,13 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->get_current_func().isConstexpr){
+		if(this->get_current_func().isComptime){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			if(infix_op_sema_func.isConstexpr == false){
+			if(infix_op_sema_func.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_CONSTEXPR,
+					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					ast_prefix.opTokenID,
-					"Cannot call a non-constexpr operator overload within a constexpr function",
+					"Cannot call a non-comptime operator overload within a comptime function",
 					Diagnostic::Info(
 						"Called operator overload was defined here:", this->get_location(selected_overload_id)
 					)
@@ -28999,10 +28979,10 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::constexpr_infix_math(
+	auto SemanticAnalyzer::comptime_infix_math(
 		Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
 	) -> TermInfo {
-		auto constexpr_intrinsic_evaluator = ConstexprIntrinsicEvaluator(
+		auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 			this->context.type_manager, this->context.sema_buffer
 		);
 
@@ -29010,20 +28990,20 @@ namespace pcit::panther{
 			switch(op){
 				case Token::lookupKind("=="): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.eq(
+						return comptime_intrinsic_evaluator.eq(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.eq(
+						return comptime_intrinsic_evaluator.eq(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.eq(
+						return comptime_intrinsic_evaluator.eq(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29033,20 +29013,20 @@ namespace pcit::panther{
 
 				case Token::lookupKind("!="): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.neq(
+						return comptime_intrinsic_evaluator.neq(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.neq(
+						return comptime_intrinsic_evaluator.neq(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.neq(
+						return comptime_intrinsic_evaluator.neq(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29056,20 +29036,20 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.lt(
+						return comptime_intrinsic_evaluator.lt(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.lt(
+						return comptime_intrinsic_evaluator.lt(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.lt(
+						return comptime_intrinsic_evaluator.lt(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29079,20 +29059,20 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<="): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.lte(
+						return comptime_intrinsic_evaluator.lte(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.lte(
+						return comptime_intrinsic_evaluator.lte(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.lte(
+						return comptime_intrinsic_evaluator.lte(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29102,20 +29082,20 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.gt(
+						return comptime_intrinsic_evaluator.gt(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.gt(
+						return comptime_intrinsic_evaluator.gt(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.gt(
+						return comptime_intrinsic_evaluator.gt(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29125,20 +29105,20 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">="): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.gte(
+						return comptime_intrinsic_evaluator.gte(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.gte(
+						return comptime_intrinsic_evaluator.gte(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.gte(
+						return comptime_intrinsic_evaluator.gte(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29148,13 +29128,13 @@ namespace pcit::panther{
 
 				case Token::lookupKind("&"): {
 					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.bitwiseAnd(
+						return comptime_intrinsic_evaluator.bitwiseAnd(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.bitwiseAnd(
+						return comptime_intrinsic_evaluator.bitwiseAnd(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29164,13 +29144,13 @@ namespace pcit::panther{
 
 				case Token::lookupKind("|"): {
 					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.bitwiseOr(
+						return comptime_intrinsic_evaluator.bitwiseOr(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.bitwiseOr(
+						return comptime_intrinsic_evaluator.bitwiseOr(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29180,13 +29160,13 @@ namespace pcit::panther{
 
 				case Token::lookupKind("^"): {
 					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
-						return constexpr_intrinsic_evaluator.bitwiseXor(
+						return comptime_intrinsic_evaluator.bitwiseXor(
 							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
 							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.bitwiseXor(
+						return comptime_intrinsic_evaluator.bitwiseXor(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29195,7 +29175,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("<<"): {
-					return constexpr_intrinsic_evaluator.shl(
+					return comptime_intrinsic_evaluator.shl(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29204,7 +29184,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("<<|"): {
-					return constexpr_intrinsic_evaluator.shlSat(
+					return comptime_intrinsic_evaluator.shlSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29212,7 +29192,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind(">>"): {
-					return constexpr_intrinsic_evaluator.shr(
+					return comptime_intrinsic_evaluator.shr(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29222,7 +29202,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("+"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.add(
+						return comptime_intrinsic_evaluator.add(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29230,7 +29210,7 @@ namespace pcit::panther{
 						).value();
 
 					}else{
-						return constexpr_intrinsic_evaluator.fadd(
+						return comptime_intrinsic_evaluator.fadd(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29239,7 +29219,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("+%"): {
-					return constexpr_intrinsic_evaluator.add(
+					return comptime_intrinsic_evaluator.add(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29248,7 +29228,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("+|"): {
-					return constexpr_intrinsic_evaluator.addSat(
+					return comptime_intrinsic_evaluator.addSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29257,7 +29237,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.sub(
+						return comptime_intrinsic_evaluator.sub(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29265,7 +29245,7 @@ namespace pcit::panther{
 						).value();
 
 					}else{
-						return constexpr_intrinsic_evaluator.fsub(
+						return comptime_intrinsic_evaluator.fsub(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29274,7 +29254,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("-%"): {
-					return constexpr_intrinsic_evaluator.sub(
+					return comptime_intrinsic_evaluator.sub(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29283,7 +29263,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("-|"): {
-					return constexpr_intrinsic_evaluator.subSat(
+					return comptime_intrinsic_evaluator.subSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29292,7 +29272,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.mul(
+						return comptime_intrinsic_evaluator.mul(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29300,7 +29280,7 @@ namespace pcit::panther{
 						).value();
 
 					}else{
-						return constexpr_intrinsic_evaluator.fmul(
+						return comptime_intrinsic_evaluator.fmul(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29309,7 +29289,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("*%"): {
-					return constexpr_intrinsic_evaluator.mul(
+					return comptime_intrinsic_evaluator.mul(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29318,7 +29298,7 @@ namespace pcit::panther{
 				} break;
 
 				case Token::lookupKind("*|"): {
-					return constexpr_intrinsic_evaluator.mulSat(
+					return comptime_intrinsic_evaluator.mulSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
@@ -29327,7 +29307,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("/"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.div(
+						return comptime_intrinsic_evaluator.div(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							false,
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
@@ -29335,7 +29315,7 @@ namespace pcit::panther{
 						).value();
 
 					}else{
-						return constexpr_intrinsic_evaluator.fdiv(
+						return comptime_intrinsic_evaluator.fdiv(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29345,14 +29325,14 @@ namespace pcit::panther{
 
 				case Token::lookupKind("%"): {
 					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
-						return constexpr_intrinsic_evaluator.rem(
+						return comptime_intrinsic_evaluator.rem(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
 							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
 						);
 
 					}else{
-						return constexpr_intrinsic_evaluator.rem(
+						return comptime_intrinsic_evaluator.rem(
 							lhs_type.value_or(TypeManager::getTypeF128()),
 							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
 							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
@@ -29489,9 +29469,9 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::union_designated_init_new(
-		const Instruction::DesignatedInitNew<IS_CONSTEXPR>& instr, TypeInfo::ID target_type_info_id
+		const Instruction::DesignatedInitNew<IS_COMPTIME>& instr, TypeInfo::ID target_type_info_id
 	) -> Result {
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_info_id);
 
@@ -29566,14 +29546,14 @@ namespace pcit::panther{
 
 
 			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_CONSTEXPR){
-					return TermInfo::ValueStage::CONSTEXPR;
+				if constexpr(IS_COMPTIME){
+					return TermInfo::ValueStage::COMPTIME;
 				}else{
 					if(this->currently_in_func() == false){
-						return TermInfo::ValueStage::CONSTEXPR;
-
-					}else if(this->get_current_func().isConstexpr){
 						return TermInfo::ValueStage::COMPTIME;
+
+					}else if(this->get_current_func().isComptime){
+						return TermInfo::ValueStage::INTERPTIME;
 
 					}else{
 						return TermInfo::ValueStage::RUNTIME;
@@ -29583,7 +29563,7 @@ namespace pcit::panther{
 
 
 
-			if constexpr(IS_CONSTEXPR){
+			if constexpr(IS_COMPTIME){
 				if(union_info.isUntagged){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -29597,7 +29577,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 						instr.designated_init_new,
-						"Constexpr tagged union designated init `new` is unimplemented"
+						"Comptime tagged union designated init `new` is unimplemented"
 					);
 					return Result::ERROR;
 				}
@@ -29856,7 +29836,7 @@ namespace pcit::panther{
 
 						}
 
-						if(target_method.isConstexpr && overload_sema.isConstexpr == false){ continue; }
+						if(target_method.isComptime && overload_sema.isComptime == false){ continue; }
 
 						interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
 						found_overload = true;
@@ -29950,7 +29930,7 @@ namespace pcit::panther{
 		for(const sema::Func::ID method_id : interface_impl.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
 
-			if(method.isConstexpr == false){ continue; }
+			if(method.isComptime == false){ continue; }
 
 			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
 
@@ -31442,7 +31422,7 @@ namespace pcit::panther{
 										)
 									);
 
-									if(this->get_current_func().isConstexpr){
+									if(this->get_current_func().isComptime){
 										this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 											target_as_func_id
 										);
@@ -31510,7 +31490,7 @@ namespace pcit::panther{
 											)
 										);
 
-										if(this->get_current_func().isConstexpr){
+										if(this->get_current_func().isComptime){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
 												.dependent_funcs.emplace(new_func_id);
 										}
@@ -32313,7 +32293,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->get_current_func().isConstexpr){
+				if(this->get_current_func().isComptime){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);
@@ -32329,7 +32309,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->get_current_func().isConstexpr){
+				if(this->get_current_func().isComptime){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);

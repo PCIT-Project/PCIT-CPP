@@ -20,12 +20,12 @@
 namespace pcit::panther{
 
 
-	class ConstexprIntrinsicEvaluator{
+	class ComptimeIntrinsicEvaluator{
 		public:
-			ConstexprIntrinsicEvaluator(TypeManager& _type_manager, class SemaBuffer& _sema_buffer)
+			ComptimeIntrinsicEvaluator(TypeManager& _type_manager, class SemaBuffer& _sema_buffer)
 				: type_manager(_type_manager), sema_buffer(_sema_buffer) {}
 
-			~ConstexprIntrinsicEvaluator() = default;
+			~ComptimeIntrinsicEvaluator() = default;
 
 
 			///////////////////////////////////

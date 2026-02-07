@@ -120,15 +120,10 @@ namespace pcit::panther{
 				: _diagnostic_callback(diagnostic_callback),
 				_config(config),
 				type_manager(config.target),
-				constexpr_pir_module("<Panther-constexpr>", config.target),
-				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
-					#if defined(PCIT_CONFIG_DEBUG)
-						.useReadableNames = true,
-					#else
-						.useReadableNames = false,
-					#endif
+				pir_module(std::string(config.title), config.target),
+				sema_to_pir_data(SemaToPIR::Data::Config{
+					.useReadableNames = true,
 					.checkedMath          = true,
-					.isJIT                = true,
 					.addSourceLocations   = true,
 					.useDebugUnreachables = true,
 				})
@@ -143,15 +138,10 @@ namespace pcit::panther{
 				: _diagnostic_callback(std::move(diagnostic_callback)),
 				_config(config),
 				type_manager(config.target),
-				constexpr_pir_module("<Panther-constexpr>", config.target),
-				constexpr_sema_to_pir_data(SemaToPIR::Data::Config{
-					#if defined(PCIT_CONFIG_DEBUG)
-						.useReadableNames = true,
-					#else
-						.useReadableNames = false,
-					#endif
+				pir_module(std::string(config.title), config.target),
+				sema_to_pir_data(SemaToPIR::Data::Config{
+					.useReadableNames = true,
 					.checkedMath          = true,
-					.isJIT                = true,
 					.addSourceLocations   = true,
 					.useDebugUnreachables = true,
 				})
@@ -187,6 +177,9 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// getters
 
+			EVO_NODISCARD auto getPIRModule() const -> const pir::Module& { return this->pir_module; }
+			EVO_NODISCARD auto getPIRModule()       ->       pir::Module& { return this->pir_module; }
+
 			EVO_NODISCARD auto getNumErrors() const -> unsigned { return this->num_errors.load(); }
 
 			EVO_NODISCARD auto getSourceManager() const -> const SourceManager& { return this->source_manager; }
@@ -217,12 +210,12 @@ namespace pcit::panther{
 			};
 
 			// call analyzeSemantics before any of these
-			EVO_NODISCARD auto lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<>;
+			EVO_NODISCARD auto lowerToPIR(EntryKind entry_kind) -> evo::Result<>;
 			EVO_NODISCARD auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
 
-			EVO_NODISCARD auto lowerToLLVMIR(pir::Module& module) -> evo::Result<std::string>;
-			EVO_NODISCARD auto lowerToAssembly(pir::Module& module) -> evo::Result<std::string>;
-			EVO_NODISCARD auto lowerToObject(pir::Module& module) -> evo::Result<std::vector<evo::byte>>;
+			EVO_NODISCARD auto lowerToLLVMIR() -> evo::Result<std::string>;
+			EVO_NODISCARD auto lowerToAssembly() -> evo::Result<std::string>;
+			EVO_NODISCARD auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
 
 
 
@@ -426,13 +419,13 @@ namespace pcit::panther{
 			struct IntrinsicFuncInfo{
 				TypeInfoID typeID;
 
-				bool allowedInConstexpr;
 				bool allowedInComptime;
+				bool allowedInInterptime;
 				bool allowedInRuntime;
 
 				bool allowedInCompile;
 				bool allowedInScript;
-				bool allowedInBuildSystem;
+				bool allowedInBuild;
 			};
 			EVO_NODISCARD auto getIntrinsicFuncInfo(IntrinsicFunc::Kind kind) const -> const IntrinsicFuncInfo&;
 
@@ -450,13 +443,13 @@ namespace pcit::panther{
 				evo::SmallVector<Param> params;
 				evo::SmallVector<ReturnParam> returns;
 
-				bool allowedInConstexpr;
 				bool allowedInComptime;
+				bool allowedInInterptime;
 				bool allowedInRuntime;
 
 				bool allowedInCompile;
 				bool allowedInScript;
-				bool allowedInBuildSystem;
+				bool allowedInBuild;
 
 				
 				EVO_NODISCARD auto getTypeInstantiation(
@@ -542,10 +535,10 @@ namespace pcit::panther{
 				TemplateIntrinsicFuncInfo, size_t(TemplateIntrinsicFunc::Kind::_LAST_) + 1
 			> template_intrinsic_infos{};
 
-			pir::Module constexpr_pir_module;
-			SemaToPIR::Data constexpr_sema_to_pir_data;
-			// pir::JITEngine constexpr_jit_engine{};
-			pir::ExecutionEngine constexpr_execution_engine{constexpr_pir_module};
+			pir::Module pir_module;
+			SemaToPIR::Data sema_to_pir_data;
+			// pir::JITEngine comptime_jit_engine{};
+			pir::ExecutionEngine comptime_execution_engine{pir_module};
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

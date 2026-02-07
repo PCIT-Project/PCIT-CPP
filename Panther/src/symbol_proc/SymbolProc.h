@@ -364,7 +364,7 @@ namespace pcit::panther{
 
 
 
-		struct FuncPrepareConstexprPIRIfNeeded{
+		struct FuncPrepareComptimePIRIfNeeded{
 			const AST::FuncDef& func_def;
 		};
 
@@ -693,7 +693,7 @@ namespace pcit::panther{
 			SymbolProcID symbol_proc_id;
 		};
 
-		template<bool IS_CONSTEXPR, bool ERRORS>
+		template<bool IS_COMPTIME, bool ERRORS>
 		struct FuncCallExpr{
 			const AST::FuncCall& func_call;
 			evo::SmallVector<SymbolProcTermInfoID> template_args;
@@ -702,7 +702,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		struct ConstexprFuncCallRun{
+		struct ComptimeFuncCallRun{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
@@ -742,7 +742,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID target;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct TemplateIntrinsicFuncCallExpr{
 			const AST::FuncCall& func_call;
 			evo::SmallVector<SymbolProcTermInfoID> template_args;
@@ -752,7 +752,7 @@ namespace pcit::panther{
 		};
 
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct Indexer{
 			const AST::Indexer& indexer;
 			SymbolProcTermInfoID target;
@@ -806,21 +806,21 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct PrefixNegate{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID expr;
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct PrefixNot{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID expr;
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct PrefixBitwiseNot{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID expr;
@@ -839,7 +839,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct New{
 			const AST::New& ast_new;
 			SymbolProcTypeID type_id;
@@ -847,7 +847,7 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct ArrayInitNew{
 			const AST::ArrayInitNew& array_init_new;
 			SymbolProcTypeID type_id;
@@ -855,7 +855,7 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> values;
 		};
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct DesignatedInitNew{
 			const AST::DesignatedInitNew& designated_init_new;
 			SymbolProcTypeID type_id;
@@ -891,7 +891,7 @@ namespace pcit::panther{
 		};
 
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct As{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID expr;
@@ -914,7 +914,7 @@ namespace pcit::panther{
 			SHIFT,
 		};
 
-		template<bool IS_CONSTEXPR, MathInfixKind MATH_INFIX_KIND>
+		template<bool IS_COMPTIME, MathInfixKind MATH_INFIX_KIND>
 		struct MathInfix{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID lhs;
@@ -923,7 +923,7 @@ namespace pcit::panther{
 		};
 
 
-		template<bool IS_CONSTEXPR>
+		template<bool IS_COMPTIME>
 		struct Accessor{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID lhs;
@@ -1074,8 +1074,8 @@ namespace pcit::panther{
 			FUNC_DECL,
 			FUNC_PRE_BODY,
 			FUNC_DEF,
-			FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED,
-			FUNC_CONSTEXPR_PIR_READY_IF_NEEDED,
+			FUNC_PREPARE_COMPTIME_PIR_IF_NEEDED,
+			FUNC_COMPTIME_PIR_READY_IF_NEEDED,
 			TEMPLATE_FUNC_BEGIN,
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
@@ -1091,7 +1091,7 @@ namespace pcit::panther{
 			INTERFACE_IMPL_METHOD_LOOKUP,
 			INTERFACE_IN_DEF_IMPL_METHOD,
 			INTERFACE_IMPL_DEF,
-			INTERFACE_IMPL_CONSTEXPR_PIR,
+			INTERFACE_IMPL_COMPTIME_PIR,
 
 			// stmt
 			LOCAL_VAR,
@@ -1145,20 +1145,20 @@ namespace pcit::panther{
 			REQUIRE_THIS_DEF,
 			WAIT_ON_SUB_SYMBOL_PROC_DECL,
 			WAIT_ON_SUB_SYMBOL_PROC_DEF,
-			FUNC_CALL_EXPR_CONSTEXPR_ERRORS,
-			FUNC_CALL_EXPR_CONSTEXPR,
+			FUNC_CALL_EXPR_COMPTIME_ERRORS,
+			FUNC_CALL_EXPR_COMPTIME,
 			FUNC_CALL_EXPR_ERRORS,
 			FUNC_CALL_EXPR,
-			CONSTEXPR_FUNC_CALL_RUN,
+			COMPTIME_FUNC_CALL_RUN,
 			IMPORT_PANTHER,
 			IMPORT_C,
 			IMPORT_CPP,
 			IS_MACRO_DEFINED,
 			MAKE_INIT_PTR,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
-			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
+			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME,
 			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,
-			INDEXER_CONSTEXPR,
+			INDEXER_COMPTIME,
 			INDEXER,
 			TEMPLATED_TERM,
 			TEMPLATED_TERM_WAIT_FOR_DEF,
@@ -1170,19 +1170,19 @@ namespace pcit::panther{
 			MOVE,
 			FORWARD,
 			ADDR_OF,
-			PREFIX_NEGATE_CONSTEXPR,
+			PREFIX_NEGATE_COMPTIME,
 			PREFIX_NEGATE,
-			PREFIX_NOT_CONSTEXPR,
+			PREFIX_NOT_COMPTIME,
 			PREFIX_NOT,
-			PREFIX_BITWISE_NOT_CONSTEXPR,
+			PREFIX_BITWISE_NOT_COMPTIME,
 			PREFIX_BITWISE_NOT,
 			DEREF,
 			UNWRAP,
-			NEW_CONSTEXPR,
+			NEW_COMPTIME,
 			NEW,
-			ARRAY_INIT_NEW_CONSTEXPR,
+			ARRAY_INIT_NEW_COMPTIME,
 			ARRAY_INIT_NEW,
-			DESIGNATED_INIT_NEW_CONSTEXPR,
+			DESIGNATED_INIT_NEW_COMPTIME,
 			DESIGNATED_INIT_NEW,
 			PREPARE_TRY_HANDLER,
 			TRY_ELSE_EXPR,
@@ -1191,12 +1191,12 @@ namespace pcit::panther{
 			AS_CONTEXPR,
 			AS,
 			OPTIONAL_NULL_CHECK,
-			MATH_INFIX_CONSTEXPR_COMPARATIVE,
-			MATH_INFIX_CONSTEXPR_MATH,
-			MATH_INFIX_CONSTEXPR_INTEGRAL_MATH,
-			MATH_INFIX_CONSTEXPR_LOGICAL,
-			MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL,
-			MATH_INFIX_CONSTEXPR_SHIFT,
+			MATH_INFIX_COMPTIME_COMPARATIVE,
+			MATH_INFIX_COMPTIME_MATH,
+			MATH_INFIX_COMPTIME_INTEGRAL_MATH,
+			MATH_INFIX_COMPTIME_LOGICAL,
+			MATH_INFIX_COMPTIME_BITWISE_LOGICAL,
+			MATH_INFIX_COMPTIME_SHIFT,
 			MATH_INFIX_COMPARATIVE,
 			MATH_INFIX_MATH,
 			MATH_INFIX_INTEGRAL_MATH,

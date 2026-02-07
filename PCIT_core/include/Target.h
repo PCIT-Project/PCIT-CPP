@@ -80,6 +80,8 @@ namespace pcit::core{
 
 		constexpr Target(Architecture arch, Platform _platform) : architecture(arch), platform(_platform) {}
 
+		EVO_NODISCARD constexpr auto operator==(const Target&) const -> bool = default;
+
 		EVO_NODISCARD constexpr static auto getNative() -> Target {
 			return Target(Architecture::getNative(), Platform::getNative());
 		}

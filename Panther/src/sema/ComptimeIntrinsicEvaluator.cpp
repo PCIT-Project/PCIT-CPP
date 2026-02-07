@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./ConstexprIntrinsicEvaluator.h"
+#include "./ComptimeIntrinsicEvaluator.h"
 
 #include "../../include/sema/SemaBuffer.h"
 
@@ -18,10 +18,10 @@
 
 namespace pcit::panther{
 
-	auto ConstexprIntrinsicEvaluator::getTypeID(TypeInfo::ID type_id) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::getTypeID(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -31,14 +31,14 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo {
 		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
 		evo::debugAssert(type_info.qualifiers().empty(), "Should have no qualifiers");
 		const BaseType::Array& array_type = this->type_manager.getArray(type_info.baseTypeID().arrayID());
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -48,14 +48,14 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::arrayRefElementTypeID(TypeInfo::ID type_id) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::arrayRefElementTypeID(TypeInfo::ID type_id) -> TermInfo {
 		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
 		evo::debugAssert(type_info.qualifiers().empty(), "Should have no qualifiers");
 		const BaseType::ArrayRef& array_ref_type = this->type_manager.getArrayRef(type_info.baseTypeID().arrayRefID());
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -67,10 +67,10 @@ namespace pcit::panther{
 
 
 	
-	auto ConstexprIntrinsicEvaluator::numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -82,10 +82,10 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -102,50 +102,50 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// type conversion
 
-	auto ConstexprIntrinsicEvaluator::trunc(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::trunc(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::ftrunc(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::ftrunc(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::sext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::sext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::zext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::zext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::fext(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::fext(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -153,7 +153,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::iToF(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::iToF(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		const TypeInfo& to_type = this->type_manager.getTypeInfo(to_type_id);
 		const BaseType::Primitive& to_type_primitive =
 			this->type_manager.getPrimitive(to_type.baseTypeID().primitiveID());
@@ -175,7 +175,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(std::move(result), to_type.baseTypeID()))
@@ -183,7 +183,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::fToI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::fToI(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
 		const size_t bit_width = [&](){
 			const TypeInfo& type_info = this->type_manager.getTypeInfo(to_type_id);
 			return this->type_manager.getPrimitive(type_info.baseTypeID().primitiveID()).bitWidth();
@@ -193,7 +193,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -208,7 +208,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// addition
 
-	auto ConstexprIntrinsicEvaluator::add(
+	auto ComptimeIntrinsicEvaluator::add(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
@@ -216,7 +216,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -226,14 +226,14 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::addWrap(
+	auto ComptimeIntrinsicEvaluator::addWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -242,7 +242,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::addSat(
+	auto ComptimeIntrinsicEvaluator::addSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -258,14 +258,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::fadd(
+	auto ComptimeIntrinsicEvaluator::fadd(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
@@ -276,7 +276,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -287,7 +287,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// subtraction
 
-	auto ConstexprIntrinsicEvaluator::sub(
+	auto ComptimeIntrinsicEvaluator::sub(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
@@ -295,7 +295,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -305,14 +305,14 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::subWrap(
+	auto ComptimeIntrinsicEvaluator::subWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -321,7 +321,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::subSat(
+	auto ComptimeIntrinsicEvaluator::subSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -337,14 +337,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::fsub(
+	auto ComptimeIntrinsicEvaluator::fsub(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
@@ -355,7 +355,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -366,7 +366,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// multiplication
 
-	auto ConstexprIntrinsicEvaluator::mul(
+	auto ComptimeIntrinsicEvaluator::mul(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
@@ -374,7 +374,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -384,14 +384,14 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::mulWrap(
+	auto ComptimeIntrinsicEvaluator::mulWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -400,7 +400,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::mulSat(
+	auto ComptimeIntrinsicEvaluator::mulSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -416,14 +416,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::fmul(
+	auto ComptimeIntrinsicEvaluator::fmul(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
@@ -434,7 +434,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -445,7 +445,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// division / remainder
 
-	auto ConstexprIntrinsicEvaluator::div(
+	auto ComptimeIntrinsicEvaluator::div(
 		const TypeInfo::ID type_id, bool is_exact, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
@@ -489,14 +489,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(*result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::fdiv(
+	auto ComptimeIntrinsicEvaluator::fdiv(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
@@ -507,14 +507,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::rem(
+	auto ComptimeIntrinsicEvaluator::rem(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -530,14 +530,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::rem(
+	auto ComptimeIntrinsicEvaluator::rem(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
@@ -548,7 +548,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -556,7 +556,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::fneg(const TypeInfo::ID type_id, const core::GenericFloat& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::fneg(const TypeInfo::ID type_id, const core::GenericFloat& arg) -> TermInfo {
 		const TypeInfo& type = this->type_manager.getTypeInfo(type_id);
 		const BaseType::Primitive& primitive = this->type_manager.getPrimitive(type.baseTypeID().primitiveID());
 
@@ -593,7 +593,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -606,7 +606,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// logical
 
-	auto ConstexprIntrinsicEvaluator::eq(
+	auto ComptimeIntrinsicEvaluator::eq(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -617,24 +617,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::eq(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::eq(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs == rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::eq(
+	auto ComptimeIntrinsicEvaluator::eq(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -645,7 +645,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -653,7 +653,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::neq(
+	auto ComptimeIntrinsicEvaluator::neq(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -664,24 +664,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::neq(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::neq(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs != rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::neq(
+	auto ComptimeIntrinsicEvaluator::neq(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -692,7 +692,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -700,7 +700,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::lt(
+	auto ComptimeIntrinsicEvaluator::lt(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -715,24 +715,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::lt(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::lt(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs < rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::lt(
+	auto ComptimeIntrinsicEvaluator::lt(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -743,7 +743,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -751,7 +751,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::lte(
+	auto ComptimeIntrinsicEvaluator::lte(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -766,24 +766,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::lte(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::lte(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs <= rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::lte(
+	auto ComptimeIntrinsicEvaluator::lte(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -794,7 +794,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -802,7 +802,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::gt(
+	auto ComptimeIntrinsicEvaluator::gt(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -817,24 +817,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::gt(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::gt(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs > rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::gt(
+	auto ComptimeIntrinsicEvaluator::gt(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -845,7 +845,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -853,7 +853,7 @@ namespace pcit::panther{
 	}
 
 
-	auto ConstexprIntrinsicEvaluator::gte(
+	auto ComptimeIntrinsicEvaluator::gte(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -868,24 +868,24 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::gte(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::gte(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs >= rhs))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::gte(
+	auto ComptimeIntrinsicEvaluator::gte(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
 		const bool result = this->intrin_base_impl<bool>(type_id, lhs, rhs,
@@ -896,7 +896,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -909,7 +909,7 @@ namespace pcit::panther{
 	// bitwise
 
 
-	auto ConstexprIntrinsicEvaluator::bitwiseAnd(
+	auto ComptimeIntrinsicEvaluator::bitwiseAnd(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -921,17 +921,17 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bitwiseAnd(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::bitwiseAnd(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs & rhs))
@@ -940,7 +940,7 @@ namespace pcit::panther{
 
 
 
-	auto ConstexprIntrinsicEvaluator::bitwiseOr(
+	auto ComptimeIntrinsicEvaluator::bitwiseOr(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -952,17 +952,17 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bitwiseOr(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::bitwiseOr(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs | rhs))
@@ -971,7 +971,7 @@ namespace pcit::panther{
 
 
 
-	auto ConstexprIntrinsicEvaluator::bitwiseXor(
+	auto ComptimeIntrinsicEvaluator::bitwiseXor(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -983,17 +983,17 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bitwiseXor(bool lhs, bool rhs) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::bitwiseXor(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs ^ rhs))
@@ -1002,7 +1002,7 @@ namespace pcit::panther{
 
 
 
-	auto ConstexprIntrinsicEvaluator::shl(
+	auto ComptimeIntrinsicEvaluator::shl(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
@@ -1027,7 +1027,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -1036,7 +1036,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::shlSat(
+	auto ComptimeIntrinsicEvaluator::shlSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
 		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
@@ -1052,14 +1052,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::shr(
+	auto ComptimeIntrinsicEvaluator::shr(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
 		const evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
@@ -1084,7 +1084,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -1093,7 +1093,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::bitReverse(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::bitReverse(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1109,14 +1109,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::byteSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::byteSwap(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1132,14 +1132,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::ctPop(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::ctPop(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1155,14 +1155,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::ctlz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::ctlz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1178,14 +1178,14 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::cttz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
+	auto ComptimeIntrinsicEvaluator::cttz(const TypeInfo::ID type_id, const core::GenericInt& arg) -> TermInfo {
 		const bool is_unsigned = this->type_manager.isUnsignedIntegral(type_id);
 
 		const unsigned type_width = [&](){
@@ -1201,7 +1201,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::CONSTEXPR,
+			TermInfo::ValueStage::COMPTIME,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1216,7 +1216,7 @@ namespace pcit::panther{
 
 
 
-	auto ConstexprIntrinsicEvaluator::add_wrap_impl(
+	auto ComptimeIntrinsicEvaluator::add_wrap_impl(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
 		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
@@ -1231,7 +1231,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::sub_wrap_impl(
+	auto ComptimeIntrinsicEvaluator::sub_wrap_impl(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
 		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
@@ -1246,7 +1246,7 @@ namespace pcit::panther{
 		);
 	}
 
-	auto ConstexprIntrinsicEvaluator::mul_wrap_impl(
+	auto ComptimeIntrinsicEvaluator::mul_wrap_impl(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> core::GenericInt::WrapResult {
 		return this->intrin_base_impl<core::GenericInt::WrapResult>(type_id, lhs, rhs,
@@ -1268,7 +1268,7 @@ namespace pcit::panther{
 
 
 	template<class RETURN>
-	auto ConstexprIntrinsicEvaluator::intrin_base_impl(
+	auto ComptimeIntrinsicEvaluator::intrin_base_impl(
 		const TypeInfo::ID type_id,
 		const core::GenericInt& lhs,
 		const core::GenericInt& rhs,
@@ -1294,7 +1294,7 @@ namespace pcit::panther{
 
 
 	template<class RETURN>
-	auto ConstexprIntrinsicEvaluator::intrin_base_impl(
+	auto ComptimeIntrinsicEvaluator::intrin_base_impl(
 		const TypeInfo::ID type_id,
 		const core::GenericFloat& lhs,
 		const core::GenericFloat& rhs,

@@ -36,9 +36,64 @@ namespace pcit::panther{
 
 	
 
-	auto SemaToPIR::lower() -> void {
+	// auto SemaToPIR::lower() -> void {
+	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
+	// 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
+
+	// 		if(struct_type.shouldLower){
+	// 			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
+	// 		}
+	// 	}
+
+	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
+	// 		this->lowerUnionAndDependencies(BaseType::Union::ID(i));
+	// 	}
+
+	// 	for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
+	// 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
+
+	// 		this->lowerGlobalDecl(global_var_id);
+
+	// 		if(global_var.expr.load().has_value()){				
+	// 			this->lowerGlobalDef(global_var_id);
+	// 		}
+	// 	}
+
+	// 	for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+	// 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+	// 		if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+	// 		if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+
+	// 		this->lowerFuncDecl(func_id);
+	// 	}
+
+	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
+	// 		const auto interface_id = BaseType::Interface::ID(i);
+	// 		const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+			
+	// 		if(interface.isPolymorphic == false){ continue; }
+
+	// 		this->lowerInterface(interface_id);
+
+	// 		for(const auto& [target_type_id, impl] : interface.impls){
+	// 			this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
+	// 		}
+	// 	}
+
+	// 	for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+	// 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+	// 		if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+	// 		if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+	// 		if(func.isClangFunc()){ continue; }
+
+	// 		this->lowerFuncDef(func_id);
+	// 	}
+	// }
+
+	auto SemaToPIR::lowerRuntime() -> void {
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
+			if(struct_type.isClangType() == false){ continue; }
 
 			if(struct_type.shouldLower){
 				this->lowerStructAndDependencies(BaseType::Struct::ID(i));
@@ -46,45 +101,52 @@ namespace pcit::panther{
 		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
+			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(BaseType::Union::ID(i));
+			if(union_type.isClangType() == false){ continue; }
+
 			this->lowerUnionAndDependencies(BaseType::Union::ID(i));
 		}
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
+			if(global_var.isClangVar() == false && global_var.kind != AST::VarDef::Kind::VAR){ continue; }
 
 			this->lowerGlobalDecl(global_var_id);
 
-			if(global_var.expr.load().has_value()){				
+			if(global_var.expr.load().has_value()){
 				this->lowerGlobalDef(global_var_id);
 			}
 		}
+
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+			if(func.isComptime){ continue; }
 
 			this->lowerFuncDecl(func_id);
 		}
 
-		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
-			const auto interface_id = BaseType::Interface::ID(i);
-			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+		// for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
+		// 	const auto interface_id = BaseType::Interface::ID(i);
+		// 	const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
 			
-			if(interface.isPolymorphic == false){ continue; }
+		// 	if(interface.isPolymorphic == false){ continue; }
 
-			this->lowerInterface(interface_id);
+		// 	this->lowerInterface(interface_id);
 
-			for(const auto& [target_type_id, impl] : interface.impls){
-				this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
-			}
-		}
+		// 	for(const auto& [target_type_id, impl] : interface.impls){
+		// 		this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
+		// 	}
+		// }
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 			if(func.isClangFunc()){ continue; }
+			if(func.isComptime){ continue; }
 
 			this->lowerFuncDef(func_id);
 		}
@@ -119,7 +181,7 @@ namespace pcit::panther{
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			this->get_type<false>(*sema_global_var.typeID),
-			this->data.getConfig().isJIT ? pir::Linkage::EXTERNAL : pir::Linkage::INTERNAL,
+			pir::Linkage::INTERNAL,
 			pir::GlobalVar::NoValue{},
 			sema_global_var.kind == AST::VarDef::Kind::CONST
 		);
@@ -141,7 +203,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID {
+	auto SemaToPIR::lowerFuncDeclComptime(sema::Func::ID func_id) -> pir::Function::ID {
 		return *this->lower_func_decl(func_id);
 
 	}
@@ -391,12 +453,12 @@ namespace pcit::panther{
 
 
 		const pir::CallingConvention calling_conv = [&](){
-			if(this->data.getConfig().isJIT || func.isExport){ return pir::CallingConvention::C; }
+			if(func.isExport){ return pir::CallingConvention::C; }
 			return pir::CallingConvention::FAST;
 		}();
 
 		const pir::Linkage linkage = [&](){
-			if(this->data.getConfig().isJIT || func.isExport){ return pir::Linkage::EXTERNAL; }
+			if(func.isExport){ return pir::Linkage::EXTERNAL; }
 			return pir::Linkage::PRIVATE;
 		}();
 
@@ -688,7 +750,7 @@ namespace pcit::panther{
 		return this->lower_interface_vtable_impl<false>(interface_id, type_id, funcs);
 	}
 
-	auto SemaToPIR::lowerInterfaceVTableConstexpr(
+	auto SemaToPIR::lowerInterfaceVTableComptime(
 		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
 		return this->lower_interface_vtable_impl<true>(interface_id, type_id, funcs);
@@ -977,7 +1039,7 @@ namespace pcit::panther{
 	}
 
 
-	template<bool IS_CONSTEXPR>
+	template<bool IS_COMPTIME>
 	auto SemaToPIR::lower_interface_vtable_impl(
 		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
@@ -1036,10 +1098,10 @@ namespace pcit::panther{
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
 		for(sema::Func::ID func_id : funcs){
-			if constexpr(IS_CONSTEXPR){
+			if constexpr(IS_COMPTIME){
 				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
-				if(func.isConstexpr){
+				if(func.isComptime){
 					vtable_values.emplace_back(
 						this->agent.createFunctionPointer(
 							this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
@@ -1279,9 +1341,7 @@ namespace pcit::panther{
 
 
 				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types),
-					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-					this->module.createBoolType()
+					std::move(param_types), pir::CallingConvention::FAST, this->module.createBoolType()
 				);
 
 
@@ -1422,9 +1482,7 @@ namespace pcit::panther{
 
 
 				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types),
-					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-					return_type
+					std::move(param_types), pir::CallingConvention::FAST, return_type
 				);
 
 
@@ -3699,9 +3757,7 @@ namespace pcit::panther{
 
 
 				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types),
-					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-					return_type
+					std::move(param_types), pir::CallingConvention::FAST, return_type
 				);
 
 
@@ -4670,9 +4726,7 @@ namespace pcit::panther{
 
 
 				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types),
-					this->data.getConfig().isJIT ? pir::CallingConvention::C : pir::CallingConvention::FAST,
-					this->module.createBoolType()
+					std::move(param_types), pir::CallingConvention::FAST, this->module.createBoolType()
 				);
 
 

@@ -56,8 +56,8 @@ namespace pcit::panther{
 
 		enum class ValueStage{
 			NOT_APPLICABLE,
-			CONSTEXPR,
 			COMPTIME,
+			INTERPTIME,
 			RUNTIME,
 		};
 
@@ -365,42 +365,9 @@ namespace pcit::panther{
 
 
 		EVO_NODISCARD static auto fromFakeTermInfo(const sema::FakeTermInfo& fake_term_info) -> TermInfo {
-			const ValueCategory value_category = [&](){
-				switch(fake_term_info.valueCategory){
-					case sema::FakeTermInfo::ValueCategory::EPHEMERAL:
-						return ValueCategory::EPHEMERAL;
-
-					case sema::FakeTermInfo::ValueCategory::CONCRETE_CONST:
-						return ValueCategory::CONCRETE_CONST;
-
-					case sema::FakeTermInfo::ValueCategory::CONCRETE_MUT:
-						return ValueCategory::CONCRETE_MUT;
-
-					case sema::FakeTermInfo::ValueCategory::FORWARDABLE:
-						return ValueCategory::FORWARDABLE;
-				}
-				evo::unreachable();
-			}();
-
-			const ValueStage value_stage = [&](){
-				switch(fake_term_info.valueStage){
-					case sema::FakeTermInfo::ValueStage::CONSTEXPR: return ValueStage::CONSTEXPR;
-					case sema::FakeTermInfo::ValueStage::COMPTIME:  return ValueStage::COMPTIME;
-					case sema::FakeTermInfo::ValueStage::RUNTIME:   return ValueStage::RUNTIME;
-				}
-				evo::unreachable();
-			}();
-
-			const ValueState value_state = [&](){
-				switch(fake_term_info.valueState){
-					case sema::FakeTermInfo::ValueState::NOT_APPLICABLE: return ValueState::NOT_APPLICABLE;
-					case sema::FakeTermInfo::ValueState::INIT:           return ValueState::INIT;
-					case sema::FakeTermInfo::ValueState::INITIALIZING:   return ValueState::INITIALIZING;
-					case sema::FakeTermInfo::ValueState::UNINIT:         return ValueState::UNINIT;
-					case sema::FakeTermInfo::ValueState::MOVED_FROM:     return ValueState::MOVED_FROM;
-				}
-				evo::unreachable();
-			}();
+			const ValueCategory value_category = convertValueCategory(fake_term_info.valueCategory);
+			const ValueStage value_stage = convertValueStage(fake_term_info.valueStage);
+			const ValueState value_state = convertValueState(fake_term_info.valueState);
 
 			return TermInfo(value_category, value_stage, value_state, fake_term_info.typeID, fake_term_info.expr);
 		}
@@ -431,17 +398,17 @@ namespace pcit::panther{
 		EVO_NODISCARD static auto convertValueStage(ValueStage value_stage) -> sema::FakeTermInfo::ValueStage {
 			switch(value_stage){
 				case TermInfo::ValueStage::NOT_APPLICABLE: evo::debugFatalBreak("Invalid value stage to convert");
-				case TermInfo::ValueStage::CONSTEXPR:      return sema::FakeTermInfo::ValueStage::CONSTEXPR;
-				case TermInfo::ValueStage::COMPTIME:       return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::COMPTIME:      return sema::FakeTermInfo::ValueStage::COMPTIME;
+				case TermInfo::ValueStage::INTERPTIME:     return sema::FakeTermInfo::ValueStage::INTERPTIME;
 				case TermInfo::ValueStage::RUNTIME:        return sema::FakeTermInfo::ValueStage::RUNTIME;
 			}
 			evo::unreachable();
 		}
 		EVO_NODISCARD static auto convertValueStage(sema::FakeTermInfo::ValueStage value_stage) -> ValueStage {
 			switch(value_stage){
-				case sema::FakeTermInfo::ValueStage::CONSTEXPR: return TermInfo::ValueStage::CONSTEXPR;
 				case sema::FakeTermInfo::ValueStage::COMPTIME:  return TermInfo::ValueStage::COMPTIME;
-				case sema::FakeTermInfo::ValueStage::RUNTIME:   return TermInfo::ValueStage::RUNTIME;
+				case sema::FakeTermInfo::ValueStage::INTERPTIME: return TermInfo::ValueStage::INTERPTIME;
+				case sema::FakeTermInfo::ValueStage::RUNTIME:    return TermInfo::ValueStage::RUNTIME;
 			}
 			evo::unreachable();
 		}

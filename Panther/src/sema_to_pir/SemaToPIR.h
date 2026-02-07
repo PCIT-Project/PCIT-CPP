@@ -71,7 +71,8 @@ namespace pcit::panther{
 				: context(_context), module(_module), agent(_module), data(_data) {}
 			~SemaToPIR() = default;
 
-			auto lower() -> void;
+			// auto lower() -> void;
+			auto lowerRuntime() -> void;
 
 
 			auto lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type;
@@ -84,7 +85,7 @@ namespace pcit::panther{
 
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
-			EVO_NODISCARD auto lowerFuncDeclConstexpr(sema::Func::ID func_id) -> pir::Function::ID;
+			EVO_NODISCARD auto lowerFuncDeclComptime(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> void;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
 
@@ -95,7 +96,7 @@ namespace pcit::panther{
 				TypeInfo::ID type_id,
 				const evo::SmallVector<sema::Func::ID>& funcs
 			) -> void;
-			auto lowerInterfaceVTableConstexpr(
+			auto lowerInterfaceVTableComptime(
 				BaseType::Interface::ID interface_id,
 				TypeInfo::ID type_id,
 				const evo::SmallVector<sema::Func::ID>& funcs
@@ -127,7 +128,7 @@ namespace pcit::panther{
 			// see definition for explanation
 			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			auto lower_interface_vtable_impl(
 				BaseType::Interface::ID interface_id,
 				TypeInfo::ID type_id,

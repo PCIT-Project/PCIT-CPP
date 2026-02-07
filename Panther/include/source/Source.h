@@ -43,7 +43,7 @@ namespace pcit::panther{
 					bool methodCallOnNonMethod        = true;
 					bool deleteMovedFromExpr          = true;
 					bool deleteTriviallyDeletableType = true;
-					bool constexprIfCond              = true;
+					bool comptimeIfCond               = true;
 					bool alreadyUnsafe                = true;
 					bool experimentalF80              = true;
 

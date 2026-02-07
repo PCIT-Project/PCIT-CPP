@@ -54,8 +54,8 @@ namespace pcit::panther{
 
 
 	Context::~Context(){
-		// if(this->constexpr_jit_engine.isInitialized()){
-		// 	this->constexpr_jit_engine.deinit();
+		// if(this->comptime_jit_engine.isInitialized()){
+		// 	this->comptime_jit_engine.deinit();
 		// }
 	}
 
@@ -368,9 +368,9 @@ namespace pcit::panther{
 
 		this->init_intrinsic_infos();
 
-		// if(this->constexpr_jit_engine.isInitialized() == false){
+		// if(this->comptime_jit_engine.isInitialized() == false){
 		// 	const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
-		// 		this->constexpr_jit_engine.init(pir::JITEngine::InitConfig{
+		// 		this->comptime_jit_engine.init(pir::JITEngine::InitConfig{
 		// 			.allowDefaultSymbolLinking = false,
 		// 		});
 
@@ -390,9 +390,9 @@ namespace pcit::panther{
 		// 	}
 		// }
 
-		if(this->constexpr_execution_engine.isInitialized() == false){
+		if(this->comptime_execution_engine.isInitialized() == false){
 			const evo::Expected<void, evo::SmallVector<std::string>> execution_engine_init_result = 
-				this->constexpr_execution_engine.init(pir::ExecutionEngine::InitConfig{
+				this->comptime_execution_engine.init(pir::ExecutionEngine::InitConfig{
 					.allowDefaultSymbolLinking = false,
 				});
 
@@ -683,22 +683,14 @@ namespace pcit::panther{
 
 
 
-	auto Context::lowerToPIR(EntryKind entry_kind, pir::Module& module) -> evo::Result<> {
-		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			.useReadableNames     = true,
-			.checkedMath          = true,
-			.isJIT                = false,
-			.addSourceLocations   = true,
-			.useDebugUnreachables = false,
-		});
-
+	auto Context::lowerToPIR(EntryKind entry_kind) -> evo::Result<> {
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			sema_to_pir_data.createJITBuildFuncDecls(module);
+			this->sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
 
 
-		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
-		sema_to_pir.lower();
+		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
+		sema_to_pir.lowerRuntime();
 
 		switch(entry_kind){
 			case EntryKind::NONE: {
@@ -894,26 +886,23 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
-		auto module = pir::Module(evo::copy(this->_config.title), core::Target::getNative());
 
-		auto sema_to_pir_data = SemaToPIR::Data(SemaToPIR::Data::Config{
-			#if defined(PCIT_CONFIG_DEBUG)
-				.useReadableNames = true,
-			#else
-				.useReadableNames = false,
-			#endif
-			.checkedMath          = true,
-			.isJIT                = true,
-			.addSourceLocations   = true,
-			.useDebugUnreachables = true,
-		});
+		evo::debugAssert(
+			this->pir_module.getTarget() == core::Target::getNative(), "Can only run entry if target is native"
+		);
+
+
 		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			sema_to_pir_data.createJITBuildFuncDecls(module);
+			sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
 
-		auto sema_to_pir = SemaToPIR(*this, module, sema_to_pir_data);
-		sema_to_pir.lower();
+		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
+		sema_to_pir.lowerRuntime();
 		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry);
+
+
+		///////////////////////////////////
+		// setup jit engine
 
 		auto jit_engine = pir::JITEngine();
 		jit_engine.init(pir::JITEngine::InitConfig{
@@ -929,7 +918,8 @@ namespace pcit::panther{
 
 
 		{
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result = jit_engine.addModule(module);
+			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+				jit_engine.addModule(this->pir_module);
 			if(add_module_result.has_value() == false){
 				this->jit_engine_result_emit_diagnositc(add_module_result.error());
 				return evo::resultError;
@@ -939,7 +929,6 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// clang 
-
 
 		auto clang_modules = evo::SmallVector<std::pair<llvmint::LLVMContext, llvm::Module*>>();
 		clang_modules.reserve(source_manager.getClangSourceIDRange().size());
@@ -1013,7 +1002,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::lowerToLLVMIR(pir::Module& module) -> evo::Result<std::string> {
+	auto Context::lowerToLLVMIR() -> evo::Result<std::string> {
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
@@ -1024,14 +1013,14 @@ namespace pcit::panther{
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToLLVMIR(
-			module,
+			this->pir_module,
 			pir::OptMode::O0,
 			llvm_context.native(),
 			std::move(clang_modules.value())
 		);
 	}
 
-	auto Context::lowerToAssembly(pir::Module& module) -> evo::Result<std::string> {
+	auto Context::lowerToAssembly() -> evo::Result<std::string> {
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
@@ -1042,14 +1031,14 @@ namespace pcit::panther{
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToAssembly(
-			module,
+			this->pir_module,
 			pir::OptMode::O0,
 			llvm_context.native(),
 			std::move(clang_modules.value())
 		);
 	}
 
-	auto Context::lowerToObject(pir::Module& module) -> evo::Result<std::vector<evo::byte>> {
+	auto Context::lowerToObject() -> evo::Result<std::vector<evo::byte>> {
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
@@ -1060,7 +1049,7 @@ namespace pcit::panther{
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToObject(
-			module,
+			this->pir_module,
 			pir::OptMode::O0,
 			llvm_context.native(),
 			std::move(clang_modules.value())
@@ -1999,7 +1988,7 @@ namespace pcit::panther{
 
 
 	auto Context::init_builtin_modules() -> void {
-		auto sema_to_pir = SemaToPIR(*this, this->constexpr_pir_module, this->constexpr_sema_to_pir_data);
+		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 
 		///////////////////////////////////
 		// helper types
@@ -2047,7 +2036,7 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					build_module.createString("constexprIfCond"),
+					build_module.createString("comptimeIfCond"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
 				),
@@ -3384,27 +3373,27 @@ namespace pcit::panther{
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = true,  .allowedInScript     = false, .allowedInBuild   = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = true,  .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true,  .allowedInRuntime = true,
+			.allowedInCompile  = true,  .allowedInScript     = false, .allowedInBuild   = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 
 		IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
 			.typeID = ui32_arg_return_void,
-			.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-			.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 		};
 
 
@@ -3426,8 +3415,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = created_func_type,
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3479,8 +3468,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3509,8 +3498,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3542,8 +3531,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3567,15 +3556,15 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInConstexpr = false, .allowedInComptime = false, .allowedInRuntime     = true,
-				.allowedInCompile   = false, .allowedInScript   = false, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3601,24 +3590,24 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 
@@ -3626,16 +3615,16 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, TypeManager::getTypeBool()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::NUM_BITS) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, TypeManager::getTypeBool()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 
@@ -3647,64 +3636,64 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::TRUNC) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FTRUNC) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SEXT) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ZEXT) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FEXT) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::I_TO_F) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::F_TO_I) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 
@@ -3717,8 +3706,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ADD_WRAP) = TemplateIntrinsicFuncInfo{
@@ -3727,8 +3716,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul, TypeManager::getTypeBool()},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ADD_SAT) = TemplateIntrinsicFuncInfo{
@@ -3737,8 +3726,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FADD) = TemplateIntrinsicFuncInfo{
@@ -3747,8 +3736,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SUB) = TemplateIntrinsicFuncInfo{
@@ -3757,8 +3746,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SUB_WRAP) = TemplateIntrinsicFuncInfo{
@@ -3767,8 +3756,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul, TypeManager::getTypeBool()},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SUB_SAT) = TemplateIntrinsicFuncInfo{
@@ -3777,8 +3766,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FSUB) = TemplateIntrinsicFuncInfo{
@@ -3787,8 +3776,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::MUL) = TemplateIntrinsicFuncInfo{
@@ -3797,8 +3786,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::MUL_WRAP) = TemplateIntrinsicFuncInfo{
@@ -3807,8 +3796,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul, TypeManager::getTypeBool()},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::MUL_SAT) = TemplateIntrinsicFuncInfo{
@@ -3817,8 +3806,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FMUL) = TemplateIntrinsicFuncInfo{
@@ -3827,8 +3816,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::DIV) = TemplateIntrinsicFuncInfo{
@@ -3837,8 +3826,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FDIV) = TemplateIntrinsicFuncInfo{
@@ -3847,8 +3836,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::REM) = TemplateIntrinsicFuncInfo{
@@ -3857,16 +3846,16 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::FNEG) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 
@@ -3879,8 +3868,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::NEQ) = TemplateIntrinsicFuncInfo{
@@ -3889,8 +3878,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::LT) = TemplateIntrinsicFuncInfo{
@@ -3899,8 +3888,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::LTE) = TemplateIntrinsicFuncInfo{
@@ -3909,8 +3898,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::GT) = TemplateIntrinsicFuncInfo{
@@ -3919,8 +3908,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::GTE) = TemplateIntrinsicFuncInfo{
@@ -3929,8 +3918,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 
@@ -3943,8 +3932,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::OR) = TemplateIntrinsicFuncInfo{
@@ -3953,8 +3942,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::XOR) = TemplateIntrinsicFuncInfo{
@@ -3963,8 +3952,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 0ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SHL) = TemplateIntrinsicFuncInfo{
@@ -3973,8 +3962,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 1ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SHL_SAT) = TemplateIntrinsicFuncInfo{
@@ -3983,8 +3972,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 1ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::SHR) = TemplateIntrinsicFuncInfo{
@@ -3993,48 +3982,48 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::READ, 1ul),
 			},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::BIT_REVERSE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::BYTE_SWAP) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::CTPOP) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::CTLZ) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = true, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true, .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::CTTZ) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{0ul},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 
@@ -4055,8 +4044,8 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt, std::nullopt, atomic_ordering_type_id},
 			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 
@@ -4066,8 +4055,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::READ, 0ul), Param(BaseType::Function::Param::Kind::IN, 1ul)
 			},
 			.returns        = evo::SmallVector<Return>{TypeInfo::VoidableID::Void()},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::CMPXCHG) = TemplateIntrinsicFuncInfo{
@@ -4080,8 +4069,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::IN, 1ul)
 			},
 			.returns        = evo::SmallVector<Return>{1ul, TypeManager::getTypeBool()},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_RMW) = TemplateIntrinsicFuncInfo{
@@ -4093,8 +4082,8 @@ namespace pcit::panther{
 				Param(BaseType::Function::Param::Kind::IN, 1ul)
 			},
 			.returns        = evo::SmallVector<Return>{1ul},
-			.allowedInConstexpr = false, .allowedInComptime = true, .allowedInRuntime     = true,
-			.allowedInCompile   = true,  .allowedInScript   = true, .allowedInBuildSystem = true,
+			.allowedInComptime = false, .allowedInInterptime = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true,  .allowedInScript     = true, .allowedInBuild    = true,
 		};
 	}
 

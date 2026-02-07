@@ -418,31 +418,31 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// FuncPrepareConstexprPIRIfNeeded
+			// FuncPrepareComptimePIRIfNeeded
 
-			EVO_NODISCARD auto createFuncPrepareConstexprPIRIfNeeded(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createFuncPrepareComptimePIRIfNeeded(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED,
-					this->func_prepare_constexpr_pir_if_neededs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_PREPARE_COMPTIME_PIR_IF_NEEDED,
+					this->func_prepare_comptime_pir_if_neededs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getFuncPrepareConstexprPIRIfNeeded(Instruction instr) const
-			-> const Instruction::FuncPrepareConstexprPIRIfNeeded& {
+			EVO_NODISCARD auto getFuncPrepareComptimePIRIfNeeded(Instruction instr) const
+			-> const Instruction::FuncPrepareComptimePIRIfNeeded& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::FUNC_PREPARE_CONSTEXPR_PIR_IF_NEEDED,
-					"Not a FuncPrepareConstexprPIRIfNeeded"
+					instr.kind() == Instruction::Kind::FUNC_PREPARE_COMPTIME_PIR_IF_NEEDED,
+					"Not a FuncPrepareComptimePIRIfNeeded"
 				);
-				return this->func_prepare_constexpr_pir_if_neededs[instr._index];
+				return this->func_prepare_comptime_pir_if_neededs[instr._index];
 			}
 
 
 
 			//////////////////
-			// FuncConstexprPIRReadyIfNeeded
+			// FuncComptimePIRReadyIfNeeded
 
-			EVO_NODISCARD auto createFuncConstexprPIRReadyIfNeeded() -> Instruction {
-				return Instruction(Instruction::Kind::FUNC_CONSTEXPR_PIR_READY_IF_NEEDED, 0);
+			EVO_NODISCARD auto createFuncComptimePIRReadyIfNeeded() -> Instruction {
+				return Instruction(Instruction::Kind::FUNC_COMPTIME_PIR_READY_IF_NEEDED, 0);
 			}
 
 
@@ -706,10 +706,10 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// InterfaceImplConstexprPIR
+			// InterfaceImplComptimePIR
 
-			EVO_NODISCARD auto createInterfaceImplConstexprPIR() -> Instruction {
-				return Instruction(Instruction::Kind::INTERFACE_IMPL_CONSTEXPR_PIR, 0);
+			EVO_NODISCARD auto createInterfaceImplComptimePIR() -> Instruction {
+				return Instruction(Instruction::Kind::INTERFACE_IMPL_COMPTIME_PIR, 0);
 			}
 
 
@@ -1476,19 +1476,19 @@ namespace pcit::panther{
 			//////////////////
 			// FuncCallExpr<true, true>
 
-			EVO_NODISCARD auto createFuncCallExprConstexprErrors(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createFuncCallExprComptimeErrors(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR_ERRORS,
-					this->func_call_expr_constexpr_errorss.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_CALL_EXPR_COMPTIME_ERRORS,
+					this->func_call_expr_comptime_errorss.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getFuncCallExprConstexprErrors(Instruction instr) const
+			EVO_NODISCARD auto getFuncCallExprComptimeErrors(Instruction instr) const
 			-> const Instruction::FuncCallExpr<true, true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR_ERRORS, "Not a FuncCallExpr<true, true>"
+					instr.kind() == Instruction::Kind::FUNC_CALL_EXPR_COMPTIME_ERRORS, "Not a FuncCallExpr<true, true>"
 				);
-				return this->func_call_expr_constexpr_errorss[instr._index];
+				return this->func_call_expr_comptime_errorss[instr._index];
 			}
 
 
@@ -1496,19 +1496,19 @@ namespace pcit::panther{
 			//////////////////
 			// FuncCallExpr<true, false>
 
-			EVO_NODISCARD auto createFuncCallExprConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createFuncCallExprComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR,
-					this->func_call_expr_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_CALL_EXPR_COMPTIME,
+					this->func_call_expr_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getFuncCallExprConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getFuncCallExprComptime(Instruction instr) const
 			-> const Instruction::FuncCallExpr<true, false>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::FUNC_CALL_EXPR_CONSTEXPR, "Not a FuncCallExpr<true, false>"
+					instr.kind() == Instruction::Kind::FUNC_CALL_EXPR_COMPTIME, "Not a FuncCallExpr<true, false>"
 				);
-				return this->func_call_expr_constexprs[instr._index];
+				return this->func_call_expr_comptimes[instr._index];
 			}
 
 
@@ -1554,21 +1554,21 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// ConstexprFuncCallRun
+			// ComptimeFuncCallRun
 
-			EVO_NODISCARD auto createConstexprFuncCallRun(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createComptimeFuncCallRun(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::CONSTEXPR_FUNC_CALL_RUN,
-					this->constexpr_func_call_runs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::COMPTIME_FUNC_CALL_RUN,
+					this->comptime_func_call_runs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getConstexprFuncCallRun(Instruction instr) const
-			-> const Instruction::ConstexprFuncCallRun& {
+			EVO_NODISCARD auto getComptimeFuncCallRun(Instruction instr) const
+			-> const Instruction::ComptimeFuncCallRun& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::CONSTEXPR_FUNC_CALL_RUN, "Not a ConstexprFuncCallRun"
+					instr.kind() == Instruction::Kind::COMPTIME_FUNC_CALL_RUN, "Not a ComptimeFuncCallRun"
 				);
-				return this->constexpr_func_call_runs[instr._index];
+				return this->comptime_func_call_runs[instr._index];
 			}
 
 
@@ -1693,22 +1693,22 @@ namespace pcit::panther{
 			//////////////////
 			// TemplateIntrinsicFuncCallExpr<true>
 
-			EVO_NODISCARD auto createTemplateIntrinsicFuncCallExprConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createTemplateIntrinsicFuncCallExprComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
-					this->template_intrinsic_func_call_expr_constexprs.emplace_back(
+					Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME,
+					this->template_intrinsic_func_call_expr_comptimes.emplace_back(
 						std::forward<decltype(args)>(args)...
 					)
 				);
 			}
 
-			EVO_NODISCARD auto getTemplateIntrinsicFuncCallExprConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getTemplateIntrinsicFuncCallExprComptime(Instruction instr) const
 			-> const Instruction::TemplateIntrinsicFuncCallExpr<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_CONSTEXPR,
+					instr.kind() == Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME,
 					"Not a TemplateIntrinsicFuncCallExpr<true>"
 				);
-				return this->template_intrinsic_func_call_expr_constexprs[instr._index];
+				return this->template_intrinsic_func_call_expr_comptimes[instr._index];
 			}
 
 
@@ -1737,16 +1737,16 @@ namespace pcit::panther{
 			//////////////////
 			// Indexer<true>
 
-			EVO_NODISCARD auto createIndexerConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createIndexerComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::INDEXER_CONSTEXPR,
-					this->indexer_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::INDEXER_COMPTIME,
+					this->indexer_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getIndexerConstexpr(Instruction instr) const -> const Instruction::Indexer<true>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::INDEXER_CONSTEXPR, "Not a Indexer<true>");
-				return this->indexer_constexprs[instr._index];
+			EVO_NODISCARD auto getIndexerComptime(Instruction instr) const -> const Instruction::Indexer<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::INDEXER_COMPTIME, "Not a Indexer<true>");
+				return this->indexer_comptimes[instr._index];
 			}
 
 
@@ -1932,19 +1932,19 @@ namespace pcit::panther{
 			//////////////////
 			// PrefixNegate<true>
 
-			EVO_NODISCARD auto createPrefixNegateConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createPrefixNegateComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::PREFIX_NEGATE_CONSTEXPR,
-					this->prefix_negate_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::PREFIX_NEGATE_COMPTIME,
+					this->prefix_negate_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getPrefixNegateConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getPrefixNegateComptime(Instruction instr) const
 			-> const Instruction::PrefixNegate<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::PREFIX_NEGATE_CONSTEXPR, "Not a PrefixNegate<true>"
+					instr.kind() == Instruction::Kind::PREFIX_NEGATE_COMPTIME, "Not a PrefixNegate<true>"
 				);
-				return this->prefix_negate_constexprs[instr._index];
+				return this->prefix_negate_comptimes[instr._index];
 			}
 
 
@@ -1969,16 +1969,16 @@ namespace pcit::panther{
 			//////////////////
 			// PrefixNot<true>
 
-			EVO_NODISCARD auto createPrefixNotConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createPrefixNotComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::PREFIX_NOT_CONSTEXPR,
-					this->prefix_not_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::PREFIX_NOT_COMPTIME,
+					this->prefix_not_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getPrefixNotConstexpr(Instruction instr) const -> const Instruction::PrefixNot<true>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::PREFIX_NOT_CONSTEXPR, "Not a PrefixNot<true>");
-				return this->prefix_not_constexprs[instr._index];
+			EVO_NODISCARD auto getPrefixNotComptime(Instruction instr) const -> const Instruction::PrefixNot<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::PREFIX_NOT_COMPTIME, "Not a PrefixNot<true>");
+				return this->prefix_not_comptimes[instr._index];
 			}
 
 
@@ -2003,19 +2003,19 @@ namespace pcit::panther{
 			//////////////////
 			// PrefixBitwiseNot<true>
 
-			EVO_NODISCARD auto createPrefixBitwiseNotConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createPrefixBitwiseNotComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::PREFIX_BITWISE_NOT_CONSTEXPR,
-					this->prefix_bitwise_not_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::PREFIX_BITWISE_NOT_COMPTIME,
+					this->prefix_bitwise_not_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getPrefixBitwiseNotConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getPrefixBitwiseNotComptime(Instruction instr) const
 			-> const Instruction::PrefixBitwiseNot<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::PREFIX_BITWISE_NOT_CONSTEXPR, "Not a PrefixBitwiseNot<true>"
+					instr.kind() == Instruction::Kind::PREFIX_BITWISE_NOT_COMPTIME, "Not a PrefixBitwiseNot<true>"
 				);
-				return this->prefix_bitwise_not_constexprs[instr._index];
+				return this->prefix_bitwise_not_comptimes[instr._index];
 			}
 
 
@@ -2076,19 +2076,19 @@ namespace pcit::panther{
 			//////////////////
 			// New<true>
 
-			EVO_NODISCARD auto createNewConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createNewComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::NEW_CONSTEXPR,
-					this->new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::NEW_COMPTIME,
+					this->new_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getNewConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getNewComptime(Instruction instr) const
 			-> const Instruction::New<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::NEW_CONSTEXPR, "Not a New<true>"
+					instr.kind() == Instruction::Kind::NEW_COMPTIME, "Not a New<true>"
 				);
-				return this->new_constexprs[instr._index];
+				return this->new_comptimes[instr._index];
 			}
 
 
@@ -2113,19 +2113,19 @@ namespace pcit::panther{
 			//////////////////
 			// ArrayInitNew<true>
 
-			EVO_NODISCARD auto createArrayInitNewConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createArrayInitNewComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ARRAY_INIT_NEW_CONSTEXPR,
-					this->array_init_new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::ARRAY_INIT_NEW_COMPTIME,
+					this->array_init_new_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getArrayInitNewConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getArrayInitNewComptime(Instruction instr) const
 			-> const Instruction::ArrayInitNew<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::ARRAY_INIT_NEW_CONSTEXPR, "Not a ArrayInitNew<true>"
+					instr.kind() == Instruction::Kind::ARRAY_INIT_NEW_COMPTIME, "Not a ArrayInitNew<true>"
 				);
-				return this->array_init_new_constexprs[instr._index];
+				return this->array_init_new_comptimes[instr._index];
 			}
 
 
@@ -2150,19 +2150,19 @@ namespace pcit::panther{
 			//////////////////
 			// DesignatedInitNew<true>
 
-			EVO_NODISCARD auto createDesignatedInitNewConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createDesignatedInitNewComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR,
-					this->designated_init_new_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::DESIGNATED_INIT_NEW_COMPTIME,
+					this->designated_init_new_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getDesignatedInitNewConstexpr(Instruction instr) const
+			EVO_NODISCARD auto getDesignatedInitNewComptime(Instruction instr) const
 			-> const Instruction::DesignatedInitNew<true>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::DESIGNATED_INIT_NEW_CONSTEXPR, "Not a DesignatedInitNew<true>"
+					instr.kind() == Instruction::Kind::DESIGNATED_INIT_NEW_COMPTIME, "Not a DesignatedInitNew<true>"
 				);
-				return this->designated_init_new_constexprs[instr._index];
+				return this->designated_init_new_comptimes[instr._index];
 			}
 
 
@@ -2258,14 +2258,14 @@ namespace pcit::panther{
 			//////////////////
 			// As<true>
 
-			EVO_NODISCARD auto createAsConstexpr(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createAsComptime(auto&&... args) -> Instruction {
 				return Instruction(
 					Instruction::Kind::AS_CONTEXPR,
 					this->as_contexprs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getAsConstexpr(Instruction instr) const -> const Instruction::As<true>& {
+			EVO_NODISCARD auto getAsComptime(Instruction instr) const -> const Instruction::As<true>& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::AS_CONTEXPR, "Not a As<true>");
 				return this->as_contexprs[instr._index];
 			}
@@ -2309,20 +2309,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>
 
-			EVO_NODISCARD auto createMathInfixConstexprComparative(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeComparative(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_COMPARATIVE,
-					this->math_infix_constexpr_comparatives.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_COMPARATIVE,
+					this->math_infix_comptime_comparatives.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprComparative(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeComparative(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_COMPARATIVE,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_COMPARATIVE,
 					"Not a MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>"
 				);
-				return this->math_infix_constexpr_comparatives[instr._index];
+				return this->math_infix_comptime_comparatives[instr._index];
 			}
 
 
@@ -2330,20 +2330,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::MATH>
 
-			EVO_NODISCARD auto createMathInfixConstexprMath(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeMath(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_MATH,
-					this->math_infix_constexpr_maths.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_MATH,
+					this->math_infix_comptime_maths.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprMath(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeMath(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_MATH,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_MATH,
 					"Not a MathInfix<true, Instruction::MathInfixKind::MATH>"
 				);
-				return this->math_infix_constexpr_maths[instr._index];
+				return this->math_infix_comptime_maths[instr._index];
 			}
 
 
@@ -2351,20 +2351,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>
 
-			EVO_NODISCARD auto createMathInfixConstexprIntegralMath(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeIntegralMath(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_INTEGRAL_MATH,
-					this->math_infix_constexpr_integral_maths.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_INTEGRAL_MATH,
+					this->math_infix_comptime_integral_maths.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprIntegralMath(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeIntegralMath(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_INTEGRAL_MATH,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_INTEGRAL_MATH,
 					"Not a MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>"
 				);
-				return this->math_infix_constexpr_integral_maths[instr._index];
+				return this->math_infix_comptime_integral_maths[instr._index];
 			}
 
 
@@ -2372,20 +2372,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::LOGICAL>
 
-			EVO_NODISCARD auto createMathInfixConstexprLogical(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeLogical(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL,
-					this->math_infix_constexpr_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_LOGICAL,
+					this->math_infix_comptime_logicals.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprLogical(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeLogical(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_LOGICAL,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_LOGICAL,
 					"Not a MathInfix<true, Instruction::MathInfixKind::LOGICAL>"
 				);
-				return this->math_infix_constexpr_logicals[instr._index];
+				return this->math_infix_comptime_logicals[instr._index];
 			}
 
 
@@ -2393,20 +2393,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>
 
-			EVO_NODISCARD auto createMathInfixConstexprBitwiseLogical(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeBitwiseLogical(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL,
-					this->math_infix_constexpr_bitwise_logicals.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_BITWISE_LOGICAL,
+					this->math_infix_comptime_bitwise_logicals.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprBitwiseLogical(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeBitwiseLogical(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_BITWISE_LOGICAL,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_BITWISE_LOGICAL,
 					"Not a MathInfix<true, Instruction::MathInfixKind::BITWISE_LOGICAL>"
 				);
-				return this->math_infix_constexpr_bitwise_logicals[instr._index];
+				return this->math_infix_comptime_bitwise_logicals[instr._index];
 			}
 
 
@@ -2414,20 +2414,20 @@ namespace pcit::panther{
 			//////////////////
 			// MathInfix<true, Instruction::MathInfixKind::SHIFT>
 
-			EVO_NODISCARD auto createMathInfixConstexprShift(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createMathInfixComptimeShift(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::MATH_INFIX_CONSTEXPR_SHIFT,
-					this->math_infix_constexpr_shifts.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::MATH_INFIX_COMPTIME_SHIFT,
+					this->math_infix_comptime_shifts.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getMathInfixConstexprShift(Instruction instr) const
+			EVO_NODISCARD auto getMathInfixComptimeShift(Instruction instr) const
 			-> const Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>& {
 				evo::debugAssert(
-					instr.kind() == Instruction::Kind::MATH_INFIX_CONSTEXPR_SHIFT,
+					instr.kind() == Instruction::Kind::MATH_INFIX_COMPTIME_SHIFT,
 					"Not a MathInfix<true, Instruction::MathInfixKind::SHIFT>"
 				);
-				return this->math_infix_constexpr_shifts[instr._index];
+				return this->math_infix_comptime_shifts[instr._index];
 			}
 
 
@@ -3043,8 +3043,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
 			core::SyncLinearStepAlloc<Instruction::FuncPreBody, uint32_t> func_pre_bodys{};
 			core::SyncLinearStepAlloc<Instruction::FuncDef, uint32_t> func_defs{};
-			core::SyncLinearStepAlloc<Instruction::FuncPrepareConstexprPIRIfNeeded, uint32_t>
-				func_prepare_constexpr_pir_if_neededs{};
+			core::SyncLinearStepAlloc<Instruction::FuncPrepareComptimePIRIfNeeded, uint32_t>
+				func_prepare_comptime_pir_if_neededs{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncBegin, uint32_t> template_func_begins{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint32_t>
 				template_func_set_param_is_deducers{};
@@ -3104,12 +3104,12 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};
 
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, true>, uint32_t>
-				func_call_expr_constexpr_errorss{};
+				func_call_expr_comptime_errorss{};
 
-			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, false>, uint32_t> func_call_expr_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<true, false>, uint32_t> func_call_expr_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, true>, uint32_t> func_call_expr_errorss{};
 			core::SyncLinearStepAlloc<Instruction::FuncCallExpr<false, false>, uint32_t> func_call_exprs{};
-			core::SyncLinearStepAlloc<Instruction::ConstexprFuncCallRun, uint32_t> constexpr_func_call_runs{};
+			core::SyncLinearStepAlloc<Instruction::ComptimeFuncCallRun, uint32_t> comptime_func_call_runs{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::PANTHER>, uint32_t> import_panthers{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::C>, uint32_t> import_cs{};
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint32_t> import_cpps{};
@@ -3120,12 +3120,12 @@ namespace pcit::panther{
 				template_intrinsic_func_calls{};
 
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCallExpr<true>, uint32_t>
-				template_intrinsic_func_call_expr_constexprs{};
+				template_intrinsic_func_call_expr_comptimes{};
 
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCallExpr<false>, uint32_t>
 				template_intrinsic_func_call_exprs{};
 
-			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint32_t> indexer_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::Indexer<true>, uint32_t> indexer_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::Indexer<false>, uint32_t> indexers{};
 			core::SyncLinearStepAlloc<Instruction::TemplatedTerm, uint32_t> templated_terms{};
 			core::SyncLinearStepAlloc<Instruction::TemplatedTermWait<true>, uint32_t> templated_term_wait_for_defs{};
@@ -3138,19 +3138,19 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Move, uint32_t> moves{};
 			core::SyncLinearStepAlloc<Instruction::Forward, uint32_t> forwards{};
 			core::SyncLinearStepAlloc<Instruction::AddrOf, uint32_t> addr_ofs{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNegate<true>, uint32_t> prefix_negate_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNegate<true>, uint32_t> prefix_negate_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::PrefixNegate<false>, uint32_t> prefix_negates{};
-			core::SyncLinearStepAlloc<Instruction::PrefixNot<true>, uint32_t> prefix_not_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixNot<true>, uint32_t> prefix_not_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::PrefixNot<false>, uint32_t> prefix_nots{};
-			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<true>, uint32_t> prefix_bitwise_not_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<true>, uint32_t> prefix_bitwise_not_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<false>, uint32_t> prefix_bitwise_nots{};
 			core::SyncLinearStepAlloc<Instruction::Deref, uint32_t> derefs{};
 			core::SyncLinearStepAlloc<Instruction::Unwrap, uint32_t> unwraps{};
-			core::SyncLinearStepAlloc<Instruction::New<true>, uint32_t> new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::New<true>, uint32_t> new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::New<false>, uint32_t> news{};
-			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};
-			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint32_t> designated_init_news{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
 			core::SyncLinearStepAlloc<Instruction::TryElseExpr, uint32_t> try_else_exprs{};
@@ -3161,23 +3161,23 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck, uint32_t> optional_null_checks{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>, uint32_t>
-				math_infix_constexpr_comparatives{};
+				math_infix_comptime_comparatives{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::MATH>, uint32_t>
-				math_infix_constexpr_maths{};
+				math_infix_comptime_maths{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::INTEGRAL_MATH>, uint32_t>
-				math_infix_constexpr_integral_maths{};
+				math_infix_comptime_integral_maths{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::LOGICAL>, uint32_t>
-				math_infix_constexpr_logicals{};
+				math_infix_comptime_logicals{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<
 				true, Instruction::MathInfixKind::BITWISE_LOGICAL>, uint32_t
-			> math_infix_constexpr_bitwise_logicals{};
+			> math_infix_comptime_bitwise_logicals{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::SHIFT>, uint32_t>
-				math_infix_constexpr_shifts{};
+				math_infix_comptime_shifts{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::COMPARATIVE>, uint32_t>
 				math_infix_comparatives{};

@@ -112,52 +112,52 @@ namespace pcit::panther{
 			auto analyze_unsafe(const AST::Unsafe& unsafe) -> evo::Result<>;
 
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_erroring_expr(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR, bool MUST_BE_EXPR, bool ERRORS>
+			template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
 			EVO_NODISCARD auto analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;			
 
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_block(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR, bool ERRORS>
+			template<bool IS_COMPTIME, bool ERRORS>
 			EVO_NODISCARD auto analyze_expr_func_call(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_indexer(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_prefix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_array_init_new(const AST::Node& node)
 				-> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_designated_init_new(const AST::Node& node)
 				-> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_CONSTEXPR>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_try_else(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool NEEDS_DEF>

@@ -238,8 +238,8 @@ namespace pcit::panther::sema{
 		};
 
 		enum class ValueStage{
-			CONSTEXPR,
 			COMPTIME,
+			INTERPTIME,
 			RUNTIME,
 		};
 
@@ -634,7 +634,7 @@ namespace pcit::panther::sema{
 		bool isPriv;
 		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
 
-		std::optional<pir::GlobalVar::ID> constexprJITGlobal{};
+		std::optional<pir::GlobalVar::ID> comptimeJITGlobal{};
 
 		EVO_NODISCARD auto isClangVar() const -> bool { return this->sourceID.is<ClangSourceID>(); }
 		EVO_NODISCARD auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
@@ -673,7 +673,7 @@ namespace pcit::panther::sema{
 		uint32_t minNumArgs;
 		bool isPub;      // meaningless if is Clang or builtin type
 		bool isPriv;     // meaningless if not member
-		bool isConstexpr;
+		bool isComptime;
 		bool isExport;   // always true if is clang type
 		bool isImplicit; // meaningless if not member
 		bool hasInParam; // always false if is clang type
@@ -685,8 +685,8 @@ namespace pcit::panther::sema{
 		bool isTerminated = false;
 		std::atomic<Status> status = Status::NOT_DONE;
 
-		std::optional<pir::Function::ID> constexprJITFunc{};
-		// std::optional<pir::Function::ID> constexprJITInterfaceFunc{};
+		std::optional<pir::Function::ID> comptimeJITFunc{};
+		// std::optional<pir::Function::ID> comptimeJITInterfaceFunc{};
 
 		EVO_NODISCARD auto isClangFunc() const -> bool { return this->sourceID.is<ClangSourceID>(); }
 		EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
