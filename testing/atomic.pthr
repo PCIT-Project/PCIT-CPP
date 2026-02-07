@@ -1,10 +1,12 @@
-// def std = @import("std");
+def std = @import("std");
 
 
-type AtomicOrdering #pub = alias @pthr.AtomicOrdering;
+type AtomicOrdering = alias #pub @pthr.AtomicOrdering;
 
 
-type AtomicRef = struct <{T: Type}> #pub {
+type AtomicRef = struct <{T: Type}> #pub 
+	#comptimeAssert(std.types.numBytes<{T}>() <= 8, "`T` must be lock-free atomic")
+{
 	func new = (ptr: T*mut) -> (output: This) {
 		output.ptr = copy ptr;
 		return...;

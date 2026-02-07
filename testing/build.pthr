@@ -25,7 +25,7 @@ func entry = () #entry -> UI8 {
 	test_package.addSourceFile("test.pthr");
 	// test_package.addSourceFile("StaticArrayList.pthr");
 	// test_package.addSourceFile("NonTrivial.pthr");
-	// test_package.addSourceFile("atomic.pthr");
+	test_package.addSourceFile("atomic.pthr");
 
 	// @buildAddCHeaderFile("test.h", true);
 

@@ -635,6 +635,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue;
 
+			EVO_NODISCARD auto extract_string_from_sema_expr(sema::Expr expr) -> std::string_view;
+
 
 			EVO_NODISCARD auto get_package() const -> const Source::Package&;
 

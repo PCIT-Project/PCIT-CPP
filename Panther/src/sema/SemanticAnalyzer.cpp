@@ -12089,14 +12089,46 @@ namespace pcit::panther{
 
 	template<Instruction::Language LANGUAGE>
 	auto SemanticAnalyzer::instr_import(const Instruction::Import<LANGUAGE>& instr) -> Result {
-		const TermInfo& location = this->get_term_info(instr.location);
+		TermInfo& location_str_term_info = this->get_term_info(instr.location);
 
-		// TODO(FUTURE): type checking of location
+		const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(
+				this->context.type_manager.getOrCreateArrayRef(
+					BaseType::ArrayRef(
+						this->context.getTypeManager().getTypeChar(),
+						evo::SmallVector<BaseType::ArrayRef::Dimension>{
+							BaseType::ArrayRef::Dimension::ptr()
+						},
+						std::nullopt,
+						false
+					)
+				)
+			)
+		);
 
-		const std::string_view lookup_path = this->context.getSemaBuffer().getStringValue(
-			location.getExpr().stringValueID()
-		).value;
+		const std::string_view diagnostic_location_str = [&]() -> std::string_view {
+			if constexpr(LANGUAGE == Instruction::Language::PANTHER){
+				return "Path argument in `@import`";
 
+			}else if constexpr(LANGUAGE == Instruction::Language::C){
+				return "Path argument in `@importC`";
+				
+			}else if constexpr(LANGUAGE == Instruction::Language::CPP){
+				return "Path argument in `@importCpp`";
+				
+			}else{
+				static_assert(false, "Unknown language");
+			}
+		}();
+
+		if(this->type_check<true, true>(
+			str_type, location_str_term_info, diagnostic_location_str, instr.func_call.args[0].value
+		).ok == false){
+			return Result::ERROR;;
+		}
+
+
+		const std::string_view lookup_path = this->extract_string_from_sema_expr(location_str_term_info.getExpr());
 
 		auto lookup_error = std::optional<Context::LookupSourceIDError>();
 
@@ -28003,6 +28035,26 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::extract_string_from_sema_expr(sema::Expr expr) -> std::string_view {
+		switch(expr.kind()){
+			case sema::Expr::Kind::STRING_VALUE: {
+				return this->context.getSemaBuffer().getStringValue(expr.stringValueID()).value;
+			} break;
+
+			case sema::Expr::Kind::INIT_ARRAY_REF: {
+				const sema::InitArrayRef& init_array_ref = 
+					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+
+				return this->extract_string_from_sema_expr(init_array_ref.expr);
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Not a string value");
+			} break;
+		}
+	}
+
+
 
 
 	auto SemanticAnalyzer::get_package() const -> const Source::Package& {
@@ -30408,6 +30460,91 @@ namespace pcit::panther{
 				}
 
 				if(attr_packed.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "comptimeAssert"){
+				if(attribute_params_info[i].empty()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #comptimeAssert requires a condition argument"
+					);
+					return evo::resultError;
+				}
+
+				if(attribute_params_info[i].size() > 2){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[2],
+						"Attribute #comptimeAssert does not accept more than 2 arguments"
+					);
+					return evo::resultError;
+				}
+
+
+				TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+				if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+					return evo::resultError;
+				}
+
+				if(this->type_check<true, true>(
+					this->context.getTypeManager().getTypeBool(),
+					cond_term_info,
+					"Condition in #comptimeAssert",
+					attribute.args[0]
+				).ok == false){
+					return evo::resultError;
+				}
+
+				const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+
+				auto message = std::string_view();
+
+				if(attribute_params_info[i].size() == 2){
+					TermInfo& message_term_info = this->get_term_info(attribute_params_info[i][1]);
+					if(this->check_term_isnt_type(message_term_info, attribute.args[1]).isError()){
+						return evo::resultError;
+					}
+
+					const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->context.type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->context.getTypeManager().getTypeChar(),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					);
+
+					if(this->type_check<true, true>(
+						str_type, message_term_info, "Message in #comptimeAssert", attribute.args[1]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+				}
+
+				if(cond == false){
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+
+					if(message.empty() == false){
+						infos.emplace_back(std::format("Message: \"{}\"", message));
+					}
+
+					this->emit_error(
+						Diagnostic::Code::SEMA_COMPTIME_ASSERT_FAIL,
+						attribute.attribute,
+						"Comptime assert fail",
+						std::move(infos)
+					);
+					return evo::resultError;
+				}
 
 			}else{
 				this->emit_error(

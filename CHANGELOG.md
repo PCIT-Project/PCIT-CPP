@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.230.0"></a>
+## v0.0.230.0
+
+### Panther
+- Added struct attribute `#comptimeAssert`
+- Added type checking of the path argument of `@import`, `@importC`, and `@importCpp`
+
+
+<!---------------------------------->
 <a name="v0.0.229.0"></a>
 ## v0.0.229.0
 
