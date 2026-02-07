@@ -1,9 +1,9 @@
 type AtomicRef = alias @import("atomic.pthr").AtomicRef;
 
 func entry = () #entry -> UI8 {
-	var num: UI8 = 12;
+	var num: Int = 12;
 
-	var atom_ref = new AtomicRef<{UI8}>(&num);
+	var atom_ref = new AtomicRef<{Int}>(&num);
 	
-	return atom_ref.load();
+	return atom_ref.load() as UI8;
 }

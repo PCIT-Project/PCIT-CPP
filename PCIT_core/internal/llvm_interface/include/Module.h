@@ -43,7 +43,7 @@ namespace pcit::llvmint{
 			// used for target triple
 			enum class CodeSize{
 				DEFAULT,
-				// Tiny, // seems to cause a crash within LLVM
+				// Tiny, // seems to cause a crash within LLVM // TODO(FUTURE): check if this is still the case?
 				SMALL,
 				KERNEL,
 				MEDIUM,

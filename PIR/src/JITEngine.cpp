@@ -67,6 +67,19 @@ namespace pcit::pir{
 		auto llvm_module = llvmint::Module();
 		llvm_module.init(module.getName(), llvm_context);
 
+		{
+			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
+				core::Target::getNative(),
+				llvmint::Module::Relocation::DEFAULT,
+				llvmint::Module::CodeSize::DEFAULT,
+				llvmint::Module::OptLevel::DEFAULT,
+				true
+			);
+			if(set_target_res_message.empty() == false){
+				return evo::Unexpected(evo::SmallVector<std::string>{std::move(set_target_res_message)});
+			}
+		}
+
 		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
 		lowerer.lower();
 
@@ -95,6 +108,19 @@ namespace pcit::pir{
 		auto llvm_module = llvmint::Module();
 		llvm_module.init(module.getName(), llvm_context);
 
+		{
+			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
+				core::Target::getNative(),
+				llvmint::Module::Relocation::DEFAULT,
+				llvmint::Module::CodeSize::DEFAULT,
+				llvmint::Module::OptLevel::DEFAULT,
+				true
+			);
+			if(set_target_res_message.empty() == false){
+				return evo::Unexpected(evo::SmallVector<std::string>{std::move(set_target_res_message)});
+			}
+		}
+
 		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
 		lowerer.lowerSubset(PIRToLLVMIR::Subset{
 			.structs        = module_subsets.structs,
@@ -118,6 +144,19 @@ namespace pcit::pir{
 
 		auto llvm_module = llvmint::Module();
 		llvm_module.init(module.getName(), llvm_context);
+
+		{
+			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
+				core::Target::getNative(),
+				llvmint::Module::Relocation::DEFAULT,
+				llvmint::Module::CodeSize::DEFAULT,
+				llvmint::Module::OptLevel::DEFAULT,
+				true
+			);
+			if(set_target_res_message.empty() == false){
+				return evo::Unexpected(evo::SmallVector<std::string>{std::move(set_target_res_message)});
+			}
+		}
 
 		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
 		lowerer.lowerSubsetWithWeakDependencies(PIRToLLVMIR::Subset{
