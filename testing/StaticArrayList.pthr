@@ -131,22 +131,22 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// iterators
 
-	impl @pthr.IIterable{
-		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIterator) {
-			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIterator)(this as [T:*]);
+	impl @pthr.Iterable{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.Iterator) {
+			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.Iterator)(this as [T:*]);
 		},
-		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIterator) {
-			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIterator)(this as [T:*mut]);
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.MutIterator) {
+			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.MutIterator)(this as [T:*mut]);
 		},
 	}
 
 
-	impl @pthr.IIterableRT{
-		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIteratorRT) {
-			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.IIteratorRT)(this as [T:*]);
+	impl @pthr.IterableRT{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[T:*]}>:@pthr.IteratorRT) {
+			return new impl(std.ArrayRefIter<{[T:*]}>:@pthr.IteratorRT)(this as [T:*]);
 		},
-		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIteratorRT) {
-			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.IMutIteratorRT)(this as [T:*mut]);
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.MutIteratorRT) {
+			return new impl(std.MutArrayRefIter<{[T:*mut]}>:@pthr.MutIteratorRT)(this as [T:*mut]);
 		},
 	}
 

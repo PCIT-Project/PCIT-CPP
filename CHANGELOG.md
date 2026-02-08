@@ -1,6 +1,27 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.231.0"></a>
+## v0.0.231.0
+
+### Panther
+- Renamed iterable / iterator interfaces to remove the `I` prefix
+	- `IIterable` -> `Iterable`
+	- `IIterableRT` -> `IterableRT`
+	- `IIterableRef` -> `IterableRef`
+	- `IIterableRefRT` -> `IterableRefRT`
+	- `IIterableMutRef` -> `IterableMutRef`
+	- `IIterableMutRefRT` -> `IterableMutRefRT`
+	- `IIterator` -> `Iterator`
+	- `IIteratorRT` -> `IteratorRT`
+	- `IMutIterator` -> `MutIterator`
+	- `IMutIteratorRT` -> `MutIteratorRT`
+
+### Misc
+- Updated to [Panther-std v0.0.15.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.15.0)
+
+
+<!---------------------------------->
 <a name="v0.0.230.1"></a>
 ## v0.0.230.1
 
