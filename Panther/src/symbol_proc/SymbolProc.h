@@ -735,6 +735,17 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct ComptimeError{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID message;
+		};
+
+		struct ComptimeAssert{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID cond;
+			std::optional<SymbolProcTermInfoID> message;
+		};
+
 		struct TemplateIntrinsicFuncCall{
 			const AST::FuncCall& func_call;
 			evo::SmallVector<SymbolProcTermInfoID> template_args;
@@ -1155,6 +1166,8 @@ namespace pcit::panther{
 			IMPORT_CPP,
 			IS_MACRO_DEFINED,
 			MAKE_INIT_PTR,
+			COMPTIME_ERROR,
+			COMPTIME_ASSERT,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
 			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME,
 			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,

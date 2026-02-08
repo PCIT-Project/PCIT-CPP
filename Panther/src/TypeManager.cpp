@@ -542,24 +542,35 @@ namespace pcit::panther{
 				builder += ':';
 
 
-				for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
-					if(dimension.isPtr()){
-						if(array_ref.isMut){
-							builder += "*mut";
-						}else{
-							builder += "*";
-						}
-					}else{
-						builder += std::to_string(dimension.length());
-					}
-
-
-					if(i + 1 < array_ref.dimensions.size()){
-						builder += ",";
-					}
-
-					i += 1;
+				if(array_ref.isMut){
+					builder += "*mut";
+				}else{
+					builder += "*";
 				}
+
+
+				if(array_ref.dimensions.size() != 1 || array_ref.dimensions[0].isPtr() == false){
+					builder += '(';
+
+					for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+						if(dimension.isPtr()){
+							builder += "*";
+						}else{
+							builder += std::to_string(dimension.length());
+						}
+
+
+						if(i + 1 < array_ref.dimensions.size()){
+							builder += ",";
+						}
+
+						i += 1;
+					}
+
+					builder += ')';
+				}
+
+
 
 				if(array_ref.terminator.has_value()){
 					if(this->isUnsignedIntegral(array_ref.elementTypeID)){

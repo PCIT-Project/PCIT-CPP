@@ -1,7 +1,13 @@
 type AtomicRef = alias @import("atomic.pthr").AtomicRef;
 
+
+
+const message: [Char:*] = "testing error message";
+
 func entry = () #entry -> UI8 {
 	var num: Int = 12;
+
+	@comptimeAssert(false, message);
 
 	var atom_ref = new AtomicRef<{Int}>(&num);
 	

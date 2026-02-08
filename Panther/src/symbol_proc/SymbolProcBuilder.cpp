@@ -508,20 +508,24 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:          case AST::Kind::ERROR:               case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:        case AST::Kind::DELETE:              case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:           case AST::Kind::FOR:                 case AST::Kind::SWITCH:
-			case AST::Kind::DEFER:           case AST::Kind::UNREACHABLE:         case AST::Kind::BLOCK:
-			case AST::Kind::FUNC_CALL:       case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:
-			case AST::Kind::TEMPLATED_EXPR:  case AST::Kind::PREFIX:              case AST::Kind::INFIX:
-			case AST::Kind::POSTFIX:         case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:
-			case AST::Kind::ARRAY_INIT_NEW:  case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:
-			case AST::Kind::UNSAFE:          case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:
-			case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:                case AST::Kind::TYPEID_CONVERTER:
-			case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:           case AST::Kind::PRIMITIVE_TYPE:
-			case AST::Kind::IDENT:           case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:         case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:            case AST::Kind::DISCARD: {
+			case AST::Kind::FUNC_CALL: {
+				return std::string_view();
+			} break;
+
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:            case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:           case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:              case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:            case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:              case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:         case AST::Kind::UNSAFE:
+			case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:       case AST::Kind::INTERFACE_MAP:
+			case AST::Kind::TYPE:                case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:           case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:        case AST::Kind::LITERAL:
+			case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:         case AST::Kind::THIS:
+			case AST::Kind::DISCARD: {
 				this->context.emitError(
 					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
 					Diagnostic::Location::get(stmt, this->source),
@@ -1505,11 +1509,90 @@ namespace pcit::panther{
 	}
 
 	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> evo::Result<> {
-		// const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(stmt);
+		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(stmt);
+
+		if(func_call.target.kind() == AST::Kind::INTRINSIC){
+			const Token::ID intrin_tok_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
+			const std::string_view intrin_string = this->source.getTokenBuffer()[intrin_tok_id].getString();
+
+			if(intrin_string == "comptimeError"){
+				if(func_call.args.size() != 1){
+					if(func_call.args.empty()){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+							intrin_tok_id,
+							"Calls to @comptimeError requires a message"
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+							func_call.args[1].value,
+							"Calls to @comptimeError requires a message and no other arguments"
+						);
+					}
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> message = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(message.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeError(func_call, message.value())
+				);
+
+				return evo::Result<>();
+
+			}else if(intrin_string == "comptimeAssert"){
+				if(func_call.args.empty()){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+						intrin_tok_id,
+						"Calls to @comptimeAssert requires a condition"
+					);
+					return evo::resultError;
+				}
+
+				if(func_call.args.size() > 2){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+						func_call.args[1].value,
+						"Calls to @comptimeAssert requires a message and no other arguments"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(cond.isError()){ return evo::resultError; }
+
+
+				auto message = std::optional<SymbolProc::TermInfoID>();
+
+				if(func_call.args.size() == 2){
+					const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(
+						func_call.args[1].value
+					);
+					if(message_res.isError()){ return evo::resultError; }
+
+					message = message_res.value();
+				}
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeAssert(func_call, cond.value(), message)
+				);
+
+				return evo::Result<>();
+			}
+		}
+
+
 		this->emit_error(
 			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
 			stmt,
-			"Building symbol process of Func Call is unimplemented"
+			"Building symbol process of this function call"
 		);
 		return evo::resultError;
 	}
@@ -2462,6 +2545,87 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
+		if(func_call.target.kind() == AST::Kind::INTRINSIC){
+			const Token::ID intrin_tok_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
+			const std::string_view intrin_string = this->source.getTokenBuffer()[intrin_tok_id].getString();
+
+			if(intrin_string == "comptimeError"){
+				if(func_call.args.size() != 1){
+					if(func_call.args.empty()){
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+							intrin_tok_id,
+							"Calls to @comptimeError requires a message"
+						);
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+							func_call.args[1].value,
+							"Calls to @comptimeError requires a message and no other arguments"
+						);
+					}
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> message = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(message.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeError(
+						func_call, message.value()
+					)
+				);
+
+				return evo::Result<>();
+				
+			}else if(intrin_string == "comptimeAssert"){
+				if(func_call.args.empty()){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+						intrin_tok_id,
+						"Calls to @comptimeAssert requires a condition"
+					);
+					return evo::resultError;
+				}
+
+				if(func_call.args.size() > 2){
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
+						func_call.args[1].value,
+						"Calls to @comptimeAssert requires a message and no other arguments"
+					);
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(cond.isError()){ return evo::resultError; }
+
+
+				auto message = std::optional<SymbolProc::TermInfoID>();
+
+				if(func_call.args.size() == 2){
+					const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(
+						func_call.args[1].value
+					);
+					if(message_res.isError()){ return evo::resultError; }
+
+					message = message_res.value();
+				}
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeAssert(func_call, cond.value(), message)
+				);
+
+				return evo::Result<>();
+			}
+		}
+
+
+
 		bool is_target_template = false;
 		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
 		const auto target = [&]() -> evo::Result<SymbolProc::TermInfoID> {
@@ -2494,7 +2658,6 @@ namespace pcit::panther{
 			args.emplace_back(arg_value.value());
 		}
 
-		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 
 		if(is_target_template){
 			if(this->source.getASTBuffer().getTemplatedExpr(func_call.target).base.kind() == AST::Kind::INTRINSIC){

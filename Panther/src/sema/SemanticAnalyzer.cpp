@@ -494,6 +494,12 @@ namespace pcit::panther{
 			case Instruction::Kind::MAKE_INIT_PTR:
 				return this->instr_make_init_ptr(this->context.symbol_proc_manager.getMakeInitPtr(instr));
 
+			case Instruction::Kind::COMPTIME_ERROR:
+				return this->instr_comptime_error(this->context.symbol_proc_manager.getComptimeError(instr));
+
+			case Instruction::Kind::COMPTIME_ASSERT:
+				return this->instr_comptime_assert(this->context.symbol_proc_manager.getComptimeAssert(instr));
+
 			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL:
 				return this->instr_template_intrinsic_func_call(
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCall(instr)
@@ -12342,6 +12348,116 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_comptime_error(const Instruction::ComptimeError& instr) -> Result {
+		TermInfo& message_term_info = this->get_term_info(instr.message);
+
+
+		if(this->check_term_isnt_type(message_term_info, instr.func_call.args[0].value).isError()){
+			return Result::ERROR;
+		}
+
+		const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(
+				this->context.type_manager.getOrCreateArrayRef(
+					BaseType::ArrayRef(
+						this->context.getTypeManager().getTypeChar(),
+						evo::SmallVector<BaseType::ArrayRef::Dimension>{
+							BaseType::ArrayRef::Dimension::ptr()
+						},
+						std::nullopt,
+						false
+					)
+				)
+			)
+		);
+
+		if(this->type_check<true, true>(
+			str_type, message_term_info, "Message in @comptimeError", instr.func_call.args[0].value
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+
+
+		this->emit_error(
+			Diagnostic::Code::SEMA_COMPTIME_ERROR,
+			instr.func_call,
+			std::format("Comptime error with message: \"{}\"", message)
+		);
+
+		return Result::ERROR;
+	}
+
+
+	auto SemanticAnalyzer::instr_comptime_assert(const Instruction::ComptimeAssert& instr) -> Result {
+		TermInfo& cond_term_info = this->get_term_info(instr.cond);
+		if(this->check_term_isnt_type(cond_term_info, instr.func_call.args[0].value).isError()){
+			return Result::ERROR;
+		}
+
+		if(this->type_check<true, true>(
+			this->context.getTypeManager().getTypeBool(),
+			cond_term_info,
+			"Condition in @comptimeAssert",
+			instr.func_call.args[0].value
+		).ok == false){
+			return Result::ERROR;
+		}
+
+		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+		if(cond){ return Result::SUCCESS; }
+
+		if(instr.message.has_value()){
+			TermInfo& message_term_info = this->get_term_info(*instr.message);
+			if(this->check_term_isnt_type(message_term_info, instr.func_call.args[1].value).isError()){
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateArrayRef(
+						BaseType::ArrayRef(
+							this->context.getTypeManager().getTypeChar(),
+							evo::SmallVector<BaseType::ArrayRef::Dimension>{
+								BaseType::ArrayRef::Dimension::ptr()
+							},
+							std::nullopt,
+							false
+						)
+					)
+				)
+			);
+
+			if(this->type_check<true, true>(
+				str_type, message_term_info, "Message in @comptimeAssert", instr.func_call.args[1].value
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_COMPTIME_ERROR,
+				instr.func_call,
+				std::format("Failed comptime assert with message: \"{}\"", message)
+			);
+		}else{
+			this->emit_error(
+				Diagnostic::Code::SEMA_COMPTIME_ERROR,
+				instr.func_call,
+				"Failed comptime assert"
+			);
+		}
+
+		return Result::ERROR;
+	}
+
+
+
 
 
 	auto SemanticAnalyzer::instr_template_intrinsic_func_call(const Instruction::TemplateIntrinsicFuncCall& instr)
@@ -28046,6 +28162,12 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
 
 				return this->extract_string_from_sema_expr(init_array_ref.expr);
+			} break;
+
+			case sema::Expr::Kind::GLOBAL_VAR: {
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
+
+				return this->extract_string_from_sema_expr(*global_var.expr.load(std::memory_order::relaxed));
 			} break;
 
 			default: {

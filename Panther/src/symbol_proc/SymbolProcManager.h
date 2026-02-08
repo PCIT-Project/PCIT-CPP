@@ -1666,6 +1666,41 @@ namespace pcit::panther{
 			}
 
 
+
+			//////////////////
+			// ComptimeError
+
+			EVO_NODISCARD auto createComptimeError(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::COMPTIME_ERROR,
+					this->comptime_errors.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getComptimeError(Instruction instr) const -> const Instruction::ComptimeError& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::COMPTIME_ERROR, "Not an ComptimeError");
+				return this->comptime_errors[instr._index];
+			}
+
+
+			//////////////////
+			// ComptimeAssert
+
+			EVO_NODISCARD auto createComptimeAssert(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::COMPTIME_ASSERT,
+					this->comptime_asserts.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getComptimeAssert(Instruction instr) const -> const Instruction::ComptimeAssert& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::COMPTIME_ASSERT, "Not an ComptimeAssert");
+				return this->comptime_asserts[instr._index];
+			}
+
+
+
+
 			//////////////////
 			// TemplateIntrinsicFuncCall
 
@@ -3115,6 +3150,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Import<Instruction::Language::CPP>, uint32_t> import_cpps{};
 			core::SyncLinearStepAlloc<Instruction::IsMacroDefined, uint32_t> is_macro_defineds{};
 			core::SyncLinearStepAlloc<Instruction::MakeInitPtr, uint32_t> make_init_ptrs{};
+			core::SyncLinearStepAlloc<Instruction::ComptimeError, uint32_t> comptime_errors{};
+			core::SyncLinearStepAlloc<Instruction::ComptimeAssert, uint32_t> comptime_asserts{};
 			
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall, uint32_t>
 				template_intrinsic_func_calls{};

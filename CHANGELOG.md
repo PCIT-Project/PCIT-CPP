@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.232.0"></a>
+## v0.0.232.0
+
+### Panther
+- Added `@comptimeError`
+- Added `@comptimeAssert`
+- Fixed getting comptime global string values
+- Fixed printing of array reference type
+
+
+<!---------------------------------->
 <a name="v0.0.231.0"></a>
 ## v0.0.231.0
 

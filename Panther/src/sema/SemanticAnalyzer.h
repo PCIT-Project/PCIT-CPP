@@ -196,6 +196,8 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto instr_is_macro_defined(const Instruction::IsMacroDefined& instr) -> Result;
 			EVO_NODISCARD auto instr_make_init_ptr(const Instruction::MakeInitPtr& instr) -> Result;
+			EVO_NODISCARD auto instr_comptime_error(const Instruction::ComptimeError& instr) -> Result;
+			EVO_NODISCARD auto instr_comptime_assert(const Instruction::ComptimeAssert& instr) -> Result;
 
 			EVO_NODISCARD auto instr_template_intrinsic_func_call(const Instruction::TemplateIntrinsicFuncCall& instr)
 				-> Result;

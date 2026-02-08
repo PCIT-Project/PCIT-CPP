@@ -9854,6 +9854,37 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case sema::Expr::Kind::INIT_ARRAY_REF: {
+				const sema::InitArrayRef& init_array_ref =
+					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+
+				const pir::GlobalVar::Value array_target = this->get_global_var_value(init_array_ref.expr);
+
+				const pir::Type array_ref_type = this->data.getArrayRefType(
+					this->module, unsigned(init_array_ref.dimensions.size())
+				);
+
+				const uint64_t num_bytes_of_ptr = this->context.getTypeManager().numBitsOfPtr();
+
+				auto values = evo::SmallVector<pir::GlobalVar::Value>();
+				values.reserve(init_array_ref.dimensions.size() + 1);
+				values.emplace_back(array_target);
+				for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
+					if(dimension.is<uint64_t>()){
+						values.emplace_back(
+							this->agent.createNumber(
+								this->module.createIntegerType(uint32_t(num_bytes_of_ptr)),
+								core::GenericInt(unsigned(num_bytes_of_ptr), dimension.as<uint64_t>())
+							)
+						);
+					}else{
+						values.emplace_back(this->get_global_var_value(dimension.as<sema::Expr>()));
+					}
+				}
+
+				return this->module.createGlobalStruct(array_ref_type, std::move(values));
+			} break;
+
 			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
 			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
@@ -9867,7 +9898,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
 			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
 			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_NEW:               case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::DEFAULT_NEW:               
 			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
