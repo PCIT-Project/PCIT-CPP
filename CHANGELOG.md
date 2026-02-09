@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.232.2"></a>
+## v0.0.232.2
+
+### Panther
+- Fixed missing checks for comptime for builtin type methods
+
+
+<!---------------------------------->
 <a name="v0.0.232.1"></a>
 ## v0.0.232.1
 

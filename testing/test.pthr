@@ -1,7 +1,9 @@
 
 
 func entry = () #entry -> UI8 {
-	const string: [Char:*($SIZE);'\0'] = "hello".* as [Char:*(5);'\0'];
+	const string: [Char:*] = "hello";
 
-	return SIZE as UI8; // 5
+	@comptimeAssert(string.size() == 0, "shouldn't be empty");
+
+	return 0;
 }

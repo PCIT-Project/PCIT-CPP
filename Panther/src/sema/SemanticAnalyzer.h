@@ -177,8 +177,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_func_call_expr(const Instruction::FuncCallExpr<IS_COMPTIME, ERRORS>& instr)
 				-> Result;
 
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto builtin_type_method_call(
-				const TermInfo& target_term_info, evo::SmallVector<sema::Expr>&& args, SymbolProc::TermInfoID output
+				const TermInfo& target_term_info,
+				evo::SmallVector<sema::Expr>&& args,
+				SymbolProc::TermInfoID output,
+				const AST::FuncCall& ast_func_call
 			) -> Result;
 
 			template<bool IS_COMPTIME>

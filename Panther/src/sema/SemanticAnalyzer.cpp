@@ -11408,7 +11408,9 @@ namespace pcit::panther{
 
 
 		if(target_term_info.value_category == TermInfo::ValueCategory::BUILTIN_TYPE_METHOD){
-			return this->builtin_type_method_call(target_term_info, std::move(sema_args), instr.output);
+			return this->builtin_type_method_call<IS_COMPTIME>(
+				target_term_info, std::move(sema_args), instr.output, instr.func_call
+			);
 		}
 
 		if(func_call_impl_res.value().is_src_func() == false) [[unlikely]] {
@@ -11677,10 +11679,14 @@ namespace pcit::panther{
 	}
 
 
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::builtin_type_method_call(
-		const TermInfo& target_term_info, evo::SmallVector<sema::Expr>&& args, SymbolProc::TermInfoID output
+		const TermInfo& target_term_info,
+		evo::SmallVector<sema::Expr>&& args,
+		SymbolProc::TermInfoID output,
+		const AST::FuncCall& ast_func_call
 	) -> Result {
-		evo::debugAssert(args.empty(), "None of these methods take any args");
+		evo::debugAssert(args.empty(), "Currently, none of these methods take any args (if changes, remove next line)");
 		std::ignore = args;
 
 
@@ -11692,20 +11698,30 @@ namespace pcit::panther{
 
 		switch(builtin_type_method.kind){
 			case TermInfo::BuiltinTypeMethod::Kind::OPT_EXTRACT: {
-				const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).copyWithPoppedQualifier()
-				);
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						ast_func_call.target,
+						"Comptime value cannot be a call to a function that is not comptime"
+					);
+					return Result::ERROR;
+				}else{
+					const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).copyWithPoppedQualifier()
+					);
 
-				this->return_term_info(output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
-					TermInfo::ValueState::NOT_APPLICABLE,
-					held_type_id,
-					sema::Expr(
-						this->context.sema_buffer.createOptionalExtract(fake_term_info.expr, fake_term_info.typeID)
-					)
-				);
-				return Result::SUCCESS;
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::convertValueStage(fake_term_info.valueStage),
+						TermInfo::ValueState::NOT_APPLICABLE,
+						held_type_id,
+						sema::Expr(
+							this->context.sema_buffer.createOptionalExtract(fake_term_info.expr, fake_term_info.typeID)
+						)
+					);
+					return Result::SUCCESS;
+				}
+
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE: {
@@ -11771,83 +11787,119 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA: {
-				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
-					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
-				);
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						ast_func_call.target,
+						"Comptime value cannot be a call to a function that is not comptime"
+					);
+					return Result::ERROR;
+				}else{
+					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+					);
 
-				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
+					const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
 
-				this->return_term_info(output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
-					TermInfo::ValueState::NOT_APPLICABLE,
-					return_type_id,
-					sema::Expr(this->context.sema_buffer.createAddrOf(fake_term_info.expr))
-				);
-				return Result::SUCCESS;
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::convertValueStage(fake_term_info.valueStage),
+						TermInfo::ValueState::NOT_APPLICABLE,
+						return_type_id,
+						sema::Expr(this->context.sema_buffer.createAddrOf(fake_term_info.expr))
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE: {
-				const BaseType::ArrayRef::ID array_ref_type_id = 
-					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						ast_func_call.target,
+						"Comptime value cannot be a call to a function that is not comptime"
+					);
+					return Result::ERROR;
+				}else{
+					const BaseType::ArrayRef::ID array_ref_type_id = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
 
-				const sema::ArrayRefSize::ID created_array_ref_size =
-					this->context.sema_buffer.createArrayRefSize(fake_term_info.expr, array_ref_type_id);
+					const sema::ArrayRefSize::ID created_array_ref_size =
+						this->context.sema_buffer.createArrayRefSize(fake_term_info.expr, array_ref_type_id);
 
-				this->return_term_info(output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
-					TermInfo::ValueState::NOT_APPLICABLE,
-					TypeManager::getTypeUSize(),
-					sema::Expr(created_array_ref_size)
-				);
-				return Result::SUCCESS;
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::convertValueStage(fake_term_info.valueStage),
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUSize(),
+						sema::Expr(created_array_ref_size)
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 			
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS: {
-				const BaseType::ArrayRef::ID array_ref_type_id = 
-					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						ast_func_call.target,
+						"Comptime value cannot be a call to a function that is not comptime"
+					);
+					return Result::ERROR;
+				}else{
+					const BaseType::ArrayRef::ID array_ref_type_id = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
 
-				const sema::ArrayRefDimensions::ID created_array_ref_dimensions =
-					this->context.sema_buffer.createArrayRefDimensions(fake_term_info.expr, array_ref_type_id);
+					const sema::ArrayRefDimensions::ID created_array_ref_dimensions =
+						this->context.sema_buffer.createArrayRefDimensions(fake_term_info.expr, array_ref_type_id);
 
-				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
-					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
-				);
+					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+					);
 
-				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+					const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
 
-				this->return_term_info(output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
-					TermInfo::ValueState::NOT_APPLICABLE,
-					return_type,
-					sema::Expr(created_array_ref_dimensions)
-				);
-				return Result::SUCCESS;
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::convertValueStage(fake_term_info.valueStage),
+						TermInfo::ValueState::NOT_APPLICABLE,
+						return_type,
+						sema::Expr(created_array_ref_dimensions)
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA: {
-				const BaseType::ArrayRef::ID array_ref_type_id = 
-					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+						ast_func_call.target,
+						"Comptime value cannot be a call to a function that is not comptime"
+					);
+					return Result::ERROR;
+				}else{
+					const BaseType::ArrayRef::ID array_ref_type_id = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
 
-				const sema::ArrayRefData::ID created_array_ref_data =
-					this->context.sema_buffer.createArrayRefData(fake_term_info.expr, array_ref_type_id);
+					const sema::ArrayRefData::ID created_array_ref_data =
+						this->context.sema_buffer.createArrayRefData(fake_term_info.expr, array_ref_type_id);
 
-				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
-					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
-				);
+					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+					);
 
-				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+					const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
 
-				this->return_term_info(output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
-					TermInfo::ValueState::NOT_APPLICABLE,
-					return_type,
-					sema::Expr(created_array_ref_data)
-				);
-				return Result::SUCCESS;
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::convertValueStage(fake_term_info.valueStage),
+						TermInfo::ValueState::NOT_APPLICABLE,
+						return_type,
+						sema::Expr(created_array_ref_data)
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 		}
 		evo::debugFatalBreak("Unknown builtin-type method");
