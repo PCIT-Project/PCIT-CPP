@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.232.4"></a>
+## v0.0.232.4
+
+### Panther
+- Fixed missing unsafe check for untagged union accessors
+
+
+<!---------------------------------->
 <a name="v0.0.232.3"></a>
 ## v0.0.232.3
 

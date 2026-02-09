@@ -1,9 +1,12 @@
-
+type Union = union #untagged {
+	int: Int,
+	char: Char,
+}
 
 func entry = () #entry -> UI8 {
-	const string: [Char:$$;'\0'] = copy "hello".*;
+	const u = new Union{int = 12};
 
-	@comptimeAssert(string.size() != 0, "shouldn't be empty");
+	const num: Int = copy u.int;
 
 	return 0;
 }

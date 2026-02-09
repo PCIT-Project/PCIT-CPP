@@ -22996,6 +22996,16 @@ namespace pcit::panther{
 			}();
 
 
+
+			if(lhs_type_union.isUntagged && this->currently_in_unsafe() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+					instr.infix,
+					"Unsafe untagged union accessor while not in a unsafe scope"
+				);
+				return Result::ERROR;
+			}
+
 			using ValueStage = TermInfo::ValueStage;
 
 			if(lhs.value_stage == ValueStage::COMPTIME){
