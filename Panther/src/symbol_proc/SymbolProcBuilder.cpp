@@ -1697,11 +1697,22 @@ namespace pcit::panther{
 					dimensions.reserve(array_type.dimensions.size());
 					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
 						if(dimension.has_value()){
-							const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
-								this->analyze_expr<true>(*dimension);
+							if(dimension->kind() == AST::Kind::DEDUCER){
+								const SymbolProc::TermInfoID created_deducer = this->create_term_info();
+								this->add_instruction(
+									this->context.symbol_proc_manager.createExprDeducer(
+										this->source.getASTBuffer().getDeducer(*dimension), created_deducer
+									)
+								);
+								dimensions.emplace_back(created_deducer);
+								
+							}else{
+								const evo::Result<SymbolProc::TermInfoID> dimension_term_info =
+									this->analyze_expr<true>(*dimension);
 
-							if(dimension_term_info.isError()){ return evo::resultError; }
-							dimensions.emplace_back(dimension_term_info.value());
+								if(dimension_term_info.isError()){ return evo::resultError; }
+								dimensions.emplace_back(dimension_term_info.value());
+							}
 
 						}else{
 							dimensions.emplace_back();
@@ -1710,11 +1721,22 @@ namespace pcit::panther{
 
 					auto terminator = std::optional<SymbolProc::TermInfoID>();
 					if(array_type.terminator.has_value()){
-						const evo::Result<SymbolProc::TermInfoID> terminator_info = 
-							this->analyze_expr<true>(*array_type.terminator);
-						if(terminator_info.isError()){ return evo::resultError; }
+						if(array_type.terminator->kind() == AST::Kind::DEDUCER){
+							const SymbolProc::TermInfoID created_deducer = this->create_term_info();
+							this->add_instruction(
+								this->context.symbol_proc_manager.createExprDeducer(
+									this->source.getASTBuffer().getDeducer(*array_type.terminator), created_deducer
+								)
+							);
+							terminator = created_deducer;
+							
+						}else{
+							const evo::Result<SymbolProc::TermInfoID> terminator_info = 
+								this->analyze_expr<true>(*array_type.terminator);
+							if(terminator_info.isError()){ return evo::resultError; }
 
-						terminator = terminator_info.value();
+							terminator = terminator_info.value();
+						}
 					}
 
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();

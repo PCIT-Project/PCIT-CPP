@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.232.1"></a>
+## v0.0.232.1
+
+### Panther
+- Fixed array reference deducers
+- Fixed printing of array deducers in diagnostics
+
+
+<!---------------------------------->
 <a name="v0.0.232.0"></a>
 ## v0.0.232.0
 

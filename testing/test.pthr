@@ -1,15 +1,7 @@
-type AtomicRef = alias @import("atomic.pthr").AtomicRef;
 
-
-
-const message: [Char:*] = "testing error message";
 
 func entry = () #entry -> UI8 {
-	var num: Int = 12;
+	const string: [Char:*($SIZE);'\0'] = "hello".* as [Char:*(5);'\0'];
 
-	@comptimeAssert(false, message);
-
-	var atom_ref = new AtomicRef<{Int}>(&num);
-	
-	return atom_ref.load() as UI8;
+	return SIZE as UI8; // 5
 }

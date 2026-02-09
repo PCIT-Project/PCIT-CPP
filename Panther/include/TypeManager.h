@@ -81,6 +81,7 @@ namespace pcit::panther{
 			ARRAY,
 			ARRAY_DEDUCER,
 			ARRAY_REF,
+			ARRAY_REF_DEDUCER,
 			ALIAS,
 			DISTINCT_ALIAS,
 			STRUCT,
@@ -121,6 +122,11 @@ namespace pcit::panther{
 			EVO_NODISCARD auto arrayRefID() const -> ArrayRefID {
 				evo::debugAssert(this->kind() == Kind::ARRAY_REF, "not an ArrayRef");
 				return ArrayRefID(this->_id);
+			}
+
+			EVO_NODISCARD auto arrayRefDeducerID() const -> ArrayRefDeducerID {
+				evo::debugAssert(this->kind() == Kind::ARRAY_REF_DEDUCER, "not an ArrayRefDeducer");
+				return ArrayRefDeducerID(this->_id);
 			}
 
 			EVO_NODISCARD auto aliasID() const -> AliasID {
@@ -192,6 +198,7 @@ namespace pcit::panther{
 			explicit ID(ArrayID id)                 : _kind(Kind::ARRAY),                   _id(id.get()) {}
 			explicit ID(ArrayDeducerID id)          : _kind(Kind::ARRAY_DEDUCER),           _id(id.get()) {}
 			explicit ID(ArrayRefID id)              : _kind(Kind::ARRAY_REF),               _id(id.get()) {}
+			explicit ID(ArrayRefDeducerID id)       : _kind(Kind::ARRAY_REF_DEDUCER),       _id(id.get()) {}
 			explicit ID(AliasID id)                 : _kind(Kind::ALIAS),                   _id(id.get()) {}
 			explicit ID(DistinctAliasID id)         : _kind(Kind::DISTINCT_ALIAS),          _id(id.get()) {}
 			explicit ID(StructID id)                : _kind(Kind::STRUCT),                  _id(id.get()) {}
@@ -449,6 +456,11 @@ namespace pcit::panther{
 					return this->_length == std::numeric_limits<uint64_t>::max();
 				}
 
+
+				EVO_NODISCARD auto isLength() const -> bool {
+					return this->_length != std::numeric_limits<uint64_t>::max();
+				}
+
 				EVO_NODISCARD auto length() const -> uint64_t {
 					evo::debugAssert(this->isPtr() == false, "Dimension is a ptr, so has no length");
 					return this->_length;
@@ -502,7 +514,95 @@ namespace pcit::panther{
 		};
 
 
-		static_assert(std::atomic<std::optional<TypeInfoID>>::is_always_lock_free);
+		struct ArrayRefDeducer{
+			using ID = ArrayRefDeducerID;
+
+			struct Dimension{
+				explicit Dimension(uint64_t dimension_length) : _value(dimension_length) {}
+				explicit Dimension(Token::ID deducer) : _value(deducer) {}
+				EVO_NODISCARD static auto ptr() -> Dimension { return Dimension(); }
+
+
+				EVO_NODISCARD auto isPtr() const -> bool {
+					return this->_value.is<uint64_t>() 
+						&& this->_value.as<uint64_t>() == std::numeric_limits<uint64_t>::max();
+				}
+
+
+				EVO_NODISCARD auto isDeducer() const -> bool {
+					return this->_value.is<Token::ID>();
+				}
+
+				EVO_NODISCARD auto deducer() const -> Token::ID {
+					evo::debugAssert(this->isDeducer(), "Dimension isn't a deducer");
+					return this->_value.as<Token::ID>();
+				}
+
+
+				EVO_NODISCARD auto isLength() const -> bool {
+					return this->_value.is<uint64_t>() 
+						&& this->_value.as<uint64_t>() != std::numeric_limits<uint64_t>::max();
+				}
+
+				EVO_NODISCARD auto length() const -> uint64_t {
+					evo::debugAssert(this->isLength(), "Dimension isn't a length");
+					return this->_value.as<uint64_t>();
+				}
+
+				EVO_NODISCARD auto operator==(const Dimension&) const -> bool = default;
+				
+				
+				private:
+					Dimension() : _value(std::numeric_limits<uint64_t>::max()) {}
+
+					evo::Variant<uint64_t, Token::ID> _value;
+			};
+
+
+			SourceID sourceID;
+			TypeInfoID elementTypeID;
+			evo::SmallVector<Dimension> dimensions;
+			evo::Variant<std::monostate, core::GenericValue, Token::ID> terminator; // Token::ID if it is a dedcuer
+			bool isMut;
+
+
+			EVO_NODISCARD auto getNumRefPtrs() const -> size_t {
+				size_t output = 0;
+				for(const Dimension& dimension : this->dimensions){
+					if(dimension.isPtr()){ output += 1; }
+				}
+				return output;
+			}
+
+
+			ArrayRefDeducer(
+				SourceID source_id,
+				TypeInfoID elem_type_id,
+				evo::SmallVector<Dimension>&& _dimensions,
+				evo::Variant<std::monostate, core::GenericValue, Token::ID>&& _terminator,
+				bool is_mut
+			) : 
+				sourceID(source_id),
+				elementTypeID(elem_type_id),
+				dimensions(std::move(_dimensions)),
+				terminator(std::move(_terminator)),
+				isMut(is_mut) 
+			{
+				evo::debugAssert(
+					!(this->dimensions.size() > 1 && this->terminator.is<std::monostate>() == false),
+					"multi-dimensional arrays cannot be terminated"
+				);
+			}
+
+			EVO_NODISCARD auto operator==(const ArrayRefDeducer& rhs) const -> bool { // IDK why default doesn't compile
+				return this->sourceID == rhs.sourceID
+					&& this->elementTypeID == rhs.elementTypeID
+					&& this->dimensions == rhs.dimensions
+					&& this->terminator == rhs.terminator;
+			}
+		};
+
+
 
 		struct Alias{
 			using ID = AliasID;
@@ -1085,6 +1185,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getArrayRef(BaseType::ArrayRef::ID id) const -> const BaseType::ArrayRef&;
 			EVO_NODISCARD auto getOrCreateArrayRef(BaseType::ArrayRef&& lookup_type) -> BaseType::ID;
 
+			EVO_NODISCARD auto getArrayRefDeducer(BaseType::ArrayRefDeducer::ID id) const -> const BaseType::ArrayRefDeducer&;
+			EVO_NODISCARD auto getOrCreateArrayRefDeducer(BaseType::ArrayRefDeducer&& lookup_type) -> BaseType::ID;
+
 			EVO_NODISCARD auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind) -> BaseType::ID;
 			EVO_NODISCARD auto getOrCreatePrimitiveBaseType(Token::Kind kind, uint32_t bit_width) -> BaseType::ID;
@@ -1464,6 +1567,9 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::ArrayRef, BaseType::ArrayRef::ID> array_refs{};
 			mutable evo::SpinLock array_refs_lock{};
+
+			core::LinearStepAlloc<BaseType::ArrayRefDeducer, BaseType::ArrayRefDeducer::ID> array_ref_deducers{};
+			mutable evo::SpinLock array_ref_deducers_lock{};
 
 			core::LinearStepAlloc<BaseType::Alias, BaseType::Alias::ID> aliases{};
 			mutable evo::SpinLock aliases_lock{};

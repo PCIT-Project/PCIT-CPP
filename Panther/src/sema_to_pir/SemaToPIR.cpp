@@ -5769,9 +5769,12 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Not deletable");
 			} break;
 
-
 			case BaseType::Kind::ARRAY_REF: {
 				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				evo::debugFatalBreak("Not deletable");
 			} break;
 
 			case BaseType::Kind::ALIAS: {

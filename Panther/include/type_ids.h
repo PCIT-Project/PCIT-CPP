@@ -166,6 +166,10 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, ArrayRefID>::UniqueID; 
 	};
 
+	struct ArrayRefDeducerID : public core::UniqueID<uint32_t, struct ArrayRefDeducerID> {
+		using core::UniqueID<uint32_t, ArrayRefDeducerID>::UniqueID; 
+	};
+
 	struct AliasID : public core::UniqueID<uint32_t, struct AliasID> {
 		using core::UniqueID<uint32_t, AliasID>::UniqueID; 
 	};
@@ -275,6 +279,19 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::BaseType::ArrayRefID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::ArrayRefDeducerID>{
+		static constexpr auto init(panther::BaseType::ArrayRefDeducerID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::ArrayRefDeducerID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -503,6 +520,7 @@ namespace std{
 
 
 
+
 	template<>
 	struct hash<pcit::panther::BaseType::ArrayRefID>{
 		auto operator()(const pcit::panther::BaseType::ArrayRefID& id) const noexcept -> size_t {
@@ -516,6 +534,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefID>::Optional;
 			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::ArrayRefDeducerID>{
+		auto operator()(const pcit::panther::BaseType::ArrayRefDeducerID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::BaseType::ArrayRefDeducerID>
+		: public pcit::core::Optional<pcit::panther::BaseType::ArrayRefDeducerID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefDeducerID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::ArrayRefDeducerID>::operator=;
 	};
 
 

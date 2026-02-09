@@ -443,12 +443,12 @@ namespace pcit::panther{
 							.getTokenBuffer()[dimension.as<Token::ID>()];
 
 						if(token.kind() == Token::Kind::DEDUCER){
-							return std::format("${}", token.getString());
+							builder += std::format("${}", token.getString());
 						}else{
 							evo::debugAssert(
 								token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
 							);
-							return "$$";
+							builder += "$$";
 						}
 					}
 
@@ -623,6 +623,139 @@ namespace pcit::panther{
 						
 					}else{
 						builder += ";<TERMINATOR>";
+					}
+				}
+
+				builder += ']';
+
+				return builder;
+			} break;
+
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				const BaseType::ArrayRefDeducer& array_ref_deducer =
+					this->getArrayRefDeducer(base_type_id.arrayRefDeducerID());
+
+				auto builder = std::string();
+				builder += '[';
+
+				builder += this->printType(array_ref_deducer.elementTypeID, context);
+
+				builder += ':';
+
+
+				if(array_ref_deducer.isMut){
+					builder += "*mut";
+				}else{
+					builder += "*";
+				}
+
+
+				if(array_ref_deducer.dimensions.size() != 1 || array_ref_deducer.dimensions[0].isPtr() == false){
+					builder += '(';
+
+					for(
+						size_t i = 0;
+						const BaseType::ArrayRefDeducer::Dimension& dimension : array_ref_deducer.dimensions
+					){
+						if(dimension.isPtr()){
+							builder += "*";
+
+						}else if(dimension.isDeducer()){
+							const Token& token = context.getSourceManager()[array_ref_deducer.sourceID]
+								.getTokenBuffer()[dimension.deducer()];
+
+							if(token.kind() == Token::Kind::DEDUCER){
+								builder += std::format("${}", token.getString());
+							}else{
+								evo::debugAssert(
+									token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
+								);
+								builder += "$$";
+							}
+
+						}else{
+							builder += std::to_string(dimension.length());
+						}
+
+
+						if(i + 1 < array_ref_deducer.dimensions.size()){
+							builder += ",";
+						}
+
+						i += 1;
+					}
+
+					builder += ')';
+				}
+
+
+
+				if(array_ref_deducer.terminator.is<core::GenericValue>()){
+					if(this->isUnsignedIntegral(array_ref_deducer.elementTypeID)){
+						builder += ';';
+						builder += array_ref_deducer.terminator.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(array_ref_deducer.elementTypeID))
+						).toString(false);
+
+					}else if(this->isSignedIntegral(array_ref_deducer.elementTypeID)){
+						builder += ';';
+						builder += array_ref_deducer.terminator.as<core::GenericValue>().getInt(
+							unsigned(this->numBits(array_ref_deducer.elementTypeID))
+						).toString(true);
+
+					}else if(this->isFloatingPoint(array_ref_deducer.elementTypeID)){
+						const BaseType::Primitive& primitive = this->getPrimitive(
+							this->getTypeInfo(array_ref_deducer.elementTypeID).baseTypeID().primitiveID()
+						);
+
+						builder += ';';
+
+						switch(primitive.kind()){
+							break; case Token::Kind::TYPE_F16:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF16().toString();
+
+							break; case Token::Kind::TYPE_BF16:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getBF16().toString();
+
+							break; case Token::Kind::TYPE_F32:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF32().toString();
+
+							break; case Token::Kind::TYPE_F64:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF64().toString();
+
+							break; case Token::Kind::TYPE_F80:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF80().toString();
+
+							break; case Token::Kind::TYPE_F128:
+								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF128().toString();
+
+							break; default: evo::debugFatalBreak("Unknown float type");
+						}
+
+					}else if(array_ref_deducer.elementTypeID == TypeManager::getTypeBool()){
+						builder += ';';
+						builder += evo::boolStr(array_ref_deducer.terminator.as<core::GenericValue>().getBool());
+
+					}else if(array_ref_deducer.elementTypeID == TypeManager::getTypeChar()){
+						builder += std::format(
+							";'{}'", evo::printCharName(array_ref_deducer.terminator.as<core::GenericValue>().getChar())
+						);
+						
+					}else{
+						builder += ";<TERMINATOR>";
+					}
+
+				}else if(array_ref_deducer.terminator.is<Token::ID>()){
+					const Token& token = context.getSourceManager()[array_ref_deducer.sourceID]
+						.getTokenBuffer()[array_ref_deducer.terminator.as<Token::ID>()];
+
+					if(token.kind() == Token::Kind::DEDUCER){
+						return std::format("${}", token.getString());
+					}else{
+						evo::debugAssert(
+							token.kind() == Token::Kind::ANONYMOUS_DEDUCER, "Unknown type deducer kind"
+						);
+						return "$$";
 					}
 				}
 
@@ -1172,9 +1305,9 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-			case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 
@@ -1312,16 +1445,16 @@ namespace pcit::panther{
 		return this->functions[id];
 	}
 
-	auto TypeManager::getOrCreateFunction(BaseType::Function&& lookup_func) -> BaseType::ID {
+	auto TypeManager::getOrCreateFunction(BaseType::Function&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->functions_lock);
 
 		for(uint32_t i = 0; i < this->functions.size(); i+=1){
-			if(this->functions[BaseType::Function::ID(i)] == lookup_func){
+			if(this->functions[BaseType::Function::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::FUNCTION, i);
 			}
 		}
 
-		const BaseType::Function::ID new_function = this->functions.emplace_back(lookup_func);
+		const BaseType::Function::ID new_function = this->functions.emplace_back(lookup_type);
 		return BaseType::ID(BaseType::Kind::FUNCTION, new_function.get());
 	}
 
@@ -1334,16 +1467,16 @@ namespace pcit::panther{
 		return this->arrays[id];
 	}
 
-	auto TypeManager::getOrCreateArray(BaseType::Array&& lookup_func) -> BaseType::ID {
+	auto TypeManager::getOrCreateArray(BaseType::Array&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->arrays_lock);
 
 		for(uint32_t i = 0; i < this->arrays.size(); i+=1){
-			if(this->arrays[BaseType::Array::ID(i)] == lookup_func){
+			if(this->arrays[BaseType::Array::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::ARRAY, i);
 			}
 		}
 
-		const BaseType::Array::ID new_array = this->arrays.emplace_back(lookup_func);
+		const BaseType::Array::ID new_array = this->arrays.emplace_back(lookup_type);
 		return BaseType::ID(BaseType::Kind::ARRAY, new_array.get());
 	}
 
@@ -1356,16 +1489,16 @@ namespace pcit::panther{
 		return this->array_deducers[id];
 	}
 
-	auto TypeManager::getOrCreateArrayDeducer(BaseType::ArrayDeducer&& lookup_func) -> BaseType::ID {
+	auto TypeManager::getOrCreateArrayDeducer(BaseType::ArrayDeducer&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->array_deducers_lock);
 
 		for(uint32_t i = 0; i < this->array_deducers.size(); i+=1){
-			if(this->array_deducers[BaseType::ArrayDeducer::ID(i)] == lookup_func){
+			if(this->array_deducers[BaseType::ArrayDeducer::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::ARRAY_DEDUCER, i);
 			}
 		}
 
-		const BaseType::ArrayDeducer::ID new_array_deducer = this->array_deducers.emplace_back(lookup_func);
+		const BaseType::ArrayDeducer::ID new_array_deducer = this->array_deducers.emplace_back(lookup_type);
 		return BaseType::ID(BaseType::Kind::ARRAY_DEDUCER, new_array_deducer.get());
 	}
 
@@ -1378,17 +1511,39 @@ namespace pcit::panther{
 		return this->array_refs[id];
 	}
 
-	auto TypeManager::getOrCreateArrayRef(BaseType::ArrayRef&& lookup_func) -> BaseType::ID {
+	auto TypeManager::getOrCreateArrayRef(BaseType::ArrayRef&& lookup_type) -> BaseType::ID {
 		const auto lock = std::scoped_lock(this->array_refs_lock);
 
 		for(uint32_t i = 0; i < this->array_refs.size(); i+=1){
-			if(this->array_refs[BaseType::ArrayRef::ID(i)] == lookup_func){
+			if(this->array_refs[BaseType::ArrayRef::ID(i)] == lookup_type){
 				return BaseType::ID(BaseType::Kind::ARRAY_REF, i);
 			}
 		}
 
-		const BaseType::ArrayRef::ID new_array_ref = this->array_refs.emplace_back(lookup_func);
+		const BaseType::ArrayRef::ID new_array_ref = this->array_refs.emplace_back(lookup_type);
 		return BaseType::ID(BaseType::Kind::ARRAY_REF, new_array_ref.get());
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// array ref deducer
+
+	auto TypeManager::getArrayRefDeducer(BaseType::ArrayRefDeducer::ID id) const -> const BaseType::ArrayRefDeducer& {
+		const auto lock = std::scoped_lock(this->array_ref_deducers_lock);
+		return this->array_ref_deducers[id];
+	}
+
+	auto TypeManager::getOrCreateArrayRefDeducer(BaseType::ArrayRefDeducer&& lookup_type) -> BaseType::ID {
+		const auto lock = std::scoped_lock(this->array_ref_deducers_lock);
+
+		for(uint32_t i = 0; i < this->array_ref_deducers.size(); i+=1){
+			if(this->array_ref_deducers[BaseType::ArrayRefDeducer::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::ARRAY_REF_DEDUCER, i);
+			}
+		}
+
+		const BaseType::ArrayRefDeducer::ID new_array_ref_deducer = this->array_ref_deducers.emplace_back(lookup_type);
+		return BaseType::ID(BaseType::Kind::ARRAY_REF_DEDUCER, new_array_ref_deducer.get());
 	}
 
 
@@ -1795,18 +1950,12 @@ namespace pcit::panther{
 
 	auto TypeManager::isTypeDeducer(BaseType::ID id) const -> bool {
 		switch(id.kind()){
-			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array_type = this->getArray(id.arrayID());
-				return this->isTypeDeducer(array_type.elementTypeID);
-			} break;
-
 			case BaseType::Kind::ARRAY_DEDUCER: {
 				return true;
 			} break;
 
-			case BaseType::Kind::ARRAY_REF: {
-				const BaseType::ArrayRef& array_ref_type = this->getArrayRef(id.arrayRefID());
-				return this->isTypeDeducer(array_ref_type.elementTypeID);
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				return true;
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -1983,6 +2132,11 @@ namespace pcit::panther{
 				}
 
 				return this->numBytesOfPtr() * num_words;
+			} break;
+
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array ref deducer");
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -2175,6 +2329,11 @@ namespace pcit::panther{
 				}
 
 				return this->numBitsOfPtr() * num_words;
+			} break;
+
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array ref deducer");
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -2569,9 +2728,10 @@ namespace pcit::panther{
 				return false;
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
-			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-			case BaseType::Kind::INTERFACE:               case BaseType::Kind::INTERFACE_MAP: {
+			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE:
+			case BaseType::Kind::INTERFACE_MAP: {
 				evo::debugFatalBreak("Invalid type to compare");
 			} break;
 		}
@@ -2867,12 +3027,13 @@ namespace pcit::panther{
 	// TODO(PERF): optimize this function
 	auto TypeManager::getUnderlyingType(BaseType::ID id) -> TypeInfo::ID {
 		switch(id.kind()){
-			case BaseType::Kind::DUMMY:         evo::debugFatalBreak("Dummy type should not be used");
-			case BaseType::Kind::PRIMITIVE:     break;
-			case BaseType::Kind::FUNCTION:      return this->getOrCreateTypeInfo(TypeInfo(id));
-			case BaseType::Kind::ARRAY:         return this->getOrCreateTypeInfo(TypeInfo(id));
-			case BaseType::Kind::ARRAY_DEDUCER: evo::debugFatalBreak("Cannot get underlying type of this kind");
-			case BaseType::Kind::ARRAY_REF:     return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::DUMMY:             evo::debugFatalBreak("Dummy type should not be used");
+			case BaseType::Kind::PRIMITIVE:         break;
+			case BaseType::Kind::FUNCTION:          return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY:             return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY_DEDUCER:     evo::debugFatalBreak("Cannot get underlying type of this kind");
+			case BaseType::Kind::ARRAY_REF:         return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::ARRAY_REF_DEDUCER: evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->getAlias(id.aliasID());
 				return this->getUnderlyingType(alias.aliasedType);
