@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.232.3"></a>
+## v0.0.232.3
+
+### Panther
+- Fixed comptime calls of comptime builtin type methods
+
+
+<!---------------------------------->
 <a name="v0.0.232.2"></a>
 ## v0.0.232.2
 
@@ -54,7 +62,7 @@
 ## v0.0.230.1
 
 ### PIR
-- Fixed JITEngine not the native target
+- Fixed JITEngine not targeting the native target
 
 
 <!---------------------------------->

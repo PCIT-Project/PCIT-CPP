@@ -11978,6 +11978,21 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_comptime_func_call_run(const Instruction::ComptimeFuncCallRun& instr) -> Result {
 		const TermInfo& func_call_term = this->get_term_info(instr.target);
 
+		if(func_call_term.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
+			evo::debugAssert(
+				func_call_term.getExpr().kind() == sema::Expr::Kind::INT_VALUE
+				|| func_call_term.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE
+				|| func_call_term.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE
+				|| func_call_term.getExpr().kind() == sema::Expr::Kind::STRING_VALUE
+				|| func_call_term.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE
+				|| func_call_term.getExpr().kind() == sema::Expr::Kind::CHAR_VALUE,
+				"Invalid builtin comptime func call (expected func call or output of comptime builtin method call)"
+			);
+
+			this->return_term_info(instr.output, func_call_term);
+			return Result::SUCCESS;
+		}
+
 		const sema::FuncCall& sema_func_call =
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
 

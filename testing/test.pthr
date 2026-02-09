@@ -1,9 +1,9 @@
 
 
 func entry = () #entry -> UI8 {
-	const string: [Char:*] = "hello";
+	const string: [Char:$$;'\0'] = copy "hello".*;
 
-	@comptimeAssert(string.size() == 0, "shouldn't be empty");
+	@comptimeAssert(string.size() != 0, "shouldn't be empty");
 
 	return 0;
 }

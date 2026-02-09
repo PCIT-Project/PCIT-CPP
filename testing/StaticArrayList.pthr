@@ -86,9 +86,9 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// capacity
 
-	func empty = (this) -> Bool { return this.size() == 0; }
+	func isEmpty = (this) -> Bool { return this.size() == 0; }
 	func size = (this) -> USize { return copy this._size; }
-	func capacity = (this) -> USize { return CAPACITY; }
+	func capacity = () -> USize { return CAPACITY; }
 
 
 	///////////////////////////////////
