@@ -587,15 +587,17 @@ namespace pcit::panther{
 			case Instruction::Kind::UNWRAP:
 				return this->instr_unwrap(this->context.symbol_proc_manager.getUnwrap(instr));
 
+			case Instruction::Kind::NEW_COMPTIME_ERRORS:
+				return this->instr_new<true, true>(this->context.symbol_proc_manager.getNewComptimeErrors(instr));
+
 			case Instruction::Kind::NEW_COMPTIME:
-				return this->instr_new<true>(
-					this->context.symbol_proc_manager.getNewComptime(instr)
-				);
+				return this->instr_new<true, false>(this->context.symbol_proc_manager.getNewComptime(instr));
+
+			case Instruction::Kind::NEW_ERRORS:
+				return this->instr_new<false, true>(this->context.symbol_proc_manager.getNewErrors(instr));
 
 			case Instruction::Kind::NEW:
-				return this->instr_new<false>(
-					this->context.symbol_proc_manager.getNew(instr)
-				);
+				return this->instr_new<false, false>(this->context.symbol_proc_manager.getNew(instr));
 
 			case Instruction::Kind::ARRAY_INIT_NEW_COMPTIME:
 				return this->instr_array_init_new<true>(
@@ -15906,8 +15908,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME>
-	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result {
+	template<bool IS_COMPTIME, bool ERRORS>
+	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
@@ -15925,30 +15927,16 @@ namespace pcit::panther{
 
 		if(decayed_target_type_info.qualifiers().empty() == false){
 			if(decayed_target_type_info.isOptional()){
-				if(instr.args.empty()){
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type_id.asTypeID(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+						instr.ast_new.type,
+						"Operator [new] doesn't error"
 					);
-					return Result::SUCCESS;
+					return Result::ERROR;
 
-				}else if(instr.args.size() == 1){
-					TermInfo& arg = this->get_term_info(instr.args[0]);
-
-					if(instr.ast_new.args[0].label.has_value()){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
-							"No matching operator [new] overload for this type",
-							Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
-						);
-						return Result::ERROR;
-					}
-
-					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
+				}else{
+					if(instr.args.empty()){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							TermInfo::ValueStage::COMPTIME,
@@ -15956,59 +15944,83 @@ namespace pcit::panther{
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 						);
+						return Result::SUCCESS;
 
-					}else{
-						if(arg.is_ephemeral() == false){
+					}else if(instr.args.size() == 1){
+						TermInfo& arg = this->get_term_info(instr.args[0]);
+
+						if(instr.ast_new.args[0].label.has_value()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
-								instr.ast_new.args[0].value,
-								"Argument in operator [new] for optional must be ephemeral or [null]"
+								Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+								instr.ast_new.type,
+								"No matching operator [new] overload for this type",
+								Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
 							);
 							return Result::ERROR;
 						}
 
-						const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(
-								decayed_target_type_info.baseTypeID(),
-								evo::SmallVector<TypeInfo::Qualifier>(
-									decayed_target_type_info.qualifiers().begin(),
-									std::prev(decayed_target_type_info.qualifiers().end())
-								)
-							)
-						);
+						if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
+							this->return_term_info(instr.output,
+								TermInfo::ValueCategory::EPHEMERAL,
+								TermInfo::ValueStage::COMPTIME,
+								TermInfo::ValueState::NOT_APPLICABLE,
+								target_type_id.asTypeID(),
+								sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
+							);
 
-						if(this->type_check<true, true>(
-							optional_held_type_id,
-							arg,
-							"Argument in operator [new] for optional",
-							instr.ast_new.args[0].value
-						).ok == false){
-							return Result::ERROR;
+						}else{
+							if(arg.is_ephemeral() == false){
+								this->emit_error(
+									Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
+									instr.ast_new.args[0].value,
+									"Argument in operator [new] for optional must be ephemeral or [null]"
+								);
+								return Result::ERROR;
+							}
+
+							const TypeInfo::ID optional_held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									decayed_target_type_info.baseTypeID(),
+									evo::SmallVector<TypeInfo::Qualifier>(
+										decayed_target_type_info.qualifiers().begin(),
+										std::prev(decayed_target_type_info.qualifiers().end())
+									)
+								)
+							);
+
+							if(this->type_check<true, true>(
+								optional_held_type_id,
+								arg,
+								"Argument in operator [new] for optional",
+								instr.ast_new.args[0].value
+							).ok == false){
+								return Result::ERROR;
+							}
+
+							this->return_term_info(instr.output,
+								TermInfo::ValueCategory::EPHEMERAL,
+								TermInfo::ValueStage::COMPTIME,
+								TermInfo::ValueState::NOT_APPLICABLE,
+								target_type_id.asTypeID(),
+								sema::Expr(
+									this->context.sema_buffer.createConversionToOptional(
+										arg.getExpr(), target_type_id.asTypeID()
+									)
+								)
+							);
 						}
 
-						this->return_term_info(instr.output,
-							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
-							TermInfo::ValueState::NOT_APPLICABLE,
-							target_type_id.asTypeID(),
-							sema::Expr(
-								this->context.sema_buffer.createConversionToOptional(
-									arg.getExpr(), target_type_id.asTypeID()
-								)
-							)
+						return Result::SUCCESS;
+
+					}else{
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("Too may arguments")
 						);
+						return Result::ERROR;
 					}
-
-					return Result::SUCCESS;
-
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info("Too may arguments")
-					);
-					return Result::ERROR;
 				}
 			}
 
@@ -16023,102 +16035,112 @@ namespace pcit::panther{
 
 		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
-				if(instr.args.empty()){
-					const BaseType::Primitive& primitive =
-						this->context.getTypeManager().getPrimitive(decayed_target_type_info.baseTypeID().primitiveID());
+				if constexpr(ERRORS){
+					this->emit_error(
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+						instr.ast_new.type,
+						"Operator [new] doesn't error"
+					);
+					return Result::ERROR;
 
-					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
+				}else{
+					if(instr.args.empty()){
+						const BaseType::Primitive& primitive = this->context.getTypeManager().getPrimitive(
+							decayed_target_type_info.baseTypeID().primitiveID()
+						);
+
+						if(
+							primitive.kind() == Token::Kind::TYPE_RAWPTR
+							|| primitive.kind() == Token::Kind::TYPE_TYPEID
+						){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
+								instr.ast_new.type,
+								"No matching operator [new] overload for this type"
+							);
+							return Result::ERROR;
+						}
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::COMPTIME,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type_id.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
+						);
+						return Result::SUCCESS;
+						
+					}else if(instr.args.size() == 1){
+						TermInfo& arg = this->get_term_info(instr.args[0]);
+
+						if(arg.is_ephemeral() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
+								instr.ast_new.args[0].value,
+								"Argument in operator [new] for primitive must be ephemeral"
+							);
+							return Result::ERROR;
+						}
+
+						if(this->type_check<true, true>(
+							target_type_id.asTypeID(),
+							arg,
+							"Argument of operator [new] for primitive",
+							instr.ast_new.args[0].value
+						).ok == false){
+							return Result::ERROR;
+						}
+
+						this->return_term_info(instr.output, arg);
+						return Result::SUCCESS;
+						
+					}else{
 						this->emit_error(
 							Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
 							instr.ast_new.type,
-							"No matching operator [new] overload for this type"
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("Too may arguments")
 						);
 						return Result::ERROR;
 					}
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type_id.asTypeID(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
-					);
-					return Result::SUCCESS;
-					
-				}else if(instr.args.size() == 1){
-					TermInfo& arg = this->get_term_info(instr.args[0]);
-
-					if(arg.is_ephemeral() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
-							instr.ast_new.args[0].value,
-							"Argument in operator [new] for primitive must be ephemeral"
-						);
-						return Result::ERROR;
-					}
-
-					if(this->type_check<true, true>(
-						target_type_id.asTypeID(),
-						arg,
-						"Argument of operator [new] for primitive",
-						instr.ast_new.args[0].value
-					).ok == false){
-						return Result::ERROR;
-					}
-
-					this->return_term_info(instr.output, arg);
-					return Result::SUCCESS;
-					
-				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info("Too may arguments")
-					);
-					return Result::ERROR;
 				}
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				if(instr.args.size() != 0){
+				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
 						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info(
-							std::format("Expected {} arguments, got {}", 0, instr.args.size())
-						)
+						"Operator [new] doesn't error"
 					);
 					return Result::ERROR;
-				}
 
-				const BaseType::Array& array_type =
-					this->context.getTypeManager().getArray(decayed_target_type_info.baseTypeID().arrayID());
+				}else{
+					if(instr.args.size() != 0){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info(
+								std::format("Expected {} arguments, got {}", 0, instr.args.size())
+							)
+						);
+						return Result::ERROR;
+					}
 
-				if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info("Array element type is not default initializable")
-					);
-					return Result::ERROR;	
-				}
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(decayed_target_type_info.baseTypeID().arrayID());
 
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_id.asTypeID(),
-					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
-				);
+					if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("Array element type is not default initializable")
+						);
+						return Result::ERROR;	
+					}
 
-				return Result::SUCCESS;
-			} break;
-
-			case BaseType::Kind::ARRAY_REF: {
-				if(instr.args.empty()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						TermInfo::ValueStage::COMPTIME,
@@ -16126,81 +16148,73 @@ namespace pcit::panther{
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 					);
+
 					return Result::SUCCESS;
 				}
+			} break;
 
-				const BaseType::ArrayRef& array_ref =
-					this->context.getTypeManager().getArrayRef(decayed_target_type_info.baseTypeID().arrayRefID());
-
-				const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
-
-				if(instr.args.size() != num_ref_ptrs + 1){
+			case BaseType::Kind::ARRAY_REF: {
+				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
 						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info(
-							std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
-						)
+						"Operator [new] doesn't error"
 					);
 					return Result::ERROR;
-				}
 
-				if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-						instr.ast_new.args[0].value,
-						"Argument in operator [new] for array reference must be ephemeral"
-					);
-					return Result::ERROR;
-				}
+				}else{
+					if(instr.args.empty()){
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							TermInfo::ValueStage::COMPTIME,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type_id.asTypeID(),
+							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
+						);
+						return Result::SUCCESS;
+					}
 
-				const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
-					this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
-						.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
-				);
+					const BaseType::ArrayRef& array_ref =
+						this->context.getTypeManager().getArrayRef(decayed_target_type_info.baseTypeID().arrayRefID());
 
-				if(this->type_check<true, true>(
-					array_ptr_type,
-					this->get_term_info(instr.args[0]),
-					"Pointer argument of operator [new] for array reference",
-					instr.ast_new.args[0].value
-				).ok == false){
-					return Result::ERROR;
-				}
+					const size_t num_ref_ptrs = array_ref.getNumRefPtrs();
 
-				if(instr.ast_new.args[0].label.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
-					);
-				}
+					if(instr.args.size() != num_ref_ptrs + 1){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info(
+								std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
+							)
+						);
+						return Result::ERROR;
+					}
 
-
-				for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
-					TermInfo& arg_term_info = this->get_term_info(instr.args[i]);
-
-					if(arg_term_info.is_ephemeral() == false){
+					if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-							instr.ast_new.args[i].value,
+							instr.ast_new.args[0].value,
 							"Argument in operator [new] for array reference must be ephemeral"
 						);
 						return Result::ERROR;
 					}
 
+					const TypeInfo::ID array_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
+						this->context.getTypeManager().getTypeInfo(array_ref.elementTypeID)
+							.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
+					);
+
 					if(this->type_check<true, true>(
-						TypeManager::getTypeUSize(),
-						arg_term_info,
-						"Dimension argument of operator [new] for array reference",
-						instr.ast_new.args[i].value
+						array_ptr_type,
+						this->get_term_info(instr.args[0]),
+						"Pointer argument of operator [new] for array reference",
+						instr.ast_new.args[0].value
 					).ok == false){
 						return Result::ERROR;
 					}
 
-					if(instr.ast_new.args[i].label.has_value()){
+					if(instr.ast_new.args[0].label.has_value()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
 							instr.ast_new.type,
@@ -16208,27 +16222,59 @@ namespace pcit::panther{
 							Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
 						);
 					}
-				}
 
 
-				auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
-				dimensions.reserve(array_ref.dimensions.size());
-				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
-					if(dimension.isPtr()){
-						dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
+					for(size_t i = 1; i < num_ref_ptrs + 1; i+=1){
+						TermInfo& arg_term_info = this->get_term_info(instr.args[i]);
+
+						if(arg_term_info.is_ephemeral() == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
+								instr.ast_new.args[i].value,
+								"Argument in operator [new] for array reference must be ephemeral"
+							);
+							return Result::ERROR;
+						}
+
+						if(this->type_check<true, true>(
+							TypeManager::getTypeUSize(),
+							arg_term_info,
+							"Dimension argument of operator [new] for array reference",
+							instr.ast_new.args[i].value
+						).ok == false){
+							return Result::ERROR;
+						}
+
+						if(instr.ast_new.args[i].label.has_value()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
+								instr.ast_new.type,
+								"No matching operator [new] overload for this type",
+								Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
+							);
+						}
 					}
-				}
 
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_id.asTypeID(),
-					sema::Expr(this->context.sema_buffer.createInitArrayRef(
-						this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
-					))
-				);
-				return Result::SUCCESS;
+
+					auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+					dimensions.reserve(array_ref.dimensions.size());
+					for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
+						if(dimension.isPtr()){
+							dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
+						}
+					}
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::COMPTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createInitArrayRef(
+							this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
+						))
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -16302,6 +16348,26 @@ namespace pcit::panther{
 				const BaseType::Function& selected_func_type =
 					this->context.getTypeManager().getFunction(selected_func.typeID);
 
+				if constexpr(ERRORS){
+					if(selected_func_type.hasErrorReturn() == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+							instr.ast_new.type,
+							"Operator [new] doesn't error"
+						);
+						return Result::ERROR;
+					}
+				}else{
+					if(selected_func_type.hasErrorReturn()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_FUNC_ERRORS,
+							instr.ast_new.type,
+							"Operator [new] error not handled"
+						);
+						return Result::ERROR;
+					}
+				}
+
 				if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
 					this->emit_error(
 						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
@@ -16373,71 +16439,97 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::UNION: {
-				if(instr.args.size() != 0){
+				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
 						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info(
-							std::format("Expected {} arguments, got {}", 0, instr.args.size())
-						)
+						"Operator [new] doesn't error"
 					);
 					return Result::ERROR;
-				}
 
-				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type"
+				}else{
+					if(instr.args.size() != 0){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info(
+								std::format("Expected {} arguments, got {}", 0, instr.args.size())
+							)
+						);
+						return Result::ERROR;
+					}
+
+					if(
+						this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())
+							== false
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type"
+						);
+						return Result::ERROR;	
+					}
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::COMPTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 					);
-					return Result::ERROR;	
+
+					return Result::SUCCESS;
 				}
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_id.asTypeID(),
-					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
-				);
-
-				return Result::SUCCESS;
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
-				if(instr.args.size() != 0){
+				if constexpr(ERRORS){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
 						instr.ast_new.type,
-						"No matching operator [new] overload for this type",
-						Diagnostic::Info(
-							std::format("Expected {} arguments, got {}", 0, instr.args.size())
-						)
+						"Operator [new] doesn't error"
 					);
 					return Result::ERROR;
-				}
+
+				}else{
+					if(instr.args.size() != 0){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info(
+								std::format("Expected {} arguments, got {}", 0, instr.args.size())
+							)
+						);
+						return Result::ERROR;
+					}
 
 
-				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
-						"No matching operator [new] overload for this type"
+					if(
+						this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())
+							== false
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type"
+						);
+						return Result::ERROR;	
+					}
+
+				
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						TermInfo::ValueStage::COMPTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type_id.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 					);
-					return Result::ERROR;	
+
+					return Result::SUCCESS;
 				}
-
-			
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_id.asTypeID(),
-					sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
-				);
-
-				return Result::SUCCESS;
 			} break;
 
 			default: {
@@ -19675,7 +19767,9 @@ namespace pcit::panther{
 									lhs_decayed_type.qualifiers().back().isOptional, "Unknown type qualifiers"
 								);
 
-								if(this->type_is_comparable(lhs_decayed_type) == false){
+								if(this->context.getTypeManager().isComparable(
+									lhs_decayed_type_id, this->context.getSemaBuffer()
+								) == false){
 									auto infos = evo::SmallVector<Diagnostic::Info>();
 									this->diagnostic_print_type_info(
 										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
@@ -19693,7 +19787,10 @@ namespace pcit::panther{
 								}
 
 								const sema::SameTypeCmp::ID same_type_cmp = this->context.sema_buffer.createSameTypeCmp(
-									lhs_decayed_type_id, lhs.getExpr(), rhs.getExpr(), op_kind == Token::lookupKind("==")
+									lhs_decayed_type_id,
+									lhs.getExpr(),
+									rhs.getExpr(),
+									op_kind == Token::lookupKind("==")
 								);
 
 								this->return_term_info(instr.output,
@@ -19725,7 +19822,9 @@ namespace pcit::panther{
 								} break;
 
 								case BaseType::Kind::ARRAY: case BaseType::Kind::ARRAY_REF: case BaseType::Kind::UNION:{
-									if(this->type_is_comparable(lhs_decayed_type) == false){
+									if(this->context.getTypeManager().isComparable(
+										lhs_decayed_type_id, this->context.getSemaBuffer()
+									) == false){
 										auto infos = evo::SmallVector<Diagnostic::Info>();
 										this->diagnostic_print_type_info(
 											lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
@@ -27008,7 +27107,7 @@ namespace pcit::panther{
 		}else{
 			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
+					Diagnostic::Code::SEMA_FUNC_ERRORS,
 					func_call,
 					"Function error not handled"
 				);
@@ -29477,116 +29576,6 @@ namespace pcit::panther{
 	}
 
 
-
-	auto SemanticAnalyzer::type_is_comparable(TypeInfo::ID type_id) -> bool {
-		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
-		return this->type_is_comparable(type_info);
-	}
-
-	auto SemanticAnalyzer::type_is_comparable(const TypeInfo& type_info) -> bool {
-		if(type_info.qualifiers().empty() == false){
-			if(type_info.qualifiers().back().isOptional){
-				return this->type_is_comparable(type_info.copyWithPoppedQualifier());
-			}else{
-				evo::debugAssert(type_info.qualifiers().back().isPtr, "unknown type qualifier");
-				return true;
-			}
-
-		}else{
-			switch(type_info.baseTypeID().kind()){
-				case BaseType::Kind::DUMMY: {
-					evo::debugFatalBreak("Invalid type");
-				} break;
-
-				case BaseType::Kind::PRIMITIVE: {
-					return true;
-				} break;
-
-				case BaseType::Kind::FUNCTION: {
-					return true; // TODO(FUTURE): is this correct?
-				} break;
-
-				case BaseType::Kind::ARRAY: {
-					const BaseType::Array& array_type =
-						this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
-
-					return this->type_is_comparable(array_type.elementTypeID);
-				} break;
-
-				case BaseType::Kind::ARRAY_REF: {
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(type_info.baseTypeID().arrayRefID());
-						
-					return this->type_is_comparable(array_ref_type.elementTypeID);
-				} break;
-
-				case BaseType::Kind::ALIAS: {
-					const BaseType::Alias& alias_type =
-						this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
-						
-					return this->type_is_comparable(alias_type.aliasedType);
-				} break;
-
-				case BaseType::Kind::DISTINCT_ALIAS: {
-					const BaseType::DistinctAlias& distinct_alias_type =
-						this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
-						
-					return this->type_is_comparable(distinct_alias_type.underlyingType);
-				} break;
-
-				case BaseType::Kind::STRUCT: {
-					const BaseType::Struct& struct_type =
-						this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
-
-					const auto [begin_overloads_range, end_overloads_range] = 
-						struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
-
-					const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
-
-					for(const auto& [_, sema_func_id] : overloads_range){
-						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(sema_func_id);
-						const BaseType::Function& func_type =
-							this->context.getTypeManager().getFunction(sema_func.typeID);
-
-						if(func_type.params[0].typeID == func_type.params[1].typeID){ return true; }
-					}
-
-					return false;
-				} break;
-
-				case BaseType::Kind::UNION: {
-					const BaseType::Union& union_type =
-						this->context.getTypeManager().getUnion(type_info.baseTypeID().unionID());
-						
-					if(union_type.isUntagged){ return false; }
-
-					for(const BaseType::Union::Field& field : union_type.fields){
-						if(field.typeID.isVoid()){ continue; }
-						if(this->type_is_comparable(field.typeID.asTypeID()) == false){ return false; }
-					}
-
-					return true;
-				} break;
-
-				case BaseType::Kind::ENUM: {
-					return true;
-				} break;
-
-				case BaseType::Kind::POLY_INTERFACE_REF: {
-					return true;
-				} break;
-
-				case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
-				case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-				case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::INTERFACE_MAP: {
-					evo::debugFatalBreak("Invalid type to check if comparing is possible");
-				} break;
-			}
-
-			evo::debugFatalBreak("Unknown BaseType");
-		}
-	}
 
 
 

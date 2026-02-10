@@ -243,8 +243,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_deref(const Instruction::Deref& instr) -> Result;
 			EVO_NODISCARD auto instr_unwrap(const Instruction::Unwrap& instr) -> Result;
 
-			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result;
+			template<bool IS_COMPTIME, bool ERRORS>
+			EVO_NODISCARD auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;
 
 			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_COMPTIME>& instr) -> Result;
@@ -764,9 +764,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto comptime_infix_math(
 				Token::Kind op, sema::Expr lhs, sema::Expr rhs, std::optional<TypeInfo::ID> lhs_type
 			) -> TermInfo;
-
-			EVO_NODISCARD auto type_is_comparable(TypeInfo::ID type_id) -> bool;
-			EVO_NODISCARD auto type_is_comparable(const TypeInfo& type_info) -> bool;
 
 
 			template<bool IS_COMPTIME>

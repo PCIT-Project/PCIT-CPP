@@ -850,7 +850,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_COMPTIME>
+		template<bool IS_COMPTIME, bool ERRORS>
 		struct New{
 			const AST::New& ast_new;
 			SymbolProcTypeID type_id;
@@ -1191,7 +1191,9 @@ namespace pcit::panther{
 			PREFIX_BITWISE_NOT,
 			DEREF,
 			UNWRAP,
+			NEW_COMPTIME_ERRORS,
 			NEW_COMPTIME,
+			NEW_ERRORS,
 			NEW,
 			ARRAY_INIT_NEW_COMPTIME,
 			ARRAY_INIT_NEW,

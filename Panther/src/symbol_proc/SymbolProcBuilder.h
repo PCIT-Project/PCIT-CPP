@@ -146,7 +146,7 @@ namespace pcit::panther{
 			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
+			template<bool IS_COMPTIME, bool ERRORS>
 			EVO_NODISCARD auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>

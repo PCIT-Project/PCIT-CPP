@@ -1,12 +1,23 @@
-type Union = union #untagged {
-	int: Int,
-	char: Char,
+
+type ErrNum = struct {
+	func new = () -> (output: ErrNum) <Void> {
+		error;
+	}
+
+	func new = (num: UI8) -> (output: ErrNum) {
+		output.num = copy num;
+		return...;
+	}
+
+
+	const num: UI8;
 }
 
+
+
+
 func entry = () #entry -> UI8 {
-	const u = new Union{int = 12};
+	const num: ErrNum = try new ErrNum() else new ErrNum(12);
 
-	const num: Int = copy u.int;
-
-	return 0;
+	return copy num.num;
 }

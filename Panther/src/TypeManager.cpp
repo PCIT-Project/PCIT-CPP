@@ -1029,6 +1029,8 @@ namespace pcit::panther{
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
 			
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::MOVE){
+
+		}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
 			
 		}else{
 			static_assert(false, "Unknown special member");
@@ -1036,10 +1038,10 @@ namespace pcit::panther{
 
 		if constexpr(
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
-			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 		){
 			static_assert(false, "Unknown special member prop");
 		}
@@ -1085,6 +1087,15 @@ namespace pcit::panther{
 			return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
 				type_info.baseTypeID(), sema_buffer
 			);
+
+		}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+			for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
+				if(qualifier.isPtr){ return true; }
+			}
+
+			return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
+				type_info.baseTypeID(), sema_buffer
+			);
 		}
 	}
 
@@ -1101,6 +1112,8 @@ namespace pcit::panther{
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
 			
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::MOVE){
+
+		}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
 			
 		}else{
 			static_assert(false, "Unknown special member");
@@ -1108,10 +1121,10 @@ namespace pcit::panther{
 
 		if constexpr(
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
-			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 		){
 			static_assert(false, "Unknown special member prop");
 		}
@@ -1132,6 +1145,9 @@ namespace pcit::panther{
 
 					return true;
 
+				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+					return !this->isFloatingPoint(id);
+
 				}else{
 					return true;
 				}
@@ -1142,14 +1158,35 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array = this->getArray(id.arrayID());
-				return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
-					array.elementTypeID, sema_buffer
-				);
+				if constexpr(
+					SPECIAL_MEMBER == SpecialMember::COMPARE && SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL
+				){
+					const BaseType::Array& array_type = this->getArray(id.arrayID());
+					if(this->isTriviallyComparable(array_type.elementTypeID) == false){ return false; }
+					return this->numBits(array_type.elementTypeID, true)
+						== this->numBits(array_type.elementTypeID, false);
+
+				}else{
+					const BaseType::Array& array = this->getArray(id.arrayID());
+					return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
+						array.elementTypeID, sema_buffer
+					);
+				}
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				return true;
+				if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
+						return false;
+					}else{
+						const BaseType::ArrayRef& array_ref = this->getArrayRef(id.arrayRefID());
+						return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
+							array_ref.elementTypeID, sema_buffer
+						);
+					}
+				}else{
+					return true;
+				}
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -1167,85 +1204,162 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				const BaseType::Struct& struct_type = this->getStruct(id.structID());
 
 				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
-						return struct_info.isDefaultInitializable;
-
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
-						return struct_info.isNoErrorDefaultInitializable;
-
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
-						return struct_info.isSafeDefaultInitializable;
-
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						return struct_info.isComptimeDefaultInitializable;
+						return struct_type.isDefaultInitializable;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						return struct_info.isTriviallyDefaultInitializable;
+						return struct_type.isTriviallyDefaultInitializable;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
+						return struct_type.isComptimeDefaultInitializable;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
+						return struct_type.isNoErrorDefaultInitializable;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
+						return struct_type.isSafeDefaultInitializable;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::DELETE){
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						return struct_info.deleteOverload.load().has_value() == false;
+						return struct_type.deleteOverload.load().has_value() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						const std::optional<sema::Func::ID> delete_overload = struct_info.deleteOverload.load();
+						const std::optional<sema::Func::ID> delete_overload = struct_type.deleteOverload.load();
 						if(delete_overload.has_value() == false){ return true; }
 						return sema_buffer->getFunc(*delete_overload).isComptime;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
-						return !struct_info.copyInitOverload.load().wasDeleted;
+						return !struct_type.copyInitOverload.load().wasDeleted;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
+						const BaseType::Struct::DeletableOverload delete_overload = struct_type.copyInitOverload.load();
+						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
+						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
+						if(copy_overload.wasDeleted){ return false; }
+						if(copy_overload.funcID.has_value() == false){ return true; }
+						return sema_buffer->getFunc(*copy_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
-						static_assert(false, "Unimplemented");
+						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
+						if(copy_overload.wasDeleted){ return false; }
+						if(copy_overload.funcID.has_value() == false){ return true; }
+
+						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
+						return this->getFunction(copy_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
-						const BaseType::Struct::DeletableOverload copy_overload = struct_info.copyInitOverload.load();
+						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
 						if(copy_overload.wasDeleted){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
 						return this->getFunction(copy_overload_sema_func.typeID).isUnsafe == false;
-
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						const BaseType::Struct::DeletableOverload copy_overload = struct_info.copyInitOverload.load();
-						if(copy_overload.wasDeleted){ return false; }
-						if(copy_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*copy_overload.funcID).isComptime;
-
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						const BaseType::Struct::DeletableOverload delete_overload = struct_info.copyInitOverload.load();
-						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::MOVE){
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
-						return !struct_info.moveInitOverload.load().wasDeleted;
+						return !struct_type.moveInitOverload.load().wasDeleted;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
+						const BaseType::Struct::DeletableOverload delete_overload = struct_type.moveInitOverload.load();
+						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
+						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
+						if(move_overload.wasDeleted){ return false; }
+						if(move_overload.funcID.has_value() == false){ return true; }
+						return sema_buffer->getFunc(*move_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
-						static_assert(false, "Unimplemented");
+						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
+						if(move_overload.wasDeleted){ return false; }
+						if(move_overload.funcID.has_value() == false){ return true; }
+
+						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
+						return this->getFunction(move_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
-						const BaseType::Struct::DeletableOverload move_overload = struct_info.moveInitOverload.load();
+						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
 						if(move_overload.wasDeleted){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
 						return this->getFunction(move_overload_sema_func.typeID).isUnsafe == false;
+					}
 
-					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						const BaseType::Struct::DeletableOverload move_overload = struct_info.moveInitOverload.load();
-						if(move_overload.wasDeleted){ return false; }
-						if(move_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*move_overload.funcID).isComptime;
+				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
+						const auto [begin_overloads_range, end_overloads_range] = 
+							struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+						for(const auto& [_, sema_func_id] : overloads_range){
+							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
+							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
+
+							if(func_type.params[0].typeID == func_type.params[1].typeID){ return true; }
+						}
+
+						return false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						const BaseType::Struct::DeletableOverload delete_overload = struct_info.moveInitOverload.load();
-						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
+						return struct_type.isTriviallyComparable;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
+						const auto [begin_overloads_range, end_overloads_range] = 
+							struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+						for(const auto& [_, sema_func_id] : overloads_range){
+							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
+							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
+
+							if(func_type.params[0].typeID == func_type.params[1].typeID){ return sema_func.isComptime; }
+						}
+
+						return false;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
+						const auto [begin_overloads_range, end_overloads_range] = 
+							struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+						for(const auto& [_, sema_func_id] : overloads_range){
+							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
+							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
+
+							if(func_type.params[0].typeID == func_type.params[1].typeID){
+								return func_type.hasErrorReturn();
+							}
+						}
+
+						return false;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
+						const auto [begin_overloads_range, end_overloads_range] = 
+							struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+						for(const auto& [_, sema_func_id] : overloads_range){
+							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
+							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
+
+							if(func_type.params[0].typeID == func_type.params[1].typeID){ return !func_type.isUnsafe; }
+						}
+
+						return false;
 					}
 				}
 			} break;
@@ -1258,10 +1372,16 @@ namespace pcit::panther{
 						for(const BaseType::Union::Field& field : union_info.fields){
 							// Yes, this is the correct method
 							if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-						}	
-					}
+						}
 
-					return true;
+						return true;
+
+					}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+						return false;
+
+					}else{
+						return true;
+					}
 
 				}else{
 					if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
@@ -1322,37 +1442,6 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported BaseType");
 	}
 
-
-
-	auto TypeManager::is_safe_byte_bit_cast_base_type(BaseType::ID id) const -> bool {
-		switch(id.kind()){
-			case BaseType::Kind::PRIMITIVE: {
-				return this->getPrimitive(id.primitiveID()).kind() == Token::Kind::TYPE_BYTE;
-			} break;
-
-			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array_type = this->getArray(id.arrayID());
-
-				const TypeInfo& elem_type = this->getTypeInfo(array_type.elementTypeID);
-				if(elem_type.qualifiers().size() > 0){ return false; }
-
-				return this->is_safe_byte_bit_cast_base_type(elem_type.baseTypeID());
-			} break;
-
-			case BaseType::Kind::ALIAS: {
-				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-
-				const TypeInfo& aliased_type = this->getTypeInfo(alias_type.aliasedType);
-				if(aliased_type.qualifiers().size() > 0){ return false; }
-
-				return this->is_safe_byte_bit_cast_base_type(aliased_type.baseTypeID());
-			} break;
-
-			default: {
-				return false;
-			} break;
-		}
-	}
 
 
 
@@ -2480,7 +2569,7 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isDefaultInitializable
+	// default initializable
 
 	auto TypeManager::isDefaultInitializable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::AT_ALL>(id, nullptr);
@@ -2491,23 +2580,6 @@ namespace pcit::panther{
 	}
 
 
-	///////////////////////////////////
-	// isNoErrorDefaultInitializable
-
-	auto TypeManager::isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::NO_ERROR>(id, nullptr);
-	}
-
-	auto TypeManager::isNoErrorDefaultInitializable(BaseType::ID id) const -> bool {
-		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::NO_ERROR>(id, nullptr);
-	}
-
-
-
-
-	///////////////////////////////////
-	// isComptimeDefaultInitializable
-
 	auto TypeManager::isComptimeDefaultInitializable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::COMPTIME>(id, nullptr);
 	}
@@ -2517,99 +2589,80 @@ namespace pcit::panther{
 	}
 
 
-
-
-	///////////////////////////////////
-	// isTriviallyDefaultInitializable
-
 	auto TypeManager::isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
-
 	auto TypeManager::isTriviallyDefaultInitializable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isSafeDefaultInitializable
+	auto TypeManager::isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::NO_ERROR>(id, nullptr);
+	}
+	auto TypeManager::isNoErrorDefaultInitializable(BaseType::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::NO_ERROR>(id, nullptr);
+	}
+
 
 	auto TypeManager::isSafeDefaultInitializable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::SAFE>(id, nullptr);
 	}
-
 	auto TypeManager::isSafeDefaultInitializable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::SAFE>(id, nullptr);
 	}
 
 
+
 	///////////////////////////////////
-	// isTriviallyDeletable
+	// deletable
 
 	auto TypeManager::isTriviallyDeletable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
-
 	auto TypeManager::isTriviallyDeletable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isComptimeDeletable
-
 	auto TypeManager::isComptimeDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-
 	auto TypeManager::isComptimeDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
 	///////////////////////////////////
-	// isCopyable
+	// copyable
 
 	auto TypeManager::isCopyable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::AT_ALL>(id, nullptr);
 	}
-
 	auto TypeManager::isCopyable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::AT_ALL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isTriviallyCopyable
-
 	auto TypeManager::isTriviallyCopyable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
-
 	auto TypeManager::isTriviallyCopyable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isComptimeCopyable
-
 	auto TypeManager::isComptimeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-
 	auto TypeManager::isComptimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	///////////////////////////////////
-	// isSafeCopyable
-
 	auto TypeManager::isSafeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
-
 	auto TypeManager::isSafeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
@@ -2617,127 +2670,76 @@ namespace pcit::panther{
 
 
 	///////////////////////////////////
-	// isMovable
+	// movable
 
 	auto TypeManager::isMovable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::AT_ALL>(id, nullptr);
 	}
-
 	auto TypeManager::isMovable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::AT_ALL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isTriviallyMovable
-
 	auto TypeManager::isTriviallyMovable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
-
 	auto TypeManager::isTriviallyMovable(BaseType::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
 
 
-	///////////////////////////////////
-	// isComptimeMovable
-
 	auto TypeManager::isComptimeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-
 	auto TypeManager::isComptimeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	///////////////////////////////////
-	// isSafeMovable
-
 	auto TypeManager::isSafeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
-
 	auto TypeManager::isSafeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
 
 
 
-
-
 	///////////////////////////////////
-	// isTriviallyComparable
+	// comparable
+
+	auto TypeManager::isComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::AT_ALL>(id, &sema_buffer);
+	}
+	auto TypeManager::isComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::AT_ALL>(id, &sema_buffer);
+	}
 
 
 	auto TypeManager::isTriviallyComparable(TypeInfo::ID id) const -> bool {
-		const TypeInfo& type_info = this->getTypeInfo(id);
-		if(type_info.qualifiers().empty() == false){ return type_info.qualifiers().back().isPtr; }
-
-		return this->isTriviallyComparable(type_info.baseTypeID());
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
-
-
 	auto TypeManager::isTriviallyComparable(BaseType::ID id) const -> bool {
-		switch(id.kind()){
-			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
-
-			case BaseType::Kind::PRIMITIVE: {
-				return !this->isFloatingPoint(id);
-			} break;
-
-			case BaseType::Kind::FUNCTION: {
-				return true;
-			} break;
-
-			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array_type = this->getArray(id.arrayID());
-				if(this->isTriviallyComparable(array_type.elementTypeID) == false){ return false; }
-				return this->numBits(array_type.elementTypeID, true) == this->numBits(array_type.elementTypeID, false);
-			} break;
-
-			case BaseType::Kind::ARRAY_REF: {
-				return false;
-			} break;
-
-			case BaseType::Kind::ALIAS: {
-				const BaseType::Alias& alias_type = this->getAlias(id.aliasID());
-				return this->isTriviallyComparable(alias_type.aliasedType);
-			} break;
-
-			case BaseType::Kind::DISTINCT_ALIAS: {
-				const BaseType::DistinctAlias& distinct_alias_type = this->getDistinctAlias(id.distinctAliasID());
-				return this->isTriviallyComparable(distinct_alias_type.underlyingType);
-			} break;
-
-			case BaseType::Kind::STRUCT: {
-				const BaseType::Struct& struct_type = this->getStruct(id.structID());
-				return struct_type.isTriviallyComparable;
-			} break;
-
-			case BaseType::Kind::UNION: {
-				return false;
-			} break;
-
-			case BaseType::Kind::ENUM: {
-				return true;
-			} break;
-
-			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return false;
-			} break;
-
-			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE:
-			case BaseType::Kind::INTERFACE_MAP: {
-				evo::debugFatalBreak("Invalid type to compare");
-			} break;
-		}
-
-		evo::debugFatalBreak("Unknown base type kind");
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
+
+
+	auto TypeManager::isComptimeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
+	}
+	auto TypeManager::isComptimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
+	}
+
+
+	auto TypeManager::isSafeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::SAFE>(id, &sema_buffer);
+	}
+	auto TypeManager::isSafeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::SAFE>(id, &sema_buffer);
+	}
+
+
 
 
 	///////////////////////////////////

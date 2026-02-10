@@ -1585,6 +1585,14 @@ namespace pcit::panther{
 				);
 
 				return evo::Result<>();
+
+			}else{
+				this->emit_error(
+					Diagnostic::Code::SYMBOL_PROC_UKNOWN_GLOBAL_INTRINSIC_FUNC,
+					stmt,
+					"Unknown global intrinsic function"
+				);
+				return evo::resultError;
 			}
 		}
 
@@ -2915,16 +2923,23 @@ namespace pcit::panther{
 		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		if constexpr(ERRORS){
-			if(expr.kind() != AST::Kind::FUNC_CALL){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NOT_ERRORING_FUNC_CALL,
-					expr,
-					"The attempt in any flavor of a try expression must be an erroring function call"
-				);
-				return evo::resultError;
-			}
+			switch(expr.kind()){
+				case AST::Kind::NONE: {
+					evo::debugFatalBreak("Invalid AST::Node");
+				} break;
 
-			return this->analyze_expr_func_call<IS_COMPTIME, true>(expr);
+				case AST::Kind::FUNC_CALL: return this->analyze_expr_func_call<IS_COMPTIME, true>(expr);
+				case AST::Kind::NEW:       return this->analyze_expr_new<IS_COMPTIME, true>(expr);
+
+				default: {
+					this->emit_error(
+						Diagnostic::Code::SYMBOL_PROC_INVALID_TRY_ATTEMPT,
+						expr,
+						"Invalid attempt expression in try"
+					);
+					return evo::resultError;
+				} break;
+			}
 
 		}else{
 			switch(expr.kind()){
@@ -2939,7 +2954,7 @@ namespace pcit::panther{
 				case AST::Kind::PREFIX:              return this->analyze_expr_prefix<IS_COMPTIME>(expr);
 				case AST::Kind::INFIX:               return this->analyze_expr_infix<IS_COMPTIME>(expr);
 				case AST::Kind::POSTFIX:             return this->analyze_expr_postfix<IS_COMPTIME>(expr);
-				case AST::Kind::NEW:                 return this->analyze_expr_new<IS_COMPTIME>(expr);
+				case AST::Kind::NEW:                 return this->analyze_expr_new<IS_COMPTIME, false>(expr);
 				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::TRY_ELSE:            return this->analyze_expr_try_else<IS_COMPTIME>(expr);
@@ -3949,7 +3964,7 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported postfix operator");
 	}
 
-	template<bool IS_COMPTIME>
+	template<bool IS_COMPTIME, bool ERRORS>
 	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::New& ast_new = this->source.getASTBuffer().getNew(node);
 
@@ -3969,17 +3984,35 @@ namespace pcit::panther{
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		if constexpr(IS_COMPTIME){
-			this->add_instruction(
-				this->context.symbol_proc_manager.createNewComptime(
-					ast_new, type_id.value(), new_term_info_id, std::move(args)
-				)
-			);
+			if constexpr(ERRORS){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createNewComptimeErrors(
+						ast_new, type_id.value(), new_term_info_id, std::move(args)
+					)
+				);
+
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createNewComptime(
+						ast_new, type_id.value(), new_term_info_id, std::move(args)
+					)
+				);
+			}
 		}else{
-			this->add_instruction(
-				this->context.symbol_proc_manager.createNew(
-					ast_new, type_id.value(), new_term_info_id, std::move(args)
-				)
-			);
+			if constexpr(ERRORS){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createNewErrors(
+						ast_new, type_id.value(), new_term_info_id, std::move(args)
+					)
+				);
+
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createNew(
+						ast_new, type_id.value(), new_term_info_id, std::move(args)
+					)
+				);
+			}
 		}
 		return new_term_info_id;
 	}

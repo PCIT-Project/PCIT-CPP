@@ -2543,10 +2543,18 @@ namespace pcit::panther{
 	auto Parser::parse_try_expr() -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_TRY).isError()){ return Result::Code::ERROR; }
 			
-		const Result attempt_expr = this->parse_term<TermKind::EXPR>();
+		const Result attempt_expr = [&]() -> Result {
+			switch(this->reader[this->reader.peek()].kind()){
+				case Token::Kind::KEYWORD_NEW: return this->parse_new_expr();
+				default: return this->parse_term<TermKind::EXPR>();
+			}			
+		}();
+
 		if(this->check_result(attempt_expr, "attempt expression in try/else expression").isError()){
 			return Result::Code::ERROR;
 		}
+
+
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
 			const Token::ID else_token_id = this->reader.next();
