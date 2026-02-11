@@ -30,38 +30,41 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	}
 
 
-	func delete = (this mut) -> Void {
-		for(this as [T:*mut]) [_; elem: T mut] {
-			unsafe{ delete elem; }
+	when(std.types.isTriviallyDeletable<{T}>() == false){
+		func delete = (this mut) -> Void {
+			for(this as [T:*mut]) [_; elem: T mut] {
+				unsafe{ delete elem; }
+			}
 		}
-
-		delete this._data;
 	}
 
 
-	func copy = (this) -> (output: This) {
-		output = new This();
+	when(std.types.isNoErrorCopyable<{T}>()){
+		func copy = (this)
+			#rt(std.types.isComptimeCopyable<{T}>() == false) #unsafe(std.types.isSafeCopyable<{T}>() == false)
+		-> (output: This) {
+			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._size = copy this._size;
 
-		for(this as [T:*]) [_; elem: T]{
-			output.append().* = copy elem;
+			std.mem.copyBuffer(output as [T:*mut], this as [T:*]);
+
+			return...;
 		}
-
-		return...;
 	}
+	
 
+	when(std.types.isNoErrorMovable<{T}>()){
+		func move = (this mut)
+			#rt(std.types.isComptimeMovable<{T}>() == false) #unsafe(std.types.isSafeMovable<{T}>() == false)
+		-> (output: This) {
+			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._size = copy this._size;
 
-	func move = (this mut) -> (output: This) {
-		output = new This();
-
-		for(this as [T:*mut]) [_; elem: T mut]{
-			unsafe{ output.append().* = move elem; }
+			std.mem.moveBuffer(output as [T:*mut], this as [T:*mut]);
+			
+			return...;
 		}
-
-		this._size = 0;
-
-		return...;
 	}
-
 
 
 

@@ -1,23 +1,15 @@
+def std = @import("std");
 
-type ErrNum = struct {
-	func new = () -> (output: ErrNum) <Void> {
-		error;
-	}
-
-	func new = (num: UI8) -> (output: ErrNum) {
-		output.num = copy num;
-		return...;
-	}
-
-
-	const num: UI8;
-}
-
-
+type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
 
 
 func entry = () #entry -> UI8 {
-	const num: ErrNum = try new ErrNum() else new ErrNum(12);
+	var arr = new StaticArrayList<{Int, 3}>();
+	arr.append().* = 1;
+	arr.append().* = 2;
+	arr.append().* = 3;
 
-	return copy num.num;
+	var arr_2: StaticArrayList<{Int, 3}> = copy arr;
+
+	return arr_2.last().* as UI8;
 }

@@ -187,6 +187,7 @@ namespace pcit::panther{
 					(
 						symbol_proc.status.load() == SymbolProc::Status::DONE
 						|| symbol_proc.status.load() == SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD
+						|| symbol_proc.status.load() == SymbolProc::Status::PASSED_ON_BY_WHEN_COND
 					)
 				){
 					evo::printGray("Symbol Proc {} ", i);
@@ -213,6 +214,7 @@ namespace pcit::panther{
 						break; case AST::Kind::FUNC_DEF:               evo::printlnGray("\tAST Node: FUNC_DEF");
 						break; case AST::Kind::DELETED_SPECIAL_METHOD:
 							evo::printlnGray("\tAST Node: DELETED_SPECIAL_METHOD");
+						break; case AST::Kind::FUNC_ALIAS_DEF:         evo::printlnGray("\tAST Node: FUNC_ALIAS_DEF");
 						break; case AST::Kind::ALIAS_DEF:              evo::printlnGray("\tAST Node: ALIAS_DEF");
 						break; case AST::Kind::STRUCT_DEF:             evo::printlnGray("\tAST Node: STRUCT_DEF");
 						break; case AST::Kind::UNION_DEF:              evo::printlnGray("\tAST Node: UNION_DEF");
@@ -221,13 +223,21 @@ namespace pcit::panther{
 						break; case AST::Kind::INTERFACE_IMPL:         evo::printlnGray("\tAST Node: INTERFACE_IMPL");
 						break; case AST::Kind::WHEN_CONDITIONAL:       evo::printlnGray("\tAST Node: WHEN_CONDITIONAL");
 						break; case AST::Kind::FUNC_CALL:              evo::printlnGray("\tAST Node: FUNC_CALL");
-						break; default: evo::printlnRed("\nAST Node: {{UNKNOWN}}");
+						break; default: 
+							evo::printlnRed(
+								"\nAST Node: {{UNKNOWN ({})}}", evo::to_underlying(symbol_proc.ast_node.kind())
+							);
 					}
 
 					switch(symbol_proc.status.load()){
 						break; case SymbolProc::Status::DONE: evo::printlnGray("\tStatus: DONE");
+
 						break; case SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD:
 							evo::printlnGray("\tStatus: IN_DEF_DEDUCER_IMPL_METHOD");
+
+						break; case SymbolProc::Status::PASSED_ON_BY_WHEN_COND:
+							evo::printlnGray("\tStatus: PASSED_ON_BY_WHEN_COND");
+
 						break; default: evo::printlnRed("\tStatus: UNKNOWN MINIMIZED");
 					}
 					
@@ -260,6 +270,7 @@ namespace pcit::panther{
 					break; case AST::Kind::VAR_DEF:                print_field("AST Node", "VAR_DEF");
 					break; case AST::Kind::FUNC_DEF:               print_field("AST Node", "FUNC_DEF");
 					break; case AST::Kind::DELETED_SPECIAL_METHOD: print_field("AST Node", "DELETED_SPECIAL_METHOD");
+					break; case AST::Kind::FUNC_ALIAS_DEF:         print_field("AST Node", "FUNC_ALIAS_DEF");
 					break; case AST::Kind::ALIAS_DEF:              print_field("AST Node", "ALIAS_DEF");
 					break; case AST::Kind::STRUCT_DEF:             print_field("AST Node", "STRUCT_DEF");
 					break; case AST::Kind::UNION_DEF:              print_field("AST Node", "UNION_DEF");
@@ -268,7 +279,10 @@ namespace pcit::panther{
 					break; case AST::Kind::INTERFACE_IMPL:         print_field("AST Node", "INTERFACE_IMPL");
 					break; case AST::Kind::WHEN_CONDITIONAL:       print_field("AST Node", "WHEN_CONDITIONAL");
 					break; case AST::Kind::FUNC_CALL:              print_field("AST Node", "FUNC_CALL");
-					break; default: evo::printlnRed("\nAST Node: {{UNKNOWN}}");
+					break; default:
+						evo::printlnRed(
+							"\nAST Node: {{UNKNOWN ({})}}", evo::to_underlying(symbol_proc.ast_node.kind())
+						);
 				}
 
 				print_field("Is Local Symbol", symbol_proc.is_local_symbol);

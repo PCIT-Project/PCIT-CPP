@@ -602,7 +602,6 @@ namespace pcit::panther{
 
 					// Prevent escape from breakpoint
 					while(true){
-
 						evo::breakpoint(); // not temporary debugging
 					}
 				#endif
@@ -3626,6 +3625,187 @@ namespace pcit::panther{
 			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
 			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
 		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE) =
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE) =
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE) =
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE) =
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{std::nullopt},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInInterptime  = true, .allowedInRuntime  = true,
+			.allowedInCompile  = true, .allowedInScript      = true, .allowedInBuild    = true,
+		};
+
 
 
 

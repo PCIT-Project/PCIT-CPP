@@ -2660,6 +2660,14 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::isNoErrorCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
+	}
+	auto TypeManager::isNoErrorCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
+	}
+
+
 	auto TypeManager::isSafeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
@@ -2696,6 +2704,14 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::isNoErrorMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
+	}
+	auto TypeManager::isNoErrorMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
+	}
+
+
 	auto TypeManager::isSafeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
@@ -2729,6 +2745,14 @@ namespace pcit::panther{
 	}
 	auto TypeManager::isComptimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
+	}
+
+
+	auto TypeManager::isNoErrorComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
+	}
+	auto TypeManager::isNoErrorComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
 
 

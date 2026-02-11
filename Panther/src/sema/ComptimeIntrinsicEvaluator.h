@@ -38,6 +38,33 @@ namespace pcit::panther{
 			EVO_NODISCARD auto numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			EVO_NODISCARD auto numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 
+			EVO_NODISCARD auto isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isComptimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isNoErrorDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isSafeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+
+			EVO_NODISCARD auto isTriviallyDeletable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isComptimeDeletable(TypeInfo::ID type_id) -> TermInfo;
+
+			EVO_NODISCARD auto isCopyable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isTriviallyCopyable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isComptimeCopyable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isNoErrorCopyable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isSafeCopyable(TypeInfo::ID type_id) -> TermInfo;
+			
+			EVO_NODISCARD auto isMovable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isTriviallyMovable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isComptimeMovable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isNoErrorMovable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isSafeMovable(TypeInfo::ID type_id) -> TermInfo;
+
+			EVO_NODISCARD auto isComparable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isTriviallyComparable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isComptimeComparable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isNoErrorComparable(TypeInfo::ID type_id) -> TermInfo;
+			EVO_NODISCARD auto isSafeComparable(TypeInfo::ID type_id) -> TermInfo;
+
 
 			///////////////////////////////////
 			// type conversion

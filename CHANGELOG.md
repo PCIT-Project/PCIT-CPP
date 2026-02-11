@@ -1,6 +1,40 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.234.0"></a>
+## v0.0.234.0
+
+### Panther
+- Added type traits intrinsic functions:
+	- `@isDefaultInitializable`
+	- `@isTriviallyDefaultInitializable`
+	- `@isComptimeDefaultInitializable`
+	- `@isNoErrorDefaultInitializable`
+	- `@isSafeDefaultInitializable`
+	- `@isTriviallyDeletable`
+	- `@isComptimeDeletable`
+	- `@isCopyable`
+	- `@isTriviallyCopyable`
+	- `@isComptimeCopyable`
+	- `@isNoErrorCopyable`
+	- `@isSafeCopyable`
+	- `@isMovable`
+	- `@isTriviallyMovable`
+	- `@isComptimeMovable`
+	- `@isNoErrorMovable`
+	- `@isSafeMovable`
+	- `@isComparable`
+	- `@isTriviallyComparable`
+	- `@isComptimeComparable`
+	- `@isNoErrorComparable`
+	- `@isSafeComparable`
+- Fixed stalling in semantic analysis when there are symbols not analyzed due to a when conditional
+
+### Misc
+- Updated to [Panther-std v0.0.16.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.16.0)
+
+
+<!---------------------------------->
 <a name="v0.0.233.0"></a>
 ## v0.0.233.0
 

@@ -1393,6 +1393,7 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
 				passed_symbol.setStatusPassedOnByWhenCond();
 			}
+			this->context.symbol_proc_manager.symbol_proc_done();
 
 
 			{
@@ -2137,10 +2138,10 @@ namespace pcit::panther{
 
 		if(move_init_overload.wasDeleted == false && move_init_overload.funcID.has_value() == false){
 			if(copy_init_overload.wasDeleted){
-				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(std::nullopt, true);
+				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
 
 			}else if(copy_init_overload.funcID.has_value()){
-				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(copy_init_overload.funcID, false);
+				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(copy_init_overload.funcID);
 
 			}else{
 				if(created_struct.moveAssignOverload.load(std::memory_order::relaxed).has_value()){
@@ -2166,9 +2167,7 @@ namespace pcit::panther{
 						is_comptime_movable = false;
 						is_safe_movable = false;
 
-						created_struct.moveInitOverload = 
-							BaseType::Struct::DeletableOverload(copy_init_overload.funcID, true);
-
+						created_struct.moveInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
 						break;
 					}
 
@@ -2291,8 +2290,7 @@ namespace pcit::panther{
 					created_default_move.isTerminated = true;
 					created_default_move.status = sema::Func::Status::DEF_DONE;
 
-					created_struct.moveInitOverload = 
-						BaseType::Struct::DeletableOverload(created_default_move_id, false);
+					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(created_default_move_id);
 
 					if(is_comptime_movable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().move_func = 
@@ -2308,7 +2306,7 @@ namespace pcit::panther{
 
 		if(copy_init_overload.wasDeleted == false && copy_init_overload.funcID.has_value() == false){
 			if(move_init_overload.funcID.has_value()){
-				created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(std::nullopt, true);
+				created_struct.copyInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
 
 			}else{
 				if(created_struct.copyAssignOverload.load(std::memory_order::relaxed).has_value()){
@@ -2333,7 +2331,7 @@ namespace pcit::panther{
 						is_comptime_copyable = false;
 						is_safe_copyable = false;
 
-						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(std::nullopt, true);
+						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
 						continue;
 					}
 
@@ -2458,8 +2456,7 @@ namespace pcit::panther{
 					created_default_copy.isTerminated = true;
 					created_default_copy.status = sema::Func::Status::DEF_DONE;
 
-					created_struct.copyInitOverload = 
-						BaseType::Struct::DeletableOverload(created_default_copy_id, false);
+					created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(created_default_copy_id);
 
 					if(is_comptime_copyable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
@@ -4139,7 +4136,7 @@ namespace pcit::panther{
 
 							auto expected = BaseType::Struct::DeletableOverload();
 							if(current_struct.copyInitOverload.compare_exchange_strong(
-								expected, BaseType::Struct::DeletableOverload(created_func_id, false)
+								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
 								if(expected.wasDeleted){
 									this->emit_error(
@@ -4358,7 +4355,7 @@ namespace pcit::panther{
 
 							auto expected = BaseType::Struct::DeletableOverload();
 							if(current_struct.moveInitOverload.compare_exchange_strong(
-								expected, BaseType::Struct::DeletableOverload(created_func_id, false)
+								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
 								if(expected.wasDeleted){
 									this->emit_error(
@@ -5792,7 +5789,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_COPY: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
 				if(current_struct.copyInitOverload.compare_exchange_strong(
-					init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
+					init_expected, BaseType::Struct::DeletableOverload::createDeleted()
 				) == false){
 					if(init_expected.wasDeleted){
 						this->emit_error(
@@ -5823,7 +5820,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_MOVE: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
 				if(current_struct.moveInitOverload.compare_exchange_strong(
-					init_expected, BaseType::Struct::DeletableOverload(std::nullopt, true)
+					init_expected, BaseType::Struct::DeletableOverload::createDeleted()
 				) == false){
 					if(init_expected.wasDeleted){
 						this->emit_error(
@@ -12796,6 +12793,28 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES:
 			case TemplateIntrinsicFunc::Kind::NUM_BITS:
+			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPARABLE:
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE:
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE:
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE:
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::BIT_CAST:
 			case TemplateIntrinsicFunc::Kind::TRUNC:
 			case TemplateIntrinsicFunc::Kind::FTRUNC:
@@ -13193,6 +13212,273 @@ namespace pcit::panther{
 					)
 				);
 			} break;
+
+
+			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isTriviallyDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComptimeDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isNoErrorDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isSafeDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isTriviallyDeletable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComptimeDeletable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COPYABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isTriviallyCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComptimeCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isNoErrorCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isSafeCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_MOVABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isTriviallyMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComptimeMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isNoErrorMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isSafeMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPARABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isTriviallyComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isComptimeComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isNoErrorComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE: {
+				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
+				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isSafeComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
 				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }

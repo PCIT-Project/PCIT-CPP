@@ -666,8 +666,15 @@ namespace pcit::panther{
 				bool wasDeleted;
 
 				DeletableOverload() : funcID(std::nullopt), wasDeleted(false) {}
-				DeletableOverload(std::optional<sema::FuncID> func_id, bool was_deleted)
-					: funcID(func_id), wasDeleted(was_deleted) {}
+				DeletableOverload(std::optional<sema::FuncID> func_id) : funcID(func_id), wasDeleted(false) {}
+
+				EVO_NODISCARD static auto createDeleted() -> DeletableOverload {
+					return DeletableOverload(std::nullopt, true);
+				}
+
+				private:
+					DeletableOverload(std::optional<sema::FuncID> func_id, bool was_deleted)
+						: funcID(func_id), wasDeleted(was_deleted) {}
 			};
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;

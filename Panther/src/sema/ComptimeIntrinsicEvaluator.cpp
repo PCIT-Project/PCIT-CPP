@@ -97,6 +97,315 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isDefaultInitializable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isTriviallyDefaultInitializable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComptimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComptimeDefaultInitializable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isNoErrorDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isNoErrorDefaultInitializable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isSafeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isSafeDefaultInitializable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isTriviallyDeletable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isTriviallyDeletable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComptimeDeletable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComptimeDeletable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isCopyable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isTriviallyCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isTriviallyCopyable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComptimeCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComptimeCopyable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isNoErrorCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isNoErrorCopyable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isSafeCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isSafeCopyable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isMovable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isTriviallyMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isTriviallyMovable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComptimeMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComptimeMovable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isNoErrorMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isNoErrorMovable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isSafeMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isSafeMovable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComparable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isTriviallyComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isTriviallyComparable(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isComptimeComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isComptimeComparable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isNoErrorComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isNoErrorComparable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isSafeComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			TermInfo::ValueStage::COMPTIME,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isSafeComparable(type_id, this->sema_buffer)
+				)
+			)
+		);
+	}
+
+
 
 
 	///////////////////////////////////
