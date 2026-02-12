@@ -2431,6 +2431,14 @@ namespace pcit::panther{
 				}
 
 			} break;
+
+			case sema::Stmt::Kind::UNUSED_EXPR: {
+				const sema::UnusedExpr& unused_expr = this->context.getSemaBuffer().getUnusedExpr(stmt.unusedExprID());
+
+				std::ignore = this->get_expr_pointer(unused_expr.expr);
+
+				return; // skip end of stmt deletes to make sure expr it isn't deleted early
+			} break;
 		}
 
 
@@ -5210,7 +5218,7 @@ namespace pcit::panther{
 		}
 
 		if(this->context.getTypeManager().isTriviallyDefaultInitializable(expr_type_id)){
-			if constexpr(MODE == GetExprMode::DISCARD || MODE == GetExprMode::STORE){
+			if constexpr(MODE == GetExprMode::STORE){
 				return std::nullopt;
 
 			}else{
@@ -5262,18 +5270,47 @@ namespace pcit::panther{
 							}
 						}
 						
-					}else{
+					}else if constexpr(MODE == GetExprMode::POINTER){
 						return this->agent.createAlloca(primitive_type);
+
+					}else if constexpr(MODE == GetExprMode::DISCARD){
+						return std::nullopt;
+
+					}else{
+						static_assert(false, "Unknown GetExprMode");
 					}
 					
 				}else{
 					const pir::Type expr_pir_type = this->get_type<false>(expr_type_id);
 
-					return this->agent.createLoad(
-						this->agent.createAlloca(expr_pir_type, this->name(".DEFAULT_NEW.ptr")),
-						expr_pir_type,
-						this->name("DEFAULT_NEW")
-					);
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->agent.createLoad(
+							this->agent.createAlloca(expr_pir_type, this->name(".DEFAULT_NEW.ptr")),
+							expr_pir_type,
+							this->name("DEFAULT_NEW")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						const pir::Expr default_new_alloca =
+							this->agent.createAlloca(expr_pir_type, this->name("DEFAULT_NEW"));
+
+						this->end_of_stmt_deletes.emplace_back(default_new_alloca, expr_type_id);
+
+						return default_new_alloca;
+
+					}else if constexpr(MODE == GetExprMode::DISCARD){
+						const pir::Expr default_new_alloca =
+							this->agent.createAlloca(expr_pir_type, this->name(".DISCARD.DEFAULT_NEW"));
+
+						this->add_auto_delete_target(default_new_alloca, expr_type_id);
+
+						return std::nullopt;
+
+					}else{
+						static_assert(false, "Unkonwn GetExprMode");
+					}
+
+					
 				}
 			}
 		}
@@ -9917,29 +9954,28 @@ namespace pcit::panther{
 				return this->module.createGlobalStruct(array_ref_type, std::move(values));
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:        case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ADDR_OF:                   case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                     case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                  case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:               case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:             case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_NEW:               
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::VARIADIC_PARAM:            case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:        case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:              case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                       case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:             case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ADDR_OF:             case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK: case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:               case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:            case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:         case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:       case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:          case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:  case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:      case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_NEW:         case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:      case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA:      case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:       case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:               case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:        case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:   case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:           case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:          case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

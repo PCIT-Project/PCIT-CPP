@@ -551,6 +551,14 @@ namespace pcit::panther::sema{
 
 
 
+	struct UnusedExpr{
+		using ID = UnusedExprID;
+		
+		Expr expr;
+	};
+
+
+
 	struct Param{
 		using ID = ParamID;
 

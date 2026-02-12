@@ -52,6 +52,7 @@ namespace pcit::panther::sema{
 			DEFER,
 			LIFETIME_START,
 			LIFETIME_END,
+			UNUSED_EXPR,
 		};
 
 		explicit Stmt(VarID var_id)              : _kind(Kind::VAR),         value{.var_id = var_id}               {}
@@ -81,6 +82,9 @@ namespace pcit::panther::sema{
 			: _kind(Kind::LIFETIME_START), value{.lifetime_start_id = lifetime_start_id} {}
 		explicit Stmt(LifetimeEndID lifetime_end_id)
 			: _kind(Kind::LIFETIME_END), value{.lifetime_end_id = lifetime_end_id} {}
+		explicit Stmt(UnusedExprID unused_expr_id)
+			: _kind(Kind::UNUSED_EXPR), value{.unused_expr_id = unused_expr_id} {}
+
 
 		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
 
@@ -197,6 +201,11 @@ namespace pcit::panther::sema{
 			return this->value.lifetime_end_id;
 		}
 
+		EVO_NODISCARD auto unusedExprID() const -> UnusedExprID {
+			evo::debugAssert(this->kind() == Kind::UNUSED_EXPR, "not an unused expr");
+			return this->value.unused_expr_id;
+		}
+
 
 		private:
 			Stmt(Token::ID token_id, Kind stmt_kind) : _kind(stmt_kind), value{.token_id = token_id} {}
@@ -227,6 +236,7 @@ namespace pcit::panther::sema{
 				DeferID defer_id;
 				LifetimeStartID lifetime_start_id;
 				LifetimeEndID lifetime_end_id;
+				UnusedExprID unused_expr_id;
 			} value;
 	};
 

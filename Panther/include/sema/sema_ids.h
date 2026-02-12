@@ -267,6 +267,10 @@ namespace pcit::panther::sema{
 	struct LifetimeEndID : public core::UniqueID<uint32_t, struct LifetimeEndID> {
 		using core::UniqueID<uint32_t, LifetimeEndID>::UniqueID;
 	};
+
+	struct UnusedExprID : public core::UniqueID<uint32_t, struct UnusedExprID> {
+		using core::UniqueID<uint32_t, UnusedExprID>::UniqueID;
+	};
 	
 	struct FuncID : public core::UniqueID<uint32_t, struct FuncID> {
 		using core::UniqueID<uint32_t, FuncID>::UniqueID;
@@ -846,6 +850,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::LifetimeEndID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::UnusedExprID>{
+		static constexpr auto init(panther::sema::UnusedExprID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::UnusedExprID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1883,6 +1898,21 @@ namespace std{
 			using pcit::core::Optional<pcit::panther::sema::LifetimeEndID>::operator=;
 	};
 
+
+
+	template<>
+	struct hash<pcit::panther::sema::UnusedExprID>{
+		auto operator()(pcit::panther::sema::UnusedExprID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::UnusedExprID>
+		: public pcit::core::Optional<pcit::panther::sema::UnusedExprID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::UnusedExprID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UnusedExprID>::operator=;
+	};
 
 
 

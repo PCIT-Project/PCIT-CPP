@@ -450,6 +450,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// unused expr
+
+			EVO_NODISCARD auto createUnusedExpr(auto&&... args) -> sema::UnusedExpr::ID {
+				return this->unused_exprs.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			EVO_NODISCARD auto getUnusedExpr(sema::UnusedExpr::ID id) const -> const sema::UnusedExpr& {
+				return this->unused_exprs[id];
+			}
+
+
+			///////////////////////////////////
 			// copies
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> sema::Copy::ID {
@@ -995,6 +1007,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
 			core::SyncLinearStepAlloc<sema::LifetimeStart, sema::LifetimeStart::ID> lifetime_starts{};
 			core::SyncLinearStepAlloc<sema::LifetimeEnd, sema::LifetimeEnd::ID> lifetime_ends{};
+			core::SyncLinearStepAlloc<sema::UnusedExpr, sema::UnusedExpr::ID> unused_exprs{};
 			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
 			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};
 			core::SyncLinearStepAlloc<sema::Forward, sema::Forward::ID> forwards{};

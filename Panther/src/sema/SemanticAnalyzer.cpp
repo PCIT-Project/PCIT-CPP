@@ -9110,18 +9110,24 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_package().warn.methodCallOnNonMethod){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-						instr.func_call,
-						"Making a method call to a function that is not a method",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
-							Diagnostic::Info(
-								"Function declared here:",
-								this->get_location(*func_call_impl_res.value().selected_func_id)
-							),
-						}
+				}else{
+					if(this->get_package().warn.methodCallOnNonMethod){
+						this->emit_warning(
+							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+							instr.func_call,
+							"Making a method call to a function that is not a method",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Call the function through the type instead"),
+								Diagnostic::Info(
+									"Function declared here:",
+									this->get_location(*func_call_impl_res.value().selected_func_id)
+								),
+							}
+						);
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createUnusedExpr(fake_term_info.expr)
 					);
 				}
 			} break;
@@ -11046,18 +11052,24 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_package().warn.methodCallOnNonMethod){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-						ast_func_call,
-						"Making a method call to a function that is not a method",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
-							Diagnostic::Info(
-								"Function declared here:",
-								this->get_location(*func_call_impl_res.value().selected_func_id)
-							),
-						}
+				}else{
+					if(this->get_package().warn.methodCallOnNonMethod){
+						this->emit_warning(
+							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+							ast_func_call,
+							"Making a method call to a function that is not a method",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Call the function through the type instead"),
+								Diagnostic::Info(
+									"Function declared here:",
+									this->get_location(*func_call_impl_res.value().selected_func_id)
+								),
+							}
+						);
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createUnusedExpr(fake_term_info.expr)
 					);
 				}
 			} break;
@@ -11450,18 +11462,24 @@ namespace pcit::panther{
 				if(func_call_impl_res.value().selected_func->isMethod(this->context)){
 					sema_args.emplace_back(fake_term_info.expr);
 
-				}else if(this->get_package().warn.methodCallOnNonMethod){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-						instr.func_call,
-						"Making a method call to a function that is not a method",
-						evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info("Call the function through the type instead"),//TODO(FUTURE):better message
-							Diagnostic::Info(
-								"Function declared here:",
-								this->get_location(*func_call_impl_res.value().selected_func_id)
-							),
-						}
+				}else{
+					if(this->get_package().warn.methodCallOnNonMethod){
+						this->emit_warning(
+							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
+							instr.func_call,
+							"Making a method call to a function that is not a method",
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Call the function through the type instead"),
+								Diagnostic::Info(
+									"Function declared here:",
+									this->get_location(*func_call_impl_res.value().selected_func_id)
+								),
+							}
+						);
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createUnusedExpr(fake_term_info.expr)
 					);
 				}
 

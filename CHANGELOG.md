@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.236.1"></a>
+## v0.0.236.1
+
+### Panther
+- Fixed lowering of trivial default initialization
+- Fixed lowering of ephemeral values not having operator `delete` being called when they make a method call to a function that isn't a method
+- Fixed missing checks for operator `new` statements that are wrapped in parentheses
+
+
+<!---------------------------------->
 <a name="v0.0.236.0"></a>
 ## v0.0.236.0
 
@@ -19,7 +29,7 @@
 
 ### Panther
 - Added extra info into the diagnostic errors to explain why a type is not copyable or movable
-- Fixed race condition in semantic analyis when explicitly defining operator `copy` 
+- Fixed race condition in semantic analysis when explicitly defining operator `copy` 
 
 
 <!---------------------------------->

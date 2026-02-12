@@ -1972,6 +1972,7 @@ namespace pcit::panther{
 			case AST::Kind::UNION_DEF:              return this->analyze_local_union(stmt);
 			case AST::Kind::ENUM_DEF:               return this->analyze_local_enum(stmt);
 			case AST::Kind::INTERFACE_DEF:          return this->analyze_local_interface(stmt);
+
 			case AST::Kind::RETURN:                 return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:                  return this->analyze_error(ast_buffer.getError(stmt));
 			case AST::Kind::UNREACHABLE:            return this->analyze_unreachable(ast_buffer.getUnreachable(stmt));
@@ -1989,7 +1990,6 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATE_PACK:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::INFIX:                  return this->analyze_assignment(ast_buffer.getInfix(stmt));
 			case AST::Kind::MULTI_ASSIGN:           return this->analyze_multi_assign(ast_buffer.getMultiAssign(stmt));
-			case AST::Kind::NEW:                    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_INIT_NEW:         evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
@@ -2006,10 +2006,10 @@ namespace pcit::panther{
 			case AST::Kind::ZEROINIT:               evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DISCARD:                evo::debugFatalBreak("Invalid statment");
 
-			case AST::Kind::INTERFACE_IMPL: case AST::Kind::INDEXER:             case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:         case AST::Kind::POSTFIX:             case AST::Kind::IDENT:
-			case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:           case AST::Kind::LITERAL:
-			case AST::Kind::THIS: {
+			case AST::Kind::NEW:            case AST::Kind::INTERFACE_IMPL: case AST::Kind::INDEXER:
+			case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:         case AST::Kind::POSTFIX:
+			case AST::Kind::IDENT:          case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:        case AST::Kind::THIS: {
 				this->emit_error(Diagnostic::Code::SYMBOL_PROC_INVALID_STMT, stmt, "Invalid statement");
 				return evo::resultError;
 			} break;

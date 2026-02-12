@@ -1,10 +1,25 @@
 
-func panic = (message: [Char:*]) #noReturn -> Void {
-	@breakpoint();
-	@abort();
+type Struct = struct {
+	// func new = () -> (output: This) { return...; }
+
+	func delete = (this mut) -> Void {}
+
+	func test = () -> Void {}
+}
+
+
+func read_struct = (s: Struct) -> Void {
+	
 }
 
 
 func entry = () #entry -> UI8 {
-	panic("asdf");
+	(new Struct()).test();
+
+	// _ = new Struct();
+
+	// (new Struct());
+	// read_struct(new Struct());
+	
+	return 0;
 }
