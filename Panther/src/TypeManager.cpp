@@ -1234,30 +1234,28 @@ namespace pcit::panther{
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
+					const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
+
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
-						return !struct_type.copyInitOverload.load().wasDeleted;
+						return copy_overload.wasDeleted() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						const BaseType::Struct::DeletableOverload delete_overload = struct_type.copyInitOverload.load();
-						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
+						return copy_overload.wasDeleted() == false && copy_overload.funcID.has_value() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
-						if(copy_overload.wasDeleted){ return false; }
+						if(copy_overload.wasDeleted()){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
 						return sema_buffer->getFunc(*copy_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
-						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
-						if(copy_overload.wasDeleted){ return false; }
+						if(copy_overload.wasDeleted()){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
 						return this->getFunction(copy_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
-						const BaseType::Struct::DeletableOverload copy_overload = struct_type.copyInitOverload.load();
-						if(copy_overload.wasDeleted){ return false; }
+						if(copy_overload.wasDeleted()){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
@@ -1265,30 +1263,28 @@ namespace pcit::panther{
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::MOVE){
+					const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
+
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL){
-						return !struct_type.moveInitOverload.load().wasDeleted;
+						return move_overload.wasDeleted() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						const BaseType::Struct::DeletableOverload delete_overload = struct_type.moveInitOverload.load();
-						return delete_overload.wasDeleted == false && delete_overload.funcID.has_value() == false;
+						return move_overload.wasDeleted() == false && move_overload.funcID.has_value() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
-						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
-						if(move_overload.wasDeleted){ return false; }
+						if(move_overload.wasDeleted()){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
 						return sema_buffer->getFunc(*move_overload.funcID).isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
-						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
-						if(move_overload.wasDeleted){ return false; }
+						if(move_overload.wasDeleted()){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
 						return this->getFunction(move_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
-						const BaseType::Struct::DeletableOverload move_overload = struct_type.moveInitOverload.load();
-						if(move_overload.wasDeleted){ return false; }
+						if(move_overload.wasDeleted()){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
 
 						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);

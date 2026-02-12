@@ -6,8 +6,8 @@ func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.RUN);
 	build_exp.setNumThreads(12);
 
-	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
-	build_exp.addStdLib("../../Panther-std/std");
+	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build_exp.addStdLib("../../Panther-std/std");
 
 
 	const test_package = new build_exp.Package(
@@ -16,7 +16,7 @@ func entry = () #entry -> UI8 {
 		warnings : new @build.PackageWarningSettings{
 			methodCallOnNonMethod        = true,
 			deleteMovedFromExpr          = true,
-			deleteTriviallyDeletableType = false, // TODO(FUTURE): set back to true
+			deleteTriviallyDeletableType = true,
 			comptimeIfCond               = true,
 			alreadyUnsafe                = true,
 			experimentalF80              = true,

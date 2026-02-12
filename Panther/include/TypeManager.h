@@ -662,19 +662,32 @@ namespace pcit::panther{
 			};
 
 			struct DeletableOverload{
+				enum class State{
+					NOT_DELETED,
+					EXPLICITLY_DELETED,
+					IMPLICIT_MEMBER_DELETED, // for example, copy is implicit, but member has copy deleted
+					IMPLICIT_OTHER_EXPLICITLY_DELETED, // for example: copy is explicitly deleted and move is implicit
+				};
+
 				std::optional<sema::FuncID> funcID;
-				bool wasDeleted;
+				State state;
 
-				DeletableOverload() : funcID(std::nullopt), wasDeleted(false) {}
-				DeletableOverload(std::optional<sema::FuncID> func_id) : funcID(func_id), wasDeleted(false) {}
+				DeletableOverload() : funcID(std::nullopt), state(State::NOT_DELETED) {}
 
-				EVO_NODISCARD static auto createDeleted() -> DeletableOverload {
-					return DeletableOverload(std::nullopt, true);
+				explicit DeletableOverload(std::optional<sema::FuncID> func_id)
+					: funcID(func_id), state(State::NOT_DELETED) {}
+
+				explicit DeletableOverload(State deleted_state) : funcID(std::nullopt), state(deleted_state){
+					evo::debugAssert(
+						deleted_state != State::NOT_DELETED,
+						"Setting state to NOT_DELETED must be accompanied with a method"
+					);
 				}
 
-				private:
-					DeletableOverload(std::optional<sema::FuncID> func_id, bool was_deleted)
-						: funcID(func_id), wasDeleted(was_deleted) {}
+
+				EVO_NODISCARD auto wasDeleted() const -> bool {
+					return this->state != State::NOT_DELETED;
+				}
 			};
 
 			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
@@ -745,7 +758,10 @@ namespace pcit::panther{
 			}
 		};
 
-		static_assert(sizeof(Struct::DeletableOverload) <= 8, "Expected atomic of DeletableOverload to be lock free");
+		static_assert(
+			std::atomic<Struct::DeletableOverload>::is_always_lock_free,
+			"Expected atomic of DeletableOverload to be always lock free"
+		);
 
 
 		struct StructTemplate{

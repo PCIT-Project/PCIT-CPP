@@ -3,9 +3,9 @@ def std = @import("std");
 
 
 type TypeSystemEscape = struct <{T: Type}> {
-	func get = (this) #unsafe -> T* { return std.bit.bitCast<{T*}>(this.data.data()); }
-	func get = (this mut) #unsafe -> T*mut { return std.bit.bitCast<{T*mut}>(this.data.data()); }
-	func getUninit = (this mut) #unsafe -> T*! { return std.bit.bitCast<{T*!}>(this.data.data()); }
+	func get = (this) #unsafe -> T* { return std.bitCast<{T*}>(this.data.data()); }
+	func get = (this mut) #unsafe -> T*mut { return std.bitCast<{T*mut}>(this.data.data()); }
+	func getUninit = (this mut) #unsafe -> T*! { return std.bitCast<{T*!}>(this.data.data()); }
 	
 	var data: [Byte:std.types.numBytes<{T}>()] #priv;
 }
@@ -19,19 +19,21 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	}
 
 
-	func new = (data: [T:*]) -> (output: This) {
-		output = new This();
+	when(std.types.isNoErrorCopyable<{T}>()){
+		func new = (data: [T:*])
+			#rt(std.types.isComptimeCopyable<{T}>() == false) #unsafe(std.types.isSafeCopyable<{T}>() == false)
+		-> (output: This) {
+			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._size = data.size();
 
-		for(data) [_; value: T] {
-			output.append().* = copy value;
+			std.mem.copyBuffer(output as [T:*mut], data);
+			return...;
 		}
-
-		return...;
 	}
 
 
 	when(std.types.isTriviallyDeletable<{T}>() == false){
-		func delete = (this mut) -> Void {
+		func delete = (this mut) #rt(std.types.isComptimeDeletable<{T}>() == false) -> Void {
 			for(this as [T:*mut]) [_; elem: T mut] {
 				unsafe{ delete elem; }
 			}
@@ -44,26 +46,30 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 			#rt(std.types.isComptimeCopyable<{T}>() == false) #unsafe(std.types.isSafeCopyable<{T}>() == false)
 		-> (output: This) {
 			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
-			output._size = copy this._size;
+			output._size = this.size();
 
 			std.mem.copyBuffer(output as [T:*mut], this as [T:*]);
 
 			return...;
 		}
+	}else{
+		func copy = delete;
 	}
-	
+
 
 	when(std.types.isNoErrorMovable<{T}>()){
 		func move = (this mut)
 			#rt(std.types.isComptimeMovable<{T}>() == false) #unsafe(std.types.isSafeMovable<{T}>() == false)
 		-> (output: This) {
 			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
-			output._size = copy this._size;
+			output._size = this.size();
 
 			std.mem.moveBuffer(output as [T:*mut], this as [T:*mut]);
 			
 			return...;
 		}
+	}else{
+		func move = delete;
 	}
 
 
@@ -97,9 +103,11 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// modifiers
 
-	func clear = (this mut) -> Void {
-		for(this as [T:*mut]) [_; elem: T mut] {
-			unsafe{ delete elem; }
+	func clear = (this mut) #rt(std.types.isComptimeDeletable<{T}>()) -> Void {
+		when(std.types.isTriviallyDeletable<{T}>() == false){
+			for(this as [T:*mut]) [_; elem: T mut] {
+				unsafe{ delete elem; }
+			}
 		}
 
 		this._size = 0;
@@ -112,15 +120,32 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 		unsafe{ return this._data[this._size - 1].getUninit(); }
 	}
 
-	func pop = (this mut) -> Void {
-		unsafe{ delete this.last().*; }
+	func pop = (this mut) #rt(std.types.isComptimeDeletable<{T}>() == false) -> Void {
+		when(std.types.isTriviallyDeletable<{T}>() == false){
+			unsafe{ delete this.last().*; }
+		}
 		this._size -= 1;
 	}
 
-	func popExtract = (this mut) -> (output: T) {
-		unsafe{ output = move this.last().*; }
-		this._size -= 1;
-		return...;
+	when(std.types.isNoErrorMovable<{T}>()){
+		func popExtract = (this mut) 
+			#rt(std.types.isComptimeMovable<{T}>() == false) #unsafe(std.types.isSafeMovable<{T}>() == false)
+		-> (output: T) {
+			// TODO(FUTURE): remove warning about unsafe in unsafe
+			unsafe{ output = move this.last().*; }
+			this._size -= 1;
+			return...;
+		}
+
+	}else when(std.types.isNoErrorCopyable<{T}>()){
+		func popExtract = (this mut) 
+			#rt(std.types.isComptimeCopyable<{T}>() == false || std.types.isComptimeDeletable<{T}>() == false)
+			#unsafe(std.types.isSafeCopyable<{T}>())
+		-> (output: T) {
+			output = copy this.last().*;
+			this.pop();
+			return...;
+		}
 	}
 
 
@@ -160,5 +185,5 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	// member vars
 
 	var _data: [TypeSystemEscape<{T}>:CAPACITY] #priv;
-	var _size: USize;
+	var _size: USize #priv;
 }

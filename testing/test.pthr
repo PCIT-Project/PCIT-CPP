@@ -4,12 +4,21 @@ type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
 
 
 func entry = () #entry -> UI8 {
-	var arr = new StaticArrayList<{Int, 3}>();
-	arr.append().* = 1;
-	arr.append().* = 2;
-	arr.append().* = 3;
+	const arr = new StaticArrayList<{Int, 3}>(new [Int:3][1, 2, 3]);
 
-	var arr_2: StaticArrayList<{Int, 3}> = copy arr;
+	const arr_2: StaticArrayList<{Int, 3}> = copy arr;
 
 	return arr_2.last().* as UI8;
+}
+
+
+
+
+func test = () -> Void {
+	type NoCopy = struct {
+		func copy = delete;
+	}
+
+	const foo = new StaticArrayList<{NoCopy, 12}>();
+	const bar: StaticArrayList<{NoCopy, 12}> = copy foo;
 }

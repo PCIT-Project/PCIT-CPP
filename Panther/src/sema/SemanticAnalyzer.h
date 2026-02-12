@@ -1062,6 +1062,18 @@ namespace pcit::panther{
 
 
 
+			enum class SpecialMemberFailKind{
+				COPY,
+				MOVE,
+			};
+
+			template<SpecialMemberFailKind MEMBER>
+			auto diagnostic_print_special_member_fail(
+				TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos
+			) -> void;
+
+
+
 			EVO_NODISCARD auto check_type_qualifiers(
 				evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location
 			) -> evo::Result<>;
@@ -1096,8 +1108,7 @@ namespace pcit::panther{
 				const auto& redef_id,
 				std::string_view ident_str,
 				const sema::ScopeLevel::IdentID& first_defined_id,
-				sema::Func::ID attempted_decl_func_id,
-				[[maybe_unused]] auto&&... ident_id_info_args // TODO(FUTURE): this is seemingly unused?????
+				sema::Func::ID attempted_decl_func_id
 			) -> void {
 				this->error_already_defined_impl<IS_SHADOWING>(
 					redef_id, ident_str, first_defined_id, attempted_decl_func_id
@@ -1108,8 +1119,7 @@ namespace pcit::panther{
 			auto error_already_defined(
 				const auto& redef_id,
 				std::string_view ident_str,
-				const sema::ScopeLevel::IdentID& first_defined_id,
-				[[maybe_unused]] auto&&... ident_id_info_args // TODO(FUTURE): this is seemingly unused?????
+				const sema::ScopeLevel::IdentID& first_defined_id
 			) -> void {
 				this->error_already_defined_impl<IS_SHADOWING>(redef_id, ident_str, first_defined_id, std::nullopt);
 			}

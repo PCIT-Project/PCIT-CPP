@@ -2128,7 +2128,8 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// default move
+		// default move 
+		//		(assumes that this runs BEFORE default copy)
 
 		const BaseType::Struct::DeletableOverload copy_init_overload =
 			created_struct.copyInitOverload.load(std::memory_order::relaxed);
@@ -2136,9 +2137,11 @@ namespace pcit::panther{
 		const BaseType::Struct::DeletableOverload move_init_overload =
 			created_struct.moveInitOverload.load(std::memory_order::relaxed);
 
-		if(move_init_overload.wasDeleted == false && move_init_overload.funcID.has_value() == false){
-			if(copy_init_overload.wasDeleted){
-				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
+		if(move_init_overload.wasDeleted() == false && move_init_overload.funcID.has_value() == false){
+			if(copy_init_overload.wasDeleted()){
+				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(
+					BaseType::Struct::DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED
+				);
 
 			}else if(copy_init_overload.funcID.has_value()){
 				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(copy_init_overload.funcID);
@@ -2167,7 +2170,9 @@ namespace pcit::panther{
 						is_comptime_movable = false;
 						is_safe_movable = false;
 
-						created_struct.moveInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
+						created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(
+							BaseType::Struct::DeletableOverload::State::IMPLICIT_MEMBER_DELETED
+						);
 						break;
 					}
 
@@ -2303,10 +2308,35 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// default copy
+		//		(assumes that this runs AFTER default move)
 
-		if(copy_init_overload.wasDeleted == false && copy_init_overload.funcID.has_value() == false){
-			if(move_init_overload.funcID.has_value()){
-				created_struct.copyInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
+		if(copy_init_overload.wasDeleted() == false && copy_init_overload.funcID.has_value() == false){
+			if(move_init_overload.wasDeleted()){
+				using DeletableOverloadState = BaseType::Struct::DeletableOverload::State;
+
+				switch(move_init_overload.state){
+					case DeletableOverloadState::NOT_DELETED: {
+						evo::debugFatalBreak("Already found that move wasn't deleted");
+					} break;
+
+					case DeletableOverloadState::EXPLICITLY_DELETED: {
+						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(
+							DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED
+						);
+					} break;
+
+					case DeletableOverloadState::IMPLICIT_MEMBER_DELETED: {
+						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(
+							DeletableOverloadState::IMPLICIT_MEMBER_DELETED
+						);
+					} break;
+
+					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED: {
+						evo::debugFatalBreak("Already found that copy was deleted");
+					} break;
+				}
+
+				
 
 			}else{
 				if(created_struct.copyAssignOverload.load(std::memory_order::relaxed).has_value()){
@@ -2331,7 +2361,9 @@ namespace pcit::panther{
 						is_comptime_copyable = false;
 						is_safe_copyable = false;
 
-						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload::createDeleted();
+						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(
+							BaseType::Struct::DeletableOverload::State::IMPLICIT_MEMBER_DELETED
+						);
 						continue;
 					}
 
@@ -4138,11 +4170,11 @@ namespace pcit::panther{
 							if(current_struct.copyInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
-								if(expected.wasDeleted){
+								if(expected.wasDeleted()){
 									this->emit_error(
 										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 										instr.func_def,
-										"Operator [copy] can not be defined for this type as it was explicitly deleted"
+										"Operator [copy] was already explicitly deleted"
 									);
 
 								}else{
@@ -4231,11 +4263,11 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(current_struct.copyInitOverload.load(std::memory_order::relaxed).wasDeleted){
+							if(current_struct.copyInitOverload.load(std::memory_order::relaxed).wasDeleted()){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 									instr.func_def,
-									"Operator [copy] can not be defined for this type as it was explicitly deleted"
+									"Operator [copy] was already explicitly deleted"
 								);
 								return Result::ERROR;
 							}
@@ -4357,11 +4389,11 @@ namespace pcit::panther{
 							if(current_struct.moveInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
-								if(expected.wasDeleted){
+								if(expected.wasDeleted()){
 									this->emit_error(
 										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 										instr.func_def,
-										"Operator [move] can not be defined for this type as it was explicitly deleted"
+										"Operator [move] was already explicitly deleted"
 									);
 
 								}else{
@@ -4450,11 +4482,11 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(current_struct.moveInitOverload.load(std::memory_order::relaxed).wasDeleted){
+							if(current_struct.moveInitOverload.load(std::memory_order::relaxed).wasDeleted()){
 								this->emit_error(
 									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 									instr.func_def,
-									"Operator [move] can not be defined for this type as it was explicitly deleted"
+									"Operator [move] was already explicitly deleted"
 								);
 								return Result::ERROR;
 							}
@@ -5006,10 +5038,14 @@ namespace pcit::panther{
 				&& this->context.getTypeManager().isCopyable(param.typeID) == false
 				&& this->context.getTypeManager().isMovable(param.typeID) == false
 			){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(param.typeID, infos);
+				this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(param.typeID, infos);
 				this->emit_error(
 					Diagnostic::Code::SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE,
 					*instr.func_def.params[i].type,
-					"Function [in] parameter type must be copyable and/or movable"
+					"Function [in] parameter type must be copyable and/or movable",
+					std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -5789,19 +5825,20 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_COPY: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
 				if(current_struct.copyInitOverload.compare_exchange_strong(
-					init_expected, BaseType::Struct::DeletableOverload::createDeleted()
+					init_expected,
+					BaseType::Struct::DeletableOverload(BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED)
 				) == false){
-					if(init_expected.wasDeleted){
+					if(init_expected.wasDeleted()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 							instr.deleted_special_method,
-							"Operator overload [copy] was already deleted"
+							"Operator overload [copy] was already explicitly deleted"
 						);
 					}else{
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 							*init_expected.funcID,
-							"Operator overload [copy] was already deleted"
+							"Operator overload [copy] was already explicitly deleted"
 						);
 					}
 					return Result::ERROR;
@@ -5811,7 +5848,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
 						*current_struct.copyAssignOverload.load(std::memory_order::relaxed),
-						"Operator overload [copy] was already deleted"
+						"Operator overload [copy] was explicitly deleted"
 					);
 					return Result::ERROR;
 				}
@@ -5820,19 +5857,20 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_MOVE: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
 				if(current_struct.moveInitOverload.compare_exchange_strong(
-					init_expected, BaseType::Struct::DeletableOverload::createDeleted()
+					init_expected,
+					BaseType::Struct::DeletableOverload(BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED)
 				) == false){
-					if(init_expected.wasDeleted){
+					if(init_expected.wasDeleted()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 							instr.deleted_special_method,
-							"Operator overload [move] was already deleted"
+							"Operator overload [move] was already explicitly deleted"
 						);
 					}else{
 						this->emit_error(
 							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 							*init_expected.funcID,
-							"Operator overload [move] was already deleted"
+							"Operator overload [move] was explicitly deleted"
 						);
 					}
 					return Result::ERROR;
@@ -5842,7 +5880,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
 						*current_struct.moveAssignOverload.load(std::memory_order::relaxed),
-						"Operator overload [move] was already deleted"
+						"Operator overload [move] was explicitly deleted"
 					);
 					return Result::ERROR;
 				}
@@ -10211,7 +10249,6 @@ namespace pcit::panther{
 
 
 
-
 		if(target.is_concrete() == false){
 			this->emit_error(
 				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
@@ -10222,10 +10259,15 @@ namespace pcit::panther{
 		}
 
 		if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>()) == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(
+				target.type_id.as<TypeInfo::ID>(), infos
+			);
 			this->emit_error(
 				Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-				"Type of argument of operator [copy] is not copyable"
+				"Type of argument of operator [copy] is not copyable",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -10414,10 +10456,15 @@ namespace pcit::panther{
 
 
 		if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>()) == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(
+				target.type_id.as<TypeInfo::ID>(), infos
+			);
 			this->emit_error(
 				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
 				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-				"Type of argument of operator [move] is not movable"
+				"Type of argument of operator [move] is not movable",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -15303,10 +15350,15 @@ namespace pcit::panther{
 		}
 
 		if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>()) == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(
+				target.type_id.as<TypeInfo::ID>(), infos
+			);
 			this->emit_error(
 				Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 				instr.prefix,
-				"Type of argument of operator [copy] is not copyable"
+				"Type of argument of operator [copy] is not copyable",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -15413,10 +15465,15 @@ namespace pcit::panther{
 
 
 		if(this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>()) == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(
+				target.type_id.as<TypeInfo::ID>(), infos
+			);
 			this->emit_error(
 				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
 				instr.prefix.rhs,
-				"Type of argument of operator [move] is not movable"
+				"Type of argument of operator [move] is not movable",
+				std::move(infos)
 			);
 			return Result::ERROR;
 		}
@@ -24184,27 +24241,45 @@ namespace pcit::panther{
 						struct_type.copyInitOverload.load(std::memory_order::relaxed);
 
 					if constexpr(CHECK_VALIDITY){
-						if(copy_overload.wasDeleted){
+						if(copy_overload.wasDeleted()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(
+								type_info_id, infos
+							);
 							this->emit_error(
 								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 								location,
-								"This type is not copyable as its operator [copy] was deleted"
+								"Type of argument of operator [copy] is not copyable",
+								std::move(infos)
 							);
 							return evo::resultError;
 						}
-						
 					}
 
 					if(copy_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*copy_overload.funcID).isComptime == false
-							){
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_overload.funcID);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+							if(this->get_current_func().isComptime && sema_func.isComptime == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
 									"Cannot call a non-comptime [copy] initialization within a comptime function",
+									Diagnostic::Info(
+										"Called operator [copy] initialization was defined here:",
+										this->get_location(sema_func)
+									)
+								);
+								return evo::resultError;
+							}
+
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [copy] initialization not in an unsafe scope",
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
 										this->get_location(*copy_overload.funcID)
@@ -24213,9 +24288,7 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_overload.funcID);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24237,11 +24310,16 @@ namespace pcit::panther{
 						struct_type.copyInitOverload.load(std::memory_order::relaxed);
 
 					if constexpr(CHECK_VALIDITY){
-						if(copy_init_overload.wasDeleted){
+						if(copy_init_overload.wasDeleted()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(
+								type_info_id, infos
+							);
 							this->emit_error(
 								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
 								location,
-								"This type is not copyable as its operator [copy] was deleted"
+								"Type of argument of operator [copy] is not copyable",
+								std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24251,25 +24329,37 @@ namespace pcit::panther{
 					const std::optional<sema::FuncID> copy_assign_overload = struct_type.copyAssignOverload.load();
 					if(copy_assign_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*copy_assign_overload).isComptime == false
-							){
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_assign_overload);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+
+							if(this->get_current_func().isComptime && sema_func.isComptime == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
 									"Cannot call a non-comptime [copy] assignment within a comptime function",
 									Diagnostic::Info(
-										"Called special member was defined here:",
-										this->get_location(*copy_assign_overload)
+										"Called operator [copy] assignment was defined here:",
+										this->get_location(sema_func)
 									)
 								);
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_assign_overload);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [copy] assignment not in an unsafe scope",
+									Diagnostic::Info(
+										"Called operator [copy] assignment was defined here:",
+										this->get_location(sema_func)
+									)
+								);
+								return evo::resultError;
+							}
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24290,10 +24380,12 @@ namespace pcit::panther{
 
 					if(copy_init_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID).isComptime==false
-							){
+							const sema::Func& sema_func =
+								this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+							if(this->get_current_func().isComptime&& sema_func.isComptime==false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24301,7 +24393,7 @@ namespace pcit::panther{
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [copy] initialization was defined here:",
-											this->get_location(*copy_init_overload.funcID)
+											this->get_location(sema_func)
 										),
 										Diagnostic::Info(
 											"NOTE: [copy] initialization called here as this type does not have an "
@@ -24312,10 +24404,26 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func =
-								this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [copy] initialization not in an unsafe scope",
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"Called operator [copy] initialization was defined here:",
+											this->get_location(sema_func)
+										),
+										Diagnostic::Info(
+											"NOTE: [copy] initialization called here as this type does not have an "
+												"explicit [copy] assignment overload"
+										)
+									}
+								);
+								return evo::resultError;
+							}
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24340,10 +24448,12 @@ namespace pcit::panther{
 							struct_type.deleteOverload.load(std::memory_order::relaxed);
 						if(delete_overload.has_value()){
 							if constexpr(CHECK_VALIDITY){
-								if(
-									this->get_current_func().isComptime
-									&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
-								){
+								const sema::Func& sema_func =
+									this->context.getSemaBuffer().getFunc(*delete_overload);
+								const BaseType::Function& sema_func_type =
+									this->context.getTypeManager().getFunction(sema_func.typeID);
+
+								if(this->get_current_func().isComptime && sema_func.isComptime == false){
 									this->emit_error(
 										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
@@ -24351,7 +24461,26 @@ namespace pcit::panther{
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
-												this->get_location(*copy_init_overload.funcID)
+												this->get_location(sema_func)
+											),
+											Diagnostic::Info(
+												"NOTE: [delete] called here as this type does not have an "
+													"explicit [copy] assignment overload"
+											)
+										}
+									);
+									return evo::resultError;
+								}
+
+								if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+									this->emit_error(
+										Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+										location,
+										"Call to unsafe [delete] not in an unsafe scope",
+										evo::SmallVector<Diagnostic::Info>{
+											Diagnostic::Info(
+												"Called operator [delete] was defined here:",
+												this->get_location(sema_func)
 											),
 											Diagnostic::Info(
 												"NOTE: [delete] called here as this type does not have an "
@@ -24372,11 +24501,16 @@ namespace pcit::panther{
 						struct_type.moveInitOverload.load(std::memory_order::relaxed);
 
 					if constexpr(CHECK_VALIDITY){
-						if(move_overload.wasDeleted){
+						if(move_overload.wasDeleted()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(
+								type_info_id, infos
+							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+								Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
 								location,
-								"This type is not movable as its operator [move] was deleted"
+								"Type of argument of operator [move] is not movable",
+								std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24384,25 +24518,36 @@ namespace pcit::panther{
 
 					if(move_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*move_overload.funcID).isComptime == false
-							){
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_overload.funcID);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+							if(this->get_current_func().isComptime && sema_func.isComptime == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
 									"Cannot call a non-comptime [move] initialization within a comptime function",
 									Diagnostic::Info(
-										"Called operator [copy] initialization was defined here:",
-										this->get_location(*move_overload.funcID)
+										"Called operator [move] initialization was defined here:",
+										this->get_location(sema_func)
 									)
 								);
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_overload.funcID);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [move] initialization not in an unsafe scope",
+									Diagnostic::Info(
+										"Called operator [move] initialization was defined here:",
+										this->get_location(sema_func)
+									)
+								);
+								return evo::resultError;
+							}
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24424,11 +24569,16 @@ namespace pcit::panther{
 						struct_type.moveInitOverload.load(std::memory_order::relaxed);
 
 					if constexpr(CHECK_VALIDITY){
-						if(move_init_overload.wasDeleted){
+						if(move_init_overload.wasDeleted()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(
+								type_info_id, infos
+							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
+								Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
 								location,
-								"This type is not movable as its operator [move] was deleted"
+								"Type of argument of operator [move] is not movable",
+								std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24439,25 +24589,36 @@ namespace pcit::panther{
 						struct_type.moveAssignOverload.load(std::memory_order::relaxed);
 					if(move_assign_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*move_assign_overload).isComptime == false
-							){
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_assign_overload);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+							if(this->get_current_func().isComptime && sema_func.isComptime == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
 									"Cannot call a non-comptime [move] assignment within a comptime function",
 									Diagnostic::Info(
 										"Called operator [move] assignment was defined here:",
-										this->get_location(*move_assign_overload)
+										this->get_location(sema_func)
 									)
 								);
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_assign_overload);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [move] assignment not in an unsafe scope",
+									Diagnostic::Info(
+										"Called operator [move] assignment was defined here:",
+										this->get_location(sema_func)
+									)
+								);
+								return evo::resultError;
+							}
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24477,10 +24638,13 @@ namespace pcit::panther{
 
 					if(move_init_overload.funcID.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*move_init_overload.funcID).isComptime==false
-							){
+							const sema::Func& sema_func =
+								this->context.getSemaBuffer().getFunc(*move_init_overload.funcID);
+							const BaseType::Function& sema_func_type =
+								this->context.getTypeManager().getFunction(sema_func.typeID);
+
+
+							if(this->get_current_func().isComptime && sema_func.isComptime == false){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24488,7 +24652,7 @@ namespace pcit::panther{
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [move] initialization was defined here:",
-											this->get_location(*move_init_overload.funcID)
+											this->get_location(sema_func)
 										),
 										Diagnostic::Info(
 											"NOTE: [move] initialization called here as this type does not have an "
@@ -24499,10 +24663,25 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							const sema::Func& sema_func =
-								this->context.getSemaBuffer().getFunc(*move_init_overload.funcID);
-							const BaseType::Function& sema_func_type =
-								this->context.getTypeManager().getFunction(sema_func.typeID);
+							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+								this->emit_error(
+									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+									location,
+									"Call to unsafe [move] initialization not in an unsafe scope",
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"Called operator [move] initialization was defined here:",
+											this->get_location(sema_func)
+										),
+										Diagnostic::Info(
+											"NOTE: [move] initialization called here as this type does not have an "
+												"explicit [move] assignment overload"
+										)
+									}
+								);
+								return evo::resultError;
+							}
+
 							if(
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
@@ -24527,10 +24706,12 @@ namespace pcit::panther{
 							struct_type.deleteOverload.load(std::memory_order::relaxed);
 						if(delete_overload.has_value()){
 							if constexpr(CHECK_VALIDITY){
-								if(
-									this->get_current_func().isComptime
-									&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
-								){
+								const sema::Func& sema_func =
+									this->context.getSemaBuffer().getFunc(*delete_overload);
+								const BaseType::Function& sema_func_type =
+									this->context.getTypeManager().getFunction(sema_func.typeID);
+
+								if(this->get_current_func().isComptime && sema_func.isComptime == false){
 									this->emit_error(
 										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
@@ -24538,7 +24719,26 @@ namespace pcit::panther{
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
-												this->get_location(*move_init_overload.funcID)
+												this->get_location(sema_func)
+											),
+											Diagnostic::Info(
+												"NOTE: [delete] called here as this type does not have an "
+													"explicit [move] assignment overload"
+											)
+										}
+									);
+									return evo::resultError;
+								}
+
+								if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
+									this->emit_error(
+										Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
+										location,
+										"Call to unsafe [delete] not in an unsafe scope",
+										evo::SmallVector<Diagnostic::Info>{
+											Diagnostic::Info(
+												"Called operator [delete] was defined here:",
+												this->get_location(sema_func)
 											),
 											Diagnostic::Info(
 												"NOTE: [delete] called here as this type does not have an "
@@ -32945,6 +33145,151 @@ namespace pcit::panther{
 	}
 
 
+	template<SemanticAnalyzer::SpecialMemberFailKind MEMBER>
+	auto SemanticAnalyzer::diagnostic_print_special_member_fail(
+		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos
+	) -> void {
+		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+
+		switch(type_info.baseTypeID().kind()){
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
+
+				this->diagnostic_print_special_member_fail<MEMBER>(array_type.elementTypeID, infos);
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias_type =
+					this->context.getTypeManager().getAlias(type_info.baseTypeID().aliasID());
+
+				this->diagnostic_print_special_member_fail<MEMBER>(alias_type.aliasedType, infos);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias_type =
+					this->context.getTypeManager().getDistinctAlias(type_info.baseTypeID().distinctAliasID());
+
+				this->diagnostic_print_special_member_fail<MEMBER>(distinct_alias_type.underlyingType, infos);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_type =
+					this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
+
+				using DeletableOverloadState = BaseType::Struct::DeletableOverload::State;
+
+				const DeletableOverloadState state = [&]() -> DeletableOverloadState {
+					if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+						return struct_type.copyInitOverload.load().state;
+					}else{
+						return struct_type.moveInitOverload.load().state;
+					}
+				}();
+
+				switch(state){
+					case DeletableOverloadState::NOT_DELETED: {
+						evo::debugFatalBreak("Struct sepcial member wasn't deleted");
+					} break;
+
+					case DeletableOverloadState::EXPLICITLY_DELETED: {
+						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+							infos.emplace_back("Operator [copy] was explicitly deleted");
+						}else{
+							infos.emplace_back("Operator [move] was explicitly deleted");
+						}
+					} break;
+
+					case DeletableOverloadState::IMPLICIT_MEMBER_DELETED: {
+						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+							infos.emplace_back(
+								"Operator [copy] was not generated by the compiler due to one or more of the members "
+									"being not copyable"
+							);
+						}else{
+							infos.emplace_back(
+								"Operator [move] was not generated by the compiler due to one or more of the members "
+									"being not movable"
+							);
+						}
+					} break;
+
+					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED: {
+						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+							infos.emplace_back(
+								"Operator [copy] was not generated by the compiler due to operator [move] being "
+									"explicitly deleted"
+							);
+						}else{
+							infos.emplace_back(
+								"Operator [move] was not generated by the compiler due to operator [copy] being "
+									"explicitly deleted"
+							);
+						}
+					} break;
+				}
+
+				infos.emplace_back(
+					std::format("Type: {}", this->context.getTypeManager().printType(type_id, this->context))
+				);
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_type =
+					this->context.getTypeManager().getUnion(type_info.baseTypeID().unionID());
+
+				evo::debugAssert(union_type.isUntagged == false, "untagged unions are always copyable");
+
+				unsigned num_not_supported = 0;
+				for(const BaseType::Union::Field& field : union_type.fields){
+					if(field.typeID.isVoid()){ continue; }
+
+					if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+						if(this->context.getTypeManager().isCopyable(field.typeID.asTypeID()) == false){
+							num_not_supported += 1;
+						}
+					}else{
+						if(this->context.getTypeManager().isMovable(field.typeID.asTypeID()) == false){
+							num_not_supported += 1;
+						}
+					}
+				}
+
+				if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+					infos.emplace_back(
+						std::format(
+							"{} union field{} are not copyable",
+							num_not_supported,
+							num_not_supported > 1 ? "s" : ""
+						)
+					);
+				}else{
+					infos.emplace_back(
+						std::format(
+							"{} union field{} are not movable",
+							num_not_supported,
+							num_not_supported > 1 ? "s" : ""
+						)
+					);
+				}
+
+				infos.emplace_back(
+					std::format("Type: {}", this->context.getTypeManager().printType(type_id, this->context))
+				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map_type =
+					this->context.getTypeManager().getInterfaceMap(type_info.baseTypeID().interfaceMapID());
+
+				this->diagnostic_print_special_member_fail<MEMBER>(interface_map_type.underlyingTypeID, infos);
+			} break;
+
+			default: evo::debugFatalBreak("Unknown type kind that is not support this special member");
+		}
+	}
+
+
 
 
 	auto SemanticAnalyzer::check_type_qualifiers(evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location)
@@ -33040,8 +33385,7 @@ namespace pcit::panther{
 				this->error_already_defined<false>(
 					ast_node,
 					ident_str,
-					*current_scope_level.lookupIdent(ident_str),
-					std::forward<decltype(ident_id_info)>(ident_id_info)...
+					*current_scope_level.lookupIdent(ident_str)
 				);
 			}
 
@@ -33055,8 +33399,7 @@ namespace pcit::panther{
 					this->error_already_defined<true>(
 						ast_node,
 						ident_str,
-						*scope_level.lookupIdent(ident_str),
-						std::forward<decltype(ident_id_info)>(ident_id_info)...
+						*scope_level.lookupIdent(ident_str)
 					);
 					return evo::resultError;
 				}

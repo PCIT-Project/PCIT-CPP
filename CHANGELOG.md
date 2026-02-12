@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.235.0"></a>
+## v0.0.235.0
+
+### Panther
+- Added extra info into the diagnostic errors to explain why a type is not copyable or movable
+- Fixed race condition in semantic analyis when explicitly defining operator `copy` 
+
+
+<!---------------------------------->
 <a name="v0.0.234.0"></a>
 ## v0.0.234.0
 
