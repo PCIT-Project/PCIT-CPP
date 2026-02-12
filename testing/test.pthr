@@ -1,24 +1,10 @@
-def std = @import("std");
 
-type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
-
-
-func entry = () #entry -> UI8 {
-	const arr = new StaticArrayList<{Int, 3}>(new [Int:3][1, 2, 3]);
-
-	const arr_2: StaticArrayList<{Int, 3}> = copy arr;
-
-	return arr_2.last().* as UI8;
+func panic = (message: [Char:*]) #noReturn -> Void {
+	@breakpoint();
+	@abort();
 }
 
 
-
-
-func test = () -> Void {
-	type NoCopy = struct {
-		func copy = delete;
-	}
-
-	const foo = new StaticArrayList<{NoCopy, 12}>();
-	const bar: StaticArrayList<{NoCopy, 12}> = copy foo;
+func entry = () #entry -> UI8 {
+	panic("asdf");
 }

@@ -218,6 +218,57 @@ namespace pcit::pir{
 					continue;
 				} break;
 
+				case Expr::Kind::CALL_NO_RETURN: {
+					const CallNoReturn& call_no_return_inst = stack_frame->reader_agent.getCallNoReturn(expr);
+
+					stack_frame->instruction_index += 1;
+
+					if(call_no_return_inst.target.is<Function::ID>()){
+						const Function::ID func_id = call_no_return_inst.target.as<Function::ID>();
+						const Function& func = this->engine.module.getFunction(func_id);
+						const BasicBlock::ID basic_block_id = *func.begin();
+
+						auto reader_agent = ReaderAgent(this->engine.module, func);
+
+						auto params = evo::SmallVector<std::byte*>();
+						for(const Expr arg : call_no_return_inst.args){
+							core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, *stack_frame);
+
+							if(generic_value == nullptr){
+								params.emplace_back(nullptr);
+
+							}else if(stack_frame->reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+								params.emplace_back(generic_value->getPtr<std::byte*>());
+
+							}else{
+								params.emplace_back(generic_value->writableDataRange().data());
+							}
+						}
+
+						stack_frame = &this->stack_frames.emplace_back(
+							func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
+						);
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+						}
+
+						stack_frame->params = std::move(params);
+
+						this->setup_allocas(*stack_frame);
+						
+					}else if(call_no_return_inst.target.is<ExternalFunction::ID>()){
+						// TODO(FUTURE): 
+						evo::unimplemented("Calling external function");
+
+					}else{
+						evo::debugAssert(call_no_return_inst.target.is<PtrCall>(), "Unknown func call kind");
+						// TODO(FUTURE): 
+						evo::unimplemented("Ptr call");
+					}
+
+					continue;
+				} break;
+
 				case Expr::Kind::ABORT: {
 					return evo::Unexpected(FuncRunError::ABORT);
 				} break;

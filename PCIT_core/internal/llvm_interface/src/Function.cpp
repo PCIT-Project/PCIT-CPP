@@ -96,6 +96,10 @@ namespace pcit::llvmint{
 		this->native()->setDoesNotThrow();
 	}
 
+	auto Function::setNoReturn() -> void {
+		this->native()->setDoesNotReturn();
+	}
+
 	auto Function::setCallingConv(CallingConv calling_conv) -> void {
 		this->native()->setCallingConv(evo::to_underlying(calling_conv));
 	}

@@ -1445,11 +1445,14 @@ namespace pcit::panther{
 								std::nullopt,
 								uint32_t(function_decl.params.size()),
 								false,
-								false,
-								false,
-								true,
-								false,
-								false
+								sema::Func::Attributes{
+									.isPub      = false,
+									.isPriv     = false,
+									.isComptime = false,
+									.isNoReturn = false,
+									.isExport   = true,
+									.isImplicit = false,
+								}
 							);
 						}
 					);
@@ -2252,11 +2255,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2297,11 +2303,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2336,11 +2345,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2398,11 +2410,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2443,11 +2458,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2482,11 +2500,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2553,11 +2574,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2602,11 +2626,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -2675,11 +2702,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2751,11 +2781,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				false,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = false,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2812,11 +2845,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2857,11 +2893,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2896,11 +2935,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2959,11 +3001,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3004,11 +3049,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3043,11 +3091,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3114,11 +3165,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3163,11 +3217,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -3238,11 +3295,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3314,11 +3374,14 @@ namespace pcit::panther{
 				std::nullopt,
 				1,
 				false,
-				false,
-				true,
-				false,
-				false,
-				false
+				sema::Func::Attributes{
+					.isPub      = false,
+					.isPriv     = false,
+					.isComptime = true,
+					.isNoReturn = false,
+					.isExport   = false,
+					.isImplicit = false,
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3372,7 +3435,7 @@ namespace pcit::panther{
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+			.allowedInComptime = false, .allowedInInterptime = true,  .allowedInRuntime = true,
 			.allowedInCompile  = true,  .allowedInScript     = false, .allowedInBuild   = true,
 		};
 			

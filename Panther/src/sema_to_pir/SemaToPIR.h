@@ -241,6 +241,11 @@ namespace pcit::panther{
 				evo::SmallVector<pir::Expr>&& args
 			) -> void;
 
+			auto create_call_no_return(
+				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
+				evo::SmallVector<pir::Expr>&& args
+			) -> void;
+
 
 			template<GetExprMode MODE>
 			auto intrinsic_func_call_expr(

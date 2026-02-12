@@ -45,17 +45,23 @@ namespace pcit::pir{
 				evo::SmallVector<Parameter>&& parameters,
 				CallingConvention callingConvention,
 				Linkage linkage,
-				Type returnType
+				Type returnType,
+				bool isNoReturn = false
 			) -> Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
 					this->check_global_name_reuse(func_name);
 				#endif
 
+				evo::debugAssert(
+					isNoReturn == false || returnType.kind() == Type::Kind::VOID,
+					"`#noReturn` can only be on a function that returns `Void`"
+				);
+
 				return this->functions.emplace_back(
 					*this,
 					ExternalFunction(
-						std::move(func_name), std::move(parameters), callingConvention, linkage, returnType
+						std::move(func_name), std::move(parameters), callingConvention, linkage, returnType, isNoReturn
 					)
 				);
 			}
@@ -94,15 +100,21 @@ namespace pcit::pir{
 				evo::SmallVector<Parameter>&& parameters,
 				CallingConvention callingConvention,
 				Linkage linkage,
-				Type returnType
+				Type returnType,
+				bool isNoReturn = false
 			) -> ExternalFunction::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
 					this->check_global_name_reuse(func_name);
 				#endif
 
+				evo::debugAssert(
+					isNoReturn == false || returnType.kind() == Type::Kind::VOID,
+					"`#noReturn` can only be on a function that returns `Void`"
+				);
+
 				return this->external_funcs.emplace_back(
-					std::move(func_name), std::move(parameters), callingConvention, linkage, returnType
+					std::move(func_name), std::move(parameters), callingConvention, linkage, returnType, isNoReturn
 				);
 			}
 
@@ -523,6 +535,7 @@ namespace pcit::pir{
 			// exprs
 			core::StepAlloc<Call, uint32_t> calls{};
 			core::StepAlloc<CallVoid, uint32_t> call_voids{};
+			core::StepAlloc<CallNoReturn, uint32_t> call_no_returns{};
 			core::StepAlloc<Ret, uint32_t> rets{};
 			core::StepAlloc<Branch, uint32_t> branches{};
 			core::StepAlloc<Phi, uint32_t> phis{};

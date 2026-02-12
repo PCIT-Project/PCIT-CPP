@@ -1668,7 +1668,7 @@ namespace pcit::panther{
 					*created_struct.copyAssignOverload.load(std::memory_order::relaxed)
 				);
 
-				if(copy_init_sema_func.isComptime != copy_assign_sema_func.isComptime){
+				if(copy_init_sema_func.attributes.isComptime != copy_assign_sema_func.attributes.isComptime){
 					this->emit_error(
 						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
 						this->symbol_proc.ast_node,
@@ -1733,7 +1733,7 @@ namespace pcit::panther{
 					*created_struct.moveAssignOverload.load(std::memory_order::relaxed)
 				);
 
-				if(move_init_sema_func.isComptime != move_assign_sema_func.isComptime){
+				if(move_init_sema_func.attributes.isComptime != move_assign_sema_func.attributes.isComptime){
 					this->emit_error(
 						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
 						this->symbol_proc.ast_node,
@@ -1907,11 +1907,14 @@ namespace pcit::panther{
 					std::nullopt,
 					0,
 					false,
-					false,
-					created_struct.isComptimeDefaultInitializable,
-					false,
-					false,
-					false
+					sema::Func::Attributes{
+						.isPub      = false,
+						.isPriv     = false,
+						.isComptime = created_struct.isComptimeDefaultInitializable,
+						.isNoReturn = false,
+						.isExport   = false,
+						.isImplicit = false,
+					}
 				);
 
 
@@ -1992,7 +1995,7 @@ namespace pcit::panther{
 
 				created_struct.isDefaultInitializable = true;
 
-				if(new_init_overload.isComptime){
+				if(new_init_overload.attributes.isComptime){
 					created_struct.isComptimeDefaultInitializable = true;
 				}
 
@@ -2066,11 +2069,14 @@ namespace pcit::panther{
 					std::nullopt,
 					1,
 					false,
-					false,
-					is_comptime_deletable,
-					false,
-					false,
-					false
+					sema::Func::Attributes{
+						.isPub      = false,
+						.isPriv     = false,
+						.isComptime = is_comptime_deletable,
+						.isNoReturn = false,
+						.isExport   = false,
+						.isImplicit = false,
+					}
 				);
 
 
@@ -2236,11 +2242,14 @@ namespace pcit::panther{
 						std::nullopt,
 						1,
 						false,
-						false,
-						is_comptime_movable,
-						false,
-						false,
-						false
+						sema::Func::Attributes{
+							.isPub      = false,
+							.isPriv     = false,
+							.isComptime = is_comptime_movable,
+							.isNoReturn = false,
+							.isExport   = false,
+							.isImplicit = false,
+						}
 					);
 
 
@@ -2428,11 +2437,14 @@ namespace pcit::panther{
 						std::nullopt,
 						1,
 						false,
-						false,
-						is_comptime_copyable,
-						false,
-						false,
-						false
+						sema::Func::Attributes{
+							.isPub      = false,
+							.isPriv     = false,
+							.isComptime = is_comptime_copyable,
+							.isNoReturn = false,
+							.isExport   = false,
+							.isImplicit = false,
+						}
 					);
 
 
@@ -3580,7 +3592,6 @@ namespace pcit::panther{
 		);
 
 
-		const bool is_comptime = !func_attrs.value().is_runtime;
 
 		const sema::Func::ID created_func_id = this->context.sema_buffer.createFunc(
 			this->source.getID(),
@@ -3593,12 +3604,15 @@ namespace pcit::panther{
 			std::move(error_param_idents),
 			this->symbol_proc_id,
 			min_num_args,
-			func_attrs.value().is_pub,
-			func_attrs.value().is_priv,
-			is_comptime,
-			func_attrs.value().is_export,
-			func_attrs.value().is_implicit,
 			has_in_param,
+			sema::Func::Attributes{
+				.isPub      = func_attrs.value().is_pub,
+				.isPriv     = func_attrs.value().is_priv,
+				.isComptime = !func_attrs.value().is_runtime,
+				.isNoReturn = func_attrs.value().is_no_return,
+				.isExport   = func_attrs.value().is_export,
+				.isImplicit = func_attrs.value().is_implicit,
+			},
 			instr.instantiation_id
 		);
 
@@ -3851,7 +3865,7 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(created_func.isImplicit && created_func_type.params.size() != 2){
+						if(created_func.attributes.isImplicit && created_func_type.params.size() != 2){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 								instr.func_def,
@@ -3912,7 +3926,7 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(created_func.isImplicit && created_func_type.params.size() != 1){
+						if(created_func.attributes.isImplicit && created_func_type.params.size() != 1){
 							this->emit_error(
 								Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
 								instr.func_def,
@@ -4714,12 +4728,15 @@ namespace pcit::panther{
 									created_func.errorParamIdents,
 									this->symbol_proc_id,
 									2,
-									false,
-									false,
-									created_func.isComptime,
-									false,
-									false,
-									created_func.hasInParam
+									created_func.hasInParam,
+									sema::Func::Attributes{
+										.isPub      = false,
+										.isPriv     = false,
+										.isComptime = created_func.attributes.isComptime,
+										.isNoReturn = false,
+										.isExport   = false,
+										.isImplicit = false,
+									}
 								);
 
 								sema::Func& created_swapped_func =
@@ -5142,9 +5159,42 @@ namespace pcit::panther{
 
 
 		//////////////////
+		// check noReturn has valid signature
+
+		if(current_func.attributes.isNoReturn){
+			if(func_type.returnsVoid() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
+					instr.func_def,
+					"Functions with the `#noReturn` attribute must return `Void`"
+				);
+				return Result::ERROR;
+			}
+
+			if(func_type.hasErrorReturn()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
+					instr.func_def,
+					"Functions with the `#noReturn` attribute cannot have error returns"
+				);
+				return Result::ERROR;
+			}
+
+			if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
+					instr.func_def,
+					"Operator overloads cannot have attribute `#noReturn`"
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		//////////////////
 		// prepare pir
 
-		if(current_func.isComptime){
+		if(current_func.attributes.isComptime){
 			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 			current_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(current_func_id);
@@ -5374,7 +5424,7 @@ namespace pcit::panther{
 		this->propagate_finished_def();
 
 
-		if(current_func.isComptime){
+		if(current_func.attributes.isComptime){
 			bool any_waiting = false;
 			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
@@ -5437,7 +5487,7 @@ namespace pcit::panther{
 	) -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.isComptime){
+		if(current_func.attributes.isComptime){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
 			{
@@ -5602,7 +5652,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_comptime_pir_ready_if_needed() -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.isComptime){
+		if(current_func.attributes.isComptime){
 			this->propagate_finished_pir_def();
 		}
 
@@ -7599,7 +7649,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_for(const Instruction::BeginFor& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
 
-		const bool in_comptime_func = this->get_current_func().isComptime;
+		const bool in_comptime_func = this->get_current_func().attributes.isComptime;
 
 
 		const AST::AttributeBlock& attribute_block =
@@ -9028,8 +9078,8 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_current_func().isComptime && func_call_impl_res.value().is_src_func()){
-			if(func_call_impl_res.value().selected_func->isComptime == false){
+		if(this->get_current_func().attributes.isComptime && func_call_impl_res.value().is_src_func()){
+			if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					instr.func_call.target,
@@ -9119,7 +9169,7 @@ namespace pcit::panther{
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
 
-			if(this->get_current_func().isComptime){
+			if(this->get_current_func().attributes.isComptime){
 				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
@@ -9176,12 +9226,16 @@ namespace pcit::panther{
 			}
 
 
+
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 				intrinsic_kind, std::move(sema_args)
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
 
+			if(intrinsic_kind == IntrinsicFunc::Kind::ABORT){
+				this->get_current_scope_level().setTerminated();
+			}
 
 
 		}else{
@@ -9226,6 +9280,12 @@ namespace pcit::panther{
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+
+				const sema::Func& selected_func =
+					this->context.getSemaBuffer().getFunc(*func_call_impl_res.value().selected_func_id);
+				if(selected_func.attributes.isNoReturn){
+					this->get_current_scope_level().setTerminated();
+				}
 			}
 
 		}
@@ -10273,7 +10333,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isComptime
+			this->get_current_func().attributes.isComptime
 			&& this->context.getTypeManager().isComptimeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -10470,7 +10530,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isComptime
+			this->get_current_func().attributes.isComptime
 			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -10671,7 +10731,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->get_current_func().isComptime){
+		if(this->get_current_func().attributes.isComptime){
 			if(is_initialization){
 				if(target_is_copyable){
 					if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
@@ -11464,7 +11524,7 @@ namespace pcit::panther{
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-			if(this->get_current_func().isComptime){
+			if(this->get_current_func().attributes.isComptime){
 				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
@@ -11529,7 +11589,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					if(this->get_current_func().isComptime){
+					if(this->get_current_func().attributes.isComptime){
 						return TermInfo::ValueStage::INTERPTIME;
 					}else{
 						return TermInfo::ValueStage::RUNTIME;
@@ -11570,8 +11630,8 @@ namespace pcit::panther{
 				evo::debugFatalBreak("No comptime non-templated intrinsics exist");
 
 			}else{
-				if(this->get_current_func().isComptime){
-					if(func_call_impl_res.value().selected_func->isComptime == false){
+				if(this->get_current_func().attributes.isComptime){
+					if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 							instr.func_call.target,
@@ -11621,11 +11681,11 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				return TermInfo::ValueStage::COMPTIME;
 			}else{
-				if(all_args_are_comptime && func_call_impl_res.value().selected_func->isComptime){
+				if(all_args_are_comptime && func_call_impl_res.value().selected_func->attributes.isComptime){
 					return TermInfo::ValueStage::COMPTIME;
 				}
 
-				if(this->get_current_func().isComptime){
+				if(this->get_current_func().attributes.isComptime){
 					return TermInfo::ValueStage::INTERPTIME;
 				}else{
 					return TermInfo::ValueStage::RUNTIME;
@@ -11663,7 +11723,7 @@ namespace pcit::panther{
 		}
 
 		if constexpr(IS_COMPTIME){
-			if(func_call_impl_res.value().selected_func->isComptime == false){
+			if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					instr.func_call.target,
@@ -11701,8 +11761,8 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			if(this->get_current_func().isComptime){
-				if(func_call_impl_res.value().selected_func->isComptime == false){
+			if(this->get_current_func().attributes.isComptime){
+				if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 						instr.func_call.target,
@@ -12581,7 +12641,7 @@ namespace pcit::panther{
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
-		if(this->get_current_func().isComptime){
+		if(this->get_current_func().attributes.isComptime){
 			if(template_intrinsic_func_info.allowedInInterptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
@@ -12964,7 +13024,7 @@ namespace pcit::panther{
 			}
 
 		}else{
-			if(this->get_current_func().isComptime){
+			if(this->get_current_func().attributes.isComptime){
 				if(template_intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
 						Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
@@ -15364,7 +15424,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isComptime
+			this->get_current_func().attributes.isComptime
 			&& this->context.getTypeManager().isComptimeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -15479,7 +15539,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->get_current_func().isComptime
+			this->get_current_func().attributes.isComptime
 			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -15613,7 +15673,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->get_current_func().isComptime){
+		if(this->get_current_func().attributes.isComptime){
 			if(target_is_copyable){
 				if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
 					target,
@@ -16628,7 +16688,7 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							this->get_current_func().isComptime
+							this->get_current_func().attributes.isComptime
 								? TermInfo::ValueStage::INTERPTIME
 								: TermInfo::ValueStage::RUNTIME,
 							TermInfo::ValueState::NOT_APPLICABLE,
@@ -16743,8 +16803,8 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					if(this->get_current_func().isComptime){
-						if(selected_func.isComptime == false){
+					if(this->get_current_func().attributes.isComptime){
+						if(selected_func.attributes.isComptime == false){
 							this->emit_error(
 								Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 								instr.ast_new,
@@ -16770,7 +16830,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						this->get_current_func().isComptime
+						this->get_current_func().attributes.isComptime
 							? TermInfo::ValueStage::INTERPTIME
 							: TermInfo::ValueStage::RUNTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
@@ -16998,7 +17058,7 @@ namespace pcit::panther{
 				if(this->currently_in_func() == false){
 					return TermInfo::ValueStage::COMPTIME;
 
-				}else if(this->get_current_func().isComptime){
+				}else if(this->get_current_func().attributes.isComptime){
 					return TermInfo::ValueStage::INTERPTIME;
 
 				}else{
@@ -17107,7 +17167,7 @@ namespace pcit::panther{
 					if(this->currently_in_func() == false){
 						return TermInfo::ValueStage::COMPTIME;
 
-					}else if(this->get_current_func().isComptime){
+					}else if(this->get_current_func().attributes.isComptime){
 						return TermInfo::ValueStage::INTERPTIME;
 
 					}else{
@@ -17270,7 +17330,7 @@ namespace pcit::panther{
 				if(this->currently_in_func() == false){
 					return TermInfo::ValueStage::COMPTIME;
 
-				}else if(this->get_current_func().isComptime){
+				}else if(this->get_current_func().attributes.isComptime){
 					return TermInfo::ValueStage::INTERPTIME;
 
 				}else{
@@ -17395,7 +17455,9 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
-			this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+			this->get_current_func().attributes.isComptime
+				? TermInfo::ValueStage::INTERPTIME
+		: TermInfo::ValueStage::RUNTIME,
 			TermInfo::ExceptParamPack{},
 			std::move(except_params)
 		);
@@ -17602,7 +17664,9 @@ namespace pcit::panther{
 		if(sema_block_expr.outputs.size() == 1){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+				this->get_current_func().attributes.isComptime
+					? TermInfo::ValueStage::INTERPTIME
+					: TermInfo::ValueStage::RUNTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
@@ -17616,7 +17680,9 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+				this->get_current_func().attributes.isComptime
+					? TermInfo::ValueStage::INTERPTIME
+					: TermInfo::ValueStage::RUNTIME,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
@@ -17858,10 +17924,10 @@ namespace pcit::panther{
 				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
 
 
-				if(this->get_current_func().isComptime){
+				if(this->get_current_func().attributes.isComptime){
 					const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
 
-					if(selected_overload.isComptime == false){
+					if(selected_overload.attributes.isComptime == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 							instr.indexer,
@@ -17963,7 +18029,8 @@ namespace pcit::panther{
 
 			}else if(is_ptr){
 				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>()).copyWithPoppedQualifier()
+					this->context.getTypeManager()
+						.getTypeInfo(target.type_id.as<TypeInfo::ID>()).copyWithPoppedQualifier()
 				);
 
 				return sema::Expr(this->context.sema_buffer.createIndexer(
@@ -18827,8 +18894,8 @@ namespace pcit::panther{
 
 
 			if(this->currently_in_func()){
-				if(this->get_current_func().isComptime){
-					if(selected_func.isComptime == false){
+				if(this->get_current_func().attributes.isComptime){
+					if(selected_func.attributes.isComptime == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 							instr.infix,
@@ -18840,7 +18907,7 @@ namespace pcit::panther{
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 				}
 
-			}else if(selected_func.isComptime == false){
+			}else if(selected_func.attributes.isComptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
 					instr.infix,
@@ -22446,7 +22513,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			value_category,
-			current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+			current_func.attributes.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
 			TermInfo::ValueState::INIT,
 			param.typeID,
 			sema::Expr(*this_param_id)
@@ -23268,7 +23335,9 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							value_category,
-							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+							this->get_current_func().attributes.isComptime
+								? ValueStage::INTERPTIME
+								: ValueStage::RUNTIME,
 							value_state,
 							member_var->typeID,
 							sema_expr
@@ -23488,7 +23557,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					value_category,
-					this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+					this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[
 						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
@@ -24217,8 +24286,8 @@ namespace pcit::panther{
 					if(delete_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
 							if(
-								this->get_current_func().isComptime
-								&& this->context.getSemaBuffer().getFunc(*delete_overload).isComptime == false
+								this->get_current_func().attributes.isComptime
+								&& this->context.getSemaBuffer().getFunc(*delete_overload).attributes.isComptime == false
 							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
@@ -24262,7 +24331,10 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							if(this->get_current_func().isComptime && sema_func.isComptime == false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24333,8 +24405,10 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-
-							if(this->get_current_func().isComptime && sema_func.isComptime == false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24385,7 +24459,10 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							if(this->get_current_func().isComptime&& sema_func.isComptime==false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24453,7 +24530,10 @@ namespace pcit::panther{
 								const BaseType::Function& sema_func_type =
 									this->context.getTypeManager().getFunction(sema_func.typeID);
 
-								if(this->get_current_func().isComptime && sema_func.isComptime == false){
+								if(
+									this->get_current_func().attributes.isComptime
+									&& sema_func.attributes.isComptime == false
+								){
 									this->emit_error(
 										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
@@ -24522,7 +24602,10 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							if(this->get_current_func().isComptime && sema_func.isComptime == false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24593,7 +24676,10 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							if(this->get_current_func().isComptime && sema_func.isComptime == false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24644,7 +24730,10 @@ namespace pcit::panther{
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
 
-							if(this->get_current_func().isComptime && sema_func.isComptime == false){
+							if(
+								this->get_current_func().attributes.isComptime
+								&& sema_func.attributes.isComptime == false
+							){
 								this->emit_error(
 									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 									location,
@@ -24711,7 +24800,10 @@ namespace pcit::panther{
 								const BaseType::Function& sema_func_type =
 									this->context.getTypeManager().getFunction(sema_func.typeID);
 
-								if(this->get_current_func().isComptime && sema_func.isComptime == false){
+								if(
+									this->get_current_func().attributes.isComptime
+									&& sema_func.attributes.isComptime == false
+								){
 									this->emit_error(
 										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 										location,
@@ -25062,7 +25154,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::VAR: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
-							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+							this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -25072,7 +25164,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::CONST: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
-							this->get_current_func().isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+							this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -25155,7 +25247,7 @@ namespace pcit::panther{
 
 							const sema::Func& parent_sema_func =
 								this->context.getSemaBuffer().getFunc(sema_var.parent->as<sema::Func::ID>());
-							if(parent_sema_func.isComptime){
+							if(parent_sema_func.attributes.isComptime){
 								return ValueStage::INTERPTIME;
 							}else{
 								return ValueStage::RUNTIME;
@@ -25187,7 +25279,7 @@ namespace pcit::panther{
 								return ValueStage::INTERPTIME;
 							}
 
-							if(this->get_current_func().isComptime){
+							if(this->get_current_func().attributes.isComptime){
 								return ValueStage::INTERPTIME;
 							}else{
 								return ValueStage::RUNTIME;
@@ -25196,7 +25288,7 @@ namespace pcit::panther{
 
 
 
-						if(this->currently_in_func() && this->get_current_func().isComptime){
+						if(this->currently_in_func() && this->get_current_func().attributes.isComptime){
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
 						}
 
@@ -25271,7 +25363,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
@@ -25298,7 +25392,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::VARIADIC_PARAM,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
 						sema::Expr(ident_id)
@@ -25334,7 +25430,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id.param_id),
 						ident_id.type_id,
 						sema::Expr(ident_id.param_id)
@@ -25353,7 +25451,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						return_type.asTypeID(),
 						sema::Expr(ident_id)
@@ -25371,7 +25471,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						error_param.asTypeID(),
 						sema::Expr(ident_id)
@@ -25387,7 +25489,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						sema_block_expr_output.typeID,
 						sema::Expr(ident_id)
@@ -25401,7 +25505,9 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						except_param.typeID,
 						sema::Expr(ident_id)
@@ -25417,7 +25523,9 @@ namespace pcit::panther{
 						for_param.isMut
 							? TermInfo::ValueCategory::CONCRETE_MUT
 							: TermInfo::ValueCategory::CONCRETE_CONST,
-						current_func.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+						current_func.attributes.isComptime
+							? TermInfo::ValueStage::INTERPTIME
+							: TermInfo::ValueStage::RUNTIME,
 						this->get_ident_value_state(ident_id),
 						for_param.typeID,
 						sema::Expr(ident_id)
@@ -27661,7 +27769,10 @@ namespace pcit::panther{
 					func_infos[selected_func_overload_index.value()].func_id;
 
 				if(selected_func_id.is<sema::Func::ID>()){
-					if(this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()).isPub == false){
+					const sema::Func& selected_func =
+						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
+
+					if(selected_func.attributes.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							func_call.target,
@@ -27676,7 +27787,7 @@ namespace pcit::panther{
 
 					return FuncCallImplData(
 						selected_func_id.as<sema::Func::ID>(),
-						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
+						&selected_func,
 						func_infos[selected_func_overload_index.value()].func_type
 					);
 
@@ -27696,7 +27807,7 @@ namespace pcit::panther{
 
 					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
 
-					if(sema_func.isPub == false){
+					if(sema_func.attributes.isPub == false){
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							func_call.target,
@@ -27733,7 +27844,7 @@ namespace pcit::panther{
 					const sema::Func& sema_func =
 						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
 
-					if(sema_func.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
 							func_call.target,
@@ -27767,7 +27878,7 @@ namespace pcit::panther{
 
 					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
 
-					if(sema_func.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
 							func_call.target,
@@ -28148,7 +28259,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(const TermInfo& term_info, const auto& node_location)
 	-> bool {
-		if(this->get_current_func().isComptime == false){ return true; }
+		if(this->get_current_func().attributes.isComptime == false){ return true; }
 
 		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
 
@@ -29579,9 +29690,9 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->get_current_func().isComptime){
+		if(this->get_current_func().attributes.isComptime){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			if(infix_op_sema_func.isComptime == false){
+			if(infix_op_sema_func.attributes.isComptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					ast_infix.opTokenID,
@@ -29647,9 +29758,9 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->get_current_func().isComptime){
+		if(this->get_current_func().attributes.isComptime){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			if(infix_op_sema_func.isComptime == false){
+			if(infix_op_sema_func.attributes.isComptime == false){
 				this->emit_error(
 					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
 					ast_prefix.opTokenID,
@@ -30150,7 +30261,7 @@ namespace pcit::panther{
 					if(this->currently_in_func() == false){
 						return TermInfo::ValueStage::COMPTIME;
 
-					}else if(this->get_current_func().isComptime){
+					}else if(this->get_current_func().attributes.isComptime){
 						return TermInfo::ValueStage::INTERPTIME;
 
 					}else{
@@ -30434,7 +30545,9 @@ namespace pcit::panther{
 
 						}
 
-						if(target_method.isComptime && overload_sema.isComptime == false){ continue; }
+						if(target_method.attributes.isComptime && overload_sema.attributes.isComptime == false){
+							continue;
+						}
 
 						interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
 						found_overload = true;
@@ -30528,7 +30641,7 @@ namespace pcit::panther{
 		for(const sema::Func::ID method_id : interface_impl.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
 
-			if(method.isComptime == false){ continue; }
+			if(method.attributes.isComptime == false){ continue; }
 
 			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
 
@@ -31262,6 +31375,7 @@ namespace pcit::panther{
 		auto attr_rt = ConditionalAttribute(*this, "rt");
 		auto attr_unsafe = ConditionalAttribute(*this, "unsafe");
 		auto attr_export = Attribute(*this, "export");
+		auto attr_no_return = Attribute(*this, "noReturn");
 		auto attr_entry = Attribute(*this, "entry");
 		auto attr_commutative = Attribute(*this, "commutative");
 		auto attr_swapped = Attribute(*this, "swapped");
@@ -31430,6 +31544,26 @@ namespace pcit::panther{
 
 				if(attr_export.set(attribute.attribute).isError()){ return evo::resultError; }
 
+			}else if(attribute_str == "noReturn"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args.front(),
+						"Attribute #noReturn does not accept any arguments"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_entry.is_set()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
+						attribute.attribute,
+						"A function cannot have both attribute #noReturn and #entry"
+					);
+					return evo::resultError;
+				}
+
+				if(attr_no_return.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else if(attribute_str == "entry"){
 				if(attribute_params_info[i].empty() == false){
@@ -31526,6 +31660,7 @@ namespace pcit::panther{
 			.is_runtime     = attr_rt.is_set(),
 			.is_unsafe      = attr_unsafe.is_set(),
 			.is_export      = attr_export.is_set(),
+			.is_no_return   = attr_no_return.is_set(),
 			.is_entry       = attr_entry.is_set(),
 			.is_commutative = attr_commutative.is_set(),
 			.is_swapped     = attr_swapped.is_set(),
@@ -32053,7 +32188,7 @@ namespace pcit::panther{
 									} break;
 								}
 
-								if(target_as_func.isImplicit == false){
+								if(target_as_func.attributes.isImplicit == false){
 									if constexpr(MAY_EMIT_ERROR){
 										this->error_type_mismatch(
 											expected_type_id,
@@ -32105,7 +32240,7 @@ namespace pcit::panther{
 										)
 									);
 
-									if(this->get_current_func().isComptime){
+									if(this->get_current_func().attributes.isComptime){
 										this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 											target_as_func_id
 										);
@@ -32131,7 +32266,7 @@ namespace pcit::panther{
 								for(const sema::FuncID new_func_id : expected_struct.newInitOverloads){
 									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
 
-									if(new_func.isImplicit == false){ continue; }
+									if(new_func.attributes.isImplicit == false){ continue; }
 
 									const BaseType::Function& new_func_type =
 										this->context.getTypeManager().getFunction(new_func.typeID);
@@ -32173,7 +32308,7 @@ namespace pcit::panther{
 											)
 										);
 
-										if(this->get_current_func().isComptime){
+										if(this->get_current_func().attributes.isComptime){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
 												.dependent_funcs.emplace(new_func_id);
 										}
@@ -32186,7 +32321,7 @@ namespace pcit::panther{
 								for(const sema::FuncID new_func_id : expected_struct.newAssignOverloads){
 									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
 
-									if(new_func.isImplicit == false){ continue; }
+									if(new_func.attributes.isImplicit == false){ continue; }
 
 									const BaseType::Function& new_func_type =
 										this->context.getTypeManager().getFunction(new_func.typeID);
@@ -32257,7 +32392,7 @@ namespace pcit::panther{
 								for(const sema::FuncID new_func_id : expected_struct.newInitOverloads){
 									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
 
-									if(new_func.isImplicit == false){ continue; }
+									if(new_func.attributes.isImplicit == false){ continue; }
 
 									const BaseType::Function& new_func_type =
 										this->context.getTypeManager().getFunction(new_func.typeID);
@@ -32976,7 +33111,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->get_current_func().isComptime){
+				if(this->get_current_func().attributes.isComptime){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);
@@ -32992,7 +33127,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->get_current_func().isComptime){
+				if(this->get_current_func().attributes.isComptime){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);

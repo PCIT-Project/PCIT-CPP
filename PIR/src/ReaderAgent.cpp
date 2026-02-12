@@ -60,6 +60,7 @@ namespace pcit::pir{
 				});
 			} break;
 			case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CALL_NO_RETURN:    evo::debugFatalBreak("Not a value");
 			case Expr::Kind::ABORT:             evo::debugFatalBreak("Not a value");
 			case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Not a value");
 			case Expr::Kind::RET:               evo::debugFatalBreak("Not a value");
@@ -207,6 +208,13 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::CALL_VOID, "not a call void inst");
 
 		return this->module.call_voids[expr.index];
+	}
+
+	auto ReaderAgent::getCallNoReturn(Expr expr) const -> const CallNoReturn& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::CALL_NO_RETURN, "not a call no return inst");
+
+		return this->module.call_no_returns[expr.index];
 	}
 
 

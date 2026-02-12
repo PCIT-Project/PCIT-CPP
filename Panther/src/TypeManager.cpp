@@ -1230,7 +1230,7 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						const std::optional<sema::Func::ID> delete_overload = struct_type.deleteOverload.load();
 						if(delete_overload.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*delete_overload).isComptime;
+						return sema_buffer->getFunc(*delete_overload).attributes.isComptime;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
@@ -1245,7 +1245,7 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(copy_overload.wasDeleted()){ return false; }
 						if(copy_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*copy_overload.funcID).isComptime;
+						return sema_buffer->getFunc(*copy_overload.funcID).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(copy_overload.wasDeleted()){ return false; }
@@ -1274,7 +1274,7 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(move_overload.wasDeleted()){ return false; }
 						if(move_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*move_overload.funcID).isComptime;
+						return sema_buffer->getFunc(*move_overload.funcID).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(move_overload.wasDeleted()){ return false; }
@@ -1320,7 +1320,9 @@ namespace pcit::panther{
 							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
 							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
 
-							if(func_type.params[0].typeID == func_type.params[1].typeID){ return sema_func.isComptime; }
+							if(func_type.params[0].typeID == func_type.params[1].typeID){
+								return sema_func.attributes.isComptime;
+							}
 						}
 
 						return false;

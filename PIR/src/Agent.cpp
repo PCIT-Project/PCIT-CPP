@@ -171,6 +171,21 @@ namespace pcit::pir{
 						}
 					} break;
 
+					case Expr::Kind::CALL_NO_RETURN: {
+						CallNoReturn& call_no_return_inst = this->module.call_no_returns[stmt.index];
+
+						if(
+							call_no_return_inst.target.is<PtrCall>() &&
+							call_no_return_inst.target.as<PtrCall>().location == original
+						){
+							call_no_return_inst.target.as<PtrCall>().location = replacement;
+						}
+
+						for(Expr& arg : call_no_return_inst.args){
+							if(arg == original){ arg = replacement; }
+						}
+					} break;
+
 					case Expr::Kind::ABORT: continue;
 					case Expr::Kind::BREAKPOINT: continue;
 	
@@ -1020,6 +1035,10 @@ namespace pcit::pir{
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
+		evo::debugAssert(
+			this->module.getFunction(func).getIsNoReturn() == false,
+			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
+		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
@@ -1035,6 +1054,10 @@ namespace pcit::pir{
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
+		evo::debugAssert(
+			this->module.getFunction(func).getIsNoReturn() == false,
+			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
+		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args));
@@ -1048,6 +1071,10 @@ namespace pcit::pir{
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getExternalFunction(func).isNoReturn == false,
+			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
@@ -1063,6 +1090,10 @@ namespace pcit::pir{
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
 			"CallVoid must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getExternalFunction(func).isNoReturn == false,
+			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
@@ -1108,6 +1139,122 @@ namespace pcit::pir{
 
 	auto Agent::getCallVoid(Expr expr) const -> const CallVoid& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCallVoid(expr);
+	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// call no returns
+
+	auto Agent::createCallNoReturn(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getFunction(func).getIsNoReturn(),
+			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
+
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, std::move(args))
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::createCallNoReturn(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getFunction(func).getIsNoReturn(),
+			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
+
+		const auto new_expr = Expr(Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args));
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+
+	auto Agent::createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getExternalFunction(func).isNoReturn,
+			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
+
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, std::move(args))
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(
+			this->module.getExternalFunction(func).isNoReturn,
+			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
+
+		const auto new_expr = Expr(Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args));
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+
+	auto Agent::createCallNoReturn(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
+
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN,
+			this->module.call_no_returns.emplace_back(PtrCall(func, func_type), std::move(args))
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::createCallNoReturn(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
+			"CallNoReturn must return `Void` (did you mean Call?)"
+		);
+		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
+
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(PtrCall(func, func_type), args)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+
+	auto Agent::getCallNoReturn(Expr expr) const -> const CallNoReturn& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getCallNoReturn(expr);
 	}
 
 
@@ -3383,7 +3530,8 @@ namespace pcit::pir{
 			break; case Expr::Kind::NULLPTR:           return;
 			break; case Expr::Kind::PARAM_EXPR:        return;
 			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
-			break; case Expr::Kind::CALL_VOID:         this->module.call_voids.erase(expr.index);
+			break; case Expr::Kind::CALL_VOID:         return;
+			break; case Expr::Kind::CALL_NO_RETURN:    return;
 			break; case Expr::Kind::ABORT:             return;
 			break; case Expr::Kind::BREAKPOINT:        return;
 			break; case Expr::Kind::RET:               this->module.rets.erase(expr.index);
@@ -3515,6 +3663,7 @@ namespace pcit::pir{
 					case Expr::Kind::PARAM_EXPR:       continue;
 					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;
 					case Expr::Kind::CALL_VOID:        continue;
+					case Expr::Kind::CALL_NO_RETURN:   continue;
 					case Expr::Kind::ABORT:            continue;
 					case Expr::Kind::BREAKPOINT:       continue;
 					case Expr::Kind::RET:              continue;

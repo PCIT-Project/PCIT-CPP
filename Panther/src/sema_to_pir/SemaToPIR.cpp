@@ -123,7 +123,7 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-			if(func.isComptime){ continue; }
+			if(func.attributes.isComptime){ continue; }
 
 			this->lowerFuncDecl(func_id);
 		}
@@ -146,7 +146,7 @@ namespace pcit::panther{
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 			if(func.isClangFunc()){ continue; }
-			if(func.isComptime){ continue; }
+			if(func.attributes.isComptime){ continue; }
 
 			this->lowerFuncDef(func_id);
 		}
@@ -453,12 +453,12 @@ namespace pcit::panther{
 
 
 		const pir::CallingConvention calling_conv = [&](){
-			if(func.isExport){ return pir::CallingConvention::C; }
+			if(func.attributes.isExport){ return pir::CallingConvention::C; }
 			return pir::CallingConvention::FAST;
 		}();
 
 		const pir::Linkage linkage = [&](){
-			if(func.isExport){ return pir::Linkage::EXTERNAL; }
+			if(func.attributes.isExport){ return pir::Linkage::EXTERNAL; }
 			return pir::Linkage::PRIVATE;
 		}();
 
@@ -469,7 +469,12 @@ namespace pcit::panther{
 
 				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
 					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
-						std::move(mangled_name), std::move(params), pir::CallingConvention::C, linkage, return_type
+						std::move(mangled_name),
+						std::move(params),
+						pir::CallingConvention::C,
+						linkage,
+						return_type,
+						func.attributes.isNoReturn
 					);
 
 					pir_funcs.emplace_back(created_external_func_id);
@@ -479,6 +484,7 @@ namespace pcit::panther{
 						std::move(pir_funcs), // first arg of FuncInfo construction
 						return_type,
 						is_implicit_rvo,
+						func.attributes.isNoReturn,
 						std::move(param_infos),
 						std::move(return_params),
 						error_return_param,
@@ -490,7 +496,12 @@ namespace pcit::panther{
 				
 			}else{
 				const pir::Function::ID new_func_id = this->module.createFunction(
-					this->mangle_name(func_id), std::move(params), calling_conv, linkage, return_type
+					this->mangle_name(func_id),
+					std::move(params),
+					calling_conv,
+					linkage,
+					return_type,
+					func.attributes.isNoReturn
 				);
 
 				pir_funcs.emplace_back(new_func_id);
@@ -567,6 +578,7 @@ namespace pcit::panther{
 			std::move(pir_funcs), // first arg of FuncInfo construction
 			return_type,
 			is_implicit_rvo,
+			func.attributes.isNoReturn,
 			std::move(param_infos),
 			std::move(return_params),
 			error_return_param,
@@ -1101,7 +1113,7 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
-				if(func.isComptime){
+				if(func.attributes.isComptime){
 					vtable_values.emplace_back(
 						this->agent.createFunctionPointer(
 							this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
@@ -1208,7 +1220,12 @@ namespace pcit::panther{
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
 				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
-					this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					if(target_func_info.isNoReturn){
+						this->create_call_no_return(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					}else{	
+						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					}
+
 				}else{
 					std::ignore = this->create_call(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
 				}
@@ -8018,6 +8035,18 @@ namespace pcit::panther{
 		}
 	}
 
+	auto SemaToPIR::create_call_no_return(
+		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
+		evo::SmallVector<pir::Expr>&& args
+	) -> void {
+		if(func_id.is<pir::Function::ID>()){
+			this->agent.createCallNoReturn(func_id.as<pir::Function::ID>(), std::move(args));
+		}else{
+			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
+			this->agent.createCallNoReturn(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
+		}
+	}
+
 
 
 
@@ -10265,7 +10294,7 @@ namespace pcit::panther{
 				return func.clangMangledName;
 			}
 
-		}else if(func.isExport){
+		}else if(func.attributes.isExport){
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
 			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
 

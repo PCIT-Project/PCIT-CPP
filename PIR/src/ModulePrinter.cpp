@@ -82,6 +82,7 @@ namespace pcit::pir{
 		CallingConvention callingConvention;
 		Linkage linkage;
 		Type returnType;
+		bool isNoReturn;
 	};
 
 	auto ModulePrinter::print_function_decl_impl(const FuncDeclRef& func_decl) -> void {
@@ -164,6 +165,10 @@ namespace pcit::pir{
 		this->print_linkage(func_decl.linkage);
 		this->printer.print(" ");
 
+		if(func_decl.isNoReturn){
+			this->printer.printRed("#noReturn ");
+		}
+
 		this->printer.printRed("-> ");
 		this->print_type(func_decl.returnType);
 	}
@@ -178,7 +183,8 @@ namespace pcit::pir{
 				function.getParameters(),
 				function.getCallingConvention(),
 				function.getLinkage(),
-				function.getReturnType()
+				function.getReturnType(),
+				function.getIsNoReturn()
 			)
 		);
 		
@@ -214,7 +220,8 @@ namespace pcit::pir{
 				function_decl.parameters,
 				function_decl.callingConvention,
 				function_decl.linkage,
-				function_decl.returnType
+				function_decl.returnType,
+				function_decl.isNoReturn
 			)
 		);
 		this->printer.println();
@@ -486,6 +493,8 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::CALL_VOID:   evo::debugFatalBreak("Expr::Kind::CALL_VOID is not a valid expression");
+			case Expr::Kind::CALL_NO_RETURN:
+				evo::debugFatalBreak("Expr::Kind::CALL_NO_RETURN is not a valid expression");
 			case Expr::Kind::ABORT:       evo::debugFatalBreak("Expr::Kind::ABORT is not a valid expression");
 			case Expr::Kind::BREAKPOINT:  evo::debugFatalBreak("Expr::Kind::BREAKPOINT is not a valid expression");
 			case Expr::Kind::RET:         evo::debugFatalBreak("Expr::Kind::RET is not a valid expression");
@@ -927,7 +936,7 @@ namespace pcit::pir{
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
 
-				this->print_function_call_impl(call_inst.target, call_inst.args);
+				this->print_function_call_impl(call_inst.target, call_inst.args, false);
 			} break;
 
 			case Expr::Kind::CALL_VOID: {
@@ -935,7 +944,15 @@ namespace pcit::pir{
 
 				this->printer.print(tabs(2));
 
-				this->print_function_call_impl(call_void_inst.target, call_void_inst.args);
+				this->print_function_call_impl(call_void_inst.target, call_void_inst.args, false);
+			} break;
+
+			case Expr::Kind::CALL_NO_RETURN: {
+				const CallNoReturn& call_no_return_inst = this->reader.getCallNoReturn(stmt);
+
+				this->printer.print(tabs(2));
+
+				this->print_function_call_impl(call_no_return_inst.target, call_no_return_inst.args, true);
 			} break;
 
 			case Expr::Kind::ABORT: {
@@ -1943,9 +1960,15 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_function_call_impl(
-		const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
+		const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target,
+		evo::ArrayProxy<Expr> args,
+		bool is_no_return
 	) -> void {
-		this->printer.printRed("@call ");
+		if(is_no_return){
+			this->printer.printRed("@call #noReturn ");
+		}else{
+			this->printer.printRed("@call ");
+		}
 
 		call_target.visit([&](const auto& target) -> void {
 			using ValueT = std::decay_t<decltype(target)>;

@@ -51,6 +51,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::PARAM_EXPR:        break;
 					break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
 					break; case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::CALL_NO_RETURN:    evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::ABORT:             evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Should never see this expr kind");
 					break; case Expr::Kind::RET:               evo::debugFatalBreak("Should never see this expr kind");
@@ -193,6 +194,20 @@ namespace pcit::pir::passes{
 					}
 
 					for(const Expr& arg : call_void_inst.args){
+						see_expr(arg);
+					}
+
+					return false;
+				} break;
+
+				case Expr::Kind::CALL_NO_RETURN: {
+					const CallNoReturn& call_no_return_inst = agent.getCallNoReturn(stmt);
+
+					if(call_no_return_inst.target.is<PtrCall>()){
+						see_expr(call_no_return_inst.target.as<PtrCall>().location);
+					}
+
+					for(const Expr& arg : call_no_return_inst.args){
 						see_expr(arg);
 					}
 

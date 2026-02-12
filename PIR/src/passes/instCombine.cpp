@@ -34,6 +34,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
 			case Expr::Kind::CALL_VOID:        return false;
+			case Expr::Kind::CALL_NO_RETURN:   return false;
 			case Expr::Kind::ABORT:            return false;
 			case Expr::Kind::BREAKPOINT:       return false;
 			case Expr::Kind::RET:              return false;
@@ -886,6 +887,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
 			case Expr::Kind::CALL_VOID:        return false;
+			case Expr::Kind::CALL_NO_RETURN:   return false;
 			case Expr::Kind::ABORT:            return false;
 			case Expr::Kind::BREAKPOINT:       return false;
 			case Expr::Kind::RET:              return false;

@@ -859,6 +859,7 @@ namespace pcit::panther{
 				bool is_runtime;
 				bool is_unsafe;
 				bool is_export;
+				bool is_no_return;
 				bool is_entry;
 				bool is_commutative;
 				bool is_swapped;

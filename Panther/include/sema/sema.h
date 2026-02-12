@@ -661,22 +661,30 @@ namespace pcit::panther::sema{
 			DEF_DONE,
 		};
 
+		template<class ForceInit>
+		struct AttributesImpl{
+			bool isPub      = ForceInit(); // meaningless if is Clang or builtin
+			bool isPriv     = ForceInit(); // meaningless if not member
+			bool isComptime = ForceInit();
+			bool isNoReturn = ForceInit();
+			bool isExport   = ForceInit(); // always true if is clang
+			bool isImplicit = ForceInit(); // meaningless if not member
+		};
+		using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
+
 		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
 		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
-		std::string clangMangledName; // empty if not clang type
+		std::string clangMangledName; // empty if not clang
 		std::optional<EncapsulatingSymbolID> parent;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
 		evo::SmallVector<Token::ID> returnParamIdents; // empty if not named
 		evo::SmallVector<Token::ID> errorParamIdents;  // empty if not named
-		std::optional<SymbolProcID> symbolProcID; // only value if is sema src type
+		std::optional<SymbolProcID> symbolProcID; // only value if is sema src
 		uint32_t minNumArgs;
-		bool isPub;      // meaningless if is Clang or builtin type
-		bool isPriv;     // meaningless if not member
-		bool isComptime;
-		bool isExport;   // always true if is clang type
-		bool isImplicit; // meaningless if not member
-		bool hasInParam; // always false if is clang type
+		bool hasInParam;
+		Attributes attributes;
+		
 		
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
 

@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.236.0"></a>
+## v0.0.236.0
+
+### Panther
+- Added function attribute `#noReturn`
+- Made `@abort` comptime
+
+### PIR
+- Added `@callNoReturn`
+- Added function attribute `#noReturn`
+
+
+<!---------------------------------->
 <a name="v0.0.235.0"></a>
 ## v0.0.235.0
 

@@ -160,6 +160,9 @@ namespace pcit::pir{
 		llvmint::Function llvm_func_decl = this->llvm_module.createFunction(func_decl.name, func_type, linkage);
 		llvm_func_decl.setNoThrow();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func_decl.callingConvention));
+		if(func_decl.isNoReturn){
+			llvm_func_decl.setNoReturn();
+		}
 
 		this->funcs.emplace(&func_decl, llvm_func_decl);
 	}
@@ -184,6 +187,9 @@ namespace pcit::pir{
 		llvmint::Function llvm_func_decl = this->llvm_module.createFunction(func.getName(), func_type, linkage);
 		llvm_func_decl.setNoThrow();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
+		if(func.getIsNoReturn()){
+			llvm_func_decl.setNoReturn();
+		}
 
 		this->funcs.emplace(&func, llvm_func_decl);
 	}
@@ -405,6 +411,50 @@ namespace pcit::pir{
 								static_assert(false, "Unknown func call target");
 							}
 						});
+					} break;
+
+					case Expr::Kind::CALL_NO_RETURN: {
+						const CallNoReturn& call_no_return = this->reader.getCallNoReturn(stmt);
+
+						auto call_args = evo::SmallVector<llvmint::Value>();
+						for(const Expr& arg : call_no_return.args){
+							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
+						}
+
+						call_no_return.target.visit([&](const auto& target) -> void {
+							using TargetT = std::decay_t<decltype(target)>;
+
+							if constexpr(std::is_same<TargetT, Function::ID>()){
+								const Function& func_target = this->module.getFunction(target);
+								llvmint::CallInst call_inst =
+									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
+								call_inst.setCallingConv(this->get_calling_conv(func_target.getCallingConvention()));
+
+							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
+								const ExternalFunction& func_target = this->module.getExternalFunction(target);
+
+								llvmint::CallInst call_inst = 
+									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
+								call_inst.setCallingConv(this->get_calling_conv(func_target.callingConvention));
+
+							}else if constexpr(std::is_same<TargetT, PtrCall>()){
+								const llvmint::FunctionType target_func_type = 
+									this->get_func_type<ADD_WEAK_DEPS>(target.funcType);
+								const llvmint::Value func_target = this->get_value<ADD_WEAK_DEPS>(target.location);
+
+								llvmint::CallInst call_inst = 
+									this->builder.createCall(func_target, target_func_type, call_args);
+								call_inst.setCallingConv(
+									this->get_calling_conv(
+										this->module.getFunctionType(target.funcType).callingConvention
+									)
+								);
+							}else{
+								static_assert(false, "Unknown func call target");
+							}
+						});
+
+						this->builder.createUnreachable();
 					} break;
 
 					case Expr::Kind::ABORT: {

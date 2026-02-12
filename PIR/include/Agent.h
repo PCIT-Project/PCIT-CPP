@@ -178,12 +178,25 @@ namespace pcit::pir{
 			auto createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
 			auto createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoid(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const
-				-> Expr;
-			auto createCallVoid(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const
-				-> Expr;
+			auto createCallVoid(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			EVO_NODISCARD auto getCallVoid(Expr expr) const -> const CallVoid&;
+
+
+			///////////////////////////////////
+			// call no return
+
+			auto createCallNoReturn(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+
+			auto createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+
+			auto createCallNoReturn(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const -> Expr;
+
+			EVO_NODISCARD auto getCallNoReturn(Expr expr) const -> const CallNoReturn&;
 
 
 			///////////////////////////////////

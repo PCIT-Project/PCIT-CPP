@@ -113,6 +113,7 @@ namespace pcit::pir{
 		CallingConvention callingConvention;
 		Linkage linkage;
 		Type returnType;
+		bool isNoReturn;
 
 
 		// for lookup in Module
@@ -148,6 +149,9 @@ namespace pcit::pir{
 			}
 			EVO_NODISCARD auto getLinkage() const -> const Linkage& { return this->func_decl.linkage; }
 			EVO_NODISCARD auto getReturnType() const -> const Type& { return this->func_decl.returnType; }
+
+			EVO_NODISCARD auto getIsNoReturn() const -> bool { return this->func_decl.isNoReturn; }
+
 
 
 			EVO_NODISCARD auto getParentModule() const -> const Module& { return this->parent_module; }

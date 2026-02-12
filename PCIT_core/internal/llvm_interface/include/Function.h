@@ -61,6 +61,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getArg(unsigned index) const -> Argument;
 
 			auto setNoThrow() -> void;
+			auto setNoReturn() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;
 
 			EVO_NODISCARD explicit operator Value() const;

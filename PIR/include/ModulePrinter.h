@@ -40,7 +40,9 @@ namespace pcit::pir{
 			auto print_expr_stmt(const Expr& expr) -> void;
 
 			auto print_function_call_impl(
-				const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target, evo::ArrayProxy<Expr> args
+				const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target,
+				evo::ArrayProxy<Expr> args,
+				bool is_no_return
 			) -> void;
 
 			auto print_function_decl_impl(const struct FuncDeclRef& func_decl) -> void;
