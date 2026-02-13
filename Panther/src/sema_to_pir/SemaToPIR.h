@@ -262,7 +262,8 @@ namespace pcit::panther{
 			auto template_intrinsic_func_call(const sema::FuncCall& func_call) -> void;
 
 
-			auto create_fatal() -> void;
+			auto create_panic(pir::Expr message) -> void;
+			auto create_panic(std::string_view message) -> void;
 
 
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;

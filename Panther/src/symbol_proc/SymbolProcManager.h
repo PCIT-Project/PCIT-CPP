@@ -14,7 +14,6 @@
 #include <PCIT_core.h>
 
 #include "./SymbolProc.h"
-#include "../sema/sema_ids.h"
 
 
 namespace pcit::panther{
@@ -3017,6 +3016,7 @@ namespace pcit::panther{
 
 			EVO_NODISCARD static consteval auto constevalLookupBuiltinSymbolKind(std::string_view str)
 			-> SymbolProc::BuiltinSymbolKind {
+				if(str == "panic"){ return SymbolProc::BuiltinSymbolKind::PANIC; }
 				if(str == "array.Iterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
 				if(str == "array.IterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
 				if(str == "arrayRef.IterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }

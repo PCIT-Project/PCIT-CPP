@@ -264,6 +264,19 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f80.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f128.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_byte.get())));
+
+		this->types.emplace_back(
+			TypeInfo(
+				this->getOrCreateArrayRef(
+					BaseType::ArrayRef(
+						TypeManager::getTypeChar(),
+						evo::SmallVector<BaseType::ArrayRef::Dimension>{BaseType::ArrayRef::Dimension::ptr()},
+						std::nullopt,
+						false
+					)
+				)
+			)
+		);
 	}
 
 	auto TypeManager::primitivesInitialized() const -> bool {

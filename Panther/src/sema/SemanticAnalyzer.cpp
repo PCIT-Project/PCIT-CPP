@@ -3629,6 +3629,11 @@ namespace pcit::panther{
 
 		}else if(func_attrs.value().is_entry){
 			this->context.entry = created_func_id;
+
+		}else if(
+			this->symbol_proc.builtin_symbol_proc_kind == SymbolProcManager::constevalLookupBuiltinSymbolKind("panic")
+		){
+			this->context.panic = created_func_id;
 		}
 
 
@@ -5100,7 +5105,7 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// check entry has valid signature
+		// check special functions have correct signature
 
 		if(this->context.entry == current_func_id){
 			if(func_type.params.empty() == false){
@@ -5146,12 +5151,79 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-
 			if(func_type.isUnsafe){
 				this->emit_error(
 					Diagnostic::Code::SEMA_INVALID_ENTRY,
 					instr.func_def,
 					"Functions with the `#entry` attribute cannot have the attribute `#unsafe`"
+				);
+				return Result::ERROR;
+			}
+
+
+		}else if(this->context.panic == current_func_id){
+			if(func_type.params.size() != 1){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function requires 1 parameter"
+				);
+				return Result::ERROR;
+			}
+
+			if(
+				func_type.params[0] !=
+				BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false)
+			){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function invaid parameter"
+				);
+				return Result::ERROR;
+			}
+
+			if(func_type.returnsVoid() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function must return `Void`"
+				);
+				return Result::ERROR;	
+			}
+
+			if(func_type.hasErrorReturn()){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function cannot have error returns"
+				);
+				return Result::ERROR;
+			}
+
+			if(func_type.isUnsafe){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function cannot be unsafe"
+				);
+				return Result::ERROR;
+			}
+
+			if(current_func.attributes.isComptime == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function must be comptime"
+				);
+				return Result::ERROR;
+			}
+
+			if(current_func.attributes.isNoReturn == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PANIC,
+					instr.func_def,
+					"Builtin panic function must have attribute `#noReturn`"
 				);
 				return Result::ERROR;
 			}
@@ -9232,15 +9304,23 @@ namespace pcit::panther{
 			}
 
 
+			switch(intrinsic_kind){
+				case IntrinsicFunc::Kind::ABORT: case IntrinsicFunc::Kind::PANIC: {
+					const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+						intrinsic_kind, std::move(sema_args)
+					);
 
-			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-				intrinsic_kind, std::move(sema_args)
-			);
+					this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+					this->get_current_scope_level().setTerminated();
+				} break;
 
-			this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+				default: {
+					const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
+						intrinsic_kind, std::move(sema_args)
+					);
 
-			if(intrinsic_kind == IntrinsicFunc::Kind::ABORT){
-				this->get_current_scope_level().setTerminated();
+					this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
+				} break;
 			}
 
 
@@ -12288,21 +12368,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_import(const Instruction::Import<LANGUAGE>& instr) -> Result {
 		TermInfo& location_str_term_info = this->get_term_info(instr.location);
 
-		const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(
-				this->context.type_manager.getOrCreateArrayRef(
-					BaseType::ArrayRef(
-						this->context.getTypeManager().getTypeChar(),
-						evo::SmallVector<BaseType::ArrayRef::Dimension>{
-							BaseType::ArrayRef::Dimension::ptr()
-						},
-						std::nullopt,
-						false
-					)
-				)
-			)
-		);
-
 		const std::string_view diagnostic_location_str = [&]() -> std::string_view {
 			if constexpr(LANGUAGE == Instruction::Language::PANTHER){
 				return "Path argument in `@import`";
@@ -12319,7 +12384,10 @@ namespace pcit::panther{
 		}();
 
 		if(this->type_check<true, true>(
-			str_type, location_str_term_info, diagnostic_location_str, instr.func_call.args[0].value
+			TypeManager::getTypeStringRef(),
+			location_str_term_info,
+			diagnostic_location_str,
+			instr.func_call.args[0].value
 		).ok == false){
 			return Result::ERROR;;
 		}
@@ -12549,23 +12617,12 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(
-				this->context.type_manager.getOrCreateArrayRef(
-					BaseType::ArrayRef(
-						this->context.getTypeManager().getTypeChar(),
-						evo::SmallVector<BaseType::ArrayRef::Dimension>{
-							BaseType::ArrayRef::Dimension::ptr()
-						},
-						std::nullopt,
-						false
-					)
-				)
-			)
-		);
 
 		if(this->type_check<true, true>(
-			str_type, message_term_info, "Message in @comptimeError", instr.func_call.args[0].value
+			TypeManager::getTypeStringRef(),
+			message_term_info,
+			"Message in @comptimeError",
+			instr.func_call.args[0].value
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -12607,23 +12664,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
-				TypeInfo(
-					this->context.type_manager.getOrCreateArrayRef(
-						BaseType::ArrayRef(
-							this->context.getTypeManager().getTypeChar(),
-							evo::SmallVector<BaseType::ArrayRef::Dimension>{
-								BaseType::ArrayRef::Dimension::ptr()
-							},
-							std::nullopt,
-							false
-						)
-					)
-				)
-			);
-
 			if(this->type_check<true, true>(
-				str_type, message_term_info, "Message in @comptimeAssert", instr.func_call.args[1].value
+				TypeManager::getTypeStringRef(),
+				message_term_info,
+				"Message in @comptimeAssert",
+				instr.func_call.args[1].value
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -22252,6 +22297,17 @@ namespace pcit::panther{
 
 		const std::optional<IntrinsicFunc::Kind> intrinsic_kind = IntrinsicFunc::lookupKind(intrinsic_name);
 		if(intrinsic_kind.has_value()){
+			if(*intrinsic_kind == IntrinsicFunc::Kind::PANIC){
+				const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+					SymbolProcManager::constevalLookupBuiltinSymbolKind("panic"),
+					this->symbol_proc_id,
+					this->context
+				);
+				if(need_to_wait){ return Result::NEED_TO_WAIT; }
+
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*this->context.panic);
+			}
+
 			const TypeInfo::ID intrinsic_type = this->context.getIntrinsicFuncInfo(*intrinsic_kind).typeID;
 
 			this->return_term_info(instr.output,
@@ -31183,23 +31239,11 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					const TypeInfo::ID str_type = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(
-							this->context.type_manager.getOrCreateArrayRef(
-								BaseType::ArrayRef(
-									this->context.getTypeManager().getTypeChar(),
-									evo::SmallVector<BaseType::ArrayRef::Dimension>{
-										BaseType::ArrayRef::Dimension::ptr()
-									},
-									std::nullopt,
-									false
-								)
-							)
-						)
-					);
-
 					if(this->type_check<true, true>(
-						str_type, message_term_info, "Message in #comptimeAssert", attribute.args[1]
+						TypeManager::getTypeStringRef(),
+						message_term_info,
+						"Message in #comptimeAssert",
+						attribute.args[1]
 					).ok == false){
 						return evo::resultError;
 					}

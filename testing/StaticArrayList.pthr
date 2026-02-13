@@ -11,7 +11,9 @@ type TypeSystemEscape = struct <{T: Type}> {
 }
 
 
-type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
+type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub 
+	#comptimeAssert(CAPACITY != 0, "`CAPACITY` cannot be 0") 
+{
 	func new = () -> (output: This) {
 		output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
 		output._size = 0;
@@ -23,6 +25,8 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 		func new = (data: [T:*])
 			#rt(std.types.isComptimeCopyable<{T}>() == false) #unsafe(std.types.isSafeCopyable<{T}>() == false)
 		-> (output: This) {
+			std.assert(data.size() <= CAPACITY, "Input array is larger than capacity");
+
 			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
 			output._size = data.size();
 
@@ -78,14 +82,34 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 	///////////////////////////////////
 	// element access
 
-	func [] = (this, index: USize) -> T* { unsafe{ return this._data[index].get(); } }
-	func [] = (this mut, index: USize) -> T*mut { unsafe{ return this._data[index].get(); } }
+	func [] = (this, index: USize) -> T* {
+		std.assert(index < this.size(), "Index is out-of-bounds");
 
-	func first = (this) -> T* { return this[0]; }
-	func first = (this mut) -> T*mut { return this[0]; }
+		unsafe{ return this._data[index].get(); }
+	}
+	func [] = (this mut, index: USize) -> T*mut {
+		std.assert(index < this.size(), "Index is out-of-bounds");
 
-	func last = (this) -> T* { return this[this.size() - 1]; }
-	func last = (this mut) -> T*mut { return this[this.size() - 1]; }
+		unsafe{ return this._data[index].get(); }
+	}
+
+	func first = (this) -> T* {
+		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		return this[0];
+	}
+	func first = (this mut) -> T*mut {
+		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		return this[0];
+	}
+
+	func last = (this) -> T* {
+		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		return this[this.size() - 1];
+	}
+	func last = (this mut) -> T*mut {
+		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		return this[this.size() - 1];
+	}
 
 	func data = (this) -> T* { return this[0]; }
 	func data = (this mut) -> T*mut { return this[0]; }
@@ -115,12 +139,17 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 
 
 	func append = (this mut) -> T*! {
+		std.assert(this.size() < CAPACITY, "Already at capacity");
+
 		this._size += 1;
 
 		unsafe{ return this._data[this._size - 1].getUninit(); }
 	}
 
+
 	func pop = (this mut) #rt(std.types.isComptimeDeletable<{T}>() == false) -> Void {
+		std.assert(this.isEmpty() == false, "Already empty");
+
 		when(std.types.isTriviallyDeletable<{T}>() == false){
 			unsafe{ delete this.last().*; }
 		}
@@ -131,6 +160,8 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 		func popExtract = (this mut) 
 			#rt(std.types.isComptimeMovable<{T}>() == false) #unsafe(std.types.isSafeMovable<{T}>() == false)
 		-> (output: T) {
+			std.assert(this.isEmpty() == false, "Already empty");
+
 			// TODO(FUTURE): remove warning about unsafe in unsafe
 			unsafe{ output = move this.last().*; }
 			this._size -= 1;
@@ -142,6 +173,8 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub {
 			#rt(std.types.isComptimeCopyable<{T}>() == false || std.types.isComptimeDeletable<{T}>() == false)
 			#unsafe(std.types.isSafeCopyable<{T}>())
 		-> (output: T) {
+			std.assert(this.isEmpty() == false, "Already empty");
+
 			output = copy this.last().*;
 			this.pop();
 			return...;

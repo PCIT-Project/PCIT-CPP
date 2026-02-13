@@ -23,6 +23,10 @@ namespace pcit::panther{
 		this->builtin_symbol_kind_lookup.reserve(size_t(SymbolProc::BuiltinSymbolKind::_LAST_) + 1);
 
 		this->builtin_symbol_kind_lookup.emplace(
+			"panic", constevalLookupBuiltinSymbolKind("panic")
+		);
+
+		this->builtin_symbol_kind_lookup.emplace(
 			"array.Iterable", constevalLookupBuiltinSymbolKind("array.Iterable")
 		);
 		this->builtin_symbol_kind_lookup.emplace(

@@ -1270,19 +1270,20 @@ namespace pcit::panther{
 
 			
 			
-			EVO_NODISCARD static auto getTypeBool()   -> TypeInfo::ID { return TypeInfo::ID(0);  }
-			EVO_NODISCARD static auto getTypeChar()   -> TypeInfo::ID { return TypeInfo::ID(1);  }
-			EVO_NODISCARD static auto getTypeUI8()    -> TypeInfo::ID { return TypeInfo::ID(2);  }
-			EVO_NODISCARD static auto getTypeUI16()   -> TypeInfo::ID { return TypeInfo::ID(3);  }
-			EVO_NODISCARD static auto getTypeUI32()   -> TypeInfo::ID { return TypeInfo::ID(4);  }
-			EVO_NODISCARD static auto getTypeUI64()   -> TypeInfo::ID { return TypeInfo::ID(5);  }
-			EVO_NODISCARD static auto getTypeUSize()  -> TypeInfo::ID { return TypeInfo::ID(6);  }
-			EVO_NODISCARD static auto getTypeTypeID() -> TypeInfo::ID { return TypeInfo::ID(7);  }
-			EVO_NODISCARD static auto getTypeRawPtr() -> TypeInfo::ID { return TypeInfo::ID(8);  }
-			EVO_NODISCARD static auto getTypeI256()   -> TypeInfo::ID { return TypeInfo::ID(9);  }
-			EVO_NODISCARD static auto getTypeF80()    -> TypeInfo::ID { return TypeInfo::ID(10); } 
-			EVO_NODISCARD static auto getTypeF128()   -> TypeInfo::ID { return TypeInfo::ID(11); } 
-			EVO_NODISCARD static auto getTypeByte()   -> TypeInfo::ID { return TypeInfo::ID(12); } 
+			EVO_NODISCARD static auto getTypeBool()      -> TypeInfo::ID { return TypeInfo::ID(0);  }
+			EVO_NODISCARD static auto getTypeChar()      -> TypeInfo::ID { return TypeInfo::ID(1);  }
+			EVO_NODISCARD static auto getTypeUI8()       -> TypeInfo::ID { return TypeInfo::ID(2);  }
+			EVO_NODISCARD static auto getTypeUI16()      -> TypeInfo::ID { return TypeInfo::ID(3);  }
+			EVO_NODISCARD static auto getTypeUI32()      -> TypeInfo::ID { return TypeInfo::ID(4);  }
+			EVO_NODISCARD static auto getTypeUI64()      -> TypeInfo::ID { return TypeInfo::ID(5);  }
+			EVO_NODISCARD static auto getTypeUSize()     -> TypeInfo::ID { return TypeInfo::ID(6);  }
+			EVO_NODISCARD static auto getTypeTypeID()    -> TypeInfo::ID { return TypeInfo::ID(7);  }
+			EVO_NODISCARD static auto getTypeRawPtr()    -> TypeInfo::ID { return TypeInfo::ID(8);  }
+			EVO_NODISCARD static auto getTypeI256()      -> TypeInfo::ID { return TypeInfo::ID(9);  }
+			EVO_NODISCARD static auto getTypeF80()       -> TypeInfo::ID { return TypeInfo::ID(10); }
+			EVO_NODISCARD static auto getTypeF128()      -> TypeInfo::ID { return TypeInfo::ID(11); }
+			EVO_NODISCARD static auto getTypeByte()      -> TypeInfo::ID { return TypeInfo::ID(12); }
+			EVO_NODISCARD static auto getTypeStringRef() -> TypeInfo::ID { return TypeInfo::ID(13); }
 
 
 			EVO_NODISCARD auto isTypeDeducer(TypeInfo::VoidableID id) const -> bool;

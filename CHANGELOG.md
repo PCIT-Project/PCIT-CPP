@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.237.0"></a>
+## v0.0.237.0
+
+### Panther
+- Added intrinsic function `@panic`
+- Added builtin `panic`
+- Fixed diagnostic for missing builtin symbols
+- Fixed diagnostic for redefinition of builtin symbol when definitions are in different files
+
+### Misc
+- Updated to [Panther-std v0.0.17.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.17.0)
+
+
+<!---------------------------------->
 <a name="v0.0.236.1"></a>
 ## v0.0.236.1
 

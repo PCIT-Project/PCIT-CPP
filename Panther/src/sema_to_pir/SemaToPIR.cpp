@@ -1690,7 +1690,7 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::UNREACHABLE: {
 				if(this->data.getConfig().useDebugUnreachables){
-					this->create_fatal();
+					this->create_panic("Attempted to execute unreachable");
 				}else{
 					this->agent.createUnreachable();
 				}
@@ -2288,7 +2288,7 @@ namespace pcit::panther{
 								this->agent.createBasicBlock(this->name("SWITCH.INVALID"));
 
 							this->agent.setTargetBasicBlock(invalid_block);
-							this->create_fatal();
+							this->create_panic("Invalid switch value");
 
 							this->agent.setTargetBasicBlock(start_basic_block); // probably not needed, but just in case
 
@@ -9715,6 +9715,10 @@ namespace pcit::panther{
 				this->agent.createBreakpoint();
 			} break;
 
+			case IntrinsicFunc::Kind::PANIC: {
+				this->create_panic(this->get_expr_pointer(func_call.args[0]));
+			} break;
+
 			case IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS: {
 				auto args = evo::SmallVector<pir::Expr>();
 				args.emplace_back(get_context_ptr());
@@ -9827,11 +9831,54 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::create_fatal() -> void {
-		// TODO(FUTURE): option to turn off breakpoints here
-		this->agent.createBreakpoint();
+	auto SemaToPIR::create_panic(pir::Expr message) -> void {
+		const Data::FuncInfo& func_info = this->data.get_func(*this->context.panic);
 
-		this->agent.createAbort();
+		this->agent.createCallNoReturn(
+			func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{message}
+		);
+	}
+
+
+	auto SemaToPIR::create_panic(std::string_view message) -> void {
+		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message));
+
+		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+			std::format("PTHR.str{}", this->data.get_string_literal_id()),
+			this->module.getGlobalString(string_value_id).type,
+			pir::Linkage::PRIVATE,
+			string_value_id,
+			true
+		);
+
+		const pir::Type array_ref_type = this->data.getArrayRefType(this->module, 1);
+
+		const pir::Expr string_ref_alloca = this->agent.createAlloca(array_ref_type, this->name(".PANIC_STRING"));
+
+		const pir::Expr data_ptr = this->agent.createCalcPtr(
+			string_ref_alloca,
+			array_ref_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0},
+			this->name(".PANIC_STRING.data_ptr")
+		);
+		this->agent.createStore(data_ptr, this->agent.createGlobalValue(string_id));
+
+		const pir::Expr size_ptr = this->agent.createCalcPtr(
+			string_ref_alloca,
+			array_ref_type,
+			evo::SmallVector<pir::CalcPtr::Index>{1},
+			this->name(".PANIC_STRING.size_ptr")
+		);
+		const uint64_t num_bits_of_ptr = this->context.getTypeManager().numBitsOfPtr();
+		this->agent.createStore(
+			size_ptr,
+			this->agent.createNumber(
+				this->module.createIntegerType(uint32_t(num_bits_of_ptr)),
+				core::GenericInt(unsigned(num_bits_of_ptr), message.size())
+			)
+		);
+
+		this->create_panic(string_ref_alloca);
 	}
 
 
@@ -9933,7 +9980,7 @@ namespace pcit::panther{
 					this->module, unsigned(init_array_ref.dimensions.size())
 				);
 
-				const uint64_t num_bytes_of_ptr = this->context.getTypeManager().numBitsOfPtr();
+				const uint64_t num_bits_of_ptr = this->context.getTypeManager().numBitsOfPtr();
 
 				auto values = evo::SmallVector<pir::GlobalVar::Value>();
 				values.reserve(init_array_ref.dimensions.size() + 1);
@@ -9942,8 +9989,8 @@ namespace pcit::panther{
 					if(dimension.is<uint64_t>()){
 						values.emplace_back(
 							this->agent.createNumber(
-								this->module.createIntegerType(uint32_t(num_bytes_of_ptr)),
-								core::GenericInt(unsigned(num_bytes_of_ptr), dimension.as<uint64_t>())
+								this->module.createIntegerType(uint32_t(num_bits_of_ptr)),
+								core::GenericInt(unsigned(num_bits_of_ptr), dimension.as<uint64_t>())
 							)
 						);
 					}else{

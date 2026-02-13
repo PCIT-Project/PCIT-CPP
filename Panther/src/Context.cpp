@@ -24,6 +24,11 @@ namespace fs = std::filesystem;
 #include <llvm_interface.h>
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 
 namespace pcit::panther{
 
@@ -530,15 +535,17 @@ namespace pcit::panther{
 				infos.emplace_back(
 					"Either include the Panther standard library or define the following builtin symbols:"
 				);
-
 				for(
 					size_t i = 0;
 					const SymbolProcManager::BuiltinSymbolInfo& builtin_symbol_info 
 					: this->symbol_proc_manager.builtin_symbols
 				){
+					EVO_DEFER([&](){ i += 1; });
 					if(builtin_symbol_info.waited_on_by.empty()){ continue; }
 
 					switch(SymbolProc::BuiltinSymbolKind(i)){
+						break; case SymbolProc::BuiltinSymbolKind::PANIC:
+							infos.emplace_back("\t> panic");
 						break; case SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE:
 							infos.emplace_back("\t> array.Iterable");
 						break; case SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT:
@@ -3441,6 +3448,20 @@ namespace pcit::panther{
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
+			.allowedInComptime = false, .allowedInInterptime = true,  .allowedInRuntime = true,
+			.allowedInCompile  = true,  .allowedInScript     = false, .allowedInBuild   = true,
+		};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::PANIC))] = IntrinsicFuncInfo{
+			.typeID = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{
+					BaseType::Function::Param(
+						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
+					)
+				},
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>{}
+			),
 			.allowedInComptime = false, .allowedInInterptime = true,  .allowedInRuntime = true,
 			.allowedInCompile  = true,  .allowedInScript     = false, .allowedInBuild   = true,
 		};

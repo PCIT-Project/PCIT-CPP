@@ -1,25 +1,14 @@
+def std = @import("std");
 
-type Struct = struct {
-	// func new = () -> (output: This) { return...; }
-
-	func delete = (this mut) -> Void {}
-
-	func test = () -> Void {}
-}
-
-
-func read_struct = (s: Struct) -> Void {
-	
-}
-
+type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
 
 func entry = () #entry -> UI8 {
-	(new Struct()).test();
+	var arr = new StaticArrayList<{UI8, 2}>();
+	arr.append().* = 1;
+	arr.append().* = 2;
+	// arr.append().* = 3;
 
-	// _ = new Struct();
-
-	// (new Struct());
-	// read_struct(new Struct());
-	
-	return 0;
+	return copy arr.last().*;
 }
+
+

@@ -529,6 +529,7 @@ namespace pcit::panther{
 			SemaBuffer sema_buffer{};
 
 			std::optional<sema::Func::ID> entry{};
+			std::optional<sema::Func::ID> panic{};
 
 			std::array<IntrinsicFuncInfo, size_t(IntrinsicFunc::Kind::_LAST_) + 1> intrinsic_infos{};
 			std::array<

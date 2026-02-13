@@ -22,6 +22,7 @@ namespace pcit::panther{
 			// operational
 			ABORT,
 			BREAKPOINT,
+			PANIC,
 
 			// build system
 			BUILD_SET_NUM_THREADS,

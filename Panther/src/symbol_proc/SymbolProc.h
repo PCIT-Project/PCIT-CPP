@@ -1505,6 +1505,7 @@ namespace pcit::panther{
 
 
 			enum class BuiltinSymbolKind{
+				PANIC,
 				ARRAY_ITERABLE,
 				ARRAY_ITERABLE_RT,
 				ARRAY_REF_ITERABLE_REF,

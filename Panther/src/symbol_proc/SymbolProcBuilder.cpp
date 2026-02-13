@@ -4278,7 +4278,10 @@ namespace pcit::panther{
 						"This builtin symbol kind was already defined",
 						Diagnostic::Info(
 							"First defined here:",
-							Diagnostic::Location::get(previous_defined_symbol_proc.ast_node, this->source)
+							Diagnostic::Location::get(
+								previous_defined_symbol_proc.getASTNode(),
+								this->context.getSourceManager()[previous_defined_symbol_proc.getSourceID()]
+							)
 						)
 					);
 					return evo::resultError;
@@ -4329,7 +4332,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
 						attribute.args[0],
-						"Attribute #builtin requires a string argument"
+						"Attribute #builtin requires a string literal argument"
 					);
 					return evo::resultError;
 				}
@@ -4341,7 +4344,7 @@ namespace pcit::panther{
 					this->emit_error(
 						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
 						attribute.args[0],
-						"Attribute #builtin requires a string argument"
+						"Attribute #builtin requires a string literal argument"
 					);
 					return evo::resultError;
 				}
@@ -4364,12 +4367,12 @@ namespace pcit::panther{
 				current_symbol_proc.symbol_proc.is_always_priority = true;
 				current_symbol_proc.symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
 
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					attribute.args[0],
-					"This builtin is currently unimplemented"
-				);
-				return evo::resultError;
+				// this->emit_error(
+				// 	Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				// 	attribute.args[0],
+				// 	"This builtin is currently unimplemented"
+				// );
+				// return evo::resultError;
 			}
 		}
 
