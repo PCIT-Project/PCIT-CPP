@@ -153,7 +153,7 @@ namespace pcit::pir{
 			// global values
 
 			EVO_NODISCARD auto createGlobalString(std::string&& string) -> GlobalVar::String::ID {
-				const Type str_type = this->getOrCreateArrayType(this->createIntegerType(8), string.size() + 1);
+				const Type str_type = this->getOrCreateArrayType(this->createIntegerType(8), string.size());
 				return this->global_strings.emplace_back(std::move(string), str_type);
 			}
 

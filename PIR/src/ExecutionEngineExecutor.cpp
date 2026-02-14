@@ -1973,10 +1973,7 @@ namespace pcit::pir{
 
 				std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
 
-				const size_t type_size = this->engine.module.getSize(global_var.type);
-				return &stack_frame.registers.emplace(
-					expr, core::GenericValue::fromData(evo::ArrayProxy<std::byte>(global_ptr, type_size))
-				).first->second;
+				return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(global_ptr)).first->second;
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {

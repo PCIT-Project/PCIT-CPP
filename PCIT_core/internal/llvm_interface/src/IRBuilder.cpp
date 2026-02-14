@@ -70,8 +70,8 @@ namespace pcit::llvmint{
 	//////////////////////////////////////////////////////////////////////
 	// control flow
 
-	auto IRBuilder::createBasicBlock(const Function& func, evo::CStrProxy name) -> BasicBlock {
-		return BasicBlock(llvm::BasicBlock::Create(this->get_native_context(), name.c_str(), func.native()));
+	auto IRBuilder::createBasicBlock(const Function& func, std::string_view name) -> BasicBlock {
+		return BasicBlock(llvm::BasicBlock::Create(this->get_native_context(), name, func.native()));
 	}
 
 	auto IRBuilder::createRet() -> void {
@@ -98,9 +98,9 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, evo::CStrProxy name) -> Value {
+	auto IRBuilder::createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, std::string_view name) -> Value {
 		llvm::PHINode* created_phi_node =
-			this->builder->CreatePHI(type.native(), unsigned(incoming.size()), name.c_str());
+			this->builder->CreatePHI(type.native(), unsigned(incoming.size()), name);
 
 		for(const Incoming& in : incoming){
 			created_phi_node->addIncoming(in.value.native(), in.block.native());
@@ -120,20 +120,20 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name) -> CallInst {
-		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name.c_str());
+	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, std::string_view name) -> CallInst {
+		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name);
 	}
 
 	auto IRBuilder::createCall(
-		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name
+		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, std::string_view name
 	) -> CallInst {
 		return this->builder->CreateCall(
-			type.native(), value.native(), createArrayRef<llvm::Value>(params), name.c_str()
+			type.native(), value.native(), createArrayRef<llvm::Value>(params), name
 		);
 	}
 
 	auto IRBuilder::createIntrinsicCall(
-		IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name
+		IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, std::string_view name
 	)-> CallInst {
 
 		// llvm/IR/IntrinsicEnums.inc
@@ -172,7 +172,7 @@ namespace pcit::llvmint{
 		}();
 
 		return this->builder->CreateIntrinsic(
-			return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name.c_str()
+			return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name
 		);
 	};
 
@@ -189,12 +189,12 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::createAlloca(const Type& type, evo::CStrProxy name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name.c_str()));
+	auto IRBuilder::createAlloca(const Type& type, std::string_view name) -> Alloca {
+		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name));
 	}
 
-	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name.c_str()));
+	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, std::string_view name) -> Alloca {
+		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name));
 	}
 	
 
@@ -203,21 +203,21 @@ namespace pcit::llvmint{
 	// memory
 
 	auto IRBuilder::createLoad(
-		const Value& value, const Type& type, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+		const Value& value, const Type& type, bool is_volatile, AtomicOrdering atomic_ordering, std::string_view name
 	) -> LoadInst {
-		llvm::LoadInst* load_inst = this->builder->CreateLoad(type.native(), value.native(), is_volatile, name.c_str());
+		llvm::LoadInst* load_inst = this->builder->CreateLoad(type.native(), value.native(), is_volatile, name);
 		load_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
 		return LoadInst(load_inst);
 	}
 
 	auto IRBuilder::createLoad(
-		const Alloca& alloca, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+		const Alloca& alloca, bool is_volatile, AtomicOrdering atomic_ordering, std::string_view name
 	) -> LoadInst {
 		return this->createLoad(alloca.asValue(), alloca.getAllocatedType(), is_volatile, atomic_ordering, name);
 	}
 
 	auto IRBuilder::createLoad(
-		const GlobalVariable& global_var, bool is_volatile, AtomicOrdering atomic_ordering, evo::CStrProxy name
+		const GlobalVariable& global_var, bool is_volatile, AtomicOrdering atomic_ordering, std::string_view name
 	) -> LoadInst {
 		return this->createLoad(global_var.asValue(), global_var.getType(), is_volatile, atomic_ordering, name);
 	}
@@ -243,67 +243,67 @@ namespace pcit::llvmint{
 	// type conversion
 
 	// doesn't use NUW or NSW as for some reason it triggers an assert inside of LLVM
-	auto IRBuilder::createTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name)
+	auto IRBuilder::createTrunc(const Value& value, const Type& dst_type, std::string_view name)
 	-> Value {
-		return Value(this->builder->CreateTrunc(value.native(), dst_type.native(), name.c_str()));
+		return Value(this->builder->CreateTrunc(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createFTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name)
+	auto IRBuilder::createFTrunc(const Value& value, const Type& dst_type, std::string_view name)
 	-> Value {
-		return Value(this->builder->CreateFPTrunc(value.native(), dst_type.native(), name.c_str()));
+		return Value(this->builder->CreateFPTrunc(value.native(), dst_type.native(), name));
 	}
 	
-	auto IRBuilder::createZExt(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateZExt(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createZExt(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateZExt(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateSExt(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createSExt(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateSExt(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createFExt(const Value& value, const Type& dst_type, evo::CStrProxy name)
+	auto IRBuilder::createFExt(const Value& value, const Type& dst_type, std::string_view name)
 	-> Value {
-		return Value(this->builder->CreateFPExt(value.native(), dst_type.native(), name.c_str()));
+		return Value(this->builder->CreateFPExt(value.native(), dst_type.native(), name));
 	}
 
 
-	auto IRBuilder::createIToF(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateSIToFP(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createIToF(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateSIToFP(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createUIToF(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateUIToFP(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createUIToF(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateUIToFP(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createFToI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFPToSI(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createFToI(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateFPToSI(value.native(), dst_type.native(), name));
 	}
-	auto IRBuilder::createFToUI(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFPToUI(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createFToUI(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateFPToUI(value.native(), dst_type.native(), name));
 	}
 	
 	
-	auto IRBuilder::createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateBitOrPointerCast(value.native(), dst_type.native(), name.c_str()));
+	auto IRBuilder::createBitCast(const Value& value, const Type& dst_type, std::string_view name) -> Value {
+		return Value(this->builder->CreateBitOrPointerCast(value.native(), dst_type.native(), name));
 	}
 
 	//////////////////////////////////////////////////////////////////////
 	// element operations
 
-	auto IRBuilder::createExtractValue(const Value& value, evo::ArrayProxy<unsigned> indices, evo::CStrProxy name)
+	auto IRBuilder::createExtractValue(const Value& value, evo::ArrayProxy<unsigned> indices, std::string_view name)
 	-> Value {
 		return Value(
 			this->builder->CreateExtractValue(
-				value.native(), llvm::ArrayRef(indices.data(), indices.size()), name.c_str()
+				value.native(), llvm::ArrayRef(indices.data(), indices.size()), name
 			)
 		);
 	}
 
 
 	auto IRBuilder::createGetElementPtr(
-		const Type& type, const Value& value, evo::ArrayProxy<Value> indices, evo::CStrProxy name
+		const Type& type, const Value& value, evo::ArrayProxy<Value> indices, std::string_view name
 	) -> Value {
 		return Value(
 			this->builder->CreateGEP(
 				type.native(),
 				value.native(),
 				createArrayRef<llvm::Value>(indices),
-				name.c_str(),
+				name,
 				llvm::GEPNoWrapFlags::all()
 			)
 		);
@@ -314,136 +314,136 @@ namespace pcit::llvmint{
 	//////////////////////////////////////////////////////////////////////
 	// operators
 
-	auto IRBuilder::createAdd(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateAdd(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	auto IRBuilder::createAdd(const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name) -> Value {
+		return Value(this->builder->CreateAdd(lhs.native(), rhs.native(), name, nuw, nsw));
 	}
 
-	auto IRBuilder::createFAdd(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFAdd(lhs.native(), rhs.native(), name.c_str()));
-	}
-
-
-	auto IRBuilder::createSub(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateSub(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
-	}
-
-	auto IRBuilder::createFSub(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFSub(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createFAdd(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFAdd(lhs.native(), rhs.native(), name));
 	}
 
 
-	auto IRBuilder::createMul(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateMul(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	auto IRBuilder::createSub(const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name) -> Value {
+		return Value(this->builder->CreateSub(lhs.native(), rhs.native(), name, nuw, nsw));
 	}
 
-	auto IRBuilder::createFMul(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFMul(lhs.native(), rhs.native(), name.c_str()));
-	}
-
-
-	auto IRBuilder::createUDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateUDiv(lhs.native(), rhs.native(), name.c_str(), exact));
-	}
-
-	auto IRBuilder::createSDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateSDiv(lhs.native(), rhs.native(), name.c_str(), exact));
-	}
-
-	auto IRBuilder::createFDiv(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFDiv(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createFSub(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFSub(lhs.native(), rhs.native(), name));
 	}
 
 
-	auto IRBuilder::createURem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateURem(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createMul(const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name) -> Value {
+		return Value(this->builder->CreateMul(lhs.native(), rhs.native(), name, nuw, nsw));
 	}
 
-	auto IRBuilder::createSRem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateSRem(lhs.native(), rhs.native(), name.c_str()));
-	}
-
-	auto IRBuilder::createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFRem(lhs.native(), rhs.native(), name.c_str()));
-	}
-
-	auto IRBuilder::createFNeg(const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFNeg(rhs.native(), name.c_str()));
+	auto IRBuilder::createFMul(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFMul(lhs.native(), rhs.native(), name));
 	}
 
 
-
-	auto IRBuilder::createICmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpEQ(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpNE(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createUDiv(const Value& lhs, const Value& rhs, bool exact, std::string_view name) -> Value {
+		return Value(this->builder->CreateUDiv(lhs.native(), rhs.native(), name, exact));
 	}
 
-	auto IRBuilder::createICmpUGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpUGT(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpUGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpUGE(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpULT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpULT(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpULE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpULE(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createSDiv(const Value& lhs, const Value& rhs, bool exact, std::string_view name) -> Value {
+		return Value(this->builder->CreateSDiv(lhs.native(), rhs.native(), name, exact));
 	}
 
-	auto IRBuilder::createICmpSGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpSGT(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpSGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpSGE(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpSLT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpSLT(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createICmpSLE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateICmpSLE(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createFDiv(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFDiv(lhs.native(), rhs.native(), name));
 	}
 
 
-	auto IRBuilder::createFCmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpOEQ(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createURem(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateURem(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createFCmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpONE(lhs.native(), rhs.native(), name.c_str()));
+
+	auto IRBuilder::createSRem(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateSRem(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createFCmpGT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpOGT(lhs.native(), rhs.native(), name.c_str()));
+
+	auto IRBuilder::createFRem(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFRem(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createFCmpGE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpOGE(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createFCmpLT(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpOLT(lhs.native(), rhs.native(), name.c_str()));
-	}
-	auto IRBuilder::createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateFCmpOLE(lhs.native(), rhs.native(), name.c_str()));
+
+	auto IRBuilder::createFNeg(const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFNeg(rhs.native(), name));
 	}
 
 
 
-	auto IRBuilder::createAnd(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateAnd(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createICmpEQ(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpEQ(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createOr(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateOr(lhs.native(), rhs.native(), name.c_str()));
+	auto IRBuilder::createICmpNE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpNE(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createXor(const Value& lhs, const Value& rhs, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateXor(lhs.native(), rhs.native(), name.c_str()));
+
+	auto IRBuilder::createICmpUGT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpUGT(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createSHL(const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateShl(lhs.native(), rhs.native(), name.c_str(), nuw, nsw));
+	auto IRBuilder::createICmpUGE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpUGE(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createASHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateAShr(lhs.native(), rhs.native(), name.c_str(), exact));
+	auto IRBuilder::createICmpULT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpULT(lhs.native(), rhs.native(), name));
 	}
-	auto IRBuilder::createLSHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name) -> Value {
-		return Value(this->builder->CreateLShr(lhs.native(), rhs.native(), name.c_str(), exact));
+	auto IRBuilder::createICmpULE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpULE(lhs.native(), rhs.native(), name));
+	}
+
+	auto IRBuilder::createICmpSGT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpSGT(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createICmpSGE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpSGE(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createICmpSLT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpSLT(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createICmpSLE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateICmpSLE(lhs.native(), rhs.native(), name));
+	}
+
+
+	auto IRBuilder::createFCmpEQ(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpOEQ(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createFCmpNE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpONE(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createFCmpGT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpOGT(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createFCmpGE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpOGE(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createFCmpLT(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpOLT(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createFCmpLE(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateFCmpOLE(lhs.native(), rhs.native(), name));
+	}
+
+
+
+	auto IRBuilder::createAnd(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateAnd(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createOr(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateOr(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createXor(const Value& lhs, const Value& rhs, std::string_view name) -> Value {
+		return Value(this->builder->CreateXor(lhs.native(), rhs.native(), name));
+	}
+	auto IRBuilder::createSHL(const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name) -> Value {
+		return Value(this->builder->CreateShl(lhs.native(), rhs.native(), name, nuw, nsw));
+	}
+	auto IRBuilder::createASHR(const Value& lhs, const Value& rhs, bool exact, std::string_view name) -> Value {
+		return Value(this->builder->CreateAShr(lhs.native(), rhs.native(), name, exact));
+	}
+	auto IRBuilder::createLSHR(const Value& lhs, const Value& rhs, bool exact, std::string_view name) -> Value {
+		return Value(this->builder->CreateLShr(lhs.native(), rhs.native(), name, exact));
 	}
 
 
@@ -457,7 +457,7 @@ namespace pcit::llvmint{
 		bool isWeak,
 		AtomicOrdering success_ordering,
 		AtomicOrdering failure_ordering,
-		evo::CStrProxy name
+		std::string_view name
 	) -> Value {
 		llvm::AtomicCmpXchgInst* const instr = this->builder->CreateAtomicCmpXchg(
 			target.native(),
@@ -468,7 +468,7 @@ namespace pcit::llvmint{
 			static_cast<llvm::AtomicOrdering>(failure_ordering)
 		);
 		instr->setWeak(isWeak);
-		instr->setName(llvm::Twine(name.c_str()));
+		instr->setName(llvm::Twine(name));
 
 		return Value(instr);
 	}
@@ -476,7 +476,7 @@ namespace pcit::llvmint{
 
 
 	auto IRBuilder::createAtomicRMW(
-		AtomicRMWOp op, const Value& target, const Value& value, AtomicOrdering ordering, evo::CStrProxy name
+		AtomicRMWOp op, const Value& target, const Value& value, AtomicOrdering ordering, std::string_view name
 	) -> Value {
 		llvm::AtomicRMWInst* const instr = this->builder->CreateAtomicRMW(
 			static_cast<llvm::AtomicRMWInst::BinOp>(op),
@@ -485,7 +485,7 @@ namespace pcit::llvmint{
 			llvm::MaybeAlign(),
 			static_cast<llvm::AtomicOrdering>(ordering)
 		);
-		instr->setName(llvm::Twine(name.c_str()));
+		instr->setName(llvm::Twine(name));
 
 		return Value(instr);
 	}
@@ -650,12 +650,12 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::getValueGlobalStr(std::string_view str, evo::CStrProxy name) const -> Constant {
-		return Constant(this->builder->CreateGlobalString(str, name.c_str()));
+	auto IRBuilder::getValueGlobalStr(std::string_view str, std::string_view name) const -> Constant {
+		return Constant(this->builder->CreateGlobalString(str, name));
 	}
 
 	auto IRBuilder::getValueGlobalStr(const std::string& value) const -> Constant {
-		return llvm::ConstantDataArray::getString(this->builder->getContext(), value);
+		return llvm::ConstantDataArray::getString(this->builder->getContext(), value, false);
 	}
 
 	auto IRBuilder::getValueGlobalUndefValue(const Type& type) const -> Constant {
@@ -701,9 +701,9 @@ namespace pcit::llvmint{
 		return StructType(llvm::StructType::get(this->get_native_context(), createArrayRef<llvm::Type>(members)));
 	}
 
-	auto IRBuilder::createStructType(evo::ArrayProxy<Type> members, bool is_packed, evo::CStrProxy name) const
+	auto IRBuilder::createStructType(evo::ArrayProxy<Type> members, bool is_packed, std::string_view name) const
 	-> StructType {
-		return StructType(llvm::StructType::create(createArrayRef<llvm::Type>(members), name.c_str(), is_packed));
+		return StructType(llvm::StructType::create(createArrayRef<llvm::Type>(members), name, is_packed));
 	}
 
 

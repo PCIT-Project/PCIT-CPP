@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.239.0"></a>
+## v0.0.239.0
+
+### Panther
+- Fixed lowering of string type globals that aren't explicitly the value of a string literal being lowered as an array instead
+
+### PIR
+- Fixed strings always having null-terminator being appended
+- Fixed accessing globals in ExecutionEngine
+
+### PCIT_core
+- Fixed out-of-bounds write in `core::GenericValue(std::string_view)` and `core::GenericValue::fromData()`
+
+
+<!---------------------------------->
 <a name="v0.0.238.0"></a>
 ## v0.0.238.0
 

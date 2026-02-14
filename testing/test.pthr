@@ -6,11 +6,14 @@ type StaticString = alias @import("StaticString.pthr").StaticString;
 const global_str: [Char:11;'\0'] = get_string();
 
 
-func get_string = () -> [Char:11;'\0'] {
-	var str = new StaticString<{12}>();
 
 
+func get_string = () -> (output: [Char:11;'\0']) {
+	// var str = new StaticString<{12}>();
 
-	return copy "Hello World".*;
+	output = new [Char:11;'\0']();
+
+	std.mem.copyBuffer(output as [Char:*mut], "Hello World");
+
+	return...;
 }
-

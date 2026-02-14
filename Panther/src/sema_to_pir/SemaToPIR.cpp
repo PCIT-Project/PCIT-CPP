@@ -2611,7 +2611,7 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
 				const pir::GlobalVar::String::ID string_value_id = 
-					this->module.createGlobalString(evo::copy(string_value.value));
+					this->module.createGlobalString(string_value.value + '\0');
 
 				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
 					std::format("PTHR.str{}", this->data.get_string_literal_id()),
@@ -9841,7 +9841,7 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::create_panic(std::string_view message) -> void {
-		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message));
+		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message) + '\0');
 
 		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
 			std::format("PTHR.str{}", this->data.get_string_literal_id()),
@@ -9918,23 +9918,29 @@ namespace pcit::panther{
 				const sema::StringValue& string_value =
 					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
-				const pir::GlobalVar::String::ID string_value_id = 
-					this->module.createGlobalString(evo::copy(string_value.value));
-
-				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
-					std::format("PTHR.str{}", this->data.get_string_literal_id()),
-					this->module.getGlobalString(string_value_id).type,
-					pir::Linkage::PRIVATE,
-					string_value_id,
-					true
-				);
-
-				return this->agent.createGlobalValue(string_id);
+				return this->module.createGlobalString(string_value.value + '\0');
 			} break;
 
 			case sema::Expr::Kind::AGGREGATE_VALUE: {
 				const sema::AggregateValue& aggregate_value = 
 					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
+
+				if(aggregate_value.typeID.kind() == BaseType::Kind::ARRAY){
+					const BaseType::Array& aggregate_array_type =
+						this->context.getTypeManager().getArray(aggregate_value.typeID.arrayID());
+
+					if(aggregate_array_type.elementTypeID == TypeManager::getTypeChar()){
+						auto string_value = std::string();
+						string_value.reserve(aggregate_value.values.size());
+						for(const sema::Expr value : aggregate_value.values){
+							string_value += this->context.getSemaBuffer().getCharValue(value.charValueID()).value;
+						}
+
+						return this->module.createGlobalString(std::move(string_value));
+					}
+				}
+
+
 
 				auto values = evo::SmallVector<pir::GlobalVar::Value>();
 				values.reserve(aggregate_value.values.size());

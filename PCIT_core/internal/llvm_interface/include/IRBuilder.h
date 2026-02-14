@@ -69,7 +69,7 @@ namespace pcit::llvmint{
 			///////////////////////////////////
 			// control flow
 
-			auto createBasicBlock(const Function& func, evo::CStrProxy name = '\0') -> BasicBlock;
+			auto createBasicBlock(const Function& func, std::string_view name = {}) -> BasicBlock;
 
 			auto createRet() -> void;
 			auto createRet(const Value& value) -> void;
@@ -85,7 +85,7 @@ namespace pcit::llvmint{
 				Value value;
 				BasicBlock block;
 			};
-			auto createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, evo::CStrProxy name = '\0') -> Value;
+			auto createPhi(const Type& type, evo::ArrayProxy<Incoming> incoming, std::string_view name = {}) -> Value;
 
 			struct Case{
 				ConstantInt value;
@@ -94,13 +94,13 @@ namespace pcit::llvmint{
 			auto createSwitch(const Value& cond, BasicBlock default_block, evo::ArrayProxy<Case> cases) -> void;
 
 
-			auto createCall(const Function& func, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0') 
+			auto createCall(const Function& func, evo::ArrayProxy<Value> params, std::string_view name = {}) 
 				-> CallInst;
 			auto createCall(
-				const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
+				const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, std::string_view name = {}
 			)  -> CallInst;
 			auto createIntrinsicCall(
-				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, evo::CStrProxy name = '\0'
+				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, std::string_view name = {}
 			) -> CallInst;
 
 			auto createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile) -> void;
@@ -110,9 +110,9 @@ namespace pcit::llvmint{
 			///////////////////////////////////
 			// memory
 
-			EVO_NODISCARD auto createAlloca(const Type& type, evo::CStrProxy name = '\0') -> Alloca;
+			EVO_NODISCARD auto createAlloca(const Type& type, std::string_view name = {}) -> Alloca;
 
-			EVO_NODISCARD auto createAlloca(const Type& type, const Value& array_length, evo::CStrProxy name = '\0') 
+			EVO_NODISCARD auto createAlloca(const Type& type, const Value& array_length, std::string_view name = {}) 
 			-> Alloca;
 			
 			EVO_NODISCARD auto createLoad(
@@ -120,21 +120,21 @@ namespace pcit::llvmint{
 				const Type& type,
 				bool is_volatile,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
-				evo::CStrProxy name = '\0'
+				std::string_view name = {}
 			) -> LoadInst;
 
 			EVO_NODISCARD auto createLoad(
 				const Alloca& alloca,
 				bool is_volatile,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
-				evo::CStrProxy name = '\0'
+				std::string_view name = {}
 			) -> LoadInst;
 
 			EVO_NODISCARD auto createLoad(
 				const GlobalVariable& global_var,
 				bool is_volatile,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic,
-				evo::CStrProxy name = '\0'
+				std::string_view name = {}
 			) -> LoadInst;
 
 
@@ -156,28 +156,28 @@ namespace pcit::llvmint{
 			///////////////////////////////////
 			// type conversion
 
-			EVO_NODISCARD auto createTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createTrunc(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createFTrunc(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
-				-> Value;
-
-			EVO_NODISCARD auto createZExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
-				-> Value;
-			EVO_NODISCARD auto createSExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
-				-> Value;
-			EVO_NODISCARD auto createFExt(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFTrunc(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
 
-			EVO_NODISCARD auto createIToF(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createZExt(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createUIToF(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createSExt(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createFToI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
-				-> Value;
-			EVO_NODISCARD auto createFToUI(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createFExt(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
 
-			EVO_NODISCARD auto createBitCast(const Value& value, const Type& dst_type, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createIToF(const Value& value, const Type& dst_type, std::string_view name = {})
+				-> Value;
+			EVO_NODISCARD auto createUIToF(const Value& value, const Type& dst_type, std::string_view name = {})
+				-> Value;
+			EVO_NODISCARD auto createFToI(const Value& value, const Type& dst_type, std::string_view name = {})
+				-> Value;
+			EVO_NODISCARD auto createFToUI(const Value& value, const Type& dst_type, std::string_view name = {})
+				-> Value;
+
+			EVO_NODISCARD auto createBitCast(const Value& value, const Type& dst_type, std::string_view name = {})
 				-> Value;
 
 			
@@ -185,12 +185,12 @@ namespace pcit::llvmint{
 			// element operations
 
 			EVO_NODISCARD auto createExtractValue(
-				const Value& value, evo::ArrayProxy<unsigned> indices, evo::CStrProxy name = '\0'
+				const Value& value, evo::ArrayProxy<unsigned> indices, std::string_view name = {}
 			) -> Value;
 
 
 			EVO_NODISCARD auto createGetElementPtr(
-				const Type& type, const Value& value, evo::ArrayProxy<Value> indices, evo::CStrProxy name = '\0'
+				const Type& type, const Value& value, evo::ArrayProxy<Value> indices, std::string_view name = {}
 			) -> Value;
 
 
@@ -198,67 +198,67 @@ namespace pcit::llvmint{
 			// operators
 
 			EVO_NODISCARD auto createAdd(
-				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name = {}
 			) -> Value;
-			EVO_NODISCARD auto createFAdd(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFAdd(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
 			EVO_NODISCARD auto createSub(
-				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name = {}
 			) -> Value;
-			EVO_NODISCARD auto createFSub(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFSub(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
 			EVO_NODISCARD auto createMul(
-				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name = {}
 			) -> Value;
-			EVO_NODISCARD auto createFMul(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFMul(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
-			EVO_NODISCARD auto createUDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createUDiv(const Value& lhs, const Value& rhs, bool exact, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createSDiv(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createSDiv(const Value& lhs, const Value& rhs, bool exact, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createFDiv(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFDiv(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
-			EVO_NODISCARD auto createURem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createSRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createFRem(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createURem(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createSRem(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createFRem(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
-			EVO_NODISCARD auto createFNeg(const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFNeg(const Value& rhs, std::string_view name = {}) -> Value;
 
 
 
-			EVO_NODISCARD auto createICmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpEQ(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpNE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
-			EVO_NODISCARD auto createICmpUGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpUGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpULT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpULE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpUGT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpUGE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpULT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpULE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 			
-			EVO_NODISCARD auto createICmpSGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpSGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpSLT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createICmpSLE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createICmpSGT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpSGE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpSLT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createICmpSLE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
 
-			EVO_NODISCARD auto createFCmpEQ(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createFCmpNE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpEQ(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createFCmpNE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
-			EVO_NODISCARD auto createFCmpGT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createFCmpGE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createFCmpLT(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createFCmpLE(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createFCmpGT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createFCmpGE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createFCmpLT(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createFCmpLE(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 
 			
 
-			EVO_NODISCARD auto createAnd(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createOr(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
-			EVO_NODISCARD auto createXor(const Value& lhs, const Value& rhs, evo::CStrProxy name = '\0') -> Value;
+			EVO_NODISCARD auto createAnd(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createOr(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
+			EVO_NODISCARD auto createXor(const Value& lhs, const Value& rhs, std::string_view name = {}) -> Value;
 			EVO_NODISCARD auto createSHL(
-				const Value& lhs, const Value& rhs, bool nuw, bool nsw, evo::CStrProxy name = '\0'
+				const Value& lhs, const Value& rhs, bool nuw, bool nsw, std::string_view name = {}
 			) -> Value;
-			EVO_NODISCARD auto createASHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createASHR(const Value& lhs, const Value& rhs, bool exact, std::string_view name = {})
 				-> Value;
-			EVO_NODISCARD auto createLSHR(const Value& lhs, const Value& rhs, bool exact, evo::CStrProxy name = '\0')
+			EVO_NODISCARD auto createLSHR(const Value& lhs, const Value& rhs, bool exact, std::string_view name = {})
 				-> Value;
 
 
@@ -272,7 +272,7 @@ namespace pcit::llvmint{
 				bool isWeak = false,
 				AtomicOrdering success_ordering = AtomicOrdering::SequentiallyConsistent,
 				AtomicOrdering failure_ordering = AtomicOrdering::SequentiallyConsistent,
-				evo::CStrProxy name = '\0'
+				std::string_view name = {}
 			) -> Value;
 
 
@@ -281,7 +281,7 @@ namespace pcit::llvmint{
 				const Value& target,
 				const Value& value,
 				AtomicOrdering ordering,
-				evo::CStrProxy name = '\0'
+				std::string_view name = {}
 			) -> Value;
 
 
@@ -341,7 +341,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getInfinityF128() const -> Constant;
 
 
-			EVO_NODISCARD auto getValueGlobalStr(std::string_view str, evo::CStrProxy name = '\0') const -> Constant;
+			EVO_NODISCARD auto getValueGlobalStr(std::string_view str, std::string_view name = {}) const -> Constant;
 
 			EVO_NODISCARD auto getValueGlobalStr(const std::string& value) const -> Constant;
 			EVO_NODISCARD auto getValueGlobalUndefValue(const Type& type) const -> Constant;
@@ -363,7 +363,7 @@ namespace pcit::llvmint{
 
 			EVO_NODISCARD auto getStructType(evo::ArrayProxy<Type> members) -> StructType;
 			EVO_NODISCARD auto createStructType(
-				evo::ArrayProxy<Type> members, bool is_packed, evo::CStrProxy name = '\0'
+				evo::ArrayProxy<Type> members, bool is_packed, std::string_view name = {}
 			) const -> StructType;
 			EVO_NODISCARD auto createStructType(evo::ArrayProxy<Type>, const char*) = delete;
 

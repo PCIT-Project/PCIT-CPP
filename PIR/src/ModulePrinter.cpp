@@ -350,7 +350,6 @@ namespace pcit::pir{
 					}
 				}
 
-				this->printer.printMagenta("\\00");
 				this->printer.printYellow("\"");
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){

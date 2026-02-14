@@ -40,10 +40,6 @@ namespace pcit::core{
 
 				this->data.buffer = (uint64_t*)std::malloc(alloc_size);
 				std::memcpy(this->data.buffer, val.data(), this->num_bytes);
-
-				for(size_t i = 0; i < alloc_size - this->num_bytes; i+=1){
-					this->data.buffer[this->num_bytes + i] = 0;
-				}
 			}
 		}
 
