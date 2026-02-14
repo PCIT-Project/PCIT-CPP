@@ -1,14 +1,16 @@
 def std = @import("std");
 
-type StaticArrayList = alias @import("StaticArrayList.pthr").StaticArrayList;
+type StaticString = alias @import("StaticString.pthr").StaticString;
 
-func entry = () #entry -> UI8 {
-	var arr = new StaticArrayList<{UI8, 2}>();
-	arr.append().* = 1;
-	arr.append().* = 2;
-	// arr.append().* = 3;
 
-	return copy arr.last().*;
+const global_str: [Char:11;'\0'] = get_string();
+
+
+func get_string = () -> [Char:11;'\0'] {
+	var str = new StaticString<{12}>();
+
+
+
+	return copy "Hello World".*;
 }
-
 

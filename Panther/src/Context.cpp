@@ -1723,14 +1723,27 @@ namespace pcit::panther{
 		std::optional<Source::ID> lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
 		if(lookup_source_id.has_value()){ return lookup_source_id.value(); }
 
-		const bool current_dynamic_file_load_contains = [&](){
+		const bool is_in_current_dynamic_file_load = [&](){
 			const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
-			return this->current_dynamic_file_load.contains(file_path);
+
+			const bool contains = this->current_dynamic_file_load.contains(file_path);
+			if(contains == false){ this->current_dynamic_file_load.emplace(file_path); }
+
+			return contains;
 		}();
 			
-		if(current_dynamic_file_load_contains){
+		if(is_in_current_dynamic_file_load){
 			// TODO(PERF): better waiting
 			while(lookup_source_id.has_value() == false){
+				{
+					const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
+					const auto failed_find = this->current_dynamic_file_load_failed.find(file_path);
+
+					if(failed_find != this->current_dynamic_file_load_failed.end()){
+						return evo::Unexpected(failed_find->second);
+					}
+				}
+
 				std::this_thread::yield();
 				lookup_source_id = this->source_manager.lookupSourceID(file_path.string());
 			}
@@ -1744,54 +1757,72 @@ namespace pcit::panther{
 			return lookup_source_id.value();
 		}
 
-		this->current_dynamic_file_load.emplace(file_path);
 
-		if(evo::fs::exists(file_path.string())){
-			if(this->_config.mode == Config::Mode::COMPILE){
-				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
-			}
 
-			const evo::Result<Source::ID> dep_analysis_res = this->build_symbol_procs_impl(
-				std::move(file_path), calling_source.getPackageID()
-			);
-
+		if(evo::fs::exists(file_path.string()) == false){
 			{
-				const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
-				this->current_dynamic_file_load.erase(file_path);
+				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
+				this->current_dynamic_file_load_failed.emplace(file_path, LookupSourceIDError::DOESNT_EXIST);
 			}
 
-			if(dep_analysis_res.isSuccess()){
-				Source& source = this->source_manager[dep_analysis_res.value()];
-				source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
-				this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
-					.pushLevel(this->sema_buffer.scope_manager.createLevel());
-
-				this->work_manager.visit([&](auto& work_manager_inst) -> void {
-					if constexpr(std::is_same<std::decay_t<decltype(work_manager_inst)>, std::monostate>()){
-						evo::debugFatalBreak("Should never be importing module if no work manager is running");
-
-					}else{
-						for(const auto& global_symbol_proc : source.global_symbol_procs){
-							const SymbolProc::ID symbol_proc_id = global_symbol_proc.second;
-							SymbolProc& symbol_proc = this->symbol_proc_manager.getSymbolProc(symbol_proc_id);
-							if(symbol_proc.isWaiting() == false){
-								symbol_proc.setStatusInQueue();
-								work_manager_inst.addTask(symbol_proc_id);
-							}
-						}
-					}
-				});
-
-				source.is_ready_for_sema = true;
-
-				return dep_analysis_res.value();
-
-			}else{
-				return evo::Unexpected(LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED);
-			}
+			return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
 		}
 
-		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
+
+		if(this->_config.mode == Config::Mode::COMPILE){
+			{
+				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
+				this->current_dynamic_file_load_failed.emplace(file_path, LookupSourceIDError::NOT_ONE_OF_SOURCES);
+			}
+
+			return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
+		}
+
+		const evo::Result<Source::ID> dep_analysis_res = this->build_symbol_procs_impl(
+			std::move(file_path), calling_source.getPackageID()
+		);
+
+		{
+			const auto lock = std::scoped_lock(this->current_dynamic_file_load_lock);
+			this->current_dynamic_file_load.erase(file_path);
+		}
+
+		if(dep_analysis_res.isError()){
+			{
+				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
+				this->current_dynamic_file_load_failed.emplace(
+					file_path, LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED
+				);
+			}
+
+			return evo::Unexpected(LookupSourceIDError::FAILED_DURING_ANALYSIS_OF_NEWLY_LOADED);
+		}
+
+
+		Source& source = this->source_manager[dep_analysis_res.value()];
+		source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
+		this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
+			.pushLevel(this->sema_buffer.scope_manager.createLevel());
+
+		this->work_manager.visit([&](auto& work_manager_inst) -> void {
+			if constexpr(std::is_same<std::decay_t<decltype(work_manager_inst)>, std::monostate>()){
+				evo::debugFatalBreak("Should never be importing module if no work manager is running");
+
+			}else{
+				for(const auto& global_symbol_proc : source.global_symbol_procs){
+					const SymbolProc::ID symbol_proc_id = global_symbol_proc.second;
+					SymbolProc& symbol_proc = this->symbol_proc_manager.getSymbolProc(symbol_proc_id);
+					if(symbol_proc.isWaiting() == false){
+						symbol_proc.setStatusInQueue();
+						work_manager_inst.addTask(symbol_proc_id);
+					}
+				}
+			}
+		});
+
+		source.is_ready_for_sema = true;
+
+		return dep_analysis_res.value();
 	}
 
 

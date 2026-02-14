@@ -517,6 +517,9 @@ namespace pcit::panther{
 			std::unordered_set<std::filesystem::path> current_dynamic_file_load{};
 			mutable evo::SpinLock current_dynamic_file_load_lock{};
 
+			std::unordered_map<std::filesystem::path, LookupSourceIDError> current_dynamic_file_load_failed{};
+			mutable evo::SpinLock current_dynamic_file_load_failed_lock{};
+
 
 
 			// Only used for semantic analysis

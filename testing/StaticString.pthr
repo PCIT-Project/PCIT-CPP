@@ -1,0 +1,20 @@
+def std = @import("std");
+
+
+func get_capacity_type = (capacity: USize) -> TypeID {
+	if(capacity <= std.types.numBits<{UI8}>()){ return @getTypeID<{UI8}>(); }
+	if(capacity <= std.types.numBits<{UI16}>()){ return @getTypeID<{UI16}>(); }
+	if(capacity <= std.types.numBits<{UI32}>()){ return @getTypeID<{UI32}>(); }
+	return @getTypeID<{UI64}>();
+}
+
+
+type StaticString = struct <{CAPACITY: USize}> #pub {
+	type SizeType = alias /*#priv*/ type(get_capacity_type(CAPACITY));
+
+	
+
+
+
+	var data_block: [Byte:CAPACITY*std.types.numBytes<{Char}>() + std.types.numBytes<{SizeType}>()] #priv;
+}

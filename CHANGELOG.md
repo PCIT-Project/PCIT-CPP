@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.237.2"></a>
+## v0.0.237.2
+
+### Panther
+- Fixed inifinite loop if multiple `@import` had the same path and there was an error
+
+
+<!---------------------------------->
 <a name="v0.0.237.1"></a>
 ## v0.0.237.1
 
