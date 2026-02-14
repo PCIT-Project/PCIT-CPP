@@ -3050,7 +3050,11 @@ namespace pcit::panther{
 		private:
 			EVO_NODISCARD auto create_symbol_proc(auto&&... args) -> SymbolProc::ID {
 				this->num_procs_not_done += 1;
-				return this->symbol_procs.emplace_back(std::forward<decltype(args)>(args)...);
+				const SymbolProc::ID created_id = this->symbol_procs.emplace_back(std::forward<decltype(args)>(args)...);
+
+				this->getSymbolProc(created_id).this_id = created_id;
+
+				return created_id;
 			}
 
 			auto symbol_proc_done() -> void {
@@ -3067,6 +3071,7 @@ namespace pcit::panther{
 
 			auto symbol_proc_unsuspended() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
+					evo::debugAssert(this->num_procs_suspended.load() > 0, "No symbols currently suspended (pre test)");
 					evo::debugAssert(this->num_procs_suspended.fetch_sub(1) > 0, "No symbols currently suspended");
 				#else
 					this->num_procs_suspended -= 1;

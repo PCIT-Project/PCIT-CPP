@@ -1297,6 +1297,7 @@ namespace pcit::panther{
 			SymbolProc(const SymbolProc&) = delete;
 			SymbolProc(SymbolProc&&) = delete;
 
+			EVO_NODISCARD auto getID() const -> ID { return this->this_id; }
 			EVO_NODISCARD auto getASTNode() const -> AST::Node { return this->ast_node; }
 			EVO_NODISCARD auto getSourceID() const -> SourceID { return this->source_id; }
 			EVO_NODISCARD auto getIdent() const -> std::string_view { return this->ident; }
@@ -1533,6 +1534,7 @@ namespace pcit::panther{
 
 		private:
 			AST::Node ast_node;
+			ID this_id = ID::dummy();
 			SourceID source_id;
 			std::string_view ident; // empty if symbol doesn't have an ident
 									// 	(is when cond, func call, or operator function)

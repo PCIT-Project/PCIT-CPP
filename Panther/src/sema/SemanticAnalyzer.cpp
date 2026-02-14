@@ -1346,21 +1346,33 @@ namespace pcit::panther{
 			"Condition in when conditional",
 			instr.when_cond.cond
 		).ok == false){
-			// TODO(FUTURE): propgate error to children?
 			return Result::ERROR;
 		}
 
 		SymbolProc::WhenCondInfo& when_cond_info = this->symbol_proc.extra_info.as<SymbolProc::WhenCondInfo>();
 		auto passed_symbols = std::queue<SymbolProc::ID>();
 
-		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+		SymbolProc* encapsulating_symbol_proc = this->symbol_proc.parent;
+		while(
+			encapsulating_symbol_proc != nullptr
+			&& encapsulating_symbol_proc->getASTNode().kind() == AST::Kind::WHEN_CONDITIONAL
+		){
+			encapsulating_symbol_proc = encapsulating_symbol_proc->parent;
+		}
 
+		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 		if(cond){
 			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
 				SymbolProc& then_symbol = this->context.symbol_proc_manager.getSymbolProc(then_id);
 				then_symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
 					*this->symbol_proc.sema_scope_id
 				);
+
+				if(encapsulating_symbol_proc != nullptr){
+					then_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+					encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
+				}
+
 				this->set_waiting_for_is_done(then_id, this->symbol_proc_id);
 			}
 
@@ -1374,6 +1386,12 @@ namespace pcit::panther{
 				else_symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
 					*this->symbol_proc.sema_scope_id
 				);
+
+				if(encapsulating_symbol_proc != nullptr){
+					else_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+					encapsulating_symbol_proc->waiting_for.emplace_back(else_id);
+				}
+
 				this->set_waiting_for_is_done(else_id, this->symbol_proc_id);
 			}
 

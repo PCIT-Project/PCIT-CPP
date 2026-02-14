@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.237.1"></a>
+## v0.0.237.1
+
+### Panther
+- Fixed race condition in semantic analysis of symbols in a when conditional in a type symbol
+
+
+<!---------------------------------->
 <a name="v0.0.237.0"></a>
 ## v0.0.237.0
 
