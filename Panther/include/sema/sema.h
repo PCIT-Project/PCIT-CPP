@@ -727,8 +727,10 @@ namespace pcit::panther::sema{
 
 		SourceID sourceID;
 		Token::ID ident;
+		std::optional<EncapsulatingSymbolID> parent;
 		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> aliasedOverloads;
 		bool isPub;
+		bool isPriv;
 	};
 
 
@@ -842,6 +844,7 @@ namespace pcit::panther::sema{
 		bool requiresPub;
 		bool isDistinct;
 		bool isPub;
+		bool isPriv;
 	};
 
 }

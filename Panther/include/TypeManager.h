@@ -33,42 +33,6 @@ namespace pcit::panther{
 	class Context;
 
 
-	struct EncapsulatingSymbolID{
-		struct InterfaceImplInfo{
-			TypeInfoID targetTypeID;
-			BaseType::InterfaceID interfaceID;
-
-			EVO_NODISCARD auto operator==(const InterfaceImplInfo&) const -> bool = default;
-		};
-
-		template<class T>
-		EVO_NODISCARD auto is() const -> bool { return this->id.is<T>(); }
-
-		template<class T>
-		EVO_NODISCARD auto as() const -> const T& { return this->id.as<T>(); }
-
-		template<class T>
-		EVO_NODISCARD auto as() -> T& { return this->id.as<T>(); }
-
-
-		auto visit(auto callable) const -> auto { return this->id.visit(callable); }
-		auto visit(auto callable) -> auto { return this->id.visit(callable); }
-
-
-		EVO_NODISCARD auto operator==(const EncapsulatingSymbolID&) const -> bool = default;
-
-
-		evo::Variant<
-			BaseType::StructID,
-			BaseType::UnionID,
-			BaseType::EnumID,
-			BaseType::InterfaceID,
-			sema::FuncID,
-			InterfaceImplInfo
-		> id;
-	};
-
-
 	//////////////////////////////////////////////////////////////////////
 	// base type
 
@@ -612,6 +576,7 @@ namespace pcit::panther{
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID aliasedType;
 			bool isPub; // meaningless if not pthr source type
+			bool isPriv;
 
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
@@ -632,6 +597,7 @@ namespace pcit::panther{
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID underlyingType;
 			bool isPub; // meaningless if not pthr source type
+			bool isPriv;
 
 			EVO_NODISCARD auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			EVO_NODISCARD auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
@@ -700,6 +666,7 @@ namespace pcit::panther{
 			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type
 			sema::ScopeLevel* scopeLevel; // nullptr if not pthr src type (although temporarily nullptr during creation)
 			bool isPub; // meaningless if not pthr src type
+			bool isPriv;
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
 			bool shouldLower = true; // may only be false if is builtin type // TODO(FUTURE): still in use?
@@ -866,6 +833,7 @@ namespace pcit::panther{
 			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
 			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
 			bool isPub; // meaningless if clang type
+			bool isPriv;
 			bool isUntagged;
 
 			std::atomic<bool> defCompleted = false;
@@ -900,6 +868,7 @@ namespace pcit::panther{
 			SymbolProcNamespace* namespacedMembers; // nullptr if pthr src
 			sema::ScopeLevel* scopeLevel; // nullopt if not pthr src type (although temporarily nullopt during creation)
 			bool isPub; // meaningless not pthr type
+			bool isPriv;
 
 			std::atomic<bool> defCompleted = false;  // meaningless not pthr type
 
@@ -1014,6 +983,7 @@ namespace pcit::panther{
 			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<SymbolProcID> symbolProcID; // nullopt if builtin
 			bool isPub;
+			bool isPriv;
 			bool isPolymorphic;
 
 			evo::SmallVector<sema::FuncID> methods{};

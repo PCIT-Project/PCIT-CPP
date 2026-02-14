@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.238.0"></a>
+## v0.0.238.0
+
+### Panther
+- Added attribute `#priv` to symbols that were didn't have it
+
+
+<!---------------------------------->
 <a name="v0.0.237.2"></a>
 ## v0.0.237.2
 

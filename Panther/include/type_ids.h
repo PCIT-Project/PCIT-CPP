@@ -13,12 +13,13 @@
 #include <PCIT_core.h>
 
 
-
+#include "./sema/sema_ids.h"
 
 
 namespace pcit::panther{
 
 	class TypeManager;
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -139,6 +140,7 @@ namespace std{
 	};
 	
 }
+
 
 
 
@@ -741,5 +743,47 @@ namespace std{
 	};
 
 
+	
+}
+
+
+
+
+namespace pcit::panther{
+
+	struct EncapsulatingSymbolID{
+		struct InterfaceImplInfo{
+			TypeInfoID targetTypeID;
+			BaseType::InterfaceID interfaceID;
+
+			EVO_NODISCARD auto operator==(const InterfaceImplInfo&) const -> bool = default;
+		};
+
+		template<class T>
+		EVO_NODISCARD auto is() const -> bool { return this->id.is<T>(); }
+
+		template<class T>
+		EVO_NODISCARD auto as() const -> const T& { return this->id.as<T>(); }
+
+		template<class T>
+		EVO_NODISCARD auto as() -> T& { return this->id.as<T>(); }
+
+
+		auto visit(auto callable) const -> auto { return this->id.visit(callable); }
+		auto visit(auto callable) -> auto { return this->id.visit(callable); }
+
+
+		EVO_NODISCARD auto operator==(const EncapsulatingSymbolID&) const -> bool = default;
+
+
+		evo::Variant<
+			BaseType::StructID,
+			BaseType::UnionID,
+			BaseType::EnumID,
+			BaseType::InterfaceID,
+			sema::FuncID,
+			InterfaceImplInfo
+		> id;
+	};
 	
 }

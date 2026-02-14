@@ -1072,7 +1072,9 @@ namespace pcit::panther{
 				true,
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
-				var_attrs.value().is_pub
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				var_attrs.value().is_pub,
+				var_attrs.value().is_priv
 			);
 
 			// TODO(FUTURE): propgate if `add_ident_result` errored?
@@ -1095,7 +1097,9 @@ namespace pcit::panther{
 				true,
 				value_term_info.type_id.as<ClangSource::ID>(),
 				instr.var_def.ident,
-				var_attrs.value().is_pub
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				var_attrs.value().is_pub,
+				var_attrs.value().is_priv
 			);
 
 			// TODO(FUTURE): propgate if `add_ident_result` errored?
@@ -1475,7 +1479,8 @@ namespace pcit::panther{
 					aliased_id,
 					aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED,
 					alias_attrs.value().is_distinct,
-					alias_attrs.value().is_pub
+					alias_attrs.value().is_pub,
+					alias_attrs.value().is_priv
 				);
 
 			const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
@@ -1515,7 +1520,8 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_pub
+					alias_attrs.value().is_pub,
+					alias_attrs.value().is_priv
 				)
 			);
 
@@ -1535,7 +1541,8 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_pub
+					alias_attrs.value().is_pub,
+					alias_attrs.value().is_priv
 				)
 			);
 
@@ -1580,6 +1587,7 @@ namespace pcit::panther{
 				.namespacedMembers = &struct_info.member_symbols,
 				.scopeLevel        = nullptr,
 				.isPub             = struct_attrs.value().is_pub,
+				.isPriv            = struct_attrs.value().is_priv,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
 				.shouldLower       = true,
@@ -2796,6 +2804,7 @@ namespace pcit::panther{
 				&union_info.member_symbols,
 				nullptr,
 				union_attrs.value().is_pub,
+				union_attrs.value().is_priv,
 				union_attrs.value().is_untagged
 			)
 		);
@@ -2999,7 +3008,8 @@ namespace pcit::panther{
 				underlying_type_id,
 				&enum_info.member_symbols,
 				nullptr,
-				enum_attrs.value().is_pub
+				enum_attrs.value().is_pub,
+				enum_attrs.value().is_priv
 			)
 		);
 
@@ -6060,8 +6070,10 @@ namespace pcit::panther{
 		const sema::FuncAlias::ID created_func_alias_id = this->context.sema_buffer.createFuncAlias(
 			this->source.getID(),
 			instr.func_alias_def.ident,
+			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
-			func_alias.value().is_pub
+			func_alias.value().is_pub,
+			func_alias.value().is_priv
 		);
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.func_alias_def.ident].getString();
@@ -6088,6 +6100,7 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				this->symbol_proc_id,
 				interface_attrs.value().is_pub,
+				interface_attrs.value().is_priv,
 				interface_attrs.value().is_polymorphic
 			)
 		);
@@ -6587,6 +6600,8 @@ namespace pcit::panther{
 				true,
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				false,
 				false
 			);
 
@@ -6777,7 +6792,9 @@ namespace pcit::panther{
 		const sema::FuncAlias::ID created_func_alias_id = this->context.sema_buffer.createFuncAlias(
 			this->source.getID(),
 			instr.func_alias_def.ident,
+			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
+			false,
 			false
 		);
 
@@ -25216,6 +25233,23 @@ namespace pcit::panther{
 					);
 
 				}else{
+					if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+						if(func_alias.isPriv && func_alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+								ident,
+								std::format(
+									"Function alias \"{}\" has the #priv attribute, "
+										"and is not accessable from this scope",
+									ident_str
+								),
+								Diagnostic::Info("Function alias defined here:", this->get_location(ident_id))
+							);
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+						}
+					}
+
+
 					return ReturnType(TermInfo(TermInfo::ValueCategory::FUNCTION, func_alias.aliasedOverloads));
 				}
 
@@ -25630,11 +25664,27 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident_id,
-							std::format("Identifier \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
 								"Defined here:",
 								Diagnostic::Location::get(ident_id.tokenID, *source_module)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Module \"{}\" has the #priv attribute, "
+									"and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Module defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -25656,11 +25706,27 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident_id,
-							std::format("Identifier \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
 								"Defined here:",
 								Diagnostic::Location::get(ident_id.tokenID, *source_module)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Module \"{}\" has the #priv attribute, "
+									"and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Module defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -25684,11 +25750,27 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
-							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Type alias \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
-								"Alias declared here:",
+								"Type alias declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Type alias \"{}\" has the #priv attribute, "
+									"and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Type alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -25711,11 +25793,27 @@ namespace pcit::panther{
 						this->emit_error(
 							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
 							ident,
-							std::format("Distinct alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Distinct type alias \"{}\" does not have the #pub attribute", ident_str),
 							Diagnostic::Info(
-								"Distinct alias declared here:",
+								"Distinct type alias declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Distinct type alias \"{}\" has the #priv attribute, "
+									"and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Distinct type alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -25756,6 +25854,21 @@ namespace pcit::panther{
 					}
 				}
 
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(struct_info.isPriv && struct_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Struct \"{}\" has the #priv attribute, and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Struct defined here:", this->get_location(ident_id))
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
@@ -25786,6 +25899,21 @@ namespace pcit::panther{
 								"Union declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(union_info.isPriv && union_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Union \"{}\" has the #priv attribute, and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Union defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -25826,6 +25954,21 @@ namespace pcit::panther{
 					}
 				}
 
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(enum_info.isPriv && enum_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Enum \"{}\" has the #priv attribute, and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Enum defined here:", this->get_location(ident_id))
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
@@ -25861,6 +26004,21 @@ namespace pcit::panther{
 					}
 				}
 
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(interface_info.isPriv && interface_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Interface \"{}\" has the #priv attribute, and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Interface defined here:", this->get_location(ident_id))
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
@@ -25891,6 +26049,25 @@ namespace pcit::panther{
 								"Alias declared here:",
 								this->get_location(ident_id)
 							)
+						);
+						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
+					if(
+						struct_template_alias.isPriv
+						&& struct_template_alias.parent != this->scope.getCurrentTypeScopeIfExists()
+					){
+						this->emit_error(
+							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
+							ident,
+							std::format(
+								"Struct template alias \"{}\" has the #priv attribute, "
+									"and is not accessable from this scope",
+								ident_str
+							),
+							Diagnostic::Info("Struct template alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
@@ -30907,6 +31084,8 @@ namespace pcit::panther{
 		const AST::FuncAliasDef& func_alias_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<FuncAliasAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
+
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(func_alias_decl.attributeBlock);
@@ -30949,6 +31128,39 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
@@ -30961,7 +31173,8 @@ namespace pcit::panther{
 
 
 		return FuncAliasAttrs{
-			.is_pub = attr_pub.is_set(),
+			.is_pub  = attr_pub.is_set(),
+			.is_priv = attr_priv.is_set(),
 		};
 	}
 
@@ -30997,8 +31210,17 @@ namespace pcit::panther{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
 					attribute.attribute,
-					std::format("Unknown variable attribute #{}", attribute_str),
+					"Unknown variable attribute #pub",
 					Diagnostic::Info("Note: attribute `#pub` is not allowed on local variables")
+				);
+				return evo::resultError;
+
+			}else if(attribute_str == "priv"){
+				this->emit_error(
+					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
+					attribute.attribute,
+					"Unknown variable attribute #priv",
+					Diagnostic::Info("Note: attribute `#priv` is not allowed on local variables")
 				);
 				return evo::resultError;
 
@@ -31022,6 +31244,7 @@ namespace pcit::panther{
 		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<AliasAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_distinct = Attribute(*this, "distinct");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -31065,6 +31288,40 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+
 			}else if(attribute_str == "distinct"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
@@ -31089,6 +31346,7 @@ namespace pcit::panther{
 
 		return AliasAttrs{
 			.is_pub      = attr_pub.is_set(),
+			.is_priv     = attr_priv.is_set(),
 			.is_distinct = attr_distinct.is_set(),
 		};
 	}
@@ -31142,6 +31400,7 @@ namespace pcit::panther{
 		const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<StructAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_packed = Attribute(*this, "packed");
 		auto attr_ordered = Attribute(*this, "ordered");
 		// auto attr_extern = Attribute(*this, "extern");
@@ -31187,6 +31446,40 @@ namespace pcit::panther{
 					);
 					return evo::resultError;
 				}
+
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 
 			}else if(attribute_str == "ordered"){
 				if(attribute_params_info[i].empty() == false){
@@ -31298,6 +31591,7 @@ namespace pcit::panther{
 
 		return StructAttrs{
 			.is_pub     = attr_pub.is_set(),
+			.is_priv     = attr_priv.is_set(),
 			.is_ordered = attr_ordered.is_set(),
 			.is_packed  = attr_packed.is_set(),
 		};
@@ -31308,6 +31602,7 @@ namespace pcit::panther{
 		const AST::UnionDef& union_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<UnionAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_untagged = Attribute(*this, "untagged");
 
 
@@ -31352,6 +31647,39 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 			}else if(attribute_str == "untagged"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
@@ -31377,6 +31705,7 @@ namespace pcit::panther{
 
 		return UnionAttrs{
 			.is_pub      = attr_pub.is_set(),
+			.is_priv     = attr_pub.is_set(),
 			.is_untagged = attr_untagged.is_set(),
 		};
 	}
@@ -31387,6 +31716,7 @@ namespace pcit::panther{
 		const AST::EnumDef& enum_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<EnumAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -31430,6 +31760,39 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
 			}else{
 				this->emit_error(
 					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
@@ -31441,7 +31804,10 @@ namespace pcit::panther{
 		}
 
 
-		return EnumAttrs(attr_pub.is_set());
+		return EnumAttrs{
+			.is_pub  = attr_pub.is_set(),
+			.is_priv = attr_priv.is_set(),
+		};
 	}
 
 
@@ -31754,6 +32120,7 @@ namespace pcit::panther{
 		const AST::InterfaceDef& interface_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<InterfaceAttrs> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
+		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_polymorphic = Attribute(*this, "polymorphic");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -31798,6 +32165,40 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+			}else if(attribute_str == "priv"){
+				if(attribute_params_info[i].empty()){
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #priv",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool priv_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error(
+						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
+						attribute.args[1],
+						"Attribute #priv does not accept more than 1 argument"
+					);
+					return evo::resultError;
+				}
+
+
 			}else if(attribute_str == "polymorphic"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error(
@@ -31822,6 +32223,7 @@ namespace pcit::panther{
 
 		return InterfaceAttrs{
 			.is_pub         = attr_pub.is_set(),
+			.is_priv        = attr_priv.is_set(),
 			.is_polymorphic = attr_polymorphic.is_set(),
 		};
 	}

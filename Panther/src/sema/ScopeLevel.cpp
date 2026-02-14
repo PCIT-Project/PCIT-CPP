@@ -262,23 +262,36 @@ namespace pcit::panther::sema{
 		return this->add_ident_default_impl(ident, id);
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub) -> AddIdentResult {
+	auto ScopeLevel::addIdent(
+		std::string_view ident,
+		SourceID id,
+		Token::ID location,
+		std::optional<EncapsulatingSymbolID> parent,
+		bool is_pub,
+		bool is_priv
+	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
 		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		return &this->ids.emplace(ident, ModuleInfo(id, location, is_pub)).first->second;
+		return &this->ids.emplace(ident, ModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
 	}
 
-	auto ScopeLevel::addIdent(std::string_view ident, ClangSourceID id, Token::ID location, bool is_pub)
-	-> AddIdentResult {
+	auto ScopeLevel::addIdent(
+		std::string_view ident,
+		ClangSourceID id,
+		Token::ID location,
+		std::optional<EncapsulatingSymbolID> parent,
+		bool is_pub,
+		bool is_priv
+	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
 
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
 		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		return &this->ids.emplace(ident, ClangModuleInfo(id, location, is_pub)).first->second;
+		return &this->ids.emplace(ident, ClangModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
 	}
 
 

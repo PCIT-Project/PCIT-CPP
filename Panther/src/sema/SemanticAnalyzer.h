@@ -801,6 +801,7 @@ namespace pcit::panther{
 
 			struct FuncAliasAttrs{
 				bool is_pub;
+				bool is_priv;
 			};
 			EVO_NODISCARD auto analyze_func_alias_attrs(
 				const AST::FuncAliasDef& func_alias_def,
@@ -810,6 +811,7 @@ namespace pcit::panther{
 
 			struct AliasAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_distinct;
 			};
 			EVO_NODISCARD auto analyze_alias_attrs(
@@ -826,6 +828,7 @@ namespace pcit::panther{
 
 			struct StructAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_ordered;
 				bool is_packed;
 			};
@@ -836,6 +839,7 @@ namespace pcit::panther{
 
 			struct UnionAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_untagged;
 			};
 			EVO_NODISCARD auto analyze_union_attrs(
@@ -846,6 +850,7 @@ namespace pcit::panther{
 
 			struct EnumAttrs{
 				bool is_pub;
+				bool is_priv;
 			};
 			EVO_NODISCARD auto analyze_enum_attrs(
 				const AST::EnumDef& enum_def,
@@ -873,6 +878,7 @@ namespace pcit::panther{
 
 			struct InterfaceAttrs{
 				bool is_pub;
+				bool is_priv;
 				bool is_polymorphic;
 			};
 			EVO_NODISCARD auto analyze_interface_attrs(

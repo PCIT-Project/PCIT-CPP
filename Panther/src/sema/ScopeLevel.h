@@ -87,13 +87,17 @@ namespace pcit::panther::sema{
 			struct ModuleInfo{
 				SourceID sourceID;
 				Token::ID tokenID;
+				std::optional<EncapsulatingSymbolID> parent;
 				bool isPub;
+				bool isPriv;
 			};
 
 			struct ClangModuleInfo{
 				ClangSourceID clangSourceID;
 				Token::ID tokenID;
+				std::optional<EncapsulatingSymbolID> parent;
 				bool isPub;
+				bool isPriv;
 			};
 
 			struct TemplateTypeParamFlag{};
@@ -310,10 +314,22 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::BlockExprOutputID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ExceptParamID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, sema::ForParamID id) -> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, SourceID id, Token::ID location, bool is_pub)
-				-> AddIdentResult;
-			EVO_NODISCARD auto addIdent(std::string_view ident, ClangSourceID id, Token::ID location, bool is_pub)
-				-> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident,
+				SourceID id,
+				Token::ID location,
+				std::optional<EncapsulatingSymbolID> parent,
+				bool is_pub,
+				bool is_priv
+			) -> AddIdentResult;
+			EVO_NODISCARD auto addIdent(
+				std::string_view ident,
+				ClangSourceID id,
+				Token::ID location,
+				std::optional<EncapsulatingSymbolID> parent,
+				bool is_pub,
+				bool is_priv
+			) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::DistinctAliasID id) -> AddIdentResult;
 			EVO_NODISCARD auto addIdent(std::string_view ident, BaseType::StructID id) -> AddIdentResult;
