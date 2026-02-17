@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.240.0"></a>
+## v0.0.240.0
+
+### Panther
+- Added stack traces to running comptime functions when an error occurs
+- Added missing checking for iteration of arrays and array references if they're multi-dimensional and terminated 
+	- This feature is currently unimplemented
+
+### PIR
+- Added stack traces to `ExecutionEngine` when an error occurs
+
+
+<!---------------------------------->
 <a name="v0.0.239.0"></a>
 ## v0.0.239.0
 
@@ -9,7 +22,7 @@
 
 ### PIR
 - Fixed strings always having null-terminator being appended
-- Fixed accessing globals in ExecutionEngine
+- Fixed accessing globals in `ExecutionEngine`
 
 ### PCIT_core
 - Fixed out-of-bounds write in `core::GenericValue(std::string_view)` and `core::GenericValue::fromData()`

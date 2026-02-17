@@ -26,17 +26,24 @@ namespace pcit::pir{
 
 	class ExecutionEngineExecutor{
 		public:
-			enum class FuncRunError{
-				ABORT,
-				EXCEEDED_MAX_CALL_DEPTH,
-				BREAKPOINT,
-				OUT_OF_BOUNDS_ACCESS,
-				NULLPTR_ACCESS,
-				SEG_FAULT,
-				ARITHMETIC_WRAP,
-				FLOATING_POINT_EXCEPTION,
-				UNKNOWN_EXCEPTION,
+			struct FuncRunError{
+				enum class Code{
+					ABORT,
+					EXCEEDED_MAX_CALL_DEPTH,
+					BREAKPOINT,
+					OUT_OF_BOUNDS_ACCESS,
+					NULLPTR_ACCESS,
+					SEG_FAULT,
+					ARITHMETIC_WRAP,
+					FLOATING_POINT_EXCEPTION,
+					UNKNOWN_EXCEPTION,
+				};
+				
+				Code code;
+				evo::SmallVector<Function::ID> stackTrace;
 			};
+
+
 
 
 		public:
@@ -48,7 +55,7 @@ namespace pcit::pir{
 
 
 			#if !defined(EVO_PLATFORM_WINDOWS)
-				auto set_signal_error(FuncRunError error) -> std::jmp_buf&;
+				auto set_signal_error(FuncRunError::Code error) -> std::jmp_buf&;
 			#endif
 
 
@@ -69,7 +76,11 @@ namespace pcit::pir{
 				std::optional<pir::Expr> ret_value{};
 			};
 
-			EVO_NODISCARD auto run_function_impl() -> evo::Expected<core::GenericValue, FuncRunError>;
+
+			EVO_NODISCARD auto run_function_setup_and_run(Function::ID func_id, std::span<core::GenericValue> arguments)
+				-> evo::Expected<core::GenericValue, FuncRunError::Code>;
+
+			EVO_NODISCARD auto run_function_impl() -> evo::Expected<core::GenericValue, FuncRunError::Code>;
 
 			EVO_NODISCARD auto get_expr(Expr expr, StackFrame& stack_frame) -> core::GenericValue&;
 			EVO_NODISCARD auto get_expr_maybe_ptr(Expr expr, StackFrame& stack_frame) -> core::GenericValue*;
@@ -84,7 +95,7 @@ namespace pcit::pir{
 			evo::SmallVector<StackFrame> stack_frames{};
 
 			#if !defined(EVO_PLATFORM_WINDOWS)
-				std::atomic<std::optional<FuncRunError>> signal_error{};
+				std::atomic<std::optional<FuncRunError::Code>> signal_error{};
 				std::jmp_buf jump_buf;
 			#endif
 	};

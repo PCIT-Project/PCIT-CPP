@@ -39,6 +39,35 @@ namespace pcit::pir{
 
 	auto ExecutionEngineExecutor::runFunction(Function::ID func_id, std::span<core::GenericValue> arguments)
 	-> evo::Expected<core::GenericValue, FuncRunError> {
+		EVO_DEFER([&](){ this->stack_frames.clear(); });
+
+		evo::Expected<core::GenericValue, FuncRunError::Code> result =
+			this->run_function_setup_and_run(func_id, arguments);
+
+		if(result.has_value()){
+			return std::move(result.value());
+		}
+
+		auto stack_trace = evo::SmallVector<Function::ID>();
+
+		for(const StackFrame& stack_frame : this->stack_frames){
+			stack_trace.emplace_back(stack_frame.func_id);
+		}
+
+		return evo::Unexpected(
+			FuncRunError{
+				.code       = result.error(),
+				.stackTrace = std::move(stack_trace),
+			}
+		);
+	}
+
+
+
+
+	auto ExecutionEngineExecutor::run_function_setup_and_run(
+		Function::ID func_id, std::span<core::GenericValue> arguments
+	) -> evo::Expected<core::GenericValue, FuncRunError::Code> {
 		const Function& func = this->engine.module.getFunction(func_id);
 		const BasicBlock::ID basic_block_id = *func.begin();
 
@@ -71,7 +100,7 @@ namespace pcit::pir{
 
 
 	#if !defined(EVO_PLATFORM_WINDOWS)
-		auto ExecutionEngineExecutor::set_signal_error(FuncRunError error) -> std::jmp_buf& {
+		auto ExecutionEngineExecutor::set_signal_error(FuncRunError::Code error) -> std::jmp_buf& {
 			this->signal_error.store(error);
 			return this->jump_buf;
 		}
@@ -79,7 +108,7 @@ namespace pcit::pir{
 
 
 
-	auto ExecutionEngineExecutor::run_function_impl() -> evo::Expected<core::GenericValue, FuncRunError> {
+	auto ExecutionEngineExecutor::run_function_impl() -> evo::Expected<core::GenericValue, FuncRunError::Code> {
 		StackFrame* stack_frame = &this->stack_frames.back();
 		
 		while(true){
@@ -147,7 +176,7 @@ namespace pcit::pir{
 						);
 
 						if(this->stack_frames.size() > this->engine.max_call_depth){
-							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
 						}
 
 						stack_frame->params = std::move(params);
@@ -198,7 +227,7 @@ namespace pcit::pir{
 							func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
 						);
 						if(this->stack_frames.size() > this->engine.max_call_depth){
-							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
 						}
 
 						stack_frame->params = std::move(params);
@@ -249,7 +278,7 @@ namespace pcit::pir{
 							func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
 						);
 						if(this->stack_frames.size() > this->engine.max_call_depth){
-							return evo::Unexpected(FuncRunError::EXCEEDED_MAX_CALL_DEPTH);
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
 						}
 
 						stack_frame->params = std::move(params);
@@ -270,11 +299,11 @@ namespace pcit::pir{
 				} break;
 
 				case Expr::Kind::ABORT: {
-					return evo::Unexpected(FuncRunError::ABORT);
+					return evo::Unexpected(FuncRunError::Code::ABORT);
 				} break;
 
 				case Expr::Kind::BREAKPOINT: {
-					return evo::Unexpected(FuncRunError::ABORT);
+					return evo::Unexpected(FuncRunError::Code::ABORT);
 				} break;
 
 				case Expr::Kind::RET: {
@@ -338,7 +367,7 @@ namespace pcit::pir{
 				} break;
 
 				case Expr::Kind::UNREACHABLE: {
-					return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+					return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 				} break;
 
 				case Expr::Kind::PHI: {
@@ -354,7 +383,7 @@ namespace pcit::pir{
 						}
 					}
 
-					if(found == false){ return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION); }
+					if(found == false){ return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION); }
 				} break;
 
 				case Expr::Kind::SWITCH: {
@@ -402,7 +431,7 @@ namespace pcit::pir{
 					const size_t type_size = this->engine.module.getSize(load_inst.type);
 
 					const std::byte* source_ptr = this->get_expr_ptr(load_inst.source, *stack_frame);
-					if(source_ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(source_ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					const auto data_proxy = evo::ArrayProxy<std::byte>(source_ptr, type_size);
 
@@ -411,7 +440,7 @@ namespace pcit::pir{
 						__try{
 							generic_value = core::GenericValue::fromData(data_proxy);
 						}__except(0x1){
-							return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 						}
 
 						stack_frame->registers[expr] = std::move(generic_value);
@@ -428,7 +457,7 @@ namespace pcit::pir{
 					const size_t store_type_size = this->engine.module.getSize(store_type);
 
 					std::byte* destination_ptr = this->get_expr_ptr(store_inst.destination, *stack_frame);
-					if(destination_ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(destination_ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					core::GenericValue* const value_ptr_generic =
 						this->get_expr_maybe_ptr(store_inst.value, *stack_frame);
@@ -440,7 +469,7 @@ namespace pcit::pir{
 							__try{
 								std::memmove(destination_ptr, value_ptr, store_type_size);
 							}__except(0x1){
-								return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+								return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 							}
 
 						#else
@@ -454,7 +483,7 @@ namespace pcit::pir{
 							__try{
 								*dst_pointer_full = 0;
 							}__except(0x1){
-								return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+								return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 							}
 
 						#else
@@ -469,7 +498,7 @@ namespace pcit::pir{
 					Type ptr_type = calc_ptr_inst.ptrType;
 
 					std::byte* ptr = this->get_expr_ptr(calc_ptr_inst.basePtr, *stack_frame);
-					if(ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					const auto get_index = [&](const CalcPtr::Index& index) -> int64_t {
 						if(index.is<Expr>()){
@@ -490,11 +519,11 @@ namespace pcit::pir{
 						const int64_t index = get_index(calc_ptr_inst.indices[i]);
 
 						if(ptr_type.kind() == Type::Kind::ARRAY){
-							if(index < 0){ return evo::Unexpected(FuncRunError::OUT_OF_BOUNDS_ACCESS); }
+							if(index < 0){ return evo::Unexpected(FuncRunError::Code::OUT_OF_BOUNDS_ACCESS); }
 
 							const ArrayType& array_type = this->engine.module.getArrayType(ptr_type);
 							if(uint64_t(index) + 1 > array_type.length){
-								return evo::Unexpected(FuncRunError::OUT_OF_BOUNDS_ACCESS);
+								return evo::Unexpected(FuncRunError::Code::OUT_OF_BOUNDS_ACCESS);
 							}
 
 							ptr_type = array_type.elemType;
@@ -503,11 +532,11 @@ namespace pcit::pir{
 							ptr += index * ptr_type_size;
 
 						}else if(ptr_type.kind() == Type::Kind::STRUCT){
-							if(index < 0){ return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION); }
+							if(index < 0){ return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION); }
 
 							const StructType& struct_type = this->engine.module.getStructType(ptr_type);
 							if(uint64_t(index) + 1 > struct_type.members.size()){
-								return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+								return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 							}
 
 							size_t offset = 0;
@@ -531,10 +560,10 @@ namespace pcit::pir{
 					const Memcpy& memcpy_inst = stack_frame->reader_agent.getMemcpy(expr);
 
 					std::byte* dst_ptr = this->get_expr_ptr(memcpy_inst.dst, *stack_frame);
-					if(dst_ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(dst_ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					std::byte* src_ptr = this->get_expr_ptr(memcpy_inst.src, *stack_frame);
-					if(src_ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(src_ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					const core::GenericValue& num_bytes_generic = this->get_expr(memcpy_inst.numBytes, *stack_frame);
 					const size_t num_bytes = static_cast<uint64_t>(num_bytes_generic.getInt(sizeof(size_t) * 8));
@@ -543,7 +572,7 @@ namespace pcit::pir{
 						__try{
 							std::memcpy(dst_ptr, src_ptr, num_bytes);
 						}__except(0x1){
-							return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 						}
 
 					#else
@@ -555,7 +584,7 @@ namespace pcit::pir{
 					const Memset& memset_inst = stack_frame->reader_agent.getMemset(expr);
 
 					std::byte* dst_ptr = this->get_expr_ptr(memset_inst.dst, *stack_frame);
-					if(dst_ptr == nullptr){ return evo::Unexpected(FuncRunError::NULLPTR_ACCESS); }
+					if(dst_ptr == nullptr){ return evo::Unexpected(FuncRunError::Code::NULLPTR_ACCESS); }
 
 					const core::GenericValue& value_generic = this->get_expr(memset_inst.value, *stack_frame);
 					const unsigned char value = static_cast<unsigned char>(value_generic.getInt(8));
@@ -567,7 +596,7 @@ namespace pcit::pir{
 						__try{
 							std::memset(dst_ptr, value, num_bytes);
 						}__except(0x1){
-							return evo::Unexpected(FuncRunError::UNKNOWN_EXCEPTION);
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
 						}
 
 					#else
@@ -762,22 +791,22 @@ namespace pcit::pir{
 					if(add_inst.nsw){
 						if(add_inst.nuw){
 							core::GenericInt::WrapResult unsigned_result = lhs.uadd(rhs);
-							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							core::GenericInt::WrapResult signed_result = lhs.sadd(rhs);
-							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							stack_frame->registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
 
 						}else{
 							core::GenericInt::WrapResult result = lhs.sadd(rhs);
-							if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 							stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						}
 						
 					}else if(add_inst.nuw){
 						core::GenericInt::WrapResult result = lhs.uadd(rhs);
-						if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+						if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 						stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						
 					}else{
@@ -886,22 +915,22 @@ namespace pcit::pir{
 					if(sub_inst.nsw){
 						if(sub_inst.nuw){
 							core::GenericInt::WrapResult unsigned_result = lhs.usub(rhs);
-							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							core::GenericInt::WrapResult signed_result = lhs.ssub(rhs);
-							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							stack_frame->registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
 
 						}else{
 							core::GenericInt::WrapResult result = lhs.ssub(rhs);
-							if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 							stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						}
 						
 					}else if(sub_inst.nuw){
 						core::GenericInt::WrapResult result = lhs.usub(rhs);
-						if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+						if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 						stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						
 					}else{
@@ -1010,22 +1039,22 @@ namespace pcit::pir{
 					if(mul_inst.nsw){
 						if(mul_inst.nuw){
 							core::GenericInt::WrapResult unsigned_result = lhs.umul(rhs);
-							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							core::GenericInt::WrapResult signed_result = lhs.smul(rhs);
-							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							stack_frame->registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
 
 						}else{
 							core::GenericInt::WrapResult result = lhs.smul(rhs);
-							if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 							stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						}
 						
 					}else if(mul_inst.nuw){
 						core::GenericInt::WrapResult result = lhs.umul(rhs);
-						if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+						if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 						stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						
 					}else{
@@ -1453,22 +1482,22 @@ namespace pcit::pir{
 					if(shl_inst.nsw){
 						if(shl_inst.nuw){
 							core::GenericInt::WrapResult unsigned_result = lhs.ushl(rhs);
-							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(unsigned_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							core::GenericInt::WrapResult signed_result = lhs.sshl(rhs);
-							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(signed_result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 
 							stack_frame->registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
 
 						}else{
 							core::GenericInt::WrapResult result = lhs.sshl(rhs);
-							if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+							if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 							stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						}
 						
 					}else if(shl_inst.nuw){
 						core::GenericInt::WrapResult result = lhs.ushl(rhs);
-						if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+						if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 						stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 						
 					}else{
@@ -1510,7 +1539,7 @@ namespace pcit::pir{
 					const core::GenericInt rhs = this->get_expr(sshr_inst.rhs, *stack_frame).getInt(num_bits);
 
 					core::GenericInt::WrapResult result = lhs.sshr(rhs);
-					if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+					if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 					stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 				} break;
 
@@ -1524,7 +1553,7 @@ namespace pcit::pir{
 					const core::GenericInt rhs = this->get_expr(ushr_inst.rhs, *stack_frame).getInt(num_bits);
 
 					core::GenericInt::WrapResult result = lhs.ushr(rhs);
-					if(result.wrapped){ return evo::Unexpected(FuncRunError::ARITHMETIC_WRAP); }
+					if(result.wrapped){ return evo::Unexpected(FuncRunError::Code::ARITHMETIC_WRAP); }
 					stack_frame->registers[expr] = core::GenericValue(std::move(result.result));
 				} break;
 

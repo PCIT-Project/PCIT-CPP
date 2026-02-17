@@ -272,7 +272,7 @@ namespace pcit::panther{
 			}
 		}
 
-		for(const Diagnostic::Info& sub_info : info.sub_infos){
+		for(const Diagnostic::Info& sub_info : info.subInfos){
 			print_info(printer, rel_dir, context, sub_info, depth + 1);
 		}
 	}

@@ -13,7 +13,19 @@ func get_string = () -> (output: [Char:11;'\0']) {
 
 	output = new [Char:11;'\0']();
 
-	std.mem.copyBuffer(output as [Char:*mut], "Hello World");
+	for(output as [Char:*mut], "asdf".* as [Char:*]) [_; dst: Char mut, src: Char] {
+		
+	}
+
+	// std.mem.copyBuffer(output as [Char:*mut], "Hello World");
 
 	return...;
+}
+
+
+
+func entry = () #entry -> UI8 {
+	const foo = get_string();
+	
+	return 0;
 }

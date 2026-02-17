@@ -12291,12 +12291,12 @@ namespace pcit::panther{
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 
-			switch(run_result.error()){
-				case pir::ExecutionEngine::FuncRunError::ABORT: {
+			switch(run_result.error().code){
+				case pir::ExecutionEngine::FuncRunError::Code::ABORT: {
 					infos.emplace_back("Cause of error: abort");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::EXCEEDED_MAX_CALL_DEPTH: {
+				case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {
 					infos.emplace_back(
 						std::format(
 							"Cause of error: exceeded max call depth ({})",
@@ -12305,33 +12305,44 @@ namespace pcit::panther{
 					);
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::BREAKPOINT: {
+				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
 					infos.emplace_back("Cause of error: breakpoint");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::OUT_OF_BOUNDS_ACCESS: {
+				case pir::ExecutionEngine::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS: {
 					infos.emplace_back("Cause of error: out-of-bounds access");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::NULLPTR_ACCESS: {
+				case pir::ExecutionEngine::FuncRunError::Code::NULLPTR_ACCESS: {
 					infos.emplace_back("Cause of error: null-pointer access");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::SEG_FAULT: {
+				case pir::ExecutionEngine::FuncRunError::Code::SEG_FAULT: {
 					infos.emplace_back("Cause of error: segmentation fault");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::ARITHMETIC_WRAP: {
+				case pir::ExecutionEngine::FuncRunError::Code::ARITHMETIC_WRAP: {
 					infos.emplace_back("Cause of error: arithmetic wrap");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::FLOATING_POINT_EXCEPTION: {
+				case pir::ExecutionEngine::FuncRunError::Code::FLOATING_POINT_EXCEPTION: {
 					infos.emplace_back("Cause of error: floating-point exception");
 				} break;
 
-				case pir::ExecutionEngine::FuncRunError::UNKNOWN_EXCEPTION: {
+				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
 					infos.emplace_back("Cause of error: unknown exception");
 				} break;
+			}
+
+			Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
+			for(
+				size_t i = run_result.error().stackTrace.size() - 1;
+				const pir::Function::ID pir_func_id : run_result.error().stackTrace | std::views::reverse
+			){
+				const pir::Function& pir_func = this->context.getPIRModule().getFunction(pir_func_id);
+				stack_trace_info.subInfos.emplace_back(std::format("({}) {}", i, pir_func.getName()));
+
+				i -= 1;
 			}
 
 			this->emit_error(
@@ -29123,7 +29134,7 @@ namespace pcit::panther{
 
 				this->emit_error(
 					Diagnostic::Code::SEMA_INTERFACE_MULTIPLE_DEDUCER_IMPLS_MATCH,
-					Diagnostic::Location::NONE, // TODO(FUTURE): location? add it to instantiation locations?
+					location,
 					"Interface has multiple deducer multiple impls that match this type",
 					std::move(infos)
 				);
@@ -29142,6 +29153,10 @@ namespace pcit::panther{
 
 		switch(target_type.baseTypeID().kind()){
 			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(target_type.baseTypeID().arrayID());
+
+
 				if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
 
 				const std::string_view interface_name = this->context.getSourceManager()
@@ -29150,6 +29165,24 @@ namespace pcit::panther{
 
 
 				if(interface_name == "Iterable"){
+					if(array_type.dimensions.size() != 1){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							location,
+							"Iteration of multi-dimension arrays is currently unimplemented"
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(array_type.terminator.has_value()){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							location,
+							"Iteration of arrays with terminators is currently unimplemented"
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"),
 						this->symbol_proc_id,
@@ -29159,6 +29192,24 @@ namespace pcit::panther{
 					return true;
 
 				}else if(interface_name == "IterableRT"){
+					if(array_type.dimensions.size() != 1){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							location,
+							"Iteration of multi-dimension arrays is currently unimplemented"
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(array_type.terminator.has_value()){
+						this->emit_error(
+							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+							location,
+							"Iteration of arrays with terminators is currently unimplemented"
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"),
 						this->symbol_proc_id,
@@ -29184,6 +29235,24 @@ namespace pcit::panther{
 
 				if(array_ref_type.isMut){
 					if(interface_name == "IterableMutRef"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of multi-dimension array references is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of array references with terminators is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"),
@@ -29194,6 +29263,25 @@ namespace pcit::panther{
 						return true;
 
 					}else if(interface_name == "IterableMutRefRT"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of multi-dimension array references is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of array references with terminators is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"),
@@ -29208,6 +29296,24 @@ namespace pcit::panther{
 					}
 				}else{
 					if(interface_name == "IterableRef"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of multi-dimension array references is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of array references with terminators is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"),
@@ -29218,6 +29324,24 @@ namespace pcit::panther{
 						return true;
 
 					}else if(interface_name == "IterableRefRT"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of multi-dimension array references is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+								location,
+								"Iteration of array references with terminators is currently unimplemented"
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"),
