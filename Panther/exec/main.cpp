@@ -342,6 +342,25 @@ EVO_NODISCARD static auto run_compile(
 				num_errors += 1;
 			} break;
 
+			case panther::Context::AddSourceResult::NOT_FILE: {
+				const panther::Source::Package& package = context.getSourceManager().getPackage(source_file.packageID);
+
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FILE_NOT_FILE,
+					panther::Diagnostic::Location::NONE,
+					"Path isn't a file",
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path)),
+						panther::Diagnostic::Info(
+							std::format("Relative directory: \"{}\"", package.basePath.string())
+						)
+					}
+				));
+
+				num_errors += 1;
+			} break;
+
 			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
 				evo::debugFatalBreak("Shouldn't be possible to get this code");
 			} break;
@@ -379,6 +398,10 @@ EVO_NODISCARD static auto run_compile(
 				));
 
 				num_errors += 1;
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_FILE: {
+				evo::debugFatalBreak("Shouldn't be possible to get this code");
 			} break;
 
 			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
@@ -428,6 +451,20 @@ EVO_NODISCARD static auto run_compile(
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
 					}
 				));
+				num_errors += 1;
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_FILE: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					panther::Diagnostic::Code::FRONTEND_FILE_NOT_FILE,
+					panther::Diagnostic::Location::NONE,
+					"Path isn't a file",
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
+					}
+				));
+
 				num_errors += 1;
 			} break;
 

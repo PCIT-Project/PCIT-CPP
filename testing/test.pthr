@@ -3,21 +3,19 @@ def std = @import("std");
 type StaticString = alias @import("StaticString.pthr").StaticString;
 
 
-const global_str: [Char:11;'\0'] = get_string();
+const global_str: [Char:11] = get_string();
 
 
 
 
-func get_string = () -> (output: [Char:11;'\0']) {
-	// var str = new StaticString<{12}>();
+func get_string = () -> (output: [Char:11]) {
+	var str = new StaticString<{11}>(); 
 
-	output = new [Char:11;'\0']();
+	str += "Hello";
+	str += " World";
 
-	for(output as [Char:*mut], "asdf".* as [Char:*]) [_; dst: Char mut, src: Char] {
-		
-	}
-
-	// std.mem.copyBuffer(output as [Char:*mut], "Hello World");
+	output = new [Char:11]();
+	std.mem.copyBuffer(output as [Char:*mut], str);
 
 	return...;
 }
@@ -25,7 +23,12 @@ func get_string = () -> (output: [Char:11;'\0']) {
 
 
 func entry = () #entry -> UI8 {
-	const foo = get_string();
-	
-	return 0;
+	var str = new StaticString<{11}>();
+
+	// TODO(FUTURE): fix this bug (make RemainginCapacityType not #priv)
+	// @comptimeAssert(@getTypeID<{str.RemainingCapacityType}>() == @getTypeID<{UI8}>());
+
+	str += 'a';
+
+	return str.size() as UI8;
 }

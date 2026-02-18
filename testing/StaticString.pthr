@@ -2,19 +2,185 @@ def std = @import("std");
 
 
 func get_capacity_type = (capacity: USize) -> TypeID {
-	if(capacity <= std.types.numBits<{UI8}>()){ return @getTypeID<{UI8}>(); }
-	if(capacity <= std.types.numBits<{UI16}>()){ return @getTypeID<{UI16}>(); }
-	if(capacity <= std.types.numBits<{UI32}>()){ return @getTypeID<{UI32}>(); }
+	if(capacity <= 1 << 8){ return @getTypeID<{UI8}>(); }
+	if(capacity <= 1 << 16){ return @getTypeID<{UI16}>(); }
+	if(capacity <= 1 << 32){ return @getTypeID<{UI32}>(); }
+
+	// TODO(FUTURE): fix this bug
+	// if(@ctlz(capacity) >= 64 - 8){ return @getTypeID<{UI8}>(); }
+	// if(@ctlz(capacity) >= 64 - 16){ return @getTypeID<{UI16}>(); }
+	// if(@ctlz(capacity) >= 64 - 32){ return @getTypeID<{UI32}>(); }
+
+	// TODO(FUTURE): fix this bug
+	// if(capacity <= 1 as USize << (std.types.numBits<{UI8}>() as UI6)){ return @getTypeID<{UI8}>(); }
+	// if(capacity <= 1 as USize << (std.types.numBits<{UI16}>() as UI6)){ return @getTypeID<{UI16}>(); }
+	// if(capacity <= 1 as USize << (std.types.numBits<{UI32}>() as UI6)){ return @getTypeID<{UI32}>(); }
+
 	return @getTypeID<{UI64}>();
 }
 
 
-type StaticString = struct <{CAPACITY: USize}> #pub {
-	type SizeType = alias #priv type(get_capacity_type(CAPACITY));
+type StaticString = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 0, "`CAPACITY` cannot be 0") {
+	func new = () -> (output: This) {
+		output.data_block = new [Byte : CAPACITY + std.types.numBytes<{RemainingCapacityType}>()]();
+		output.remaining_capacity().* = CAPACITY as RemainingCapacityType;
+		return...;
+	}
 
-	
+	func new = (str: [Char:*]) -> (output: This) {
+		output = new This();
+		output += str;
+		return...;
+	}
 
 
 
-	var data_block: [Byte:CAPACITY*std.types.numBytes<{Char}>() + std.types.numBytes<{SizeType}>()] #priv;
+	///////////////////////////////////
+	// element access
+
+	func [] = (this, index: USize) -> Char* {
+		std.assert(index < this.size(), "Index is out-of-bounds");
+		unsafe{ return std.bitCast<{Char*}>(this.data_block[index]); }
+	}
+
+	func [] = (this mut, index: USize) -> Char*mut {
+		std.assert(index < this.size(), "Index is out-of-bounds");
+		unsafe{ return std.bitCast<{Char*mut}>(this.data_block[index]); }
+	}
+
+
+	func first = (this) -> Char* {
+		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		return this[0];
+	}
+	func first = (this mut) -> Char*mut {
+		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		return this[0];
+	}
+
+	func last = (this) -> Char* {
+		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		return this[this.size() - 1];
+	}
+	func last = (this mut) -> Char*mut {
+		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		return this[this.size() - 1];
+	}
+
+
+	func data = (this) -> Char* { unsafe{ return std.bitCast<{Char*}>(this.data_block.data()); } }
+	func data = (this mut) -> Char*mut { unsafe{ return std.bitCast<{Char*mut}>(this.data_block.data()); } }
+
+
+	///////////////////////////////////
+	// capacity
+
+	func isEmpty = (this) -> Bool { return this.remaining_capacity().* as USize == CAPACITY; }
+	func size = (this) -> USize { return CAPACITY - this.remaining_capacity().* as USize; }
+	func capacity = () -> USize { return CAPACITY; }
+
+
+
+	///////////////////////////////////
+	// modifiers
+
+	func clear = (this mut) -> Void {
+		this.remaining_capacity().* = CAPACITY as RemainingCapacityType;
+	}
+
+
+	func resize = (this mut, new_size: USize) -> Void {
+		std.assert(new_size < CAPACITY, "New string size is larger than the capacity");
+		this.remaining_capacity().* = (CAPACITY - new_size) as RemainingCapacityType;
+	}
+
+
+
+	func += = (this mut, character: Char) -> Void {
+		std.assert(this.remaining_capacity().* > 0, "Already at capacity");
+		unsafe{ std.bitCast<{Char*mut}>(this.data_block[this.size()]).* = copy character; }
+		this.remaining_capacity().* -= 1;
+	}
+
+	func += = (this mut, str: [Char:*]) -> Void {
+		std.assert(
+			this.remaining_capacity().* as USize >= str.size(), "String to append is longer than remaining capacity"
+		);
+
+		// TODO(FUTURE): fix this bug:
+
+		// const dst_ptr: Char*mut = {->expr:Char*mut
+		// 	unsafe{ return->expr std.bitCast<{Char*mut}>(this.data_block[this.size()]); }
+		// };
+
+		unsafe{
+			const dst_ptr: Char*mut = std.bitCast<{Char*mut}>(this.data_block[this.size()]);
+			std.mem.copyBuffer(new [Char:*mut](copy dst_ptr, str.size()), str);
+		}
+
+		this.remaining_capacity().* -= str.size() as RemainingCapacityType;
+	}
+
+
+	func + = (this, character: Char) -> (output: This) {
+		output = copy this;
+		output += character;
+		return...;
+	}
+
+	func + = (this, str: [Char:*]) -> (output: This) {
+		output = copy this;
+		output += str;
+		return...;
+	}
+
+
+
+	///////////////////////////////////
+	// type conversion
+
+	func as = (this) #implicit -> [Char:*] { return new [Char:*](this.data(), this.size()); }
+	func as = (this mut) #implicit -> [Char:*mut] { return new [Char:*mut](this.data(), this.size()); }
+
+
+
+	///////////////////////////////////
+	// iterators
+
+	impl @pthr.Iterable{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[Char:*]}>:@pthr.Iterator) {
+			return new impl(std.ArrayRefIter<{[Char:*]}>:@pthr.Iterator)(this as [Char:*]);
+		},
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[Char:*mut]}>:@pthr.MutIterator) {
+			return new impl(std.MutArrayRefIter<{[Char:*mut]}>:@pthr.MutIterator)(this as [Char:*mut]);
+		},
+	}
+
+
+	impl @pthr.IterableRT{
+		createIterator = (this) -> impl(std.ArrayRefIter<{[Char:*]}>:@pthr.IteratorRT) {
+			return new impl(std.ArrayRefIter<{[Char:*]}>:@pthr.IteratorRT)(this as [Char:*]);
+		},
+		createIterator = (this mut) -> impl(std.MutArrayRefIter<{[Char:*mut]}>:@pthr.MutIteratorRT) {
+			return new impl(std.MutArrayRefIter<{[Char:*mut]}>:@pthr.MutIteratorRT)(this as [Char:*mut]);
+		},
+	}
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// private
+
+	func remaining_capacity = (this) #priv -> RemainingCapacityType* {
+		unsafe{ return std.bitCast<{RemainingCapacityType*}>(this.data_block[CAPACITY]); }
+	}
+
+	func remaining_capacity = (this mut) #priv -> RemainingCapacityType*mut {
+		unsafe{ return std.bitCast<{RemainingCapacityType*mut}>(this.data_block[CAPACITY]); }
+	}
+
+
+	type RemainingCapacityType = alias #priv type(get_capacity_type(CAPACITY));
+	var data_block: [Byte : CAPACITY + std.types.numBytes<{RemainingCapacityType}>()] #priv;
 }

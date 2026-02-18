@@ -112,6 +112,7 @@ namespace pcit::panther{
 			enum class AddSourceResult{
 				SUCCESS,
 				DOESNT_EXIST,
+				NOT_FILE,
 				NOT_DIRECTORY,
 			};
 

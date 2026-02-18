@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.240.1"></a>
+## v0.0.240.1
+
+### Panther
+- Fixed checking of adding files and directories to build
+
+
+<!---------------------------------->
 <a name="v0.0.240.0"></a>
 ## v0.0.240.0
 

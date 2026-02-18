@@ -1071,22 +1071,28 @@ namespace pcit::panther{
 
 	auto Context::addSourceFile(const fs::path& path, Source::Package::ID package_id) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		// if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-		this->files_to_load.emplace_back(normalize_path(path, package.basePath), package_id);
+		const fs::path target_path = normalize_path(path, package.basePath);
+
+		if(path_exitsts(target_path) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(target_path)){ return AddSourceResult::NOT_FILE; }
+
+		this->files_to_load.emplace_back(target_path, package_id);
 
 		return AddSourceResult::SUCCESS;
 	}
 
 	auto Context::addSourceDirectory(const fs::path& directory, Source::Package::ID package_id) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-
 		const fs::path target_directory = normalize_path(directory, package.basePath);
+
+		if(path_exitsts(target_directory) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
+
+
 		for(const fs::path& file_path : std::filesystem::directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
@@ -1099,12 +1105,13 @@ namespace pcit::panther{
 	auto Context::addSourceDirectoryRecursive(const fs::path& directory, Source::Package::ID package_id)
 	-> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(directory) == false){ return AddSourceResult::DOESNT_EXIST; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-
 		const fs::path target_directory = normalize_path(directory, package.basePath);
+
+		if(path_exitsts(target_directory) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(target_directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
+
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
 				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
@@ -1119,7 +1126,6 @@ namespace pcit::panther{
 		evo::debugAssert(this->added_std_lib == false, "already added std lib");
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-
 		const fs::path normalized_path = package.basePath.lexically_normal();
 
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(normalized_path)){
@@ -1135,21 +1141,27 @@ namespace pcit::panther{
 
 	auto Context::addCHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
-		this->c_headers_to_load.emplace_back(
-			normalize_path(path, std::filesystem::current_path()), add_includes_to_pub_api
-		);
+		const fs::path normalized_path = normalize_path(path, std::filesystem::current_path());
+
+		if(path_exitsts(normalized_path) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
+
+
+		this->c_headers_to_load.emplace_back(normalized_path, add_includes_to_pub_api);
 		return AddSourceResult::SUCCESS;
 	}
 
 	auto Context::addCPPHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-		if(path_exitsts(path) == false){ return AddSourceResult::DOESNT_EXIST; }
 
-		this->cpp_headers_to_load.emplace_back(
-			normalize_path(path, std::filesystem::current_path()), add_includes_to_pub_api
-		);
+		const fs::path normalized_path = normalize_path(path, std::filesystem::current_path());
+
+		if(path_exitsts(normalized_path) == false){ return AddSourceResult::DOESNT_EXIST; }
+		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
+
+
+		this->cpp_headers_to_load.emplace_back(normalized_path, add_includes_to_pub_api);
 		return AddSourceResult::SUCCESS;
 	}
 

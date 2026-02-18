@@ -1,5 +1,6 @@
 def std = @import("std");
 
+type StaticString = alias @import("StaticString.pthr").StaticString;
 
 type Package = struct #pub {
 	func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
@@ -41,12 +42,44 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 		methodCallOnNonMethod        = true,
 		deleteMovedFromExpr          = true,
 		deleteTriviallyDeletableType = true,
-		comptimeIfCond              = true,
+		comptimeIfCond               = true,
 		alreadyUnsafe                = true,
 		experimentalF80              = true,
 	};
 
-	const std_lib_package = new Package(path, "std", copy warns);
-	std_lib_package.addSourceDirectory("./", true);
-	setStdLibPackage(std_lib_package);
+	// const path_str = new StaticString<{256}>(path);
+
+	// const std_lib_package = new Package(path, "std", copy warns);
+	// std_lib_package.addSourceDirectory("./", true);
+	// setStdLibPackage(std_lib_package);
+
+	const package_std = new Package(path, "std", copy warns);
+	package_std.addSourceDirectory("./containers", true);
+	package_std.addSourceFile("./asserts.pthr");
+	package_std.addSourceFile("./std.pthr");
+	setStdLibPackage(package_std);
+
+	const package_compiler_rt = new Package(path, "std._compiler_rt", copy warns);
+	package_compiler_rt.addSourceDirectory("./compiler_rt", true);
+	setStdLibPackage(package_compiler_rt);
+
+	const package_bit = new Package(path, "std.bit", copy warns);
+	package_bit.addSourceFile("./bit.pthr");
+	setStdLibPackage(package_bit);	
+
+	const package_build = new Package(path, "std.build", copy warns);
+	package_build.addSourceFile("./building.pthr");
+	setStdLibPackage(package_build);
+
+	const package_math = new Package(path, "std.math", copy warns);
+	package_math.addSourceFile("./math.pthr");
+	setStdLibPackage(package_math);
+
+	const package_mem = new Package(path, "std.mem", copy warns);
+	package_mem.addSourceFile("./mem.pthr");
+	setStdLibPackage(package_mem);
+
+	const package_types = new Package(path, "std.types", copy warns);
+	package_types.addSourceFile("./types.pthr");
+	setStdLibPackage(package_types);
 }
