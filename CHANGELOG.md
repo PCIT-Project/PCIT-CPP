@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.240.2"></a>
+## v0.0.240.2
+
+### Panther
+- Fixed semantic analysis incorrectly considering a scope terminated if theres a block expression that has all label terminations in sub-scopes
+
+
+<!---------------------------------->
 <a name="v0.0.240.1"></a>
 ## v0.0.240.1
 

@@ -106,18 +106,12 @@ type StaticString = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 
 		std.assert(
 			this.remaining_capacity().* as USize >= str.size(), "String to append is longer than remaining capacity"
 		);
+		
+		const dst_ptr: Char*mut = {->expr:Char*mut
+			unsafe{ return->expr std.bitCast<{Char*mut}>(this.data_block[this.size()]); }
+		};
 
-		// TODO(FUTURE): fix this bug:
-
-		// const dst_ptr: Char*mut = {->expr:Char*mut
-		// 	unsafe{ return->expr std.bitCast<{Char*mut}>(this.data_block[this.size()]); }
-		// };
-
-		unsafe{
-			const dst_ptr: Char*mut = std.bitCast<{Char*mut}>(this.data_block[this.size()]);
-			std.mem.copyBuffer(new [Char:*mut](copy dst_ptr, str.size()), str);
-		}
-
+		std.mem.copyBuffer(new [Char:*mut](copy dst_ptr, str.size()), str);
 		this.remaining_capacity().* -= str.size() as RemainingCapacityType;
 	}
 

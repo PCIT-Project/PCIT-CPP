@@ -281,10 +281,12 @@ namespace pcit::panther::sema{
 
 			auto addSubScope() -> void;
 			auto setSubScopeTerminated() -> void;
+			auto setSubScopeLabelTerminated() -> void;
 			auto setTerminated() -> void;
 			auto setLabelTerminated() -> void;
 			EVO_NODISCARD auto isTerminated() const -> bool;
 			EVO_NODISCARD auto isLabelTerminated() const -> bool;
+			EVO_NODISCARD auto allTerminatedSubScopesAreLabelTerminated() const -> bool;
 
 			EVO_NODISCARD auto numUnterminatedSubScopes() const -> unsigned;
 
@@ -416,6 +418,7 @@ namespace pcit::panther::sema{
 		private:
 			unsigned num_sub_scopes = false;
 			unsigned num_sub_scopes_terminated = 0;
+			unsigned num_sub_scopes_label_terminated = 0;
 			mutable evo::SpinLock sub_scopes_and_stmt_block_lock{};
 
 

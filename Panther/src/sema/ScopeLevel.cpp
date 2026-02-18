@@ -49,6 +49,18 @@ namespace pcit::panther::sema{
 		this->num_sub_scopes_terminated += 1;
 	}
 
+	auto ScopeLevel::setSubScopeLabelTerminated() -> void {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+
+		evo::debugAssert(
+			this->num_sub_scopes_terminated >= this->num_sub_scopes_label_terminated,
+			"Cannot have more label-terminated sub-scopes than terminated sub-scopes"
+		);
+
+		this->num_sub_scopes_label_terminated += 1;
+	}
+
+
 	auto ScopeLevel::setTerminated() -> void {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		this->_stmt_block->setTerminated();
@@ -71,11 +83,17 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		return this->_stmt_block->isLabelTerminated();
 	}
+	
+	auto ScopeLevel::allTerminatedSubScopesAreLabelTerminated() const -> bool {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		return this->num_sub_scopes_terminated == this->num_sub_scopes_label_terminated;
+	}
 
 	auto ScopeLevel::numUnterminatedSubScopes() const -> unsigned {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		return this->num_sub_scopes - this->num_sub_scopes_terminated;
 	}
+
 
 
 	auto ScopeLevel::resetSubScopes() -> void {

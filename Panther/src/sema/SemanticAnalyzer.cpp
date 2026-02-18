@@ -24258,6 +24258,7 @@ namespace pcit::panther{
 		}else{
 			sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 			const bool current_scope_is_terminated = current_scope_level.isTerminated();
+			const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
 
 			if(
 				current_scope_level.hasStmtBlock()
@@ -24290,8 +24291,6 @@ namespace pcit::panther{
 
 
 			if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::LABEL_TERMINATE){
-				const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
-
 				this->scope.popLevel(); // `current_scope_level` is now invalid
 
 				if(
@@ -24313,6 +24312,10 @@ namespace pcit::panther{
 					&& !this->scope.inObjectMainScope()
 				){
 					this->get_current_scope_level().setSubScopeTerminated();
+
+					if(current_scope_is_label_terminated){
+						this->get_current_scope_level().setSubScopeLabelTerminated();
+					}
 				}
 			}
 		}
@@ -26181,7 +26184,11 @@ namespace pcit::panther{
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 
 		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
-			current_scope_level.stmtBlock().setTerminated();
+			if(current_scope_level.allTerminatedSubScopesAreLabelTerminated()){
+				current_scope_level.stmtBlock().setLabelTerminated();
+			}else{
+				current_scope_level.stmtBlock().setTerminated();
+			}
 		}
 
 		for(auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
