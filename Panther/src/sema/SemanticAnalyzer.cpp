@@ -9224,7 +9224,7 @@ namespace pcit::panther{
 							instr.func_call,
 							"Making a method call to a function that is not a method",
 							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Call the function through the type instead"),
+								Diagnostic::Info("Call the function by type accessor instead"),
 								Diagnostic::Info(
 									"Function declared here:",
 									this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11174,7 +11174,7 @@ namespace pcit::panther{
 							ast_func_call,
 							"Making a method call to a function that is not a method",
 							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info("Call the function through the type instead"),
+								Diagnostic::Info("Call the function by type accessor instead"),
 								Diagnostic::Info(
 									"Function declared here:",
 									this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -23345,13 +23345,8 @@ namespace pcit::panther{
 			decayed_lhs_type.baseTypeID().structID()
 		);
 
-		const Source* struct_source = [&]() -> const Source* {
-			if(lhs_type_struct.isPTHRSourceType()){
-				return &this->context.getSourceManager()[lhs_type_struct.sourceID.as<Source::ID>()];
-			}else{
-				return nullptr;
-			}
-		}();
+		///////////////////////////////////
+		// member var
 
 		{
 			const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
@@ -23368,7 +23363,7 @@ namespace pcit::panther{
 						if(
 							current_type_scope.has_value() == false
 							|| current_type_scope->is<BaseType::Struct::ID>() == false
-							|| current_type_scope->as<BaseType::Struct::ID>() != decayed_lhs_type.baseTypeID().structID()
+							|| current_type_scope->as<BaseType::Struct::ID>() !=decayed_lhs_type.baseTypeID().structID()
 						){
 							this->emit_error(
 								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
@@ -23473,7 +23468,7 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// method
+		// get sub-symbol with ident
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
 			lhs_type_struct.namespacedMembers, rhs_ident_str
@@ -23502,6 +23497,15 @@ namespace pcit::panther{
 			} break;
 		}
 
+
+		const Source* struct_source = [&]() -> const Source* {
+			if(lhs_type_struct.isPTHRSourceType()){
+				return &this->context.getSourceManager()[lhs_type_struct.sourceID.as<Source::ID>()];
+			}else{
+				return nullptr;
+			}
+		}();
+
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NOT_PRIV>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, false, struct_source
@@ -23526,43 +23530,68 @@ namespace pcit::panther{
 
 
 
-		const sema::FakeTermInfo::ID method_this = [&](){
-			if(is_pointer){
-				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(decayed_lhs_type.baseTypeID())
-				);
+		switch(expr_ident.value().value_category){
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED: {
+				const sema::FakeTermInfo::ID method_this = [&](){
+					if(is_pointer){
+						const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(decayed_lhs_type.baseTypeID())
+						);
 
-				const sema::FakeTermInfo::ValueCategory value_category = decayed_lhs_type.qualifiers().back().isMut
-					? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
-					: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+						const sema::FakeTermInfo::ValueCategory value_category = 
+							decayed_lhs_type.qualifiers().back().isMut
+								? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
+								: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 
-				return this->context.sema_buffer.createFakeTermInfo(
-					value_category,
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					resultant_type_id,
-					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
-				);
-				
-			}else{
-				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					decayed_lhs_type_id,
-					lhs.getExpr()
-				);
-			}
-		}();
+						return this->context.sema_buffer.createFakeTermInfo(
+							value_category,
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							resultant_type_id,
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+						);
+						
+					}else{
+						return this->context.sema_buffer.createFakeTermInfo(
+							TermInfo::convertValueCategory(lhs.value_category),
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							decayed_lhs_type_id,
+							lhs.getExpr()
+						);
+					}
+				}();
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::METHOD_CALL,
-			expr_ident.value().value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			std::move(expr_ident.value().type_id),
-			sema::Expr(method_this)
-		);
-		return Result::SUCCESS;
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::METHOD_CALL,
+					expr_ident.value().value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					std::move(expr_ident.value().type_id),
+					sema::Expr(method_this)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::ValueCategory::TYPE: {
+				if(this->get_package().warn.memberTypeByValueAccessor){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
+						instr.infix.rhs,
+						"Accessing a member type by value accessor",
+						Diagnostic::Info("Access the member type by type accessor instead")
+					);
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE, expr_ident.value().type_id
+				);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown RHS term kind");
+			} break;
+		}
 	}
 
 
@@ -23691,7 +23720,7 @@ namespace pcit::panther{
 
 		
 		///////////////////////////////////
-		// method
+		// method / types
 
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
 			lhs_type_union.namespacedMembers, rhs_ident_str
@@ -23745,39 +23774,69 @@ namespace pcit::panther{
 		}
 
 
-		const sema::FakeTermInfo::ID method_this = [&](){
-			if(is_pointer){
-				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(decayed_lhs_type.baseTypeID())
-				);
+		switch(expr_ident.value().value_category){
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED: {
+				const sema::FakeTermInfo::ID method_this = [&](){
+					if(is_pointer){
+						const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(decayed_lhs_type.baseTypeID())
+						);
 
-				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					resultant_type_id,
-					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
-				);
-				
-			}else{
-				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					decayed_lhs_type_id,
-					lhs.getExpr()
-				);
-			}
-		}();
+						const sema::FakeTermInfo::ValueCategory value_category = 
+							decayed_lhs_type.qualifiers().back().isMut
+								? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
+								: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::METHOD_CALL,
-			expr_ident.value().value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			std::move(expr_ident.value().type_id),
-			sema::Expr(method_this)
-		);
-		return Result::SUCCESS;
+						return this->context.sema_buffer.createFakeTermInfo(
+							value_category,
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							resultant_type_id,
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+						);
+						
+					}else{
+						return this->context.sema_buffer.createFakeTermInfo(
+							TermInfo::convertValueCategory(lhs.value_category),
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							decayed_lhs_type_id,
+							lhs.getExpr()
+						);
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::METHOD_CALL,
+					expr_ident.value().value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					std::move(expr_ident.value().type_id),
+					sema::Expr(method_this)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::ValueCategory::TYPE: {
+				if(this->get_package().warn.memberTypeByValueAccessor){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
+						instr.infix.rhs,
+						"Accessing a member type by value accessor",
+						Diagnostic::Info("Access the member type by type accessor instead")
+					);
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE, expr_ident.value().type_id
+				);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown RHS term kind");
+			} break;
+		}
+
 	}
 
 
@@ -23887,39 +23946,68 @@ namespace pcit::panther{
 		}
 
 
-		const sema::FakeTermInfo::ID method_this = [&](){
-			if(is_pointer){
-				const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(decayed_lhs_type.baseTypeID())
-				);
+		switch(expr_ident.value().value_category){
+			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED: {
+				const sema::FakeTermInfo::ID method_this = [&](){
+					if(is_pointer){
+						const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(decayed_lhs_type.baseTypeID())
+						);
 
-				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					resultant_type_id,
-					sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
-				);
-				
-			}else{
-				return this->context.sema_buffer.createFakeTermInfo(
-					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
-					TermInfo::convertValueState(lhs.value_state),
-					decayed_lhs_type_id,
-					lhs.getExpr()
-				);
-			}
-		}();
+						const sema::FakeTermInfo::ValueCategory value_category = 
+							decayed_lhs_type.qualifiers().back().isMut
+								? sema::FakeTermInfo::ValueCategory::CONCRETE_MUT
+								: sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::METHOD_CALL,
-			expr_ident.value().value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			std::move(expr_ident.value().type_id),
-			sema::Expr(method_this)
-		);
-		return Result::SUCCESS;
+						return this->context.sema_buffer.createFakeTermInfo(
+							value_category,
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							resultant_type_id,
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+						);
+						
+					}else{
+						return this->context.sema_buffer.createFakeTermInfo(
+							TermInfo::convertValueCategory(lhs.value_category),
+							TermInfo::convertValueStage(lhs.value_stage),
+							TermInfo::convertValueState(lhs.value_state),
+							decayed_lhs_type_id,
+							lhs.getExpr()
+						);
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::METHOD_CALL,
+					expr_ident.value().value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					std::move(expr_ident.value().type_id),
+					sema::Expr(method_this)
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::ValueCategory::TYPE: {
+				if(this->get_package().warn.memberTypeByValueAccessor){
+					this->emit_warning(
+						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
+						instr.infix.rhs,
+						"Accessing a member type by value accessor",
+						Diagnostic::Info("Access the member type by type accessor instead")
+					);
+				}
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE, expr_ident.value().type_id
+				);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Unknown RHS term kind");
+			} break;
+		}
 	}
 
 

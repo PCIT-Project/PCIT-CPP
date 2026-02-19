@@ -15,6 +15,7 @@ func entry = () #entry -> UI8 {
 		name     : "test",
 		warnings : new @build.PackageWarningSettings{
 			methodCallOnNonMethod        = true,
+			memberTypeByValueAccessor    = true,
 			deleteMovedFromExpr          = true,
 			deleteTriviallyDeletableType = true,
 			comptimeIfCond               = true,

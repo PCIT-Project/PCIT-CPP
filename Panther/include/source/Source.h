@@ -41,6 +41,7 @@ namespace pcit::panther{
 
 				struct Warns{
 					bool methodCallOnNonMethod        = true;
+					bool memberTypeByValueAccessor    = true;
 					bool deleteMovedFromExpr          = true;
 					bool deleteTriviallyDeletableType = true;
 					bool comptimeIfCond               = true;

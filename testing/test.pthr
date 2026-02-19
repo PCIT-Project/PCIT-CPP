@@ -23,10 +23,7 @@ func get_string = () -> (output: [Char:11]) {
 
 
 func entry = () #entry -> UI8 {
-	var str = new StaticString<{11}>();
-
-	// TODO(FUTURE): fix this bug (make RemainginCapacityType not #priv)
-	// @comptimeAssert(@getTypeID<{str.RemainingCapacityType}>() == @getTypeID<{UI8}>());
+	var str = new StaticString<{12}>();
 
 	str += 'a';
 

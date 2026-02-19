@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.241.0"></a>
+## v0.0.241.0
+
+### Panther
+- Added warning "memberTypeByValueAccessor"
+- Fixed value accessor being a type
+
+
+<!---------------------------------->
 <a name="v0.0.240.2"></a>
 ## v0.0.240.2
 

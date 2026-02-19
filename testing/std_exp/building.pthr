@@ -40,6 +40,7 @@ func setStdLibPackage = (package: Package) #pub #rt -> Void {
 func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 	const warns = new @build.PackageWarningSettings{
 		methodCallOnNonMethod        = true,
+		memberTypeByValueAccessor    = true,
 		deleteMovedFromExpr          = true,
 		deleteTriviallyDeletableType = true,
 		comptimeIfCond               = true,
