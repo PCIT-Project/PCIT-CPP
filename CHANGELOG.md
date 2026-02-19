@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.241.1"></a>
+## v0.0.241.1
+
+### Panther
+- Fixed type checking of RHS of shift operators
+
+
+<!---------------------------------->
 <a name="v0.0.241.0"></a>
 ## v0.0.241.0
 

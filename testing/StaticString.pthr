@@ -2,19 +2,18 @@ def std = @import("std");
 
 
 func get_capacity_type = (capacity: USize) -> TypeID {
-	if(capacity <= 1 << 8){ return @getTypeID<{UI8}>(); }
-	if(capacity <= 1 << 16){ return @getTypeID<{UI16}>(); }
-	if(capacity <= 1 << 32){ return @getTypeID<{UI32}>(); }
+	// if(capacity <= 1 << 8){ return @getTypeID<{UI8}>(); }
+	// if(capacity <= 1 << 16){ return @getTypeID<{UI16}>(); }
+	// if(capacity <= 1 << 32){ return @getTypeID<{UI32}>(); }
 
 	// TODO(FUTURE): fix this bug
 	// if(@ctlz(capacity) >= 64 - 8){ return @getTypeID<{UI8}>(); }
 	// if(@ctlz(capacity) >= 64 - 16){ return @getTypeID<{UI16}>(); }
 	// if(@ctlz(capacity) >= 64 - 32){ return @getTypeID<{UI32}>(); }
 
-	// TODO(FUTURE): fix this bug
-	// if(capacity <= 1 as USize << (std.types.numBits<{UI8}>() as UI6)){ return @getTypeID<{UI8}>(); }
-	// if(capacity <= 1 as USize << (std.types.numBits<{UI16}>() as UI6)){ return @getTypeID<{UI16}>(); }
-	// if(capacity <= 1 as USize << (std.types.numBits<{UI32}>() as UI6)){ return @getTypeID<{UI32}>(); }
+	if(capacity <= 1 as USize << (std.types.numBits<{UI8}>() as UI6)){ return @getTypeID<{UI8}>(); }
+	if(capacity <= 1 as USize << (std.types.numBits<{UI16}>() as UI6)){ return @getTypeID<{UI16}>(); }
+	if(capacity <= 1 as USize << (std.types.numBits<{UI32}>() as UI6)){ return @getTypeID<{UI32}>(); }
 
 	return @getTypeID<{UI64}>();
 }

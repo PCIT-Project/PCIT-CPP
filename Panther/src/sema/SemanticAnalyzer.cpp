@@ -20461,10 +20461,10 @@ namespace pcit::panther{
 					}
 
 					const uint64_t num_bits_lhs_type =
-						this->context.getTypeManager().numBits(lhs_decayed_type_id);
+						this->context.getTypeManager().numBits(lhs_decayed_type_id, false);
 
 					const uint64_t num_bits_rhs_type =
-						this->context.getTypeManager().numBits(rhs_decayed_type_id);
+						this->context.getTypeManager().numBits(rhs_decayed_type_id, false);
 
 					const uint64_t expected_num_bits_rhs_type =
 						uint64_t(std::ceil(std::log2(double(num_bits_lhs_type))));
