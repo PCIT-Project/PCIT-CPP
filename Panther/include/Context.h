@@ -432,6 +432,33 @@ namespace pcit::panther{
 
 
 			struct TemplateIntrinsicFuncInfo{
+				struct TemplateParam{
+					EVO_NODISCARD static auto createType() -> TemplateParam {
+						return TemplateParam(std::nullopt);
+					}
+
+					EVO_NODISCARD static auto createExpr(TypeInfo::ID expr_type) -> TemplateParam {
+						return TemplateParam(expr_type);
+					}
+
+					TemplateParam(TypeInfo::ID _expr_type) : expr_type(_expr_type) {}
+
+
+					EVO_NODISCARD auto isType() const -> bool { return this->expr_type.has_value() == false; }
+					EVO_NODISCARD auto isExpr() const -> bool { return this->expr_type.has_value(); }
+
+					EVO_NODISCARD auto getExprType() const -> TypeInfo::ID {
+						evo::debugAssert(this->isExpr(), "not an expr template param");
+						return *this->expr_type;
+					}
+
+					private:
+						TemplateParam(std::optional<TypeInfo::ID> _expr_type)
+							: expr_type(_expr_type) {}
+
+						std::optional<TypeInfo::ID> expr_type;
+				};
+
 				struct Param{
 					BaseType::Function::Param::Kind kind;
 					evo::Variant<TypeInfo::ID, uint32_t> type; // uint32_t is the index of the templateParam
@@ -440,7 +467,7 @@ namespace pcit::panther{
 				using ReturnParam = evo::Variant<TypeInfo::VoidableID, uint32_t>; // uint32_t is the index 
 																				  //   of the templateParam
 
-				evo::SmallVector<std::optional<TypeInfo::ID>> templateParams; // nullopt means it's a `Type` param
+				evo::SmallVector<TemplateParam> templateParams;
 				evo::SmallVector<Param> params;
 				evo::SmallVector<ReturnParam> returns;
 

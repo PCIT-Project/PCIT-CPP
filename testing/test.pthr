@@ -1,31 +1,39 @@
-def std = @import("std");
+// def std = @import("std");
 
 type StaticString = alias @import("StaticString.pthr").StaticString;
 
 
-const global_str: [Char:11] = get_string();
+// const global_str: [Char:11] = get_string();
 
 
 
 
-func get_string = () -> (output: [Char:11]) {
-	var str = new StaticString<{11}>(); 
+// func get_string = () -> (output: [Char:11]) {
+// 	var str = new StaticString<{11}>(); 
 
-	str += "Hello";
-	str += " World";
+// 	str += "Hello";
+// 	str += " World";
 
-	output = new [Char:11]();
-	std.mem.copyBuffer(output as [Char:*mut], str);
+// 	output = new [Char:11]();
+// 	std.mem.copyBuffer(output as [Char:*mut], str);
 
-	return...;
+// 	return...;
+// }
+
+
+
+func test = () -> Void {
+	_ = @add<{Void, 12}>(12);
+
+	// function<{12}>();
 }
-
 
 
 func entry = () #entry -> UI8 {
 	var str = new StaticString<{12}>();
 
 	str += 'a';
+
 
 	return str.size() as UI8;
 }

@@ -11722,11 +11722,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					if(this->get_current_func().attributes.isComptime){
-						return TermInfo::ValueStage::INTERPTIME;
-					}else{
-						return TermInfo::ValueStage::RUNTIME;
-					}
+					return this->get_current_func_value_stage();
 				}
 			}();
 
@@ -11818,11 +11814,7 @@ namespace pcit::panther{
 					return TermInfo::ValueStage::COMPTIME;
 				}
 
-				if(this->get_current_func().attributes.isComptime){
-					return TermInfo::ValueStage::INTERPTIME;
-				}else{
-					return TermInfo::ValueStage::RUNTIME;
-				}
+				return this->get_current_func_value_stage();
 			}
 		}();
 
@@ -12809,15 +12801,75 @@ namespace pcit::panther{
 
 
 
+		if(instr.template_args.size() != template_intrinsic_func_info.templateParams.size()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
+				instr.func_call.target,
+				"Incorrect number of template arguments",
+				Diagnostic::Info(
+					std::format(
+						"Expected {}, got {}",
+						template_intrinsic_func_info.templateParams.size(),
+						instr.template_args.size()
+					)
+				)
+			);
+			return Result::ERROR;
+		}
+
+
+
 		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
-		for(const SymbolProcTermInfoID& template_arg_id : instr.template_args){
-			const TermInfo& template_arg = this->get_term_info(template_arg_id);
+		for(size_t i = 0; const SymbolProcTermInfoID& template_arg_id : instr.template_args){
+			TermInfo& template_arg = this->get_term_info(template_arg_id);
+
+			const Context::TemplateIntrinsicFuncInfo::TemplateParam& template_param =
+				template_intrinsic_func_info.templateParams[i];
 
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
+				if(template_param.isExpr()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument must be an expression"
+					);
+					return Result::ERROR;
+				}
+
+				if(template_arg.type_id.as<TypeInfo::VoidableID>().isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument cannot be type `Void`"
+					);
+					return Result::ERROR;
+				}
+
 				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+
 			}else{
+				if(template_param.isType()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument must be a type"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->type_check<true, true>(
+					template_param.getExprType(),
+					template_arg,
+					"This template argument",
+					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+				).ok == false){
+					return Result::ERROR;
+				}
+
 				template_args.emplace_back(this->sema_expr_to_generic_value(template_arg.getExpr()));
 			}
+
+			i += 1;
 		}
 
 		auto args = evo::SmallVector<sema::Expr>();
@@ -12826,84 +12878,6 @@ namespace pcit::panther{
 		}
 
 
-		///////////////////////////////////
-		// helper functions
-
-		const auto check_correct_num_template_args = [&](size_t correct_num) -> evo::Result<> {
-			if(template_args.size() != correct_num){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_WRONG_NUM_TEMPLATE_ARGS,
-					instr.func_call.target,
-					"Incorrect number of template arguments",
-					Diagnostic::Info(std::format("Expected {}, got {}", correct_num, template_args.size()))
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
-
-		const auto check_template_arg_is_type = [&](size_t arg_index) -> evo::Result<> {
-			if(template_args[arg_index].is<TypeInfo::VoidableID>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be a type"
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
-
-		const auto check_template_arg_type_not_void = [&](size_t arg_index) -> evo::Result<> {
-			if(template_args[arg_index].is<TypeInfo::VoidableID>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be a type"
-				);
-				return evo::resultError;
-			}
-			
-			if(template_args[arg_index].as<TypeInfo::VoidableID>().isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument cannot be type `Void`"
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
-
-
-		const auto check_template_arg_is_expr = [&](size_t arg_index, TypeInfo::ID type_id) -> evo::Result<> {
-			if(template_args[arg_index].is<core::GenericValue>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be an expression"
-				);
-				return evo::resultError;
-			}
-
-			const TermInfo& arg_term_info = this->get_term_info(instr.template_args[arg_index]);
-			if(this->context.type_manager.decayType<false, false>(arg_term_info.type_id.as<TypeInfo::ID>()) != type_id){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					std::format(
-						"This template argument must be type `{}`",
-						this->context.getTypeManager().printType(type_id, this->context)
-					)
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
 
 		
 		///////////////////////////////////
@@ -12916,10 +12890,6 @@ namespace pcit::panther{
 					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
 				);
 
-				if(check_correct_num_template_args(3).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, atomic_ordering_type_id).isError()){ return Result::ERROR; }
 
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -12934,7 +12904,7 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Destination type of `@atomicStore` must be a mut pointer",
 						std::move(infos)
@@ -12944,7 +12914,7 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicStore` must be the pointee type of the target type"
 					);
@@ -12953,7 +12923,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicStore` must be trivially copyable"
 					);
@@ -12962,7 +12932,7 @@ namespace pcit::panther{
 
 				if(value_type_id == TypeManager::getTypeF80()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicStore` cannot be F80"
 					);
@@ -12986,7 +12956,7 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
 							"Invalid atomic order for `@atomicStore`"
 						);
@@ -12995,7 +12965,7 @@ namespace pcit::panther{
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
 							"Unknown atomic order"
 						);
@@ -13191,17 +13161,75 @@ namespace pcit::panther{
 			} break;
 		}
 
+		if(instr.template_args.size() != template_intrinsic_func_info.templateParams.size()){
+			this->emit_error(
+				Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
+				instr.func_call.target,
+				"Incorrect number of template arguments",
+				Diagnostic::Info(
+					std::format(
+						"Expected {}, got {}",
+						template_intrinsic_func_info.templateParams.size(),
+						instr.template_args.size()
+					)
+				)
+			);
+			return Result::ERROR;
+		}
+
 
 
 		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
-		for(const SymbolProcTermInfoID& template_arg_id : instr.template_args){
-			const TermInfo& template_arg = this->get_term_info(template_arg_id);
+		for(size_t i = 0; const SymbolProcTermInfoID& template_arg_id : instr.template_args){
+			TermInfo& template_arg = this->get_term_info(template_arg_id);
+
+			const Context::TemplateIntrinsicFuncInfo::TemplateParam& template_param =
+				template_intrinsic_func_info.templateParams[i];
 
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
+				if(template_param.isExpr()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument must be an expression"
+					);
+					return Result::ERROR;
+				}
+
+				if(template_arg.type_id.as<TypeInfo::VoidableID>().isVoid()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument cannot be type `Void`"
+					);
+					return Result::ERROR;
+				}
+
 				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+
 			}else{
+				if(template_param.isType()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
+						"This template argument must be a type"
+					);
+					return Result::ERROR;
+				}
+
+				if(this->type_check<true, true>(
+					template_param.getExprType(),
+					template_arg,
+					"This template argument",
+					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+				).ok == false){
+					return Result::ERROR;
+				}
+
 				template_args.emplace_back(this->sema_expr_to_generic_value(template_arg.getExpr()));
 			}
+
+			i += 1;
 		}
 
 		auto args = evo::SmallVector<sema::Expr>();
@@ -13238,7 +13266,7 @@ namespace pcit::panther{
 			if(return_types.size() == 1){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					this->get_current_func_value_stage(),
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -13247,7 +13275,7 @@ namespace pcit::panther{
 			}else{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					this->get_current_func_value_stage(),
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -13257,81 +13285,7 @@ namespace pcit::panther{
 			return evo::Result<>();
 		};
 
-		const auto check_correct_num_template_args = [&](size_t correct_num) -> evo::Result<> {
-			if(template_args.size() != correct_num){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_WRONG_NUM_TEMPLATE_ARGS,
-					instr.func_call.target,
-					"Incorrect number of template arguments",
-					Diagnostic::Info(std::format("Expected {}, got {}", correct_num, template_args.size()))
-				);
-				return evo::resultError;
-			}
 
-			return evo::Result<>();
-		};
-
-		const auto check_template_arg_is_type = [&](size_t arg_index) -> evo::Result<> {
-			if(template_args[arg_index].is<TypeInfo::VoidableID>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be a type"
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
-
-		const auto check_template_arg_type_not_void = [&](size_t arg_index) -> evo::Result<> {
-			if(template_args[arg_index].is<TypeInfo::VoidableID>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be a type"
-				);
-				return evo::resultError;
-			}
-			
-			if(template_args[arg_index].as<TypeInfo::VoidableID>().isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument cannot be type `Void`"
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
-
-
-		const auto check_template_arg_is_expr = [&](size_t arg_index, TypeInfo::ID type_id) -> evo::Result<> {
-			if(template_args[arg_index].is<core::GenericValue>() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					"This template argument must be an expression"
-				);
-				return evo::resultError;
-			}
-
-			const TermInfo& arg_term_info = this->get_term_info(instr.template_args[arg_index]);
-			if(this->context.type_manager.decayType<false, false>(arg_term_info.type_id.as<TypeInfo::ID>()) != type_id){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[arg_index],
-					std::format(
-						"This template argument must be type `{}`",
-						this->context.getTypeManager().printType(type_id, this->context)
-					)
-				);
-				return evo::resultError;
-			}
-
-			return evo::Result<>();
-		};
 
 
 
@@ -13344,8 +13298,6 @@ namespace pcit::panther{
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
 
 				this->return_term_info(
 					instr.output,
@@ -13354,15 +13306,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& arg_t_type = this->context.getTypeManager().getTypeInfo(arg_t_type_id);
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"This template argument must be an array type"
 					);
@@ -13378,15 +13327,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& arg_t_type = this->context.getTypeManager().getTypeInfo(arg_t_type_id);
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"This template argument must be an array reference type"
 					);
@@ -13402,10 +13348,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.numBytes(
@@ -13416,10 +13358,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NUM_BITS: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.numBits(
@@ -13431,9 +13369,6 @@ namespace pcit::panther{
 
 
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isDefaultInitializable(
@@ -13443,9 +13378,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isTriviallyDefaultInitializable(
@@ -13455,9 +13387,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeDefaultInitializable(
@@ -13467,9 +13396,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isNoErrorDefaultInitializable(
@@ -13479,9 +13405,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isSafeDefaultInitializable(
@@ -13491,9 +13414,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isTriviallyDeletable(
@@ -13503,9 +13423,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeDeletable(
@@ -13515,9 +13432,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COPYABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isCopyable(
@@ -13527,9 +13441,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isTriviallyCopyable(
@@ -13539,9 +13450,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeCopyable(
@@ -13551,9 +13459,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isNoErrorCopyable(
@@ -13563,9 +13468,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isSafeCopyable(
@@ -13575,9 +13477,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_MOVABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isMovable(
@@ -13587,9 +13486,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isTriviallyMovable(
@@ -13599,9 +13495,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeMovable(
@@ -13611,9 +13504,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isNoErrorMovable(
@@ -13623,9 +13513,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isSafeMovable(
@@ -13635,9 +13522,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPARABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComparable(
@@ -13647,9 +13531,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isTriviallyComparable(
@@ -13659,9 +13540,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeComparable(
@@ -13671,9 +13549,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isNoErrorComparable(
@@ -13683,9 +13558,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isSafeComparable(
@@ -13697,10 +13569,6 @@ namespace pcit::panther{
 
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 				
@@ -13709,7 +13577,7 @@ namespace pcit::panther{
 						!= this->context.getTypeManager().numBytes(to_type_id)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@bitCast` must be the same size",
 						Diagnostic::Info("NOTE: requires `@numBytes<{FROM, true}>() == @numBytes<{TO, true}>()`")
@@ -13730,16 +13598,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments of `@trunc` must be integral"
 					);
@@ -13748,7 +13612,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments of `@trunc` must be integral"
 					);
@@ -13760,7 +13624,7 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@trunc` must target a smaller size",
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() > @numBits<{TO, false}>()`")
@@ -13779,16 +13643,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments of `@ftrunc` must be floating-point"
 					);
@@ -13797,7 +13657,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments of `@ftrunc` must be floating-point"
 					);
@@ -13809,7 +13669,7 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@ftrunc` must target a smaller size",
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() > @numBits<{TO, false}>()`")
@@ -13828,16 +13688,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments of `@sext` must be integral"
 					);
@@ -13846,7 +13702,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments of `@sext` must be integral"
 					);
@@ -13858,7 +13714,7 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@sext` must target a larger size",
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
@@ -13877,16 +13733,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments of `@zext` must be integral"
 					);
@@ -13895,7 +13747,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments of `@zext` must be integral"
 					);
@@ -13907,7 +13759,7 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@zext` must target a larger size",
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
@@ -13927,16 +13779,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments of `@fext` must be floating-point"
 					);
@@ -13945,7 +13793,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments of `@fext` must be floating-point"
 					);
@@ -13957,7 +13805,7 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						instr.func_call.target,
 						"Template arguments of `@fext` must target a larger size",
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
@@ -13976,16 +13824,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments `FROM` of `@iToF` must be integral"
 					);
@@ -13994,7 +13838,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments `TO` of `@iToF` must be floating-point"
 					);
@@ -14013,16 +13857,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Template arguments `FROM` of `@fToI` must be floating-point"
 					);
@@ -14031,7 +13871,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Template arguments `TO` of `@fToI` must be integral"
 					);
@@ -14050,15 +13890,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@add` must be integral"
 					);
@@ -14091,14 +13927,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_WRAP: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@addWrap` must be integral"
 					);
@@ -14110,14 +13943,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@addSat` must be integral"
 					);
@@ -14137,14 +13967,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FADD: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@fadd` must be floating-point"
 					);
@@ -14164,15 +13991,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@sub` must be integral"
 					);
@@ -14205,14 +14028,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_WRAP: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@subWrap` must be integral"
 					);
@@ -14223,14 +14043,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@subSat` must be integral"
 					);
@@ -14250,14 +14067,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FSUB: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@fsub` must be floating-point"
 					);
@@ -14277,15 +14091,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@mul` must be integral"
 					);
@@ -14318,14 +14128,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_WRAP: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@mulWrap` must be integral"
 					);
@@ -14337,14 +14144,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@mulSat` must be integral"
 					);
@@ -14364,14 +14168,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FMUL: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@fmul` must be floating-point"
 					);
@@ -14391,15 +14192,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::DIV: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(1, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@div` must be integral"
 					);
@@ -14432,14 +14229,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FDIV: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@fdiv` must be floating-point"
 					);
@@ -14459,9 +14253,6 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::REM: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(
@@ -14469,7 +14260,7 @@ namespace pcit::panther{
 					&& this->context.getTypeManager().isFloatingPoint(target_type_id) == false
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@rem` must be integral or floating-point"
 					);
@@ -14500,14 +14291,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FNEG: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@fneg` must be floating-point"
 					);
@@ -14526,14 +14314,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::EQ: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@eq` must be primitive (excluding `Void`)"
 					);
@@ -14563,14 +14348,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NEQ: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@neq` must be primitive (excluding `Void`)"
 					);
@@ -14601,14 +14383,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LT: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14624,7 +14403,7 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14654,14 +14433,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LTE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14677,7 +14453,7 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14707,14 +14483,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GT: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14730,7 +14503,7 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14760,14 +14533,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GTE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14783,7 +14553,7 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
 					);
@@ -14813,14 +14583,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::AND: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@and` must be integral"
 					);
@@ -14840,14 +14607,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::OR: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@or` must be integral"
 					);
@@ -14867,14 +14631,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::XOR: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@xor` must be integral"
 					);
@@ -14894,17 +14655,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL: {
-				if(check_correct_num_template_args(3).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@shl` must be integral"
 					);
@@ -14913,7 +14669,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Shift type of `@shl` must be unsigned integral"
 					);
@@ -14926,7 +14682,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shl` must have a width of ceil(log2(@numBits<{T, false}>()))",
 						Diagnostic::Info(
@@ -14962,16 +14718,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL_SAT: {
-				if(check_correct_num_template_args(2).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@shlSat` must be integral"
 					);
@@ -14980,7 +14732,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Shift type of `@shlSat` must be unsigned integral"
 					);
@@ -14993,7 +14745,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shlSat` must have a width of ceil(log2(@numBits<{T, false}>()))",
 						Diagnostic::Info(
@@ -15015,17 +14767,12 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHR: {
-				if(check_correct_num_template_args(3).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@shl` must be integral"
 					);
@@ -15034,7 +14781,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Shift type of `@shl` must be unsigned integral"
 					);
@@ -15047,7 +14794,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shr` must have a width of ceil(log2(@numBits<{T, false}>()))",
 						Diagnostic::Info(
@@ -15083,14 +14830,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_REVERSE: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@bitReverse` must be integral"
 					);
@@ -15109,14 +14853,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BYTE_SWAP: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@byteSwap` must be integral"
 					);
@@ -15135,14 +14876,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTPOP: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@ctPop` must be integral"
 					);
@@ -15160,14 +14898,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTLZ: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@ctlz` must be integral"
 					);
@@ -15186,14 +14921,11 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTTZ: {
-				if(check_correct_num_template_args(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@cttz` must be integral"
 					);
@@ -15217,10 +14949,6 @@ namespace pcit::panther{
 					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
 				);
 
-				if(check_correct_num_template_args(3).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, atomic_ordering_type_id).isError()){ return Result::ERROR; }
 
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -15235,7 +14963,7 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@atomicLoad` must be a pointer",
 						std::move(infos)
@@ -15245,7 +14973,7 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicLoad` must be the pointee type of the target type"
 					);
@@ -15254,7 +14982,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicLoad` must be trivially copyable"
 					);
@@ -15263,7 +14991,7 @@ namespace pcit::panther{
 
 				if(value_type_id == TypeManager::getTypeF80()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicLoad` cannot be F80"
 					);
@@ -15286,7 +15014,7 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
 							"Invalid atomic order for `@atomicLoad`"
 						);
@@ -15295,7 +15023,7 @@ namespace pcit::panther{
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
 							"Unknown atomic order"
 						);
@@ -15312,12 +15040,6 @@ namespace pcit::panther{
 					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
 				);
 
-				if(check_correct_num_template_args(5).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, TypeManager::getTypeBool()).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(3, atomic_ordering_type_id).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(4, atomic_ordering_type_id).isError()){ return Result::ERROR; }
 
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -15332,7 +15054,7 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@cmpxchg` must be a typed pointer",
 						std::move(infos)
@@ -15342,7 +15064,7 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@cmpxchg` must be the pointee type of the target type"
 					);
@@ -15355,7 +15077,7 @@ namespace pcit::panther{
 					&& value_type_id != TypeManager::getTypeBool()
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@cmpxchg` must be integral, pointer, or Bool"
 					);
@@ -15379,7 +15101,7 @@ namespace pcit::panther{
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3],
 							"Unknown atomic order"
 						);
@@ -15405,7 +15127,7 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
 							"Invalid atomic order for `@cmpxchg`"
 						);
@@ -15414,7 +15136,7 @@ namespace pcit::panther{
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
 							"Unknown atomic order"
 						);
@@ -15446,11 +15168,6 @@ namespace pcit::panther{
 					TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
 				);
 
-				if(check_correct_num_template_args(4).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(0).isError()){ return Result::ERROR; }
-				if(check_template_arg_type_not_void(1).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(2, atomic_rmw_op_type_id).isError()){ return Result::ERROR; }
-				if(check_template_arg_is_expr(3, atomic_ordering_type_id).isError()){ return Result::ERROR; }
 
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -15465,7 +15182,7 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@atomicRMW` must be a pointer",
 						std::move(infos)
@@ -15475,7 +15192,7 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicRMW` must be the pointee type of the target type"
 					);
@@ -15488,7 +15205,7 @@ namespace pcit::panther{
 					&& value_type_id != TypeManager::getTypeBool()
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_FUNC_INVALID_TEMPLATE_ARG,
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
 						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Value type of `@atomicRMW` must be integral, pointer, or Bool"
 					);
@@ -16797,9 +16514,7 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							this->get_current_func().attributes.isComptime
-								? TermInfo::ValueStage::INTERPTIME
-								: TermInfo::ValueStage::RUNTIME,
+							this->get_current_func_value_stage(),
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(
@@ -16939,9 +16654,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						this->get_current_func().attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(created_func_call_id)
@@ -17167,11 +16880,8 @@ namespace pcit::panther{
 				if(this->currently_in_func() == false){
 					return TermInfo::ValueStage::COMPTIME;
 
-				}else if(this->get_current_func().attributes.isComptime){
-					return TermInfo::ValueStage::INTERPTIME;
-
 				}else{
-					return TermInfo::ValueStage::RUNTIME;
+					return this->get_current_func_value_stage();
 				}
 			}
 		}();
@@ -17276,11 +16986,8 @@ namespace pcit::panther{
 					if(this->currently_in_func() == false){
 						return TermInfo::ValueStage::COMPTIME;
 
-					}else if(this->get_current_func().attributes.isComptime){
-						return TermInfo::ValueStage::INTERPTIME;
-
 					}else{
-						return TermInfo::ValueStage::RUNTIME;
+						return this->get_current_func_value_stage();
 					}
 				}
 			}();
@@ -17439,11 +17146,8 @@ namespace pcit::panther{
 				if(this->currently_in_func() == false){
 					return TermInfo::ValueStage::COMPTIME;
 
-				}else if(this->get_current_func().attributes.isComptime){
-					return TermInfo::ValueStage::INTERPTIME;
-
 				}else{
-					return TermInfo::ValueStage::RUNTIME;
+					return this->get_current_func_value_stage();
 				}
 			}
 		}();
@@ -17564,9 +17268,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
-			this->get_current_func().attributes.isComptime
-				? TermInfo::ValueStage::INTERPTIME
-		: TermInfo::ValueStage::RUNTIME,
+			this->get_current_func_value_stage(),
 			TermInfo::ExceptParamPack{},
 			std::move(except_params)
 		);
@@ -17773,9 +17475,7 @@ namespace pcit::panther{
 		if(sema_block_expr.outputs.size() == 1){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().attributes.isComptime
-					? TermInfo::ValueStage::INTERPTIME
-					: TermInfo::ValueStage::RUNTIME,
+				this->get_current_func_value_stage(),
 				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
@@ -17789,9 +17489,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func().attributes.isComptime
-					? TermInfo::ValueStage::INTERPTIME
-					: TermInfo::ValueStage::RUNTIME,
+				this->get_current_func_value_stage(),
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
@@ -22633,7 +22331,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			value_category,
-			current_func.attributes.isComptime ? TermInfo::ValueStage::INTERPTIME : TermInfo::ValueStage::RUNTIME,
+			this->get_current_func_value_stage(),
 			TermInfo::ValueState::INIT,
 			param.typeID,
 			sema::Expr(*this_param_id)
@@ -25138,6 +24836,15 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::get_current_func_value_stage() const -> TermInfo::ValueStage {
+		if(this->get_current_func().attributes.isComptime){
+			return TermInfo::ValueStage::INTERPTIME;
+		}else{
+			return TermInfo::ValueStage::RUNTIME;
+		}
+	}
+
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -25591,9 +25298,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
@@ -25620,9 +25325,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::VARIADIC_PARAM,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
 						sema::Expr(ident_id)
@@ -25658,9 +25361,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id.param_id),
 						ident_id.type_id,
 						sema::Expr(ident_id.param_id)
@@ -25679,9 +25380,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						return_type.asTypeID(),
 						sema::Expr(ident_id)
@@ -25699,9 +25398,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						error_param.asTypeID(),
 						sema::Expr(ident_id)
@@ -25709,17 +25406,13 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::BlockExprOutput::ID>()){
-				const sema::Func& current_func = this->get_current_func();
-
 				const sema::BlockExprOutput& sema_block_expr_output =
 					this->context.getSemaBuffer().getBlockExprOutput(ident_id);
 
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						sema_block_expr_output.typeID,
 						sema::Expr(ident_id)
@@ -25727,15 +25420,11 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ExceptParam::ID>()){
-				const sema::Func& current_func = this->get_current_func();
-
 				const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(ident_id);
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						except_param.typeID,
 						sema::Expr(ident_id)
@@ -25743,17 +25432,13 @@ namespace pcit::panther{
 				);
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ForParam::ID>()){
-				const sema::Func& current_func = this->get_current_func();
-
 				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(ident_id);
 				return ReturnType(
 					TermInfo(
 						for_param.isMut
 							? TermInfo::ValueCategory::CONCRETE_MUT
 							: TermInfo::ValueCategory::CONCRETE_CONST,
-						current_func.attributes.isComptime
-							? TermInfo::ValueStage::INTERPTIME
-							: TermInfo::ValueStage::RUNTIME,
+						this->get_current_func_value_stage(),
 						this->get_ident_value_state(ident_id),
 						for_param.typeID,
 						sema::Expr(ident_id)
@@ -27512,7 +27197,8 @@ namespace pcit::panther{
 
 					}else{
 						evo::debugAssert(func_overload.is<sema::TemplatedFunc::ID>(), "Unknown overload id");
-						
+					
+						if(this->symbol_proc.ident == "test"){ evo::breakpoint(); }
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
 								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
@@ -27597,6 +27283,24 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
+				const Context::TemplateIntrinsicFuncInfo& func_info = this->context.getTemplateIntrinsicFuncInfo(
+					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()
+				);
+
+				// this is required to catch template intrinsic with no template arguments
+				//	I have this checking against expected instead of 0 just in canse and it's not much more expensive
+				if(func_info.templateParams.size() != template_args.size()){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
+						func_call.target,
+						"Incorrect number of template arguments",
+						Diagnostic::Info(
+							std::format("Expected {}, got {}", func_info.templateParams.size(), template_args.size())
+						)
+					);
+					return evo::Unexpected(true);
+				}
+
 				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
 				for(const SymbolProc::TermInfoID& arg : template_args){
 					const TermInfo& arg_term_info = this->get_term_info(arg);
@@ -27607,9 +27311,6 @@ namespace pcit::panther{
 						instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
 					}
 				}
-				const Context::TemplateIntrinsicFuncInfo& func_info = this->context.getTemplateIntrinsicFuncInfo(
-					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()
-				);
 
 				const BaseType::ID instantiated_type = this->context.type_manager.getOrCreateFunction(
 					func_info.getTypeInstantiation(instantiation_args)
@@ -27643,23 +27344,29 @@ namespace pcit::panther{
 
 		if(instantiation_infos.empty()){
 			if(template_overload_match_infos.empty() == false){
-				const TermInfo::FuncOverloadList& func_overload_list =
-					target_term_info.type_id.as<TermInfo::FuncOverloadList>();
 
 				for(size_t i = 0; const std::optional<TemplateOverloadMatchFail>& info : template_overload_match_infos){
 					EVO_DEFER([&](){ i += 1; });
 
 					const auto get_func_location = [&]() -> Diagnostic::Location {
-						if(func_overload_list[i].is<sema::Func::ID>()){
-							return this->get_location(func_overload_list[i].as<sema::Func::ID>());
+						if(target_term_info.type_id.is<TermInfo::FuncOverloadList>()){
+							const TermInfo::FuncOverloadList& func_overload_list =
+								target_term_info.type_id.as<TermInfo::FuncOverloadList>();
+
+							if(func_overload_list[i].is<sema::Func::ID>()){
+								return this->get_location(func_overload_list[i].as<sema::Func::ID>());
+							}else{
+								return this->get_location(func_overload_list[i].as<sema::TemplatedFunc::ID>());
+							}
 						}else{
-							return this->get_location(func_overload_list[i].as<sema::TemplatedFunc::ID>());
+							return Diagnostic::Location::BUILTIN;
 						}
 					};
 
 					if(info.has_value() == false){ continue; }
 					
 					info->reason.visit([&](const auto& reason) -> void {
+						evo::breakpoint();
 						using ReasonT = std::decay_t<decltype(reason)>;
 
 						if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
@@ -27742,6 +27449,31 @@ namespace pcit::panther{
 									}
 								);
 							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateWrongExprType>()){
+							const AST::TemplatedExpr& templated_expr =
+								this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
+							auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+							sub_infos.emplace_back(
+								"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+							);
+							this->diagnostic_print_type_info(
+								reason.expected_type_id, sub_infos, "Expected type:      "
+							);
+							this->diagnostic_print_type_info(
+								this->get_term_info(reason.got_term_id), std::nullopt, sub_infos, "Expression is type: "
+							);
+
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: template parameter (index: {}) expected a different "
+										"expression type",
+									reason.arg_index
+								),
+								get_func_location(),
+								std::move(sub_infos)
+							);
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::WrongNumArgs>()){
 							instantiation_error_infos.emplace_back(
@@ -28418,7 +28150,9 @@ namespace pcit::panther{
 					expr_type_id.value(), template_arg, "", Diagnostic::Location::NONE
 				).ok == false){
 					return evo::Unexpected<TemplateOverloadMatchFail>(
-						TemplateOverloadMatchFail(TemplateOverloadMatchFail::Handled())
+						TemplateOverloadMatchFail(
+							TemplateOverloadMatchFail::TemplateWrongExprType(i, expr_type_id.value(), template_arg_id)
+						)
 					);
 				}
 				
@@ -30749,11 +30483,8 @@ namespace pcit::panther{
 					if(this->currently_in_func() == false){
 						return TermInfo::ValueStage::COMPTIME;
 
-					}else if(this->get_current_func().attributes.isComptime){
-						return TermInfo::ValueStage::INTERPTIME;
-
 					}else{
-						return TermInfo::ValueStage::RUNTIME;
+						return this->get_current_func_value_stage();
 					}
 				}
 			}();

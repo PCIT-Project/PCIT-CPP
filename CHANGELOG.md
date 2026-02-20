@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.241.2"></a>
+## v0.0.241.2
+
+### Panther
+- Fixed missing check for template intrinsic function call without template arguments
+- Fixed missing information in diagnostic error for failed to match function overload
+- Fixed intrinsic function calls sometimes incorrectly being considered as comptime value
+
+
+<!---------------------------------->
 <a name="v0.0.241.1"></a>
 ## v0.0.241.1
 

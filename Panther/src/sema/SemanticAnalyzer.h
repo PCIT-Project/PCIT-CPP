@@ -471,6 +471,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
 			EVO_NODISCARD auto get_current_func() const -> const sema::Func&;
 
+			EVO_NODISCARD auto get_current_func_value_stage() const -> TermInfo::ValueStage;
+
 
 			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
 
@@ -604,6 +606,9 @@ namespace pcit::panther{
 				struct TooFewTemplateArgs{ size_t min_num; size_t got_num; bool accepts_different_nums; };
 				struct TooManyTemplateArgs{ size_t max_num; size_t got_num; bool accepts_different_nums; };
 				struct TemplateArgWrongKind{ size_t arg_index; bool supposed_to_be_expr; };
+				struct TemplateWrongExprType{
+					size_t arg_index; TypeInfo::ID expected_type_id; SymbolProc::TermInfoID got_term_id;
+				};
 				struct WrongNumArgs{ size_t expected_num; size_t got_num; };
 				struct CantDeduceArgType{ size_t arg_index; };
 
@@ -612,6 +617,7 @@ namespace pcit::panther{
 					TooFewTemplateArgs,
 					TooManyTemplateArgs,
 					TemplateArgWrongKind,
+					TemplateWrongExprType,
 					WrongNumArgs,
 					CantDeduceArgType
 				>;
