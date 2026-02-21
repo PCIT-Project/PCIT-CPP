@@ -2,6 +2,23 @@ def std = @import("std");
 def build_exp = @import("std_exp/building.pthr");
 
 
+
+func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
+	const std_exp_package = new build_exp.Package(
+		path     : "./std_exp",
+		name     : "std_exp",
+		warnings : forward warns,
+	);
+	std_exp_package.addSourceFile("atomic.pthr");
+	std_exp_package.addSourceFile("NonTrivial.pthr");
+	std_exp_package.addSourceFile("StaticArrayList.pthr");
+	std_exp_package.addSourceFile("StaticString.pthr");
+	std_exp_package.addSourceFile("std_exp.pthr");
+}
+
+
+
+
 func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.PIR);
 	build_exp.setNumThreads(12);
@@ -10,24 +27,28 @@ func entry = () #entry -> UI8 {
 	// build_exp.addStdLib("../../Panther-std/std");
 
 
+	const warns = new @build.PackageWarningSettings{
+		methodCallOnNonMethod        = true,
+		memberTypeByValueAccessor    = true,
+		deleteMovedFromExpr          = true,
+		deleteTriviallyDeletableType = true,
+		comptimeIfCond               = true,
+		alreadyUnsafe                = true,
+		experimentalF80              = true,
+	};
+
+
+	// add_std_exp(copy warns);
+
+
 	const test_package = new build_exp.Package(
 		path     : "./",
 		name     : "test",
-		warnings : new @build.PackageWarningSettings{
-			methodCallOnNonMethod        = true,
-			memberTypeByValueAccessor    = true,
-			deleteMovedFromExpr          = true,
-			deleteTriviallyDeletableType = true,
-			comptimeIfCond               = true,
-			alreadyUnsafe                = true,
-			experimentalF80              = true,
-		},
+		warnings : copy warns,
 	);
 	test_package.addSourceFile("test.pthr");
-	// test_package.addSourceFile("StaticArrayList.pthr");
-	test_package.addSourceFile("StaticString.pthr");
-	// test_package.addSourceFile("NonTrivial.pthr");
-	// test_package.addSourceFile("atomic.pthr");
+
+
 
 	// @buildAddCHeaderFile("test.h", true);
 

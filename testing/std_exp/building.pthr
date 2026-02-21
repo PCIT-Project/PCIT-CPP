@@ -1,6 +1,6 @@
 def std = @import("std");
+// def std_exp = @import("./std_exp.pthr");
 
-type StaticString = alias @import("StaticString.pthr").StaticString;
 
 type Package = struct #pub {
 	func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
@@ -48,7 +48,7 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 		experimentalF80              = true,
 	};
 
-	// const path_str = new StaticString<{256}>(path);
+	// const path_str = new std_exp.StaticString<{256}>(path);
 
 	// const std_lib_package = new Package(path, "std", copy warns);
 	// std_lib_package.addSourceDirectory("./", true);

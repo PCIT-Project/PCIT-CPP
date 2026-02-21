@@ -1,0 +1,23 @@
+
+///////////////////////////////////
+// atomic
+
+def atomic = @import("./atomic.pthr");
+
+type AtomicOrdering = alias #pub atomic.AtomicOrdering;
+type AtomicRef = alias #pub atomic.AtomicRef;
+
+
+///////////////////////////////////
+// building
+
+// def build #pub = @import("./building.pthr");
+
+
+
+///////////////////////////////////
+// containers
+
+type NonTrivial = alias #pub @import("./NonTrivial.pthr").NonTrivial;
+type StaticArrayList = alias #pub @import("./StaticArrayList.pthr").StaticArrayList;
+type StaticString = alias #pub @import("./StaticString.pthr").StaticString;

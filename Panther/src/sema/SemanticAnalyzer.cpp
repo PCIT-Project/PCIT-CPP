@@ -17782,6 +17782,13 @@ namespace pcit::panther{
 		}
 
 
+		evo::debugAssert(
+			decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY
+				|| decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF,
+			"Expected type to be array or array ref (struct should have returned already)"
+		);
+
+
 		auto indices = evo::SmallVector<sema::Expr>();
 		indices.reserve(instr.indices.size());
 		for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
@@ -17791,6 +17798,50 @@ namespace pcit::panther{
 				TypeManager::getTypeUSize(), index, "Index in indexer", instr.indexer.indices[i]
 			).ok == false){
 				return Result::ERROR;
+			}
+
+			if(
+				index.value_stage == TermInfo::ValueStage::COMPTIME
+				&& index.getExpr().kind() == sema::Expr::Kind::INT_VALUE
+			){
+				if(decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
+					const BaseType::Array& array_type =
+						this->context.getTypeManager().getArray(decayed_target_type.baseTypeID().arrayID());
+
+					const sema::IntValue& index_sema_int_value =
+						this->context.getSemaBuffer().getIntValue(index.getExpr().intValueID());
+
+					const size_t index_value = static_cast<size_t>(index_sema_int_value.value);
+
+					if(index_value >= array_type.dimensions[i]){
+						this->emit_error(
+							Diagnostic::Code::SEMA_INDEXER_OUT_OF_BOUNDS_INDEX,
+							instr.indexer.indices[i],
+							"Index in array indexer is out-of-bounds"
+						);
+						return Result::ERROR;
+					}
+
+				}else{
+					const BaseType::ArrayRef& array_ref_type =
+						this->context.getTypeManager().getArrayRef(decayed_target_type.baseTypeID().arrayRefID());
+
+					if(array_ref_type.dimensions[i].isLength()){
+						const sema::IntValue& index_sema_int_value =
+							this->context.getSemaBuffer().getIntValue(index.getExpr().intValueID());
+
+						const size_t index_value = static_cast<size_t>(index_sema_int_value.value);
+
+						if(index_value >= array_ref_type.dimensions[i].length()){
+							this->emit_error(
+								Diagnostic::Code::SEMA_INDEXER_OUT_OF_BOUNDS_INDEX,
+								instr.indexer.indices[i],
+								"Index in array reference indexer is out-of-bounds"
+							);
+							return Result::ERROR;
+						}
+					}
+				}
 			}
 
 			indices.emplace_back(index.getExpr());

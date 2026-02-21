@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.242.0"></a>
+## v0.0.242.0
+
+### Panther
+- Added checking for out-of-bounds indexing into arrays and array references when the index is a comptime constant (and the dimension is statically known in array references)
+
+
+<!---------------------------------->
 <a name="v0.0.241.2"></a>
 ## v0.0.241.2
 
