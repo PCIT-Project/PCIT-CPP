@@ -163,6 +163,8 @@ namespace pcit::pir{
 			}
 
 
+			//////////////////
+			// global array
 
 			EVO_NODISCARD auto createGlobalArray(
 				Type element_type, evo::SmallVector<GlobalVar::Value> values
@@ -195,6 +197,12 @@ namespace pcit::pir{
 									element_type == this->getGlobalArray(element).type, "Array element must match type"
 								);
 
+							}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+								evo::debugAssert(
+									element_type == this->getGlobalByteArray(element).type,
+									"Array element must match type"
+								);
+
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 								evo::debugAssert(
 									element_type == this->getGlobalStruct(element).type, "Array element must match type"
@@ -217,7 +225,25 @@ namespace pcit::pir{
 			}
 
 
+			//////////////////
+			// global byte array
 
+			EVO_NODISCARD auto createGlobalByteArray(evo::SmallVector<std::byte>&& bytes) -> GlobalVar::ByteArray::ID {
+				const Type array_type = this->getOrCreateArrayType(this->createIntegerType(8), bytes.size());
+				return this->global_byte_arrays.emplace_back(array_type, std::move(bytes));
+			}
+
+			EVO_NODISCARD auto createGlobalByteArray(evo::ArrayProxy<std::byte> bytes) -> GlobalVar::ByteArray::ID {
+				return this->createGlobalByteArray(evo::SmallVector<std::byte>(bytes.begin(), bytes.end()));
+			}
+
+			EVO_NODISCARD auto getGlobalByteArray(GlobalVar::ByteArray::ID id) const -> const GlobalVar::ByteArray& {
+				return this->global_byte_arrays[id];
+			}
+
+
+			//////////////////
+			// global struct
 
 			EVO_NODISCARD auto createGlobalStruct(
 				Type type, evo::SmallVector<GlobalVar::Value> values
@@ -256,8 +282,13 @@ namespace pcit::pir{
 			 						member_type == this->getGlobalArray(member_value).type,
 			 						"Struct member value must match type"
 			 					);
-			 					
 
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::ByteArray::ID>()){
+			 					evo::debugAssert(
+			 						member_type == this->getGlobalByteArray(member_value).type,
+			 						"Struct member value must match type"
+			 					);
+			 					
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 			 					evo::debugAssert(
 			 						member_type == this->getGlobalStruct(member_value).type,
@@ -317,7 +348,12 @@ namespace pcit::pir{
 								type == this->getGlobalArray(member_value).type,
 								"Global variable value must match type"
 							);
-							
+
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::ByteArray::ID>()){
+							evo::debugAssert(
+								type == this->getGlobalByteArray(member_value).type,
+								"Global variable value must match type"
+							);							
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
 							evo::debugAssert(
@@ -624,6 +660,7 @@ namespace pcit::pir{
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};
 			core::StepAlloc<GlobalVar::Array, GlobalVar::Array::ID> global_arrays{};
+			core::StepAlloc<GlobalVar::ByteArray, GlobalVar::ByteArray::ID> global_byte_arrays{};
 			core::StepAlloc<GlobalVar::Struct, GlobalVar::Struct::ID> global_structs{};
 
 

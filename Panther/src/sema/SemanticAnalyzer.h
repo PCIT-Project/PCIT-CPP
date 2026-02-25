@@ -472,6 +472,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_current_func() const -> const sema::Func&;
 
 			EVO_NODISCARD auto get_current_func_value_stage() const -> TermInfo::ValueStage;
+			EVO_NODISCARD auto get_current_value_stage() const -> TermInfo::ValueStage;
 
 
 			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
@@ -642,8 +643,9 @@ namespace pcit::panther{
 			EVO_NODISCARD auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
-			EVO_NODISCARD auto generic_value_to_sema_expr(const core::GenericValue& value, const TypeInfo& target_type)
-				-> sema::Expr;
+			EVO_NODISCARD auto generic_value_to_sema_expr(
+				const core::GenericValue& value, TypeInfo::ID target_type_id, Diagnostic::Location location
+			) -> evo::Result<sema::Expr>;
 
 			EVO_NODISCARD auto sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue;
 

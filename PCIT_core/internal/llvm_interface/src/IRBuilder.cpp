@@ -30,7 +30,7 @@ namespace pcit::llvmint{
 
 
 	template<class LLVM_TYPE, class LLVMINT_TYPE>
-	EVO_NODISCARD static auto createArrayRef(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
+	EVO_NODISCARD static auto create_array_ref(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
 		return llvm::ArrayRef((LLVM_TYPE**)arr_proxy.data(), arr_proxy.size());
 	}
 
@@ -121,14 +121,14 @@ namespace pcit::llvmint{
 
 
 	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, std::string_view name) -> CallInst {
-		return this->builder->CreateCall(func.native(), createArrayRef<llvm::Value>(params), name);
+		return this->builder->CreateCall(func.native(), create_array_ref<llvm::Value>(params), name);
 	}
 
 	auto IRBuilder::createCall(
 		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, std::string_view name
 	) -> CallInst {
 		return this->builder->CreateCall(
-			type.native(), value.native(), createArrayRef<llvm::Value>(params), name
+			type.native(), value.native(), create_array_ref<llvm::Value>(params), name
 		);
 	}
 
@@ -172,7 +172,7 @@ namespace pcit::llvmint{
 		}();
 
 		return this->builder->CreateIntrinsic(
-			return_type.native(), intrinsic_id, createArrayRef<llvm::Value>(params), nullptr, name
+			return_type.native(), intrinsic_id, create_array_ref<llvm::Value>(params), nullptr, name
 		);
 	};
 
@@ -302,7 +302,7 @@ namespace pcit::llvmint{
 			this->builder->CreateGEP(
 				type.native(),
 				value.native(),
-				createArrayRef<llvm::Value>(indices),
+				create_array_ref<llvm::Value>(indices),
 				name,
 				llvm::GEPNoWrapFlags::all()
 			)
@@ -666,15 +666,19 @@ namespace pcit::llvmint{
 		return llvm::ConstantAggregateZero::get(type.native());
 	}
 
+	auto IRBuilder::getValueGlobalByteArray(evo::ArrayProxy<std::byte> bytes) const -> Constant {
+		return llvm::ConstantDataArray::get(this->get_native_context(), llvm::ArrayRef((int8_t*)bytes.data(), bytes.size()));
+	}
+
 	auto IRBuilder::getValueGlobalArray(const Type& elem_type, evo::ArrayProxy<Constant> values) const -> Constant {
-		// return llvm::ConstantDataArray::get(this->builder->getContext(), createArrayRef<llvm::Constant>(values));
+		// return llvm::ConstantDataArray::get(this->builder->getContext(), create_array_ref<llvm::Constant>(values));
 		return llvm::ConstantArray::get(
-			this->getArrayType(elem_type, values.size()).native(), createArrayRef<llvm::Constant>(values)
+			this->getArrayType(elem_type, values.size()).native(), create_array_ref<llvm::Constant>(values)
 		);
 	}
 
 	auto IRBuilder::getValueGlobalStruct(const StructType& type, evo::ArrayProxy<Constant> values) const -> Constant {
-		return llvm::ConstantStruct::get(type.native(), createArrayRef<llvm::Constant>(values));
+		return llvm::ConstantStruct::get(type.native(), create_array_ref<llvm::Constant>(values));
 	}
 
 
@@ -687,7 +691,7 @@ namespace pcit::llvmint{
 		const Type& return_type, evo::ArrayProxy<Type> params, bool is_var_args
 	) const -> FunctionType {
 		return FunctionType(
-			llvm::FunctionType::get(return_type.native(), createArrayRef<llvm::Type>(params), is_var_args)
+			llvm::FunctionType::get(return_type.native(), create_array_ref<llvm::Type>(params), is_var_args)
 		);
 	};
 
@@ -698,12 +702,12 @@ namespace pcit::llvmint{
 
 
 	auto IRBuilder::getStructType(evo::ArrayProxy<Type> members) -> StructType {
-		return StructType(llvm::StructType::get(this->get_native_context(), createArrayRef<llvm::Type>(members)));
+		return StructType(llvm::StructType::get(this->get_native_context(), create_array_ref<llvm::Type>(members)));
 	}
 
 	auto IRBuilder::createStructType(evo::ArrayProxy<Type> members, bool is_packed, std::string_view name) const
 	-> StructType {
-		return StructType(llvm::StructType::create(createArrayRef<llvm::Type>(members), name, is_packed));
+		return StructType(llvm::StructType::create(create_array_ref<llvm::Type>(members), name, is_packed));
 	}
 
 
@@ -736,7 +740,7 @@ namespace pcit::llvmint{
 	// getters
 
 
-	auto IRBuilder::get_native_context() -> llvm::LLVMContext& {
+	auto IRBuilder::get_native_context() const -> llvm::LLVMContext& {
 		return this->builder->getContext();
 	}
 		

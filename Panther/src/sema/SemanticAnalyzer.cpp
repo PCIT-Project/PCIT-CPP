@@ -937,7 +937,11 @@ namespace pcit::panther{
 				}
 
 			}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
-				// do nothing...
+				if(this->type_check<true, true>(
+					var_type_id, value_term_info, "Variable definition", *instr.var_def.value
+				).ok == false){
+					return Result::ERROR;
+				}
 
 			}else{
 				if(value_term_info.is_ephemeral() == false){
@@ -6941,7 +6945,10 @@ namespace pcit::panther{
 
 			TermInfo& return_value_term = this->get_term_info(*instr.value);
 
-			if(return_value_term.is_ephemeral() == false){
+			if(
+				return_value_term.is_ephemeral() == false
+				&& return_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
+			){
 				this->emit_error(
 					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
 					instr.return_stmt.value.as<AST::Node>(),
@@ -7246,11 +7253,14 @@ namespace pcit::panther{
 
 			TermInfo& error_value_term = this->get_term_info(*instr.value);
 
-			if(error_value_term.is_ephemeral() == false){
+			if(
+				error_value_term.is_ephemeral() == false
+				&& error_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
+			){
 				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
+					Diagnostic::Code::SEMA_ERROR_RETURN_NOT_EPHEMERAL,
 					instr.error_stmt.value.as<AST::Node>(),
-					"Error return values must be ephemeral"
+					"Value of error return must be ephemeral"
 				);
 				return Result::ERROR;
 			}
@@ -9554,23 +9564,10 @@ namespace pcit::panther{
 				}
 			}
 
-			if(rhs.value_category == TermInfo::ValueCategory::NULL_VALUE){
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createAssign(
-						lhs.getExpr(),
-						sema::Expr(
-							this->context.sema_buffer.createDefaultNew(
-								lhs.type_id.as<TypeInfo::ID>(), lhs.isUninitialized()
-							)
-						)
-					)
-				);
 
-			}else{
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
-				);
-			}
+			this->get_current_scope_level().stmtBlock().emplace_back(
+				this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
+			);
 
 			return Result::SUCCESS;
 
@@ -12364,28 +12361,15 @@ namespace pcit::panther{
 			return Result::ERROR;
 
 		}else{
-			const TypeInfo& target_func_return_type = this->context.getTypeManager().getTypeInfo(
-				target_func_type.returnTypes[0].asTypeID()
-			);
-
-
 			if(uses_rvo == false){
 				output = std::move(run_result.value());
 			}
 
-			if(target_func_return_type.qualifiers().empty() == false){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.func_call,
-					"Running a comptime function as a comptime expression that returns "
-						"a qualified type is unimplemented"
-				);
-				return Result::ERROR;
-			}
+			const evo::Result<sema::Expr> return_sema_expr = this->generic_value_to_sema_expr(
+				output, target_func_type.returnTypes[0].asTypeID(), this->get_location(instr.func_call)
+			);
 
-
-			const sema::Expr return_sema_expr =
-				this->generic_value_to_sema_expr(output, target_func_return_type);
+			if(return_sema_expr.isError()){ return Result::ERROR; }
 
 			this->return_term_info(instr.output,
 				TermInfo(
@@ -12393,7 +12377,7 @@ namespace pcit::panther{
 					TermInfo::ValueStage::COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					func_call_term.type_id,
-					return_sema_expr
+					return_sema_expr.value()
 				)
 			);
 			return Result::SUCCESS;
@@ -16514,7 +16498,7 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							this->get_current_func_value_stage(),
+							this->get_current_value_stage(),
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(
@@ -16862,11 +16846,12 @@ namespace pcit::panther{
 		}
 
 		if(target_type.terminator.has_value()){
-			values.emplace_back(
-				this->generic_value_to_sema_expr(
-					*target_type.terminator, this->context.getTypeManager().getTypeInfo(target_type.elementTypeID)
-				)
+			const evo::Result<sema::Expr> terminator_value = this->generic_value_to_sema_expr(
+				*target_type.terminator, target_type.elementTypeID, Diagnostic::Location::NONE
 			);
+			if(terminator_value.isError()){ return Result::ERROR; }
+
+			values.emplace_back(terminator_value.value());
 		}
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
@@ -16877,12 +16862,7 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				return TermInfo::ValueStage::COMPTIME;
 			}else{
-				if(this->currently_in_func() == false){
-					return TermInfo::ValueStage::COMPTIME;
-
-				}else{
-					return this->get_current_func_value_stage();
-				}
+				return this->get_current_value_stage();
 			}
 		}();
 
@@ -16983,12 +16963,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					if(this->currently_in_func() == false){
-						return TermInfo::ValueStage::COMPTIME;
-
-					}else{
-						return this->get_current_func_value_stage();
-					}
+					return this->get_current_value_stage();
 				}
 			}();
 
@@ -17143,12 +17118,7 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				return TermInfo::ValueStage::COMPTIME;
 			}else{
-				if(this->currently_in_func() == false){
-					return TermInfo::ValueStage::COMPTIME;
-
-				}else{
-					return this->get_current_func_value_stage();
-				}
+				return this->get_current_value_stage();
 			}
 		}();
 
@@ -21589,6 +21559,15 @@ namespace pcit::panther{
 			if(instr.terminator.has_value()){
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
+				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_ARRAY_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
+						instr.array_type,
+						"Terminated array type with non-trivially-copyable element type"
+					);
+					return Result::ERROR;
+				}
+
 				if(this->type_check<true, true>(
 					elem_type.asTypeID(), terminator_term_info, "Array terminator", *instr.array_type.terminator
 				).ok == false){
@@ -21684,6 +21663,15 @@ namespace pcit::panther{
 			if(instr.terminator.has_value()){
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
+				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_ARRAY_REF_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
+						instr.array_type,
+						"Terminated array reference type with non-trivially-copyable element type"
+					);
+					return Result::ERROR;
+				}
+
 				if(terminator_term_info.value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
 					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
 
@@ -21751,7 +21739,16 @@ namespace pcit::panther{
 
 			auto terminator = std::optional<core::GenericValue>();
 			if(instr.terminator.has_value()){
-				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);	
+				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
+
+				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_ARRAY_REF_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
+						instr.array_type,
+						"Terminated array reference type with non-trivially-copyable element type"
+					);
+					return Result::ERROR;
+				}
 
 				if(this->type_check<true, true>(
 					elem_type.asTypeID(),
@@ -24895,6 +24892,14 @@ namespace pcit::panther{
 		}
 	}
 
+	auto SemanticAnalyzer::get_current_value_stage() const -> TermInfo::ValueStage {
+		if(this->currently_in_func() == false){
+			return TermInfo::ValueStage::COMPTIME;
+		}else{
+			return this->get_current_func_value_stage();
+		}
+	}
+
 
 
 
@@ -27249,7 +27254,6 @@ namespace pcit::panther{
 					}else{
 						evo::debugAssert(func_overload.is<sema::TemplatedFunc::ID>(), "Unknown overload id");
 					
-						if(this->symbol_proc.ident == "test"){ evo::breakpoint(); }
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
 								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
@@ -27417,7 +27421,6 @@ namespace pcit::panther{
 					if(info.has_value() == false){ continue; }
 					
 					info->reason.visit([&](const auto& reason) -> void {
-						evo::breakpoint();
 						using ReasonT = std::decay_t<decltype(reason)>;
 
 						if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
@@ -28493,8 +28496,90 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::generic_value_to_sema_expr(const core::GenericValue& value, const TypeInfo& target_type)
-	-> sema::Expr {
+	auto SemanticAnalyzer::generic_value_to_sema_expr(
+		const core::GenericValue& value, TypeInfo::ID target_type_id, Diagnostic::Location location
+	) -> evo::Result<sema::Expr> {
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+		if(target_type.isPointer()){
+			void* const global_ptr = value.getPtr<void*>();
+
+			if(global_ptr == nullptr){
+				if(target_type.isOptional() == false){
+					this->emit_error(
+						Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
+						location,
+						"Comptime pointer that is not optional has value `Null`"
+					);
+					return evo::resultError;
+				}
+
+				return sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id, true));
+			}
+
+			const std::optional<pir::GlobalVar::ID> pir_global_var_id =
+				this->context.comptime_execution_engine.lookupGlobalVar(global_ptr);
+
+			if(pir_global_var_id.has_value() == false){
+				this->emit_error(
+					Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
+					location,
+					"Comptime pointer is not a valid value"
+				);
+				return evo::resultError;
+			}
+
+			{
+				const std::optional<sema::GlobalVar::ID> sema_global_var_id =
+					this->context.sema_to_pir_data.lookupGlobalVar(*pir_global_var_id);
+
+				if(sema_global_var_id.has_value()){
+					return sema::Expr(this->context.sema_buffer.createAddrOf(sema::Expr(*sema_global_var_id)));
+				}
+			}
+
+
+			{
+				const std::optional<sema::StringValue::ID> sema_global_string_id =
+					this->context.sema_to_pir_data.lookupGlobalString(*pir_global_var_id);
+
+				if(sema_global_string_id.has_value()){
+					return sema::Expr(this->context.sema_buffer.createAddrOf(sema::Expr(*sema_global_string_id)));
+				}
+			}
+
+			this->emit_fatal(
+				Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
+				location,
+				"Comptime pointer is not a valid value"
+			);
+			return evo::resultError;
+			
+		}else if(target_type.isOptional()){
+			const TypeInfo::ID opt_data_type_id =
+				this->context.type_manager.getOrCreateTypeInfo(target_type.copyWithPoppedQualifier());
+
+			const size_t opt_data_type_size = this->context.getTypeManager().numBytes(opt_data_type_id);
+
+			const bool held_flag = bool(value.dataRange()[opt_data_type_size]);
+
+			if(held_flag){
+				const evo::ArrayProxy<std::byte> data_range = value.dataRange();
+
+				const evo::Result<sema::Expr> opt_data_value = this->generic_value_to_sema_expr(
+					core::GenericValue::fromData(data_range.first(opt_data_type_size)), opt_data_type_id, location
+				);
+				if(opt_data_value.isError()){ return evo::resultError; }
+
+				return sema::Expr(
+					this->context.sema_buffer.createConversionToOptional(opt_data_value.value(), target_type_id)
+				);
+
+			}else{
+				return sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id, true));
+			}
+		}
+
 		switch(target_type.baseTypeID().kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
 
@@ -28606,7 +28691,6 @@ namespace pcit::panther{
 				}();
 
 				const uint64_t elem_size = this->context.getTypeManager().numBytes(array_type.elementTypeID);
-				const TypeInfo& elem_type_info = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
 
 				auto member_vals = evo::SmallVector<sema::Expr>();
 				member_vals.reserve(size_t(num_elems));
@@ -28615,9 +28699,12 @@ namespace pcit::panther{
 				for(size_t i = 0; i < num_elems; i+=1){
 					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i * elem_size], elem_size);
 
-					member_vals.emplace_back(
-						this->generic_value_to_sema_expr(core::GenericValue::fromData(elem_range), elem_type_info)
+					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+						core::GenericValue::fromData(elem_range), array_type.elementTypeID, location
 					);
+					if(member_val.isError()){ return evo::resultError; }
+
+					member_vals.emplace_back(member_val.value());
 				}
 
 				return sema::Expr(
@@ -28630,7 +28717,37 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				evo::unimplemented("BaseType::Kind::ARRAY_REF"); // TODO(FUTURE): handling underlying data???
+				const BaseType::ArrayRef& array_ref_type = this->context.getTypeManager().getArrayRef(
+					target_type.baseTypeID().arrayRefID()
+				);
+
+				const TypeInfo& elem_type = this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
+				const TypeInfo::ID elem_ptr_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					elem_type.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, false))
+				);
+
+				const std::byte* data_cursor = value.dataRange().data();
+
+				const auto ptr_expr_range = evo::ArrayProxy<std::byte>(data_cursor, sizeof(void*));
+				data_cursor += sizeof(void*);
+				const evo::Result<sema::Expr> ptr_expr = this->generic_value_to_sema_expr(
+					core::GenericValue::fromData(ptr_expr_range), elem_ptr_type_id, location
+				);
+				if(ptr_expr.isError()){ return evo::resultError; }
+
+				auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+				for(const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+					if(dimension.isLength()){ continue; }
+
+					const size_t dimension_value = *std::bit_cast<size_t*>(data_cursor);
+					data_cursor += sizeof(size_t);
+
+					dimensions.emplace_back(uint64_t(dimension_value));
+				}
+
+				return sema::Expr(
+					this->context.sema_buffer.createInitArrayRef(ptr_expr.value(), std::move(dimensions))
+				);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
@@ -28642,9 +28759,7 @@ namespace pcit::panther{
 					target_type.baseTypeID().aliasID()
 				);
 
-				return this->generic_value_to_sema_expr(
-					value, this->context.getTypeManager().getTypeInfo(alias_type.aliasedType)
-				);
+				return this->generic_value_to_sema_expr(value, alias_type.aliasedType, location);
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
@@ -28652,9 +28767,7 @@ namespace pcit::panther{
 					target_type.baseTypeID().distinctAliasID()
 				);
 
-				return this->generic_value_to_sema_expr(
-					value, this->context.getTypeManager().getTypeInfo(distinct_alias_type.underlyingType)
-				);
+				return this->generic_value_to_sema_expr(value, distinct_alias_type.underlyingType, location);
 			} break;
 
 			case BaseType::Kind::STRUCT: {
@@ -28671,12 +28784,13 @@ namespace pcit::panther{
 					const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
 
 					const auto member_range = evo::ArrayProxy<std::byte>(&value.dataRange()[offset], member_size);
-					member_vals.emplace_back(
-						this->generic_value_to_sema_expr(
-							core::GenericValue::fromData(member_range),
-							this->context.getTypeManager().getTypeInfo(member_var->typeID)
-						)
+
+					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+						core::GenericValue::fromData(member_range), member_var->typeID, location
 					);
+					if(member_val.isError()){ return evo::resultError; }
+
+					member_vals.emplace_back(member_val.value());
 
 					offset += member_size;
 				}
@@ -28708,12 +28822,12 @@ namespace pcit::panther{
 				for(size_t i = 0; i < num_elems; i+=1){
 					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i], 1);
 
-					member_vals.emplace_back(
-						this->generic_value_to_sema_expr(
-							core::GenericValue::fromData(elem_range),
-							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeByte())
-						)
+					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+						core::GenericValue::fromData(elem_range), TypeManager::getTypeByte(), location
 					);
+					if(member_val.isError()){ return evo::resultError; }
+
+					member_vals.emplace_back(member_val.value());
 				}
 
 				return sema::Expr(
@@ -28725,7 +28839,13 @@ namespace pcit::panther{
 				const BaseType::Enum& enum_type =
 					this->context.getTypeManager().getEnum(target_type.baseTypeID().enumID());
 
-				return this->generic_value_to_sema_expr(value, TypeInfo(BaseType::ID(enum_type.underlyingTypeID)));
+				return this->generic_value_to_sema_expr(
+					value,
+					this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(BaseType::ID(enum_type.underlyingTypeID))
+					),
+					location
+				);
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -28737,19 +28857,38 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				evo::unimplemented("BaseType::Kind::POLY_INTERFACE_REF"); // TODO(FUTURE): handling underlying data???
+				// const auto value_generic_value_ptr = core::GenericValue::fromData(
+				// 	evo::ArrayProxy<std::byte>(value.dataRange().data(), sizeof(void*))
+				// );
+
+				// void* const vtable_ptr = *std::bit_cast<void**>(value.dataRange().data() + sizeof(void*));
+
+				// if(vtable_ptr == nullptr){
+				// 	evo::unimplemented("Null on vtable");
+				// }
+
+				// const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
+				// 	this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
+
+				// if(pir_vtable_global_var_id.has_value() == false){
+				// 	evo::unimplemented("Comptime global not found");
+				// }
+
+				// const std::optional<SemaToPIRData::VTableID> vtable_id =
+				// 	this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
+
+				// if(vtable_id.has_value() == false){
+				// 	evo::unimplemented("VTable not found");
+				// }
+
+				evo::unimplemented("BaseType::Kind::POLY_INTERFACE_REF");
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info =
 					this->context.getTypeManager().getInterfaceMap(target_type.baseTypeID().interfaceMapID());
 
-				return this->generic_value_to_sema_expr(
-					value,
-					this->context.getTypeManager().getTypeInfo(
-						interface_map_info.underlyingTypeID
-					)
-				);
+				return this->generic_value_to_sema_expr(value, interface_map_info.underlyingTypeID, location);
 			} break;
 		}
 
@@ -29476,14 +29615,13 @@ namespace pcit::panther{
 					];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
+						const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+							*got_array_type.terminator, got_array_type.elementTypeID, Diagnostic::Location::NONE
+						);
+						if(deducer_value.isError()){ return evo::resultError; }
+
 						deduced_terms.emplace_back(
-							DeducerMatchOutput::DeducedTerm::Expr(
-								got_array_type.elementTypeID,
-								this->generic_value_to_sema_expr(
-									*got_array_type.terminator,
-									this->context.getTypeManager().getTypeInfo(got_array_type.elementTypeID)
-								)
-							),
+							DeducerMatchOutput::DeducedTerm::Expr(got_array_type.elementTypeID, deducer_value.value()),
 							deducer_array_deducer_type.terminator.as<Token::ID>()
 						);
 
@@ -29589,13 +29727,14 @@ namespace pcit::panther{
 					];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
+						const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+							*got_array_ref_type.terminator, got_array_ref_type.elementTypeID, Diagnostic::Location::NONE
+						);
+						if(deducer_value.isError()){ return evo::resultError; }
+
 						deduced_terms.emplace_back(
 							DeducerMatchOutput::DeducedTerm::Expr(
-								got_array_ref_type.elementTypeID,
-								this->generic_value_to_sema_expr(
-									*got_array_ref_type.terminator,
-									this->context.getTypeManager().getTypeInfo(got_array_ref_type.elementTypeID)
-								)
+								got_array_ref_type.elementTypeID, deducer_value.value()
 							),
 							deducer_array_ref_deducer_type.terminator.as<Token::ID>()
 						);
@@ -29684,14 +29823,13 @@ namespace pcit::panther{
 							if(deducer_token.kind() == Token::Kind::DEDUCER){
 								const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
 
+								const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+									got_arg.as<core::GenericValue>(), arg_type_id, Diagnostic::Location::NONE
+								);
+								if(deducer_value.isError()){ return evo::resultError; }
+
 								deduced_terms.emplace_back(
-									DeducerMatchOutput::DeducedTerm::Expr(
-										arg_type_id,
-										this->generic_value_to_sema_expr(
-											got_arg.as<core::GenericValue>(),
-											this->context.getTypeManager().getTypeInfo(arg_type_id)
-										)
-									),
+									DeducerMatchOutput::DeducedTerm::Expr(arg_type_id, deducer_value.value()),
 									*deducer_arg_deducer.identTokenID
 								);
 							}
@@ -30531,12 +30669,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					return TermInfo::ValueStage::COMPTIME;
 				}else{
-					if(this->currently_in_func() == false){
-						return TermInfo::ValueStage::COMPTIME;
-
-					}else{
-						return this->get_current_func_value_stage();
-					}
+					return this->get_current_value_stage();
 				}
 			}();
 
@@ -33514,6 +33647,12 @@ namespace pcit::panther{
 						"Cannot extract deducers from [null]"
 					);
 					return TypeCheckInfo::fail();
+				}
+
+				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+					got_expr.getExpr() = sema::Expr(
+						this->context.sema_buffer.createDefaultNew(expected_type_id, is_initialization)
+					);
 				}
 
 				return TypeCheckInfo::success(true);

@@ -2,29 +2,9 @@ def std = @import("std");
 def build_exp = @import("std_exp/building.pthr");
 
 
-
-func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
-	const std_exp_package = new build_exp.Package(
-		path     : "./std_exp",
-		name     : "std_exp",
-		warnings : forward warns,
-	);
-	std_exp_package.addSourceFile("atomic.pthr");
-	std_exp_package.addSourceFile("NonTrivial.pthr");
-	std_exp_package.addSourceFile("StaticArrayList.pthr");
-	std_exp_package.addSourceFile("StaticString.pthr");
-	std_exp_package.addSourceFile("std_exp.pthr");
-}
-
-
-
-
 func entry = () #entry -> UI8 {
 	build_exp.setOutput(std.build.Output.PIR);
 	build_exp.setNumThreads(12);
-
-	build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
-	// build_exp.addStdLib("../../Panther-std/std");
 
 
 	const warns = new @build.PackageWarningSettings{
@@ -38,8 +18,10 @@ func entry = () #entry -> UI8 {
 	};
 
 
+	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build_exp.addStdLib("../../Panther-std/std");
 	// add_std_exp(copy warns);
-
+	
 
 	const test_package = new build_exp.Package(
 		path     : "./",
@@ -54,4 +36,18 @@ func entry = () #entry -> UI8 {
 
 	
 	return 0;
+}
+
+
+
+func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
+	const std_exp_package = new build_exp.Package(
+		path     : "./std_exp",
+		name     : "std_exp",
+		warnings : forward warns,
+	);
+	std_exp_package.addSourceFile("atomic.pthr");
+	std_exp_package.addSourceFile("StaticArrayList.pthr");
+	std_exp_package.addSourceFile("StaticString.pthr");
+	std_exp_package.addSourceFile("std_exp.pthr");
 }

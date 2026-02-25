@@ -115,6 +115,11 @@ namespace pcit::panther{
 			auto getArrayRefType(pir::Module& module, unsigned num_dimensions) -> pir::Type;
 
 
+			EVO_NODISCARD auto lookupGlobalVar(pir::GlobalVar::ID id) const -> std::optional<sema::GlobalVar::ID>;
+			EVO_NODISCARD auto lookupGlobalString(pir::GlobalVar::ID id) const -> std::optional<sema::StringValue::ID>;
+			EVO_NODISCARD auto lookupVTable(pir::GlobalVar::ID id) const -> std::optional<VTableID>;
+
+
 
 			//////////////////
 			// JIT build funcs
@@ -128,7 +133,7 @@ namespace pcit::panther{
 
 
 
-		private:	
+		private:
 			auto create_struct(BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->structs_lock);
 				const auto emplace_result = this->structs.emplace(struct_id, pir_id);
@@ -145,7 +150,14 @@ namespace pcit::panther{
 			auto create_global_var(sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
 				const auto emplace_result = this->global_vars.emplace(global_var_id, pir_id);
+				this->reverse_global_vars.emplace(pir_id, global_var_id);
 				evo::debugAssert(emplace_result.second, "This global var id was already added to PIR lower");
+			}
+
+			auto create_global_string(sema::StringValue::ID global_string_id, pir::GlobalVar::ID pir_id) -> void {
+				const auto lock = std::scoped_lock(this->global_strings_lock);
+				this->global_strings.emplace(global_string_id, pir_id);
+				this->reverse_global_strings.emplace(pir_id, global_string_id);
 			}
 
 
@@ -177,6 +189,7 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->vtables_lock);
 				const auto emplace_result = this->vtables.emplace(vtable_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This vtable id was already added to PIR lower");
+				this->reverse_vtables.emplace(pir_id, vtable_id);
 			}
 
 
@@ -209,6 +222,12 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->global_vars_lock);
 				evo::debugAssert(this->global_vars.contains(global_var_id), "Doesn't have this global var");
 				return this->global_vars.at(global_var_id);
+			}
+
+			EVO_NODISCARD auto get_global_string(sema::StringValue::ID string_value_id) -> pir::GlobalVar::ID {
+				const auto lock = std::scoped_lock(this->global_vars_lock);
+				evo::debugAssert(this->global_strings.contains(string_value_id), "Doesn't have this global string");
+				return this->global_strings.at(string_value_id);
 			}
 
 			EVO_NODISCARD auto get_func(sema::Func::ID func_id) -> FuncInfo& {
@@ -246,6 +265,10 @@ namespace pcit::panther{
 				return this->num_string_literals.fetch_add(1);
 			}
 
+			EVO_NODISCARD auto get_byte_array_id() -> uint64_t {
+				return this->num_byte_arrays.fetch_add(1);
+			}
+
 	
 		private:
 			Config config;
@@ -265,7 +288,12 @@ namespace pcit::panther{
 			mutable evo::SpinLock unions_lock{};
 
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
+			std::unordered_map<pir::GlobalVar::ID, sema::GlobalVar::ID> reverse_global_vars{};
 			mutable evo::SpinLock global_vars_lock{};
+
+			std::unordered_map<sema::StringValue::ID, pir::GlobalVar::ID> global_strings{};
+			std::unordered_map<pir::GlobalVar::ID, sema::StringValue::ID> reverse_global_strings{};
+			mutable evo::SpinLock global_strings_lock{};
 
 			evo::StepVector<FuncInfo> funcs_info_alloc{};
 			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
@@ -277,6 +305,7 @@ namespace pcit::panther{
 			JITBuildFuncs jit_build_funcs{};
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
+			std::unordered_map<pir::GlobalVar::ID, VTableID> reverse_vtables{};
 			mutable evo::SpinLock vtables_lock{};
 
 			evo::StepVector<InterfaceInfo> interfaces_info_alloc{};
@@ -287,6 +316,7 @@ namespace pcit::panther{
 			mutable evo::SpinLock optional_types_lock{};
 
 			std::atomic<uint64_t> num_string_literals = 0;
+			std::atomic<uint64_t> num_byte_arrays = 0;
 
 			friend class SemaToPIR;
 	};

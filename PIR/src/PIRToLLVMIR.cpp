@@ -1686,6 +1686,9 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 				return this->builder.getValueGlobalStr(this->module.getGlobalString(value).value);
 
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+				return this->builder.getValueGlobalByteArray(this->module.getGlobalByteArray(value).bytes);
+
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
 				const GlobalVar::Array& array = this->module.getGlobalArray(value);
 				const Type& array_elem_type = this->module.getArrayType(type).elemType;

@@ -1,21 +1,11 @@
 def std = @import("std");
 
 
-
-type TypeSystemEscape = struct <{T: Type}> {
-	func get = (this) #unsafe -> T* { return std.bitCast<{T*}>(this.data.data()); }
-	func get = (this mut) #unsafe -> T*mut { return std.bitCast<{T*mut}>(this.data.data()); }
-	func getUninit = (this mut) #unsafe -> T*! { return std.bitCast<{T*!}>(this.data.data()); }
-	
-	var data: [Byte:std.types.numBytes<{T}>()] #priv;
-}
-
-
 type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub 
 	#comptimeAssert(CAPACITY != 0, "`CAPACITY` cannot be 0") 
 {
 	func new = () -> (output: This) {
-		output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+		output._data = new [std.ManualLifetime<{T}>:CAPACITY]();
 		output._size = 0;
 		return...;
 	}
@@ -27,7 +17,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 		-> (output: This) {
 			std.assert(data.size() <= CAPACITY, "Input array is larger than capacity");
 
-			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._data = new [std.ManualLifetime<{T}>:CAPACITY]();
 			output._size = data.size();
 
 			std.mem.copyBuffer(output as [T:*mut], data);
@@ -49,7 +39,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 		func copy = (this)
 			#rt(std.types.isComptimeCopyable<{T}>() == false) #unsafe(std.types.isSafeCopyable<{T}>() == false)
 		-> (output: This) {
-			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._data = new [std.ManualLifetime<{T}>:CAPACITY]();
 			output._size = this.size();
 
 			std.mem.copyBuffer(output as [T:*mut], this as [T:*]);
@@ -65,7 +55,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 		func move = (this mut)
 			#rt(std.types.isComptimeMovable<{T}>() == false) #unsafe(std.types.isSafeMovable<{T}>() == false)
 		-> (output: This) {
-			output._data = new [TypeSystemEscape<{T}>:CAPACITY]();
+			output._data = new [std.ManualLifetime<{T}>:CAPACITY]();
 			output._size = this.size();
 
 			std.mem.moveBuffer(output as [T:*mut], this as [T:*mut]);
@@ -217,6 +207,6 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 	///////////////////////////////////
 	// member vars
 
-	var _data: [TypeSystemEscape<{T}>:CAPACITY] #priv;
+	var _data: [std.ManualLifetime<{T}>:CAPACITY] #priv;
 	var _size: USize #priv;
 }

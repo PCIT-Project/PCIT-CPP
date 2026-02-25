@@ -1978,30 +1978,8 @@ namespace pcit::pir{
 	auto ExecutionEngineExecutor::get_expr_maybe_ptr(Expr expr, StackFrame& stack_frame) -> core::GenericValue* {
 		switch(expr.kind()){
 			case Expr::Kind::GLOBAL_VALUE: {
-				const GlobalVar::ID global_var_id = stack_frame.reader_agent.getGlobalValue(expr);
-
-				ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(global_var_id);
-
-				if(lowered_result.needs_to_be_lowered){
-					const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
-						this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
-							this->engine.module, JITEngine::ModuleSubsets{ .globalVars = global_var_id }
-						);
-
-					evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
-
-					lowered_result.was_finished_being_lowered.store(true);
-
-				}else{
-					while(lowered_result.was_finished_being_lowered.load() == false){
-						std::this_thread::yield();
-					}
-				}
-
-				const GlobalVar& global_var = this->engine.module.getGlobalVar(global_var_id);
-
-				std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
-
+				std::byte* global_ptr = 
+					this->get_or_create_lowered_global_ptr(stack_frame.reader_agent.getGlobalValue(expr));
 				return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(global_ptr)).first->second;
 			} break;
 
@@ -2072,29 +2050,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::GLOBAL_VALUE: {
-				const GlobalVar::ID global_var_id = stack_frame.reader_agent.getGlobalValue(expr);
-
-				ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(global_var_id);
-
-				if(lowered_result.needs_to_be_lowered){
-					const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
-						this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
-							this->engine.module, JITEngine::ModuleSubsets{ .globalVars = global_var_id }
-						);
-
-					evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
-
-					lowered_result.was_finished_being_lowered.store(true);
-
-				}else{
-					while(lowered_result.was_finished_being_lowered.load() == false){
-						std::this_thread::yield();
-					}
-				}
-
-				const GlobalVar& global_var = this->engine.module.getGlobalVar(global_var_id);
-
-				return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+				return this->get_or_create_lowered_global_ptr(stack_frame.reader_agent.getGlobalValue(expr));
 			} break;
 
 			case Expr::Kind::ALLOCA: {
@@ -2110,6 +2066,38 @@ namespace pcit::pir{
 			} break;
 		}
 	}
+
+
+
+	auto ExecutionEngineExecutor::get_or_create_lowered_global_ptr(GlobalVar::ID id) -> std::byte* {
+		const GlobalVar& global_var = this->engine.module.getGlobalVar(id);
+
+		ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(id);
+
+		if(lowered_result.needs_to_be_lowered){
+			const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
+				this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
+					this->engine.module, JITEngine::ModuleSubsets{ .globalVars = id }
+				);
+
+			evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
+
+			std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+			this->engine.add_global_to_ptr_lookup_map(global_ptr, id);
+
+			lowered_result.was_finished_being_lowered.store(true);
+
+			return global_ptr;
+
+		}else{
+			while(lowered_result.was_finished_being_lowered.load() == false){
+				std::this_thread::yield();
+			}
+
+			return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+		}
+	}
+
 
 
 

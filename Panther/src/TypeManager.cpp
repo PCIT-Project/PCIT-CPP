@@ -1171,18 +1171,25 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type = this->getArray(id.arrayID());
+
 				if constexpr(
 					SPECIAL_MEMBER == SpecialMember::COMPARE && SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL
 				){
-					const BaseType::Array& array_type = this->getArray(id.arrayID());
 					if(this->isTriviallyComparable(array_type.elementTypeID) == false){ return false; }
 					return this->numBits(array_type.elementTypeID, true)
 						== this->numBits(array_type.elementTypeID, false);
 
 				}else{
-					const BaseType::Array& array = this->getArray(id.arrayID());
+					if constexpr(
+						SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW
+						&& SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL
+					){
+						if(array_type.terminator.has_value()){ return false; }
+					}
+
 					return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
-						array.elementTypeID, sema_buffer
+						array_type.elementTypeID, sema_buffer
 					);
 				}
 			} break;

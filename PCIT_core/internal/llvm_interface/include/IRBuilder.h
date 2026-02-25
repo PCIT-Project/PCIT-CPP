@@ -346,6 +346,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueGlobalStr(const std::string& value) const -> Constant;
 			EVO_NODISCARD auto getValueGlobalUndefValue(const Type& type) const -> Constant;
 			EVO_NODISCARD auto getValueGlobalAggregateZero(const Type& type) const -> Constant;
+			EVO_NODISCARD auto getValueGlobalByteArray(evo::ArrayProxy<std::byte> bytes) const -> Constant;
 			EVO_NODISCARD auto getValueGlobalArray(const Type& elem_type, evo::ArrayProxy<Constant> values) const
 				-> Constant;
 			EVO_NODISCARD auto getValueGlobalStruct(const StructType& type, evo::ArrayProxy<Constant> values) const
@@ -391,7 +392,7 @@ namespace pcit::llvmint{
 
 
 		private:
-			EVO_NODISCARD auto get_native_context() -> llvm::LLVMContext&;
+			EVO_NODISCARD auto get_native_context() const -> llvm::LLVMContext&;
 
 	
 		private:

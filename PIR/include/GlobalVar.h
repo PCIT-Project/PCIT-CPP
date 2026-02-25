@@ -33,9 +33,19 @@ namespace pcit::pir{
 			};
 
 			std::string value;
-			Type type; // TODO(FUTURE): remove this?
+			Type type;
 		};
 
+		struct ByteArray{
+			// For lookup in Module
+			struct ID : public core::UniqueID<uint32_t, struct ID> {
+				using core::UniqueID<uint32_t, ID>::UniqueID;
+			};
+
+			Type type;
+			evo::SmallVector<std::byte> bytes;
+		};
+		
 		// Forward declaration
 		struct ArrayID : public core::UniqueID<uint32_t, struct ArrayID> {
 			using core::UniqueID<uint32_t, ArrayID>::UniqueID;
@@ -46,13 +56,13 @@ namespace pcit::pir{
 			using core::UniqueID<uint32_t, StructID>::UniqueID;
 		};
 
-		using Value = evo::Variant<NoValue, Expr, Zeroinit, Uninit, String::ID, ArrayID, StructID>;
+		using Value = evo::Variant<NoValue, Expr, Zeroinit, Uninit, String::ID, ByteArray::ID, ArrayID, StructID>;
 
 		struct Array{
 			// For lookup in Module
 			using ID = ArrayID;
 
-			Type type; // TODO(FUTURE): remove this?
+			Type type;
 			evo::SmallVector<Value> values;
 		};
 
@@ -60,7 +70,7 @@ namespace pcit::pir{
 			// For lookup in Module
 			using ID = StructID;
 
-			Type type; // TODO(FUTURE): remove this?
+			Type type;
 			evo::SmallVector<Value> values;
 		};
 
@@ -88,6 +98,13 @@ namespace std{
 	template<>
 	struct hash<pcit::pir::GlobalVar::ID>{
 		auto operator()(pcit::pir::GlobalVar::ID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::GlobalVar::ByteArray::ID>{
+		auto operator()(pcit::pir::GlobalVar::ByteArray::ID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};

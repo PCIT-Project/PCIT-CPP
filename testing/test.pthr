@@ -1,7 +1,53 @@
-func entry = () #entry -> UI8 {
-	const arr = new [UI8:3][1, 2, 3];
 
-	const arr_ref: [UI8:*(3)] = arr as [UI8:*(3)];
-	
-	return copy arr[3].*;
+type Ptr = struct <{T: Type}> {
+	var ptr: T*;
 }
+
+
+
+var dst: Ptr<{Int}> = get_src();
+const src: Int = 12;
+
+
+func get_src = () -> Ptr<{Int}> {
+	const fake_ptr: Int* = {->expr:Int*
+		unsafe{
+			return->expr @bitCast<{USize, Int*}>(1212);
+		}
+	};
+
+	return new Ptr<{Int}>{ptr = copy fake_ptr};
+}
+
+
+
+
+
+
+// interface Interface = #polymorphic {
+// 	func function = () -> Void;
+// }
+
+// type Foo = struct {
+// 	impl Interface{
+// 		function = () -> Void {}
+// 	}
+// }
+
+// type Bar = struct {
+// 	impl Interface{
+// 		function = () -> Void {}
+// 	}
+// }
+
+
+
+// const dst: impl(*:Interface) = get_val();
+
+// const foo = new Foo{};
+// const bar = new Foo{};
+
+
+// func get_val = () -> impl(*:Interface) {
+// 	return foo as impl(*:Interface);
+// }

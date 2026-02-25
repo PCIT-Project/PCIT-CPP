@@ -1,6 +1,32 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.244.0"></a>
+## v0.0.244.0
+
+### Panther
+- Added support for returning addresses of globals from a comptime function call
+- Fixed lowering of `null` auto conversion to optional
+- Fixed lowering of setting a global to the address of another global
+- Fixed conversion to optional of pointer
+- Fixed returning / error returning `null`
+
+
+<!---------------------------------->
+<a name="v0.0.243.0"></a>
+## v0.0.243.0
+
+### Panther
+- Fixed default initialization of arrays with terminators
+- Fixed terminated arrays being considered trivially-default-initializable
+- Fixed missing checks that arrays / array references with terminators must have a trivially-copyable element type
+
+### PIR
+- Added byte array global values
+	- equivalent to array global value in function, however byte array just stores the bytes directly instead of `GlobalValue`
+
+
+<!---------------------------------->
 <a name="v0.0.242.0"></a>
 ## v0.0.242.0
 

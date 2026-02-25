@@ -156,6 +156,15 @@ namespace pcit::panther{
 
 
 			template<GetExprMode MODE>
+			auto get_expr_from_generic_value(
+				const core::GenericValue& generic_value,
+				TypeInfo::ID expr_type_id,
+				evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+
+
+			template<GetExprMode MODE>
 			auto default_new_expr(
 				TypeInfo::ID expr_type_id, bool is_initialization, evo::ArrayProxy<pir::Expr> store_location
 			) -> std::optional<pir::Expr>;
@@ -226,7 +235,10 @@ namespace pcit::panther{
 
 
 			auto iterate_array(
-				const BaseType::Array& array_type, std::string_view op_name, std::function<void(pir::Expr)> body_func
+				const BaseType::Array& array_type,
+				bool include_terminator,
+				std::string_view op_name,
+				std::function<void(pir::Expr)> body_func
 			) -> void;
 
 

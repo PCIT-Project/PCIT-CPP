@@ -64,6 +64,32 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIRData::lookupGlobalVar(pir::GlobalVar::ID id) const -> std::optional<sema::GlobalVar::ID> {
+		const auto lock = std::scoped_lock(this->global_vars_lock);
+
+		const auto find = this->reverse_global_vars.find(id);
+		if(find != this->reverse_global_vars.end()){ return find->second; }
+		return std::nullopt;
+	}
+
+	auto SemaToPIRData::lookupGlobalString(pir::GlobalVar::ID id) const -> std::optional<sema::StringValue::ID> {
+		const auto lock = std::scoped_lock(this->global_strings_lock);
+
+		const auto find = this->reverse_global_strings.find(id);
+		if(find != this->reverse_global_strings.end()){ return find->second; }
+		return std::nullopt;
+	}
+
+	auto SemaToPIRData::lookupVTable(pir::GlobalVar::ID id) const -> std::optional<VTableID> {
+		const auto lock = std::scoped_lock(this->global_strings_lock);
+
+		const auto find = this->reverse_vtables.find(id);
+		if(find != this->reverse_vtables.end()){ return find->second; }
+		return std::nullopt;
+	}
+
+
+
 
 
 	auto SemaToPIRData::createJITBuildFuncDecls(pir::Module& module) -> void {

@@ -367,6 +367,24 @@ namespace pcit::pir{
 				}
 				this->printer.print("]");
 
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+				const GlobalVar::ByteArray& byte_array = this->get_module().getGlobalByteArray(value);
+
+				this->printer.print("[");
+				for(size_t i = 0; const std::byte byte_value : byte_array.bytes){
+					this->printer.printCyan("I8");
+					this->printer.print("(");
+					this->printer.printMagenta("{}", uint8_t(byte_value));
+					this->printer.print(")");
+					
+					if(i + 1 < byte_array.bytes.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print("]");
+
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 				const GlobalVar::Struct& struct_value = this->get_module().getGlobalStruct(value);
 

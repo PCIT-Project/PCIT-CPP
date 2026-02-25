@@ -86,6 +86,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto get_expr_maybe_ptr(Expr expr, StackFrame& stack_frame) -> core::GenericValue*;
 			EVO_NODISCARD auto get_expr_ptr(Expr expr, StackFrame& stack_frame) -> std::byte*;
 
+			EVO_NODISCARD auto get_or_create_lowered_global_ptr(GlobalVar::ID id) -> std::byte*;
+
 			auto setup_allocas(StackFrame& stack_frame) -> void;
 
 
