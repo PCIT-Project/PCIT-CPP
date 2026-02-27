@@ -28857,31 +28857,65 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				// const auto value_generic_value_ptr = core::GenericValue::fromData(
-				// 	evo::ArrayProxy<std::byte>(value.dataRange().data(), sizeof(void*))
-				// );
+				const BaseType::PolyInterfaceRef& interface_ref_type =
+					this->context.getTypeManager().getPolyInterfaceRef(target_type.baseTypeID().polyInterfaceRefID());
 
-				// void* const vtable_ptr = *std::bit_cast<void**>(value.dataRange().data() + sizeof(void*));
 
-				// if(vtable_ptr == nullptr){
-				// 	evo::unimplemented("Null on vtable");
-				// }
+				const auto value_generic_value_ptr = core::GenericValue::fromData(
+					evo::ArrayProxy<std::byte>(value.dataRange().data(), sizeof(void*))
+				);
 
-				// const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
-				// 	this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
 
-				// if(pir_vtable_global_var_id.has_value() == false){
-				// 	evo::unimplemented("Comptime global not found");
-				// }
+				//////////////////
+				// vtable
 
-				// const std::optional<SemaToPIRData::VTableID> vtable_id =
-				// 	this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
+				void* const vtable_ptr = *std::bit_cast<void**>(value.dataRange().data() + sizeof(void*));
 
-				// if(vtable_id.has_value() == false){
-				// 	evo::unimplemented("VTable not found");
-				// }
+				if(vtable_ptr == nullptr){
+					evo::unimplemented("Null on vtable");
+				}
 
-				evo::unimplemented("BaseType::Kind::POLY_INTERFACE_REF");
+				const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
+					this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
+
+				if(pir_vtable_global_var_id.has_value() == false){
+					evo::unimplemented("Comptime global not found");
+				}
+
+				const std::optional<SemaToPIRData::VTableID> vtable_id =
+					this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
+
+				if(vtable_id.has_value() == false){
+					evo::unimplemented("VTable not found");
+				}
+
+
+				//////////////////
+				// target
+
+				const TypeInfo::ID target_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
+					this->context.getTypeManager().getTypeInfo(vtable_id->impl_id).copyWithPushedQualifier(
+						TypeInfo::Qualifier(true, interface_ref_type.isMut, false, false)
+					)
+				);
+
+				void* const target_ptr = *std::bit_cast<void**>(value.dataRange().data());
+
+				const evo::Result<sema::Expr> target_value = this->generic_value_to_sema_expr(
+					core::GenericValue::createPtr(target_ptr), target_ptr_type, location
+				);
+
+				if(target_value.isError()){ return evo::resultError; }
+
+
+				//////////////////
+				// create sema expr
+
+				return sema::Expr(
+					this->context.sema_buffer.createMakeInterfacePtr(
+						target_value.value(), vtable_id->interface_id, vtable_id->impl_id
+					)
+				);
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {

@@ -189,9 +189,9 @@ namespace pcit::pir{
 		return GlobalVar::ID(expr.index);
 	}
 
-	auto ReaderAgent::getFunctionPointer(Expr expr) const -> const Function& {
+	auto ReaderAgent::getFunctionPointer(Expr expr) -> Function::ID {
 		evo::debugAssert(expr.kind() == Expr::Kind::FUNCTION_POINTER, "Not a function pointer");
-		return this->module.getFunction(Function::ID(expr.index));
+		return Function::ID(expr.index);
 	}
 
 

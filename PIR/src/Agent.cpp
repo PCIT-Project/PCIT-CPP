@@ -889,7 +889,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// global values (expr)
 
-	auto Agent::createGlobalValue(const GlobalVar::ID& global_id) -> Expr {
+	auto Agent::createGlobalValue(GlobalVar::ID global_id) -> Expr {
 		return Expr(Expr::Kind::GLOBAL_VALUE, global_id.get());
 	}
 
@@ -901,12 +901,12 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// global values (expr)
 
-	auto Agent::createFunctionPointer(const Function::ID& func_id) -> Expr {
+	auto Agent::createFunctionPointer(Function::ID func_id) -> Expr {
 		return Expr(Expr::Kind::FUNCTION_POINTER, func_id.get());
 	}
 
-	auto Agent::getFunctionPointer(Expr expr) const -> const Function& {
-		return ReaderAgent(this->module).getFunctionPointer(expr);
+	auto Agent::getFunctionPointer(Expr expr)  -> Function::ID {
+		return ReaderAgent::getFunctionPointer(expr);
 	}
 
 

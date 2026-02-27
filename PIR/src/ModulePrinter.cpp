@@ -473,7 +473,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
-				const Function& function = this->reader.getFunctionPointer(expr);
+				const Function& function = this->reader.getModule().getFunction(this->reader.getFunctionPointer(expr));
 				this->printer.print("&{}", function.getName());
 			} break;
 

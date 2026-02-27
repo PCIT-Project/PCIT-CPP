@@ -10434,6 +10434,25 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR: {
+				const sema::MakeInterfacePtr& make_interface_ptr =
+					this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
+
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+
+				const pir::GlobalVar::ID vtable = this->data.get_vtable(
+					Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+				);
+
+
+				return this->module.createGlobalStruct(
+					interface_ptr_type,
+					evo::SmallVector<pir::GlobalVar::Value>{
+						this->get_global_var_value(make_interface_ptr.expr), this->agent.createGlobalValue(vtable)
+					}
+				);
+			} break;
+
 			case sema::Expr::Kind::DEFAULT_NEW: {
 				const sema::DefaultNew& default_new = this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
 
@@ -10489,27 +10508,26 @@ namespace pcit::panther{
 				return this->module.createGlobalStruct(array_ref_type, std::move(values));
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                     case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                  case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:               case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:             case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::VARIADIC_PARAM:            case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:        case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:              case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                       case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:        case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                      case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:                   case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:                case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:              case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:                 case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:                      case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:               case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:          case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:                  case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::GLOBAL_VAR:                 case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

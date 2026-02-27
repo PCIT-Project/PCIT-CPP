@@ -53,25 +53,42 @@ namespace pcit::pir{
 				return std::nullopt;
 			}
 
+			EVO_NODISCARD auto lookupFunction(const void* ptr_of_lowered_function) -> std::optional<Function::ID> {
+				const auto lock = std::scoped_lock(this->function_ptr_lookup_lock);
+
+				const auto find = this->function_ptr_lookup.find(ptr_of_lowered_function);
+				if(find != this->function_ptr_lookup.end()){ return find->second; }
+				return std::nullopt;
+			}
+
 		
 		private:
 			using Executor = ExecutionEngineExecutor;
 			EVO_NODISCARD auto get_current_executor() -> Executor&;
 
-
+			struct LoweredGlobal{
+				core::GenericValue value;
+				std::atomic<bool> was_lowered;
+			};
 			struct LoweredResult{
 				bool needs_to_be_lowered;
-				std::atomic<bool>& was_finished_being_lowered;
+				LoweredGlobal& lowered_global;
 			};
 			EVO_NODISCARD auto check_global_lowered(GlobalVar::ID global_id) -> LoweredResult {
 				const auto lock = std::scoped_lock(this->lowered_globals_lock);
 
-				const auto find = this->lowered_globals.find(global_id);
-				if(find != this->lowered_globals.end()){ return LoweredResult(false, find->second); }
+				const auto find = this->lowered_globals_map.find(global_id);
+				if(find != this->lowered_globals_map.end()){ return LoweredResult(false, find->second); }
 
-				std::atomic<bool>& new_lowered_flag = this->finished_lowered_flags.emplace_back();
-				this->lowered_globals.emplace(global_id, new_lowered_flag);
-				return LoweredResult(true, new_lowered_flag);
+				const GlobalVar& global_var = this->module.getGlobalVar(global_id);
+				const size_t global_size = this->module.getSize(global_var.type);
+
+				LoweredGlobal& new_global = this->lowered_globals.emplace_back(
+					core::GenericValue::createUninit(global_size), false
+				);
+
+				this->lowered_globals_map.emplace(global_id, new_global);
+				return LoweredResult(true, new_global);
 			}
 
 			EVO_NODISCARD auto get_atomic_lock(void* ptr) -> evo::SpinLock& {
@@ -81,6 +98,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto add_global_to_ptr_lookup_map(const void* ptr, GlobalVar::ID id) -> void {
 				const auto lock = std::scoped_lock(this->global_ptr_lookup_lock);
 				this->global_ptr_lookup.emplace(ptr, id);
+			}
+
+			EVO_NODISCARD auto add_function_to_ptr_lookup_map(const void* ptr, Function::ID id) -> void {
+				const auto lock = std::scoped_lock(this->function_ptr_lookup_lock);
+				this->function_ptr_lookup.emplace(ptr, id);
 			}
 
 
@@ -94,12 +116,15 @@ namespace pcit::pir{
 
 			JITEngine jit_engine{};
 
-			evo::StepVector<std::atomic<bool>> finished_lowered_flags{};
-			std::unordered_map<GlobalVar::ID, std::atomic<bool>&> lowered_globals{};
+			evo::StepVector<LoweredGlobal> lowered_globals{};
+			std::unordered_map<GlobalVar::ID, LoweredGlobal&> lowered_globals_map{};
 			mutable evo::SpinLock lowered_globals_lock{};
 
 			std::unordered_map<const void*, GlobalVar::ID> global_ptr_lookup{};
 			mutable evo::SpinLock global_ptr_lookup_lock{};
+
+			std::unordered_map<const void*, Function::ID> function_ptr_lookup{};
+			mutable evo::SpinLock function_ptr_lookup_lock{};
 
 
 			std::array<evo::SpinLock, 64> atomic_locks{};

@@ -1618,7 +1618,8 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
-				return this->get_func<ADD_WEAK_DEPS>(this->reader.getFunctionPointer(expr)).asConstant();
+				const Function& function = this->reader.getModule().getFunction(this->reader.getFunctionPointer(expr));
+				return this->get_func<ADD_WEAK_DEPS>(function).asConstant();
 			} break;
 
 			case Expr::Kind::GLOBAL_VALUE: {
@@ -1733,7 +1734,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
-				const Function& func = this->reader.getFunctionPointer(expr);
+				const Function& func = this->reader.getModule().getFunction(this->reader.getFunctionPointer(expr));
 				return this->get_func<ADD_WEAK_DEPS>(func).asValue();
 			} break;
 

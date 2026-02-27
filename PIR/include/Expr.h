@@ -190,7 +190,11 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto isConstant() const -> bool {
 				switch(this->_kind){
-					case Kind::FUNCTION_POINTER: case Kind::NUMBER: case Kind::BOOLEAN: case Kind::NULLPTR: return true;
+					case Kind::GLOBAL_VALUE: case Kind::FUNCTION_POINTER: case Kind::NUMBER:
+					case Kind::BOOLEAN:      case Kind::NULLPTR: {
+						return true;
+					} break;
+					
 					default: return false;
 				}
 			}

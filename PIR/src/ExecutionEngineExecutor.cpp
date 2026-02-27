@@ -189,8 +189,51 @@ namespace pcit::pir{
 
 					}else{
 						evo::debugAssert(call_inst.target.is<PtrCall>(), "Unknown func call kind");
-						// TODO(FUTURE): 
-						evo::unimplemented("Ptr call");
+							
+						std::byte* target_ptr =
+							this->get_expr_ptr(call_inst.target.as<PtrCall>().location, *stack_frame);
+
+						const std::optional<Function::ID> target_function_id_lookup =
+							this->engine.lookupFunction(target_ptr);
+
+						if(target_function_id_lookup.has_value() == false){
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
+						}
+
+						const Function& func = *std::bit_cast<Function*>(target_ptr);
+						const BasicBlock::ID basic_block_id = *func.begin();
+
+						auto reader_agent = ReaderAgent(this->engine.module, func);
+
+						auto params = evo::SmallVector<std::byte*>();
+						for(const Expr arg : call_inst.args){
+							core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, *stack_frame);
+
+							if(generic_value == nullptr){
+								params.emplace_back(nullptr);
+
+							}else if(stack_frame->reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+								params.emplace_back(generic_value->getPtr<std::byte*>());
+
+							}else{
+								params.emplace_back(generic_value->writableDataRange().data());
+							}
+						}
+
+						stack_frame = &this->stack_frames.emplace_back(
+							*target_function_id_lookup,
+							basic_block_id,
+							reader_agent,
+							&reader_agent.getBasicBlock(basic_block_id)
+						);
+
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
+						}
+
+						stack_frame->params = std::move(params);
+
+						this->setup_allocas(*stack_frame);
 					}
 
 					continue;
@@ -240,8 +283,50 @@ namespace pcit::pir{
 
 					}else{
 						evo::debugAssert(call_void_inst.target.is<PtrCall>(), "Unknown func call kind");
-						// TODO(FUTURE): 
-						evo::unimplemented("Ptr call");
+						
+						std::byte* target_ptr =
+							this->get_expr_ptr(call_void_inst.target.as<PtrCall>().location, *stack_frame);
+
+						const std::optional<Function::ID> target_function_id_lookup =
+							this->engine.lookupFunction(target_ptr);
+
+						if(target_function_id_lookup.has_value() == false){
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
+						}
+
+						const Function& func = *std::bit_cast<Function*>(target_ptr);
+						const BasicBlock::ID basic_block_id = *func.begin();
+
+						auto reader_agent = ReaderAgent(this->engine.module, func);
+
+						auto params = evo::SmallVector<std::byte*>();
+						for(const Expr arg : call_void_inst.args){
+							core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, *stack_frame);
+
+							if(generic_value == nullptr){
+								params.emplace_back(nullptr);
+
+							}else if(stack_frame->reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+								params.emplace_back(generic_value->getPtr<std::byte*>());
+
+							}else{
+								params.emplace_back(generic_value->writableDataRange().data());
+							}
+						}
+
+						stack_frame = &this->stack_frames.emplace_back(
+							*target_function_id_lookup,
+							basic_block_id,
+							reader_agent,
+							&reader_agent.getBasicBlock(basic_block_id)
+						);
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
+						}
+
+						stack_frame->params = std::move(params);
+
+						this->setup_allocas(*stack_frame);
 					}
 
 					continue;
@@ -291,8 +376,50 @@ namespace pcit::pir{
 
 					}else{
 						evo::debugAssert(call_no_return_inst.target.is<PtrCall>(), "Unknown func call kind");
-						// TODO(FUTURE): 
-						evo::unimplemented("Ptr call");
+						
+						std::byte* target_ptr =
+							this->get_expr_ptr(call_no_return_inst.target.as<PtrCall>().location, *stack_frame);
+
+						const std::optional<Function::ID> target_function_id_lookup =
+							this->engine.lookupFunction(target_ptr);
+
+						if(target_function_id_lookup.has_value() == false){
+							return evo::Unexpected(FuncRunError::Code::UNKNOWN_EXCEPTION);
+						}
+
+						const Function& func = *std::bit_cast<Function*>(target_ptr);
+						const BasicBlock::ID basic_block_id = *func.begin();
+
+						auto reader_agent = ReaderAgent(this->engine.module, func);
+
+						auto params = evo::SmallVector<std::byte*>();
+						for(const Expr arg : call_no_return_inst.args){
+							core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, *stack_frame);
+
+							if(generic_value == nullptr){
+								params.emplace_back(nullptr);
+
+							}else if(stack_frame->reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+								params.emplace_back(generic_value->getPtr<std::byte*>());
+
+							}else{
+								params.emplace_back(generic_value->writableDataRange().data());
+							}
+						}
+
+						stack_frame = &this->stack_frames.emplace_back(
+							*target_function_id_lookup,
+							basic_block_id,
+							reader_agent,
+							&reader_agent.getBasicBlock(basic_block_id)
+						);
+						if(this->stack_frames.size() > this->engine.max_call_depth){
+							return evo::Unexpected(FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH);
+						}
+
+						stack_frame->params = std::move(params);
+
+						this->setup_allocas(*stack_frame);
 					}
 
 					continue;
@@ -1984,8 +2111,12 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
-				// TODO(FUTURE): 
-				evo::unimplemented("Expr::Kind::FUNCTION_POINTER");
+				const Function::ID function_id = ReaderAgent::getFunctionPointer(expr);
+				const Function& function = this->engine.module.getFunction(function_id);
+				
+				this->engine.add_function_to_ptr_lookup_map(&function, function_id);
+
+				return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(&function)).first->second;
 			} break;
 
 			case Expr::Kind::NUMBER: {
@@ -2075,27 +2206,143 @@ namespace pcit::pir{
 		ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(id);
 
 		if(lowered_result.needs_to_be_lowered){
-			const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
-				this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
-					this->engine.module, JITEngine::ModuleSubsets{ .globalVars = id }
-				);
+			// const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
+			// 	this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
+			// 		this->engine.module, JITEngine::ModuleSubsets{ .globalVars = id }
+			// 	);
 
-			evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
+			// evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
 
-			std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+			this->lower_global_value(global_var.value, lowered_result.lowered_global.value.writableDataRange());
+
+			// std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+			std::byte* global_ptr = lowered_result.lowered_global.value.writableDataRange().data();
 			this->engine.add_global_to_ptr_lookup_map(global_ptr, id);
 
-			lowered_result.was_finished_being_lowered.store(true);
+			lowered_result.lowered_global.was_lowered.store(true);
 
 			return global_ptr;
 
 		}else{
-			while(lowered_result.was_finished_being_lowered.load() == false){
+			while(lowered_result.lowered_global.was_lowered.load() == false){
 				std::this_thread::yield();
 			}
 
-			return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+			// return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
+			return lowered_result.lowered_global.value.writableDataRange().data();
 		}
+	}
+
+
+
+	auto ExecutionEngineExecutor::lower_global_value(const GlobalVar::Value& value, std::span<std::byte> dst) -> void {
+		value.visit([&](const auto& decayed_value) -> void {
+			using ValueT = std::decay_t<decltype(decayed_value)>;
+
+			if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+
+			}else if constexpr(std::is_same<ValueT, Expr>()){
+				switch(decayed_value.kind()){
+					case Expr::Kind::GLOBAL_VALUE: {
+						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
+
+						*std::bit_cast<std::byte**>(dst.data()) =
+							this->get_or_create_lowered_global_ptr(ReaderAgent::getGlobalValue(decayed_value));
+					} break;
+
+					case Expr::Kind::FUNCTION_POINTER: {
+						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
+
+						const Function::ID function_id = ReaderAgent::getFunctionPointer(decayed_value);
+						const Function& function = this->engine.module.getFunction(function_id);
+						
+						this->engine.add_function_to_ptr_lookup_map(&function, function_id);
+
+						*std::bit_cast<const Function**>(dst.data()) = &function;
+					} break;
+
+					case Expr::Kind::NUMBER: {
+						const Number& number = ReaderAgent(this->engine.module).getNumber(decayed_value);
+						const core::GenericValue number_value = number.asGenericValue();
+						std::memcpy(dst.data(), number_value.dataRange().data(), dst.size());
+					} break;
+
+					case Expr::Kind::BOOLEAN: {
+						evo::debugAssert(dst.size() == sizeof(bool), "Not Bool dst");
+
+						*std::bit_cast<bool*>(dst.data()) = ReaderAgent::getBoolean(decayed_value);
+					} break;
+
+					case Expr::Kind::NULLPTR: {
+						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
+
+						*std::bit_cast<void**>(dst.data()) = nullptr;
+					} break;
+
+					default: {
+						evo::debugFatalBreak("Invalid global value");
+					} break;
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+				std::memset(dst.data(), 0, dst.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
+				std::memset(dst.data(), 0, dst.size());				
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+				const GlobalVar::String& string = this->engine.module.getGlobalString(decayed_value);
+
+				evo::debugAssert(dst.size() == string.value.size(), "dst is not this byte array");
+
+				std::memcpy(dst.data(), string.value.data(), string.value.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+				const GlobalVar::ByteArray& byte_array = this->engine.module.getGlobalByteArray(decayed_value);
+
+				evo::debugAssert(dst.size() == byte_array.bytes.size(), "dst is not this byte array");
+
+				std::memcpy(dst.data(), byte_array.bytes.data(), byte_array.bytes.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ArrayID>()){
+				const GlobalVar::Array& array_value = this->engine.module.getGlobalArray(decayed_value);
+
+				evo::debugAssert(
+					dst.size() == this->engine.module.getSize(array_value.type), "dst is not this array"
+				);
+
+				const ArrayType& array_type = this->engine.module.getArrayType(array_value.type);
+				const size_t elem_size = this->engine.module.getSize(array_type.elemType);
+
+				size_t offset = 0;
+				for(const GlobalVar::Value& elem_value : array_value.values){
+					this->lower_global_value(elem_value, dst.subspan(offset, elem_size));
+					offset += elem_size;
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::StructID>()){
+				const GlobalVar::Struct& struct_value = this->engine.module.getGlobalStruct(decayed_value);
+
+				evo::debugAssert(
+					dst.size() == this->engine.module.getSize(struct_value.type), "dst is not this struct"
+				);
+
+				const StructType& struct_type = this->engine.module.getStructType(struct_value.type);
+
+				size_t offset = 0;
+				for(size_t i = 0; const Type& member_type : struct_type.members){
+					const size_t member_type_size = this->engine.module.getSize(member_type);
+
+					this->lower_global_value(struct_value.values[i], dst.subspan(offset, member_type_size));
+					
+					offset += member_type_size;
+					i += 1;
+				}
+
+			}else{
+				static_assert(false, "Unknown global value kind");
+			}
+		});
 	}
 
 

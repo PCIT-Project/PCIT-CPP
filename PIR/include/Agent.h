@@ -126,7 +126,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// global values (expr)
 
-			EVO_NODISCARD static auto createGlobalValue(const GlobalVar::ID& global_id) -> Expr;
+			EVO_NODISCARD static auto createGlobalValue(GlobalVar::ID global_id) -> Expr;
 
 			EVO_NODISCARD static auto getGlobalValue(Expr expr) -> GlobalVar::ID;
 
@@ -135,9 +135,9 @@ namespace pcit::pir{
 			// function pointers
 
 
-			EVO_NODISCARD static auto createFunctionPointer(const Function::ID& global_id) -> Expr;
+			EVO_NODISCARD static auto createFunctionPointer(Function::ID function_id) -> Expr;
 
-			EVO_NODISCARD auto getFunctionPointer(Expr expr) const -> const Function&;
+			EVO_NODISCARD static auto getFunctionPointer(Expr expr) -> Function::ID;
 
 
 

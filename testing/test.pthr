@@ -1,53 +1,36 @@
 
-type Ptr = struct <{T: Type}> {
-	var ptr: T*;
+
+
+
+interface Interface = #polymorphic {
+	func get_name = () -> [Char:3;'\0'];
 }
 
-
-
-var dst: Ptr<{Int}> = get_src();
-const src: Int = 12;
-
-
-func get_src = () -> Ptr<{Int}> {
-	const fake_ptr: Int* = {->expr:Int*
-		unsafe{
-			return->expr @bitCast<{USize, Int*}>(1212);
-		}
-	};
-
-	return new Ptr<{Int}>{ptr = copy fake_ptr};
+type Foo = struct {
+	impl Interface{
+		get_name = () -> [Char:3;'\0'] { return copy "Foo".*; }
+	}
 }
 
-
-
-
-
-
-// interface Interface = #polymorphic {
-// 	func function = () -> Void;
-// }
-
-// type Foo = struct {
-// 	impl Interface{
-// 		function = () -> Void {}
-// 	}
-// }
-
-// type Bar = struct {
-// 	impl Interface{
-// 		function = () -> Void {}
-// 	}
-// }
+type Bar = struct {
+	impl Interface{
+		get_name = () -> [Char:3;'\0'] { return copy "Bar".*; }
+	}
+}
 
 
 
 // const dst: impl(*:Interface) = get_val();
+const dst: [Char:3;'\0'] = get_val();
 
-// const foo = new Foo{};
-// const bar = new Foo{};
+const foo = new Foo{};
+const bar = new Bar{};
 
 
 // func get_val = () -> impl(*:Interface) {
 // 	return foo as impl(*:Interface);
 // }
+
+func get_val = () -> [Char:3;'\0'] {
+	return (bar as impl(*:Interface)).get_name();
+}

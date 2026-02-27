@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.245.0"></a>
+## v0.0.245.0
+
+### Panther
+- Added support for returning polymorphic interface references from comptime function calls
+
+### PIR
+- Added support for function pointers in `ExecutionEngine`
+- Fixed `ExecutionEngine` when using function pointers in globals
+
+
+<!---------------------------------->
 <a name="v0.0.244.0"></a>
 ## v0.0.244.0
 

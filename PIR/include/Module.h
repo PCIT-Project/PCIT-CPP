@@ -330,6 +330,7 @@ namespace pcit::pir{
 
 						}else if constexpr(std::is_same<MemberValueT, Expr>()){
 							this->check_expr_type_match(type, member_value);
+							evo::debugAssert(member_value.isConstant(), "Global variable value must be constant");
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
 							// Do nothing...

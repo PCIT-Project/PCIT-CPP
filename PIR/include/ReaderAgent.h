@@ -51,7 +51,7 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto getBoolean(Expr expr) -> bool;
 			EVO_NODISCARD static auto getParamExpr(Expr expr) -> ParamExpr;
 			EVO_NODISCARD static auto getGlobalValue(Expr expr) -> GlobalVar::ID;
-			EVO_NODISCARD auto getFunctionPointer(Expr expr) const -> const Function&;
+			EVO_NODISCARD static auto getFunctionPointer(Expr expr) -> Function::ID;
 
 			EVO_NODISCARD auto getCall(Expr expr) const -> const Call&;
 			EVO_NODISCARD auto getCallVoid(Expr expr) const -> const CallVoid&;
