@@ -35,7 +35,7 @@ namespace pcit::panther{
 					*symbol_proc.sema_scope_id
 				);
 
-				return SemanticAnalyzer(context, source, symbol_proc_id, symbol_proc, scope);
+				return SemanticAnalyzer(context, source, symbol_proc, scope);
 			}
 
 			~SemanticAnalyzer() = default;
@@ -1517,20 +1517,17 @@ namespace pcit::panther{
 			SemanticAnalyzer(
 				Context& _context,
 				Source& _source,
-				SymbolProc::ID sym_proc_id,
-				SymbolProc& sym_proc,
+				SymbolProc& _symbol_proc,
 				sema::ScopeManager::Scope& _scope
 			) : context(_context),
 				source(_source),
-				symbol_proc_id(sym_proc_id),
-				symbol_proc(sym_proc),
+				symbol_proc(_symbol_proc),
 				scope(_scope)
 			{}
 
 		private:
 			Context& context;
 			Source& source;
-			SymbolProc::ID symbol_proc_id;
 			SymbolProc& symbol_proc;
 			sema::ScopeManager::Scope& scope;
 

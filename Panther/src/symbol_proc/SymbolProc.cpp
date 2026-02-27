@@ -25,7 +25,7 @@ namespace pcit::panther{
 	static evo::SpinLock wait_on_if_needed_lock{};
 	
 
-	auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnDeclIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 		
 		// TODO(PERF): is doing these checks before taking locks faster
@@ -33,7 +33,7 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
-		if(id == self_id){
+		if(id == this->getID()){
 			context.emitError(
 				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
 				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
@@ -58,13 +58,13 @@ namespace pcit::panther{
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->decl_waited_on_by.emplace_back(id);
-		waiting_symbol.waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(this->getID());
 
 		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
-	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
@@ -81,20 +81,20 @@ namespace pcit::panther{
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->pir_decl_waited_on_by.emplace_back(id);
-		waiting_symbol.waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(this->getID());
 
 		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
-	auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnDefIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
-		if(id == self_id){
+		if(id == this->getID()){
 			context.emitError(
 				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
 				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
@@ -119,14 +119,14 @@ namespace pcit::panther{
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->def_waited_on_by.emplace_back(id);
-		waiting_symbol.waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(this->getID());
 
 		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;
 	}
 
 
-	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context, ID self_id) -> WaitOnResult {
+	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
@@ -143,7 +143,7 @@ namespace pcit::panther{
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->pir_def_waited_on_by.emplace_back(id);
-		waiting_symbol.waiting_for.emplace_back(self_id);
+		waiting_symbol.waiting_for.emplace_back(this->getID());
 
 		if(this->unsuspendIfNeeded()){ return WaitOnResult::WAITING_UNSUSPEND; }
 		return WaitOnResult::WAITING;

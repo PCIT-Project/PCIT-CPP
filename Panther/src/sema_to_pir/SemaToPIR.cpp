@@ -128,18 +128,18 @@ namespace pcit::panther{
 			this->lowerFuncDecl(func_id);
 		}
 
-		// for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
-		// 	const auto interface_id = BaseType::Interface::ID(i);
-		// 	const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
+		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
+			const auto interface_id = BaseType::Interface::ID(i);
+			const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
 			
-		// 	if(interface.isPolymorphic == false){ continue; }
+			if(interface.isPolymorphic == false){ continue; }
 
-		// 	this->lowerInterface(interface_id);
+			// this->lowerInterface(interface_id);
 
-		// 	for(const auto& [target_type_id, impl] : interface.impls){
-		// 		this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
-		// 	}
-		// }
+			for(const auto& [target_type_id, impl] : interface.impls){
+				this->lowerInterfaceVTableDef(interface_id, target_type_id, impl.methods);
+			}
+		}
 
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
@@ -756,16 +756,122 @@ namespace pcit::panther{
 	}
 
 
-	auto SemaToPIR::lowerInterfaceVTable(
-		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
-	) -> void {
-		return this->lower_interface_vtable_impl<false>(interface_id, type_id, funcs);
+
+	auto SemaToPIR::lowerInterfaceVTableDecl(BaseType::Interface::ID interface_id, TypeInfo::ID type_id) -> void {
+		const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
+
+		std::string vtable_name = [&](){
+			const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+
+			if(type_info.qualifiers().empty() == false){
+				return std::format("PTHR.vtable.i{}.qt{}", interface_id.get(), type_id.get());
+			}
+
+			switch(type_info.baseTypeID().kind()){
+				case BaseType::Kind::PRIMITIVE:
+					return std::format(
+						"PTHR.vtable.i{}.p{}", interface_id.get(), type_info.baseTypeID().primitiveID().get()
+					);
+
+				case BaseType::Kind::ARRAY:
+					return std::format(
+						"PTHR.vtable.i{}.a{}", interface_id.get(), type_info.baseTypeID().arrayID().get()
+					);
+
+				case BaseType::Kind::DISTINCT_ALIAS:
+					return std::format(
+						"PTHR.vtable.i{}.da{}", interface_id.get(), type_info.baseTypeID().distinctAliasID().get()
+					);
+
+				case BaseType::Kind::STRUCT:
+					return std::format(
+						"PTHR.vtable.i{}.s{}", interface_id.get(), type_info.baseTypeID().structID().get()
+					);
+
+				case BaseType::Kind::UNION:
+					return std::format(
+						"PTHR.vtable.i{}.u{}", interface_id.get(), type_info.baseTypeID().unionID().get()
+					);
+
+				case BaseType::Kind::DUMMY:             case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER:     case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ARRAY_REF_DEDUCER: case BaseType::Kind::ALIAS:
+				case BaseType::Kind::STRUCT_TEMPLATE:   case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+				case BaseType::Kind::TYPE_DEDUCER:      case BaseType::Kind::ENUM:
+				case BaseType::Kind::INTERFACE:         case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::INTERFACE_MAP: {
+					evo::debugFatalBreak("Not valid base type for VTable");
+				} break;
+			}
+
+			evo::unreachable();
+		}();
+
+		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
+			std::move(vtable_name),
+			this->module.getOrCreateArrayType(this->module.createPtrType(), uint64_t(interface_type.methods.size())),
+			pir::Linkage::EXTERNAL,
+			pir::GlobalVar::NoValue{},
+			true
+		);
+
+		this->data.create_vtable(Data::VTableID(interface_id, type_id), vtable);
 	}
 
-	auto SemaToPIR::lowerInterfaceVTableComptime(
+	auto SemaToPIR::lowerInterfaceVTableDef(
 		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
-		return this->lower_interface_vtable_impl<true>(interface_id, type_id, funcs);
+		evo::debugAssert(
+			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
+			"Only polymorphic interfaces can have vtables"
+		);
+
+
+		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
+		vtable_values.reserve(funcs.size());
+		for(sema::Func::ID func_id : funcs){
+			vtable_values.emplace_back(
+				this->agent.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
+			);
+		}
+
+
+		const pir::GlobalVar::ID pir_var_id = this->data.get_vtable(Data::VTableID(interface_id, type_id));
+		this->module.getGlobalVar(pir_var_id).value =
+			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values));
+	}
+
+
+
+	auto SemaToPIR::lowerInterfaceVTableDefComptime(
+		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
+	) -> void {
+		evo::debugAssert(
+			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
+			"Only polymorphic interfaces can have vtables"
+		);
+
+
+		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
+		vtable_values.reserve(funcs.size());
+		for(sema::Func::ID func_id : funcs){
+			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+
+			if(func.attributes.isComptime){
+				vtable_values.emplace_back(
+					this->agent.createFunctionPointer(
+						this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
+					)
+				);
+			}else{
+				vtable_values.emplace_back(this->agent.createNullptr());
+			}
+		}
+
+
+		const pir::GlobalVar::ID pir_var_id = this->data.get_vtable(Data::VTableID(interface_id, type_id));
+		this->module.getGlobalVar(pir_var_id).value =
+			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values));
 	}
 
 
@@ -1052,59 +1158,13 @@ namespace pcit::panther{
 
 
 	template<bool IS_COMPTIME>
-	auto SemaToPIR::lower_interface_vtable_impl(
+	auto SemaToPIR::lower_interface_vtable_def_impl(
 		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
 	) -> void {
 		evo::debugAssert(
 			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
 			"Only polymorphic interfaces can have vtables"
 		);
-
-		std::string vtable_name = [&](){
-			const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
-
-			if(type_info.qualifiers().empty() == false){
-				return std::format("PTHR.vtable.i{}.qt{}", interface_id.get(), type_id.get());
-			}
-
-			switch(type_info.baseTypeID().kind()){
-				case BaseType::Kind::PRIMITIVE:
-					return std::format(
-						"PTHR.vtable.i{}.p{}", interface_id.get(), type_info.baseTypeID().primitiveID().get()
-					);
-
-				case BaseType::Kind::ARRAY:
-					return std::format(
-						"PTHR.vtable.i{}.a{}", interface_id.get(), type_info.baseTypeID().arrayID().get()
-					);
-
-				case BaseType::Kind::DISTINCT_ALIAS:
-					return std::format(
-						"PTHR.vtable.i{}.da{}", interface_id.get(), type_info.baseTypeID().distinctAliasID().get()
-					);
-
-				case BaseType::Kind::STRUCT:
-					return std::format(
-						"PTHR.vtable.i{}.s{}", interface_id.get(), type_info.baseTypeID().structID().get()
-					);
-
-				case BaseType::Kind::UNION:
-					return std::format(
-						"PTHR.vtable.i{}.u{}", interface_id.get(), type_info.baseTypeID().unionID().get()
-					);
-
-				case BaseType::Kind::DUMMY:                   case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::ARRAY_REF:
-				case BaseType::Kind::ALIAS:                   case BaseType::Kind::STRUCT_TEMPLATE:
-				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::ENUM:                    case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::POLY_INTERFACE_REF:      case BaseType::Kind::INTERFACE_MAP: {
-					evo::debugFatalBreak("Not valid base type for VTable");
-				} break;
-			}
-
-			evo::unreachable();
-		}();
 
 
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
@@ -1130,15 +1190,10 @@ namespace pcit::panther{
 			}
 		}
 
-		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
-			std::move(vtable_name),
-			this->module.getOrCreateArrayType(this->module.createPtrType(), uint64_t(funcs.size())),
-			pir::Linkage::EXTERNAL,
-			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
-			true
-		);
 
-		this->data.create_vtable(Data::VTableID(interface_id, type_id), vtable);
+		const pir::GlobalVar::ID pir_var_id = this->data.get_vtable(Data::VTableID(interface_id, type_id));
+		this->module.getGlobalVar(pir_var_id).value =
+			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values));
 	}
 
 

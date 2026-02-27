@@ -1497,10 +1497,10 @@ namespace pcit::panther{
 				CIRCULAR_DEP_DETECTED,
 			};
 
-			auto waitOnDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
-			auto waitOnPIRDeclIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
-			auto waitOnDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
-			auto waitOnPIRDefIfNeeded(ID id, class Context& context, ID self_id) -> WaitOnResult;
+			auto waitOnDeclIfNeeded(ID id, class Context& context) -> WaitOnResult;
+			auto waitOnPIRDeclIfNeeded(ID id, class Context& context) -> WaitOnResult;
+			auto waitOnDefIfNeeded(ID id, class Context& context) -> WaitOnResult;
+			auto waitOnPIRDefIfNeeded(ID id, class Context& context) -> WaitOnResult;
 
 
 
@@ -1638,6 +1638,7 @@ namespace pcit::panther{
 
 				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
+				std::unordered_set<const BaseType::Interface::Impl*> dependent_impls{}; // Only needed if the func is comptime
 			};
 
 			struct TemplateFuncInfo{

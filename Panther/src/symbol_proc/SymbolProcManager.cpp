@@ -93,7 +93,7 @@ namespace pcit::panther{
 			SymbolProc& builtin_symbol_proc = this->getSymbolProc(*builtin_symbol_proc_id);
 
 			SymbolProc::WaitOnResult wait_on_result = 
-				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
+				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;
@@ -120,7 +120,7 @@ namespace pcit::panther{
 			SymbolProc& builtin_symbol_proc = this->getSymbolProc(*builtin_symbol_proc_id);
 
 			SymbolProc::WaitOnResult wait_on_result = 
-				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context, symbol_proc_id);
+				builtin_symbol_proc.waitOnPIRDefIfNeeded(*builtin_symbol_proc_id, context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;

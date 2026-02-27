@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.245.1"></a>
+## v0.0.245.1
+
+### Panther
+- Fixed race conditions in semantic analysis when using interfaces in comptime functions
+- Fixed lowering of polymorphic interfaces vtables with non-comptime methods
+
+
+<!---------------------------------->
 <a name="v0.0.245.0"></a>
 ## v0.0.245.0
 

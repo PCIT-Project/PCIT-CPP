@@ -1,7 +1,5 @@
 
 
-
-
 interface Interface = #polymorphic {
 	func get_name = () -> [Char:3;'\0'];
 }
@@ -20,17 +18,12 @@ type Bar = struct {
 
 
 
-// const dst: impl(*:Interface) = get_val();
 const dst: [Char:3;'\0'] = get_val();
 
 const foo = new Foo{};
 const bar = new Bar{};
 
 
-// func get_val = () -> impl(*:Interface) {
-// 	return foo as impl(*:Interface);
-// }
-
 func get_val = () -> [Char:3;'\0'] {
-	return (bar as impl(*:Interface)).get_name();
+	return (foo as impl(*:Interface)).get_name();
 }

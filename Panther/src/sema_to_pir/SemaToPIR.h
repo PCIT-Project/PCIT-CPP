@@ -91,12 +91,15 @@ namespace pcit::panther{
 
 			auto lowerInterface(BaseType::Interface::ID interface_id) -> void;
 
-			auto lowerInterfaceVTable(
+
+			auto lowerInterfaceVTableDecl(BaseType::Interface::ID interface_id, TypeInfo::ID type_id) -> void;
+
+			auto lowerInterfaceVTableDef(
 				BaseType::Interface::ID interface_id,
 				TypeInfo::ID type_id,
 				const evo::SmallVector<sema::Func::ID>& funcs
 			) -> void;
-			auto lowerInterfaceVTableComptime(
+			auto lowerInterfaceVTableDefComptime(
 				BaseType::Interface::ID interface_id,
 				TypeInfo::ID type_id,
 				const evo::SmallVector<sema::Func::ID>& funcs
@@ -129,7 +132,7 @@ namespace pcit::panther{
 			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
 
 			template<bool IS_COMPTIME>
-			auto lower_interface_vtable_impl(
+			auto lower_interface_vtable_def_impl(
 				BaseType::Interface::ID interface_id,
 				TypeInfo::ID type_id,
 				const evo::SmallVector<sema::Func::ID>& funcs

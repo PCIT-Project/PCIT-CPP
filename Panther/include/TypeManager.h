@@ -914,8 +914,8 @@ namespace pcit::panther{
 				evo::SmallVector<sema::FuncID> methods{}; // may only access if instantiatingSymbolProc is nullopt 
 				                                          // 	or waited on def
 				
-				// need to wait on def if not nullopt
-				mutable std::atomic<std::optional<SymbolProcID>> instantiatingSymbolProc;
+				std::optional<SymbolProcID> symbolProc = std::nullopt;
+				mutable std::atomic<bool> isDefCompleted = false;
 			};
 
 			struct DeducerImpl{

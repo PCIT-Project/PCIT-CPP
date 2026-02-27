@@ -843,7 +843,7 @@ namespace pcit::panther{
 				got_type_info_id.asTypeID(),
 				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
-				this->symbol_proc_id
+				this->symbol_proc.getID()
 			);
 
 			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
@@ -1263,7 +1263,7 @@ namespace pcit::panther{
 				type_id,
 				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
-				this->symbol_proc_id
+				this->symbol_proc.getID()
 			);
 
 			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
@@ -1381,7 +1381,7 @@ namespace pcit::panther{
 					encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
 				}
 
-				this->set_waiting_for_is_done(then_id, this->symbol_proc_id);
+				this->set_waiting_for_is_done(then_id, this->symbol_proc.getID());
 			}
 
 			for(const SymbolProc::ID& else_id : when_cond_info.else_ids){
@@ -1400,7 +1400,7 @@ namespace pcit::panther{
 					encapsulating_symbol_proc->waiting_for.emplace_back(else_id);
 				}
 
-				this->set_waiting_for_is_done(else_id, this->symbol_proc_id);
+				this->set_waiting_for_is_done(else_id, this->symbol_proc.getID());
 			}
 
 			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
@@ -1535,7 +1535,7 @@ namespace pcit::panther{
 			}
 
 			this->context.symbol_proc_manager.addTypeSymbolProc(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc.getID()
 			);
 			
 		}else{
@@ -1556,7 +1556,7 @@ namespace pcit::panther{
 			}
 
 			this->context.symbol_proc_manager.addTypeSymbolProc(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc_id
+				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_alias)), this->symbol_proc.getID()
 			);
 		}
 
@@ -1630,14 +1630,14 @@ namespace pcit::panther{
 
 				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.decl_waited_on_lock);
 				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
-				member_stmt.decl_waited_on_by.emplace_back(this->symbol_proc_id);
+				member_stmt.decl_waited_on_by.emplace_back(this->symbol_proc.getID());
 
 			}else{
 				evo::debugAssert(member_stmt.isDefDone() == false, "Def already completed for struct member");
 
 				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.def_waited_on_lock);
 				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
-				member_stmt.def_waited_on_by.emplace_back(this->symbol_proc_id);
+				member_stmt.def_waited_on_by.emplace_back(this->symbol_proc.getID());
 			}
 		}
 
@@ -1647,7 +1647,7 @@ namespace pcit::panther{
 		}
 
 		this->context.symbol_proc_manager.addTypeSymbolProc(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_struct)), this->symbol_proc_id
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_struct)), this->symbol_proc.getID()
 		);
 
 		this->propagate_finished_decl();
@@ -2553,7 +2553,7 @@ namespace pcit::panther{
 
 			SymbolProc& wait_on_func = this->context.symbol_proc_manager.getSymbolProc(*func_to_wait_on.symbolProcID);
 
-			switch(wait_on_func.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, *func_to_wait_on.symbolProcID)){
+			switch(wait_on_func.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context)){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
@@ -2822,7 +2822,7 @@ namespace pcit::panther{
 		}
 
 		this->context.symbol_proc_manager.addTypeSymbolProc(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_union)), this->symbol_proc_id
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_union)), this->symbol_proc.getID()
 		);
 
 
@@ -2925,7 +2925,7 @@ namespace pcit::panther{
 		for(const SymbolProc::ID& member_stmt_id : union_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
-			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, member_stmt_id)){
+			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context)){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
@@ -3026,7 +3026,7 @@ namespace pcit::panther{
 		}
 
 		this->context.symbol_proc_manager.addTypeSymbolProc(
-			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_enum)), this->symbol_proc_id
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_enum)), this->symbol_proc.getID()
 		);
 
 
@@ -3112,7 +3112,7 @@ namespace pcit::panther{
 		for(const SymbolProc::ID& member_stmt_id : enum_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
-			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, member_stmt_id)){
+			switch(member_stmt.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context)){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
@@ -3634,7 +3634,7 @@ namespace pcit::panther{
 			std::move(sema_params),
 			std::move(return_param_idents),
 			std::move(error_param_idents),
-			this->symbol_proc_id,
+			this->symbol_proc.getID(),
 			min_num_args,
 			has_in_param,
 			sema::Func::Attributes{
@@ -4763,7 +4763,7 @@ namespace pcit::panther{
 									evo::SmallVector<sema::Func::Param>{created_func.params[1], created_func.params[0]},
 									created_func.returnParamIdents,
 									created_func.errorParamIdents,
-									this->symbol_proc_id,
+									this->symbol_proc.getID(),
 									2,
 									created_func.hasInParam,
 									sema::Func::Attributes{
@@ -5541,9 +5541,8 @@ namespace pcit::panther{
 				SymbolProc& dependent_func_symbol_proc = 
 					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
 
-				const SymbolProc::WaitOnResult wait_on_result = dependent_func_symbol_proc.waitOnPIRDeclIfNeeded(
-					this->symbol_proc_id, this->context, *dependent_func.symbolProcID
-				);
+				const SymbolProc::WaitOnResult wait_on_result =
+					dependent_func_symbol_proc.waitOnPIRDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
@@ -5674,9 +5673,8 @@ namespace pcit::panther{
 				SymbolProc& dependent_func_symbol_proc = 
 					this->context.symbol_proc_manager.getSymbolProc(*dependent_func.symbolProcID);
 
-				const SymbolProc::WaitOnResult wait_on_result = dependent_func_symbol_proc.waitOnPIRDefIfNeeded(
-					this->symbol_proc_id, this->context, *dependent_func.symbolProcID
-				);
+				const SymbolProc::WaitOnResult wait_on_result =
+					dependent_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
@@ -5709,9 +5707,8 @@ namespace pcit::panther{
 				SymbolProc& dependent_var_symbol_proc =
 					this->context.symbol_proc_manager.getSymbolProc(*dependent_var.symbolProcID);
 
-				const SymbolProc::WaitOnResult wait_on_result = dependent_var_symbol_proc.waitOnDefIfNeeded(
-					this->symbol_proc_id, this->context, *dependent_var.symbolProcID
-				);
+				const SymbolProc::WaitOnResult wait_on_result =
+					dependent_var_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:
@@ -5720,6 +5717,39 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*dependent_var.symbolProcID);
+						[[fallthrough]];
+					}
+
+					case SymbolProc::WaitOnResult::WAITING:
+						any_waiting = true; break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
+				}
+			}
+			for(
+				const BaseType::Interface::Impl* dependent_interface_impl
+				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls
+			){
+				SymbolProc& dependent_var_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*dependent_interface_impl->symbolProc);
+
+				const SymbolProc::WaitOnResult wait_on_result =
+					dependent_var_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*dependent_interface_impl->symbolProc);
 						[[fallthrough]];
 					}
 
@@ -6102,7 +6132,7 @@ namespace pcit::panther{
 				this->source.getID(),
 				instr.interface_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				this->symbol_proc_id,
+				this->symbol_proc.getID(),
 				interface_attrs.value().is_pub,
 				interface_attrs.value().is_priv,
 				interface_attrs.value().is_polymorphic
@@ -6121,7 +6151,7 @@ namespace pcit::panther{
 
 		this->context.symbol_proc_manager.addTypeSymbolProc(
 			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_interface_type_id)),
-			this->symbol_proc_id
+			this->symbol_proc.getID()
 		);
 
 
@@ -6268,6 +6298,8 @@ namespace pcit::panther{
 		BaseType::Interface::Impl& interface_impl =
 			this->context.type_manager.createInterfaceImpl(instr.interface_impl);
 
+		interface_impl.symbolProc = this->symbol_proc.getID();
+
 		this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 			target_interface_id,
 			target_interface,
@@ -6276,6 +6308,16 @@ namespace pcit::panther{
 			),
 			&interface_impl
 		);
+
+		if(target_interface.isPolymorphic){
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerInterfaceVTableDecl(
+				target_interface_id,
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
+				)
+			);
+		}
 
 		this->push_scope_level();
 
@@ -6346,12 +6388,17 @@ namespace pcit::panther{
 		if(this->context.getTypeManager().isTypeDeducer(target_type_id.asTypeID())){
 			BaseType::Interface::DeducerImpl& interface_deudcer_impl =
 				this->context.type_manager.createInterfaceDeducerImpl(
-					target_type_id.asTypeID(), instr.interface_impl_node, this->symbol_proc_id
+					target_type_id.asTypeID(), instr.interface_impl_node, this->symbol_proc.getID()
 				);
 
 			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_deudcer_impl
 			);
+
+			if(target_interface.isPolymorphic){
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+				sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, target_type_id.asTypeID());
+			}
 
 			this->push_scope_level();
 
@@ -6362,6 +6409,11 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
 			);
+
+			if(target_interface.isPolymorphic){
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+				sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, target_type_id.asTypeID());
+			}
 
 			this->push_scope_level(
 				nullptr, EncapsulatingSymbolID::InterfaceImplInfo(target_type_id.asTypeID(), target_interface_id)
@@ -6387,6 +6439,10 @@ namespace pcit::panther{
 			target_interface_id, target_interface, instr.instantiation_type_id, &instr.created_impl
 		);
 
+		if(target_interface.isPolymorphic){
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, instr.instantiation_type_id);
+		}
 
 		this->push_scope_level(
 			nullptr, EncapsulatingSymbolID::InterfaceImplInfo(instr.instantiation_type_id, target_interface_id)
@@ -6494,7 +6550,7 @@ namespace pcit::panther{
 
 
 			const SymbolProc::WaitOnResult wait_on_result = 
-				sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
+				sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
@@ -6556,7 +6612,7 @@ namespace pcit::panther{
 
 			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-			sema_to_pir.lowerInterfaceVTableComptime(
+			sema_to_pir.lowerInterfaceVTableDefComptime(
 				info.target_interface_id, current_type_id, interface_impl.methods
 			);
 		}
@@ -8056,19 +8112,16 @@ namespace pcit::panther{
 			}();
 
 			{ // check if impl def completed
-				const std::optional<SymbolProc::ID> instantiating_symbol_proc_id =
-					iterable_impl.instantiatingSymbolProc.load(std::memory_order::relaxed);
-
-				if(instantiating_symbol_proc_id.has_value()){
+				if(iterable_impl.isDefCompleted == false){
 					const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
-						.getSymbolProc(*instantiating_symbol_proc_id)
-						.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *instantiating_symbol_proc_id);
+						.getSymbolProc(*iterable_impl.symbolProc)
+						.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 					switch(wait_on_result){
 						case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
 						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 							this->context.symbol_proc_manager.symbol_proc_unsuspended();
-							this->context.add_task_to_work_manager(*instantiating_symbol_proc_id);
+							this->context.add_task_to_work_manager(*iterable_impl.symbolProc);
 							[[fallthrough]];
 						}
 						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
@@ -11391,7 +11444,7 @@ namespace pcit::panther{
 
 			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 				.getSymbolProc(*current_struct_symbol_proc)
-				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_struct_symbol_proc);
+				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
@@ -11419,7 +11472,7 @@ namespace pcit::panther{
 
 			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 				.getSymbolProc(*current_union_symbol_proc)
-				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_union_symbol_proc);
+				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
@@ -11447,7 +11500,7 @@ namespace pcit::panther{
 
 			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 				.getSymbolProc(*current_enum_symbol_proc)
-				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *current_enum_symbol_proc);
+				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
@@ -11489,7 +11542,7 @@ namespace pcit::panther{
 
 
 		const SymbolProc::WaitOnResult wait_on_result = 
-			sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
+			sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 		switch(wait_on_result){
 			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
@@ -11528,7 +11581,7 @@ namespace pcit::panther{
 
 
 		const SymbolProc::WaitOnResult wait_on_result = 
-			sub_symbol_proc.waitOnDefIfNeeded(this->symbol_proc_id, this->context, instr.symbol_proc_id);
+			sub_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 		switch(wait_on_result){
 			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
@@ -11863,9 +11916,8 @@ namespace pcit::panther{
 				*func_call_impl_res.value().selected_func->symbolProcID
 			);
 
-			const SymbolProc::WaitOnResult wait_on_result = selected_func_symbol_proc.waitOnPIRDefIfNeeded(
-				this->symbol_proc_id, this->context, *func_call_impl_res.value().selected_func->symbolProcID
-			);
+			const SymbolProc::WaitOnResult wait_on_result =
+				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
@@ -16028,7 +16080,7 @@ namespace pcit::panther{
 		if(resultant_type_symbol_proc_id.has_value()){
 			const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 				.getSymbolProc(*resultant_type_symbol_proc_id)
-				.waitOnDefIfNeeded(this->symbol_proc_id, this->context, *resultant_type_symbol_proc_id);
+				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
@@ -18321,9 +18373,9 @@ namespace pcit::panther{
 			SymbolProc& instantiation_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
 				instantiation_symbol_proc_id.value()
 			);
-			SymbolProc::WaitOnResult wait_on_result = instantiation_symbol_proc.waitOnDeclIfNeeded(
-				this->symbol_proc_id, this->context, instantiation_symbol_proc_id.value()
-			);
+			SymbolProc::WaitOnResult wait_on_result = 
+				instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
+
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:
 					evo::debugFatalBreak("Should never be possible");
@@ -18375,11 +18427,8 @@ namespace pcit::panther{
 				*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed)
 			);
 
-			SymbolProc::WaitOnResult wait_on_result = instantiation_symbol_proc.waitOnDeclIfNeeded(
-				this->symbol_proc_id,
-				this->context,
-				*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed)
-			);
+			SymbolProc::WaitOnResult wait_on_result =
+				instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:
 					return Result::SUCCESS;
@@ -18449,7 +18498,7 @@ namespace pcit::panther{
 
 				const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
 					.getSymbolProc(target_symbol_proc_id)
-					.waitOnDefIfNeeded(this->symbol_proc_id, this->context, target_symbol_proc_id);
+					.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
@@ -19693,6 +19742,14 @@ namespace pcit::panther{
 					this->context.sema_buffer.createMakeInterfacePtr(
 						from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_type_id
 					);
+
+				if(this->get_current_func().attributes.isComptime){
+					const auto lock = std::scoped_lock(target_interface.implsLock);
+
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls.emplace(
+						&target_interface.impls.at(from_type_id)
+					);
+				}
 
 				this->return_term_info(output_id,
 					TermInfo::ValueCategory::EPHEMERAL,
@@ -22092,7 +22149,7 @@ namespace pcit::panther{
 			if(*intrinsic_kind == IntrinsicFunc::Kind::PANIC){
 				const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 					SymbolProcManager::constevalLookupBuiltinSymbolKind("panic"),
-					this->symbol_proc_id,
+					this->symbol_proc.getID(),
 					this->context
 				);
 				if(need_to_wait){ return Result::NEED_TO_WAIT; }
@@ -22195,9 +22252,8 @@ namespace pcit::panther{
 				SymbolProc& struct_type_symbol_proc =
 					this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
 
-				const SymbolProc::WaitOnResult wait_on_result = struct_type_symbol_proc.waitOnDefIfNeeded(
-					this->symbol_proc_id, this->context, struct_type_symbol_proc_id
-				);
+				const SymbolProc::WaitOnResult wait_on_result =
+					struct_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 					
 				switch(wait_on_result){
 					case SymbolProc::WaitOnResult::NOT_NEEDED:  break;
@@ -22833,9 +22889,8 @@ namespace pcit::panther{
 			SymbolProc& target_interface_symbol_proc =
 				this->context.symbol_proc_manager.getSymbolProc(*target_interface.symbolProcID);
 
-			const SymbolProc::WaitOnResult wait_on_result = target_interface_symbol_proc.waitOnDefIfNeeded(
-				this->symbol_proc_id, this->context, *target_interface.symbolProcID
-			);
+			const SymbolProc::WaitOnResult wait_on_result =
+				target_interface_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 				
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
@@ -22903,16 +22958,12 @@ namespace pcit::panther{
 			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(*impl_instantiation_type_id);
 
 			{ // wait on instantiating symbol proc if needed
-				const std::optional<SymbolProcID> instantiating_symbol_proc_id =
-					interface_impl.instantiatingSymbolProc.load(std::memory_order::relaxed);
-
-				if(instantiating_symbol_proc_id.has_value()){
+				if(interface_impl.isDefCompleted == false){
 					SymbolProc& target_impl_symbol_proc =
-						this->context.symbol_proc_manager.getSymbolProc(*instantiating_symbol_proc_id);
+						this->context.symbol_proc_manager.getSymbolProc(*interface_impl.symbolProc);
 
-					const SymbolProc::WaitOnResult wait_on_result = target_impl_symbol_proc.waitOnDefIfNeeded(
-						this->symbol_proc_id, this->context, *instantiating_symbol_proc_id
-					);
+					const SymbolProc::WaitOnResult wait_on_result =
+						target_impl_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 						
 					switch(wait_on_result){
 						case SymbolProc::WaitOnResult::NOT_NEEDED:
@@ -22920,7 +22971,7 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 							this->context.symbol_proc_manager.symbol_proc_unsuspended();
-							this->context.add_task_to_work_manager(*instantiating_symbol_proc_id);
+							this->context.add_task_to_work_manager(*interface_impl.symbolProc);
 							[[fallthrough]];
 						}
 
@@ -26479,13 +26530,9 @@ namespace pcit::panther{
 
 			const SymbolProc::WaitOnResult wait_on_result = [&](){
 				if constexpr(NEEDS_DEF){
-					return found_symbol_proc.waitOnDefIfNeeded(
-						this->symbol_proc_id, this->context, found_symbol_proc_id
-					);
+					return found_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 				}else{
-					return found_symbol_proc.waitOnDeclIfNeeded(
-						this->symbol_proc_id, this->context, found_symbol_proc_id
-					);
+					return found_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 				}
 			}();
 
@@ -27592,9 +27639,8 @@ namespace pcit::panther{
 				SymbolProc& instantiation_symbol_proc =
 					this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
 
-				SymbolProc::WaitOnResult wait_on_result = instantiation_symbol_proc.waitOnDeclIfNeeded(
-					this->symbol_proc_id, this->context, *loaded_instantiation_symbol_proc_id
-				);
+				SymbolProc::WaitOnResult wait_on_result = 
+					instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 
 				switch(wait_on_result){
@@ -29061,9 +29107,8 @@ namespace pcit::panther{
 			SymbolProc& interface_symbol_proc =
 				this->context.symbol_proc_manager.getSymbolProc(*interface_type.symbolProcID);
 
-			const SymbolProc::WaitOnResult wait_on_result = interface_symbol_proc.waitOnDefIfNeeded(
-				this->symbol_proc_id, this->context, *interface_type.symbolProcID
-			);
+			const SymbolProc::WaitOnResult wait_on_result =
+				interface_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
@@ -29156,7 +29201,7 @@ namespace pcit::panther{
 						this->context.symbol_proc_manager.getSymbolProc(created_symbol_proc_id);
 
 
-					created_impl.instantiatingSymbolProc = std::optional<SymbolProc::ID>(created_symbol_proc_id);
+					created_impl.symbolProc = created_symbol_proc_id;
 
 					{
 						const auto lock = std::scoped_lock(interface_type.implsLock);
@@ -29238,7 +29283,7 @@ namespace pcit::panther{
 
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"),
-						this->symbol_proc_id,
+						this->symbol_proc.getID(),
 						this->context
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -29265,7 +29310,7 @@ namespace pcit::panther{
 
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"),
-						this->symbol_proc_id,
+						this->symbol_proc.getID(),
 						this->context
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -29309,7 +29354,7 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"),
-								this->symbol_proc_id,
+								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -29338,7 +29383,7 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"),
-								this->symbol_proc_id,
+								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -29370,7 +29415,7 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"),
-								this->symbol_proc_id,
+								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -29398,7 +29443,7 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"),
-								this->symbol_proc_id,
+								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
@@ -31025,7 +31070,7 @@ namespace pcit::panther{
 
 
 
-		const BaseType::Interface::Impl* old_impl = nullptr;
+		const BaseType::Interface::Impl* existing_impl = nullptr;
 
 		{
 			const TypeInfo::ID target_type_id = [&](){
@@ -31041,14 +31086,14 @@ namespace pcit::panther{
 
 			const auto lock = std::scoped_lock(info.target_interface.implsLock);
 
-			const auto find_old_impl = info.target_interface.impls.find(target_type_id);
+			const auto find_existing_impl = info.target_interface.impls.find(target_type_id);
 
-			if(find_old_impl == info.target_interface.impls.end()){
+			if(find_existing_impl == info.target_interface.impls.end()){
 				info.target_interface.impls.emplace(target_type_id, interface_impl);
 
 			}else{
-				if(find_old_impl->second.instantiatingSymbolProc.load(std::memory_order::relaxed).has_value()){
-					old_impl = &find_old_impl->second;
+				if(find_existing_impl->second.isDefCompleted == false){
+					existing_impl = &find_existing_impl->second;
 					
 				}else{
 					this->emit_error(
@@ -31056,7 +31101,7 @@ namespace pcit::panther{
 						instr.interface_impl,
 						"Interface impl for this interface and type already exists",
 						Diagnostic::Info(
-							"Previously defined here:", this->get_location(find_old_impl->second.astInterfaceImpl)
+							"Previously defined here:", this->get_location(find_existing_impl->second.astInterfaceImpl)
 						)
 					);
 					return Result::ERROR;
@@ -31068,8 +31113,8 @@ namespace pcit::panther{
 
 		this->propagate_finished_def();
 
-		if(old_impl != nullptr){
-			old_impl->instantiatingSymbolProc = std::optional<SymbolProc::ID>();
+		if(existing_impl != nullptr){
+			existing_impl->isDefCompleted = true;
 		}
 
 
@@ -31082,9 +31127,9 @@ namespace pcit::panther{
 
 			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
 
-			const SymbolProc::WaitOnResult wait_on_result = method_symbol_proc.waitOnPIRDeclIfNeeded(
-				this->symbol_proc_id, this->context, *method.symbolProcID
-			);
+			// wait on def to make sure the function passed semantic analysis, and PIR decl will already be there
+			const SymbolProc::WaitOnResult wait_on_result =
+				method_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
 				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
@@ -32484,7 +32529,7 @@ namespace pcit::panther{
 			evo::debugAssert(waited_on.waiting_for.empty() == false, "Should never have empty list");
 
 			for(size_t i = 0; i < waited_on.waiting_for.size() - 1; i+=1){
-				if(waited_on.waiting_for[i] == this->symbol_proc_id){
+				if(waited_on.waiting_for[i] == this->symbol_proc.getID()){
 					waited_on.waiting_for[i] = waited_on.waiting_for.back();
 					break;
 				}
