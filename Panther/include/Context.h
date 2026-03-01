@@ -123,7 +123,7 @@ namespace pcit::panther{
 				type_manager(config.target),
 				pir_module(std::string(config.title), config.target),
 				sema_to_pir_data(SemaToPIR::Data::Config{
-					.useReadableNames = true,
+					.useReadableNames     = true,
 					.checkedMath          = true,
 					.addSourceLocations   = true,
 					.useDebugUnreachables = true,
@@ -141,7 +141,7 @@ namespace pcit::panther{
 				type_manager(config.target),
 				pir_module(std::string(config.title), config.target),
 				sema_to_pir_data(SemaToPIR::Data::Config{
-					.useReadableNames = true,
+					.useReadableNames     = true,
 					.checkedMath          = true,
 					.addSourceLocations   = true,
 					.useDebugUnreachables = true,

@@ -3998,6 +3998,25 @@ namespace pcit::panther{
 					)
 				);
 			}
+
+			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+
+			if(args.empty()){
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeDefaultNewRun(
+						ast_new, new_term_info_id, comptime_res_term_info_id
+					)
+				);
+			}else{
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeStructNewRun(
+						ast_new, new_term_info_id, comptime_res_term_info_id, std::move(args)
+					)
+				);
+			}
+
+			return comptime_res_term_info_id;
+
 		}else{
 			if constexpr(ERRORS){
 				this->add_instruction(
@@ -4013,8 +4032,9 @@ namespace pcit::panther{
 					)
 				);
 			}
+
+			return new_term_info_id;
 		}
-		return new_term_info_id;
 	}
 
 

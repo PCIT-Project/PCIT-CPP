@@ -1387,12 +1387,7 @@ namespace pcit::panther{
 
 				if(union_info.isUntagged){
 					if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
-						for(const BaseType::Union::Field& field : union_info.fields){
-							// Yes, this is the correct method
-							if(this->isTriviallyDefaultInitializable(field.typeID.asTypeID()) == false){ return false; }
-						}
-
-						return true;
+						return false;
 
 					}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
 						return false;
@@ -1403,17 +1398,7 @@ namespace pcit::panther{
 
 				}else{
 					if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
-						if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-							return false;
-
-						}else{
-							const TypeInfo::VoidableID default_field_type = union_info.fields[0].typeID;
-							if(default_field_type.isVoid()){ return true; }
-
-							return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SPECIAL_MEMBER_PROP>(
-								default_field_type.asTypeID(), sema_buffer
-							);
-						}
+						return false;
 
 					}else{
 						for(const BaseType::Union::Field& field : union_info.fields){
@@ -1432,7 +1417,11 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ENUM: {
-				return true;
+				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
+					return false;
+				}else{
+					return true;
+				}
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
@@ -1443,18 +1432,18 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
-			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE: {
-				evo::debugFatalBreak("Invalid to check with this type");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 
 				return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
 					interface_map_info.underlyingTypeID, sema_buffer
 				);
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
+			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE: {
+				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 		}
 		evo::debugFatalBreak("Unknown or unsupported BaseType");

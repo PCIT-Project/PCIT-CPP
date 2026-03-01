@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.246.0"></a>
+## v0.0.246.0
+
+### Panther
+- Added comptime default new
+- Changed unions to no longer be default-initializable
+- Fixed enums being considered as trivially default-initializable
+- Fixed missing checks for comptime `new` being trivially copyable
+
+
+<!---------------------------------->
 <a name="v0.0.245.1"></a>
 ## v0.0.245.1
 

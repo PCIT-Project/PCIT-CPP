@@ -2181,6 +2181,42 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// ComptimeStructNewRun
+
+			EVO_NODISCARD auto createComptimeStructNewRun(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::COMPTIME_STRUCT_NEW_RUN,
+					this->comptime_struct_new_runs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getComptimeStructNewRun(Instruction instr) const
+			-> const Instruction::ComptimeStructNewRun& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::COMPTIME_STRUCT_NEW_RUN, "Not a ComptimeStructNewRun"
+				);
+				return this->comptime_struct_new_runs[instr._index];
+			}
+
+
+			//////////////////
+			// ComptimeDefaultNewRun
+
+			EVO_NODISCARD auto createComptimeDefaultNewRun(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN,
+					this->comptime_default_new_runs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getComptimeDefaultNewRun(Instruction instr) const
+			-> const Instruction::ComptimeDefaultNewRun& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN, "Not a ComptimeDefaultNewRun"
+				);
+				return this->comptime_default_new_runs[instr._index];
+			}
 
 
 
@@ -3232,6 +3268,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::New<true, false>, uint32_t> new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::New<false, true>, uint32_t> new_errors{};
 			core::SyncLinearStepAlloc<Instruction::New<false, false>, uint32_t> news{};
+			core::SyncLinearStepAlloc<Instruction::ComptimeStructNewRun, uint32_t> comptime_struct_new_runs{};
+			core::SyncLinearStepAlloc<Instruction::ComptimeDefaultNewRun, uint32_t> comptime_default_new_runs{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_comptimes{};

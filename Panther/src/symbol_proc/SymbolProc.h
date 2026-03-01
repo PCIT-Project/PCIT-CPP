@@ -858,6 +858,19 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
+		struct ComptimeStructNewRun{
+			const AST::New& ast_new;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+			evo::SmallVector<SymbolProcTermInfoID> args;
+		};
+
+		struct ComptimeDefaultNewRun{
+			const AST::New& ast_new;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_COMPTIME>
 		struct ArrayInitNew{
 			const AST::ArrayInitNew& array_init_new;
@@ -1195,6 +1208,8 @@ namespace pcit::panther{
 			NEW_COMPTIME,
 			NEW_ERRORS,
 			NEW,
+			COMPTIME_STRUCT_NEW_RUN,
+			COMPTIME_DEFAULT_NEW_RUN,
 			ARRAY_INIT_NEW_COMPTIME,
 			ARRAY_INIT_NEW,
 			DESIGNATED_INIT_NEW_COMPTIME,

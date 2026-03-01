@@ -599,6 +599,16 @@ namespace pcit::panther{
 			case Instruction::Kind::NEW:
 				return this->instr_new<false, false>(this->context.symbol_proc_manager.getNew(instr));
 
+			case Instruction::Kind::COMPTIME_STRUCT_NEW_RUN:
+				return this->instr_comptime_struct_new_run(
+					this->context.symbol_proc_manager.getComptimeStructNewRun(instr)
+				);
+
+			case Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN:
+				return this->instr_comptime_default_new_run(
+					this->context.symbol_proc_manager.getComptimeDefaultNewRun(instr)
+				);
+
 			case Instruction::Kind::ARRAY_INIT_NEW_COMPTIME:
 				return this->instr_array_init_new<true>(
 					this->context.symbol_proc_manager.getArrayInitNewComptime(instr)
@@ -10041,7 +10051,7 @@ namespace pcit::panther{
 						Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
 						ast_new.type,
 						"No matching operator [new] overload for this type",
-						Diagnostic::Info("Array element type is not default initializable")
+						Diagnostic::Info("Array element type is not default-initializable")
 					);
 					return Result::ERROR;	
 				}
@@ -12276,165 +12286,24 @@ namespace pcit::panther{
 		const sema::FuncCall& sema_func_call =
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
 
-		const sema::Func& target_func = 
-			this->context.getSemaBuffer().getFunc(sema_func_call.target.as<sema::Func::ID>()); 
 
-		const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
+		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
+			sema_func_call.target.as<sema::Func::ID>(), instr.args, this->get_location(instr.func_call)
+		);
 
-		evo::debugAssert(target_func_type.returnsVoid() == false, "Comptime function call expr cannot return void");
-		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
+		if(func_call_result.isError()){ return Result::ERROR; }
 
-		auto args = evo::SmallVector<core::GenericValue>();
-		args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
-			const TermInfo& arg = this->get_term_info(arg_id);
+		this->return_term_info(instr.output,
+			TermInfo(
+				TermInfo::ValueCategory::EPHEMERAL,
+				TermInfo::ValueStage::COMPTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				func_call_term.type_id,
+				func_call_result.value()
+			)
+		);
 
-			args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
-
-			i += 1;
-		}
-
-		for(size_t i = args.size(); i < target_func.params.size(); i+=1){
-			args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
-		}
-
-		const bool uses_rvo = target_func_type.hasNamedReturns 
-			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
-
-
-		auto output = core::GenericValue();
-
-		if(uses_rvo){
-			output = core::GenericValue::createUninit(
-				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
-			);
-
-			args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
-		}
-
-		// Uncomment this to print out the state of the comptime pir module (for debugging purposes)
-		// {
-		// 	auto printer = core::Printer::createConsole();
-		// 	pir::printModule(this->context.pir_module, printer);
-		// }
-
-		// core::GenericValue run_result = this->context.comptime_jit_engine.runFunc(
-		// 	this->context.pir_module,
-		// 	*target_func.comptimeJITInterfaceFunc,
-		// 	args,
-		// 	this->context.pir_module.getFunction(*target_func.comptimeJITFunc).getReturnType()
-		// );
-
-
-		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, args);
-
-		if(run_result.has_value() == false){
-			auto infos = evo::SmallVector<Diagnostic::Info>();
-
-			switch(run_result.error().code){
-				case pir::ExecutionEngine::FuncRunError::Code::ABORT: {
-					infos.emplace_back("Cause of error: abort");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {
-					infos.emplace_back(
-						std::format(
-							"Cause of error: exceeded max call depth ({})",
-							this->context.comptime_execution_engine.maxCallDepth()
-						)
-					);
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
-					infos.emplace_back("Cause of error: breakpoint");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS: {
-					infos.emplace_back("Cause of error: out-of-bounds access");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::NULLPTR_ACCESS: {
-					infos.emplace_back("Cause of error: null-pointer access");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::SEG_FAULT: {
-					infos.emplace_back("Cause of error: segmentation fault");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::ARITHMETIC_WRAP: {
-					infos.emplace_back("Cause of error: arithmetic wrap");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::FLOATING_POINT_EXCEPTION: {
-					infos.emplace_back("Cause of error: floating-point exception");
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
-					infos.emplace_back("Cause of error: unknown exception");
-				} break;
-			}
-
-			Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
-			for(
-				size_t i = run_result.error().stackTrace.size() - 1;
-				const pir::Function::ID pir_func_id : run_result.error().stackTrace | std::views::reverse
-			){
-				const pir::Function& pir_func = this->context.getPIRModule().getFunction(pir_func_id);
-				stack_trace_info.subInfos.emplace_back(std::format("({}) {}", i, pir_func.getName()));
-
-				i -= 1;
-			}
-
-			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_IN_COMPTIME_CALL,
-				instr.func_call,
-				"Error occured while running comptime function call",
-				std::move(infos)
-			);
-			return Result::ERROR;
-		}
-
-
-		if(target_func_type.hasErrorReturn()){
-			// 	// TODO(FUTURE): better messaging
-			// 	this->emit_error(
-			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_COMPTIME_FUNC_RUN,
-			// 		instr.func_call,
-			// 		"Comptime function returned error"
-			// 	);
-			// 	return Result::ERROR;
-
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.func_call,
-				"Running a comptime function that has error returns is unimplemented"
-			);
-			return Result::ERROR;
-
-		}else{
-			if(uses_rvo == false){
-				output = std::move(run_result.value());
-			}
-
-			const evo::Result<sema::Expr> return_sema_expr = this->generic_value_to_sema_expr(
-				output, target_func_type.returnTypes[0].asTypeID(), this->get_location(instr.func_call)
-			);
-
-			if(return_sema_expr.isError()){ return Result::ERROR; }
-
-			this->return_term_info(instr.output,
-				TermInfo(
-					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					func_call_term.type_id,
-					return_sema_expr.value()
-				)
-			);
-			return Result::SUCCESS;
-		}
-
+		return Result::SUCCESS;
 	}
 
 
@@ -16401,9 +16270,21 @@ namespace pcit::panther{
 							Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
 							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
-							Diagnostic::Info("Array element type is not default initializable")
+							Diagnostic::Info("Array element type is not default-initializable")
 						);
 						return Result::ERROR;	
+					}
+
+					if constexpr(IS_COMPTIME){
+						if(this->context.getTypeManager().isTriviallyCopyable(array_type.elementTypeID) == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
+								instr.ast_new.type,
+								"No matching operator [new] overload for this type",
+								Diagnostic::Info("Array element type is not trivially copyable, and value is comptime")
+							);
+							return Result::ERROR;	
+						}
 					}
 
 					this->return_term_info(instr.output,
@@ -16414,7 +16295,102 @@ namespace pcit::panther{
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 					);
 
-					return Result::SUCCESS;
+
+					if constexpr(IS_COMPTIME){
+						TypeInfo::ID elem_type_id = array_type.elementTypeID;
+
+						while(true){
+							const TypeInfo& elem_type = this->context.getTypeManager().getTypeInfo(elem_type_id);
+
+							if(elem_type.qualifiers().empty() == false){ break; }
+
+							switch(elem_type.baseTypeID().kind()){
+								case BaseType::Kind::ARRAY: {
+									const BaseType::Array& elem_array_type =
+										this->context.getTypeManager().getArray(elem_type.baseTypeID().arrayID());
+
+									elem_type_id = elem_array_type.elementTypeID;
+								} break;
+
+								case BaseType::Kind::ALIAS: {
+									const BaseType::Alias& elem_alias_type =
+										this->context.getTypeManager().getAlias(elem_type.baseTypeID().aliasID());
+
+									elem_type_id = elem_alias_type.aliasedType;
+								} break;
+
+								case BaseType::Kind::DISTINCT_ALIAS: {
+									const BaseType::DistinctAlias& elem_distinct_alias_type = this->context
+										.getTypeManager()
+										.getDistinctAlias(elem_type.baseTypeID().distinctAliasID());
+
+									elem_type_id = elem_distinct_alias_type.underlyingType;
+								} break;
+
+								case BaseType::Kind::STRUCT: {
+									const BaseType::Struct& elem_struct_type =
+										this->context.getTypeManager().getStruct(elem_type.baseTypeID().structID());
+
+									for(sema::Func::ID new_init_overload_id : elem_struct_type.newInitOverloads){
+										const sema::Func& new_init_overload =
+											this->context.getSemaBuffer().getFunc(new_init_overload_id);
+										if(new_init_overload.minNumArgs != 0){ continue; }
+
+
+										SymbolProc& new_init_overload_symbol_proc = 
+											this->context
+												.symbol_proc_manager
+												.getSymbolProc(*new_init_overload.symbolProcID);
+
+										const SymbolProc::WaitOnResult wait_on_result = 
+											new_init_overload_symbol_proc
+												.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+										switch(wait_on_result){
+											case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+											case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+												this->context.symbol_proc_manager.symbol_proc_unsuspended();
+												this->context.add_task_to_work_manager(*new_init_overload.symbolProcID);
+												[[fallthrough]];
+											}
+											case SymbolProc::WaitOnResult::WAITING:
+												return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+
+											case SymbolProc::WaitOnResult::WAS_ERRORED:
+												return Result::ERROR;
+
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+												evo::debugFatalBreak("Shouldn't be possible");
+
+											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+												evo::debugFatalBreak("Shouldn't be possible");
+										}
+
+										return Result::SUCCESS;
+									}
+
+									evo::debugFatalBreak("Didn't find default operator `new` for this struct");
+								} break;
+
+								case BaseType::Kind::INTERFACE_MAP: {
+									const BaseType::InterfaceMap& elem_interface_map_type = this->context
+										.getTypeManager()
+										.getInterfaceMap(elem_type.baseTypeID().interfaceMapID());
+
+									elem_type_id = elem_interface_map_type.underlyingTypeID;
+								} break;
+
+								default: {
+									break;
+								} break;
+							}
+						}
+
+						return Result::SUCCESS;
+
+					}else{
+						return Result::SUCCESS;
+					}
 				}
 			} break;
 
@@ -16543,6 +16519,21 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
+				if constexpr(IS_COMPTIME){
+					if(this->context.getTypeManager().isTriviallyCopyable(
+						decayed_target_type_info.baseTypeID()
+					) == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
+							instr.ast_new.type,
+							"No matching operator [new] overload for this type",
+							Diagnostic::Info("Struct type is not trivially copyable, and value is comptime")
+						);
+						return Result::ERROR;	
+					}
+				}
+
+
 				const BaseType::Struct& target_struct =
 					this->context.getTypeManager().getStruct(decayed_target_type_info.baseTypeID().structID());
 
@@ -16652,15 +16643,18 @@ namespace pcit::panther{
 					output_args.emplace_back(*selected_func.params[i].defaultValue);
 				}
 
-
-
 				if constexpr(IS_COMPTIME){
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.ast_new,
-						"Comptime operator [new] is unimplemented"
-					);
-					return Result::ERROR;
+					if(selected_func.attributes.isComptime == false){
+						this->emit_error(
+							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
+							instr.ast_new.type,
+							"Called operator [new] is not comptime",
+							Diagnostic::Info(
+								"Called operator [new] was defined here:", this->get_location(selected_func_id)
+							)
+						);
+						return Result::ERROR;
+					}
 
 				}else{
 					if(this->get_current_func().attributes.isComptime){
@@ -16681,68 +16675,69 @@ namespace pcit::panther{
 						);
 					}
 
-
-					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-						selected_func_id, std::move(output_args)
-					);
-
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						this->get_current_func_value_stage(),
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type_id.asTypeID(),
-						sema::Expr(created_func_call_id)
-					);
-					return Result::SUCCESS;
 				}
+
+
+				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
+					selected_func_id, std::move(output_args)
+				);
+
+				const TermInfo::ValueStage value_stage = [&]() -> TermInfo::ValueStage {
+					if constexpr(IS_COMPTIME){
+						return TermInfo::ValueStage::COMPTIME;
+					}else{
+						return this->get_current_func_value_stage();
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					value_stage,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_id.asTypeID(),
+					sema::Expr(created_func_call_id)
+				);
+
+
+				if constexpr(IS_COMPTIME){
+					SymbolProc& selected_func_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
+
+					const SymbolProc::WaitOnResult wait_on_result =
+						selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(*selected_func.symbolProcID);
+							[[fallthrough]];
+						}
+						case SymbolProc::WaitOnResult::WAITING:
+							return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return Result::ERROR;
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+							evo::debugFatalBreak("Shouldn't be possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							evo::debugFatalBreak("Shouldn't be possible");
+					}
+				}
+
+				return Result::SUCCESS;
 			} break;
 
 			case BaseType::Kind::UNION: {
-				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
-					return Result::ERROR;
-
-				}else{
-					if(instr.args.size() != 0){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
-							"No matching operator [new] overload for this type",
-							Diagnostic::Info(
-								std::format("Expected {} arguments, got {}", 0, instr.args.size())
-							)
-						);
-						return Result::ERROR;
-					}
-
-					if(
-						this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())
-							== false
-					){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
-							"No matching operator [new] overload for this type"
-						);
-						return Result::ERROR;	
-					}
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type_id.asTypeID(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
-					);
-
-					return Result::SUCCESS;
-				}
+				this->emit_error(
+					Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+					instr.ast_new.type,
+					"No matching operator [new] overload for this type"
+				);
+				return Result::ERROR;
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
@@ -16757,7 +16752,7 @@ namespace pcit::panther{
 				}else{
 					if(instr.args.size() != 0){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
 							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
 							Diagnostic::Info(
@@ -16773,11 +16768,25 @@ namespace pcit::panther{
 							== false
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
+							Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
 							instr.ast_new.type,
 							"No matching operator [new] overload for this type"
 						);
 						return Result::ERROR;	
+					}
+
+					if constexpr(IS_COMPTIME){
+						if(this->context.getTypeManager().isTriviallyCopyable(
+							decayed_target_type_info.baseTypeID()
+						) == false){
+							this->emit_error(
+								Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
+								instr.ast_new.type,
+								"No matching operator [new] overload for this type",
+								Diagnostic::Info("Underlying type is not trivially copyable, and value is comptime")
+							);
+							return Result::ERROR;	
+						}
 					}
 
 				
@@ -16789,7 +16798,102 @@ namespace pcit::panther{
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
 					);
 
-					return Result::SUCCESS;
+
+					if constexpr(IS_COMPTIME){
+						TypeInfo::ID sub_type_id = target_type_id.asTypeID();
+
+						while(true){
+							const TypeInfo& sub_type = this->context.getTypeManager().getTypeInfo(sub_type_id);
+
+							if(sub_type.qualifiers().empty() == false){ break; }
+
+							switch(sub_type.baseTypeID().kind()){
+								case BaseType::Kind::ARRAY: {
+									const BaseType::Array& sub_array_type =
+										this->context.getTypeManager().getArray(sub_type.baseTypeID().arrayID());
+
+									sub_type_id = sub_array_type.elementTypeID;
+								} break;
+
+								case BaseType::Kind::ALIAS: {
+									const BaseType::Alias& sub_alias_type =
+										this->context.getTypeManager().getAlias(sub_type.baseTypeID().aliasID());
+
+									sub_type_id = sub_alias_type.aliasedType;
+								} break;
+
+								case BaseType::Kind::DISTINCT_ALIAS: {
+									const BaseType::DistinctAlias& sub_distinct_alias_type = this->context
+										.getTypeManager()
+										.getDistinctAlias(sub_type.baseTypeID().distinctAliasID());
+
+									sub_type_id = sub_distinct_alias_type.underlyingType;
+								} break;
+
+								case BaseType::Kind::STRUCT: {
+									const BaseType::Struct& sub_struct_type =
+										this->context.getTypeManager().getStruct(sub_type.baseTypeID().structID());
+
+									for(sema::Func::ID new_init_overload_id : sub_struct_type.newInitOverloads){
+										const sema::Func& new_init_overload =
+											this->context.getSemaBuffer().getFunc(new_init_overload_id);
+										if(new_init_overload.minNumArgs != 0){ continue; }
+
+
+										SymbolProc& new_init_overload_symbol_proc = 
+											this->context
+												.symbol_proc_manager
+												.getSymbolProc(*new_init_overload.symbolProcID);
+
+										const SymbolProc::WaitOnResult wait_on_result = 
+											new_init_overload_symbol_proc
+												.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+										switch(wait_on_result){
+											case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+											case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+												this->context.symbol_proc_manager.symbol_proc_unsuspended();
+												this->context.add_task_to_work_manager(*new_init_overload.symbolProcID);
+												[[fallthrough]];
+											}
+											case SymbolProc::WaitOnResult::WAITING:
+												return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+
+											case SymbolProc::WaitOnResult::WAS_ERRORED:
+												return Result::ERROR;
+
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+												evo::debugFatalBreak("Shouldn't be possible");
+
+											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+												evo::debugFatalBreak("Shouldn't be possible");
+										}
+
+										return Result::SUCCESS;
+									}
+
+									evo::debugFatalBreak("Didn't find default operator `new` for this struct");
+								} break;
+
+								case BaseType::Kind::INTERFACE_MAP: {
+									const BaseType::InterfaceMap& sub_interface_map_type = this->context
+										.getTypeManager()
+										.getInterfaceMap(sub_type.baseTypeID().interfaceMapID());
+
+									sub_type_id = sub_interface_map_type.underlyingTypeID;
+								} break;
+
+								default: {
+									break;
+								} break;
+							}
+						}
+
+						return Result::SUCCESS;
+
+					}else{
+						return Result::SUCCESS;
+					}
 				}
 			} break;
 
@@ -16803,6 +16907,178 @@ namespace pcit::panther{
 			} break;
 		}
 	}
+
+
+
+	auto SemanticAnalyzer::instr_comptime_struct_new_run(const Instruction::ComptimeStructNewRun& instr) -> Result {
+		const TermInfo& func_call_term = this->get_term_info(instr.target);
+
+		const sema::FuncCall& sema_func_call =
+			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
+
+		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
+			sema_func_call.target.as<sema::Func::ID>(), instr.args, this->get_location(instr.ast_new)
+		);
+
+		if(func_call_result.isError()){ return Result::ERROR; }
+
+		this->return_term_info(instr.output,
+			TermInfo(
+				TermInfo::ValueCategory::EPHEMERAL,
+				TermInfo::ValueStage::COMPTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				func_call_term.type_id,
+				func_call_result.value()
+			)
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_comptime_default_new_run(const Instruction::ComptimeDefaultNewRun& instr) -> Result {
+		const TermInfo& target_term_info = this->get_term_info(instr.target);
+
+		if(target_term_info.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
+			const Instruction::ComptimeStructNewRun& comptime_struct_new_run = Instruction::ComptimeStructNewRun(
+				instr.ast_new, instr.target, instr.output, evo::SmallVector<SymbolProcTermInfoID>()
+			);
+
+			return this->instr_comptime_struct_new_run(comptime_struct_new_run);
+		}
+
+		evo::debugAssert(
+			target_term_info.getExpr().kind() == sema::Expr::Kind::DEFAULT_NEW,
+			"Unsupported comptime default new target"
+		);
+
+		const sema::DefaultNew& default_new_expr =
+			this->context.getSemaBuffer().getDefaultNew(target_term_info.getExpr().defaultNewID());
+
+		evo::debugAssert(default_new_expr.isInitialization, "Comptime default `new` must be initialization");
+
+
+		const evo::Result<sema::Expr> output_expr =
+			this->instr_comptime_default_new_run_impl(default_new_expr.targetTypeID, instr.ast_new);
+
+		if(output_expr.isError()){ return Result::ERROR; }
+
+		this->return_term_info(instr.output,
+			TermInfo(
+				TermInfo::ValueCategory::EPHEMERAL,
+				TermInfo::ValueStage::COMPTIME,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				default_new_expr.targetTypeID,
+				output_expr.value()
+			)
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_comptime_default_new_run_impl(TypeInfo::ID type_id, const AST::New& ast_new)
+	-> evo::Result<sema::Expr> {
+		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(
+			this->context.type_manager.decayType<true, true>(type_id)
+		);
+
+		if(type_info.qualifiers().empty() == false){
+			return sema::Expr(this->context.sema_buffer.createDefaultNew(type_id, true));
+		}
+
+		switch(type_info.baseTypeID().kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid base type");
+
+			case BaseType::Kind::PRIMITIVE: {
+				return sema::Expr(this->context.sema_buffer.createDefaultNew(type_id, true));
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array_type =
+					this->context.getTypeManager().getArray(type_info.baseTypeID().arrayID());
+
+				const uint64_t num_elems = [&]() -> uint64_t {
+					uint64_t output = 1;
+
+					for(uint64_t dimension : array_type.dimensions){
+						output *= dimension;
+					}
+
+					return output;
+				}();
+
+				const evo::Result<sema::Expr> default_element_value =
+					this->instr_comptime_default_new_run_impl(array_type.elementTypeID, ast_new);
+				if(default_element_value.isError()){ return evo::resultError; }
+
+
+				auto aggregate_values = evo::SmallVector<sema::Expr>(
+					size_t(num_elems + uint64_t(array_type.terminator.has_value())), default_element_value.value()
+				);
+
+				if(array_type.terminator.has_value()){
+					const evo::Result<sema::Expr> terminator_value = this->generic_value_to_sema_expr(
+						*array_type.terminator, array_type.elementTypeID, Diagnostic::Location::NONE
+					);
+					evo::debugAssert(terminator_value.isError(), "Converting terminator should never error");
+
+					aggregate_values.back() = terminator_value.value();
+				}
+
+				return sema::Expr(
+					this->context.sema_buffer.createAggregateValue(std::move(aggregate_values), type_info.baseTypeID())
+				);
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return sema::Expr(this->context.sema_buffer.createDefaultNew(type_id, true));
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				if(this->context.getTypeManager().isTriviallyDefaultInitializable(type_id)){
+					return sema::Expr(this->context.sema_buffer.createDefaultNew(type_id, true));
+				}
+
+				const BaseType::Struct& struct_type =
+					this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
+
+				for(sema::Func::ID new_init_overload_id : struct_type.newInitOverloads){
+					const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(new_init_overload_id);
+					if(new_init_overload.minNumArgs != 0){ continue; }
+
+					return this->comptime_func_call(
+						new_init_overload_id, evo::SmallVector<SymbolProc::TermInfoID>(), this->get_location(ast_new)
+					);
+				}
+
+				evo::debugFatalBreak("Didn't find default operator `new` of this struct");
+			} break;
+			
+			case BaseType::Kind::ALIAS:
+			case BaseType::Kind::DISTINCT_ALIAS:
+			case BaseType::Kind::INTERFACE_MAP: {
+				evo::debugFatalBreak("Type should have been decayed");
+			} break;
+
+			case BaseType::Kind::FUNCTION: 
+			case BaseType::Kind::ARRAY_DEDUCER: 
+			case BaseType::Kind::ARRAY_REF_DEDUCER: 
+			case BaseType::Kind::STRUCT_TEMPLATE:
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+			case BaseType::Kind::UNION:
+			case BaseType::Kind::ENUM:
+			case BaseType::Kind::TYPE_DEDUCER:
+			case BaseType::Kind::INTERFACE:
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugFatalBreak("Not default-initializable");
+			} break;
+		}
+
+		evo::debugFatalBreak("Unkonwn base type kind");
+	}
+
 
 
 
@@ -24956,6 +25232,157 @@ namespace pcit::panther{
 
 	//////////////////////////////////////////////////////////////////////
 	// misc
+
+
+	auto SemanticAnalyzer::comptime_func_call(
+		sema::Func::ID func_id,
+		evo::ArrayProxy<SymbolProc::TermInfoID> args_term_info_ids,
+		Diagnostic::Location location
+	) -> evo::Result<sema::Expr> {
+		const sema::Func& target_func = this->context.getSemaBuffer().getFunc(func_id); 
+		const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
+
+		evo::debugAssert(target_func_type.returnsVoid() == false, "Comptime function call expr cannot return void");
+		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
+
+		auto args = evo::SmallVector<core::GenericValue>();
+		args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
+		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : args_term_info_ids){
+			const TermInfo& arg = this->get_term_info(arg_id);
+
+			args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
+
+			i += 1;
+		}
+
+		for(size_t i = args.size(); i < target_func.params.size(); i+=1){
+			args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
+		}
+
+		const bool uses_rvo = target_func_type.hasNamedReturns 
+			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
+
+
+		auto output = core::GenericValue();
+
+		if(uses_rvo){
+			output = core::GenericValue::createUninit(
+				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
+			);
+
+			args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
+		}
+
+		// Uncomment this to print out the state of the comptime pir module (for debugging purposes)
+		// {
+		// 	auto printer = core::Printer::createConsole();
+		// 	pir::printModule(this->context.pir_module, printer);
+		// }
+
+
+		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
+			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, args);
+
+		if(run_result.has_value() == false){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			switch(run_result.error().code){
+				case pir::ExecutionEngine::FuncRunError::Code::ABORT: {
+					infos.emplace_back("Cause of error: abort");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {
+					infos.emplace_back(
+						std::format(
+							"Cause of error: exceeded max call depth ({})",
+							this->context.comptime_execution_engine.maxCallDepth()
+						)
+					);
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
+					infos.emplace_back("Cause of error: breakpoint");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS: {
+					infos.emplace_back("Cause of error: out-of-bounds access");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::NULLPTR_ACCESS: {
+					infos.emplace_back("Cause of error: null-pointer access");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::SEG_FAULT: {
+					infos.emplace_back("Cause of error: segmentation fault");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::ARITHMETIC_WRAP: {
+					infos.emplace_back("Cause of error: arithmetic wrap");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::FLOATING_POINT_EXCEPTION: {
+					infos.emplace_back("Cause of error: floating-point exception");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
+					infos.emplace_back("Cause of error: unknown exception");
+				} break;
+			}
+
+			Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
+			for(
+				size_t i = run_result.error().stackTrace.size() - 1;
+				const pir::Function::ID pir_func_id : run_result.error().stackTrace | std::views::reverse
+			){
+				const pir::Function& pir_func = this->context.getPIRModule().getFunction(pir_func_id);
+				stack_trace_info.subInfos.emplace_back(std::format("({}) {}", i, pir_func.getName()));
+
+				i -= 1;
+			}
+
+			this->emit_error(
+				Diagnostic::Code::SEMA_ERROR_IN_COMPTIME_CALL,
+				location,
+				"Error occured while running comptime function call",
+				std::move(infos)
+			);
+			return evo::resultError;
+		}
+
+
+		if(target_func_type.hasErrorReturn()){
+			// 	// TODO(FUTURE): better messaging
+			// 	this->emit_error(
+			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_COMPTIME_FUNC_RUN,
+			// 		location,
+			// 		"Comptime function returned error"
+			// 	);
+			// 	return evo::resultError;
+
+			this->emit_error(
+				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
+				location,
+				"Running a comptime function that has error returns is unimplemented"
+			);
+			return evo::resultError;
+
+		}
+
+		if(uses_rvo == false){
+			output = std::move(run_result.value());
+		}
+
+		const evo::Result<sema::Expr> return_sema_expr = this->generic_value_to_sema_expr(
+			output, target_func_type.returnTypes[0].asTypeID(), location
+		);
+
+		if(return_sema_expr.isError()){ return evo::resultError; }
+
+		return return_sema_expr.value();
+	}
+
+
+
 
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result> {

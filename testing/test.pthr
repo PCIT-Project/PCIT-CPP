@@ -1,29 +1,12 @@
 
-
-interface Interface = #polymorphic {
-	func get_name = () -> [Char:3;'\0'];
-}
-
-type Foo = struct {
-	impl Interface{
-		get_name = () -> [Char:3;'\0'] { return copy "Foo".*; }
+type Struct = struct {
+	func new = () -> (output: This) {
+		output.num = 12;
+		return...;
 	}
-}
 
-type Bar = struct {
-	impl Interface{
-		get_name = () -> [Char:3;'\0'] { return copy "Bar".*; }
-	}
+	const num: Int;
 }
 
 
-
-const dst: [Char:3;'\0'] = get_val();
-
-const foo = new Foo{};
-const bar = new Bar{};
-
-
-func get_val = () -> [Char:3;'\0'] {
-	return (foo as impl(*:Interface)).get_name();
-}
+const foo = new [Struct:3]();

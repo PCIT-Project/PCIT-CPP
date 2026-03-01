@@ -3547,8 +3547,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = created_func_type,
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3600,8 +3600,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3630,8 +3630,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3663,8 +3663,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 
@@ -3695,8 +3695,8 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-			.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInInterptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
 			};
 		}
 

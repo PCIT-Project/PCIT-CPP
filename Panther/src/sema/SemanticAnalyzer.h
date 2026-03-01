@@ -246,6 +246,12 @@ namespace pcit::panther{
 			template<bool IS_COMPTIME, bool ERRORS>
 			EVO_NODISCARD auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;
 
+			EVO_NODISCARD auto instr_comptime_struct_new_run(const Instruction::ComptimeStructNewRun& instr) -> Result;
+			EVO_NODISCARD auto instr_comptime_default_new_run(const Instruction::ComptimeDefaultNewRun& instr)
+				-> Result;
+			EVO_NODISCARD auto instr_comptime_default_new_run_impl(TypeInfo::ID type_id, const AST::New& ast_new)
+				-> evo::Result<sema::Expr>;
+
 			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto instr_array_init_new(const Instruction::ArrayInitNew<IS_COMPTIME>& instr) -> Result;
 
@@ -510,6 +516,13 @@ namespace pcit::panther{
 
 			///////////////////////////////////
 			// misc
+
+			EVO_NODISCARD auto comptime_func_call(
+				sema::Func::ID func_id,
+				evo::ArrayProxy<SymbolProc::TermInfoID> args_term_info_ids,
+				Diagnostic::Location location
+			) -> evo::Result<sema::Expr>;
+
 
 			template<bool NEEDS_DEF>
 			EVO_NODISCARD auto lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result>;

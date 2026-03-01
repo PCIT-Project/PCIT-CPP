@@ -10511,7 +10511,9 @@ namespace pcit::panther{
 			case sema::Expr::Kind::DEFAULT_NEW: {
 				const sema::DefaultNew& default_new = this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
 
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(default_new.targetTypeID);
+				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(
+					this->context.type_manager.decayType<true, true>(default_new.targetTypeID)
+				);
 
 				if(target_type.isPointer()){
 					evo::debugAssert(target_type.isOptional(), "Pointer (non-optional) is not default-initializable");
@@ -10528,8 +10530,44 @@ namespace pcit::panther{
 					);
 				}
 
-				// TODO(FUTURE): 
-				evo::unimplemented("SemaToPIR Global value sema::DefaultNew");
+				switch(target_type.baseTypeID().kind()){
+					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid base type");
+
+					case BaseType::Kind::PRIMITIVE: {
+						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+					} break;
+
+					case BaseType::Kind::ARRAY: {
+						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+					} break;
+
+					case BaseType::Kind::ARRAY_REF: {
+						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
+					} break;
+
+					case BaseType::Kind::STRUCT: {
+						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+					} break;
+
+					case BaseType::Kind::ALIAS:
+					case BaseType::Kind::DISTINCT_ALIAS:
+					case BaseType::Kind::INTERFACE_MAP: {
+						evo::debugFatalBreak("Type should have been decayed");
+					} break;
+
+					case BaseType::Kind::FUNCTION: 
+					case BaseType::Kind::ARRAY_DEDUCER: 
+					case BaseType::Kind::ARRAY_REF_DEDUCER: 
+					case BaseType::Kind::STRUCT_TEMPLATE:
+					case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+					case BaseType::Kind::ENUM:
+					case BaseType::Kind::UNION:
+					case BaseType::Kind::TYPE_DEDUCER:
+					case BaseType::Kind::INTERFACE:
+					case BaseType::Kind::POLY_INTERFACE_REF: {
+						evo::debugFatalBreak("Not default-initializable");
+					} break;
+				}
 			} break;
 
 			case sema::Expr::Kind::INIT_ARRAY_REF: {
