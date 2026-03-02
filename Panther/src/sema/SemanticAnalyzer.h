@@ -1190,81 +1190,42 @@ namespace pcit::panther{
 			}
 
 
-			auto emit_fatal(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				evo::SmallVector<Diagnostic::Info>&& infos
-			) -> void {
+			auto emit_fatal(std::string&& string, const auto& node, evo::SmallVector<Diagnostic::Info>&& infos)
+			-> void {
 				this->add_instantiation_locations_to_infos(infos);
-				this->context.emitFatal(code, this->get_location(node), std::move(string), std::move(infos));
+				this->context.emitFatal(std::move(string), this->get_location(node), std::move(infos));
 			}
-			auto emit_fatal(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				Diagnostic::Info info
-			) -> void {
-				this->emit_fatal(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			auto emit_fatal(std::string&& string, const auto& node, Diagnostic::Info info) -> void {
+				this->emit_fatal(std::move(string), node, evo::SmallVector<Diagnostic::Info>{info});
 			}
-			auto emit_fatal(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string
-			) -> void {
-				this->emit_fatal(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
+			auto emit_fatal(std::string&& string, const auto& node) -> void {
+				this->emit_fatal(std::move(string), node, evo::SmallVector<Diagnostic::Info>{});
 			}
 
 
-			auto emit_error(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				evo::SmallVector<Diagnostic::Info>&& infos
-			) -> void {
+			auto emit_error(std::string&& string, const auto& node, evo::SmallVector<Diagnostic::Info>&& infos)
+			-> void {
 				this->add_instantiation_locations_to_infos(infos);
-				this->context.emitError(code, this->get_location(node), std::move(string), std::move(infos));
+				this->context.emitError(std::move(string), this->get_location(node), std::move(infos));
 			}
-			auto emit_error(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				Diagnostic::Info info
-			) -> void {
-				this->emit_error(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			auto emit_error(std::string&& string, const auto& node, Diagnostic::Info info) -> void {
+				this->emit_error(std::move(string), node, evo::SmallVector<Diagnostic::Info>{info});
 			}
-			auto emit_error(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string
-			) -> void {
-				this->emit_error(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
+			auto emit_error(std::string&& string, const auto& node) -> void {
+				this->emit_error(std::move(string), node, evo::SmallVector<Diagnostic::Info>{});
 			}
 
 
-			auto emit_warning(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				evo::SmallVector<Diagnostic::Info>&& infos
-			) -> void {
+			auto emit_warning(std::string&& string, const auto& node, evo::SmallVector<Diagnostic::Info>&& infos)
+			-> void {
 				this->add_instantiation_locations_to_infos(infos);
-				this->context.emitWarning(code, this->get_location(node), std::move(string), std::move(infos));
+				this->context.emitWarning(std::move(string), this->get_location(node), std::move(infos));
 			}
-			auto emit_warning(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string,
-				Diagnostic::Info info
-			) -> void {
-				this->emit_warning(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{info});
+			auto emit_warning(std::string&& string, const auto& node, Diagnostic::Info info) -> void {
+				this->emit_warning(std::move(string), node, evo::SmallVector<Diagnostic::Info>{info});
 			}
-			auto emit_warning(
-				Diagnostic::Code code,
-				const auto& node,
-				std::string&& string
-			) -> void {
-				this->emit_warning(code, node, std::move(string), evo::SmallVector<Diagnostic::Info>{});
+			auto emit_warning(std::string&& string, const auto& node) -> void {
+				this->emit_warning(std::move(string), node, evo::SmallVector<Diagnostic::Info>{});
 			}
 
 

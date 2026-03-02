@@ -526,11 +526,7 @@ namespace pcit::panther{
 			case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:        case AST::Kind::LITERAL:
 			case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:         case AST::Kind::THIS:
 			case AST::Kind::DISCARD: {
-				this->context.emitError(
-					Diagnostic::Code::SYMBOL_PROC_INVALID_GLOBAL_STMT,
-					Diagnostic::Location::get(stmt, this->source),
-					"Invalid global statement"
-				);
+				this->context.emitError("Invalid global statement", Diagnostic::Location::get(stmt, this->source));
 				return evo::resultError;
 			};
 		}
@@ -581,20 +577,12 @@ namespace pcit::panther{
 			
 		}else{
 			if(var_def.kind == AST::VarDef::Kind::DEF){
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-					var_def,
-					"All [def] variables need to be defined with a value"
-				);
+				this->emit_error("All [def] variables need to be defined with a value", var_def);
 				return evo::resultError;
 			}
 
 			if(var_def.type.has_value() == false){
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-					var_def,
-					"Variables must be defined with a type and/or a value"
-				);
+				this->emit_error("Variables must be defined with a type and/or a value", var_def);
 				return evo::resultError;
 			}
 		}
@@ -765,9 +753,8 @@ namespace pcit::panther{
 				for(const AST::FuncDef::Return& return_param : func_def.returns){
 					if(this->is_deducer(return_param.type)){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_DEFAULT_INTERFACE_METHOD_WITH_DEDUCER_RET,
-							return_param.type,
-							"Interface method with default implementation cannot have a deducer return type"
+							"Interface method with default implementation cannot have a deducer return type",
+							return_param.type
 						);
 						return evo::resultError;
 					}
@@ -799,21 +786,13 @@ namespace pcit::panther{
 
 		}else{
 			if(func_def.block.has_value() == false){
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_TEMPLATE_INTERFACE_METHOD,
-					func_def,
-					"Interface methods cannot be templates"
-				);
+				this->emit_error("Interface methods cannot be templates", func_def);
 				return evo::resultError;
 			}
 
 
 			if(func_def.isVariadic && this->is_named_deducer(*func_def.params.back().type)){
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_VARIADIC_PARAM_TYPE_IS_NAMED_DEDUCER,
-					*func_def.params.back().type,
-					"Variadic function parameter cannot be a named deducer"
-				);
+				this->emit_error("Variadic function parameter cannot be a named deducer", *func_def.params.back().type);
 				return evo::resultError;
 			}
 
@@ -839,9 +818,7 @@ namespace pcit::panther{
 
 				if(param.defaultValue.has_value()){
 					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						*param.defaultValue,
-						"Template functions with default parameter values is unimplemented"
+						"Template functions with default parameter values is unimplemented", *param.defaultValue
 					);
 					return evo::resultError;
 				}
@@ -1371,11 +1348,7 @@ namespace pcit::panther{
 			const SymbolProc& current_symbol_proc = this->get_current_symbol().symbol_proc;
 
 			if(current_symbol_proc.builtin_symbol_proc_kind.has_value() == false){
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL,
-					stmt,
-					"Invalid scope for interface impl"
-				);
+				this->emit_error("Invalid scope for interface impl", stmt);
 				return evo::resultError;
 			}
 
@@ -1390,11 +1363,7 @@ namespace pcit::panther{
 				} break;
 
 				default: {
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INVALID_SCOPE_FOR_IMPL,
-						stmt,
-						"Invalid scope for interface impl"
-					);
+					this->emit_error("Invalid scope for interface impl", stmt);
 					return evo::resultError;
 				} break;
 			}
@@ -1518,16 +1487,10 @@ namespace pcit::panther{
 			if(intrin_string == "comptimeError"){
 				if(func_call.args.size() != 1){
 					if(func_call.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							intrin_tok_id,
-							"Calls to @comptimeError requires a message"
-						);
+						this->emit_error("Calls to @comptimeError requires a message", intrin_tok_id);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							func_call.args[1].value,
-							"Calls to @comptimeError requires a message and no other arguments"
+							"Calls to @comptimeError requires a message and no other arguments", func_call.args[1].value
 						);
 					}
 					return evo::resultError;
@@ -1546,19 +1509,13 @@ namespace pcit::panther{
 
 			}else if(intrin_string == "comptimeAssert"){
 				if(func_call.args.empty()){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-						intrin_tok_id,
-						"Calls to @comptimeAssert requires a condition"
-					);
+					this->emit_error("Calls to @comptimeAssert requires a condition", intrin_tok_id);
 					return evo::resultError;
 				}
 
 				if(func_call.args.size() > 2){
 					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-						func_call.args[1].value,
-						"Calls to @comptimeAssert requires a message and no other arguments"
+						"Calls to @comptimeAssert requires a message and no other arguments", func_call.args[1].value
 					);
 					return evo::resultError;
 				}
@@ -1587,21 +1544,13 @@ namespace pcit::panther{
 				return evo::Result<>();
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_UKNOWN_GLOBAL_INTRINSIC_FUNC,
-					stmt,
-					"Unknown global intrinsic function"
-				);
+				this->emit_error("Unknown global intrinsic function", stmt);
 				return evo::resultError;
 			}
 		}
 
 
-		this->emit_error(
-			Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-			stmt,
-			"Building symbol process of this function call"
-		);
+		this->emit_error("Building symbol process of this function call is unimplemented", stmt);
 		return evo::resultError;
 	}
 
@@ -1933,9 +1882,7 @@ namespace pcit::panther{
 
 			// TODO(FUTURE): separate out into more kinds to be more specific (errors vs fatal)
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_INVALID_BASE_TYPE, ast_type_base, "Invalid base type"
-				);
+				this->emit_error("Invalid base type", ast_type_base);
 				return evo::resultError;
 			} break;
 		}
@@ -1954,9 +1901,8 @@ namespace pcit::panther{
 
 			case AST::Kind::DELETED_SPECIAL_METHOD: {
 				this->emit_error(
-					Diagnostic::Code::SYMBOL_PROC_INVALID_STMT,
-					stmt,
 					"Invalid local statement",
+					stmt,
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Deleted special methods are only allowed in structs")
 					}
@@ -2010,7 +1956,6 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:         case AST::Kind::POSTFIX:
 			case AST::Kind::IDENT:          case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:
 			case AST::Kind::LITERAL:        case AST::Kind::THIS: {
-				this->emit_error(Diagnostic::Code::SYMBOL_PROC_INVALID_STMT, stmt, "Invalid statement");
 				return evo::resultError;
 			} break;
 		}
@@ -2036,11 +1981,7 @@ namespace pcit::panther{
 		}
 
 		if(var_def.value.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SYMBOL_PROC_VAR_WITH_NO_VALUE,
-				var_def,
-				"Local variables need to be defined with a value"
-			);
+			this->emit_error("Local variables need to be defined with a value", var_def);
 			return evo::resultError;
 		}
 		const evo::Result<SymbolProc::TermInfoID> value = [&](){
@@ -2204,11 +2145,7 @@ namespace pcit::panther{
 						this->context.symbol_proc_manager.createLabeledReturn(return_stmt, std::nullopt)
 					);
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_LABELED_VOID_RETURN,
-						return_stmt,
-						"Labeled return must have a value or [...]"
-					);
+					this->emit_error("Labeled return must have a value or [...]", return_stmt);
 					return evo::Result<>();
 				}
 			}else{
@@ -2582,16 +2519,10 @@ namespace pcit::panther{
 			if(intrin_string == "comptimeError"){
 				if(func_call.args.size() != 1){
 					if(func_call.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							intrin_tok_id,
-							"Calls to @comptimeError requires a message"
-						);
+						this->emit_error("Calls to @comptimeError requires a message", intrin_tok_id);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							func_call.args[1].value,
-							"Calls to @comptimeError requires a message and no other arguments"
+							"Calls to @comptimeError requires a message and no other arguments", func_call.args[1].value
 						);
 					}
 					return evo::resultError;
@@ -2612,19 +2543,13 @@ namespace pcit::panther{
 				
 			}else if(intrin_string == "comptimeAssert"){
 				if(func_call.args.empty()){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-						intrin_tok_id,
-						"Calls to @comptimeAssert requires a condition"
-					);
+					this->emit_error("Calls to @comptimeAssert requires a condition", intrin_tok_id);
 					return evo::resultError;
 				}
 
 				if(func_call.args.size() > 2){
 					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-						func_call.args[1].value,
-						"Calls to @comptimeAssert requires a message and no other arguments"
+						"Calls to @comptimeAssert requires a message and no other arguments", func_call.args[1].value
 					);
 					return evo::resultError;
 				}
@@ -2932,11 +2857,7 @@ namespace pcit::panther{
 				case AST::Kind::NEW:       return this->analyze_expr_new<IS_COMPTIME, true>(expr);
 
 				default: {
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INVALID_TRY_ATTEMPT,
-						expr,
-						"Invalid attempt expression in try"
-					);
+					this->emit_error("Invalid attempt expression in try", expr);
 					return evo::resultError;
 				} break;
 			}
@@ -3043,9 +2964,7 @@ namespace pcit::panther{
 
 				case AST::Kind::TYPE: {
 					if constexpr(MUST_BE_EXPR){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_TYPE_USED_AS_EXPR, expr, "Type used as expression"
-						);
+						this->emit_error("Type used as expression", expr);
 						return evo::resultError;
 					}else{
 						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
@@ -3063,11 +2982,7 @@ namespace pcit::panther{
 
 				case AST::Kind::TYPEID_CONVERTER: {
 					if constexpr(MUST_BE_EXPR){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_TYPEID_CONVERTER_AS_EXPR,
-							expr,
-							"Type ID converter cannot be an expression"
-						);
+						this->emit_error("Type ID converter cannot be an expression", expr);
 						return evo::resultError;
 					}else{
 						const AST::TypeIDConverter& type_id_converter = ast_buffer.getTypeIDConverter(expr);
@@ -3094,13 +3009,7 @@ namespace pcit::panther{
 				case AST::Kind::WHEN_CONDITIONAL:case AST::Kind::WHILE:         case AST::Kind::DEFER:
 				case AST::Kind::TEMPLATE_PACK:   case AST::Kind::MULTI_ASSIGN:  case AST::Kind::ATTRIBUTE_BLOCK:
 				case AST::Kind::ATTRIBUTE:       case AST::Kind::PRIMITIVE_TYPE:case AST::Kind::DISCARD: {
-					// TODO(FUTURE): better messaging (specify what kind)
-					this->emit_fatal(
-						Diagnostic::Code::SYMBOL_PROC_INVALID_EXPR_KIND,
-						Diagnostic::Location::NONE,
-						Diagnostic::createFatalMessage("Encountered expr of invalid AST kind")
-					);
-					return evo::resultError;
+					evo::debugFatalBreak("Invalid ast expr kind");
 				} break;
 			}
 
@@ -3117,9 +3026,7 @@ namespace pcit::panther{
 		evo::debugAssert(block.label.has_value(), "Block expr must have label");
 
 		if constexpr(IS_COMPTIME){
-			this->emit_error(
-				Diagnostic::Code::SYMBOL_PROC_COMPTIME_BLOCK_EXPR, block, "Block expressions cannot be constexpr"
-			);
+			this->emit_error("Block expressions cannot be constexpr", block);
 			return evo::resultError;
 
 		}else{
@@ -3159,27 +3066,17 @@ namespace pcit::panther{
 
 			if(intrin_string == "import"){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
-						intrin_tok_id,
-						"Intrinsic @import does not error"
-					);
+					this->emit_error("Intrinsic @import does not error", intrin_tok_id);
 					return evo::resultError;
 				}else{
 					if(func_call.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							intrin_tok_id,
-							"Calls to @import requires a path"
-						);
+						this->emit_error("Calls to @import requires a path", intrin_tok_id);
 						return evo::resultError;
 					}
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							func_call.args[1].value,
-							"Calls to @import requires a path, and no other arguments"
+							"Calls to @import requires a path, and no other arguments", func_call.args[1].value
 						);
 						return evo::resultError;
 					}
@@ -3200,27 +3097,17 @@ namespace pcit::panther{
 
 			}else if(intrin_string == "importC"){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
-						intrin_tok_id,
-						"Intrinsic @importC does not error"
-					);
+					this->emit_error("Intrinsic @importC does not error", intrin_tok_id);
 					return evo::resultError;
 				}else{
 					if(func_call.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							intrin_tok_id,
-							"Calls to @importC requires a path"
-						);
+						this->emit_error("Calls to @importC requires a path", intrin_tok_id);
 						return evo::resultError;
 					}
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							func_call.args[1].value,
-							"Calls to @importC requires a path, and no other arguments"
+							"Calls to @importC requires a path, and no other arguments", func_call.args[1].value
 						);
 						return evo::resultError;
 					}
@@ -3241,27 +3128,17 @@ namespace pcit::panther{
 
 			}else if(intrin_string == "importCpp"){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
-						intrin_tok_id,
-						"Intrinsic @importCpp does not error"
-					);
+					this->emit_error("Intrinsic @importCpp does not error", intrin_tok_id);
 					return evo::resultError;
 				}else{
 					if(func_call.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							intrin_tok_id,
-							"Calls to @importCpp requires a path"
-						);
+						this->emit_error("Calls to @importCpp requires a path", intrin_tok_id);
 						return evo::resultError;
 					}
 
 					if(func_call.args.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-							func_call.args[1].value,
-							"Calls to @importCpp requires a path, and no other arguments"
+							"Calls to @importCpp requires a path, and no other arguments", func_call.args[1].value
 						);
 						return evo::resultError;
 					}
@@ -3282,33 +3159,19 @@ namespace pcit::panther{
 
 			}else if(intrin_string == "isMacroDefined"){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
-						intrin_tok_id,
-						"Intrinsic @isMacroDefined does not error"
-					);
+					this->emit_error("Intrinsic @isMacroDefined does not error", intrin_tok_id);
 					return evo::resultError;
 				}else{
 					if(func_call.args.size() != 2){
 						if(func_call.args.empty()){
 							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-								intrin_tok_id,
-								"Calls to @isMacroDefined a Clang Module and a macro name string"
+								"Calls to @isMacroDefined a Clang Module and a macro name string", intrin_tok_id
 							);
 
 						}else if(func_call.args.size() == 1){
-							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-								func_call,
-								"Calls to @isMacroDefined requires a macro name string"
-							);
+							this->emit_error("Calls to @isMacroDefined requires a macro name string", func_call);
 						}else{
-							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-								func_call,
-								"Calls to @isMacroDefined requires two parameters"
-							);
+							this->emit_error("Calls to @isMacroDefined requires two parameters", func_call);
 						}
 						return evo::resultError;
 					}
@@ -3335,27 +3198,20 @@ namespace pcit::panther{
 
 			}else if(intrin_string == "makeInitPtr"){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_DOESNT_ERROR,
-						intrin_tok_id,
-						"Intrinsic @makeInitPtr does not error"
-					);
+					this->emit_error("Intrinsic @makeInitPtr does not error", intrin_tok_id);
 					return evo::resultError;
 
 				}else{
 					if(func_call.args.size() != 1){
 						if(func_call.args.empty()){
 							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-								intrin_tok_id,
-								"Calls to @makeInitPtr requires an uninitialized qualified pointer value"
+								"Calls to @makeInitPtr requires an uninitialized qualified pointer value", intrin_tok_id
 							);
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SYMBOL_PROC_INTRINSIC_FUNC_WRONG_NUM_ARGS,
-								func_call.args[1].value,
 								"Calls to @makeInitPtr requires an uninitialized qualified pointer value, "
-									"and no other arguments"
+									"and no other arguments",
+								func_call.args[1].value
 							);
 						}
 						return evo::resultError;
@@ -3435,11 +3291,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_COMPTIME){
 			if constexpr(ERRORS){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					func_call.target,
-					"Erroring constexpr function calls are unimplemented"
-				);
+				this->emit_error("Erroring constexpr function calls are unimplemented", func_call.target);
 				return evo::resultError;
 			}else{
 				this->add_instruction(
@@ -3685,11 +3537,7 @@ namespace pcit::panther{
 				if(lhs.isError()){ return evo::resultError; }
 
 				if(infix.rhs.kind() != AST::Kind::IDENT){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_INVALID_RHS_OF_ACCESSOR,
-						infix.rhs,
-						"Invalid RHS of accessor operator"
-					);
+					this->emit_error("Invalid RHS of accessor operator", infix.rhs);
 					return evo::resultError;
 				}
 
@@ -4228,29 +4076,17 @@ namespace pcit::panther{
 			if(attribute_name == "builtin"){
 				if(attribute.args.size() != 1){
 					if(attribute.args.size() > 1){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-							attribute.args[1],
-							"Attribute `#builtin` only accepts 1 argument"
-						);
+						this->emit_error("Attribute `#builtin` only accepts 1 argument", attribute.args[1]);
 						
 					}else{
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-							attribute.attribute,
-							"Attribute `#builtin` requires an argument"
-						);
+						this->emit_error("Attribute `#builtin` requires an argument", attribute.attribute);
 					}
 
 					return evo::resultError;
 				}
 
 				if(attribute.args[0].kind() != AST::Kind::LITERAL){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Attribute `#builtin` requires a string argument"
-					);
+					this->emit_error("Attribute `#builtin` requires a string argument", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4258,11 +4094,7 @@ namespace pcit::panther{
 				const Token& attribute_arg_token = this->source.getTokenBuffer()[attribute_arg_token_id];
 
 				if(attribute_arg_token.kind() != Token::Kind::LITERAL_STRING){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Attribute `#builtin` requires a string argument"
-					);
+					this->emit_error("Attribute `#builtin` requires a string argument", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4271,11 +4103,7 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.lookupBuiltinSymbolKind(attribute_arg_token.getString());
 
 				if(lookup_symbol_kind.isError()){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Unknown builtin symbol kind"
-					);
+					this->emit_error("Unknown builtin symbol kind", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4293,9 +4121,8 @@ namespace pcit::panther{
 						this->context.symbol_proc_manager.getSymbolProc(set_builtin_symbol_result.error());
 
 					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
 						"This builtin symbol kind was already defined",
+						attribute.args[0],
 						Diagnostic::Info(
 							"First defined here:",
 							Diagnostic::Location::get(
@@ -4331,29 +4158,17 @@ namespace pcit::panther{
 			if(attribute_str == "builtin"){
 				if(attribute.args.size() != 1){
 					if(attribute.args.empty()){
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-							attribute.attribute,
-							"Attribute #builtin requires an argument"
-						);
+						this->emit_error("Attribute #builtin requires an argument", attribute.attribute);
 
 					}else{
-						this->emit_error(
-							Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-							attribute.args[1],
-							"Attribute #builtin requires 1 argument"
-						);
+						this->emit_error("Attribute #builtin requires 1 argument", attribute.args[1]);
 					}
 
 					return evo::resultError;
 				}
 
 				if(attribute.args[0].kind() != AST::Kind::LITERAL){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Attribute #builtin requires a string literal argument"
-					);
+					this->emit_error("Attribute #builtin requires a string literal argument", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4361,11 +4176,7 @@ namespace pcit::panther{
 				const Token& arg = this->source.getTokenBuffer()[arg_id];
 
 				if(arg.kind() != Token::Kind::LITERAL_STRING){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Attribute #builtin requires a string literal argument"
-					);
+					this->emit_error("Attribute #builtin requires a string literal argument", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4374,11 +4185,7 @@ namespace pcit::panther{
 					= this->context.symbol_proc_manager.lookupBuiltinSymbolKind(arg.getString());
 
 				if(lookup_symbol_kind.isError()){
-					this->emit_error(
-						Diagnostic::Code::SYMBOL_PROC_ATTRIBUTE_BUILTIN_INVALID_ARGS,
-						attribute.args[0],
-						"Unknown builtin symbol kind"
-					);
+					this->emit_error("Unknown builtin symbol kind", attribute.args[0]);
 					return evo::resultError;
 				}
 
@@ -4386,13 +4193,6 @@ namespace pcit::panther{
 				const SymbolProcInfo& current_symbol_proc = this->get_current_symbol();
 				current_symbol_proc.symbol_proc.is_always_priority = true;
 				current_symbol_proc.symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
-
-				// this->emit_error(
-				// 	Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				// 	attribute.args[0],
-				// 	"This builtin is currently unimplemented"
-				// );
-				// return evo::resultError;
 			}
 		}
 

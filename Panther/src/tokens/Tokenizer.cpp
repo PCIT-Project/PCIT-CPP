@@ -123,9 +123,8 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TOK_UNTERMINATED_MULTILINE_COMMENT,
-						current_location.value(),
 						"Unterminated multi-line comment",
+						current_location.value(),
 						Diagnostic::Info("Expected a \"*/\" before the end of the file")
 					);
 
@@ -320,9 +319,8 @@ namespace pcit::panther{
 							if(current_location.isError()){ return; }
 
 							this->emit_error(
-								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
-								current_location.value(),
 								"Integer bit-width is too large",
+								current_location.value(),
 								Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
 							);
 
@@ -330,11 +328,7 @@ namespace pcit::panther{
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
 							if(current_location.isError()){ return; }
 
-							this->emit_error(
-								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
-								current_location.value(),
-								"Integer bit-width cannot be 0"
-							);
+							this->emit_error("Integer bit-width cannot be 0", current_location.value());
 						}
 
 						this->create_token(kind, uint64_t(bitwidth.value()));
@@ -347,9 +341,8 @@ namespace pcit::panther{
 							if(current_location.isError()){ return; }
 
 							this->emit_error(
-								Diagnostic::Code::TOK_INVALID_INTEGER_WIDTH,
-								current_location.value(),
 								"Integer bit-width is too large",
+								current_location.value(),
 								Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
 							);
 						} break;
@@ -359,9 +352,8 @@ namespace pcit::panther{
 							if(current_location.isError()){ return; }
 
 							this->emit_fatal(
-								Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
-								current_location.value(),
-								Diagnostic::createFatalMessage("Attempted to tokenize invalid integer bit-width")
+								Diagnostic::createFatalMessage("Attempted to tokenize invalid integer bit-width"),
+								current_location.value()
 							);
 						} break;
 					}
@@ -847,9 +839,8 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TOK_LITERAL_LEADING_ZERO,
-					current_location.value(),
 					"Leading zeros in literal numbers are not supported",
+					current_location.value(),
 					Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\"")
 				);
 
@@ -874,34 +865,30 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TOK_LITERAL_NUM_MULTIPLE_DECIMAL_POINTS,
-						current_location.value(),
-						"Cannot have multiple decimal points in a floating-point literal"
+						"Cannot have multiple decimal points in a floating-point literal", current_location.value()
 					);
 					return true;
 				}
 
 				if(base == 2){
 					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_FPBASE,
+						"Base-2 floating-point literals are not supported",
 						Source::Location(
 							this->source.getID(),
 							this->current_token_line_start, this->current_token_line_start,
 							this->current_token_collumn_start, this->current_token_collumn_start + 1
-						),
-						"Base-2 floating-point literals are not supported"
+						)
 					);
 					return true;
 
 				}else if(base == 8){
 					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_FPBASE,
+						"Base-8 floating-point literals are not supported",
 						Source::Location(
 							this->source.getID(),
 							this->current_token_line_start, this->current_token_line_start,
 							this->current_token_collumn_start, this->current_token_collumn_start + 1
-						),
-						"Base-8 floating-point literals are not supported"
+						)
 					);
 					return true;
 				}
@@ -922,11 +909,7 @@ namespace pcit::panther{
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
 					if(current_location.isError()){ return true; }
 
-					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
-						current_location.value(),
-						"Base-2 numbers should only have digits 0 and 1"
-					);
+					this->emit_error("Base-2 numbers should only have digits 0 and 1", current_location.value());
 					return true;
 
 				}else{
@@ -941,11 +924,7 @@ namespace pcit::panther{
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
 					if(current_location.isError()){ return true; }
 
-					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
-						current_location.value(),
-						"Base-8 numbers should only have digits 0-7"
-					);
+					this->emit_error("Base-8 numbers should only have digits 0-7", current_location.value());
 					return true;
 
 				}else{
@@ -964,9 +943,8 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
-						current_location.value(),
 						"Base-10 numbers should only have digits 0-9",
+						current_location.value(),
 						Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
 					);
 					return true;
@@ -991,9 +969,8 @@ namespace pcit::panther{
 			if(current_location.isError()){ return true; }
 
 			this->emit_error(
-				Diagnostic::Code::TOK_FLOAT_LITERAL_ENDING_IN_PERIOD,
-				current_location.value(),
 				"Float literal cannot end in a [.]",
+				current_location.value(),
 				Diagnostic::Info("Maybe add a [0] to the end")
 			);
 			return true;
@@ -1024,11 +1001,7 @@ namespace pcit::panther{
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
 					if(current_location.isError()){ return true; }
 
-					this->emit_error(
-						Diagnostic::Code::TOK_INVALID_NUM_DIGIT,
-						current_location.value(),
-						"Literal number exponents should only have digits 0-9"
-					);
+					this->emit_error("Literal number exponents should only have digits 0-9", current_location.value());
 					return true;
 
 				}else{
@@ -1057,10 +1030,9 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-							current_location.value(),
 							"Literal number exponent too large to fit into a I64."
-							"This limitation will be removed when the compiler is self hosted."
+								"This limitation will be removed when the compiler is self hosted.",
+							current_location.value()
 						);
 						return true;
 					} break;
@@ -1070,9 +1042,8 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
-							current_location.value(),
-							Diagnostic::createFatalMessage("Tried to convert invalid integer string for exponent")
+							Diagnostic::createFatalMessage("Tried to convert invalid integer string for exponent"),
+							current_location.value()
 						);
 					} break;
 				}
@@ -1094,9 +1065,8 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-						current_location.value(),
 						"Literal floating-point number too large to fit into an F64",
+						current_location.value(),
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 					);
 					return true;
@@ -1110,9 +1080,8 @@ namespace pcit::panther{
 					if(current_location.isError()){ return true; }
 
 					this->emit_error(
-						Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-						current_location.value(),
 						"Literal number integer too large to fit into a UI64",
+						current_location.value(),
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 					);
 					return true;
@@ -1136,9 +1105,8 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-							current_location.value(),
 							"Literal floating-point too large to fit into an F64",
+							current_location.value(),
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 						);
 						return true;
@@ -1149,9 +1117,8 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
-							current_location.value(),
-							Diagnostic::createFatalMessage("Tried to convert invalid literal floating-point number")
+							Diagnostic::createFatalMessage("Tried to convert invalid literal floating-point number"),
+							current_location.value()
 						);
 					} break;
 				}
@@ -1168,9 +1135,8 @@ namespace pcit::panther{
 				if(current_location.isError()){ return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-					current_location.value(),
 					"Literal number integer too large to fit into an F64",
+					current_location.value(),
 					Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 				);
 				return true;
@@ -1196,9 +1162,8 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TOK_LITERAL_NUM_TOO_BIG,
-							current_location.value(),
 							"Literal integer too large to fit into a UI64",
+							current_location.value(),
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 						);
 						return true;
@@ -1209,9 +1174,8 @@ namespace pcit::panther{
 						if(current_location.isError()){ return true; }
 
 						this->emit_fatal(
-							Diagnostic::Code::TOK_UNKNOWN_FAILURE_TO_TOKENIZE_NUM,
-							current_location.value(),
-							Diagnostic::createFatalMessage("Tried to convert invalid literal integer")
+							Diagnostic::createFatalMessage("Tried to convert invalid literal integer"),
+							current_location.value()
 						);
 						return true;
 					} break;
@@ -1271,13 +1235,12 @@ namespace pcit::panther{
 						if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
 
 						this->emit_error(
-							Diagnostic::Code::TOK_UNTERMINATED_TEXT_ESCAPE_SEQUENCE,
+							std::format("Unknown string escape code '\\{}'", this->char_stream.peek_back()),
 							Source::Location(
 								this->source.getID(),
 								this->current_token_line_start, line_result.value(),
 								this->current_token_collumn_start + 1, collumn_result.value() - 1
-							),
-							std::format("Unknown string escape code '\\{}'", this->char_stream.peek_back())
+							)
 						);
 						return true;
 					}
@@ -1312,13 +1275,12 @@ namespace pcit::panther{
 				if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
 
 				this->emit_error(
-					Diagnostic::Code::TOK_UNTERMINATED_MULTILINE_COMMENT,
+					std::format("Unterminated {} literal", string_type_name),
 					Source::Location(
 						this->source.getID(),
 						this->current_token_line_start, line_result.value(),
 						this->current_token_collumn_start, collumn_result.value()
 					),
-					std::format("Unterminated {} literal", string_type_name),
 					Diagnostic::Info(std::format("Expected a {} before the end of the file", delimiter))
 				);
 				return true;	
@@ -1334,11 +1296,7 @@ namespace pcit::panther{
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return true; }
 
-				this->emit_error(
-					Diagnostic::Code::TOK_INVALID_CHAR,
-					current_location.value(),
-					"Literal character cannot be empty"
-				);
+				this->emit_error("Literal character cannot be empty", current_location.value());
 				return true;
 
 			}
@@ -1347,11 +1305,7 @@ namespace pcit::panther{
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return true; }
 
-				this->emit_error(
-					Diagnostic::Code::TOK_INVALID_CHAR,
-					current_location.value(),
-					"Literal character must be only 1 character"
-				);
+				this->emit_error("Literal character must be only 1 character", current_location.value());
 				return true;
 			}
 
@@ -1359,11 +1313,7 @@ namespace pcit::panther{
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return true; }
 
-				this->emit_error(
-					Diagnostic::Code::TOK_INVALID_CHAR,
-					current_location.value(),
-					"Illegal character literal character"
-				);
+				this->emit_error("Illegal character literal character", current_location.value());
 				return true;
 			}
 
@@ -1417,9 +1367,8 @@ namespace pcit::panther{
 		if(current_location.isError()){ return true; }
 
 		this->emit_error(
-			Diagnostic::Code::TOK_FILE_TOO_LARGE,
-			current_location.value(),
 			"File too large",
+			current_location.value(),
 			Diagnostic::Info(std::format("Source files can have a maximum of {} (2^32-2) tokens", MAX_TOKENS))
 		);
 
@@ -1476,13 +1425,12 @@ namespace pcit::panther{
 			if(current_location.isError()){ return; }
 
 			this->emit_error(
-				Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
-				current_location.value(),
 				std::format(
 					"Unrecognized or unexpected character \"{}\" (ASCII charcode: 0x{:x})",
 					evo::printCharName(peeked_char),
 					int(peeked_char)
-				)
+				),
+				current_location.value()
 			);
 			return;
 		}
@@ -1500,13 +1448,12 @@ namespace pcit::panther{
 			if(current_location.isError()){ return; }
 
 			this->emit_error(
-				Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
-				current_location.value(),
 				std::format(
 					"Unrecognized character (non-standard utf-8 character)",
 					evo::printCharName(peeked_char),
 					int(peeked_char)
-				)
+				),
+				current_location.value()
 			);
 			return;
 		}
@@ -1583,9 +1530,8 @@ namespace pcit::panther{
 		if(current_location.isError()){ return; }
 
 		this->emit_error(
-			Diagnostic::Code::TOK_UNRECOGNIZED_CHARACTER,
-			current_location.value(),
-			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str)
+			std::format("Unrecognized character \"{}\" (UTF-8 code: {})", utf8_str, utf8_charcodes_str),
+			current_location.value()
 		);
 	}
 
@@ -1593,11 +1539,10 @@ namespace pcit::panther{
 
 	auto Tokenizer::error_line_too_big() -> void {
 		this->emit_error(
-			Diagnostic::Code::TOK_FILE_LOCATION_LIMIT_OOB,
+			"Line number is too large",
 			Source::Location(
 				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 			),
-			"Line number is too large",
 			evo::SmallVector<Diagnostic::Info>{
 				Diagnostic::Info(
 					std::format("Maximum line number is: {}", std::numeric_limits<uint32_t>::max())
@@ -1610,11 +1555,10 @@ namespace pcit::panther{
 
 	auto Tokenizer::error_collumn_too_big() -> void {
 		this->emit_error(
-			Diagnostic::Code::TOK_FILE_LOCATION_LIMIT_OOB,
+			"Collumn number is too large",
 			Source::Location(
 				this->source.getID(), this->current_token_line_start, this->current_token_collumn_start
 			),
-			"Collumn number is too large",
 			evo::SmallVector<Diagnostic::Info>{
 				Diagnostic::Info(
 					std::format("Maximum collumn number is: {}", std::numeric_limits<uint32_t>::max())

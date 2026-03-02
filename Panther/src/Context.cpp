@@ -386,10 +386,7 @@ namespace pcit::panther{
 		// 		}
 
 		// 		this->emitError(
-		// 			Diagnostic::Code::MISC_LLVM_ERROR,
-		// 			Diagnostic::Location::NONE,
-		// 			"Error trying to initalize PIR JITEngine",
-		// 			std::move(infos)
+		// 			"Error trying to initalize PIR JITEngine", Diagnostic::Location::NONE, std::move(infos)
 		// 		);
 		// 		return evo::resultError;
 		// 	}
@@ -408,10 +405,7 @@ namespace pcit::panther{
 				}
 
 				this->emitError(
-					Diagnostic::Code::MISC_LLVM_ERROR,
-					Diagnostic::Location::NONE,
-					"Error trying to initalize PIR ExecutionEngine",
-					std::move(infos)
+					"Error trying to initalize PIR ExecutionEngine", Diagnostic::Location::NONE, std::move(infos)
 				);
 				return evo::resultError;
 			}
@@ -561,12 +555,7 @@ namespace pcit::panther{
 					}
 				}
 					
-				this->emitError(
-					Diagnostic::Code::MISC_BUILTIN_NOT_DEFINED,
-					Diagnostic::Location::NONE,
-					std::move(message),
-					std::move(infos)
-				);
+				this->emitError(std::move(message), Diagnostic::Location::NONE, std::move(infos));
 
 			}else{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -588,12 +577,7 @@ namespace pcit::panther{
 					infos.emplace_back("This may have been caused by an uncaught circular dependency");
 				}
 
-				this->emitFatal(
-					Diagnostic::Code::MISC_STALL_DETECTED,
-					Diagnostic::Location::NONE,
-					"Stall detected while compiling",
-					std::move(infos)
-				);
+				this->emitFatal("Stall detected while compiling", Diagnostic::Location::NONE, std::move(infos));
 
 				#if defined(PCIT_CONFIG_DEBUG)
 					evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
@@ -705,11 +689,7 @@ namespace pcit::panther{
 
 			case EntryKind::CONSOLE_EXECUTABLE: {
 				if(this->entry.has_value() == false){
-					this->emitError(
-						Diagnostic::Code::MISC_NO_ENTRY,
-						Diagnostic::Location::NONE,
-						"No function with the [#entry] attribute found"
-					);
+					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 					return evo::resultError;
 				}
 
@@ -718,11 +698,7 @@ namespace pcit::panther{
 
 			case EntryKind::WINDOWED_EXECUTABLE: {
 				if(this->entry.has_value() == false){
-					this->emitError(
-						Diagnostic::Code::MISC_NO_ENTRY,
-						Diagnostic::Location::NONE,
-						"No function with the [#entry] attribute found"
-					);
+					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 					return evo::resultError;
 				}
 
@@ -779,7 +755,7 @@ namespace pcit::panther{
 						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
 					}
 
-					context.emitError(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
+					context.emitError(std::move(message), location, std::move(infos));
 					errored = true;
 				} break;
 
@@ -795,7 +771,7 @@ namespace pcit::panther{
 						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
 					}
 
-					context.emitWarning(Diagnostic::Code::CLANG, location, std::move(message), std::move(infos));
+					context.emitWarning(std::move(message), location, std::move(infos));
 				} break;
 
 				case ClangDiagnosticLevel::REMARK: {
@@ -884,11 +860,7 @@ namespace pcit::panther{
 
 	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		if(this->entry.has_value() == false){
-			this->emitError(
-				Diagnostic::Code::MISC_NO_ENTRY,
-				Diagnostic::Location::NONE,
-				"No function with the [#entry] attribute found"
-			);
+			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
 
@@ -1174,21 +1146,13 @@ namespace pcit::panther{
 		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
-			this->emitError(
-				Diagnostic::Code::MISC_FILE_DOES_NOT_EXIST,
-				Diagnostic::Location::NONE,
-				std::format("File \"{}\" does not exist", path.string())
-			);
+			this->emitError(std::format("File \"{}\" does not exist", path.string()), Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
 
 		evo::Result<std::string> file_data = evo::fs::readFile(path.string());
 		if(file_data.isError()){
-			this->emitError(
-				Diagnostic::Code::MISC_LOAD_FILE_FAILED,
-				Diagnostic::Location::NONE,
-				std::format("Failed to load file: \"{}\"", path.string())	
-			);
+			this->emitError(std::format("Failed to load file: \"{}\"", path.string()), Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
 
@@ -1235,11 +1199,7 @@ namespace pcit::panther{
 
 		const evo::Result<std::string> file = evo::fs::readFile(filepath_str);
 		if(file.isError()){
-			this->emitError(
-				Diagnostic::Code::MISC_LOAD_FILE_FAILED,
-				Diagnostic::Location::NONE,
-				std::format("Failed to load file: \"{}\"", filepath_str)
-			);
+			this->emitError(std::format("Failed to load file: \"{}\"", filepath_str), Diagnostic::Location::NONE);
 			return;
 		}
 
@@ -1934,9 +1894,8 @@ namespace pcit::panther{
 		}
 
 		this->emitFatal(
-			Diagnostic::Code::MISC_LLVM_ERROR,
-			Diagnostic::Location::NONE,
 			Diagnostic::createFatalMessage("Error trying to register functions to PIR JITEngine"),
+			Diagnostic::Location::NONE,
 			std::move(infos)
 		);
 	}

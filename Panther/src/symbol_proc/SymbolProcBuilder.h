@@ -218,16 +218,22 @@ namespace pcit::panther{
 			}
 
 
-			auto emit_fatal(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitFatal(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+			auto emit_fatal(std::string&& string, const auto& node, auto&&... args) -> void {
+				this->context.emitFatal(
+					std::move(string), this->get_location(node), std::forward<decltype(args)>(args)...
+				);
 			}
 
-			auto emit_error(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitError(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+			auto emit_error(std::string&& string, const auto& node, auto&&... args) -> void {
+				this->context.emitError(
+					std::move(string), this->get_location(node), std::forward<decltype(args)>(args)...
+				);
 			}
 
-			auto emit_warning(Diagnostic::Code code, const auto& node, auto&&... args) -> void {
-				this->context.emitWarning(code, this->get_location(node), std::forward<decltype(args)>(args)...);
+			auto emit_warning(std::string&& string, const auto& node, auto&&... args) -> void {
+				this->context.emitWarning(
+					std::move(string), this->get_location(node), std::forward<decltype(args)>(args)...
+				);
 			}
 
 

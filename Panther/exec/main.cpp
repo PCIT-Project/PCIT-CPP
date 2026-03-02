@@ -91,9 +91,8 @@ static auto error_failed_to_add_std_lib(
 
 	panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 		panther::Diagnostic::Level::ERROR,
-		panther::Diagnostic::Code::FRONTEND_FAILED_TO_ADD_STD_LIB,
-		panther::Diagnostic::Location::NONE,
 		"Failed to add Panther standard library",
+		panther::Diagnostic::Location::NONE,
 		std::move(infos)
 	));
 }
@@ -184,9 +183,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	if(entry_res.value() != 0){
 		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 			panther::Diagnostic::Level::ERROR,
-			panther::Diagnostic::Code::FRONTEND_BUILD_SYSTEM_RETURNED_ERROR,
-			panther::Diagnostic::Location::NONE,
-			std::format("Build system errored with code: {}", entry_res.value())
+			std::format("Build system errored with code: {}", entry_res.value()),
+			panther::Diagnostic::Location::NONE
 		));
 		return evo::resultError;
 	}
@@ -252,9 +250,8 @@ EVO_NODISCARD static auto run_compile(
 				case panther::SourceManager::CreatePackageFailReason::PATH_NOT_ABSOLUTE: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-						panther::Diagnostic::Location::NONE,
 						"Invalid path for package",
+						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
 							panther::Diagnostic::Info("Path isn't absolute")
@@ -265,9 +262,8 @@ EVO_NODISCARD static auto run_compile(
 				case panther::SourceManager::CreatePackageFailReason::PATH_DOESNT_EXIST: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-						panther::Diagnostic::Location::NONE,
 						"Invalid path for package",
+						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
 							panther::Diagnostic::Info("Path doesn't exist")
@@ -278,9 +274,8 @@ EVO_NODISCARD static auto run_compile(
 				case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-						panther::Diagnostic::Location::NONE,
 						"Invalid path for package",
+						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path.string())),
 							panther::Diagnostic::Info("Path isn't directory")
@@ -291,9 +286,8 @@ EVO_NODISCARD static auto run_compile(
 				case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-						panther::Diagnostic::Location::NONE,
 						"Invalid name for package",
+						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(std::format("Name: \"{}\"", package_name)),
 						}
@@ -328,9 +322,8 @@ EVO_NODISCARD static auto run_compile(
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FILE_DOESNT_EXIST,
-					panther::Diagnostic::Location::NONE,
 					"File doesn't exist",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path)),
 						panther::Diagnostic::Info(
@@ -347,9 +340,8 @@ EVO_NODISCARD static auto run_compile(
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FILE_NOT_FILE,
-					panther::Diagnostic::Location::NONE,
 					"Path isn't a file",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_file.path)),
 						panther::Diagnostic::Info(
@@ -386,9 +378,8 @@ EVO_NODISCARD static auto run_compile(
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_DIRECTORY_DOESNT_EXIST,
-					panther::Diagnostic::Location::NONE,
 					"Directory doesn't exist",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_directory.path)),
 						panther::Diagnostic::Info(
@@ -410,9 +401,8 @@ EVO_NODISCARD static auto run_compile(
 
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_DIRECTORY_NOT_DIRECTORY,
-					panther::Diagnostic::Location::NONE,
 					"Directory is not directory",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", source_directory.path)),
 						panther::Diagnostic::Info(
@@ -444,9 +434,8 @@ EVO_NODISCARD static auto run_compile(
 			case panther::Context::AddSourceResult::DOESNT_EXIST: {
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FILE_DOESNT_EXIST,
-					panther::Diagnostic::Location::NONE,
 					"File doesn't exist",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
 					}
@@ -457,9 +446,8 @@ EVO_NODISCARD static auto run_compile(
 			case panther::Context::AddSourceResult::NOT_FILE: {
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FILE_NOT_FILE,
-					panther::Diagnostic::Location::NONE,
 					"Path isn't a file",
+					panther::Diagnostic::Location::NONE,
 					evo::SmallVector<panther::Diagnostic::Info>{
 						panther::Diagnostic::Info(std::format("Path: \"{}\"", c_lang_header_file.path))
 					}
@@ -557,9 +545,8 @@ EVO_NODISCARD static auto run_compile(
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_ASM,
-					panther::Diagnostic::Location::NONE,
-					"Failed to output assembly code"
+					"Failed to output assembly code",
+					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
@@ -581,9 +568,8 @@ EVO_NODISCARD static auto run_compile(
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
-					panther::Diagnostic::Location::NONE,
-					"Failed to output object file"
+					"Failed to output object file",
+					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
@@ -591,9 +577,8 @@ EVO_NODISCARD static auto run_compile(
 			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
-					panther::Diagnostic::Location::NONE,
 					"Failed to output object file",
+					panther::Diagnostic::Location::NONE,
 					panther::Diagnostic::Info("Failed to write file")
 				));
 				return evo::resultError;
@@ -636,9 +621,8 @@ EVO_NODISCARD static auto run_compile(
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
-					panther::Diagnostic::Location::NONE,
-					"Failed to output object file"
+					"Failed to output object file",
+					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
@@ -649,9 +633,8 @@ EVO_NODISCARD static auto run_compile(
 				if(ec){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						panther::Diagnostic::Code::FRONTEND_FAILED_TO_GET_REL_DIR,
-						panther::Diagnostic::Location::NONE,
 						"Failed to create directory \"build\"",
+						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
 							panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
@@ -665,9 +648,8 @@ EVO_NODISCARD static auto run_compile(
 			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					panther::Diagnostic::Code::FRONTEND_FAILED_TO_OUTPUT_OBJ,
-					panther::Diagnostic::Location::NONE,
 					"Failed to output obj",
+					panther::Diagnostic::Location::NONE,
 					panther::Diagnostic::Info("Failed to write file")
 				));
 				return evo::resultError;
@@ -753,9 +735,7 @@ EVO_NODISCARD static auto run_compile(
 	}
 
 	context.emitFatal(
-		panther::Diagnostic::Code::MISC_UNKNOWN_ERROR,
-		panther::Diagnostic::Location::NONE,
-		"Unknown compile output recieved"
+		panther::Diagnostic::createFatalMessage("Unknown compile output recieved"), panther::Diagnostic::Location::NONE
 	);
 	return evo::resultError;
 }
@@ -778,9 +758,8 @@ auto main(int argc, const char* argv[]) -> int {
 		if(ec){
 			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 				panther::Diagnostic::Level::ERROR,
-				panther::Diagnostic::Code::FRONTEND_FAILED_TO_GET_REL_DIR,
-				panther::Diagnostic::Location::NONE,
 				"Failed to get relative directory",
+				panther::Diagnostic::Location::NONE,
 				evo::SmallVector<panther::Diagnostic::Info>{
 					panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
 					panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),

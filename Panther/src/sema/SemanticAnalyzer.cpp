@@ -799,41 +799,25 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID got_type_info_id = this->get_type(instr.type_id);
 
 		if(got_type_info_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_TYPE_VOID,
-				*instr.var_def.type,
-				"Variables cannot be type `Void`"
-			);
+			this->emit_error("Variables cannot be type `Void`", *instr.var_def.type);
 			return Result::ERROR;
 		}
 		
 		bool is_global = true;
 		if(instr.var_def.kind == AST::VarDef::Kind::DEF){
 			if(var_attrs.value().is_global){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"A [def] variable should not have the attribute `#global`"
-				);
+				this->emit_error("A [def] variable should not have the attribute `#global`", instr.var_def);
 				return Result::ERROR;
 			}
 
 		}else if(this->scope.isGlobalScope()){
 			if(var_attrs.value().is_global){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Global variable should not have the attribute `#global`"
-				);
+				this->emit_error("Global variable should not have the attribute `#global`", instr.var_def);
 				return Result::ERROR;
 			}
 
 			if(var_attrs.value().is_priv){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Global variable should not have the attribute `#priv`"
-				);
+				this->emit_error("Global variable should not have the attribute `#priv`", instr.var_def);
 				return Result::ERROR;
 			}
 			
@@ -870,11 +854,7 @@ namespace pcit::panther{
 			}
 		}else{
 			if(var_attrs.value().is_pub){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Member variable should not have the attribute `#pub`"
-				);
+				this->emit_error("Member variable should not have the attribute `#pub`", instr.var_def);
 				return Result::ERROR;
 			}
 
@@ -939,9 +919,7 @@ namespace pcit::panther{
 			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 				if(instr.var_def.kind != AST::VarDef::Kind::VAR){
 					this->emit_error(
-						Diagnostic::Code::SEMA_VAR_INITIALIZER_ON_NON_VAR,
-						instr.var_def,
-						"Only [var] global variables can be defined with an initializer value"
+						"Only [var] global variables can be defined with an initializer value", instr.var_def
 					);
 					return Result::ERROR;
 				}
@@ -966,11 +944,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					this->emit_error(
-						Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
-						*instr.var_def.value,
-						"Cannot define a variable with a non-ephemeral value"
-					);
+					this->emit_error("Cannot define a variable with a non-ephemeral value", *instr.var_def.value);
 					return Result::ERROR;
 				}
 
@@ -989,11 +963,7 @@ namespace pcit::panther{
 
 		}else{
 			if(is_global){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_GLOBAL_LIFETIME_VAR_WITHOUT_VALUE,
-					instr.var_def,
-					"Variables with global lifetime must be declared with a value"
-				);
+				this->emit_error("Variables with global lifetime must be declared with a value", instr.var_def);
 				return Result::ERROR;
 			}
 		}
@@ -1030,7 +1000,7 @@ namespace pcit::panther{
 				// 	}
 
 				// 	this->emit_fatal(
-				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		
 				// 		instr.var_def,
 				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
 				// 		std::move(infos)
@@ -1072,11 +1042,7 @@ namespace pcit::panther{
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
 		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
-				this->emit_error(
-					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
-					*instr.var_def.value,
-					"Variable that has a module value must be declared as [def]"
-				);
+				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);
 				return Result::ERROR;
 			}
 
@@ -1097,11 +1063,7 @@ namespace pcit::panther{
 
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::CLANG_MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
-				this->emit_error(
-					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
-					*instr.var_def.value,
-					"Variable that has a module value must be declared as [def]"
-				);
+				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);
 				return Result::ERROR;
 			}
 
@@ -1124,17 +1086,13 @@ namespace pcit::panther{
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
-				*instr.var_def.value,
-				"Cannot define a variable with an initializer value without an explicit type"
+				"Cannot define a variable with an initializer value without an explicit type", *instr.var_def.value
 			);
 			return Result::ERROR;
 
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
 			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
-				*instr.var_def.value,
-				"Cannot define a variable with a [null] value without an explicit type"
+				"Cannot define a variable with a [null] value without an explicit type", *instr.var_def.value
 			);
 			return Result::ERROR;
 		}
@@ -1143,21 +1101,13 @@ namespace pcit::panther{
 		if(value_term_info.is_ephemeral() == false){
 			if(this->check_term_isnt_type(value_term_info, *instr.var_def.value).isError()){ return Result::ERROR; }
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
-				*instr.var_def.value,
-				"Cannot define a variable with a non-ephemeral value"
-			);
+			this->emit_error("Cannot define a variable with a non-ephemeral value", *instr.var_def.value);
 			return Result::ERROR;
 		}
 
 			
 		if(value_term_info.isMultiValue()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-				*instr.var_def.value,
-				"Cannot define a variable with multiple values"
-			);
+			this->emit_error("Cannot define a variable with multiple values", *instr.var_def.value);
 			return Result::ERROR;
 		}
 
@@ -1166,9 +1116,8 @@ namespace pcit::panther{
 			value_term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
-				*instr.var_def.value,
 				"Cannot infer the type of a fluid literal",
+				*instr.var_def.value,
 				Diagnostic::Info("Did you mean this variable to be [def]? If not, give the variable an explicit type")
 			);
 			return Result::ERROR;
@@ -1179,20 +1128,14 @@ namespace pcit::panther{
 			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
 
 			if(got_type_info_id.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_def.type, "Variables cannot be type `Void`"
-				);
+				this->emit_error("Variables cannot be type `Void`", *instr.var_def.type);
 				return Result::ERROR;
 			}
 
 			const TypeInfo& got_type_info = this->context.getTypeManager().getTypeInfo(got_type_info_id.asTypeID());
 
 			if(got_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_INTERFACE,
-					*instr.var_def.type,
-					"Variables cannot be an interface type"
-				);
+				this->emit_error("Variables cannot be an interface type", *instr.var_def.type);
 				return Result::ERROR;
 			}
 
@@ -1205,11 +1148,7 @@ namespace pcit::panther{
 
 			if(type_check_info.deduced_terms.empty() == false){
 				if(this->scope.isGlobalScope()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_DEDUCER_IN_GLOBAL_VAR,
-						*instr.var_def.type,
-						"Global variables cannot have deducers"
-					);
+					this->emit_error("Global variables cannot have deducers", *instr.var_def.type);
 					return Result::ERROR;
 				}
 
@@ -1230,30 +1169,18 @@ namespace pcit::panther{
 		bool is_global = true;
 		if(instr.var_def.kind == AST::VarDef::Kind::DEF){
 			if(var_attrs.value().is_global){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"A [def] variable should not have the attribute `#global`"
-				);
+				this->emit_error("A [def] variable should not have the attribute `#global`", instr.var_def);
 				return Result::ERROR;
 			}
 
 		}else if(this->scope.isGlobalScope()){
 			if(var_attrs.value().is_global){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Global variable should not have the attribute `#global`"
-				);
+				this->emit_error("Global variable should not have the attribute `#global`", instr.var_def);
 				return Result::ERROR;
 			}
 
 			if(var_attrs.value().is_priv){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Global variable should not have the attribute `#priv`"
-				);
+				this->emit_error("Global variable should not have the attribute `#priv`", instr.var_def);
 				return Result::ERROR;
 			}
 			
@@ -1306,7 +1233,7 @@ namespace pcit::panther{
 				// 	}
 
 				// 	this->emit_fatal(
-				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		
 				// 		instr.var_def,
 				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
 				// 		std::move(infos)
@@ -1317,11 +1244,7 @@ namespace pcit::panther{
 
 		}else{
 			if(var_attrs.value().is_pub){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.var_def,
-					"Member variable should not have the attribute `#pub`"
-				);
+				this->emit_error("Member variable should not have the attribute `#pub`", instr.var_def);
 				return Result::ERROR;
 			}
 			
@@ -1515,11 +1438,7 @@ namespace pcit::panther{
 
 		const TypeInfo::VoidableID aliased_type = aliased_type_term.type_id.as<TypeInfo::VoidableID>();
 		if(aliased_type.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
-				instr.alias_def.type,
-				"Alias cannot be type `Void`"
-			);
+			this->emit_error("Alias cannot be type `Void`", instr.alias_def.type);
 			return Result::ERROR;
 		}
 
@@ -1686,10 +1605,9 @@ namespace pcit::panther{
 
 		if(created_struct.newInitOverloads.empty() && created_struct.newAssignOverloads.empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_STRUCT_NEW_ASSIGN_WITHOUT_NEW_INIT,
-				this->symbol_proc.ast_node,
 				"Cannot define a struct with a assignment operator [new] overload "
-					"without an initialization operator [new] overload"
+					"without an initialization operator [new] overload",
+				this->symbol_proc.ast_node
 			);
 			return Result::ERROR;
 		}
@@ -1710,10 +1628,9 @@ namespace pcit::panther{
 
 				if(copy_init_sema_func.attributes.isComptime != copy_assign_sema_func.attributes.isComptime){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [copy] does not match the comptime status of the assignment "
-							"operator [copy]"
+							"operator [copy]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
@@ -1728,10 +1645,9 @@ namespace pcit::panther{
 
 				if(copy_init_func_type.hasErrorReturn() != copy_assign_func_type.hasErrorReturn()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [copy] does not match the erroring status of the assignment "
-							"operator [copy]"
+							"operator [copy]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
@@ -1739,20 +1655,18 @@ namespace pcit::panther{
 
 				if(copy_init_func_type.isUnsafe != copy_assign_func_type.isUnsafe){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_DOESNT_MATCH_COPY_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [copy] does not match the unsafe status of the assignment "
-							"operator [copy]"
+							"operator [copy]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_STRUCT_COPY_ASSIGN_WITHOUT_COPY_INIT,
-					this->symbol_proc.ast_node,
 					"Cannot define a struct with a assignment operator [copy] overload "
-						"without an initialization operator [copy] overload"
+						"without an initialization operator [copy] overload",
+					this->symbol_proc.ast_node
 				);
 				return Result::ERROR;
 			}
@@ -1775,10 +1689,9 @@ namespace pcit::panther{
 
 				if(move_init_sema_func.attributes.isComptime != move_assign_sema_func.attributes.isComptime){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [move] does not match the comptime status of the assignment "
-							"operator [move]"
+							"operator [move]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
@@ -1793,10 +1706,9 @@ namespace pcit::panther{
 
 				if(move_init_func_type.hasErrorReturn() != move_assign_func_type.hasErrorReturn()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [move] does not match the erroring status of the assignment "
-							"operator [move]"
+							"operator [move]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
@@ -1804,20 +1716,18 @@ namespace pcit::panther{
 
 				if(move_init_func_type.isUnsafe != move_assign_func_type.isUnsafe){
 					this->emit_error(
-						Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_DOESNT_MATCH_MOVE_INIT,
-						this->symbol_proc.ast_node,
 						"The initialization operator [move] does not match the unsafe status of the assignment "
-							"operator [move]"
+							"operator [move]",
+						this->symbol_proc.ast_node
 					);
 					return Result::ERROR;
 				}
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_STRUCT_MOVE_ASSIGN_WITHOUT_MOVE_INIT,
-					this->symbol_proc.ast_node,
 					"Cannot define a struct with a assignment operator [move] overload "
-						"without an initialization operator [move] overload"
+						"without an initialization operator [move] overload",
+					this->symbol_proc.ast_node
 				);
 				return Result::ERROR;
 			}
@@ -2195,10 +2105,9 @@ namespace pcit::panther{
 			}else{
 				if(created_struct.moveAssignOverload.load(std::memory_order::relaxed).has_value()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-						*created_struct.moveAssignOverload.load(std::memory_order::relaxed),
 						"Operator [move] assignment overload cannot be defined without an operator [move] "
-							"initialization overload"
+							"initialization overload",
+						*created_struct.moveAssignOverload.load(std::memory_order::relaxed)
 					);
 					return Result::ERROR;
 				}
@@ -2390,10 +2299,9 @@ namespace pcit::panther{
 			}else{
 				if(created_struct.copyAssignOverload.load(std::memory_order::relaxed).has_value()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-						*created_struct.copyAssignOverload.load(std::memory_order::relaxed),
 						"Operator [copy] assignment overload cannot be defined without an operator [copy] "
-							"initialization overload"
+							"initialization overload",
+						*created_struct.copyAssignOverload.load(std::memory_order::relaxed)
 					);
 					return Result::ERROR;
 				}
@@ -2628,7 +2536,7 @@ namespace pcit::panther{
 			// 	}
 
 			// 	this->emit_fatal(
-			// 		Diagnostic::Code::MISC_LLVM_ERROR,
+			// 		
 			// 		this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id,
 			// 		Diagnostic::createFatalMessage(
 			// 			"Failed to setup PIR JIT interface generated default operator [new]"
@@ -2693,11 +2601,7 @@ namespace pcit::panther{
 			if(template_param_info.type_id.has_value()){
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
 				if(type_info_voidable_id.isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
-						template_param_info.param.type,
-						"Template parameter cannot be type `Void`"
-					);
+					this->emit_error("Template parameter cannot be type `Void`", template_param_info.param.type);
 					return Result::ERROR;
 				}
 				type_id = type_info_voidable_id.asTypeID();
@@ -2711,15 +2615,13 @@ namespace pcit::panther{
 					if(default_value->isSingleValue() == false){
 						if(default_value->isMultiValue()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
-								*template_param_info.param.defaultValue,
-								"Default of an expression template parameter must be a single expression"
+								"Default of an expression template parameter must be a single expression",
+								*template_param_info.param.defaultValue
 							);	
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
-								*template_param_info.param.defaultValue,
-								"Default of an expression template parameter must be an expression"
+								"Default of an expression template parameter must be an expression",
+								*template_param_info.param.defaultValue
 							);
 						}
 						return Result::ERROR;
@@ -2738,9 +2640,8 @@ namespace pcit::panther{
 				}else{
 					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
 						this->emit_error(
-							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
-							*template_param_info.param.defaultValue,
-							"Default of a [Type] template parameter must be an type"
+							"Default of a [Type] template parameter must be an type",
+							*template_param_info.param.defaultValue
 						);
 						return Result::ERROR;
 					}
@@ -2877,38 +2778,22 @@ namespace pcit::panther{
 
 			if(union_type.isUntagged){
 				if(field_type_id.isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNION_UNTAGGED_WITH_VOID_FIELD,
-						ast_field.type,
-						"Fields in untagged unions cannot be type \"Void\""
-					);
+					this->emit_error("Fields in untagged unions cannot be type `Void`", ast_field.type);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isTriviallyDeletable(field_type_id.asTypeID()) == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_DELETABLE_FIELD,
-						ast_field.type,
-						"Fields in untagged unions must be trivially deletable"
-					);
+					this->emit_error("Fields in untagged unions must be trivially deletable", ast_field.type);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isTriviallyCopyable(field_type_id.asTypeID()) == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_COPYABLE_FIELD,
-						ast_field.type,
-						"Fields in untagged unions must be trivially copyable"
-					);
+					this->emit_error("Fields in untagged unions must be trivially copyable", ast_field.type);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isTriviallyMovable(field_type_id.asTypeID()) == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNION_UNTAGGED_NON_TRIVIALLY_MOVABLE_FIELD,
-						ast_field.type,
-						"Fields in untagged unions must be trivially movable"
-					);
+					this->emit_error("Fields in untagged unions must be trivially movable", ast_field.type);
 					return Result::ERROR;
 				}
 			}
@@ -2983,9 +2868,8 @@ namespace pcit::panther{
 
 			if(this->context.getTypeManager().isIntegral(computed_underlying_type) == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_ENUM_INVALID_UNDERLYING_TYPE,
-					*instr.enum_def.underlyingType,
 					"Invalid underlying type for enum",
+					*instr.enum_def.underlyingType,
 					Diagnostic::Info("Note: underlying type for enums must be integral")
 				);
 				return Result::ERROR;
@@ -3086,11 +2970,7 @@ namespace pcit::panther{
 				TermInfo& value_term_info = this->get_term_info(*instr.enumerator_values[i]);
 
 				if(value_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
-					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
-						*enumerator.value,
-						"Enumerator value is not comptime"
-					);
+					this->emit_error("Enumerator value is not comptime", *enumerator.value);
 					return Result::ERROR;
 				}
 
@@ -3211,11 +3091,7 @@ namespace pcit::panther{
 
 		const auto is_invalid_commutative_check = [&]() -> evo::Result<> {
 			if(func_attrs.value().is_commutative){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.func_def,
-					"This function cannot have attribute #commutative"
-				);
+				this->emit_error("This function cannot have attribute #commutative", instr.func_def);
 				return evo::resultError;
 			}
 			return evo::Result<>();
@@ -3223,11 +3099,7 @@ namespace pcit::panther{
 
 		const auto is_invalid_swapped_check = [&]() -> evo::Result<> {
 			if(func_attrs.value().is_swapped){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.func_def,
-					"This function cannot have attribute #swapped"
-				);
+				this->emit_error("This function cannot have attribute #swapped", instr.func_def);
 				return evo::resultError;
 			}
 			return evo::Result<>();
@@ -3235,11 +3107,7 @@ namespace pcit::panther{
 
 		const auto is_invalid_implicit_check = [&]() -> evo::Result<> {
 			if(func_attrs.value().is_implicit){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-					instr.func_def,
-					"This function cannot have attribute #implicit"
-				);
+				this->emit_error("This function cannot have attribute #implicit", instr.func_def);
 				return evo::resultError;
 			}
 			return evo::Result<>();
@@ -3318,9 +3186,7 @@ namespace pcit::panther{
 				const TypeInfo::VoidableID decl_param_type_id = this->get_type(*symbol_proc_param_type_id);
 
 				if(decl_param_type_id.isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_PARAM_TYPE_VOID, *param.type, "Function parameter cannot be type `Void`"
-					);
+					this->emit_error("Function parameter cannot be type `Void`", *param.type);
 					return Result::ERROR;
 				}
 
@@ -3347,19 +3213,13 @@ namespace pcit::panther{
 
 
 				if(param_type.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-					this->emit_error(
-						Diagnostic::Code::SEMA_PARAM_TYPE_INTERFACE,
-						*param.type,
-						"Function parameter cannot be an interface type"
-					);
+					this->emit_error("Function parameter cannot be an interface type", *param.type);
 					return Result::ERROR;
 				}
 
 				if(param_type.isUninitPointer()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_PARAM_TYPE_UNINIT_PTR,
-						*param.type,
-						"Type of function parameter cannot be a uninitialized-qualified pointer"
+						"Type of function parameter cannot be a uninitialized-qualified pointer", *param.type
 					);
 					return Result::ERROR;
 				}
@@ -3411,21 +3271,16 @@ namespace pcit::panther{
 
 				if(current_type_scope.has_value() == false){
 					// TODO(FUTURE): better messaging
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_SCOPE_FOR_THIS_PARAM,
-						param.name,
-						"[this] parameters are only valid inside type scope"
-					);
+					this->emit_error("[this] parameters are only valid inside type scope", param.name);
 					return Result::ERROR;
 				}
 
 				if(i != 0){
 					this->emit_error(
-						Diagnostic::Code::SEMA_THIS_PARAM_NOT_FIRST,
-						param.name,
 						instr.params()[0].has_value()
 							? "[this] parameters must be the first parameter"
-							: "Cannot have multiple [this] parameters"
+							: "Cannot have multiple [this] parameters",
+						param.name
 					);
 					return Result::ERROR;
 				}
@@ -3530,17 +3385,13 @@ namespace pcit::panther{
 				if(i == 0){
 					if(ast_return_param.ident.has_value()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
-							*ast_return_param.ident,
-							"A function return parameter that is type `Void` cannot be named"
+							"A function return parameter that is type `Void` cannot be named", *ast_return_param.ident
 						);
 						return Result::ERROR;
 					}
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
-						ast_return_param.type,
-						"Only the first function return parameter can be type `Void`"
+						"Only the first function return parameter can be type `Void`", ast_return_param.type
 					);
 					return Result::ERROR;
 				}
@@ -3551,9 +3402,7 @@ namespace pcit::panther{
 
 				if(return_param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 					this->emit_error(
-						Diagnostic::Code::SEMA_RETURN_TYPE_INTERFACE,
-						ast_return_param.type,
-						"Function return type cannot be an interface type"
+						"Function return type cannot be an interface type", ast_return_param.type
 					);
 					return Result::ERROR;
 				}
@@ -3581,17 +3430,15 @@ namespace pcit::panther{
 				if(i == 0){
 					if(ast_error_return_param.ident.has_value()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NAMED_VOID_RETURN,
-							*ast_error_return_param.ident,
-							"A function error return parameter that is type `Void` cannot be named"
+							"A function error return parameter that is type `Void` cannot be named",
+							*ast_error_return_param.ident
 						);
 						return Result::ERROR;
 					}
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NOT_FIRST_RETURN_VOID,
-						ast_error_return_param.type,
-						"Only the first function error return parameter can be type `Void`"
+						"Only the first function error return parameter can be type `Void`",
+						ast_error_return_param.type
 					);
 					return Result::ERROR;
 				}
@@ -3602,9 +3449,7 @@ namespace pcit::panther{
 
 				if(error_param_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
 					this->emit_error(
-						Diagnostic::Code::SEMA_RETURN_TYPE_INTERFACE,
-						ast_error_return_param.type,
-						"Function error return type cannot be an interface type"
+						"Function error return type cannot be an interface type", ast_error_return_param.type
 					);
 					return Result::ERROR;
 				}
@@ -3724,21 +3569,13 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_AS: {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -3751,23 +3588,17 @@ namespace pcit::panther{
 								== Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-									created_func.params[1].ident.as<Token::ID>(),
-									"Operator [as] overload can only have a [this] parameter"
+									"Operator [as] overload can only have a [this] parameter",
+									created_func.params[1].ident.as<Token::ID>()
 								);
 							}else{
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-									created_func.params[0].ident.as<Token::ID>(),
-									"Operator [as] overload can only have a [this] parameter"
+									"Operator [as] overload can only have a [this] parameter",
+									created_func.params[0].ident.as<Token::ID>()
 								);
 							}
 						}else{
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-								created_func_id,
-								"Operator [as] overload must have a [this] parameter"
-							);
+							this->emit_error("Operator [as] overload must have a [this] parameter", created_func_id);
 						}
 
 						return Result::ERROR;
@@ -3778,9 +3609,8 @@ namespace pcit::panther{
 						!= Token::Kind::KEYWORD_THIS
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							created_func.params[1].ident.as<Token::ID>(),
-							"Operator [as] overload can only have a [this] parameter"
+							"Operator [as] overload can only have a [this] parameter",
+							created_func.params[1].ident.as<Token::ID>()
 						);
 						return Result::ERROR;
 					}
@@ -3797,11 +3627,7 @@ namespace pcit::panther{
 							}
 						}();
 
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							location,
-							"Operator [as] overload can only have single return"
-						);
+						this->emit_error("Operator [as] overload can only have single return", location);
 						return Result::ERROR;
 					}
 
@@ -3814,11 +3640,7 @@ namespace pcit::panther{
 							}
 						}();
 
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							location,
-							"Operator [as] overload must return a value"
-						);
+						this->emit_error("Operator [as] overload must return a value", location);
 						return Result::ERROR;
 					}
 
@@ -3832,11 +3654,7 @@ namespace pcit::panther{
 							}
 						}();
 
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							location,
-							"Operator [as] overload cannot error"
-						);
+						this->emit_error("Operator [as] overload cannot error", location);
 						return Result::ERROR;
 					}
 
@@ -3860,9 +3678,8 @@ namespace pcit::panther{
 						}();
 
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_AS_OVERLOAD,
-							location,
 							"Operator [as] overload for this type already defined",
+							location,
 							Diagnostic::Info("Defined here:", this->get_location(find->second))
 						);
 						return Result::ERROR;
@@ -3874,20 +3691,12 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_NEW: {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -3905,18 +3714,14 @@ namespace pcit::panther{
 					){ // assignment
 						if(created_func_type.returnsVoid() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
-								instr.func_def,
-								"Assignment operator `new` cannot have any return values"
+								"Assignment operator `new` cannot have any return values", instr.func_def
 							);
 							return Result::ERROR;
 						}
 
 						if(created_func.attributes.isImplicit && created_func_type.params.size() != 2){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-								instr.func_def,
-								"This function cannot have attribute #implicit"
+								"This function cannot have attribute #implicit", instr.func_def
 							);
 							return Result::ERROR;
 						}
@@ -3930,10 +3735,9 @@ namespace pcit::panther{
 
 								if(new_reassign_overload.isEquivalentOverload(created_func, this->context)){
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
-										instr.func_def,
 										"Assignment operator [new] overload has an overload "
 											"that collides with this declaration",
+										instr.func_def,
 										Diagnostic::Info(
 											"First defined here:", this->get_location(new_reassign_overload)
 										)
@@ -3957,28 +3761,18 @@ namespace pcit::panther{
 							|| created_func_type.returnTypes[0] != expected_return_type
 						){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
-								instr.func_def,
-								"Initialization operator `new` must return the newly created value"
+								"Initialization operator `new` must return the newly created value", instr.func_def
 							);
 							return Result::ERROR;
 						}
 
 						if(created_func_type.hasNamedReturns == false){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
-								instr.func_def,
-								"Initialization operator `new` must have a named return"
-							);
+							this->emit_error("Initialization operator `new` must have a named return", instr.func_def);
 							return Result::ERROR;
 						}
 
 						if(created_func.attributes.isImplicit && created_func_type.params.size() != 1){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_ATTRIBUTE_USE,
-								instr.func_def,
-								"This function cannot have attribute #implicit"
-							);
+							this->emit_error("This function cannot have attribute #implicit", instr.func_def);
 							return Result::ERROR;
 						}
 
@@ -3991,10 +3785,9 @@ namespace pcit::panther{
 
 								if(new_init_overload.isEquivalentOverload(created_func, this->context)){
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_NEW_OVERLOAD,
-										instr.func_def,
 										"Initialization operator [new] overload has an overload "
 											"that collides with this declaration",
+										instr.func_def,
 										Diagnostic::Info(
 											"First defined here:", this->get_location(new_init_overload)
 										)
@@ -4010,20 +3803,12 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_DELETE: {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4031,27 +3816,17 @@ namespace pcit::panther{
 						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
 
 					if(created_func_type.isUnsafe){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-							instr.func_def,
-							"Operator [delete] cannot have the attribute `#unsafe`"
-						);
+						this->emit_error("Operator [delete] cannot have the attribute `#unsafe`", instr.func_def);
 						return Result::ERROR;
 					}
 
 
 					if(created_func.params.size() != 1){
 						if(created_func.params.empty()){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								instr.func_def,
-								"Operator [delete] overload must have a [this] parameter"
-							);
+							this->emit_error("Operator [delete] overload must have a [this] parameter", instr.func_def);
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								instr.func_def.params[1],
-								"Operator [delete] overload can only have a [this] parameter"
+								"Operator [delete] overload can only have a [this] parameter", instr.func_def.params[1]
 							);
 						}
 						return Result::ERROR;
@@ -4062,9 +3837,7 @@ namespace pcit::panther{
 						!= Token::Kind::KEYWORD_THIS
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-							instr.func_def.params[0],
-							"Operator [delete] can only have a [this] parameter"
+							"Operator [delete] can only have a [this] parameter", instr.func_def.params[0]
 						);
 						return Result::ERROR;
 					}
@@ -4079,15 +3852,11 @@ namespace pcit::panther{
 					if(created_func_type.returnsVoid() == false){
 						if(created_func.hasNamedReturns()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								created_func.returnParamIdents[0],
-								"Operator [delete] overload must return `Void`"
+								"Operator [delete] overload must return `Void`", created_func.returnParamIdents[0]
 							);
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								instr.func_def.returns[0].type,
-								"Operator [delete] overload must return `Void`"
+								"Operator [delete] overload must return `Void`", instr.func_def.returns[0].type
 							);
 						}
 						return Result::ERROR;
@@ -4095,17 +3864,9 @@ namespace pcit::panther{
 
 					if(created_func_type.hasErrorReturn()){
 						if(created_func.hasNamedErrors()){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								created_func.errorParamIdents[0],
-								"Operator [delete] cannot error"
-							);
+							this->emit_error("Operator [delete] cannot error", created_func.errorParamIdents[0]);
 						}else{
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-								instr.func_def.errorReturns[0].type,
-								"Operator [delete] cannot error"
-							);
+							this->emit_error("Operator [delete] cannot error", instr.func_def.errorReturns[0].type);
 						}
 						return Result::ERROR;
 					}
@@ -4114,9 +3875,8 @@ namespace pcit::panther{
 					auto expected = std::optional<sema::Func::ID>();
 					if(current_struct.deleteOverload.compare_exchange_strong(expected, created_func_id) == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_DELETE_OVERLOAD,
-							instr.func_def,
 							"Operator [delete] was already defined for this type",
+							instr.func_def,
 							Diagnostic::Info(
 								"First defined here:",
 								this->get_location(*current_struct.deleteOverload.load(std::memory_order::relaxed))
@@ -4128,20 +3888,12 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_COPY: {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4160,11 +3912,7 @@ namespace pcit::panther{
 
 					switch(created_func.params.size()){
 						case 0: {
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-								instr.func_def,
-								"Operator [copy] overload must have a [this] parameter"
-							);
+							this->emit_error("Operator [copy] overload must have a [this] parameter", instr.func_def);
 							return Result::ERROR;
 						} break;
 
@@ -4174,18 +3922,15 @@ namespace pcit::panther{
 								!= Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def.params[0],
-									"Operator [copy] overload must have a [this] parameter"
+									"Operator [copy] overload must have a [this] parameter", instr.func_def.params[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def,
-									"Operator [copy] initialization overload [this] parameter cannot be kind [in]"
+									"Operator [copy] initialization overload [this] parameter cannot be kind [in]",
+									instr.func_def
 								);
 								return Result::ERROR;
 							}
@@ -4193,15 +3938,13 @@ namespace pcit::panther{
 							if(created_func_type.returnTypes.size() != 1){
 								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-										instr.func_def,
-										"Operator [copy] initialization overload must return the newly created value"
+										"Operator [copy] initialization overload must return the newly created value",
+										instr.func_def
 									);
 								}else{
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-										instr.func_def.returns[1],
-										"Operator [copy] initialization overload must return the newly created value"
+										"Operator [copy] initialization overload must return the newly created value",
+										instr.func_def.returns[1]
 									);
 								}
 								return Result::ERROR;
@@ -4210,9 +3953,8 @@ namespace pcit::panther{
 
 							if(created_func_type.returnTypes[0] != struct_type_info_id){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def.returns[0].type,
-									"Operator [copy] initialization overload must return `This` (or equivalent type)"
+									"Operator [copy] initialization overload must return `This` (or equivalent type)",
+									instr.func_def.returns[0].type
 								);
 								return Result::ERROR;
 							}
@@ -4220,9 +3962,7 @@ namespace pcit::panther{
 
 							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.func_def.errorReturns[0],
-									"Erroring operator [copy] is unimplemented"
+									"Erroring operator [copy] is unimplemented", instr.func_def.errorReturns[0]
 								);
 								return Result::ERROR;
 							}
@@ -4232,17 +3972,12 @@ namespace pcit::panther{
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
 								if(expected.wasDeleted()){
-									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-										instr.func_def,
-										"Operator [copy] was already explicitly deleted"
-									);
+									this->emit_error("Operator [copy] was already explicitly deleted", instr.func_def);
 
 								}else{
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-										instr.func_def,
 										"Operator [copy] initialization was already defined for this type",
+										instr.func_def,
 										Diagnostic::Info(
 											"First defined here:",
 											this->get_location(
@@ -4262,46 +3997,39 @@ namespace pcit::panther{
 								!= Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def.params[0],
-									"Operator [copy] overload must have a [this] parameter"
+									"Operator [copy] overload must have a [this] parameter", instr.func_def.params[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def,
-									"Operator [copy] assignment overload [this] parameter cannot be kind [in]"
+									"Operator [copy] assignment overload [this] parameter cannot be kind [in]",
+									instr.func_def
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[1].typeID != struct_type_info_id){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def.params[1],
 									"Argument index 1 of operator [copy] assignment overload must be `This` "
-										"(or equivalent type)"
+										"(or equivalent type)",
+									instr.func_def.params[1]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.returnsVoid() == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def.returns[0],
-									"Operator [copy] assignment overload cannot return any values"
+									"Operator [copy] assignment overload cannot return any values",
+									instr.func_def.returns[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.func_def.errorReturns[0],
-									"Erroring operator [copy] is unimplemented"
+									"Erroring operator [copy] is unimplemented", instr.func_def.errorReturns[0]
 								);
 								return Result::ERROR;
 							}
@@ -4311,9 +4039,8 @@ namespace pcit::panther{
 								expected, created_func_id
 							) == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def,
 									"Operator [copy] assignment was already defined for this type",
+									instr.func_def,
 									Diagnostic::Info(
 										"First defined here:",
 										this->get_location(
@@ -4325,20 +4052,14 @@ namespace pcit::panther{
 							}
 
 							if(current_struct.copyInitOverload.load(std::memory_order::relaxed).wasDeleted()){
-								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-									instr.func_def,
-									"Operator [copy] was already explicitly deleted"
-								);
+								this->emit_error("Operator [copy] was already explicitly deleted", instr.func_def);
 								return Result::ERROR;
 							}
 						} break;
 
 						default: {
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-								instr.func_def.params[2],
-								"Too many arguments for operator [copy] overload"
+								"Too many arguments for operator [copy] overload", instr.func_def.params[2]
 							);
 							return Result::ERROR;
 						} break;
@@ -4347,20 +4068,12 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_MOVE: {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4379,11 +4092,7 @@ namespace pcit::panther{
 
 					switch(created_func.params.size()){
 						case 0: {
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-								instr.func_def,
-								"Operator [move] overload must have a [this] parameter"
-							);
+							this->emit_error("Operator [move] overload must have a [this] parameter", instr.func_def);
 							return Result::ERROR;
 						} break;
 
@@ -4393,18 +4102,15 @@ namespace pcit::panther{
 								!= Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def.params[0],
-									"Operator [move] overload must have a [this] parameter"
+									"Operator [move] overload must have a [this] parameter", instr.func_def.params[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def,
-									"Operator [move] initialization overload [this] parameter cannot be kind [in]"
+									"Operator [move] initialization overload [this] parameter cannot be kind [in]",
+									instr.func_def
 								);
 								return Result::ERROR;
 							}
@@ -4412,15 +4118,13 @@ namespace pcit::panther{
 							if(created_func_type.returnTypes.size() != 1){
 								if(created_func_type.returnTypes.empty()){
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-										instr.func_def,
-										"Operator [move] initialization overload must return the newly created value"
+										"Operator [move] initialization overload must return the newly created value",
+										instr.func_def
 									);
 								}else{
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-										instr.func_def.returns[1],
-										"Operator [move] initialization overload must return the newly created value"
+										"Operator [move] initialization overload must return the newly created value",
+										instr.func_def.returns[1]
 									);
 								}
 								return Result::ERROR;
@@ -4429,9 +4133,8 @@ namespace pcit::panther{
 
 							if(created_func_type.returnTypes[0] != struct_type_info_id){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def.returns[0].type,
-									"Operator [move] initialization overload must return `This` (or equivalent type)"
+									"Operator [move] initialization overload must return `This` (or equivalent type)",
+									instr.func_def.returns[0].type
 								);
 								return Result::ERROR;
 							}
@@ -4439,9 +4142,7 @@ namespace pcit::panther{
 
 							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.func_def.errorReturns[0],
-									"Erroring operator [move] is unimplemented"
+									"Erroring operator [move] is unimplemented", instr.func_def.errorReturns[0]
 								);
 								return Result::ERROR;
 							}
@@ -4451,17 +4152,12 @@ namespace pcit::panther{
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
 							) == false){
 								if(expected.wasDeleted()){
-									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-										instr.func_def,
-										"Operator [move] was already explicitly deleted"
-									);
+									this->emit_error("Operator [move] was already explicitly deleted", instr.func_def);
 
 								}else{
 									this->emit_error(
-										Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-										instr.func_def,
 										"Operator [move] initialization was already defined for this type",
+										instr.func_def,
 										Diagnostic::Info(
 											"First defined here:",
 											this->get_location(
@@ -4481,46 +4177,40 @@ namespace pcit::panther{
 								!= Token::Kind::KEYWORD_THIS
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def.params[0],
-									"Operator [move] assignment overload must have a [this] parameter"
+									"Operator [move] assignment overload must have a [this] parameter",
+									instr.func_def.params[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def,
-									"Operator [move] assignment overload [this] parameter cannot be kind [in]"
+									"Operator [move] assignment overload [this] parameter cannot be kind [in]",
+									instr.func_def
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.params[1].typeID != struct_type_info_id){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def.params[1],
 									"Argument index 1 of operator [move] assignment overload must be `This` "
-										"(or equivalent type)"
+										"(or equivalent type)",
+									instr.func_def.params[1]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.returnsVoid() == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def.returns[0],
-									"Operator [move] assignment overload cannot return any values"
+									"Operator [move] assignment overload cannot return any values",
+									instr.func_def.returns[0]
 								);
 								return Result::ERROR;
 							}
 
 							if(created_func_type.errorTypes.empty() == false){
 								this->emit_error(
-									Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-									instr.func_def.errorReturns[0],
-									"Erroring operator [move] is unimplemented"
+									"Erroring operator [move] is unimplemented", instr.func_def.errorReturns[0]
 								);
 								return Result::ERROR;
 							}
@@ -4530,9 +4220,8 @@ namespace pcit::panther{
 								expected, created_func_id
 							) == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def,
 									"Operator [move] assignment was already defined for this type",
+									instr.func_def,
 									Diagnostic::Info(
 										"First defined here:",
 										this->get_location(
@@ -4544,20 +4233,14 @@ namespace pcit::panther{
 							}
 
 							if(current_struct.moveInitOverload.load(std::memory_order::relaxed).wasDeleted()){
-								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-									instr.func_def,
-									"Operator [move] was already explicitly deleted"
-								);
+								this->emit_error("Operator [move] was already explicitly deleted", instr.func_def);
 								return Result::ERROR;
 							}
 						} break;
 
 						default: {
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-								instr.func_def.params[2],
-								"Too many arguments for operator [move] overload"
+								"Too many arguments for operator [move] overload", instr.func_def.params[2]
 							);
 							return Result::ERROR;
 						} break;
@@ -4581,20 +4264,12 @@ namespace pcit::panther{
 				case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
 				case Token::lookupKind("|="):   case Token::lookupKind("^="): {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4613,11 +4288,7 @@ namespace pcit::panther{
 
 					if(created_func_type.params.size() != 2){
 						if(created_func_type.params.size() == 0){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-								instr.func_def,
-								"Infix operator overload doesn't have enough parameters"
-							);
+							this->emit_error("Infix operator overload doesn't have enough parameters", instr.func_def);
 							return Result::ERROR;
 
 						}else if(created_func_type.params.size() == 1){
@@ -4638,18 +4309,14 @@ namespace pcit::panther{
 								break;
 							}else{
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-									instr.func_def.params[0],
-									"Infix operator overload doesn't have enough parameters"
+									"Infix operator overload doesn't have enough parameters", instr.func_def.params[0]
 								);
 								return Result::ERROR;
 							}
 							
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-								instr.func_def.params[2],
-								"Infix operator overload has too many parameters"
+								"Infix operator overload has too many parameters", instr.func_def.params[2]
 							);
 							return Result::ERROR;
 						}
@@ -4660,9 +4327,7 @@ namespace pcit::panther{
 						!= Token::Kind::KEYWORD_THIS
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-							instr.func_def.params[0],
-							"Infix operator overload must have a [this] parameter"
+							"Infix operator overload must have a [this] parameter", instr.func_def.params[0]
 						);
 						return Result::ERROR;
 					}
@@ -4670,9 +4335,7 @@ namespace pcit::panther{
 
 					if(created_func_type.returnTypes.size() > 1){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-							instr.func_def.returns[1],
-							"Infix operator overload cannot have multiple return values"
+							"Infix operator overload cannot have multiple return values", instr.func_def.returns[1]
 						);
 						return Result::ERROR;
 					}
@@ -4687,11 +4350,10 @@ namespace pcit::panther{
 						case Token::lookupKind("|"):    case Token::lookupKind("^"): {
 							if(created_func_type.returnsVoid()){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-									instr.func_def.returns[0].type,
 									std::format(
 										"Infix [{}] overload must return a value", Token::printKind(name_token.kind())
-									)
+									),
+									instr.func_def.returns[0].type
 								);
 								return Result::ERROR;
 							}
@@ -4702,11 +4364,10 @@ namespace pcit::panther{
 						case Token::lookupKind("&&"): case Token::lookupKind("||"): {
 							if(created_func_type.returnTypes[0] != TypeManager::getTypeBool()){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-									instr.func_def.returns[0].type,
 									std::format(
 										"Infix [{}] overload must return a `Bool`", Token::printKind(name_token.kind())
-									)
+									),
+									instr.func_def.returns[0].type
 								);
 								return Result::ERROR;
 							}
@@ -4720,11 +4381,10 @@ namespace pcit::panther{
 						case Token::lookupKind("|="):   case Token::lookupKind("^="): {
 							if(created_func_type.returnsVoid() == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-									instr.func_def.returns[0].type,
 									std::format(
 										"Infix [{}] overload cannot return a value", Token::printKind(name_token.kind())
-									)
+									),
+									instr.func_def.returns[0].type
 								);
 								return Result::ERROR;
 							}
@@ -4734,9 +4394,7 @@ namespace pcit::panther{
 
 					if(created_func_type.hasErrorReturn()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-							instr.func_def.errorReturns[0],
-							"Infix operator overload that error are unimplemented"
+							"Infix operator overload that error are unimplemented", instr.func_def.errorReturns[0]
 						);
 						return Result::ERROR;
 					}
@@ -4828,9 +4486,8 @@ namespace pcit::panther{
 							
 							if(overload_func_to_add.isEquivalentOverload(existing_func, this->context)){
 								this->emit_error(
-									Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-									instr.func_def,
 									"This operator overload was already defined",
+									instr.func_def,
 									Diagnostic::Info(
 										"Previously defined here:", this->get_location(existing_func_id)
 									)
@@ -4848,10 +4505,9 @@ namespace pcit::panther{
 					if(func_attrs.value().is_commutative){
 						if(struct_type_info_id == created_func_type.params[1].typeID){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-								instr.func_def,
 								"Infix operator overload where the LHS and RHS are the same type "
-									"cannot have attribute #commutative"
+									"cannot have attribute #commutative",
+								instr.func_def
 							);
 							return Result::ERROR;
 						}
@@ -4879,10 +4535,9 @@ namespace pcit::panther{
 					}else if(func_attrs.value().is_swapped){
 						if(struct_type_info_id == created_func_type.params[1].typeID){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INFIX_OVERLOAD,
-								instr.func_def,
 								"Infix operator overload where the LHS and RHS are the same type "
-									"cannot have attribute #swapped"
+									"cannot have attribute #swapped",
+								instr.func_def
 							);
 							return Result::ERROR;
 						}
@@ -4907,20 +4562,12 @@ namespace pcit::panther{
 
 				case Token::lookupKind("!"): case Token::lookupKind("~"): {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4948,20 +4595,12 @@ namespace pcit::panther{
 
 				case Token::lookupKind("["): {
 					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-							instr.func_def,
-							"Operator overload cannot be a free function"
-						);
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -4974,17 +4613,11 @@ namespace pcit::panther{
 
 					if(created_func_type.params.size() < 2){
 						if(created_func_type.params.empty()){
-							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
-								instr.func_def,
-								"Operator indexer overload must have a `this` parameter"
-							);
+							this->emit_error("Operator indexer overload must have a `this` parameter", instr.func_def);
 							return Result::ERROR;
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
-								instr.func_def,
-								"Operator indexer overload must have at least 1 index parameter"
+								"Operator indexer overload must have at least 1 index parameter", instr.func_def
 							);
 							return Result::ERROR;
 						}
@@ -4995,9 +4628,7 @@ namespace pcit::panther{
 						!= Token::Kind::KEYWORD_THIS
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
-							instr.func_def.params[0],
-							"Indexer operator overload must have a [this] parameter"
+							"Indexer operator overload must have a [this] parameter", instr.func_def.params[0]
 						);
 						return Result::ERROR;
 					}
@@ -5005,20 +4636,14 @@ namespace pcit::panther{
 
 					if(created_func_type.returnsVoid()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
-							instr.func_def.returns[0].type,
-							"Indexer operator overload must return a value"
+							"Indexer operator overload must return a value", instr.func_def.returns[0].type
 						);
 						return Result::ERROR;
 					}
 
 
 					if(created_func_type.hasErrorReturn()){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							instr.func_def,
-							"erroring indexer overload is unimplemented"
-						);
+						this->emit_error("erroring indexer overload is unimplemented", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -5034,9 +4659,8 @@ namespace pcit::panther{
 						
 						if(created_func.isEquivalentOverload(existing_func, this->context)){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INVALID_OPERATOR_INDEXER_OVERLOAD,
-								instr.func_def,
 								"This operator overload was already defined",
+								instr.func_def,
 								Diagnostic::Info(
 									"Previously defined here:", this->get_location(existing_func_id)
 								)
@@ -5083,9 +4707,8 @@ namespace pcit::panther{
 				this->scope.getCurrentInterfaceSymbolIfExists().has_value() && current_func.isMethod(this->context)
 			){
 				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.func_def,
-					"Interface methods with [this] parameter with default implementation are unimplemented"
+					"Interface methods with [this] parameter with default implementation are unimplemented",
+					instr.func_def
 				);
 				return Result::ERROR;
 			}
@@ -5106,9 +4729,8 @@ namespace pcit::panther{
 				this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(param.typeID, infos);
 				this->diagnostic_print_special_member_fail<SpecialMemberFailKind::MOVE>(param.typeID, infos);
 				this->emit_error(
-					Diagnostic::Code::SEMA_IN_PARAM_NOT_COPYABLE_OR_MOVABLE,
-					*instr.func_def.params[i].type,
 					"Function [in] parameter type must be copyable and/or movable",
+					*instr.func_def.params[i].type,
 					std::move(infos)
 				);
 				return Result::ERROR;
@@ -5152,18 +4774,16 @@ namespace pcit::panther{
 		if(this->context.entry == current_func_id){
 			if(func_type.params.empty() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					current_func.params[0].ident.as<Token::ID>(),
-					"Functions with the [#entry] attribute cannot have parameters"
+					"Functions with the [#entry] attribute cannot have parameters",
+					current_func.params[0].ident.as<Token::ID>()
 				);
 				return Result::ERROR;
 			}
 
 			if(instr.func_def.returns[0].ident.has_value()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_def.returns[0],
-					"Functions with the [#entry] attribute cannot have named returns"
+					"Functions with the [#entry] attribute cannot have named returns",
+					instr.func_def.returns[0]
 				);
 				return Result::ERROR;
 			}
@@ -5176,9 +4796,8 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(func_type.returnTypes[0].asTypeID(), infos, "Returned type: ");
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_def.returns[0].type,
 					"Functions with the [#entry] attribute must return [UI8]",
+					instr.func_def.returns[0].type,
 					std::move(infos)
 				);
 				return Result::ERROR;
@@ -5186,18 +4805,14 @@ namespace pcit::panther{
 
 			if(func_type.errorTypes.empty() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_def.errorReturns[0],
-					"Functions with the [#entry] attribute cannot have error returns"
+					"Functions with the [#entry] attribute cannot have error returns", instr.func_def.errorReturns[0]
 				);
 				return Result::ERROR;
 			}
 
 			if(func_type.isUnsafe){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ENTRY,
-					instr.func_def,
-					"Functions with the `#entry` attribute cannot have the attribute `#unsafe`"
+					"Functions with the `#entry` attribute cannot have the attribute `#unsafe`", instr.func_def
 				);
 				return Result::ERROR;
 			}
@@ -5205,11 +4820,7 @@ namespace pcit::panther{
 
 		}else if(this->context.panic == current_func_id){
 			if(func_type.params.size() != 1){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function requires 1 parameter"
-				);
+				this->emit_error("Builtin panic function requires 1 parameter", instr.func_def);
 				return Result::ERROR;
 			}
 
@@ -5217,56 +4828,32 @@ namespace pcit::panther{
 				func_type.params[0] !=
 				BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false)
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function invaid parameter"
-				);
+				this->emit_error("Builtin panic function invaid parameter", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(func_type.returnsVoid() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function must return `Void`"
-				);
+				this->emit_error("Builtin panic function must return `Void`", instr.func_def);
 				return Result::ERROR;	
 			}
 
 			if(func_type.hasErrorReturn()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function cannot have error returns"
-				);
+				this->emit_error("Builtin panic function cannot have error returns", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(func_type.isUnsafe){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function cannot be unsafe"
-				);
+				this->emit_error("Builtin panic function cannot be unsafe", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(current_func.attributes.isComptime == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function must be comptime"
-				);
+				this->emit_error("Builtin panic function must be comptime", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(current_func.attributes.isNoReturn == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PANIC,
-					instr.func_def,
-					"Builtin panic function must have attribute `#noReturn`"
-				);
+				this->emit_error("Builtin panic function must have attribute `#noReturn`", instr.func_def);
 				return Result::ERROR;
 			}
 		}
@@ -5277,29 +4864,17 @@ namespace pcit::panther{
 
 		if(current_func.attributes.isNoReturn){
 			if(func_type.returnsVoid() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
-					instr.func_def,
-					"Functions with the `#noReturn` attribute must return `Void`"
-				);
+				this->emit_error("Functions with the `#noReturn` attribute must return `Void`", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(func_type.hasErrorReturn()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
-					instr.func_def,
-					"Functions with the `#noReturn` attribute cannot have error returns"
-				);
+				this->emit_error("Functions with the `#noReturn` attribute cannot have error returns", instr.func_def);
 				return Result::ERROR;
 			}
 
 			if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_NO_RETURN,
-					instr.func_def,
-					"Operator overloads cannot have attribute `#noReturn`"
-				);
+				this->emit_error("Operator overloads cannot have attribute `#noReturn`", instr.func_def);
 				return Result::ERROR;
 			}
 		}
@@ -5500,9 +5075,8 @@ namespace pcit::panther{
 		}else{
 			if(func_type.returnsVoid() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_TERMINATED,
-					instr.func_def,
 					"Function isn't terminated",
+					instr.func_def,
 					Diagnostic::Info(
 						"A function that doesn't return `Void` is terminated when all control paths end in a "
 						"[return], [error], [unreachable], or a function call that has the attribute [#noReturn]"
@@ -5658,7 +5232,7 @@ namespace pcit::panther{
 				// 	}
 
 				// 	this->emit_fatal(
-				// 		Diagnostic::Code::MISC_LLVM_ERROR,
+				// 		
 				// 		instr.func_def,
 				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for comptime function"),
 				// 		std::move(infos)
@@ -5813,19 +5387,11 @@ namespace pcit::panther{
 
 			if(name_token_kind != Token::Kind::IDENT){
 				if(instr.func_def.templatePack.has_value()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
-						instr.func_def.name,
-						"Operator overload cannot have a template parameter pack"
-					);
+					this->emit_error("Operator overload cannot have a template parameter pack", instr.func_def.name);
 					return Result::ERROR;
 
 				}else if(name_token_kind != Token::Kind::KEYWORD_NEW){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATED_OPERATOR_OVERLOAD,
-						instr.func_def.name,
-						"This operator overload cannot be template"
-					);
+					this->emit_error("This operator overload cannot be template", instr.func_def.name);
 					return Result::ERROR;
 				}
 			}
@@ -5840,11 +5406,7 @@ namespace pcit::panther{
 			if(template_param_info.type_id.has_value()){
 				const TypeInfo::VoidableID type_info_voidable_id = this->get_type(*template_param_info.type_id);
 				if(type_info_voidable_id.isVoid()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
-						template_param_info.param.type,
-						"Template parameter cannot be type `Void`"
-					);
+					this->emit_error("Template parameter cannot be type `Void`", template_param_info.param.type);
 					return Result::ERROR;
 				}
 				type_id = type_info_voidable_id.asTypeID();
@@ -5858,15 +5420,13 @@ namespace pcit::panther{
 					if(default_value->isSingleValue() == false){
 						if(default_value->isMultiValue()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
-								*template_param_info.param.defaultValue,
-								"Default of an expression template parameter must be a single expression"
+								"Default of an expression template parameter must be a single expression",
+								*template_param_info.param.defaultValue
 							);	
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_EXPR_DEFAULT_MUST_BE_EXPR,
-								*template_param_info.param.defaultValue,
-								"Default of an expression template parameter must be an expression"
+								"Default of an expression template parameter must be an expression",
+								*template_param_info.param.defaultValue
 							);
 						}
 						return Result::ERROR;
@@ -5885,9 +5445,8 @@ namespace pcit::panther{
 				}else{
 					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
 						this->emit_error(
-							Diagnostic::Code::SEMA_TEMPLATE_PARAM_TYPE_DEFAULT_MUST_BE_TYPE,
-							*template_param_info.param.defaultValue,
-							"Default of a [Type] template parameter must be an type"
+							"Default of a [Type] template parameter must be an type",
+							*template_param_info.param.defaultValue
 						);
 						return Result::ERROR;
 					}
@@ -5977,11 +5536,7 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(name_token.kind() == Token::Kind::KEYWORD_NEW);
 			
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.func_def.name,
-				"This operator overload being a template is unimplemented"
-			);
+			this->emit_error("This operator overload being a template is unimplemented", instr.func_def.name);
 			return Result::ERROR;
 		}
 
@@ -5991,20 +5546,12 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_deleted_special_method(const Instruction::DeletedSpecialMethod& instr) -> Result {
 		if(this->scope.inEncapsulatingSymbol() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-				instr.deleted_special_method,
-				"Operator overload cannot be a free function"
-			);
+			this->emit_error("Operator overload cannot be a free function", instr.deleted_special_method);
 			return Result::ERROR;
 		}
 
 		if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_OPERATOR_OVERLOAD_NOT_IN_TYPE,
-				instr.deleted_special_method,
-				"Operator overload cannot be a free function"
-			);
+			this->emit_error("Operator overload cannot be a free function", instr.deleted_special_method);
 			return Result::ERROR;
 		}
 
@@ -6024,15 +5571,11 @@ namespace pcit::panther{
 				) == false){
 					if(init_expected.wasDeleted()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-							instr.deleted_special_method,
-							"Operator overload [copy] was already explicitly deleted"
+							"Operator overload [copy] was already explicitly deleted", instr.deleted_special_method
 						);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-							*init_expected.funcID,
-							"Operator overload [copy] was already explicitly deleted"
+							"Operator overload [copy] was already explicitly deleted", *init_expected.funcID
 						);
 					}
 					return Result::ERROR;
@@ -6040,9 +5583,8 @@ namespace pcit::panther{
 
 				if(current_struct.copyAssignOverload.load(std::memory_order::relaxed).has_value()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_COPY_OVERLOAD,
-						*current_struct.copyAssignOverload.load(std::memory_order::relaxed),
-						"Operator overload [copy] was explicitly deleted"
+						"Operator overload [copy] was explicitly deleted",
+						*current_struct.copyAssignOverload.load(std::memory_order::relaxed)
 					);
 					return Result::ERROR;
 				}
@@ -6056,25 +5598,18 @@ namespace pcit::panther{
 				) == false){
 					if(init_expected.wasDeleted()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-							instr.deleted_special_method,
-							"Operator overload [move] was already explicitly deleted"
+							"Operator overload [move] was already explicitly deleted", instr.deleted_special_method
 						);
 					}else{
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-							*init_expected.funcID,
-							"Operator overload [move] was explicitly deleted"
-						);
+						this->emit_error("Operator overload [move] was explicitly deleted", *init_expected.funcID);
 					}
 					return Result::ERROR;
 				}
 
 				if(current_struct.moveAssignOverload.load(std::memory_order::relaxed).has_value()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_OPERATOR_MOVE_OVERLOAD,
-						*current_struct.moveAssignOverload.load(std::memory_order::relaxed),
-						"Operator overload [move] was explicitly deleted"
+						"Operator overload [move] was explicitly deleted",
+						*current_struct.moveAssignOverload.load(std::memory_order::relaxed)
 					);
 					return Result::ERROR;
 				}
@@ -6102,11 +5637,7 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.type_id.is<TermInfo::FuncOverloadList>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC,
-				instr.func_alias_def.func,
-				"Target of function alias must be a function"
-			);
+			this->emit_error("Target of function alias must be a function", instr.func_alias_def.func);
 			return Result::ERROR;
 		}
 
@@ -6183,11 +5714,7 @@ namespace pcit::panther{
 
 				for(TypeInfo::VoidableID return_type : method_type.returnTypes){
 					if(this->context.getTypeManager().isTypeDeducer(return_type)){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_INVALID_METHOD,
-							method_id,
-							"Method of a polymorphic interface cannot return type deducers"
-						);
+						this->emit_error("Method of a polymorphic interface cannot return type deducers", method_id);
 						return Result::ERROR;
 					}
 				}
@@ -6232,9 +5759,8 @@ namespace pcit::panther{
 
 				if(func_type.returnsVoid() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_TERMINATED,
-						instr.func_def,
 						"Function isn't terminated",
+						instr.func_def,
 						Diagnostic::Info(
 							"A function is terminated when all control paths end in a [return], [error], [unreachable],"
 							" or a function call that has the attribute [#noReturn]"
@@ -6267,22 +5793,14 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.target);
 
 		if(target_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
-				instr.interface_impl.target,
-				"Interface impl target is not an interface"
-			);
+			this->emit_error("Interface impl target is not an interface", instr.interface_impl.target);
 			return Result::ERROR;
 		}
 
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id.asTypeID());
 
 		if(target_type.qualifiers().empty() == false || target_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
-				instr.interface_impl.target,
-				"Interface impl target is not an interface"
-			);
+			this->emit_error("Interface impl target is not an interface", instr.interface_impl.target);
 			return Result::ERROR;
 		}
 
@@ -6293,11 +5811,7 @@ namespace pcit::panther{
 			this->scope.inEncapsulatingSymbol() == false
 			|| this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_IMPL_NOT_DEFINED_IN_STRUCT,
-				instr.interface_impl,
-				"Interface impl must be defined in type scope"
-			);
+			this->emit_error("Interface impl must be defined in type scope", instr.interface_impl);
 			return Result::ERROR;
 		}
 
@@ -6342,11 +5856,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.target);
 
 		if(target_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_IMPL_TARGET_NOT_INTERFACE,
-				instr.interface_impl.target,
-				"Interface impl target cannot be `Void`"
-			);
+			this->emit_error("Interface impl target cannot be `Void`", instr.interface_impl.target);
 			return Result::ERROR;
 		}
 
@@ -6644,11 +6154,7 @@ namespace pcit::panther{
 		if(var_attrs.isError()){ return Result::ERROR; }
 
 		if(var_attrs.value().is_global){
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.var_def,
-				"Static variables are currently unimplemented"
-			);
+			this->emit_error("Static variables are currently unimplemented", instr.var_def);
 			return Result::ERROR;
 		}
 
@@ -6656,11 +6162,7 @@ namespace pcit::panther{
 		TermInfo& value_term_info = this->get_term_info(instr.value);
 		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
-				this->emit_error(
-					Diagnostic::Code::SEMA_MODULE_VAR_MUST_BE_DEF,
-					*instr.var_def.value,
-					"Variable that has a module value must be declared as [def]"
-				);
+				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);
 				return Result::ERROR;
 			}
 
@@ -6682,18 +6184,16 @@ namespace pcit::panther{
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			if(instr.type_id.has_value() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
-					*instr.var_def.value,
-					"Cannot define a variable with an initializer value without an explicit type"
+					"Cannot define a variable with an initializer value without an explicit type",
+					*instr.var_def.value
 				);
 				return Result::ERROR;
 			}
 
 			if(this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_INITIALIZER_WITHOUT_EXPLICIT_TYPE,
-					*instr.var_def.value,
 					"Cannot define a variable with an initializer value without an explicit type",
+					*instr.var_def.value,
 					Diagnostic::Info("Note: the type of the variable cannot be deduced from this value")
 				);
 				return Result::ERROR;
@@ -6702,18 +6202,15 @@ namespace pcit::panther{
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
 			if(instr.type_id.has_value() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
-					*instr.var_def.value,
-					"Cannot define a variable with a value [null] value without an explicit type"
+					"Cannot define a variable with a value [null] value without an explicit type", *instr.var_def.value
 				);
 				return Result::ERROR;
 			}
 
 			if(this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))){
 				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_NULL_WITHOUT_EXPLICIT_TYPE,
-					*instr.var_def.value,
 					"Cannot define a variable with a value [null] value without an explicit type",
+					*instr.var_def.value,
 					Diagnostic::Info("Note: the type of the variable cannot be deduced from this value")
 				);
 				return Result::ERROR;	
@@ -6723,20 +6220,15 @@ namespace pcit::panther{
 			if(this->check_term_isnt_type(value_term_info, *instr.var_def.value).isError()){ return Result::ERROR; }
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_VAR_DEF_NOT_EPHEMERAL,
-				*instr.var_def.value,
-				"Cannot define a variable with a value that is not ephemeral, an initializer value, or [null]"
+				"Cannot define a variable with a value that is not ephemeral, an initializer value, or [null]",
+				*instr.var_def.value
 			);
 			return Result::ERROR;
 		}
 
 			
 		if(value_term_info.isMultiValue()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-				*instr.var_def.value,
-				"Cannot define a variable with multiple values"
-			);
+			this->emit_error("Cannot define a variable with multiple values", *instr.var_def.value);
 			return Result::ERROR;
 		}
 
@@ -6745,20 +6237,14 @@ namespace pcit::panther{
 			const TypeInfo::VoidableID got_type_info_id = this->get_type(*instr.type_id);
 
 			if(got_type_info_id.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_VOID, *instr.var_def.type, "Variables cannot be type `Void`"
-				);
+				this->emit_error("Variables cannot be type `Void`", *instr.var_def.type);
 				return Result::ERROR;
 			}
 
 			const TypeInfo& got_type_info = this->context.getTypeManager().getTypeInfo(got_type_info_id.asTypeID());
 
 			if(got_type_info.baseTypeID().kind() == BaseType::Kind::INTERFACE){
-				this->emit_error(
-					Diagnostic::Code::SEMA_VAR_TYPE_INTERFACE,
-					*instr.var_def.type,
-					"Variables cannot be an interface type"
-				);
+				this->emit_error("Variables cannot be an interface type", *instr.var_def.type);
 				return Result::ERROR;
 			}
 
@@ -6784,9 +6270,8 @@ namespace pcit::panther{
 			value_term_info.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
-				*instr.var_def.value,
 				"Cannot infer the type of a fluid literal",
+				*instr.var_def.value,
 				Diagnostic::Info("Did you mean this variable to be [def]? If not, give the variable an explicit type")
 			);
 			return Result::ERROR;
@@ -6837,12 +6322,11 @@ namespace pcit::panther{
 				this->source.getASTBuffer().getAttributeBlock(instr.func_alias_def.attributeBlock).attributes[0];
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-				first_ast_attribute.attribute,
 				std::format(
 					"Unknown local function alias attribute #{}",
 					this->source.getTokenBuffer()[first_ast_attribute.attribute].getString()
-				)
+				),
+				first_ast_attribute.attribute
 			);
 			return Result::ERROR;
 		}
@@ -6850,11 +6334,7 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.type_id.is<TermInfo::FuncOverloadList>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_FUNC_ALIAS_MUST_BE_FUNC,
-				instr.func_alias_def.func,
-				"Target of function alias must be a function"
-			);
+			this->emit_error("Target of function alias must be a function", instr.func_alias_def.func);
 			return Result::ERROR;
 		}
 
@@ -6887,11 +6367,7 @@ namespace pcit::panther{
 
 		const TypeInfo::VoidableID aliased_type = this->get_type(instr.aliased_type);
 		if(aliased_type.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ALIAS_CANNOT_BE_VOID,
-				instr.alias_def.type,
-				"Alias cannot be type `Void`"
-			);
+			this->emit_error("Alias cannot be type `Void`", instr.alias_def.type);
 			return Result::ERROR;
 		}
 
@@ -6953,9 +6429,8 @@ namespace pcit::panther{
 
 			if(target_scope_level.isDeferMainScope()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNLABELED_RETURN_IN_DEFER,
-					instr.return_stmt,
-					"Unlabeled return statements are not allowed in [defer]/[errorDefer] blocks"
+					"Unlabeled return statements are not allowed in [defer]/[errorDefer] blocks",
+					instr.return_stmt
 				);
 				return Result::ERROR;
 			}
@@ -6969,18 +6444,16 @@ namespace pcit::panther{
 		if(instr.return_stmt.value.is<std::monostate>()){ // return;
 			if(current_func_type.returnsVoid() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
-					"Functions that have a return type other than `Void` must return a value"
+					"Functions that have a return type other than `Void` must return a value",
+					instr.return_stmt
 				);
 				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
 					"Incorrect return statement kind for a function named return parameters",
+					instr.return_stmt,
 					Diagnostic::Info("Initialize/set all return parameters, and use \"return...;\" instead")
 				);
 				return Result::ERROR;
@@ -6991,18 +6464,15 @@ namespace pcit::panther{
 
 			if(current_func_type.returnsVoid()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
-					"Functions that have a return type of `Void` cannot return a value"
+					"Functions that have a return type of `Void` cannot return a value", instr.return_stmt
 				);
 				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
 					"Incorrect return statement kind for a function with named return parameters",
+					instr.return_stmt,
 					Diagnostic::Info("Initialize/set all return parameters, and use \"return...;\" instead")
 				);
 				return Result::ERROR;
@@ -7015,11 +6485,7 @@ namespace pcit::panther{
 				return_value_term.is_ephemeral() == false
 				&& return_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
-					instr.return_stmt.value.as<AST::Node>(),
-					"Value of return statement is not ephemeral"
-				);
+				this->emit_error("Value of return statement is not ephemeral", instr.return_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
 
@@ -7039,18 +6505,15 @@ namespace pcit::panther{
 
 			if(current_func_type.returnsVoid()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
-					"Functions that have a return type of `Void` cannot return a value"
+					"Functions that have a return type of `Void` cannot return a value", instr.return_stmt
 				);
 				return Result::ERROR;
 			}
 
 			if(current_func_type.hasNamedReturns == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
 					"Incorrect return statement kind for single unnamed return parameters",
+					instr.return_stmt,
 					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
 				);
 				return Result::ERROR;
@@ -7060,17 +6523,15 @@ namespace pcit::panther{
 			if(func_info.num_members_of_initializing_are_uninit != 0){
 				if(func_info.num_members_of_initializing_are_uninit == 1){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
-						instr.return_stmt,
 						"Not all members of the output are initialized",
+						instr.return_stmt,
 						Diagnostic::Info("Missing 1 member")
 					);
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NOT_ALL_MEMBERS_OF_OVERLOAD_OUTPUT_ARE_INIT,
-						instr.return_stmt,
 						"Not all members of the output are initialized",
+						instr.return_stmt,
 						Diagnostic::Info(
 							std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
 						)
@@ -7090,12 +6551,7 @@ namespace pcit::panther{
 			}
 
 			if(infos.empty() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT,
-					instr.return_stmt,
-					"Not all return parameters are initialized",
-					std::move(infos)
-				);
+				this->emit_error("Not all return parameters are initialized", instr.return_stmt, std::move(infos));
 				return Result::ERROR;
 			}
 		}
@@ -7126,11 +6582,7 @@ namespace pcit::panther{
 			EVO_DEFER([&](){ i -= 1; });
 
 			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_LABEL_NOT_FOUND,
-					*instr.return_stmt.label,
-					std::format("Label \"{}\" not found", return_label)
-				);
+				this->emit_error(std::format("Label \"{}\" not found", return_label), *instr.return_stmt.label);
 				return Result::ERROR;
 			}
 
@@ -7147,11 +6599,7 @@ namespace pcit::panther{
 		// analyze return value(s)
 
 		if(scope_level->getLabelNode().is<sema::BlockExpr::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_CANNOT_RETURN_TO_THIS_LABEL,
-				*instr.return_stmt.label,
-				std::format("Label \"{}\" cannot be returned to", return_label)
-			);
+			this->emit_error(std::format("Label \"{}\" cannot be returned to", return_label), *instr.return_stmt.label);
 			return Result::ERROR;
 		}
 
@@ -7161,11 +6609,7 @@ namespace pcit::panther{
 
 		auto return_value = std::optional<sema::Expr>();
 		if(instr.return_stmt.value.is<std::monostate>()){ // return;
-			this->emit_error(
-				Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-				instr.return_stmt,
-				"Expression block must return a value"
-			);
+			this->emit_error("Expression block must return a value", instr.return_stmt);
 			return Result::ERROR;
 
 		}else if(instr.return_stmt.value.is<AST::Node>()){ // return {EXPRESSION};
@@ -7173,9 +6617,8 @@ namespace pcit::panther{
 
 			if(target_block_expr.hasNamedOutputs()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
 					"Incorrect return statement kind for an expression block with named outputs",
+					instr.return_stmt,
 					Diagnostic::Info(
 						std::format(
 							"Initialize/set all return parameters, and use \"return->{} ...;\" instead", return_label
@@ -7189,11 +6632,7 @@ namespace pcit::panther{
 			TermInfo& return_value_term = this->get_term_info(*instr.value);
 
 			if(return_value_term.is_ephemeral() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_NOT_EPHEMERAL,
-					instr.return_stmt.value.as<AST::Node>(),
-					"Return values must be ephemeral"
-				);
+				this->emit_error("Return values must be ephemeral", instr.return_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
 
@@ -7214,9 +6653,8 @@ namespace pcit::panther{
 
 			if(target_block_expr.hasNamedOutputs() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.return_stmt,
 					"Incorrect return statement kind for single unnamed output value",
+					instr.return_stmt,
 					Diagnostic::Info("Use \"return {EXPRESSION};\" instead")
 				);
 				return Result::ERROR;
@@ -7235,10 +6673,7 @@ namespace pcit::panther{
 
 			if(infos.empty() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_RETURN_NOT_ALL_RET_PARAMS_ARE_INIT,
-					instr.return_stmt,
-					"Not all block expression return parameters are initialized",
-					std::move(infos)
+					"Not all block expression return parameters are initialized", instr.return_stmt, std::move(infos)
 				);
 				return Result::ERROR;
 			}
@@ -7268,11 +6703,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
 
 			if(target_scope_level.isDeferMainScope()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_ERROR_IN_DEFER,
-					instr.error_stmt,
-					"Error statements are not allowed in [defer]/[errorDefer] blocks"
-				);
+				this->emit_error("Error statements are not allowed in [defer]/[errorDefer] blocks", instr.error_stmt);
 				return Result::ERROR;
 			}
 		}
@@ -7282,11 +6713,7 @@ namespace pcit::panther{
 
 
 		if(current_func_type.hasErrorReturn() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_IN_FUNC_WITHOUT_ERRORS,
-				instr.error_stmt,
-				"Cannot error return in a function that does not have error returns"
-			);
+			this->emit_error("Cannot error return in a function that does not have error returns", instr.error_stmt);
 			return Result::ERROR;
 		}
 
@@ -7295,9 +6722,8 @@ namespace pcit::panther{
 		if(instr.error_stmt.value.is<std::monostate>()){ // error;
 			if(current_func_type.hasErrorReturnParams()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.error_stmt,
 					"Incorrect error return statement kind for a function named error return parameters",
+					instr.error_stmt,
 					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
 				);
 				return Result::ERROR;
@@ -7308,9 +6734,8 @@ namespace pcit::panther{
 
 			if(current_func_type.hasNamedErrorReturns){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.error_stmt,
 					"Incorrect error return statement kind for a function named error return parameters",
+					instr.error_stmt,
 					Diagnostic::Info("Set all error return values and use \"error...;\" instead")
 				);
 				return Result::ERROR;
@@ -7323,11 +6748,7 @@ namespace pcit::panther{
 				error_value_term.is_ephemeral() == false
 				&& error_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_ERROR_RETURN_NOT_EPHEMERAL,
-					instr.error_stmt.value.as<AST::Node>(),
-					"Value of error return must be ephemeral"
-				);
+				this->emit_error("Value of error return must be ephemeral", instr.error_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
 
@@ -7347,9 +6768,8 @@ namespace pcit::panther{
 
 			if(current_func_type.hasNamedErrorReturns == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INCORRECT_RETURN_STMT_KIND,
-					instr.error_stmt,
 					"Incorrect error return statement kind for single unnamed error return parameters",
+					instr.error_stmt,
 					Diagnostic::Info("Use \"error {EXPRESSION};\" instead")
 				);
 				return Result::ERROR;
@@ -7366,12 +6786,7 @@ namespace pcit::panther{
 			}
 
 			if(infos.empty() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_ERROR_NOT_ALL_RET_PARAMS_ARE_INIT,
-					instr.error_stmt,
-					"Not all error return parameters are initialized",
-					std::move(infos)
-				);
+				this->emit_error("Not all error return parameters are initialized", instr.error_stmt, std::move(infos));
 				return Result::ERROR;
 			}
 		}
@@ -7407,11 +6822,7 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i -= 1; });
 
 				if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_BREAK_LABEL_NOT_FOUND,
-						*instr.break_stmt.label,
-						std::format("Label \"{}\" not found", return_label)
-					);
+					this->emit_error(std::format("Label \"{}\" not found", return_label), *instr.break_stmt.label);
 					return Result::ERROR;
 				}
 
@@ -7424,11 +6835,7 @@ namespace pcit::panther{
 			}
 
 			if(scope_level->isLoopMainScope() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_CANNOT_BREAK_TO_THIS_LABEL,
-					*instr.break_stmt.label,
-					std::format("Cannot break to label \"{}\"", return_label)
-				);
+				this->emit_error(std::format("Cannot break to label \"{}\"", return_label), *instr.break_stmt.label);
 				return Result::ERROR;
 			}
 
@@ -7448,11 +6855,7 @@ namespace pcit::panther{
 			}
 
 			if(found_loop == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NO_LOOP_TO_BREAK_TO,
-					instr.break_stmt,
-					"No loop to break to"
-				);
+				this->emit_error("No loop to break to", instr.break_stmt);
 				return Result::ERROR;
 			}
 		}
@@ -7477,11 +6880,7 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i -= 1; });
 
 				if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_CONTINUE_LABEL_NOT_FOUND,
-						*instr.continue_stmt.label,
-						std::format("Label \"{}\" not found", return_label)
-					);
+					this->emit_error(std::format("Label \"{}\" not found", return_label), *instr.continue_stmt.label);
 					return Result::ERROR;
 				}
 
@@ -7495,9 +6894,7 @@ namespace pcit::panther{
 
 			if(scope_level->isLoopMainScope() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_CANNOT_CONTINUE_TO_THIS_LABEL,
-					*instr.continue_stmt.label,
-					std::format("Cannot continue to label \"{}\"", return_label)
+					std::format("Cannot continue to label \"{}\"", return_label), *instr.continue_stmt.label
 				);
 				return Result::ERROR;
 			}
@@ -7518,11 +6915,7 @@ namespace pcit::panther{
 			}
 
 			if(found_loop == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NO_LOOP_TO_CONTINUE_TO,
-					instr.continue_stmt,
-					"No loop to continue to"
-				);
+				this->emit_error("No loop to continue to", instr.continue_stmt);
 				return Result::ERROR;
 			}
 		}
@@ -7549,29 +6942,21 @@ namespace pcit::panther{
 
 			case TermInfo::ValueState::INITIALIZING: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
-					instr.delete_stmt.value,
-					"Argument of [delete] statement is invalid as it isn't fully initialized"
+					"Argument of [delete] statement is invalid as it isn't fully initialized", instr.delete_stmt.value
 				);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::UNINIT: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_DELETE_ARG_INVALID,
-					instr.delete_stmt.value,
-					"Argument of [delete] statement is invalid as it is uninitialized"
+					"Argument of [delete] statement is invalid as it is uninitialized", instr.delete_stmt.value
 				);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
 				if(this->get_package().warn.deleteMovedFromExpr){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_DELETE_MOVED_FROM_EXPR,
-						instr.delete_stmt.value,
-						"Argument of [delete] statement was moved-from"
-					);
+					this->emit_warning("Argument of [delete] statement was moved-from", instr.delete_stmt.value);
 				}
 			} break;
 		}
@@ -7581,11 +6966,7 @@ namespace pcit::panther{
 			this->get_package().warn.deleteTriviallyDeletableType
 			&& this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>())
 		){
-			this->emit_warning(
-				Diagnostic::Code::SEMA_WARN_DELETE_TRIVIALLY_DELETABLE_TYPE,
-				instr.delete_stmt.value,
-				"Argument of [delete] statement is a trivially deletable type"
-			);
+			this->emit_warning("Argument of [delete] statement is a trivially deletable type", instr.delete_stmt.value);
 		}
 
 		switch(target.getExpr().kind()){
@@ -7599,11 +6980,7 @@ namespace pcit::panther{
 						!= Token::Kind::KEYWORD_DELETE
 				){
 					if(this->currently_in_unsafe() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.delete_stmt.value,
-							"Unsafe delete while not in an unsafe scope"
-						);
+						this->emit_error("Unsafe delete while not in an unsafe scope", instr.delete_stmt.value);
 						return Result::ERROR;
 					}
 					break;
@@ -7614,11 +6991,7 @@ namespace pcit::panther{
 
 				if(accessor.target.kind() != sema::Expr::Kind::PARAM){
 					if(this->currently_in_unsafe() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.delete_stmt.value,
-							"Unsafe delete while not in an unsafe scope"
-						);
+						this->emit_error("Unsafe delete while not in an unsafe scope", instr.delete_stmt.value);
 						return Result::ERROR;
 					}
 					break;
@@ -7629,11 +7002,7 @@ namespace pcit::panther{
 
 				if(accessor_lhs_param.index != 0){
 					if(this->currently_in_unsafe() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.delete_stmt.value,
-							"Unsafe delete while not in an unsafe scope"
-						);
+						this->emit_error("Unsafe delete while not in an unsafe scope", instr.delete_stmt.value);
 						return Result::ERROR;
 					}
 					break;
@@ -7642,11 +7011,7 @@ namespace pcit::panther{
 
 			default: {
 				if(this->currently_in_unsafe() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.delete_stmt.value,
-						"Unsafe delete while not in an unsafe scope"
-					);
+					this->emit_error("Unsafe delete while not in an unsafe scope", instr.delete_stmt.value);
 					return Result::ERROR;
 				}
 			} break;
@@ -7678,11 +7043,7 @@ namespace pcit::panther{
 		TermInfo& cond = this->get_term_info(instr.cond_expr);
 
 		if(cond.value_state != TermInfo::ValueState::INIT && cond.value_state != TermInfo::ValueState::NOT_APPLICABLE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.conditional.cond,
-				"Condition in [if] conditional must be initialized"
-			);
+			this->emit_error("Condition in [if] conditional must be initialized", instr.conditional.cond);
 			return Result::ERROR;
 		}
 
@@ -7694,9 +7055,8 @@ namespace pcit::panther{
 
 		if(this->get_package().warn.comptimeIfCond && cond.value_stage == TermInfo::ValueStage::COMPTIME){
 			this->emit_warning(
-				Diagnostic::Code::SEMA_WARN_COMPTIME_IF_COND,
-				instr.conditional.cond,
 				"Condition in [if] condition is comptime",
+				instr.conditional.cond,
 				Diagnostic::Info("Consider converting it to a [when] condition")
 			);
 		}
@@ -7787,11 +7147,7 @@ namespace pcit::panther{
 			cond_term_info.value_state != TermInfo::ValueState::INIT
 			&& cond_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.while_stmt.cond,
-				"Condition in [while] loop must be initialized"
-			);
+			this->emit_error("Condition in [while] loop must be initialized", instr.while_stmt.cond);
 			return Result::ERROR;
 		}
 
@@ -7845,9 +7201,8 @@ namespace pcit::panther{
 			evo::debugAssert(first_attribute_str != "unroll", "Should be using unroll for instructions, not normal for");
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-				attribute_block.attributes[0].attribute,
-				std::format("Unknown [for] loop attribute #{}", first_attribute_str)
+				std::format("Unknown [for] loop attribute #{}", first_attribute_str),
+				attribute_block.attributes[0].attribute
 			);
 			return Result::ERROR;
 			
@@ -7859,11 +7214,7 @@ namespace pcit::panther{
 			const TypeInfo::VoidableID got_index_type_id = this->get_type(instr.types[0]);
 
 			if(this->context.getTypeManager().isIntegral(got_index_type_id) == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INDEX_NOT_INTEGRAL,
-					instr.for_stmt.index->type,
-					"Index of [for] loop must be integral"
-				);
+				this->emit_error("Index of [for] loop must be integral", instr.for_stmt.index->type);
 			}
 
 			index_type_id = got_index_type_id.asTypeID();
@@ -7940,11 +7291,7 @@ namespace pcit::panther{
 				iterable.value_state != TermInfo::ValueState::INIT
 				&& iterable.value_state != TermInfo::ValueState::NOT_APPLICABLE
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.for_stmt.iterables[i],
-					"Iterable in [for] loop must be initialized"
-				);
+				this->emit_error("Iterable in [for] loop must be initialized", instr.for_stmt.iterables[i]);
 				return Result::ERROR;
 			}
 
@@ -7959,12 +7306,7 @@ namespace pcit::panther{
 					infos.emplace_back("Did you mean to give the [for] loop attribute `#unroll`?");
 				}
 
-				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
-					instr.for_stmt.iterables[i],
-					"Invalid iterable in [for] loop",
-					std::move(infos)
-				);
+				this->emit_error("Invalid iterable in [for] loop", instr.for_stmt.iterables[i], std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -8085,9 +7427,8 @@ namespace pcit::panther{
 				}
 
 				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_ITERABLE_DOESNT_IMPLEMENT_INTERFACE,
-					instr.for_stmt.iterables[i],
 					"Iterable in [for] loop does not implement any of the possible interface in this context",
+					instr.for_stmt.iterables[i],
 					std::move(infos)
 				);
 				return Result::ERROR;
@@ -8100,9 +7441,8 @@ namespace pcit::panther{
 			if(selected_interface->kind == InterfaceKind::ITERABLE){
 				if(instr.for_stmt.values[i].isMut && iterable.is_mutable() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
-						instr.for_stmt.iterables[i],
 						"Iterable in [for] loop is not mutable",
+						instr.for_stmt.iterables[i],
 						Diagnostic::Info(
 							"Required to be mutable by value parameter",
 							this->get_location(instr.for_stmt.values[i].ident)
@@ -8208,9 +7548,8 @@ namespace pcit::panther{
 				this->diagnostic_print_type_info(iterator_get_type_id, infos, "Expected type: ");
 				this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
 				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
-					instr.for_stmt.values[i].type,
 					"Invalid [for] loop value parameter type",
+					instr.for_stmt.values[i].type,
 					std::move(infos)
 				);
 			};
@@ -8352,21 +7691,13 @@ namespace pcit::panther{
 
 			if(attribute_str == "unroll"){ continue; }
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-				attribute.attribute,
-				std::format("Unknown [for] loop attribute #{}", attribute_str)
-			);
+			this->emit_error(std::format("Unknown [for] loop attribute #{}", attribute_str), attribute.attribute);
 			return Result::ERROR;
 		}
 
 		if(instr.index_type_id.has_value()){
 			if(this->context.getTypeManager().isIntegral(this->get_type(*instr.index_type_id)) == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INDEX_NOT_INTEGRAL,
-					instr.for_stmt.index->type,
-					"Index of [for] loop must be integral"
-				);
+				this->emit_error("Index of [for] loop must be integral", instr.for_stmt.index->type);
 			}
 			return Result::ERROR;
 		}
@@ -8378,20 +7709,14 @@ namespace pcit::panther{
 			const TermInfo& iterable = this->get_term_info(iterable_id);
 
 			if(iterable.value_category != TermInfo::ValueCategory::VARIADIC_PARAM){
-				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
-					instr.for_stmt.iterables[i],
-					"Invalid iterable in unrolled [for] loop"
-				);
+				this->emit_error("Invalid iterable in unrolled [for] loop", instr.for_stmt.iterables[i]);
 				return Result::ERROR;
 			}
 
 			if(iterables_size.has_value()){
 				if(*iterables_size != iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids.size()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FOR_INVALID_ITERABLE,
-						instr.for_stmt.iterables[i],
-						"Iterable in unrolled [for] loop is a different size"
+						"Iterable in unrolled [for] loop is a different size", instr.for_stmt.iterables[i]
 					);
 					return Result::ERROR;
 				}
@@ -8435,9 +7760,8 @@ namespace pcit::panther{
 				this->diagnostic_print_type_info(variadic_param_type, infos, "Expected type: ");
 				this->diagnostic_print_type_info(for_param_type, infos, "Got type:      ");
 				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_INVALID_PARAM_TYPE,
-					instr.for_stmt.values[i].type,
 					"Invalid [for] loop value parameter type",
+					instr.for_stmt.values[i].type,
 					std::move(infos)
 				);
 			};
@@ -8524,9 +7848,8 @@ namespace pcit::panther{
 
 			if(for_param_is_mut & (variadic_param_kind == BaseType::Function::Param::Kind::READ)){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FOR_ITERABLE_NOT_MUT_WHEN_PARAM_IS,
-					instr.for_stmt.iterables[i],
 					"Iterable in [for] loop is not mutable",
+					instr.for_stmt.iterables[i],
 					Diagnostic::Info(
 						"Required to be mutable by value parameter",
 						this->get_location(instr.for_stmt.values[i].ident)
@@ -8567,18 +7890,14 @@ namespace pcit::panther{
 
 				case TermInfo::ValueState::UNINIT: {
 					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-						for_param_ident_token_id,
-						std::format("Variadic parameter index {} was uninitialized", i)
+						std::format("Variadic parameter index {} was uninitialized", i), for_param_ident_token_id
 					);
 					return Result::ERROR;
 				} break;
 
 				case TermInfo::ValueState::MOVED_FROM: {
 					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-						for_param_ident_token_id,
-						std::format("Variadic parameter index {} was moved from", i)
+						std::format("Variadic parameter index {} was moved from", i), for_param_ident_token_id
 					);
 					return Result::ERROR;
 				} break;
@@ -8646,12 +7965,7 @@ namespace pcit::panther{
 
 
 		if(cond.type_id.is<TypeInfo::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-				instr.switch_stmt.cond,
-
-				"Invalid condition value in [switch] statement"
-			);
+			this->emit_error("Invalid condition value in [switch] statement", instr.switch_stmt.cond);
 			return Result::ERROR;
 		}
 
@@ -8666,9 +7980,8 @@ namespace pcit::panther{
 		}else{
 			if(decayed_cond_type.qualifiers().empty() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-					instr.switch_stmt.cond,
 					"Invalid condition value in [switch] statement",
+					instr.switch_stmt.cond,
 					Diagnostic::Info(
 						"NOTE: the type of a condition value of a [switch] statement without attribute `#noJump` "
 							"cannot have qualifiers"
@@ -8702,9 +8015,8 @@ namespace pcit::panther{
 						case Token::Kind::TYPE_F80:    case Token::Kind::TYPE_F128:
 						case Token::Kind::TYPE_C_LONG_DOUBLE: {
 							this->emit_error(
-								Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-								instr.switch_stmt.cond,
 								"Invalid condition value in [switch] statement",
+								instr.switch_stmt.cond,
 								Diagnostic::Info(
 									"NOTE: the type of a condition value of a [switch] statement without attribute "
 										"`#noJump` cannot be floating point"
@@ -8715,9 +8027,8 @@ namespace pcit::panther{
 
 						case Token::Kind::TYPE_RAWPTR: {
 							this->emit_error(
-								Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-								instr.switch_stmt.cond,
 								"Invalid condition value in [switch] statement",
+								instr.switch_stmt.cond,
 								Diagnostic::Info(
 									"NOTE: the type of a condition value of a [switch] statement without attribute "
 										"`#noJump` cannot be a pointer"
@@ -8736,9 +8047,8 @@ namespace pcit::panther{
 
 					if(union_type.isUntagged){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-							instr.switch_stmt.cond,
 							"Invalid condition value in [switch] statement",
+							instr.switch_stmt.cond,
 							Diagnostic::Info(
 								"NOTE: a union expression can only be the condition value of a [switch] statement"
 									"if it is tagged"
@@ -8753,11 +8063,7 @@ namespace pcit::panther{
 				} break;
 
 				default: {
-					this->emit_error(
-						Diagnostic::Code::SEMA_SWITCH_INVALID_COND,
-						instr.switch_stmt.cond,
-						"Invalid condition value in [switch] statement"
-					);
+					this->emit_error("Invalid condition value in [switch] statement", instr.switch_stmt.cond);
 					return Result::ERROR;
 				} break;
 			}
@@ -8808,9 +8114,8 @@ namespace pcit::panther{
 			if(value.value_category == TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR){
 				if(cond_type_is_union == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_SWITCH_INVALID_CASE_VALUE,
-						instr.switch_case.values[current_case.values.size()],
-						"This expression is not a valid case value in this [switch] statement"
+						"This expression is not a valid case value in this [switch] statement",
+						instr.switch_case.values[current_case.values.size()]
 					);
 					return Result::ERROR;
 				}
@@ -8820,9 +8125,8 @@ namespace pcit::panther{
 
 				if(tagged_union_field_accessor.union_id != decay_cond_type.baseTypeID().unionID()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_SWITCH_INVALID_CASE_VALUE,
-						instr.switch_case.values[current_case.values.size()],
-						"This expression is not a valid case value in this [switch] statement"
+						"This expression is not a valid case value in this [switch] statement",
+						instr.switch_case.values[current_case.values.size()]
 					);
 					return Result::ERROR;
 				}
@@ -8846,9 +8150,8 @@ namespace pcit::panther{
 			}else{
 				if(cond_type_is_union){
 					this->emit_error(
-						Diagnostic::Code::SEMA_SWITCH_INVALID_CASE_VALUE,
-						instr.switch_case.values[current_case.values.size()],
-						"This expression is not a valid case value in this [switch] statement"
+						"This expression is not a valid case value in this [switch] statement",
+						instr.switch_case.values[current_case.values.size()]
 					);
 					return Result::ERROR;
 				}
@@ -8898,9 +8201,8 @@ namespace pcit::panther{
 				for(size_t j = 0; sema::Expr value : switch_case.values){
 					if(used_values.emplace(this->sema_expr_to_generic_value(value)).second == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SWITCH_VALUE_REUSE,
-							instr.switch_stmt.cases[i].values[j],
-							"This case value in this [switch] statement was already used"
+							"This case value in this [switch] statement was already used",
+							instr.switch_stmt.cases[i].values[j]
 						);
 						return Result::ERROR;
 					}
@@ -8941,9 +8243,8 @@ namespace pcit::panther{
 							if(else_index.has_value()){
 								if(used_values.size() == expected_num_cases && used_values.size() != 0){
 									this->emit_error(
-										Diagnostic::Code::SEMA_SWITCH_EXTRANEOUS_ELSE,
-										instr.switch_stmt.cases[*else_index].block,
-										"Extraneous [else] in [switch] statement"
+										"Extraneous [else] in [switch] statement",
+										instr.switch_stmt.cases[*else_index].block
 									);
 									return Result::ERROR;
 								}
@@ -8958,17 +8259,15 @@ namespace pcit::panther{
 
 									if(num_missing == 1){
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing 1 case in [switch] statement", num_missing)
+											std::format("Missing 1 case in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 										
 									}else{
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing {} cases in [switch] statement", num_missing)
+											std::format("Missing {} cases in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 									}
@@ -8980,9 +8279,8 @@ namespace pcit::panther{
 							if(else_index.has_value()){
 								if(used_values.size() == 256){
 									this->emit_error(
-										Diagnostic::Code::SEMA_SWITCH_EXTRANEOUS_ELSE,
-										instr.switch_stmt.cases[*else_index].block,
-										"Extraneous [else] in [switch] statement"
+										"Extraneous [else] in [switch] statement",
+										instr.switch_stmt.cases[*else_index].block
 									);
 									return Result::ERROR;
 								}
@@ -8996,17 +8294,15 @@ namespace pcit::panther{
 
 									if(num_missing == 1){
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing 1 case in [switch] statement", num_missing)
+											std::format("Missing 1 case in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 										
 									}else{
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing {} cases in [switch] statement", num_missing)
+											std::format("Missing {} cases in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 									}
@@ -9018,9 +8314,8 @@ namespace pcit::panther{
 							if(else_index.has_value()){
 								if(used_values.size() == 2){
 									this->emit_error(
-										Diagnostic::Code::SEMA_SWITCH_EXTRANEOUS_ELSE,
-										instr.switch_stmt.cases[*else_index].block,
-										"Extraneous [else] in [switch] statement"
+										"Extraneous [else] in [switch] statement",
+										instr.switch_stmt.cases[*else_index].block
 									);
 									return Result::ERROR;
 								}
@@ -9034,17 +8329,15 @@ namespace pcit::panther{
 
 									if(num_missing == 1){
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing 1 case in [switch] statement", num_missing)
+											std::format("Missing 1 case in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 										
 									}else{
 										this->emit_error(
-											Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-											instr.switch_stmt,
-											std::format("Missing {} cases in [switch] statement", num_missing)
+											std::format("Missing {} cases in [switch] statement", num_missing),
+											instr.switch_stmt
 										);
 										return Result::ERROR;
 									}
@@ -9072,9 +8365,7 @@ namespace pcit::panther{
 					if(else_index.has_value()){
 						if(used_values.size() == union_type.fields.size()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_SWITCH_EXTRANEOUS_ELSE,
-								instr.switch_stmt.cases[*else_index].block,
-								"Extraneous [else] in [switch] statement"
+								"Extraneous [else] in [switch] statement", instr.switch_stmt.cases[*else_index].block
 							);
 							return Result::ERROR;
 						}
@@ -9088,17 +8379,14 @@ namespace pcit::panther{
 
 							if(num_missing == 1){
 								this->emit_error(
-									Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-									instr.switch_stmt,
-									std::format("Missing 1 case in [switch] statement", num_missing)
+									std::format("Missing 1 case in [switch] statement", num_missing), instr.switch_stmt
 								);
 								return Result::ERROR;
 								
 							}else{
 								this->emit_error(
-									Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-									instr.switch_stmt,
-									std::format("Missing {} cases in [switch] statement", num_missing)
+									std::format("Missing {} cases in [switch] statement", num_missing),
+									instr.switch_stmt
 								);
 								return Result::ERROR;
 							}
@@ -9113,9 +8401,7 @@ namespace pcit::panther{
 					if(else_index.has_value()){
 						if(used_values.size() == enum_type.enumerators.size()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_SWITCH_EXTRANEOUS_ELSE,
-								instr.switch_stmt.cases[*else_index].block,
-								"Extraneous [else] in [switch] statement"
+								"Extraneous [else] in [switch] statement", instr.switch_stmt.cases[*else_index].block
 							);
 							return Result::ERROR;
 						}
@@ -9129,17 +8415,14 @@ namespace pcit::panther{
 
 							if(num_missing == 1){
 								this->emit_error(
-									Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-									instr.switch_stmt,
-									std::format("Missing 1 case in [switch] statement", num_missing)
+									std::format("Missing 1 case in [switch] statement", num_missing), instr.switch_stmt
 								);
 								return Result::ERROR;
 								
 							}else{
 								this->emit_error(
-									Diagnostic::Code::SEMA_SWITCH_MISSING_CASE,
-									instr.switch_stmt,
-									std::format("Missing {} cases in [switch] statement", num_missing)
+									std::format("Missing {} cases in [switch] statement", num_missing),
+									instr.switch_stmt
 								);
 								return Result::ERROR;
 							}
@@ -9152,11 +8435,7 @@ namespace pcit::panther{
 				} break;
 			}
 		}else{
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.switch_stmt,
-				"Switch statements with `#noJump` are currently unimplemented"
-			);
+			this->emit_error("Switch statements with `#noJump` are currently unimplemented", instr.switch_stmt);
 			return Result::ERROR;
 		}
 
@@ -9182,11 +8461,7 @@ namespace pcit::panther{
 			is_error_defer &&
 			this->context.getTypeManager().getFunction(this->get_current_func().typeID).hasErrorReturn() == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_DEFER_IN_NON_ERRORING_FUNC,
-				instr.defer_stmt,
-				"Functions that do not error cannot have [errorDefer] statements"
-			);
+			this->emit_error("Functions that do not error cannot have [errorDefer] statements", instr.defer_stmt);
 			return Result::ERROR;
 		}
 
@@ -9250,20 +8525,15 @@ namespace pcit::panther{
 		// 
 
 		if(func_call_impl_res.value().selected_func_type.returnsVoid() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_DISCARDING_RETURNS,
-				instr.func_call.target,
-				"Discarding return value of function call"
-			);
+			this->emit_error("Discarding return value of function call", instr.func_call.target);
 			return Result::ERROR;
 		}
 
 		if(this->get_current_func().attributes.isComptime && func_call_impl_res.value().is_src_func()){
 			if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-					instr.func_call.target,
 					"Cannot call a non-comptime function within a comptime function",
+					instr.func_call.target,
 					Diagnostic::Info(
 						"Called function was defined here:",
 						this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -9293,9 +8563,8 @@ namespace pcit::panther{
 				}else{
 					if(this->get_package().warn.methodCallOnNonMethod){
 						this->emit_warning(
-							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-							instr.func_call,
 							"Making a method call to a function that is not a method",
+							instr.func_call,
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Call the function by type accessor instead"),
 								Diagnostic::Info(
@@ -9358,9 +8627,7 @@ namespace pcit::panther{
 			if(this->get_current_func().attributes.isComptime){
 				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						instr.func_call.target,
-						"Cannot call a non-comptime function within a comptime function"
+						"Cannot call a non-comptime function within a comptime function", instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -9368,9 +8635,7 @@ namespace pcit::panther{
 			}else{
 				if(intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
-						instr.func_call.target,
-						"Cannot call a non-runtime function within a runtime function"
+						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -9380,9 +8645,7 @@ namespace pcit::panther{
 				case Context::Config::Mode::COMPILE: {
 					if(intrinsic_func_info.allowedInCompile == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in compile mode"
+							"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
@@ -9391,9 +8654,7 @@ namespace pcit::panther{
 				case Context::Config::Mode::SCRIPTING: {
 					if(intrinsic_func_info.allowedInScript == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in scripting mode"
+							"Calling this intrinsic is not allowed in scripting mode", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
@@ -9401,11 +8662,7 @@ namespace pcit::panther{
 
 				case Context::Config::Mode::BUILD_SYSTEM: {
 					if(intrinsic_func_info.allowedInBuild == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in build mode"
-						);
+						this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 						return Result::ERROR;
 					}
 				} break;
@@ -9495,29 +8752,17 @@ namespace pcit::panther{
 		TermInfo& rhs = this->get_term_info(instr.rhs);
 
 		if(lhs.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-				instr.infix.lhs,
-				"LHS of assignment must be concrete"
-			);
+			this->emit_error("LHS of assignment must be concrete", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-				instr.infix.lhs,
-				"LHS of assignment must be mutable"
-			);
+			this->emit_error("LHS of assignment must be mutable", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of assignment cannot have a value state of moved from"
-			);
+			this->emit_error("LHS of assignment cannot have a value state of moved from", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -9528,9 +8773,7 @@ namespace pcit::panther{
 		if(op_kind == Token::lookupKind("=")){
 			if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
 				this->emit_error(
-					Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
-					instr.infix.rhs,
-					"RHS of assignment must be ephemeral or (if applicable) value [null]"
+					"RHS of assignment must be ephemeral or (if applicable) value [null]", instr.infix.rhs
 				);
 				return Result::ERROR;
 			}
@@ -9573,11 +8816,7 @@ namespace pcit::panther{
 								this->get_ident_value_state(sema::UninitPtrLocalVar(sema_deref.expr.varID()))
 									== TermInfo::ValueState::INIT
 							){
-								this->emit_error(
-									Diagnostic::Code::SEMA_UNINT_PTR_ALREADY_INIT,
-									instr.infix.lhs,
-									"The pointee was already initialized"
-								);
+								this->emit_error("The pointee was already initialized", instr.infix.lhs);
 								return Result::ERROR;
 							}
 
@@ -9592,11 +8831,7 @@ namespace pcit::panther{
 
 						default: {
 							if(this->currently_in_unsafe() == false){
-								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									instr.infix,
-									"Unsafe assignment while not in an unsafe scope"
-								);
+								this->emit_error("Unsafe assignment while not in an unsafe scope", instr.infix);
 								return Result::ERROR;
 							}
 						} break;
@@ -9608,11 +8843,7 @@ namespace pcit::panther{
 						this->currently_in_unsafe() == false
 						&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
 					){
-						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.infix,
-							"Unsafe assignment while not in an unsafe scope"
-						);
+						this->emit_error("Unsafe assignment while not in an unsafe scope", instr.infix);
 						return Result::ERROR;
 					}
 				} break;
@@ -9721,29 +8952,17 @@ namespace pcit::panther{
 		const AST::New& ast_new = this->source.getASTBuffer().getNew(instr.infix.rhs);
 
 		if(lhs.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-				instr.infix.lhs,
-				"LHS of assignment must be concrete"
-			);
+			this->emit_error("LHS of assignment must be concrete", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-				instr.infix.lhs,
-				"LHS of assignment must be mutable"
-			);
+			this->emit_error("LHS of assignment must be mutable", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of assignment cannot have a value state of moved from"
-			);
+			this->emit_error("LHS of assignment cannot have a value state of moved from", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -9752,9 +8971,8 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
-				this->source.getASTBuffer().getNew(instr.infix.rhs).type,
-				"Operator [new] cannot accept type `Void`"
+				"Operator [new] cannot accept type `Void`",
+				this->source.getASTBuffer().getNew(instr.infix.rhs).type
 			);
 			return Result::ERROR;
 		}
@@ -9764,10 +8982,9 @@ namespace pcit::panther{
 			this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Expected type:       ");
 			this->diagnostic_print_type_info(target_type_id.asTypeID(), infos, "Operator `new` type: ");
 			this->emit_error(
-				Diagnostic::Code::SEMA_TYPE_MISMATCH,
-				instr.infix,
 				"Assignment operator `new` cannot accept an expression of a different type, "
 					"and this expression cannot be implicitly converted to the correct type",
+				instr.infix,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -9793,18 +9010,16 @@ namespace pcit::panther{
 					if(decayed_target_type_id == decayed_arg_type_id){ // matched with distinct alias from underlying
 						if(arg.is_ephemeral() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_DISTINCT_ALIAS_ARG_VAL_NOT_EPHEMERAL,
-								this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].value,
-								"Argument of operator [new] of distinct alias from underlying type must be ephemeral"
+								"Argument of operator [new] of distinct alias from underlying type must be ephemeral",
+								this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].value
 							);
 							return Result::ERROR;
 						}
 
 						if(this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].label.has_value()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_DISTINCT_ALIAS_ARG_HAS_LABEL,
-								*this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].label,
-								"Argument of operator [new] of distinct alias from underlying type cannot have a label"
+								"Argument of operator [new] of distinct alias from underlying type cannot have a label",
+								*this->source.getASTBuffer().getNew(instr.infix.rhs).args[0].label
 							);
 							return Result::ERROR;
 						}
@@ -9860,9 +9075,8 @@ namespace pcit::panther{
 
 					if(ast_new.args[0].label.has_value()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-							ast_new.type,
 							"No matching operator [new] overload for this type",
+							ast_new.type,
 							Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
 						);
 						return Result::ERROR;
@@ -9891,9 +9105,8 @@ namespace pcit::panther{
 					}else{
 						if(arg.is_ephemeral() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
-								ast_new.args[0].value,
-								"Argument in operator [new] for optional must be ephemeral or [null]"
+								"Argument in operator [new] for optional must be ephemeral or [null]",
+								ast_new.args[0].value
 							);
 							return Result::ERROR;
 						}
@@ -9932,9 +9145,8 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info("Too may arguments")
 					);
 					return Result::ERROR;
@@ -9942,11 +9154,7 @@ namespace pcit::panther{
 			}
 
 
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				ast_new.type,
-				"Operator [new] of this type is unimplemented"
-			);
+			this->emit_error("Operator [new] of this type is unimplemented", ast_new.type);
 			return Result::ERROR;
 		}
 
@@ -9958,11 +9166,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getPrimitive(decayed_target_type_info.baseTypeID().primitiveID());
 
 					if(primitive.kind() == Token::Kind::TYPE_RAWPTR || primitive.kind() == Token::Kind::TYPE_TYPEID){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
-							ast_new.type,
-							"No matching operator [new] overload for this type"
-						);
+						this->emit_error("No matching operator [new] overload for this type", ast_new.type);
 						return Result::ERROR;
 					}
 
@@ -9989,9 +9193,7 @@ namespace pcit::panther{
 
 					if(arg.is_ephemeral() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
-							ast_new.args[0].value,
-							"Argument in operator [new] for primitive must be ephemeral"
+							"Argument in operator [new] for primitive must be ephemeral", ast_new.args[0].value
 						);
 						return Result::ERROR;
 					}
@@ -10021,9 +9223,8 @@ namespace pcit::panther{
 					
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info("Too may arguments")
 					);
 					return Result::ERROR;
@@ -10033,9 +9234,8 @@ namespace pcit::panther{
 			case BaseType::Kind::ARRAY: {
 				if(instr.args.size() != 0){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info(
 							std::format("Expected {} arguments, got {}", 0, instr.args.size())
 						)
@@ -10048,9 +9248,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info("Array element type is not default-initializable")
 					);
 					return Result::ERROR;	
@@ -10101,9 +9300,8 @@ namespace pcit::panther{
 
 				if(instr.args.size() != num_ref_ptrs + 1){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info(
 							std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
 						)
@@ -10114,9 +9312,7 @@ namespace pcit::panther{
 
 				if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-						ast_new.args[0].value,
-						"Argument in operator [new] for optional must be ephemeral"
+						"Argument in operator [new] for optional must be ephemeral", ast_new.args[0].value
 					);
 					return Result::ERROR;
 				}
@@ -10137,9 +9333,8 @@ namespace pcit::panther{
 
 				if(ast_new.args[0].label.has_value()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
 					);
 				}
@@ -10150,9 +9345,7 @@ namespace pcit::panther{
 
 					if(arg.is_ephemeral() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-							ast_new.args[i].value,
-							"Argument in operator [new] for array reference must be ephemera"
+							"Argument in operator [new] for array reference must be ephemeral", ast_new.args[i].value
 						);
 						return Result::ERROR;
 					}
@@ -10168,9 +9361,8 @@ namespace pcit::panther{
 
 					if(ast_new.args[i].label.has_value()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-							ast_new.type,
 							"No matching operator [new] overload for this type",
+							ast_new.type,
 							Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
 						);
 					}
@@ -10234,11 +9426,7 @@ namespace pcit::panther{
 							return Result::SUCCESS;
 
 						}else{
-							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-								ast_new.type,
-								"No matching operator [new] overload for this type"
-							);
+							this->emit_error("No matching operator [new] overload for this type", ast_new.type);
 							return Result::ERROR;
 						}
 					}
@@ -10290,11 +9478,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getFunction(selected_func.typeID);
 
 				if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.infix.rhs,
-						"Unsafe operator [new] while not in an unsafe scope"
-					);
+					this->emit_error("Unsafe operator [new] while not in an unsafe scope", instr.infix.rhs);
 					return Result::ERROR;
 				}
 
@@ -10363,9 +9547,8 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				if(instr.args.size() != 0){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info(
 							std::format("Expected {} arguments, got {}", 0, instr.args.size())
 						)
@@ -10374,11 +9557,7 @@ namespace pcit::panther{
 				}
 
 				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						ast_new.type,
-						"No matching operator [new] overload for this type"
-					);
+					this->emit_error("No matching operator [new] overload for this type", ast_new.type);
 					return Result::ERROR;	
 				}
 
@@ -10403,9 +9582,8 @@ namespace pcit::panther{
 			case BaseType::Kind::INTERFACE_MAP: {
 				if(instr.args.size() != 0){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						ast_new.type,
 						"No matching operator [new] overload for this type",
+						ast_new.type,
 						Diagnostic::Info(
 							std::format("Expected {} arguments, got {}", 0, instr.args.size())
 						)
@@ -10415,11 +9593,7 @@ namespace pcit::panther{
 
 
 				if(this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())==false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-						ast_new.type,
-						"No matching operator [new] overload for this type"
-					);
+					this->emit_error("No matching operator [new] overload for this type", ast_new.type);
 					return Result::ERROR;	
 				}
 
@@ -10442,11 +9616,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_INVALID_TYPE,
-					ast_new.type,
-					"Invalid type for operator [new]"
-				);
+				this->emit_error("Invalid type for operator [new]", ast_new.type);
 				return Result::ERROR;
 			} break;
 		}
@@ -10461,29 +9631,17 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(lhs.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-				instr.infix.lhs,
-				"LHS of assignment must be concrete"
-			);
+			this->emit_error("LHS of assignment must be concrete", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-				instr.infix.lhs,
-				"LHS of assignment must be mutable"
-			);
+			this->emit_error("LHS of assignment must be mutable", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of assignment cannot have a value state of moved from"
-			);
+			this->emit_error("LHS of assignment cannot have a value state of moved from", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -10492,9 +9650,8 @@ namespace pcit::panther{
 
 		if(target.is_concrete() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-				"Argument of operator [copy] must be concrete"
+				"Argument of operator [copy] must be concrete",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
 			);
 			return Result::ERROR;
 		}
@@ -10505,9 +9662,8 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), infos
 			);
 			this->emit_error(
-				Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 				"Type of argument of operator [copy] is not copyable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -10520,9 +9676,8 @@ namespace pcit::panther{
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_COMPTIME_COPYABLE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Type of argument of operator [copy] is not comptime copyable"
+				"Type of argument of operator [copy] is not comptime copyable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 			);
 			return Result::ERROR;
 		}
@@ -10534,9 +9689,8 @@ namespace pcit::panther{
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Unsafe copy while not in an unsafe scope"
+				"Unsafe copy while not in an unsafe scope",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 			);
 			return Result::ERROR;
 		}
@@ -10548,9 +9702,8 @@ namespace pcit::panther{
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-				"Argument of operator [copy] must be initialized"
+				"Argument of operator [copy] must be initialized",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
 			);
 			return Result::ERROR;
 		}
@@ -10592,11 +9745,7 @@ namespace pcit::panther{
 			&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
 			&& lhs.getExpr().kind() != sema::Expr::Kind::VAR
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				instr.infix,
-				"Unsafe assignment while not in an unsafe scope"
-			);
+			this->emit_error("Unsafe assignment while not in an unsafe scope", instr.infix);
 			return Result::ERROR;
 		}
 
@@ -10643,29 +9792,17 @@ namespace pcit::panther{
 		TermInfo& target = this->get_term_info(instr.target);
 
 		if(lhs.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-				instr.infix.lhs,
-				"LHS of assignment must be concrete"
-			);
+			this->emit_error("LHS of assignment must be concrete", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-				instr.infix.lhs,
-				"LHS of assignment must be mutable"
-			);
+			this->emit_error("LHS of assignment must be mutable", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of assignment cannot have a value state of moved from"
-			);
+			this->emit_error("LHS of assignment cannot have a value state of moved from", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -10673,22 +9810,19 @@ namespace pcit::panther{
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
 			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
 				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_IS_IN_PARAM,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					"Argument of operator [move] cannot be an in-parameter",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					Diagnostic::Info("Use operator [forward] instead")
 				);
 			}else if(target.is_concrete() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					"Argument of operator [move] must be concrete"
+					"Argument of operator [move] must be concrete",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
 				);
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					"Argument of operator [move] must be mutable"
+					"Argument of operator [move] must be mutable",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
 				);
 			}
 
@@ -10702,9 +9836,8 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), infos
 			);
 			this->emit_error(
-				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 				"Type of argument of operator [move] is not movable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -10717,9 +9850,8 @@ namespace pcit::panther{
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_COMPTIME_MOVABLE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Type of argument of operator [move] is not comptime movable"
+				"Type of argument of operator [move] is not comptime movable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 			);
 			return Result::ERROR;
 		}
@@ -10731,9 +9863,8 @@ namespace pcit::panther{
 			) == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-				"Unsafe move while not in an unsafe scope"
+				"Unsafe move while not in an unsafe scope",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 			);
 			return Result::ERROR;
 		}
@@ -10746,18 +9877,16 @@ namespace pcit::panther{
 
 			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					"Argument of operator [move] must be initialized"
+					"Argument of operator [move] must be initialized",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
 				);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					"Argument of operator [move] must be initialized",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
 					Diagnostic::Info("This argument was already moved from")
 				);
 				return Result::ERROR;
@@ -10804,9 +9933,8 @@ namespace pcit::panther{
 			default: {
 				if(this->currently_in_unsafe() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-						"Unsafe move while not in an unsafe scope"
+						"Unsafe move while not in an unsafe scope",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 					);
 					return Result::ERROR;
 				}
@@ -10861,38 +9989,22 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(lhs.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-				instr.infix.lhs,
-				"LHS of assignment must be concrete"
-			);
+			this->emit_error("LHS of assignment must be concrete", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.is_const() && lhs.value_state != TermInfo::ValueState::UNINIT){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-				instr.infix.lhs,
-				"LHS of assignment must be mutable"
-			);
+			this->emit_error("LHS of assignment must be mutable", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(lhs.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of assignment cannot have a value state of moved from"
-			);
+			this->emit_error("LHS of assignment cannot have a value state of moved from", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
 		if(target.value_category != TermInfo::ValueCategory::FORWARDABLE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
-				instr.infix,
-				"Argument of operator [forward] must be forwardable"
-			);
+			this->emit_error("Argument of operator [forward] must be forwardable", instr.infix);
 
 			return Result::ERROR;
 		}
@@ -10964,9 +10076,8 @@ namespace pcit::panther{
 					) == false
 			){
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-					"Unsafe forward while not in an unsafe scope"
+					"Unsafe forward while not in an unsafe scope",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 				);
 				return Result::ERROR;
 			}
@@ -10978,9 +10089,8 @@ namespace pcit::panther{
 					) == false
 			){
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs),
-					"Unsafe forward while not in an unsafe scope"
+					"Unsafe forward while not in an unsafe scope",
+					this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 				);
 				return Result::ERROR;
 			}
@@ -11002,18 +10112,16 @@ namespace pcit::panther{
 
 			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
-					"Argument of operator [forward] must be initialized"
+					"Argument of operator [forward] must be initialized",
+					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs
 				);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
 					"Argument of operator [forward] must be initialized",
+					this->source.getASTBuffer().getInfix(instr.infix.rhs).rhs,
 					Diagnostic::Info("This argument was already forwarded")
 				);
 				return Result::ERROR;
@@ -11066,29 +10174,20 @@ namespace pcit::panther{
 		TermInfo& value = this->get_term_info(instr.value);
 
 		if(value.is_ephemeral() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ASSIGN_RHS_NOT_EPHEMERAL,
-				instr.multi_assign.value,
-				"RHS of assignment must be ephemeral"
-			);
+			this->emit_error("RHS of assignment must be ephemeral", instr.multi_assign.value);
 			return Result::ERROR;
 		}
 
 		if(value.isMultiValue() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_ASSIGN_RHS_NOT_MULTI,
-				instr.multi_assign.value,
-				"RHS of multi-assignment must multi-value"
-			);
+			this->emit_error("RHS of multi-assignment must multi-value", instr.multi_assign.value);
 			return Result::ERROR;
 		}
 
 
 		if(value.type_id.as<evo::SmallVector<TypeInfo::ID>>().size() != instr.targets.size()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_ASSIGN_RHS_WRONG_NUM,
-				instr.multi_assign.value,
 				"RHS of multi-assignment has wrong number of assignment targets",
+				instr.multi_assign.value,
 				Diagnostic::Info(
 					std::format(
 						"Expression requires {}, got {}",
@@ -11114,20 +10213,12 @@ namespace pcit::panther{
 			const TermInfo& target = this->get_term_info(*target_id);
 
 			if(target.is_concrete() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_CONCRETE,
-					instr.multi_assign.assigns[i],
-					"LHS of assignment must be concrete"
-				);
+				this->emit_error("LHS of assignment must be concrete", instr.multi_assign.assigns[i]);
 				return Result::ERROR;
 			}
 
 			if(target.is_const() && target.value_state != TermInfo::ValueState::UNINIT){
-				this->emit_error(
-					Diagnostic::Code::SEMA_ASSIGN_LHS_NOT_MUTABLE,
-					instr.multi_assign.assigns[i],
-					"LHS of assignment must be mutable"
-				);
+				this->emit_error("LHS of assignment must be mutable", instr.multi_assign.assigns[i]);
 				return Result::ERROR;
 			}
 
@@ -11230,9 +10321,8 @@ namespace pcit::panther{
 				}else{
 					if(this->get_package().warn.methodCallOnNonMethod){
 						this->emit_warning(
-							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-							ast_func_call,
 							"Making a method call to a function that is not a method",
+							ast_func_call,
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Call the function by type accessor instead"),
 								Diagnostic::Info(
@@ -11299,9 +10389,8 @@ namespace pcit::panther{
 			&& selected_func_type.errorTypes[0].isVoid() == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
-				instr.try_else.elseTokenID,
 				"Number of except parameters does not match attempt function call",
+				instr.try_else.elseTokenID,
 				Diagnostic::Info(
 					std::format(
 						"Expected {}, got {}", selected_func_type.errorTypes.size(), instr.try_else.exceptParams.size()
@@ -11403,11 +10492,7 @@ namespace pcit::panther{
 		if(this->check_scope_isnt_terminated(instr.unsafe_stmt).isError()){ return Result::ERROR; }
 
 		if(this->get_package().warn.alreadyUnsafe && this->currently_in_unsafe()){
-			this->emit_warning(
-				Diagnostic::Code::SEMA_WARN_ALREADY_UNSAFE,
-				instr.unsafe_stmt,
-				"Unsafe block in a scope that is already unsafe"
-			);
+			this->emit_warning("Unsafe block in a scope that is already unsafe", instr.unsafe_stmt);
 		}
 
 
@@ -11640,9 +10725,8 @@ namespace pcit::panther{
 				}else{
 					if(this->get_package().warn.methodCallOnNonMethod){
 						this->emit_warning(
-							Diagnostic::Code::SEMA_WARN_METHOD_CALL_ON_NON_METHOD,
-							instr.func_call,
 							"Making a method call to a function that is not a method",
+							instr.func_call,
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Call the function through the type instead"),
 								Diagnostic::Info(
@@ -11720,9 +10804,7 @@ namespace pcit::panther{
 			if(this->get_current_func().attributes.isComptime){
 				if(intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						instr.func_call.target,
-						"Cannot call a non-comptime function within a comptime function"
+						"Cannot call a non-comptime function within a comptime function", instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -11730,9 +10812,7 @@ namespace pcit::panther{
 			}else{
 				if(intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
-						instr.func_call.target,
-						"Cannot call a non-runtime function within a runtime function"
+						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -11742,9 +10822,7 @@ namespace pcit::panther{
 				case Context::Config::Mode::COMPILE: {
 					if(intrinsic_func_info.allowedInCompile == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in compile mode"
+							"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
@@ -11753,9 +10831,7 @@ namespace pcit::panther{
 				case Context::Config::Mode::SCRIPTING: {
 					if(intrinsic_func_info.allowedInScript == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in scripting mode"
+							"Calling this intrinsic is not allowed in scripting mode", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
@@ -11764,9 +10840,7 @@ namespace pcit::panther{
 				case Context::Config::Mode::BUILD_SYSTEM: {
 					if(intrinsic_func_info.allowedInBuild == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-							instr.func_call.target,
-							"Calling this intrinsic is not allowed in build mode"
+							"Calling this intrinsic is not allowed in build mode", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
@@ -11822,9 +10896,8 @@ namespace pcit::panther{
 				if(this->get_current_func().attributes.isComptime){
 					if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-							instr.func_call.target,
 							"Cannot call a non-comptime function within a comptime function",
+							instr.func_call.target,
 							Diagnostic::Info(
 								"Called function was defined here:",
 								this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11853,11 +10926,7 @@ namespace pcit::panther{
 
 
 		if(func_call_impl_res.value().selected_func_type.returnsVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_FUNC_RETURNS_VOID,
-				instr.func_call.target,
-				"Function returns `Void` which is not a value"
-			);
+			this->emit_error("Function returns `Void` which is not a value", instr.func_call.target);
 			return Result::ERROR;
 		}
 
@@ -11910,9 +10979,8 @@ namespace pcit::panther{
 		if constexpr(IS_COMPTIME){
 			if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-					instr.func_call.target,
 					"Comptime value cannot be a call to a function that is not comptime",
+					instr.func_call.target,
 					Diagnostic::Info(
 						"Called function was defined here:",
 						this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11948,9 +11016,8 @@ namespace pcit::panther{
 			if(this->get_current_func().attributes.isComptime){
 				if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						instr.func_call.target,
 						"Cannot call a non-comptime function within a comptime function",
+						instr.func_call.target,
 						Diagnostic::Info(
 							"Called function was defined here:",
 							this->get_location(*func_call_impl_res.value().selected_func_id)
@@ -11990,9 +11057,7 @@ namespace pcit::panther{
 			case TermInfo::BuiltinTypeMethod::Kind::OPT_EXTRACT: {
 				if constexpr(IS_COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						ast_func_call.target,
-						"Comptime value cannot be a call to a function that is not comptime"
+						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
 				}else{
@@ -12079,9 +11144,7 @@ namespace pcit::panther{
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA: {
 				if constexpr(IS_COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						ast_func_call.target,
-						"Comptime value cannot be a call to a function that is not comptime"
+						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
 				}else{
@@ -12105,9 +11168,7 @@ namespace pcit::panther{
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE: {
 				if constexpr(IS_COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						ast_func_call.target,
-						"Comptime value cannot be a call to a function that is not comptime"
+						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
 				}else{
@@ -12131,9 +11192,7 @@ namespace pcit::panther{
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS: {
 				if constexpr(IS_COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						ast_func_call.target,
-						"Comptime value cannot be a call to a function that is not comptime"
+						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
 				}else{
@@ -12163,9 +11222,7 @@ namespace pcit::panther{
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA: {
 				if constexpr(IS_COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-						ast_func_call.target,
-						"Comptime value cannot be a call to a function that is not comptime"
+						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
 				}else{
@@ -12371,39 +11428,26 @@ namespace pcit::panther{
 
 		switch(*lookup_error){
 			case Context::LookupSourceIDError::EMPTY_PATH: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
-					instr.func_call.args[0].value,
-					"Empty path is an invalid import location"
-				);
+				this->emit_error("Empty path is an invalid import location", instr.func_call.args[0].value);
 				return Result::ERROR;
 			} break;
 
 			case Context::LookupSourceIDError::SAME_AS_CALLER: {
 				// TODO(FUTURE): better messaging
-				this->emit_error(
-					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
-					instr.func_call.args[0].value,
-					"Cannot import self"
-				);
+				this->emit_error("Cannot import self", instr.func_call.args[0].value);
 				return Result::ERROR;
 			} break;
 
 			case Context::LookupSourceIDError::NOT_ONE_OF_SOURCES: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
-					instr.func_call.args[0].value,
-					std::format("File \"{}\" is not one of the files being compiled", lookup_path)
+					std::format("File \"{}\" is not one of the files being compiled", lookup_path),
+					instr.func_call.args[0].value
 				);
 				return Result::ERROR;
 			} break;
 
 			case Context::LookupSourceIDError::DOESNT_EXIST: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
-					instr.func_call.args[0].value,
-					std::format("Couldn't find file \"{}\"", lookup_path)
-				);
+				this->emit_error(std::format("Couldn't find file \"{}\"", lookup_path), instr.func_call.args[0].value);
 				return Result::ERROR;
 			} break;
 
@@ -12413,12 +11457,11 @@ namespace pcit::panther{
 
 			case Context::LookupSourceIDError::WRONG_LANGUAGE: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_FAILED_TO_IMPORT_MODULE,
-					instr.func_call.args[0].value,
 					std::format(
 						"Couldn't import file \"{}\" as this language as it was included as a different one",
 						lookup_path
-					)
+					),
+					instr.func_call.args[0].value
 				);
 				return Result::ERROR;
 			} break;
@@ -12436,9 +11479,7 @@ namespace pcit::panther{
 
 		if(clang_module_term_info.value_category != TermInfo::ValueCategory::CLANG_MODULE){
 			this->emit_error(
-				Diagnostic::Code::SEMA_IS_MACRO_DEFINED_ARG_NOT_MODULE,
-				instr.func_call.args[0].value,
-				"First arugment in `@isMacroDefined` must be a C or C++ module"
+				"First arugment in `@isMacroDefined` must be a C or C++ module", instr.func_call.args[0].value
 			);
 			return Result::ERROR;
 		}
@@ -12447,11 +11488,7 @@ namespace pcit::panther{
 			macro_name_term_info.type_id.is<TypeInfo::ID>() == false
 			|| macro_name_term_info.getExpr().kind() != sema::Expr::Kind::STRING_VALUE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_IS_MACRO_DEFINED_ARG_NOT_STRING,
-				instr.func_call.args[1].value,
-				"Second arugment in `@isMacroDefined` must be a string"
-			);
+			this->emit_error("Second arugment in `@isMacroDefined` must be a string", instr.func_call.args[1].value);
 			return Result::ERROR;
 		}
 
@@ -12481,28 +11518,18 @@ namespace pcit::panther{
 
 		if(uninit_ptr_value.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
-				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value"
+				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value", instr.func_call.args[0].value
 			);
 			return Result::ERROR;
 		}
 
 		if(uninit_ptr_value.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
-				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be concrete"
-			);
+			this->emit_error("Arugment in `@makeInitPtr` must be concrete", instr.func_call.args[0].value);
 			return Result::ERROR;
 		}
 
 		if(uninit_ptr_value.getExpr().kind() != sema::Expr::Kind::VAR){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
-				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be a value"
-			);
+			this->emit_error("Arugment in `@makeInitPtr` must be a value", instr.func_call.args[0].value);
 			return Result::ERROR;
 		}
 
@@ -12511,9 +11538,8 @@ namespace pcit::panther{
 
 		if(uninit_ptr_type.isUninitPointer() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
-				instr.func_call.args[0].value,
-				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value"
+				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value",
+				instr.func_call.args[0].value
 			);
 			return Result::ERROR;;
 		}
@@ -12524,11 +11550,9 @@ namespace pcit::panther{
 				!= TermInfo::ValueState::INIT
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_MAKE_INIT_PTR_ARG_INVALID,
-				instr.func_call.args[0].value,
-				"Pointee of argument in `@makeInitPtr` must be initialized"
+				"Pointee of argument in `@makeInitPtr` must be initialized", instr.func_call.args[0].value
 			);
-			return Result::ERROR;;
+			return Result::ERROR;
 		}
 
 
@@ -12573,11 +11597,7 @@ namespace pcit::panther{
 		const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
 
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_COMPTIME_ERROR,
-			instr.func_call,
-			std::format("Comptime error with message: \"{}\"", message)
-		);
+		this->emit_error(std::format("Comptime error with message: \"{}\"", message), instr.func_call);
 
 		return Result::ERROR;
 	}
@@ -12619,17 +11639,9 @@ namespace pcit::panther{
 			const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
 
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_ERROR,
-				instr.func_call,
-				std::format("Failed comptime assert with message: \"{}\"", message)
-			);
+			this->emit_error(std::format("Failed comptime assert with message: \"{}\"", message), instr.func_call);
 		}else{
-			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_ERROR,
-				instr.func_call,
-				"Failed comptime assert"
-			);
+			this->emit_error("Failed comptime assert", instr.func_call);
 		}
 
 		return Result::ERROR;
@@ -12650,9 +11662,7 @@ namespace pcit::panther{
 		if(this->get_current_func().attributes.isComptime){
 			if(template_intrinsic_func_info.allowedInInterptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
-					instr.func_call.target,
-					"Cannot call a non-interptime intrinsic function within a comptime function"
+					"Cannot call a non-interptime intrinsic function within a comptime function", instr.func_call.target
 				);
 				return Result::ERROR;
 			}
@@ -12660,9 +11670,7 @@ namespace pcit::panther{
 		}else{
 			if(template_intrinsic_func_info.allowedInRuntime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
-					instr.func_call.target,
-					"Cannot call a non-runtime function within a runtime function"
+					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 				);
 				return Result::ERROR;
 			}
@@ -12672,33 +11680,21 @@ namespace pcit::panther{
 		switch(this->context.getConfig().mode){
 			case Context::Config::Mode::COMPILE: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in compile mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
 			case Context::Config::Mode::SCRIPTING: {
 				if(template_intrinsic_func_info.allowedInScript == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in scripting mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in scripting mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
 			case Context::Config::Mode::BUILD_SYSTEM: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in build mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
@@ -12708,9 +11704,8 @@ namespace pcit::panther{
 
 		if(instr.template_args.size() != template_intrinsic_func_info.templateParams.size()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
-				instr.func_call.target,
 				"Incorrect number of template arguments",
+				instr.func_call.target,
 				Diagnostic::Info(
 					std::format(
 						"Expected {}, got {}",
@@ -12734,18 +11729,16 @@ namespace pcit::panther{
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
 				if(template_param.isExpr()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument must be an expression"
+						"This template argument must be an expression",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
 
 				if(template_arg.type_id.as<TypeInfo::VoidableID>().isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument cannot be type `Void`"
+						"This template argument cannot be type `Void`",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
@@ -12755,9 +11748,8 @@ namespace pcit::panther{
 			}else{
 				if(template_param.isType()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument must be a type"
+						"This template argument must be a type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
@@ -12809,9 +11801,8 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Destination type of `@atomicStore` must be a mut pointer",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -12819,27 +11810,24 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicStore` must be the pointee type of the target type"
+						"Value type of `@atomicStore` must be the pointee type of the target type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicStore` must be trivially copyable"
+						"Value type of `@atomicStore` must be trivially copyable",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
 
 				if(value_type_id == TypeManager::getTypeF80()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicStore` cannot be F80"
+						"Value type of `@atomicStore` cannot be F80",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -12861,18 +11849,16 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
-							"Invalid atomic order for `@atomicStore`"
+							"Invalid atomic order for `@atomicStore`",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
 						);
 						return Result::ERROR;
 					} break;
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
-							"Unknown atomic order"
+							"Unknown atomic order",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
 						);
 						return Result::ERROR;
 					} break;
@@ -12948,11 +11934,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::CTLZ:
 			case TemplateIntrinsicFunc::Kind::CTTZ:
 			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_DISCARDING_RETURNS,
-					instr.func_call.target,
-					"Discarding return value of function call"
-				);
+				this->emit_error("Discarding return value of function call", instr.func_call.target);
 				return Result::ERROR;
 			} break;
 
@@ -13000,9 +11982,7 @@ namespace pcit::panther{
 		if constexpr(IS_COMPTIME){
 			if(template_intrinsic_func_info.allowedInComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-					instr.func_call.target,
-					"Cannot call a non-comptime function as a comptime value"
+					"Cannot call a non-comptime function as a comptime value", instr.func_call.target
 				);
 				return Result::ERROR;
 			}
@@ -13011,9 +11991,8 @@ namespace pcit::panther{
 			if(this->get_current_func().attributes.isComptime){
 				if(template_intrinsic_func_info.allowedInInterptime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_INTERPTIME,
-						instr.func_call.target,
-						"Cannot call a non-interptime intrinsic function within a comptime function"
+						"Cannot call a non-interptime intrinsic function within a comptime function",
+						instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -13021,9 +12000,7 @@ namespace pcit::panther{
 			}else{
 				if(template_intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_ISNT_RUNTIME,
-						instr.func_call.target,
-						"Cannot call a non-runtime function within a runtime function"
+						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 					);
 					return Result::ERROR;
 				}
@@ -13034,33 +12011,21 @@ namespace pcit::panther{
 		switch(this->context.getConfig().mode){
 			case Context::Config::Mode::COMPILE: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in compile mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
 			case Context::Config::Mode::SCRIPTING: {
 				if(template_intrinsic_func_info.allowedInScript == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in scripting mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in scripting mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
 			case Context::Config::Mode::BUILD_SYSTEM: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_MODE_FOR_INTRINSIC,
-						instr.func_call.target,
-						"Calling this intrinsic is not allowed in build mode"
-					);
+					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
@@ -13068,9 +12033,8 @@ namespace pcit::panther{
 
 		if(instr.template_args.size() != template_intrinsic_func_info.templateParams.size()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
-				instr.func_call.target,
 				"Incorrect number of template arguments",
+				instr.func_call.target,
 				Diagnostic::Info(
 					std::format(
 						"Expected {}, got {}",
@@ -13094,18 +12058,16 @@ namespace pcit::panther{
 			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){
 				if(template_param.isExpr()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument must be an expression"
+						"This template argument must be an expression",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
 
 				if(template_arg.type_id.as<TypeInfo::VoidableID>().isVoid()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument cannot be type `Void`"
+						"This template argument cannot be type `Void`",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
@@ -13115,9 +12077,8 @@ namespace pcit::panther{
 			}else{
 				if(template_param.isType()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i],
-						"This template argument must be a type"
+						"This template argument must be a type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
 					);
 					return Result::ERROR;
 				}
@@ -13216,9 +12177,8 @@ namespace pcit::panther{
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"This template argument must be an array type"
+						"This template argument must be an array type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13237,9 +12197,8 @@ namespace pcit::panther{
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"This template argument must be an array reference type"
+						"This template argument must be an array reference type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13482,20 +12441,15 @@ namespace pcit::panther{
 						!= this->context.getTypeManager().numBytes(to_type_id)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@bitCast` must be the same size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBytes<{FROM, true}>() == @numBytes<{TO, true}>()`")
 					);
 					return Result::ERROR;
 				}
 
 				if(this->currently_in_unsafe() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.func_call.target,
-						"Call to `@bitCast` while not in an unsafe scope"
-					);
+					this->emit_error("Call to `@bitCast` while not in an unsafe scope", instr.func_call.target);
 					return Result::ERROR;
 				}
 
@@ -13508,18 +12462,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments of `@trunc` must be integral"
+						"Template arguments of `@trunc` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments of `@trunc` must be integral"
+						"Template arguments of `@trunc` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13529,9 +12481,8 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@trunc` must target a smaller size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() > @numBits<{TO, false}>()`")
 					);
 					return Result::ERROR;
@@ -13553,18 +12504,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments of `@ftrunc` must be floating-point"
+						"Template arguments of `@ftrunc` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments of `@ftrunc` must be floating-point"
+						"Template arguments of `@ftrunc` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13574,9 +12523,8 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@ftrunc` must target a smaller size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() > @numBits<{TO, false}>()`")
 					);
 					return Result::ERROR;
@@ -13598,18 +12546,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments of `@sext` must be integral"
+						"Template arguments of `@sext` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments of `@sext` must be integral"
+						"Template arguments of `@sext` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13619,9 +12565,8 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@sext` must target a larger size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
 					);
 					return Result::ERROR;
@@ -13643,18 +12588,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments of `@zext` must be integral"
+						"Template arguments of `@zext` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments of `@zext` must be integral"
+						"Template arguments of `@zext` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13664,9 +12607,8 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@zext` must target a larger size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
 					);
 					return Result::ERROR;
@@ -13689,18 +12631,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments of `@fext` must be floating-point"
+						"Template arguments of `@fext` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments of `@fext` must be floating-point"
+						"Template arguments of `@fext` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13710,9 +12650,8 @@ namespace pcit::panther{
 						<= this->context.getTypeManager().numBits(to_type_id, false)
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						instr.func_call.target,
 						"Template arguments of `@fext` must target a larger size",
+						instr.func_call.target,
 						Diagnostic::Info("NOTE: requires `@numBits<{FROM, false}>() < @numBits<{TO, false}>()`")
 					);
 					return Result::ERROR;
@@ -13734,18 +12673,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments `FROM` of `@iToF` must be integral"
+						"Template arguments `FROM` of `@iToF` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isFloatingPoint(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments `TO` of `@iToF` must be floating-point"
+						"Template arguments `TO` of `@iToF` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13767,18 +12704,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Template arguments `FROM` of `@fToI` must be floating-point"
+						"Template arguments `FROM` of `@fToI` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isIntegral(to_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Template arguments `TO` of `@fToI` must be integral"
+						"Template arguments `TO` of `@fToI` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -13799,9 +12734,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@add` must be integral"
+						"Target type of `@add` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13817,11 +12751,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @add wrapped"
-						);
+						this->emit_error("Comptime intrinsic @add wrapped", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -13836,9 +12766,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@addWrap` must be integral"
+						"Target type of `@addWrap` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13852,9 +12781,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@addSat` must be integral"
+						"Target type of `@addSat` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13876,9 +12804,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@fadd` must be floating-point"
+						"Target type of `@fadd` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13900,9 +12827,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@sub` must be integral"
+						"Target type of `@sub` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13918,11 +12844,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @sub wrapped"
-						);
+						this->emit_error("Comptime intrinsic @sub wrapped", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -13937,9 +12859,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@subWrap` must be integral"
+						"Target type of `@subWrap` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13952,9 +12873,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@subSat` must be integral"
+						"Target type of `@subSat` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -13976,9 +12896,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@fsub` must be floating-point"
+						"Target type of `@fsub` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14000,9 +12919,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@mul` must be integral"
+						"Target type of `@mul` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14018,11 +12936,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @mul wrapped"
-						);
+						this->emit_error("Comptime intrinsic @mul wrapped", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -14037,9 +12951,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@mulWrap` must be integral"
+						"Target type of `@mulWrap` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14053,9 +12966,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@mulSat` must be integral"
+						"Target type of `@mulSat` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14077,9 +12989,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@fmul` must be floating-point"
+						"Target type of `@fmul` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14101,9 +13012,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@div` must be integral"
+						"Target type of `@div` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14119,11 +13029,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @div was not exact"
-						);
+						this->emit_error("Comptime intrinsic @div was not exact", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -14138,9 +13044,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@fdiv` must be floating-point"
+						"Target type of `@fdiv` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14165,9 +13070,8 @@ namespace pcit::panther{
 					&& this->context.getTypeManager().isFloatingPoint(target_type_id) == false
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@rem` must be integral or floating-point"
+						"Target type of `@rem` must be integral or floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14200,9 +13104,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@fneg` must be floating-point"
+						"Target type of `@fneg` must be floating-point",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14223,9 +13126,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@eq` must be primitive (excluding `Void`)"
+						"Target type of `@eq` must be primitive (excluding `Void`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14257,9 +13159,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@neq` must be primitive (excluding `Void`)"
+						"Target type of `@neq` must be primitive (excluding `Void`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14292,9 +13193,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14308,9 +13208,8 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@lt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14342,9 +13241,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14358,9 +13256,8 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@lte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14392,9 +13289,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14408,9 +13304,8 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@gt` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14442,9 +13337,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14458,9 +13352,8 @@ namespace pcit::panther{
 					|| target_primitive.kind() == Token::Kind::TYPE_TYPEID
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)"
+						"Target type of `@gte` must be primitive (excluding `Void`, `RawPtr`, and `TypeID`)",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14492,9 +13385,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@and` must be integral"
+						"Target type of `@and` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14516,9 +13408,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@or` must be integral"
+						"Target type of `@or` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14540,9 +13431,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@xor` must be integral"
+						"Target type of `@xor` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14565,18 +13455,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@shl` must be integral"
+						"Target type of `@shl` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Shift type of `@shl` must be unsigned integral"
+						"Shift type of `@shl` must be unsigned integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14587,9 +13475,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shl` must have a width of ceil(log2(@numBits<{T, false}>()))",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						Diagnostic::Info(
 							std::format("Shift type for this target type should be: UI{}", expected_shift_width)
 						)
@@ -14608,11 +13495,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @shl wrapped"
-						);
+						this->emit_error("Comptime intrinsic @shl wrapped", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -14628,18 +13511,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@shlSat` must be integral"
+						"Target type of `@shlSat` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Shift type of `@shlSat` must be unsigned integral"
+						"Shift type of `@shlSat` must be unsigned integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14650,9 +13531,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shlSat` must have a width of ceil(log2(@numBits<{T, false}>()))",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						Diagnostic::Info(
 							std::format("Shift type for this target type should be: UI{}", expected_shift_width)
 						)
@@ -14677,18 +13557,16 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@shl` must be integral"
+						"Target type of `@shl` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isUnsignedIntegral(shift_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Shift type of `@shl` must be unsigned integral"
+						"Shift type of `@shl` must be unsigned integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14699,9 +13577,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().numBits(shift_type_id, false) != expected_shift_width){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						"Shift type of `@shr` must have a width of ceil(log2(@numBits<{T, false}>()))",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
 						Diagnostic::Info(
 							std::format("Shift type for this target type should be: UI{}", expected_shift_width)
 						)
@@ -14720,11 +13597,7 @@ namespace pcit::panther{
 
 					if(result.isError()){
 						// TODO(FUTURE): better messaging
-						this->emit_error(
-							Diagnostic::Code::SEMA_COMPTIME_INTRIN_MATH_ERROR,
-							instr.func_call,
-							"Comptime intrinsic @shr wrapped"
-						);
+						this->emit_error("Comptime intrinsic @shr wrapped", instr.func_call);
 						return Result::ERROR;
 					}
 
@@ -14739,9 +13612,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@bitReverse` must be integral"
+						"Target type of `@bitReverse` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14762,9 +13634,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@byteSwap` must be integral"
+						"Target type of `@byteSwap` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14785,9 +13656,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@ctPop` must be integral"
+						"Target type of `@ctPop` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14807,9 +13677,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@ctlz` must be integral"
+						"Target type of `@ctlz` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14830,9 +13699,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						"Target type of `@cttz` must be integral"
+						"Target type of `@cttz` must be integral",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
 					);
 					return Result::ERROR;
 				}
@@ -14868,9 +13736,8 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@atomicLoad` must be a pointer",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -14878,27 +13745,24 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicLoad` must be the pointee type of the target type"
+						"Value type of `@atomicLoad` must be the pointee type of the target type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
 
 				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicLoad` must be trivially copyable"
+						"Value type of `@atomicLoad` must be trivially copyable",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
 
 				if(value_type_id == TypeManager::getTypeF80()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicLoad` cannot be F80"
+						"Value type of `@atomicLoad` cannot be F80",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -14919,18 +13783,16 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
-							"Invalid atomic order for `@atomicLoad`"
+							"Invalid atomic order for `@atomicLoad`",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
 						);
 						return Result::ERROR;
 					} break;
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2],
-							"Unknown atomic order"
+							"Unknown atomic order",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
 						);
 						return Result::ERROR;
 					} break;
@@ -14959,9 +13821,8 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@cmpxchg` must be a typed pointer",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -14969,9 +13830,8 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@cmpxchg` must be the pointee type of the target type"
+						"Value type of `@cmpxchg` must be the pointee type of the target type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -14982,9 +13842,8 @@ namespace pcit::panther{
 					&& value_type_id != TypeManager::getTypeBool()
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@cmpxchg` must be integral, pointer, or Bool"
+						"Value type of `@cmpxchg` must be integral, pointer, or Bool",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -15006,9 +13865,8 @@ namespace pcit::panther{
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3],
-							"Unknown atomic order"
+							"Unknown atomic order",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3]
 						);
 						return Result::ERROR;
 					} break;
@@ -15032,18 +13890,16 @@ namespace pcit::panther{
 					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
 					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
-							"Invalid atomic order for `@cmpxchg`"
+							"Invalid atomic order for `@cmpxchg`",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
 						);
 						return Result::ERROR;
 					} break;
 
 					default: {
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4],
-							"Unknown atomic order"
+							"Unknown atomic order",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
 						);
 						return Result::ERROR;
 					} break;
@@ -15054,11 +13910,7 @@ namespace pcit::panther{
 
 
 			case TemplateIntrinsicFunc::Kind::ATOMIC_STORE: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_RETURNS_VOID,
-					instr.func_call.target,
-					"Function returns `Void` which is not a value"
-				);
+				this->emit_error("Function returns `Void` which is not a value", instr.func_call.target);
 				return Result::ERROR;
 			} break;
 
@@ -15087,9 +13939,8 @@ namespace pcit::panther{
 					}
 
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						"Target type of `@atomicRMW` must be a pointer",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -15097,9 +13948,8 @@ namespace pcit::panther{
 
 				if(target_type.copyWithPoppedQualifier() != value_type){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicRMW` must be the pointee type of the target type"
+						"Value type of `@atomicRMW` must be the pointee type of the target type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -15110,9 +13960,8 @@ namespace pcit::panther{
 					&& value_type_id != TypeManager::getTypeBool()
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_INVALID_TEMPLATE_ARG,
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1],
-						"Value type of `@atomicRMW` must be integral, pointer, or Bool"
+						"Value type of `@atomicRMW` must be integral, pointer, or Bool",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 					);
 					return Result::ERROR;
 				}
@@ -15132,11 +13981,7 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_COPY_ARG_NOT_CONCRETE,
-				instr.prefix,
-				"Argument of operator [copy] must be concrete"
-			);
+			this->emit_error("Argument of operator [copy] must be concrete", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15146,9 +13991,8 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), infos
 			);
 			this->emit_error(
-				Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-				instr.prefix,
 				"Type of argument of operator [copy] is not copyable",
+				instr.prefix,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -15160,11 +14004,7 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_COPY_ARG_TYPE_NOT_COMPTIME_COPYABLE,
-				instr.prefix,
-				"Type of argument of operator [copy] is not comptime copyable"
-			);
+			this->emit_error("Type of argument of operator [copy] is not comptime copyable", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15174,11 +14014,7 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				instr.prefix,
-				"Unsafe copy while not in an unsafe scope"
-			);
+			this->emit_error("Unsafe copy while not in an unsafe scope", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15186,11 +14022,7 @@ namespace pcit::panther{
 
 
 		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.prefix,
-				"Operator [copy] must be in function scope"
-			);
+			this->emit_error("Operator [copy] must be in function scope", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15198,11 +14030,7 @@ namespace pcit::panther{
 			target.value_state != TermInfo::ValueState::INIT
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.prefix,
-				"Argument of operator [copy] must be initialized"
-			);
+			this->emit_error("Argument of operator [copy] must be initialized", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15232,23 +14060,14 @@ namespace pcit::panther{
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
 			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
 				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_IS_IN_PARAM,
-					instr.prefix.rhs,
 					"Argument of operator [move] cannot be an in-parameter",
+					instr.prefix.rhs,
 					Diagnostic::Info("Use operator [forward] instead")
 				);
 			}else if(target.is_concrete() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_NOT_CONCRETE,
-					instr.prefix.rhs,
-					"Argument of operator [move] must be concrete"
-				);
+				this->emit_error("Argument of operator [move] must be concrete", instr.prefix.rhs);
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
-					instr.prefix.rhs,
-					"Argument of operator [move] must be mutable"
-				);
+				this->emit_error("Argument of operator [move] must be mutable", instr.prefix.rhs);
 			}
 
 			return Result::ERROR;
@@ -15261,9 +14080,8 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), infos
 			);
 			this->emit_error(
-				Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
-				instr.prefix.rhs,
 				"Type of argument of operator [move] is not movable",
+				instr.prefix.rhs,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -15275,11 +14093,7 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_COMPTIME_MOVE_ARG_TYPE_NOT_COMPTIME_MOVABLE,
-				instr.prefix,
-				"Type of argument of operator [move] is not comptime movable"
-			);
+			this->emit_error("Type of argument of operator [move] is not comptime movable", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15289,21 +14103,13 @@ namespace pcit::panther{
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				instr.prefix,
-				"Unsafe move while not in an unsafe scope"
-			);
+			this->emit_error("Unsafe move while not in an unsafe scope", instr.prefix);
 			return Result::ERROR;
 		}
 
 
 		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.prefix,
-				"Operator [move] must be in function scope"
-			);
+			this->emit_error("Operator [move] must be in function scope", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15314,19 +14120,14 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.prefix.rhs,
-					"Argument of operator [move] must be initialized"
-				);
+				this->emit_error("Argument of operator [move] must be initialized", instr.prefix.rhs);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.prefix.rhs,
 					"Argument of operator [move] must be initialized",
+					instr.prefix.rhs,
 					Diagnostic::Info("This argument was already moved from")
 				);
 				return Result::ERROR;
@@ -15340,11 +14141,7 @@ namespace pcit::panther{
 
 			default: {
 				if(this->currently_in_unsafe() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.prefix,
-						"Unsafe move while not in an unsafe scope"
-					);
+					this->emit_error("Unsafe move while not in an unsafe scope", instr.prefix);
 					return Result::ERROR;
 				}
 			} break;
@@ -15382,21 +14179,13 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.value_category != TermInfo::ValueCategory::FORWARDABLE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MOVE_ARG_NOT_MUTABLE,
-				instr.prefix,
-				"Argument of operator [forward] must be forwardable"
-			);
+			this->emit_error("Argument of operator [forward] must be forwardable", instr.prefix);
 
 			return Result::ERROR;
 		}
 
 		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.prefix,
-				"Operator [forward] must be in function scope"
-			);
+			this->emit_error("Operator [forward] must be in function scope", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -15434,11 +14223,7 @@ namespace pcit::panther{
 						target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 					) == false
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					instr.prefix,
-					"Unsafe forward while not in an unsafe scope"
-				);
+				this->emit_error("Unsafe forward while not in an unsafe scope", instr.prefix);
 				return Result::ERROR;
 			}
 
@@ -15448,11 +14233,7 @@ namespace pcit::panther{
 						target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 					) == false
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					instr.prefix,
-					"Unsafe forward while not in an unsafe scope"
-				);
+				this->emit_error("Unsafe forward while not in an unsafe scope", instr.prefix);
 				return Result::ERROR;
 			}
 		}
@@ -15464,19 +14245,14 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueState::INITIALIZING: case TermInfo::ValueState::UNINIT: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.prefix.rhs,
-					"Argument of operator [forward] must be initialized"
-				);
+				this->emit_error("Argument of operator [forward] must be initialized", instr.prefix.rhs);
 				return Result::ERROR;
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.prefix.rhs,
 					"Argument of operator [forward] must be initialized",
+					instr.prefix.rhs,
 					Diagnostic::Info("This argument was already forwarded")
 				);
 				return Result::ERROR;
@@ -15510,28 +14286,19 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.is_concrete() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ADDR_OF_ARG_NOT_CONCRETE,
-				instr.prefix,
-				"Argument of operator prefix [&] must be concrete"
-			);
+			this->emit_error("Argument of operator prefix [&] must be concrete", instr.prefix);
 			return Result::ERROR;
 		}
 
 		if(target.value_state == TermInfo::ValueState::MOVED_FROM){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.prefix,
-				"Argument of operator prefix [&] cannot be moved-from"
-			);
+			this->emit_error("Argument of operator prefix [&] cannot be moved-from", instr.prefix);
 			return Result::ERROR;
 		}
 
 		if(this->currently_in_unsafe() == false && target.isUninitialized()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				instr.prefix,
 				"Unsafe prefix operator [&] while not in an unsafe scope",
+				instr.prefix,
 				Diagnostic::Info("NOTE: the target is uninitialized")
 			);
 			return Result::ERROR;
@@ -15565,11 +14332,7 @@ namespace pcit::panther{
 		TermInfo& expr = this->get_term_info(instr.expr);
 
 		if(expr.isSingleValue() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-				instr.prefix.rhs,
-				"Operator prefix [-] cannot accept multiple values"
-			);
+			this->emit_error("Operator prefix [-] cannot accept multiple values", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
@@ -15595,11 +14358,7 @@ namespace pcit::panther{
 				expr.value_state != TermInfo::ValueState::INIT
 				&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-					instr.prefix.rhs,
-					"Argument of operator prefix [-] must be initialized"
-				);
+				this->emit_error("Argument of operator prefix [-] must be initialized", instr.prefix.rhs);
 				return Result::ERROR;
 			}
 
@@ -15692,9 +14451,7 @@ namespace pcit::panther{
 					
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEGATE_ARG_INVALID_TYPE,
-						instr.prefix.rhs,
-						"Operator prefix [-] can only accept signed integrals and floats"
+						"Operator prefix [-] can only accept signed integrals and floats", instr.prefix.rhs
 					);
 					return Result::ERROR;
 				}
@@ -15733,11 +14490,7 @@ namespace pcit::panther{
 			expr.value_state != TermInfo::ValueState::INIT
 			&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.prefix.rhs,
-				"Argument of operator [!] must be initialized"
-			);
+			this->emit_error("Argument of operator [!] must be initialized", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
@@ -15784,20 +14537,12 @@ namespace pcit::panther{
 		TermInfo& expr = this->get_term_info(instr.expr);
 
 		if(expr.isSingleValue() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-				instr.prefix.rhs,
-				"Operator [~] cannot accept multiple values"
-			);
+			this->emit_error("Operator [~] cannot accept multiple values", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
 		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
-			this->emit_error(
-				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_FLUID,
-				instr.prefix.rhs,
-				"Operator [~] cannot accept fluid values"
-			);
+			this->emit_error("Operator [~] cannot accept fluid values", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
@@ -15806,11 +14551,7 @@ namespace pcit::panther{
 			expr.value_state != TermInfo::ValueState::INIT
 			&& expr.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.prefix.rhs,
-				"Argument of operator [~] must be initialized"
-			);
+			this->emit_error("Argument of operator [~] must be initialized", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
@@ -15830,11 +14571,7 @@ namespace pcit::panther{
 		}
 			
 		if(this->context.getTypeManager().isIntegral(expr.type_id.as<TypeInfo::ID>()) == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_BITWISE_NOT_ARG_NOT_INTEGRAL,
-				instr.prefix.rhs,
-				"Operator [~] can only accept integrals"
-			);
+			this->emit_error("Operator [~] can only accept integrals", instr.prefix.rhs);
 			return Result::ERROR;
 		}
 
@@ -15897,40 +14634,27 @@ namespace pcit::panther{
 			target.value_state != TermInfo::ValueState::INIT
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.postfix,
-				"Argument of operator [.*] must be initialized"
-			);
+			this->emit_error("Argument of operator [.*] must be initialized", instr.postfix);
 			return Result::ERROR;
 		}
 
 
 		if(target.type_id.is<TypeInfo::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator [.*] must be a pointer"
-			);
+			this->emit_error("Argument of operator [.*] must be a pointer", instr.postfix);
 			return Result::ERROR;
 		}
 
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
 		if(target_type.isPointer() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
-				"Argument of operator [.*] must be a pointer"
-			);
+			this->emit_error("Argument of operator [.*] must be a pointer", instr.postfix);
 			return Result::ERROR;
 		}
 
 		if(target_type.isOptional()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_DEREF_ARG_NOT_PTR,
-				instr.postfix,
 				"Argument of operator [.*] must be a non-optional pointer",
+				instr.postfix,
 				Diagnostic::Info("Did you mean \".?.*\" instead?")
 			);
 			return Result::ERROR;
@@ -15989,31 +14713,19 @@ namespace pcit::panther{
 			target.value_state != TermInfo::ValueState::INIT
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.postfix.lhs,
-				"Argument of operator [.?] must be initialized"
-			);
+			this->emit_error("Argument of operator [.?] must be initialized", instr.postfix.lhs);
 			return Result::ERROR;
 		}
 
 		if(target.type_id.is<TypeInfo::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
-				instr.postfix.lhs,
-				"Argument of operator [.?] must be an optional"
-			);
+			this->emit_error("Argument of operator [.?] must be an optional", instr.postfix.lhs);
 			return Result::ERROR;
 		}
 
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
 		if(target_type.isOptional() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNWRAP_ARG_NOT_OPTIONAL,
-				instr.postfix.lhs,
-				"Argument of operator [.?] must be an opional"
-			);
+			this->emit_error("Argument of operator [.?] must be an opional", instr.postfix.lhs);
 			return Result::ERROR;
 		}
 
@@ -16046,11 +14758,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
-				instr.ast_new.type,
-				"Operator [new] cannot accept type `Void`"
-			);
+			this->emit_error("Operator [new] cannot accept type `Void`", instr.ast_new.type);
 			return Result::ERROR;
 		}
 
@@ -16062,11 +14770,7 @@ namespace pcit::panther{
 		if(decayed_target_type_info.qualifiers().empty() == false){
 			if(decayed_target_type_info.isOptional()){
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
+					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -16085,9 +14789,8 @@ namespace pcit::panther{
 
 						if(instr.ast_new.args[0].label.has_value()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-								instr.ast_new.type,
 								"No matching operator [new] overload for this type",
+								instr.ast_new.type,
 								Diagnostic::Info("No operator [new] of optional accepts arguments with labels")
 							);
 							return Result::ERROR;
@@ -16105,9 +14808,8 @@ namespace pcit::panther{
 						}else{
 							if(arg.is_ephemeral() == false){
 								this->emit_error(
-									Diagnostic::Code::SEMA_NEW_OPTIONAL_ARG_NOT_EPHEMERAL,
-									instr.ast_new.args[0].value,
-									"Argument in operator [new] for optional must be ephemeral or [null]"
+									"Argument in operator [new] for optional must be ephemeral or [null]",
+									instr.ast_new.args[0].value
 								);
 								return Result::ERROR;
 							}
@@ -16148,9 +14850,8 @@ namespace pcit::panther{
 
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_OPTIONAL_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("Too may arguments")
 						);
 						return Result::ERROR;
@@ -16158,11 +14859,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.ast_new.type,
-				"Operator [new] of this type is unimplemented"
-			);
+			this->emit_error("Operator [new] of this type is unimplemented", instr.ast_new.type);
 			return Result::ERROR;
 		}
 
@@ -16170,11 +14867,7 @@ namespace pcit::panther{
 		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
+					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -16187,11 +14880,7 @@ namespace pcit::panther{
 							primitive.kind() == Token::Kind::TYPE_RAWPTR
 							|| primitive.kind() == Token::Kind::TYPE_TYPEID
 						){
-							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
-								instr.ast_new.type,
-								"No matching operator [new] overload for this type"
-							);
+							this->emit_error("No matching operator [new] overload for this type", instr.ast_new.type);
 							return Result::ERROR;
 						}
 
@@ -16209,9 +14898,8 @@ namespace pcit::panther{
 
 						if(arg.is_ephemeral() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_PRIMITIVE_ARG_NOT_EPHEMERAL,
-								instr.ast_new.args[0].value,
-								"Argument in operator [new] for primitive must be ephemeral"
+								"Argument in operator [new] for primitive must be ephemeral",
+								instr.ast_new.args[0].value
 							);
 							return Result::ERROR;
 						}
@@ -16230,9 +14918,8 @@ namespace pcit::panther{
 						
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_PRIMITIVE_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("Too may arguments")
 						);
 						return Result::ERROR;
@@ -16242,19 +14929,14 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY: {
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
+					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
 					if(instr.args.size() != 0){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info(
 								std::format("Expected {} arguments, got {}", 0, instr.args.size())
 							)
@@ -16267,9 +14949,8 @@ namespace pcit::panther{
 
 					if(this->context.getTypeManager().isDefaultInitializable(array_type.elementTypeID) == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("Array element type is not default-initializable")
 						);
 						return Result::ERROR;	
@@ -16278,9 +14959,8 @@ namespace pcit::panther{
 					if constexpr(IS_COMPTIME){
 						if(this->context.getTypeManager().isTriviallyCopyable(array_type.elementTypeID) == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_ARRAY_NO_MATCHING_OVERLOAD,
-								instr.ast_new.type,
 								"No matching operator [new] overload for this type",
+								instr.ast_new.type,
 								Diagnostic::Info("Array element type is not trivially copyable, and value is comptime")
 							);
 							return Result::ERROR;	
@@ -16396,11 +15076,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_REF: {
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
+					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -16422,9 +15098,8 @@ namespace pcit::panther{
 
 					if(instr.args.size() != num_ref_ptrs + 1){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info(
 								std::format("Expected {} arguments, got {}", num_ref_ptrs + 1, instr.args.size())
 							)
@@ -16434,9 +15109,8 @@ namespace pcit::panther{
 
 					if(this->get_term_info(instr.args[0]).is_ephemeral() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-							instr.ast_new.args[0].value,
-							"Argument in operator [new] for array reference must be ephemeral"
+							"Argument in operator [new] for array reference must be ephemeral",
+							instr.ast_new.args[0].value
 						);
 						return Result::ERROR;
 					}
@@ -16457,9 +15131,8 @@ namespace pcit::panther{
 
 					if(instr.ast_new.args[0].label.has_value()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
 						);
 					}
@@ -16470,9 +15143,8 @@ namespace pcit::panther{
 
 						if(arg_term_info.is_ephemeral() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_ARRAY_REF_ARG_NOT_EPHEMERAL,
-								instr.ast_new.args[i].value,
-								"Argument in operator [new] for array reference must be ephemeral"
+								"Argument in operator [new] for array reference must be ephemeral",
+								instr.ast_new.args[i].value
 							);
 							return Result::ERROR;
 						}
@@ -16488,9 +15160,8 @@ namespace pcit::panther{
 
 						if(instr.ast_new.args[i].label.has_value()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_ARRAY_REF_NO_MATCHING_OVERLOAD,
-								instr.ast_new.type,
 								"No matching operator [new] overload for this type",
+								instr.ast_new.type,
 								Diagnostic::Info("No operator [new] of array reference accepts arguments with labels")
 							);
 						}
@@ -16524,9 +15195,8 @@ namespace pcit::panther{
 						decayed_target_type_info.baseTypeID()
 					) == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("Struct type is not trivially copyable, and value is comptime")
 						);
 						return Result::ERROR;	
@@ -16552,9 +15222,8 @@ namespace pcit::panther{
 
 					}else if(target_struct.newInitOverloads.empty()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info("Compiler didn't generate a default operator [new]")
 						);
 						return Result::ERROR;
@@ -16562,9 +15231,8 @@ namespace pcit::panther{
 
 				}else if(target_struct.newInitOverloads.empty()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_STRUCT_NO_MATCHING_OVERLOAD,
-						instr.ast_new.type,
 						"No matching operator [new] overload for this type",
+						instr.ast_new.type,
 						Diagnostic::Info("Compiler didn't generate an operator [new]")
 					);
 					return Result::ERROR;
@@ -16604,30 +15272,18 @@ namespace pcit::panther{
 
 				if constexpr(ERRORS){
 					if(selected_func_type.hasErrorReturn() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-							instr.ast_new.type,
-							"Operator [new] doesn't error"
-						);
+						this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 						return Result::ERROR;
 					}
 				}else{
 					if(selected_func_type.hasErrorReturn()){
-						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ERRORS,
-							instr.ast_new.type,
-							"Operator [new] error not handled"
-						);
+						this->emit_error("Operator [new] error not handled", instr.ast_new.type);
 						return Result::ERROR;
 					}
 				}
 
 				if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.ast_new,
-						"Unsafe operator [new] while not in an unsafe scope"
-					);
+					this->emit_error("Unsafe operator [new] while not in an unsafe scope", instr.ast_new);
 					return Result::ERROR;
 				}
 
@@ -16646,9 +15302,8 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					if(selected_func.attributes.isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-							instr.ast_new.type,
 							"Called operator [new] is not comptime",
+							instr.ast_new.type,
 							Diagnostic::Info(
 								"Called operator [new] was defined here:", this->get_location(selected_func_id)
 							)
@@ -16660,9 +15315,8 @@ namespace pcit::panther{
 					if(this->get_current_func().attributes.isComptime){
 						if(selected_func.attributes.isComptime == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-								instr.ast_new,
 								"Cannot call a non-comptime operator [new] within a comptime function",
+								instr.ast_new,
 								Diagnostic::Info(
 									"Called operator [new] was defined here:", this->get_location(selected_func_id)
 								)
@@ -16732,29 +15386,20 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::UNION: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_UNION_NO_MATCHING_OVERLOAD,
-					instr.ast_new.type,
-					"No matching operator [new] overload for this type"
-				);
+				this->emit_error("No matching operator [new] overload for this type", instr.ast_new.type);
 				return Result::ERROR;
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				if constexpr(ERRORS){
-					this->emit_error(
-						Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-						instr.ast_new.type,
-						"Operator [new] doesn't error"
-					);
+					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
 					if(instr.args.size() != 0){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
 							"No matching operator [new] overload for this type",
+							instr.ast_new.type,
 							Diagnostic::Info(
 								std::format("Expected {} arguments, got {}", 0, instr.args.size())
 							)
@@ -16767,11 +15412,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().isDefaultInitializable(decayed_target_type_info.baseTypeID())
 							== false
 					){
-						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
-							instr.ast_new.type,
-							"No matching operator [new] overload for this type"
-						);
+						this->emit_error("No matching operator [new] overload for this type", instr.ast_new.type);
 						return Result::ERROR;	
 					}
 
@@ -16780,9 +15421,8 @@ namespace pcit::panther{
 							decayed_target_type_info.baseTypeID()
 						) == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_NEW_INTERFACE_MAP_NO_MATCHING_OVERLOAD,
-								instr.ast_new.type,
 								"No matching operator [new] overload for this type",
+								instr.ast_new.type,
 								Diagnostic::Info("Underlying type is not trivially copyable, and value is comptime")
 							);
 							return Result::ERROR;	
@@ -16898,11 +15538,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_INVALID_TYPE,
-					instr.ast_new.type,
-					"Invalid type for operator [new]"
-				);
+				this->emit_error("Invalid type for operator [new]", instr.ast_new.type);
 				return Result::ERROR;
 			} break;
 		}
@@ -17086,11 +15722,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_array_init_new(const Instruction::ArrayInitNew<IS_COMPTIME>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
-				instr.array_init_new.type,
-				"Operator [new] cannot accept type `Void`"
-			);
+			this->emit_error("Operator [new] cannot accept type `Void`", instr.array_init_new.type);
 			return Result::ERROR;
 		}
 
@@ -17103,9 +15735,7 @@ namespace pcit::panther{
 			|| decayed_target_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_ARRAY_INIT_NOT_ARRAY,
-				instr.array_init_new.type,
-				"Array initializer operator [new] cannot accept a type that's not an array"
+				"Array initializer operator [new] cannot accept a type that's not an array", instr.array_init_new.type
 			);
 			return Result::ERROR;
 		}
@@ -17116,18 +15746,16 @@ namespace pcit::panther{
 
 		if(target_type.dimensions.size() > 1){
 			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				instr.array_init_new.type,
-				"Array initializer operator [new] for multi-dimensional array types is currently unimplemented"
+				"Array initializer operator [new] for multi-dimensional array types is currently unimplemented",
+				instr.array_init_new.type
 			);
 			return Result::ERROR;
 		}
 
 		if(instr.values.size() != target_type.dimensions[0]){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_ARRAY_INIT_INCORRECT_SIZE,
-				instr.array_init_new.keyword,
 				"Array initializer operator [new] got incorrect number of values",
+				instr.array_init_new.keyword,
 				Diagnostic::Info(std::format("Expected {}, got {}", target_type.dimensions[0], instr.values.size()))
 			);
 			return Result::ERROR;
@@ -17139,9 +15767,8 @@ namespace pcit::panther{
 			&& this->currently_in_unsafe() == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				instr.array_init_new,
-				"Array initializer of uninitialized qualified pointers while not in an unsafe scope"
+				"Array initializer of uninitialized qualified pointers while not in an unsafe scope",
+				instr.array_init_new
 			);
 			return Result::ERROR;
 		}
@@ -17155,9 +15782,8 @@ namespace pcit::panther{
 
 			if(value.is_ephemeral() == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_ARRAY_INIT_VAL_NOT_EPHERMERAL,
-					instr.array_init_new.values[i],
-					"Array initializer operator [new] value initializer must be ephemeral"
+					"Array initializer operator [new] value initializer must be ephemeral",
+					instr.array_init_new.values[i]
 				);
 				return Result::ERROR;
 			}
@@ -17212,9 +15838,8 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_TYPE_VOID,
-				instr.designated_init_new.type,
-				"Operator [new] cannot accept type `Void`"
+				"Operator [new] cannot accept type `Void`",
+				instr.designated_init_new.type
 			);
 			return Result::ERROR;
 		}
@@ -17224,9 +15849,8 @@ namespace pcit::panther{
 		);
 		if(target_type_info.qualifiers().empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-				instr.designated_init_new.type,
-				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
+				"Designated initializer operator [new] cannot accept a type that's not a struct or a union",
+				instr.designated_init_new.type
 			);
 			return Result::ERROR;
 		}
@@ -17237,9 +15861,8 @@ namespace pcit::panther{
 
 		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_INIT_NOT_STRUCT,
-				instr.designated_init_new.type,
-				"Designated initializer operator [new] cannot accept a type that's not a struct or a union"
+				"Designated initializer operator [new] cannot accept a type that's not a struct or a union",
+				instr.designated_init_new.type
 			);
 			return Result::ERROR;
 		}
@@ -17253,9 +15876,8 @@ namespace pcit::panther{
 
 		if(target_type.newInitOverloads.empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_DESIGNATED_ON_TYPE_WITH_OVEROAD_NEW,
-				instr.designated_init_new,
-				"Designatied initializer operator [new] on type that has overloaded operator [new]"
+				"Designatied initializer operator [new] on type that has overloaded operator [new]",
+				instr.designated_init_new
 			);
 			return Result::ERROR;
 		}
@@ -17268,9 +15890,8 @@ namespace pcit::panther{
 				const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
 				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
-					member_init.ident,
 					std::format("This struct has no member \"{}\"", member_init_ident),
+					member_init.ident,
 					evo::SmallVector<Diagnostic::Info>{
 						Diagnostic::Info("Struct is empty"),
 						Diagnostic::Info(
@@ -17335,15 +15956,13 @@ namespace pcit::panther{
 
 				if(instr.designated_init_new.memberInits.empty()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-						instr.designated_init_new,
-						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident)
+						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident),
+						instr.designated_init_new
 					);
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-						instr.designated_init_new,
 						std::format("Member \"{}\" was not set in struct initializer operator [new]", member_var_ident),
+						instr.designated_init_new,
 						Diagnostic::Info(
 							std::format("Member initializer for \"{}\" should go after this one", member_var_ident),
 							this->get_location(instr.designated_init_new.memberInits[member_init_i - 1].ident)
@@ -17368,11 +15987,10 @@ namespace pcit::panther{
 
 					if(struct_has_member(member_init_ident)){
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_NOT_SET,
-							instr.designated_init_new,
 							std::format(
 								"Member \"{}\" was not set in struct initializer operator [new]", member_var_ident
 							),
+							instr.designated_init_new,
 							Diagnostic::Info(
 								std::format(
 									"Member initializer for \"{}\" should go before this one", member_var_ident
@@ -17382,9 +16000,8 @@ namespace pcit::panther{
 						);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
-							member_init.ident,
 							std::format("This struct has no member \"{}\"", member_init_ident),
+							member_init.ident,
 							Diagnostic::Info(
 								"Struct was declared here:",
 								this->get_location(target_type_info.baseTypeID().structID())
@@ -17399,11 +16016,7 @@ namespace pcit::panther{
 				TermInfo& member_init_expr = this->get_term_info(instr.member_init_exprs[member_init_i]);
 
 				if(member_init_expr.is_ephemeral() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_VAL_NOT_EPHEMERAL,
-						member_init.expr,
-						"Member initializer value is not ephemeral"
-					);
+					this->emit_error("Member initializer value is not ephemeral", member_init.expr);
 					return Result::ERROR;
 				}
 
@@ -17427,9 +16040,8 @@ namespace pcit::panther{
 			const std::string_view member_init_ident = this->source.getTokenBuffer()[member_init.ident].getString();
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_NEW_STRUCT_MEMBER_DOESNT_EXIST,
-				member_init.ident,
 				std::format("This struct has no member \"{}\"", member_init_ident),
+				member_init.ident,
 				Diagnostic::Info(
 					"Struct was declared here:",  this->get_location(target_type_info.baseTypeID().structID())
 				)
@@ -17528,9 +16140,8 @@ namespace pcit::panther{
 			&& attempt_func_type.errorTypes[0].isVoid() == false
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_EXCEPT_PARAMS_WRONG_NUM,
-				instr.handler_kind_token_id,
 				"Number of except parameters does not match attempt function call",
+				instr.handler_kind_token_id,
 				Diagnostic::Info(
 					std::format("Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size())
 				)
@@ -17580,9 +16191,7 @@ namespace pcit::panther{
 
 		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
-				instr.try_else.attemptExpr,
-				"Attempt in try/else expression is not function call"
+				"Attempt in try/else expression is not function call", instr.try_else.attemptExpr
 			);
 			return Result::ERROR;
 		}
@@ -17592,27 +16201,21 @@ namespace pcit::panther{
 			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::INTERFACE_CALL
 		){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_FUNC_CALL,
-				instr.try_else.attemptExpr,
-				"Attempt in try/else expression is not function call"
+				"Attempt in try/else expression is not function call", instr.try_else.attemptExpr
 			);
 			return Result::ERROR;
 		}
 
 		if(attempt_expr.isMultiValue()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_ELSE_ATTEMPT_NOT_SINGLE,
-				instr.try_else.attemptExpr,
-				"Attempt function call in try/else expression returns multiple values"
+				"Attempt function call in try/else expression returns multiple values", instr.try_else.attemptExpr
 			);
 			return Result::ERROR;
 		}
 
 		if(except_expr.is_ephemeral() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TRY_ELSE_EXCEPT_NOT_EPHEMERAL,
-				instr.try_else.exceptExpr,
-				"Except in try/else expression is not function call"
+				"Except in try/else expression is not function call", instr.try_else.exceptExpr
 			);
 			return Result::ERROR;
 		}
@@ -17702,9 +16305,8 @@ namespace pcit::panther{
 
 			if(label_str == this->source.getTokenBuffer()[target_scope_level.getLabel()].getString()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
-					instr.label,
 					std::format("Label \"{}\" was already defined in this scope", label_str),
+					instr.label,
 					Diagnostic::Info("First defined here:", this->get_location(target_scope_level.getLabel()))
 				);
 				return Result::ERROR;
@@ -17722,11 +16324,7 @@ namespace pcit::panther{
 			const TypeInfo::VoidableID output_type = this->get_type(output_type_id);
 
 			if(output_type.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_BLOCK_EXPR_OUTPUT_PARAM_VOID,
-					instr.block.outputs[i].typeID,
-					"Block expression output cannot be type `Void`"
-				);
+				this->emit_error("Block expression output cannot be type `Void`", instr.block.outputs[i].typeID);
 				return Result::ERROR;
 			}
 
@@ -17760,9 +16358,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result {
 		if(this->get_current_scope_level().isTerminated() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_BLOCK_EXPR_NOT_TERMINATED, instr.block, "Block expression not terminated"
-			);
+			this->emit_error("Block expression not terminated", instr.block);
 			return Result::ERROR;
 		}
 
@@ -17807,11 +16403,7 @@ namespace pcit::panther{
 		TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.type_id.is<TypeInfo::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-				instr.indexer.target,
-				"Invalid target for indexer"
-			);
+			this->emit_error("Invalid target for indexer", instr.indexer.target);
 			return Result::ERROR;
 		}
 
@@ -17819,11 +16411,7 @@ namespace pcit::panther{
 			target.value_state != TermInfo::ValueState::INIT
 			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.indexer.target,
-				"Indexer target must be initialized"
-			);
+			this->emit_error("Indexer target must be initialized", instr.indexer.target);
 			return Result::ERROR;
 		}
 
@@ -17850,9 +16438,8 @@ namespace pcit::panther{
 					}else{
 						if(decayed_target_type.isOptional()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
 								"Invalid target for indexer",
+								instr.indexer,
 								Diagnostic::Info("Optional values need to be unwrapped")
 							);
 						}else{
@@ -17860,12 +16447,7 @@ namespace pcit::panther{
 							this->diagnostic_print_type_info(
 								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
 							);
-							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
-								"Invalid target for indexer",
-								std::move(infos)
-							);
+							this->emit_error("Invalid target for indexer", instr.indexer, std::move(infos));
 						}
 						return Result::ERROR;
 					}
@@ -17876,9 +16458,8 @@ namespace pcit::panther{
 
 				if(target_array_type.dimensions.size() != instr.indices.size()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
-						instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_type.dimensions.size())],
 						"Incorrect number of indices in indexer for the target array type",
+						instr.indexer.indices[std::min(instr.indices.size() - 1, target_array_type.dimensions.size())],
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info(std::format("Expected: {}", target_array_type.dimensions.size())),
 							Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
@@ -17899,9 +16480,8 @@ namespace pcit::panther{
 					}else{
 						if(decayed_target_type.isOptional()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
 								"Invalid target for indexer",
+								instr.indexer,
 								Diagnostic::Info("Optional values need to be unwrapped")
 							);
 						}else{
@@ -17909,12 +16489,7 @@ namespace pcit::panther{
 							this->diagnostic_print_type_info(
 								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
 							);
-							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
-								"Invalid target for indexer",
-								std::move(infos)
-							);
+							this->emit_error("Invalid target for indexer", instr.indexer, std::move(infos));
 						}
 						return Result::ERROR;
 					}
@@ -17927,11 +16502,10 @@ namespace pcit::panther{
 
 				if(target_array_ref_type.dimensions.size() != instr.indices.size()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INDEXER_INCORRECT_NUM_INDICES,
+						"Incorrect number of indices in indexer for the target array reference type",
 						instr.indexer.indices[
 							std::min(instr.indices.size() - 1, target_array_ref_type.dimensions.size())
 						],
-						"Incorrect number of indices in indexer for the target array reference type",
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info(std::format("Expected: {}", target_array_ref_type.dimensions.size())),
 							Diagnostic::Info(std::format("Got:      {}", instr.indices.size())),
@@ -17953,9 +16527,8 @@ namespace pcit::panther{
 					}else{
 						if(decayed_target_type.isOptional()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
 								"Invalid target for indexer",
+								instr.indexer,
 								Diagnostic::Info("Optional values need to be unwrapped")
 							);
 						}else{
@@ -17963,12 +16536,7 @@ namespace pcit::panther{
 							this->diagnostic_print_type_info(
 								target.type_id.as<TypeInfo::ID>(), infos, "Type of indexer: "
 							);
-							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-								instr.indexer,
-								"Invalid target for indexer",
-								std::move(infos)
-							);
+							this->emit_error("Invalid target for indexer", instr.indexer, std::move(infos));
 						}
 						return Result::ERROR;
 					}
@@ -17976,9 +16544,8 @@ namespace pcit::panther{
 
 				if(target_struct_type.indexerOverloads.empty()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-						instr.indexer,
 						"Invalid target for indexer",
+						instr.indexer,
 						Diagnostic::Info("This struct type has no indexer overload")
 					);
 					return Result::ERROR;
@@ -18034,9 +16601,8 @@ namespace pcit::panther{
 
 					if(selected_overload.attributes.isComptime == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-							instr.indexer,
 							"Cannot call a non-comptime operator overload within a comptime function",
+							instr.indexer,
 							Diagnostic::Info(
 								"Called operator overload was defined here:", this->get_location(selected_overload_id)
 							)
@@ -18070,11 +16636,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INDEXER_INVALID_TARGET,
-					instr.indexer,
-					"Invalid target for indexer"
-				);
+				this->emit_error("Invalid target for indexer", instr.indexer);
 				return Result::ERROR;
 			} break;
 		}
@@ -18112,11 +16674,7 @@ namespace pcit::panther{
 					const size_t index_value = static_cast<size_t>(index_sema_int_value.value);
 
 					if(index_value >= array_type.dimensions[i]){
-						this->emit_error(
-							Diagnostic::Code::SEMA_INDEXER_OUT_OF_BOUNDS_INDEX,
-							instr.indexer.indices[i],
-							"Index in array indexer is out-of-bounds"
-						);
+						this->emit_error("Index in array indexer is out-of-bounds", instr.indexer.indices[i]);
 						return Result::ERROR;
 					}
 
@@ -18132,9 +16690,7 @@ namespace pcit::panther{
 
 						if(index_value >= array_ref_type.dimensions[i].length()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INDEXER_OUT_OF_BOUNDS_INDEX,
-								instr.indexer.indices[i],
-								"Index in array reference indexer is out-of-bounds"
+								"Index in array reference indexer is out-of-bounds", instr.indexer.indices[i]
 							);
 							return Result::ERROR;
 						}
@@ -18221,11 +16777,7 @@ namespace pcit::panther{
 			templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE
 			&& templated_type_term_info.value_category != TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NOT_TEMPLATED_TYPE_WITH_TEMPLATE_ARGS,
-				instr.templated_expr.base,
-				"Base of templated type is not a template"
-			);
+			this->emit_error("Base of templated type is not a template", instr.templated_expr.base);
 			return Result::ERROR;
 		}
 
@@ -18280,12 +16832,7 @@ namespace pcit::panther{
 				);
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_TEMPLATE_TOO_FEW_ARGS,
-				instr.templated_expr,
-				"Too few template arguments for this type",
-				std::move(infos)
-			);
+			this->emit_error("Too few template arguments for this type", instr.templated_expr, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -18308,12 +16855,7 @@ namespace pcit::panther{
 				);
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_TEMPLATE_TOO_MANY_ARGS,
-				instr.templated_expr,
-				"Too many template arguments for this type",
-				std::move(infos)
-			);
+			this->emit_error("Too many template arguments for this type", instr.templated_expr, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -18339,11 +16881,7 @@ namespace pcit::panther{
 				TermInfo& arg_term_info = this->get_term_info(arg.as<SymbolProc::TermInfoID>());
 
 				if(arg_term_info.isMultiValue()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-						instr.templated_expr.args[i],
-						"Template argument cannot be multiple values"
-					);
+					this->emit_error("Template argument cannot be multiple values", instr.templated_expr.args[i]);
 					return Result::ERROR;
 				}
 
@@ -18365,9 +16903,8 @@ namespace pcit::panther{
 							ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
 						this->emit_error(
-							Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
-							instr.templated_expr.args[i],
 							"Expected an expression template argument, got a type",
+							instr.templated_expr.args[i],
 							Diagnostic::Info(
 								"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
 							)
@@ -18394,9 +16931,8 @@ namespace pcit::panther{
 						|| arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
-							instr.templated_expr.args[i],
 							"Templated type needs to be instantiated",
+							instr.templated_expr.args[i],
 							Diagnostic::Info(
 								"Type declared here:",
 								this->get_location(arg_term_info.type_id.as<sema::TemplatedStruct::ID>())
@@ -18404,9 +16940,8 @@ namespace pcit::panther{
 						);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
-							instr.templated_expr.args[i],
 							"Expected a type template argument, got an expression",
+							instr.templated_expr.args[i],
 							Diagnostic::Info(
 								"Parameter declared here:", this->get_location(ast_template_pack.params[i].ident)
 							)
@@ -18432,9 +16967,7 @@ namespace pcit::panther{
 
 						if(resolved_type.value().isVoid()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
-								ast_template_pack.params[i].type,
-								"Template expression parameter cannot be type `Void`"
+								"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
 							);
 							return evo::resultError;
 						}
@@ -18472,9 +17005,8 @@ namespace pcit::panther{
 
 				if(struct_template.params[i].isExpr()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_TEMPLATE_INVALID_ARG,
-						instr.templated_expr.args[i],
 						"Expected an expression template argument, got a type",
+						instr.templated_expr.args[i],
 						Diagnostic::Info(
 							"Parameter declared here:",
 							Diagnostic::Location::get(ast_template_pack.params[i].ident, instantiation_source)
@@ -18753,9 +17285,8 @@ namespace pcit::panther{
 
 				if(instantiated_struct.isPub == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-						instr.templated_expr.base,
 						"This struct template instantiation does not have the #pub attribute",
+						instr.templated_expr.base,
 						Diagnostic::Info(
 							"Struct template defined here:", this->get_location(*actual_instantiation.structID)
 						)
@@ -18840,11 +17371,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID target_type = this->get_type(instr.target_type);
 
 		if(target_type.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_AS_TO_VOID,
-				instr.infix.rhs,
-				"Operator [as] cannot convert to type `Void`"
-			);
+			this->emit_error("Operator [as] cannot convert to type `Void`", instr.infix.rhs);
 			return Result::ERROR;
 		}
 
@@ -18935,12 +17462,7 @@ namespace pcit::panther{
 				infos.emplace_back("Argument was already moved from");
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"Argument for operator [as] must be initialized",
-				std::move(infos)
-			);
+			this->emit_error("Argument for operator [as] must be initialized", instr.infix.lhs, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -18969,12 +17491,7 @@ namespace pcit::panther{
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_AS_INVALID_FROM,
-				instr.infix.lhs,
-				"No valid operator [as] for this type",
-				std::move(infos)
-			);
+			this->emit_error("No valid operator [as] for this type", instr.infix.lhs, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -18991,12 +17508,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19014,9 +17526,8 @@ namespace pcit::panther{
 				case BaseType::Function::Param::Kind::MUT: {
 					if(expr.is_mutable() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_AS_EXPR_DOESNT_SUPPORT_THIS_PARAM_KIND,
-							instr.infix.lhs,
 							"The selected operator [as] requires a mutable LHS as the [this] parameter kind is [mut]",
+							instr.infix.lhs,
 							Diagnostic::Info(
 								"Selected operator [as] defined here:", this->get_location(selected_func_id)
 							)
@@ -19028,9 +17539,8 @@ namespace pcit::panther{
 				case BaseType::Function::Param::Kind::IN: {
 					if(expr.is_ephemeral() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_AS_EXPR_DOESNT_SUPPORT_THIS_PARAM_KIND,
-							instr.infix.lhs,
 							"The selected operator [as] requires an ephemeral LHS as the [this] parameter kind is [in]",
+							instr.infix.lhs,
 							Diagnostic::Info(
 								"Selected operator [as] defined here:", this->get_location(selected_func_id)
 							)
@@ -19049,11 +17559,7 @@ namespace pcit::panther{
 			if(this->currently_in_func()){
 				if(this->get_current_func().attributes.isComptime){
 					if(selected_func.attributes.isComptime == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
-							instr.infix,
-							"Operator [as] in a comptime scope must be comptime"
-						);
+						this->emit_error("Operator [as] in a comptime scope must be comptime", instr.infix);
 						return Result::ERROR;
 					}
 
@@ -19061,21 +17567,13 @@ namespace pcit::panther{
 				}
 
 			}else if(selected_func.attributes.isComptime == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
-					instr.infix,
-					"Operator [as] in a comptime scope must be comptime"
-				);
+				this->emit_error("Operator [as] in a comptime scope must be comptime", instr.infix);
 				return Result::ERROR;
 			}
 
 
 			if(this->currently_in_unsafe() == false && selected_func_type.isUnsafe){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					instr.infix,
-					"Unsafe operator [as] while not in an unsafe scope"
-				);
+				this->emit_error("Unsafe operator [as] while not in an unsafe scope", instr.infix);
 				return Result::ERROR;
 			}
 
@@ -19100,12 +17598,7 @@ namespace pcit::panther{
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_AS_INVALID_TO,
-				instr.infix.rhs,
-				"No valid operator [as] to this type",
-				std::move(infos)
-			);
+			this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -19114,12 +17607,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19127,12 +17615,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19149,12 +17632,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19163,12 +17641,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19177,12 +17650,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19192,12 +17660,7 @@ namespace pcit::panther{
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
 				infos.emplace_back("Did you mean to make the target array reference read only?");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix.rhs,
-					"No valid operator [as] to this type",
-					std::move(infos)
-				);
+				this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19210,9 +17673,8 @@ namespace pcit::panther{
 				}else{
 					if(dimension != to_array_ref.dimensions[i].length()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_AS_INVALID_TO,
-							instr.infix.rhs,
 							"No valid operator [as] to this type",
+							instr.infix.rhs,
 							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info(std::format("Dimension mismatch (index {})", i)),
 								Diagnostic::Info(std::format("Expected dimension: {}", dimension)),
@@ -19250,12 +17712,7 @@ namespace pcit::panther{
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_AS_INVALID_TO,
-				instr.infix.rhs,
-				"No valid operator [as] to this type",
-				std::move(infos)
-			);
+			this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -19273,12 +17730,7 @@ namespace pcit::panther{
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 				this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix,
-					"Operator [as] cannot convert a pointer to this type",
-					std::move(infos)
-				);
+				this->emit_error("Operator [as] cannot convert a pointer to this type", instr.infix, std::move(infos));
 				return Result::ERROR;
 			}
 
@@ -19293,11 +17745,7 @@ namespace pcit::panther{
 
 
 			if(from_decayed_type.isPointer() && to_decayed_type.isPointer()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_AS_INVALID_TO,
-					instr.infix,
-					"Operator [as] cannot convert from a pointer to a pointer"
-				);
+				this->emit_error("Operator [as] cannot convert from a pointer to a pointer", instr.infix);
 				return Result::ERROR;
 			}
 
@@ -19309,11 +17757,7 @@ namespace pcit::panther{
 				&& this->context.getTypeManager().getPrimitive(from_decayed_type.baseTypeID().primitiveID())
 					== Token::Kind::TYPE_RAWPTR
 			){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					instr.infix,
-					"Unsafe operator [as] while not in an unsafe scope"
-				);
+				this->emit_error("Unsafe operator [as] while not in an unsafe scope", instr.infix);
 				return Result::ERROR;
 			}
 
@@ -19331,12 +17775,7 @@ namespace pcit::panther{
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Expression type: ");
 			this->diagnostic_print_type_info(target_type.asTypeID(), infos,          "Target type:     ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_AS_INVALID_TO,
-				instr.infix.rhs,
-				"No valid operator [as] to this type",
-				std::move(infos)
-			);
+			this->emit_error("No valid operator [as] to this type", instr.infix.rhs, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -19996,20 +18435,15 @@ namespace pcit::panther{
 
 				if(implements_result.has_value() == false){ return implements_result.error(); }
 				if(implements_result.value() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
-						ast_infix,
-						"Base type of interface map doesn't implement the target interface"
-					);
+					this->emit_error("Base type of interface map doesn't implement the target interface", ast_infix);
 					return Result::ERROR;
 				}
 
 
 				if(target_poly_interface_ref.isMut && from_expr.is_const()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_AS_CONST_TO_MUT_POLY_INTERFACE_REF,
-						ast_infix,
-						"Operator [as] cannot convert a const expression to a mutable polymorphic interface reference"
+						"Operator [as] cannot convert a const expression to a mutable polymorphic interface reference",
+						ast_infix
 					);
 					return Result::ERROR;
 				}
@@ -20050,11 +18484,7 @@ namespace pcit::panther{
 
 				if(implements_result.has_value() == false){ return implements_result.error(); }
 				if(implements_result.value() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
-						ast_infix,
-						"Base type of interface map doesn't implement the target interface"
-					);
+					this->emit_error("Base type of interface map doesn't implement the target interface", ast_infix);
 					return Result::ERROR;
 				}
 
@@ -20079,9 +18509,8 @@ namespace pcit::panther{
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
-				instr.infix.lhs,
 				"LHS cannot be compared to [null]",
+				instr.infix.lhs,
 				Diagnostic::Info("Only optional values can be compared to [null]")
 			);
 			return Result::ERROR;
@@ -20091,11 +18520,7 @@ namespace pcit::panther{
 			lhs.value_state != TermInfo::ValueState::INIT
 			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of [null] comparison must be initialized"
-			);
+			this->emit_error("LHS of [null] comparison must be initialized", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -20105,9 +18530,8 @@ namespace pcit::panther{
 
 		if(lhs_decayed_type.isOptional() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_OPTIONAL_NULL_CHECK_INVALID_LHS,
-				instr.infix.lhs,
 				"LHS cannot be compared to [null]",
+				instr.infix.lhs,
 				Diagnostic::Info("Only optional values can be compared to [null]")
 			);
 			return Result::ERROR;
@@ -20134,9 +18558,7 @@ namespace pcit::panther{
 		TermInfo& rhs = this->get_term_info(instr.rhs);
 
 		if(lhs.isSingleNormalValue() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS, instr.infix.lhs, "Invalid LHS of math infix operator"
-			);
+			this->emit_error("Invalid LHS of math infix operator", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -20146,26 +18568,16 @@ namespace pcit::panther{
 
 				if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
 					if(rhs.value_category != TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR){
-						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
-							instr.infix.rhs,
-							"Invalid RHS of math infix operator"
-						);
+						this->emit_error("Invalid RHS of math infix operator", instr.infix.rhs);
 						return Result::ERROR;
 					}
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
-						instr.infix.rhs,
-						"Invalid RHS of math infix operator"
-					);
+					this->emit_error("Invalid RHS of math infix operator", instr.infix.rhs);
 					return Result::ERROR;
 				}
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS, instr.infix.rhs, "Invalid RHS of math infix operator"
-				);
+				this->emit_error("Invalid RHS of math infix operator", instr.infix.rhs);
 				return Result::ERROR;
 			}
 		}
@@ -20175,11 +18587,7 @@ namespace pcit::panther{
 			lhs.value_state != TermInfo::ValueState::INIT
 			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of math infix operator must be initialized"
-			);
+			this->emit_error("LHS of math infix operator must be initialized", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -20187,11 +18595,7 @@ namespace pcit::panther{
 			rhs.value_state != TermInfo::ValueState::INIT
 			&& rhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.rhs,
-				"RHS of math infix operator must be initialized"
-			);
+			this->emit_error("RHS of math infix operator must be initialized", instr.infix.rhs);
 			return Result::ERROR;
 		}
 
@@ -20236,9 +18640,7 @@ namespace pcit::panther{
 
 					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.infix,
-							"Call to unsafe math infix operator while not in an unsafe scope"
+							"Call to unsafe math infix operator while not in an unsafe scope", instr.infix
 						);
 						return Result::ERROR;
 					}
@@ -20279,9 +18681,7 @@ namespace pcit::panther{
 
 					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.infix,
-							"Call to unsafe math infix operator while not in an unsafe scope"
+							"Call to unsafe math infix operator while not in an unsafe scope", instr.infix
 						);
 						return Result::ERROR;
 					}
@@ -20322,12 +18722,11 @@ namespace pcit::panther{
 										lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: "
 									);
 									this->emit_error(
-										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-										instr.infix.lhs,
 										std::format(
 											"Infix [{}] of interface pointers is invalid",
 											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 										),
+										instr.infix.lhs,
 										std::move(infos)
 									);
 									return Result::ERROR;
@@ -20346,12 +18745,11 @@ namespace pcit::panther{
 										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
 									);
 									this->emit_error(
-										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-										instr.infix.lhs,
 										std::format(
 											"Infix [{}] of this type is invalid",
 											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 										),
+										instr.infix.lhs,
 										std::move(infos)
 									);
 									return Result::ERROR;
@@ -20382,12 +18780,11 @@ namespace pcit::panther{
 
 								case BaseType::Kind::FUNCTION: {
 									this->emit_error(
-										Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-										instr.infix,
 										std::format(
 											"Infix [{}] operator of functions is unimplemented",
 											this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-										)
+										),
+										instr.infix
 									);
 									return Result::ERROR;
 								} break;
@@ -20401,12 +18798,11 @@ namespace pcit::panther{
 											lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
 										);
 										this->emit_error(
-											Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-											instr.infix.lhs,
 											std::format(
 												"Infix [{}] of this type is invalid",
 												this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 											),
+											instr.infix.lhs,
 											std::move(infos)
 										);
 										return Result::ERROR;
@@ -20469,12 +18865,11 @@ namespace pcit::panther{
 								lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
 							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix.lhs,
 								std::format(
 									"Infix [{}] of this type is invalid",
 									this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 								),
+								instr.infix.lhs,
 								std::move(infos)
 							);
 							return Result::ERROR;
@@ -20486,12 +18881,11 @@ namespace pcit::panther{
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
-							instr.infix.lhs,
 							std::format(
 								"LHS of [{}] operator must be integral",
 								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 							),
+							instr.infix.lhs,
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -20501,12 +18895,11 @@ namespace pcit::panther{
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
-							instr.infix.lhs,
 							std::format(
 								"RHS of operator [{}] must be unsigned integral",
 								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 							),
+							instr.infix.lhs,
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -20526,12 +18919,11 @@ namespace pcit::panther{
 						infos.emplace_back(std::format("Correct type: UI{}", expected_num_bits_rhs_type));
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "LHS type:     ");
 						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
-							instr.infix.rhs,
 							std::format(
 								"RHS of operator [{}] is incorrect bit-width for this LHS",
 								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 							),
+							instr.infix.rhs,
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -20556,12 +18948,7 @@ namespace pcit::panther{
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 					
@@ -20569,12 +18956,7 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 
@@ -20582,12 +18964,7 @@ namespace pcit::panther{
 						if(lhs_decayed_type_id != TypeManager::getTypeBool()){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 
@@ -20595,12 +18972,7 @@ namespace pcit::panther{
 						if(lhs_decayed_type.qualifiers().empty() == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 
@@ -20620,10 +18992,7 @@ namespace pcit::panther{
 										lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
 									);
 									this->emit_error(
-										Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-										instr.infix,
-										"No matching operation for this type",
-										std::move(infos)
+										"No matching operation for this type", instr.infix, std::move(infos)
 									);
 									return Result::ERROR;
 								}
@@ -20638,12 +19007,7 @@ namespace pcit::panther{
 								this->diagnostic_print_type_info(
 									lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: "
 								);
-								this->emit_error(
-									Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-									instr.infix,
-									"No matching operation for this type",
-									std::move(infos)
-								);
+								this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 								return Result::ERROR;
 							} break;
 						}
@@ -20680,9 +19044,7 @@ namespace pcit::panther{
 
 					if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-							instr.infix,
-							"Call to unsafe math infix operator while not in an unsafe scope"
+							"Call to unsafe math infix operator while not in an unsafe scope", instr.infix
 						);
 						return Result::ERROR;
 					}
@@ -20704,12 +19066,11 @@ namespace pcit::panther{
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS type: ");
 						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_INVALID_LHS,
-							instr.infix.lhs,
 							std::format(
 								"LHS of [{}] operator must be integral",
 								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 							),
+							instr.infix.lhs,
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -20767,11 +19128,7 @@ namespace pcit::panther{
 								}
 								
 								if constexpr(IS_COMPTIME){
-									this->emit_error(
-										Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-										instr.infix,
-										"Comptime comparison of union tag is unimplemented"
-									);
+									this->emit_error("Comptime comparison of union tag is unimplemented", instr.infix);
 									return Result::ERROR;
 								}else{
 									this->return_term_info(instr.output,
@@ -20814,12 +19171,7 @@ namespace pcit::panther{
 						){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs_decayed_type_id, infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 					
@@ -20827,12 +19179,7 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false){
 							auto infos = evo::SmallVector<Diagnostic::Info>();
 							this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-							this->emit_error(
-								Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-								instr.infix,
-								"No matching operation for this type",
-								std::move(infos)
-							);
+							this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 							return Result::ERROR;
 						}
 					}
@@ -20867,11 +19214,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getFunction(target_func.typeID);
 
 				if(target_func_type.isUnsafe && this->currently_in_unsafe() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.infix,
-						"Call to unsafe math infix operator while not in an unsafe scope"
-					);
+					this->emit_error("Call to unsafe math infix operator while not in an unsafe scope", instr.infix);
 					return Result::ERROR;
 				}
 
@@ -20890,12 +19233,11 @@ namespace pcit::panther{
 					auto infos = evo::SmallVector<Diagnostic::Info>();
 					this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS type: ");
 					this->emit_error(
-						Diagnostic::Code::SEMA_MATH_INFIX_INVALID_RHS,
-						instr.infix.rhs,
 						std::format(
 							"RHS of operator [{}] must be unsigned integral",
 							this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 						),
+						instr.infix.rhs,
 						std::move(infos)
 					);
 					return Result::ERROR;
@@ -20907,9 +19249,8 @@ namespace pcit::panther{
 
 				if(num_bits_rhs_type > 23){
 					this->emit_error(
-						Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-						instr.infix.lhs,
 						"Cannot implicitly convert this fluid value to the target type as the target type is invalid",
+						instr.infix.lhs,
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info(std::format("Target type bit-width:   {}", num_bits_rhs_type)),
 							Diagnostic::Info("Largest valid bit-width: 23"),
@@ -20961,12 +19302,7 @@ namespace pcit::panther{
 					){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-							instr.infix,
-							"No matching operation for this type",
-							std::move(infos)
-						);
+						this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 						return Result::ERROR;
 					}
 				
@@ -20974,12 +19310,7 @@ namespace pcit::panther{
 					if(this->context.getTypeManager().isIntegral(rhs_decayed_type_id) == false){
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 						this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
-						this->emit_error(
-							Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-							instr.infix,
-							"No matching operation for this type",
-							std::move(infos)
-						);
+						this->emit_error("No matching operation for this type", instr.infix, std::move(infos));
 						return Result::ERROR;
 					}
 				}
@@ -20988,12 +19319,11 @@ namespace pcit::panther{
 		}else{ // both lhs and rhs fluid
 			if(lhs.getExpr().kind() != rhs.getExpr().kind()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-					instr.infix,
 					std::format(
 						"LHS and RHS of operator [{}] must match fluid kind",
 						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-					)
+					),
+					instr.infix
 				);
 				return Result::ERROR;
 			}
@@ -21423,11 +19753,7 @@ namespace pcit::panther{
 		}
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_LHS,
-				instr.infix.lhs,
-				"Accessor operator of this LHS is invalid"
-			);
+			this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -21436,11 +19762,7 @@ namespace pcit::panther{
 			&& lhs.value_state != TermInfo::ValueState::INITIALIZING
 			&& lhs.value_state != TermInfo::ValueState::NOT_APPLICABLE
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-				instr.infix.lhs,
-				"LHS of accessor operator must be initialized or initializing"
-			);
+			this->emit_error("LHS of accessor operator must be initialized or initializing", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -21453,11 +19775,7 @@ namespace pcit::panther{
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
 			if(lhs.value_stage == TermInfo::ValueStage::COMPTIME){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.infix.lhs,
-					"Accessor operator of this LHS is unimplemented"
-				);
+				this->emit_error("Accessor operator of this LHS is unimplemented", instr.infix.lhs);
 				return Result::ERROR;
 			}else{
 				if(decayed_lhs_type.qualifiers().size() > 1){
@@ -21470,11 +19788,7 @@ namespace pcit::panther{
 						);
 					}
 
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-						instr.infix.lhs,
-						"Accessor operator of this LHS is invalid"
-					);
+					this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
 					return Result::ERROR;
 				}
 
@@ -21533,11 +19847,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ACCESSOR_LHS,
-					instr.infix.lhs,
-					"Accessor operator of this LHS is invalid"
-				);
+				this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
 				return Result::ERROR;
 			} break;
 		}
@@ -21556,11 +19866,7 @@ namespace pcit::panther{
 		switch(primitive_type_token.kind()){
 			case Token::Kind::TYPE_VOID: {
 				if(instr.ast_type.qualifiers.empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
-						instr.ast_type.base,
-						"Type \"Void\" cannot have qualifiers"
-					);
+					this->emit_error("Type `Void` cannot have qualifiers", instr.ast_type.base);
 					return Result::ERROR;
 				}
 				this->return_type(instr.output, TypeInfo::VoidableID::Void());
@@ -21598,41 +19904,25 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F80: {
 				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
 					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.ast_type,
-						"Type `F80` is currenlty unimplemented on this platform"
-					);
+					this->emit_error("Type `F80` is currenlty unimplemented on this platform", instr.ast_type);
 					return Result::ERROR;
 				}
 
 				if(this->get_package().warn.experimentalF80){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_EXPERIMENTAL_F80,
-						instr.ast_type,
-						"Type `F80` is experimental, and may not work as expected"
-					);
+					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
 				}
 
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 			case Token::Kind::TYPE_F128: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.ast_type,
-					"Type `F128` is currenlty unimplemented"
-				);
+				this->emit_error("Type `F128` is currenlty unimplemented", instr.ast_type);
 				return Result::ERROR;
 			} break;
 
 
 			case Token::Kind::TYPE_TYPE: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
-					instr.ast_type,
-					"Type `Type` may only be used in a template pack declaration"
-				);
+				this->emit_error("Type `Type` may only be used in a template pack declaration", instr.ast_type);
 				return Result::ERROR;
 			} break;
 
@@ -21672,11 +19962,7 @@ namespace pcit::panther{
 		switch(primitive_type_token.kind()){
 			case Token::Kind::TYPE_VOID: {
 				if(instr.ast_type.qualifiers.empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
-						instr.ast_type.base,
-						"Type \"Void\" cannot have qualifiers"
-					);
+					this->emit_error("Type `Void` cannot have qualifiers", instr.ast_type.base);
 					return Result::ERROR;
 				}
 				this->return_term_info(instr.output, TermInfo::ValueCategory::TYPE, TypeInfo::VoidableID::Void());
@@ -21714,41 +20000,25 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F80: {
 				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
 					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
-					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.ast_type,
-						"Type `F80` is currenlty unimplemented on this platform"
-					);
+					this->emit_error("Type `F80` is currenlty unimplemented on this platform", instr.ast_type);
 					return Result::ERROR;
 				}
 
 				if(this->get_package().warn.experimentalF80){
-					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_EXPERIMENTAL_F80,
-						instr.ast_type,
-						"Type `F80` is experimental, and may not work as expected"
-					);
+					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
 				}
 
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 			case Token::Kind::TYPE_F128: {
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.ast_type,
-					"Type `F128` is currenlty unimplemented"
-				);
+				this->emit_error("Type `F128` is currenlty unimplemented", instr.ast_type);
 				return Result::ERROR;
 			} break;
 
 
 			case Token::Kind::TYPE_TYPE: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_GENERIC_TYPE_NOT_IN_TEMPLATE_PACK_DECL,
-					instr.ast_type,
-					"Type `Type` may only be used in a template pack declaration"
-				);
+				this->emit_error("Type `Type` may only be used in a template pack declaration", instr.ast_type);
 				return Result::ERROR;
 			} break;
 
@@ -21782,11 +20052,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID elem_type = this->get_type(instr.elem_type);
 
 		if(elem_type.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ARRAY_ELEM_TYPE_VOID,
-				instr.array_type.elemType,
-				"Element type of an array type cannot be type `Void`"
-			);
+			this->emit_error("Element type of an array type cannot be type `Void`", instr.array_type.elemType);
 			return Result::ERROR;
 		}
 
@@ -21894,9 +20160,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_ARRAY_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
-						instr.array_type,
-						"Terminated array type with non-trivially-copyable element type"
+						"Terminated array type with non-trivially-copyable element type", instr.array_type
 					);
 					return Result::ERROR;
 				}
@@ -21929,11 +20193,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID elem_type = this->get_type(instr.elem_type);
 
 		if(elem_type.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_ARRAY_ELEM_TYPE_VOID,
-				instr.array_type.elemType,
-				"Element type of an array type cannot be type `Void`"
-			);
+			this->emit_error("Element type of an array type cannot be type `Void`", instr.array_type.elemType);
 			return Result::ERROR;
 		}
 
@@ -21998,9 +20258,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_ARRAY_REF_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
-						instr.array_type,
-						"Terminated array reference type with non-trivially-copyable element type"
+						"Terminated array reference type with non-trivially-copyable element type", instr.array_type
 					);
 					return Result::ERROR;
 				}
@@ -22076,9 +20334,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_ARRAY_REF_TERMINATED_ELEM_NOT_TRIVIALLY_COPYABLE,
-						instr.array_type,
-						"Terminated array reference type with non-trivially-copyable element type"
+						"Terminated array reference type with non-trivially-copyable element type", instr.array_type
 					);
 					return Result::ERROR;
 				}
@@ -22118,11 +20374,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID got_interface_type_id = this->get_type(instr.interface);
 
 		if(got_interface_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
-				instr.interface_map.interface,
-				"Target interface of interface map must be an interface"
-			);
+			this->emit_error("Target interface of interface map must be an interface", instr.interface_map.interface);
 			return Result::ERROR;
 		}
 
@@ -22130,19 +20382,14 @@ namespace pcit::panther{
 			this->context.getTypeManager().getTypeInfo(got_interface_type_id.asTypeID());
 
 		if(got_interface_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
-				instr.interface_map.interface,
-				"Target interface of interface map must be an interface"
-			);
+			this->emit_error("Target interface of interface map must be an interface", instr.interface_map.interface);
 			return Result::ERROR;
 		}
 
 		if(got_interface_type.qualifiers().empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_MAP_NOT_INTERFACE,
-				instr.interface_map.interface,
 				"Target interface of interface map must be an interface",
+				instr.interface_map.interface,
 				Diagnostic::Info("Note: Target interface type cannot have qualifiers")
 			);
 			return Result::ERROR;
@@ -22156,9 +20403,8 @@ namespace pcit::panther{
 		if(instr.base_type.has_value() == false){
 			if(got_interface.isPolymorphic == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_POLY_INTERFACE_MAP_NOT_POLY_INTERFACE,
-					instr.interface_map.interface,
-					"Target interface of polymorphic interface map must be a polymorphic interface"
+					"Target interface of polymorphic interface map must be a polymorphic interface",
+					instr.interface_map.interface
 				);
 				return Result::ERROR;
 			}
@@ -22186,11 +20432,7 @@ namespace pcit::panther{
 		const TypeInfo::VoidableID base_type_id = this->get_type(*instr.base_type);
 
 		if(base_type_id.isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
-				instr.interface_map,
-				"Base type of interface map doesn't implement the target interface"
-			);
+			this->emit_error("Base type of interface map doesn't implement the target interface", instr.interface_map);
 			return Result::ERROR;
 		}
 
@@ -22205,9 +20447,7 @@ namespace pcit::panther{
 			if(implements_result.has_value()){
 				if(implements_result.value() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_MAP_TYPE_DOESNT_IMPL_INTERFACE,
-						instr.interface_map,
-						"Base type of interface map doesn't implement the target interface"
+						"Base type of interface map doesn't implement the target interface", instr.interface_map
 					);
 					return Result::ERROR;
 				}
@@ -22267,9 +20507,8 @@ namespace pcit::panther{
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_TEMPLATE_TYPE_NOT_INSTANTIATED,
-					instr.ast_type.base,
 					"Templated type needs to be instantiated",
+					instr.ast_type.base,
 					Diagnostic::Info(
 						"Type declared here:", this->get_location(term_info.type_id.as<sema::TemplatedStruct::ID>())
 					)
@@ -22283,11 +20522,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_TYPE,
-					instr.ast_type.base,
-					"Invalid base type"
-				);
+				this->emit_error("Invalid base type", instr.ast_type.base);
 				return Result::ERROR;
 			} break;
 		}
@@ -22330,9 +20565,8 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
 				if(instr.ast_type.qualifiers.empty() == false){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_TYPE,
-						instr.ast_type.base,
 						"Invalid base type",
+						instr.ast_type.base,
 						Diagnostic::Info("NOTE: non-instantiated struct templates cannot have qualifiers")
 					);
 					return Result::ERROR;
@@ -22352,11 +20586,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_TYPE,
-					instr.ast_type.base,
-					"Invalid base type"
-				);
+				this->emit_error("Invalid base type", instr.ast_type.base);
 				return Result::ERROR;
 			} break;
 		}
@@ -22470,11 +20700,7 @@ namespace pcit::panther{
 		}
 
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_INTRINSIC_DOESNT_EXIST,
-			instr.intrinsic,
-			std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name)
-		);
+		this->emit_error(std::format("Intrinsic \"@{}\" doesn't exist", intrinsic_name), instr.intrinsic);
 		return Result::ERROR;
 	}
 
@@ -22486,19 +20712,14 @@ namespace pcit::panther{
 			this->scope.getCurrentTypeScopeIfExists();
 
 		if(current_type_scope.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
-				instr.type_this,
-				"Type \"This\" not in valid type scope"
-			);
+			this->emit_error("Type \"This\" not in valid type scope", instr.type_this);
 			return Result::ERROR;
 		}
 
 		if(current_type_scope->is<BaseType::Interface::ID>()){
 			this->emit_error(
-				Diagnostic::Code::SEMA_TYPE_THIS_NOT_IN_VALID_TYPE_SCOPE,
-				instr.type_this,
 				"Type \"This\" not in valid type scope",
+				instr.type_this,
 				Diagnostic::Info("\"This\" cannot be used within an interface")
 			);
 			return Result::ERROR;
@@ -22670,11 +20891,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_this(const Instruction::This& instr) -> Result {
 		if(this->currently_in_func() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_EXPR_INVALID_OBJECT_SCOPE,
-				instr.this_token,
-				"[this] parameter must be in function scope"
-			);
+			this->emit_error("[this] parameter must be in function scope", instr.this_token);
 			return Result::ERROR;
 		}
 
@@ -22684,9 +20901,8 @@ namespace pcit::panther{
 
 		if(this_param_id.has_value() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_FUNC_HAS_NO_THIS_PARAM,
-				instr.this_token,
 				"This function doesn't have a [this] parameter",
+				instr.this_token,
 				Diagnostic::Info("Function declared here:", this->get_location(current_func))
 			);
 			return Result::ERROR;
@@ -22824,11 +21040,7 @@ namespace pcit::panther{
 		std::optional<ClangSource::SymbolInfo> clang_symbol = clang_source.getImportedSymbol(rhs_ident_str);
 
 		if(clang_symbol.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-				instr.infix.rhs,
-				std::format("Module has no symbol named \"{}\"", rhs_ident_str)
-			);
+			this->emit_error(std::format("Module has no symbol named \"{}\"", rhs_ident_str), instr.infix.rhs);
 			return Result::ERROR;
 		}
 
@@ -22884,11 +21096,7 @@ namespace pcit::panther{
 		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-				instr.infix.lhs,
-				"Accessor operator of type `Void` is invalid"
-			);
+			this->emit_error("Accessor operator of type `Void` is invalid", instr.infix.lhs);
 			return Result::ERROR;
 		}
 
@@ -22899,9 +21107,8 @@ namespace pcit::panther{
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
 			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-				instr.infix.lhs,
 				"Accessor operator of this LHS is unsupported",
+				instr.infix.lhs,
 				Diagnostic::Info("NOTE: LHS of a type accessor cannot be a type with qualifiers")
 			);
 			return Result::ERROR;
@@ -22937,11 +21144,7 @@ namespace pcit::panther{
 				for(uint32_t i = 0; const BaseType::Union::Field& field : lhs_union.fields){
 					if(lhs_union.getFieldName(field, this->context.getSourceManager()) == rhs_ident_str){
 						if(lhs_union.isUntagged){
-							this->emit_error(
-								Diagnostic::Code::SEMA_UNION_UNTAGGED_TYPE_FIELD_ACCESS,
-								instr.infix.lhs,
-								"Cannot type access a field of an untagged union"
-							);
+							this->emit_error("Cannot type access a field of an untagged union", instr.infix.lhs);
 							return Result::SUCCESS;
 						}
 
@@ -22994,11 +21197,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-					instr.infix.lhs,
-					"Accessor operator of the type of this LHS is unsupported"
-				);
+				this->emit_error("Accessor operator of the type of this LHS is unsupported", instr.infix.lhs);
 				return Result::ERROR;
 			} break;
 		}
@@ -23074,11 +21273,7 @@ namespace pcit::panther{
 		const std::optional<BuiltinModule::Symbol> symbol_find = builtin_module.getSymbol(rhs_ident_str);
 
 		if(symbol_find.has_value() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-				instr.infix.rhs,
-				std::format("Builtin-module has no symbol named \"{}\"", rhs_ident_str)
-			);
+			this->emit_error(std::format("Builtin-module has no symbol named \"{}\"", rhs_ident_str), instr.infix.rhs);
 			return Result::ERROR;
 		}
 
@@ -23195,11 +21390,7 @@ namespace pcit::panther{
 			}
 
 			if(methods.empty()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
-					instr.infix.rhs,
-					"This interface has no method with that name"
-				);
+				this->emit_error("This interface has no method with that name", instr.infix.rhs);
 				return Result::ERROR;
 			}
 
@@ -23280,11 +21471,7 @@ namespace pcit::panther{
 			}
 
 			if(func_overload_list.empty()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_NO_METHOD_WITH_THAT_NAME,
-					instr.infix.rhs,
-					"This interface has no method with that name"
-				);
+				this->emit_error("This interface has no method with that name", instr.infix.rhs);
 				return Result::ERROR;
 			}
 
@@ -23394,9 +21581,8 @@ namespace pcit::panther{
 
 
 		this->emit_error(
-			Diagnostic::Code::SEMA_INVALID_ACCESSOR_RHS,
-			instr.infix.lhs,
 			"Accessor operator of this LHS is invalid",
+			instr.infix.lhs,
 			Diagnostic::Info("Did you mean to unwrap the optional?")
 		);
 		return Result::ERROR;
@@ -23439,12 +21625,11 @@ namespace pcit::panther{
 							|| current_type_scope->as<BaseType::Struct::ID>() !=decayed_lhs_type.baseTypeID().structID()
 						){
 							this->emit_error(
-								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-								instr.infix.rhs,
 								std::format(
 									"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
 									member_ident_str
-								)
+								),
+								instr.infix.rhs
 							);
 							return Result::ERROR;
 						}
@@ -23648,9 +21833,8 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TYPE: {
 				if(this->get_package().warn.memberTypeByValueAccessor){
 					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
-						instr.infix.rhs,
 						"Accessing a member type by value accessor",
+						instr.infix.rhs,
 						Diagnostic::Info("Access the member type by type accessor instead")
 					);
 				}
@@ -23695,9 +21879,7 @@ namespace pcit::panther{
 
 		if(lookup_ident == nullptr){
 			this->emit_error(
-				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-				instr.infix.rhs,
-				std::format("Identifier \"{}\" was not defined in this scope", rhs_ident_str)
+				std::format("Identifier \"{}\" was not defined in this scope", rhs_ident_str), instr.infix.rhs
 			);
 			return Result::ERROR;
 		}
@@ -23708,11 +21890,7 @@ namespace pcit::panther{
 				lhs_type_union.fields[lookup_ident->as<sema::ScopeLevel::UnionField>().field_index];
 
 			if(union_field.typeID.isVoid()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNION_ACCESSOR_IS_VOID,
-					instr.infix.rhs,
-					std::format("Cannot access union fields that are type `Void`")
-				);
+				this->emit_error(std::format("Cannot access union fields that are type `Void`"), instr.infix.rhs);
 				return Result::ERROR;
 			}
 
@@ -23731,22 +21909,14 @@ namespace pcit::panther{
 
 
 			if(lhs_type_union.isUntagged && this->currently_in_unsafe() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-					instr.infix,
-					"Unsafe untagged union accessor while not in a unsafe scope"
-				);
+				this->emit_error("Unsafe untagged union accessor while not in a unsafe scope", instr.infix);
 				return Result::ERROR;
 			}
 
 			using ValueStage = TermInfo::ValueStage;
 
 			if(lhs.value_stage == ValueStage::COMPTIME){
-				this->emit_error(
-					Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-					instr.infix,
-					"Comptime union accessor is currenlty unsupported"
-				);
+				this->emit_error("Comptime union accessor is currenlty unimplemented", instr.infix);
 				return Result::ERROR;
 				
 			}else{
@@ -23892,9 +22062,8 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TYPE: {
 				if(this->get_package().warn.memberTypeByValueAccessor){
 					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
-						instr.infix.rhs,
 						"Accessing a member type by value accessor",
+						instr.infix.rhs,
 						Diagnostic::Info("Access the member type by type accessor instead")
 					);
 				}
@@ -23955,9 +22124,8 @@ namespace pcit::panther{
 			}
 
 			this->emit_error(
-				Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-				instr.infix.rhs,
 				std::format("Identifier \"{}\" was not defined in this scope", rhs_ident_str),
+				instr.infix.rhs,
 				std::move(infos)
 			);
 			return Result::ERROR;
@@ -24064,9 +22232,8 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::TYPE: {
 				if(this->get_package().warn.memberTypeByValueAccessor){
 					this->emit_warning(
-						Diagnostic::Code::SEMA_WARN_MEMBER_TYPE_BY_VALUE_ACCESSOR,
-						instr.infix.rhs,
 						"Accessing a member type by value accessor",
+						instr.infix.rhs,
 						Diagnostic::Info("Access the member type by type accessor instead")
 					);
 				}
@@ -24215,11 +22382,7 @@ namespace pcit::panther{
 
 
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER,
-			instr.infix.rhs,
-			std::format("Array has no member named \"{}\"", rhs_ident_str)
-		);
+		this->emit_error(std::format("Array has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
 		return Result::ERROR;
 	}
 
@@ -24369,11 +22532,7 @@ namespace pcit::panther{
 
 
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_ARRAY_DOESNT_HAVE_MEMBER,
-			instr.infix.rhs,
-			std::format("Array reference has no member named \"{}\"", rhs_ident_str)
-		);
+		this->emit_error(std::format("Array reference has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
 		return Result::ERROR;
 	}
 
@@ -24440,11 +22599,7 @@ namespace pcit::panther{
 
 
 					if(set_value_state_res.has_value() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
-							set_value_state_res.error(),
-							"Can't determine value state in sub-scope"
-						); // TODO(FUTURE): emit where the error comes from
+						this->emit_error("Can't determine value state in sub-scope", set_value_state_res.error());
 						return evo::resultError;
 					}
 				}	
@@ -24574,9 +22729,8 @@ namespace pcit::panther{
 								&& this->context.getSemaBuffer().getFunc(*delete_overload).attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [delete] within a comptime function",
+									location,
 									Diagnostic::Info(
 										"Called operator [delete] was defined here:",
 										this->get_location(*delete_overload)
@@ -24600,10 +22754,7 @@ namespace pcit::panther{
 								type_info_id, infos
 							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-								location,
-								"Type of argument of operator [copy] is not copyable",
-								std::move(infos)
+								"Type of argument of operator [copy] is not copyable", location, std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24620,9 +22771,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [copy] initialization within a comptime function",
+									location,
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
 										this->get_location(sema_func)
@@ -24633,9 +22783,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [copy] initialization not in an unsafe scope",
+									location,
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
 										this->get_location(*copy_overload.funcID)
@@ -24650,9 +22799,7 @@ namespace pcit::panther{
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Initialization [copy] of this type requires a mutable value"
+									"Initialization [copy] of this type requires a mutable value", location
 								);
 								return evo::resultError;
 							}
@@ -24672,10 +22819,7 @@ namespace pcit::panther{
 								type_info_id, infos
 							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_COPY_ARG_TYPE_NOT_COPYABLE,
-								location,
-								"Type of argument of operator [copy] is not copyable",
-								std::move(infos)
+								"Type of argument of operator [copy] is not copyable", location, std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24694,9 +22838,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [copy] assignment within a comptime function",
+									location,
 									Diagnostic::Info(
 										"Called operator [copy] assignment was defined here:",
 										this->get_location(sema_func)
@@ -24707,9 +22850,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [copy] assignment not in an unsafe scope",
+									location,
 									Diagnostic::Info(
 										"Called operator [copy] assignment was defined here:",
 										this->get_location(sema_func)
@@ -24722,11 +22864,7 @@ namespace pcit::panther{
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
-								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Assignment [copy] of this type requires a mutable value"
-								);
+								this->emit_error("Assignment [copy] of this type requires a mutable value", location);
 								return evo::resultError;
 							}
 						}
@@ -24748,9 +22886,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [copy] initialization within a comptime function",
+									location,
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [copy] initialization was defined here:",
@@ -24768,9 +22905,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [copy] initialization not in an unsafe scope",
+									location,
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [copy] initialization was defined here:",
@@ -24790,9 +22926,8 @@ namespace pcit::panther{
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
 									"Initialization [copy] of this type requires a mutable value",
+									location,
 									Diagnostic::Info(
 										"NOTE: [copy] initialization called here as this type does not have an "
 											"explicit [copy] assignment overload"
@@ -24819,9 +22954,8 @@ namespace pcit::panther{
 									&& sema_func.attributes.isComptime == false
 								){
 									this->emit_error(
-										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-										location,
 										"Cannot call a non-comptime [delete] within a comptime function",
+										location,
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -24838,9 +22972,8 @@ namespace pcit::panther{
 
 								if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 									this->emit_error(
-										Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-										location,
 										"Call to unsafe [delete] not in an unsafe scope",
+										location,
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -24871,10 +23004,7 @@ namespace pcit::panther{
 								type_info_id, infos
 							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
-								location,
-								"Type of argument of operator [move] is not movable",
-								std::move(infos)
+								"Type of argument of operator [move] is not movable", location, std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24891,9 +23021,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [move] initialization within a comptime function",
+									location,
 									Diagnostic::Info(
 										"Called operator [move] initialization was defined here:",
 										this->get_location(sema_func)
@@ -24904,9 +23033,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [move] initialization not in an unsafe scope",
+									location,
 									Diagnostic::Info(
 										"Called operator [move] initialization was defined here:",
 										this->get_location(sema_func)
@@ -24920,9 +23048,7 @@ namespace pcit::panther{
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Initialization [move] of this type requires a mutable value"
+									"Initialization [move] of this type requires a mutable value", location
 								);
 								return evo::resultError;
 							}
@@ -24942,10 +23068,7 @@ namespace pcit::panther{
 								type_info_id, infos
 							);
 							this->emit_error(
-								Diagnostic::Code::SEMA_MOVE_ARG_TYPE_NOT_MOVABLE,
-								location,
-								"Type of argument of operator [move] is not movable",
-								std::move(infos)
+								"Type of argument of operator [move] is not movable", location, std::move(infos)
 							);
 							return evo::resultError;
 						}
@@ -24965,9 +23088,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [move] assignment within a comptime function",
+									location,
 									Diagnostic::Info(
 										"Called operator [move] assignment was defined here:",
 										this->get_location(sema_func)
@@ -24978,9 +23100,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [move] assignment not in an unsafe scope",
+									location,
 									Diagnostic::Info(
 										"Called operator [move] assignment was defined here:",
 										this->get_location(sema_func)
@@ -24993,11 +23114,7 @@ namespace pcit::panther{
 								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
-								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
-									"Assignment [move] of this type requires a mutable value"
-								);
+								this->emit_error("Assignment [move] of this type requires a mutable value", location);
 								return evo::resultError;
 							}
 						}
@@ -25019,9 +23136,8 @@ namespace pcit::panther{
 								&& sema_func.attributes.isComptime == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-									location,
 									"Cannot call a non-comptime [move] initialization within a comptime function",
+									location,
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [move] initialization was defined here:",
@@ -25038,9 +23154,8 @@ namespace pcit::panther{
 
 							if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 								this->emit_error(
-									Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-									location,
 									"Call to unsafe [move] initialization not in an unsafe scope",
+									location,
 									evo::SmallVector<Diagnostic::Info>{
 										Diagnostic::Info(
 											"Called operator [move] initialization was defined here:",
@@ -25060,9 +23175,8 @@ namespace pcit::panther{
 								&& TermInfo::isValueCategoryMutable(value_category) == false
 							){
 								this->emit_error(
-									Diagnostic::Code::SEMA_COPY_ARG_DOESNT_MATCH_PARAM_KIND,
-									location,
 									"Initialization [move] of this type requires a mutable value",
+									location,
 									Diagnostic::Info(
 										"NOTE: [move] initialization called here as this type does not have an "
 											"explicit [move] assignment overload"
@@ -25089,9 +23203,8 @@ namespace pcit::panther{
 									&& sema_func.attributes.isComptime == false
 								){
 									this->emit_error(
-										Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-										location,
 										"Cannot call a non-comptime [delete] within a comptime function",
+										location,
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -25108,9 +23221,8 @@ namespace pcit::panther{
 
 								if(this->currently_in_unsafe() == false && sema_func_type.isUnsafe){
 									this->emit_error(
-										Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-										location,
 										"Call to unsafe [delete] not in an unsafe scope",
+										location,
 										evo::SmallVector<Diagnostic::Info>{
 											Diagnostic::Info(
 												"Called operator [delete] was defined here:",
@@ -25340,30 +23452,13 @@ namespace pcit::panther{
 				i -= 1;
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_ERROR_IN_COMPTIME_CALL,
-				location,
-				"Error occured while running comptime function call",
-				std::move(infos)
-			);
+			this->emit_error("Error occured while running comptime function call", location, std::move(infos));
 			return evo::resultError;
 		}
 
 
 		if(target_func_type.hasErrorReturn()){
-			// 	// TODO(FUTURE): better messaging
-			// 	this->emit_error(
-			// 		Diagnostic::Code::SEMA_ERROR_RETURNED_FROM_COMPTIME_FUNC_RUN,
-			// 		location,
-			// 		"Comptime function returned error"
-			// 	);
-			// 	return evo::resultError;
-
-			this->emit_error(
-				Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-				location,
-				"Running a comptime function that has error returns is unimplemented"
-			);
+			this->emit_error("Running a comptime function that has error returns is unimplemented", location);
 			return evo::resultError;
 
 		}
@@ -25559,13 +23654,12 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(func_alias.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format(
 								"Function alias \"{}\" does not have the `#pub` attribute, "
 									"and is not accessable in this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Function alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -25579,13 +23673,12 @@ namespace pcit::panther{
 					if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 						if(func_alias.isPriv && func_alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-								ident,
 								std::format(
 									"Function alias \"{}\" has the #priv attribute, "
 										"and is not accessable from this scope",
 									ident_str
 								),
+								ident,
 								Diagnostic::Info("Function alias defined here:", this->get_location(ident_id))
 							);
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -25600,9 +23693,8 @@ namespace pcit::panther{
 				if(!variables_in_scope){
 					// TODO(FUTURE): better messaging
 					this->emit_error(
-						Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
-						ident,
 						std::format("Variable \"{}\" is not accessable in this scope", ident_str),
+						ident,
 						Diagnostic::Info(
 							"Local variables, parameters, and members cannot be accessed inside a sub-object scope. "
 								"Defined here:",
@@ -25669,9 +23761,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(sema_var.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Global variable \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -25680,12 +23771,11 @@ namespace pcit::panther{
 				}else if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(sema_var.isPriv && sema_var.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Global variable \"{}\" has the #priv attribute, and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -25983,9 +24073,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(ident_id.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident_id,
 							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
+							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
 								Diagnostic::Location::get(ident_id.tokenID, *source_module)
@@ -25998,13 +24087,12 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Module \"{}\" has the #priv attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Module defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26025,9 +24113,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(ident_id.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident_id,
 							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
+							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
 								Diagnostic::Location::get(ident_id.tokenID, *source_module)
@@ -26040,13 +24127,12 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Module \"{}\" has the #priv attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Module defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26069,9 +24155,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(alias.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Type alias \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Type alias declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26084,13 +24169,12 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Type alias \"{}\" has the #priv attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Type alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26112,9 +24196,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(alias.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Distinct type alias \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Distinct type alias declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26127,13 +24210,12 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Distinct type alias \"{}\" has the #priv attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Distinct type alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26163,9 +24245,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(struct_info.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Struct \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Struct declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26178,12 +24259,11 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(struct_info.isPriv && struct_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Struct \"{}\" has the #priv attribute, and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Struct defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26213,9 +24293,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(union_info.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Union \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Union declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26228,12 +24307,11 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(union_info.isPriv && union_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Union \"{}\" has the #priv attribute, and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Union defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26263,9 +24341,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(enum_info.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Enum \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Enum declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26278,12 +24355,11 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(enum_info.isPriv && enum_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Enum \"{}\" has the #priv attribute, and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Enum defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26313,9 +24389,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(interface_info.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Interface \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Interface declared here:",
 								Diagnostic::Location::get(ident_id, this->context)
@@ -26328,12 +24403,11 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(interface_info.isPriv && interface_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Interface \"{}\" has the #priv attribute, and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Interface defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26363,9 +24437,8 @@ namespace pcit::panther{
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(struct_template_alias.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							ident,
 							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
+							ident,
 							Diagnostic::Info(
 								"Alias declared here:",
 								this->get_location(ident_id)
@@ -26381,13 +24454,12 @@ namespace pcit::panther{
 						&& struct_template_alias.parent != this->scope.getCurrentTypeScopeIfExists()
 					){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							ident,
 							std::format(
 								"Struct template alias \"{}\" has the #priv attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
+							ident,
 							Diagnostic::Info("Struct template alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26452,18 +24524,16 @@ namespace pcit::panther{
 				}
 
 				this->emit_error(
-					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
-					ident,
 					std::format("Member variables must be accessed through an accessor", ident_str),
+					ident,
 					std::move(infos)
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::UnionField>()){
 				this->emit_error(
-					Diagnostic::Code::SEMA_IDENT_NOT_IN_SCOPE,
-					ident,
 					std::format("Union fields are not accessable except through an accessor", ident_str),
+					ident,
 					Diagnostic::Info(std::format("Did you mean `this.{}`?", ident_str))
 				);
 				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
@@ -26507,9 +24577,8 @@ namespace pcit::panther{
 
 				if(decl_info.num_sub_scopes != current_scope_level.numUnterminatedSubScopes()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
-						value_state_id,
 						"Cannot determine value state from sub-scopes",
+						value_state_id,
 						Diagnostic::Info("Sub-scopes end here:", std::move(location))
 					);
 					return evo::resultError;
@@ -26532,9 +24601,8 @@ namespace pcit::panther{
 
 				if(modify_info.num_sub_scopes != current_scope_level.numUnterminatedSubScopes()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_CANT_DETERMINE_VALUE_STATE,
-						value_state_id,
 						"Cannot determine value state from sub-scopes",
+						value_state_id,
 						Diagnostic::Info("Sub-scopes end here:", std::move(location))
 					);
 					return evo::resultError;
@@ -26794,10 +24862,9 @@ namespace pcit::panther{
 
 							case TermInfo::ValueState::INIT: {
 								this->emit_error(
-									Diagnostic::Code::SEMA_SPECIAL_MEMBER_OUTPUT_MEMBER_INIT_ON_DIRECT,
-									location,
 									"Cannot direct initialize output of special member function when one (or more) of "
-										"its members was already initialized"
+										"its members was already initialized",
+									location
 								);
 								return evo::resultError;
 							} break;
@@ -27012,7 +25079,7 @@ namespace pcit::panther{
 	) -> void {
 		switch(result){
 			case WaitOnSymbolProcResult::NOT_FOUND: {
-				this->emit_error(Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT, ident, std::move(msg));
+				this->emit_error(std::move(msg), ident);
 			} break;
 
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
@@ -27021,9 +25088,8 @@ namespace pcit::panther{
 
 			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
 				this->emit_error(
-					Diagnostic::Code::SEMA_NO_SYMBOL_IN_SCOPE_WITH_THAT_IDENT,
-					ident,
 					std::move(msg),
+					ident,
 					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
 				);
 			} break;
@@ -27611,12 +25677,7 @@ namespace pcit::panther{
 				infos.emplace_back(std::move(instantiation_error_info));
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-				call_node,
-				"No matching function overload found",
-				std::move(infos)
-			);
+			this->emit_error("No matching function overload found", call_node, std::move(infos));
 			return evo::resultError;
 
 
@@ -27645,12 +25706,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->emit_error(
-				Diagnostic::Code::SEMA_MULTIPLE_MATCHING_FUNCTION_OVERLOADS,
-				call_node,
-				"Multiple matching function overloads found",
-				std::move(infos)
-			);
+			this->emit_error("Multiple matching function overloads found", call_node, std::move(infos));
 			return evo::resultError;
 		}
 
@@ -27820,9 +25876,8 @@ namespace pcit::panther{
 				//	I have this checking against expected instead of 0 just in canse and it's not much more expensive
 				if(func_info.templateParams.size() != template_args.size()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTRINSIC_FUNC_WRONG_NUM_TEMPLATE_ARGS,
-						func_call.target,
 						"Incorrect number of template arguments",
+						func_call.target,
 						Diagnostic::Info(
 							std::format("Expected {}, got {}", func_info.templateParams.size(), template_args.size())
 						)
@@ -27859,11 +25914,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error(
-					Diagnostic::Code::SEMA_CANNOT_CALL_LIKE_FUNCTION,
-					func_call.target,
-					"Cannot call expression like a function"
-				);
+				this->emit_error("Cannot call expression like a function", func_call.target);
 				return evo::Unexpected(true);
 			} break;
 		}
@@ -28041,10 +26092,7 @@ namespace pcit::panther{
 
 				if(func_infos.empty()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-						func_call.target,
-						"No matching function overload found",
-						std::move(instantiation_error_infos)
+						"No matching function overload found", func_call.target, std::move(instantiation_error_infos)
 					);
 					return evo::Unexpected(true);
 				}
@@ -28086,9 +26134,8 @@ namespace pcit::panther{
 
 			if(any_waiting_or_ready == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-					func_call.target,
 					"No function overload found",
+					func_call.target,
 					Diagnostic::Info("All were passed by when conditionals")
 				);
 				return evo::Unexpected(true);
@@ -28247,12 +26294,7 @@ namespace pcit::panther{
 			}
 
 			if(func_infos.empty()){ // if all instantiations errored
-				this->emit_error(
-					Diagnostic::Code::SEMA_NO_MATCHING_FUNCTION,
-					func_call.target,
-					"No function overload found",
-					std::move(instantiation_error_infos)
-				);
+				this->emit_error("No function overload found", func_call.target, std::move(instantiation_error_infos));
 				return evo::Unexpected(true);
 			}
 		}
@@ -28278,9 +26320,8 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				if(arg_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
 					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_NOT_COMPTIME,
-						func_call.args[i].value,
 						"Arguments in a comptime function call must have a value stage of comptime",
+						func_call.args[i].value,
 						Diagnostic::Info(
 							std::format(
 								"Value stage of the argument is {}",
@@ -28299,11 +26340,7 @@ namespace pcit::panther{
 					arg_term_info.value_state != TermInfo::ValueState::INIT
 					&& arg_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
 				){
-					this->emit_error(
-						Diagnostic::Code::SEMA_EXPR_WRONG_STATE,
-						func_call.args[i].value,
-						"Arguments to functions must be initialized"
-					);
+					this->emit_error("Arguments to functions must be initialized", func_call.args[i].value);
 					return evo::Unexpected(true);
 				}
 			}
@@ -28325,30 +26362,18 @@ namespace pcit::panther{
 
 		if constexpr(ERRORS){
 			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_DOESNT_ERROR,
-					func_call,
-					"Function doesn't error"
-				);
+				this->emit_error("Function doesn't error", func_call);
 				return evo::Unexpected(true);
 			}
 		}else{
 			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ERRORS,
-					func_call,
-					"Function error not handled"
-				);
+				this->emit_error("Function error not handled", func_call);
 				return evo::Unexpected(true);
 			}
 		}
 
 		if(func_infos[selected_func_overload_index.value()].func_type.isUnsafe && this->currently_in_unsafe() == false){
-			this->emit_error(
-				Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-				func_call,
-				"Call to unsafe function while not in an unsafe scope"
-			);
+			this->emit_error("Call to unsafe function while not in an unsafe scope", func_call);
 			return evo::Unexpected(true);
 		}
 
@@ -28408,10 +26433,9 @@ namespace pcit::panther{
 
 					if(selected_func.attributes.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							func_call.target,
 							"Selected function overload does not have the `#pub` attribute, "
 								"and is not accessable in this scope",
+							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
 							)
@@ -28443,10 +26467,9 @@ namespace pcit::panther{
 
 					if(sema_func.attributes.isPub == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_SYMBOL_NOT_PUB,
-							func_call.target,
 							"Selected function overload does not have the `#pub` attribute, "
 								"and is not accessable in this scope",
+							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
@@ -28480,9 +26503,8 @@ namespace pcit::panther{
 
 					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							func_call.target,
 							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
 							)
@@ -28514,9 +26536,8 @@ namespace pcit::panther{
 
 					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_ACCESSOR_MEMBER_IS_PRIV,
-							func_call.target,
 							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
@@ -28654,9 +26675,7 @@ namespace pcit::panther{
 
 						if(resolved_type.value().isVoid()){
 							this->emit_error(
-								Diagnostic::Code::SEMA_TEMPLATE_PARAM_CANNOT_BE_TYPE_VOID,
-								ast_template_pack.params[i].type,
-								"Template expression parameter cannot be type `Void`"
+								"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
 							);
 							return evo::resultError;
 						}
@@ -28896,15 +26915,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(const TermInfo& term_info, const auto& node_location)
 	-> bool {
 		if(this->get_current_func().attributes.isComptime == false){ return true; }
-
 		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_EXPR_NOT_INTERPTIME,
-			node_location,
-			"Expressions in a comptime function cannot have a value stage of runtime"
-		);
-
+		this->emit_error("Expressions in a comptime function cannot have a value stage of runtime", node_location);
 		return false;
 	}
 
@@ -28929,11 +26942,7 @@ namespace pcit::panther{
 
 				if(looked_up_ident.isVoid()){
 					if(type.qualifiers.empty() == false){
-						this->emit_error(
-							Diagnostic::Code::SEMA_VOID_WITH_QUALIFIERS,
-							type.base,
-							"Type \"Void\" cannot have qualifiers"
-						);
+						this->emit_error("Type `Void` cannot have qualifiers", type.base);
 						return evo::resultError;
 					}
 
@@ -28979,11 +26988,7 @@ namespace pcit::panther{
 
 			if(global_ptr == nullptr){
 				if(target_type.isOptional() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
-						location,
-						"Comptime pointer that is not optional has value `Null`"
-					);
+					this->emit_error("Comptime pointer that is not optional has value `Null`", location);
 					return evo::resultError;
 				}
 
@@ -28994,11 +26999,7 @@ namespace pcit::panther{
 				this->context.comptime_execution_engine.lookupGlobalVar(global_ptr);
 
 			if(pir_global_var_id.has_value() == false){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
-					location,
-					"Comptime pointer is not a valid value"
-				);
+				this->emit_error("Comptime pointer is not a valid value", location);
 				return evo::resultError;
 			}
 
@@ -29021,11 +27022,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->emit_fatal(
-				Diagnostic::Code::SEMA_INVALID_PTR_FROM_COMPTIME,
-				location,
-				"Comptime pointer is not a valid value"
-			);
+			this->emit_fatal("Comptime pointer is not a valid value", location);
 			return evo::resultError;
 			
 		}else if(target_type.isOptional()){
@@ -29658,10 +27655,7 @@ namespace pcit::panther{
 				}
 
 				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_MULTIPLE_DEDUCER_IMPLS_MATCH,
-					location,
-					"Interface has multiple deducer multiple impls that match this type",
-					std::move(infos)
+					"Interface has multiple deducer multiple impls that match this type", location, std::move(infos)
 				);
 				return evo::Unexpected(Result::ERROR);
 			}
@@ -29691,20 +27685,12 @@ namespace pcit::panther{
 
 				if(interface_name == "Iterable"){
 					if(array_type.dimensions.size() != 1){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							location,
-							"Iteration of multi-dimension arrays is currently unimplemented"
-						);
+						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
 					}
 
 					if(array_type.terminator.has_value()){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							location,
-							"Iteration of arrays with terminators is currently unimplemented"
-						);
+						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
 					}
 
@@ -29718,20 +27704,12 @@ namespace pcit::panther{
 
 				}else if(interface_name == "IterableRT"){
 					if(array_type.dimensions.size() != 1){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							location,
-							"Iteration of multi-dimension arrays is currently unimplemented"
-						);
+						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
 					}
 
 					if(array_type.terminator.has_value()){
-						this->emit_error(
-							Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-							location,
-							"Iteration of arrays with terminators is currently unimplemented"
-						);
+						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
 					}
 
@@ -29762,18 +27740,14 @@ namespace pcit::panther{
 					if(interface_name == "IterableMutRef"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of multi-dimension array references is currently unimplemented"
+								"Iteration of multi-dimension array references is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
 						
 						if(array_ref_type.terminator.has_value()){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of array references with terminators is currently unimplemented"
+								"Iteration of array references with terminators is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
@@ -29790,18 +27764,14 @@ namespace pcit::panther{
 					}else if(interface_name == "IterableMutRefRT"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of multi-dimension array references is currently unimplemented"
+								"Iteration of multi-dimension array references is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
 						
 						if(array_ref_type.terminator.has_value()){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of array references with terminators is currently unimplemented"
+								"Iteration of array references with terminators is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
@@ -29823,18 +27793,14 @@ namespace pcit::panther{
 					if(interface_name == "IterableRef"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of multi-dimension array references is currently unimplemented"
+								"Iteration of multi-dimension array references is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
 						
 						if(array_ref_type.terminator.has_value()){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of array references with terminators is currently unimplemented"
+								"Iteration of array references with terminators is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
@@ -29851,18 +27817,14 @@ namespace pcit::panther{
 					}else if(interface_name == "IterableRefRT"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of multi-dimension array references is currently unimplemented"
+								"Iteration of multi-dimension array references is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
 						
 						if(array_ref_type.terminator.has_value()){
 							this->emit_error(
-								Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-								location,
-								"Iteration of array references with terminators is currently unimplemented"
+								"Iteration of array references with terminators is currently unimplemented", location
 							);
 							return evo::Unexpected(Result::ERROR);
 						}
@@ -30446,17 +28408,9 @@ namespace pcit::panther{
 
 		if(created_func_type.params.size() != 1){
 			if(created_func_type.params.empty()){
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-					ast_func_def,
-					"Prefix operator overload must have a [this] parameter"
-				);
+				this->emit_error("Prefix operator overload must have a [this] parameter", ast_func_def);
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-					ast_func_def.params[1],
-					"Prefix operator overload must only have a [this] parameter"
-				);
+				this->emit_error("Prefix operator overload must only have a [this] parameter", ast_func_def.params[1]);
 			}
 			return evo::resultError;
 		}
@@ -30465,11 +28419,7 @@ namespace pcit::panther{
 			this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
 				!= Token::Kind::KEYWORD_THIS
 		){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def.params[0],
-				"Prefix operator overload must have a [this] parameter"
-			);
+			this->emit_error("Prefix operator overload must have a [this] parameter", ast_func_def.params[0]);
 			return evo::resultError;
 		}
 
@@ -30478,21 +28428,13 @@ namespace pcit::panther{
 		// attributes
 
 		if(is_commutative){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def,
-				"Prefix operator overload cannot have attribute #commutative"
-			);
+			this->emit_error("Prefix operator overload cannot have attribute #commutative", ast_func_def);
 			return evo::resultError;
 
 		}
 
 		if(is_swapped){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def,
-				"Prefix operator overload cannot have attribute #swapped"
-			);
+			this->emit_error("Prefix operator overload cannot have attribute #swapped", ast_func_def);
 			return evo::resultError;
 		}
 
@@ -30501,29 +28443,17 @@ namespace pcit::panther{
 		// returns
 
 		if(created_func_type.returnTypes.size() > 1){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def.returns[1],
-				"Prefix operator overload cannot have multiple return values"
-			);
+			this->emit_error("Prefix operator overload cannot have multiple return values", ast_func_def.returns[1]);
 			return evo::resultError;
 		}
 
 		if(created_func_type.returnTypes[0].isVoid()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def.returns[1],
-				"Prefix operator overload must return a value"
-			);
+			this->emit_error("Prefix operator overload must return a value", ast_func_def.returns[1]);
 			return evo::resultError;
 		}
 
 		if(created_func_type.hasErrorReturn()){
-			this->emit_error(
-				Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-				ast_func_def.errorReturns[0],
-				"Prefix operator overload that error are unimplemented"
-			);
+			this->emit_error("Prefix operator overload that error are unimplemented", ast_func_def.errorReturns[0]);
 			return evo::resultError;
 		}
 
@@ -30543,9 +28473,8 @@ namespace pcit::panther{
 			
 			if(created_func.isEquivalentOverload(existing_func, this->context)){
 				this->emit_error(
-					Diagnostic::Code::SEMA_INVALID_OPERATOR_PREFIX_OVERLOAD,
-					ast_func_def,
 					"This operator overload was already defined",
+					ast_func_def,
 					Diagnostic::Info(
 						"Previously defined here:", this->get_location(existing_func_id)
 					)
@@ -30575,12 +28504,7 @@ namespace pcit::panther{
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "Infix LHS type: ");
 			this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "Infix RHS type: ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_MATH_INFIX_NO_MATCHING_OP,
-				ast_infix,
-				"No matching operation for these arguments",
-				std::move(infos)
-			);
+			this->emit_error("No matching operation for these arguments", ast_infix, std::move(infos));
 			return evo::Unexpected(Result::ERROR);
 		}
 
@@ -30611,9 +28535,8 @@ namespace pcit::panther{
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
 			if(infix_op_sema_func.attributes.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-					ast_infix.opTokenID,
 					"Cannot call a non-comptime operator overload within a comptime function",
+					ast_infix.opTokenID,
 					Diagnostic::Info(
 						"Called operator overload was defined here:", this->get_location(selected_overload_id)
 					)
@@ -30644,12 +28567,7 @@ namespace pcit::panther{
 		if(overloads_range.empty()){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_type_info(expr.type_id.as<TypeInfo::ID>(), infos, "Prefix argument type: ");
-			this->emit_error(
-				Diagnostic::Code::SEMA_PREFIX_NO_MATCHING_OP,
-				ast_prefix,
-				"No matching operation for this prefix argument",
-				std::move(infos)
-			);
+			this->emit_error("No matching operation for this prefix argument", ast_prefix, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -30679,9 +28597,8 @@ namespace pcit::panther{
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
 			if(infix_op_sema_func.attributes.isComptime == false){
 				this->emit_error(
-					Diagnostic::Code::SEMA_FUNC_ISNT_COMPTIME,
-					ast_prefix.opTokenID,
 					"Cannot call a non-comptime operator overload within a comptime function",
+					ast_prefix.opTokenID,
 					Diagnostic::Info(
 						"Called operator overload was defined here:", this->get_location(selected_overload_id)
 					)
@@ -31103,16 +29020,11 @@ namespace pcit::panther{
 
 		if(instr.designated_init_new.memberInits.size() != 1){
 			if(instr.designated_init_new.memberInits.size() == 0){
-				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_UNION_INIT_WRONG_NUM_FIELDS,
-					instr.designated_init_new,
-					"Union designated operator [new] must have a field"
-				);
+				this->emit_error("Union designated operator [new] must have a field", instr.designated_init_new);
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_NEW_UNION_INIT_WRONG_NUM_FIELDS,
-					instr.designated_init_new.memberInits[1].ident,
 					"Too many fields in union designated operator [new]",
+					instr.designated_init_new.memberInits[1].ident,
 					Diagnostic::Info("Union can only hold one field at a time")
 				);
 				return Result::ERROR;
@@ -31140,9 +29052,8 @@ namespace pcit::panther{
 			if(field.typeID.isVoid()){
 				if(init_value.value_category != TermInfo::ValueCategory::NULL_VALUE){
 					this->emit_error(
-						Diagnostic::Code::SEMA_NEW_UNION_INIT_VALUE_TO_VOID_FIELD,
-						instr.designated_init_new.memberInits[0].expr,
-						"Initialization of a `Void` union field must be value [null]"
+						"Initialization of a `Void` union field must be value [null]",
+						instr.designated_init_new.memberInits[0].expr
 					);
 					return Result::ERROR;
 				}
@@ -31162,9 +29073,8 @@ namespace pcit::panther{
 					&& this->context.getTypeManager().getTypeInfo(field.typeID.asTypeID()).isUninitPointer()
 				){
 					this->emit_error(
-						Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-						instr.designated_init_new.memberInits[0].ident,
-						"Unsafe union designated initializer [new] while not in an unsafe scope"
+						"Unsafe union designated initializer [new] while not in an unsafe scope",
+						instr.designated_init_new.memberInits[0].ident
 					);
 					return Result::ERROR;
 				}
@@ -31193,9 +29103,7 @@ namespace pcit::panther{
 
 				}else{
 					this->emit_error(
-						Diagnostic::Code::MISC_UNIMPLEMENTED_FEATURE,
-						instr.designated_init_new,
-						"Comptime tagged union designated init `new` is unimplemented"
+						"Comptime tagged union designated init `new` is unimplemented", instr.designated_init_new
 					);
 					return Result::ERROR;
 				}
@@ -31219,9 +29127,8 @@ namespace pcit::panther{
 
 
 		this->emit_error(
-			Diagnostic::Code::SEMA_NEW_UNION_INIT_FIELD_DOESNT_EXIST,
-			instr.designated_init_new.memberInits[0].ident,
-			std::format("This union has no member \"{}\"", used_field_name)
+			std::format("This union has no member \"{}\"", used_field_name),
+			instr.designated_init_new.memberInits[0].ident
 		);
 		return Result::ERROR;
 	}
@@ -31262,15 +29169,13 @@ namespace pcit::panther{
 
 					if(instr.interface_impl.methods.empty()){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-							instr.interface_impl,
-							std::format("Method \"{}\" was not set in interface impl", target_method_name)
+							std::format("Method \"{}\" was not set in interface impl", target_method_name),
+							instr.interface_impl
 						);
 					}else{
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-							instr.interface_impl,
 							std::format("Method \"{}\" was not set in interface impl", target_method_name),
+							instr.interface_impl,
 							Diagnostic::Info(
 								std::format("Method listing for \"{}\" should go after this one", target_method_name),
 								this->get_location(instr.interface_impl.methods[method_init_i - 1].method)
@@ -31295,9 +29200,8 @@ namespace pcit::panther{
 
 						if(interface_has_member(method_init_name)){
 							this->emit_error(
-								Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_NOT_SET,
-								instr.interface_impl,
 								std::format("Method \"{}\" was not set in interface impl", target_method_name),
+								instr.interface_impl,
 								Diagnostic::Info(
 									std::format(
 										"Method listing for \"{}\" should go before this one", target_method_name
@@ -31307,9 +29211,8 @@ namespace pcit::panther{
 							);
 						}else{
 							this->emit_error(
-								Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
-								method_init.method,
 								std::format("This interface has no method \"{}\"", method_init_name),
+								method_init.method,
 								Diagnostic::Info(
 									"Interface was declared here:", this->get_location(info.target_interface)
 								)
@@ -31465,9 +29368,8 @@ namespace pcit::panther{
 
 					if(found_overload == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_INTERFACE_IMPL_NO_OVERLOAD_MATCHES,
-							method_init.method,
 							"No overload has correct signature in interface impl",
+							method_init.method,
 							Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
 						);
 						return Result::ERROR;
@@ -31484,9 +29386,8 @@ namespace pcit::panther{
 					this->source.getTokenBuffer()[first_method_ident_token_id].getString();
 
 				this->emit_error(
-					Diagnostic::Code::SEMA_INTERFACE_IMPL_METHOD_DOESNT_EXIST,
-					first_method_ident_token_id,
 					std::format("This interface has no method \"{}\"", first_method_ident_str),
+					first_method_ident_token_id,
 					Diagnostic::Info(
 						"Interface was declared here:", this->get_location(info.target_interface)
 					)
@@ -31524,9 +29425,8 @@ namespace pcit::panther{
 					
 				}else{
 					this->emit_error(
-						Diagnostic::Code::SEMA_INTERFACE_IMPL_ALREADY_EXISTS,
-						instr.interface_impl,
 						"Interface impl for this interface and type already exists",
+						instr.interface_impl,
 						Diagnostic::Info(
 							"Previously defined here:", this->get_location(find_existing_impl->second.astInterfaceImpl)
 						)
@@ -31648,11 +29548,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -31681,21 +29577,13 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 			}else if(attribute_str == "global"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #global does not accept any arguments"
-					);
+					this->emit_error("Attribute #global does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
@@ -31703,9 +29591,7 @@ namespace pcit::panther{
 
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown global variable attribute #{}", attribute_str)
+					std::format("Unknown global variable attribute #{}", attribute_str), attribute.attribute
 				);
 				return evo::resultError;
 			}
@@ -31760,11 +29646,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -31793,20 +29675,12 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown variable attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown variable attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -31836,11 +29710,7 @@ namespace pcit::panther{
 
 			if(attribute_str == "global"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #global does not accept any arguments"
-					);
+					this->emit_error("Attribute #global does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
@@ -31848,28 +29718,22 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "pub"){
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
 					"Unknown variable attribute #pub",
+					attribute.attribute,
 					Diagnostic::Info("Note: attribute `#pub` is not allowed on local variables")
 				);
 				return evo::resultError;
 
 			}else if(attribute_str == "priv"){
 				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
 					"Unknown variable attribute #priv",
+					attribute.attribute,
 					Diagnostic::Info("Note: attribute `#priv` is not allowed on local variables")
 				);
 				return evo::resultError;
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown variable attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown variable attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -31920,11 +29784,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -31953,33 +29813,21 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 
 			}else if(attribute_str == "distinct"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #distinct does not accept any arguments"
-					);
+					this->emit_error("Attribute #distinct does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_distinct.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown alias attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown alias attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32008,22 +29856,14 @@ namespace pcit::panther{
 
 			if(attribute_str == "distinct"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #distinct does not accept any arguments"
-					);
+					this->emit_error("Attribute #distinct does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_distinct.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown alias attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown alias attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32079,11 +29919,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32112,22 +29948,14 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 
 			}else if(attribute_str == "ordered"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #ordered does not accept any arguments"
-					);
+					this->emit_error("Attribute #ordered does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
@@ -32135,11 +29963,7 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "packed"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #packed does not accept any arguments"
-					);
+					this->emit_error("Attribute #packed does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
@@ -32147,19 +29971,13 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "comptimeAssert"){
 				if(attribute_params_info[i].empty()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #comptimeAssert requires a condition argument"
-					);
+					this->emit_error("Attribute #comptimeAssert requires a condition argument", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attribute_params_info[i].size() > 2){
 					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[2],
-						"Attribute #comptimeAssert does not accept more than 2 arguments"
+						"Attribute #comptimeAssert does not accept more than 2 arguments", attribute.args[2]
 					);
 					return evo::resultError;
 				}
@@ -32209,21 +30027,12 @@ namespace pcit::panther{
 						infos.emplace_back(std::format("Message: \"{}\"", message));
 					}
 
-					this->emit_error(
-						Diagnostic::Code::SEMA_COMPTIME_ASSERT_FAIL,
-						attribute.attribute,
-						"Comptime assert fail",
-						std::move(infos)
-					);
+					this->emit_error("Comptime assert fail", attribute.attribute, std::move(infos));
 					return evo::resultError;
 				}
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown struct attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown struct attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32279,11 +30088,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32312,32 +30117,20 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 			}else if(attribute_str == "untagged"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #untagged does not accept any arguments"
-					);
+					this->emit_error("Attribute #untagged does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_untagged.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown union attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown union attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32392,11 +30185,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32425,20 +30214,12 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown enum attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown enum attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32502,11 +30283,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32535,11 +30312,7 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32568,11 +30341,7 @@ namespace pcit::panther{
 					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #rt does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #rt does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32601,30 +30370,18 @@ namespace pcit::panther{
 					if(attr_unsafe.set(attribute.attribute, unsafe_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #unsafe does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #unsafe does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 			}else if(attribute_str == "export"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #export does not accept any arguments"
-					);
+					this->emit_error("Attribute #export does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_entry.is_set()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #export and #entry"
-					);
+					this->emit_error("A function cannot have both attribute #export and #entry", attribute.attribute);
 					return evo::resultError;
 				}
 
@@ -32632,20 +30389,12 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "noReturn"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #noReturn does not accept any arguments"
-					);
+					this->emit_error("Attribute #noReturn does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_entry.is_set()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #noReturn and #entry"
-					);
+					this->emit_error("A function cannot have both attribute #noReturn and #entry", attribute.attribute);
 					return evo::resultError;
 				}
 
@@ -32653,20 +30402,12 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "entry"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #entry does not accept any arguments"
-					);
+					this->emit_error("Attribute #entry does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_export.is_set()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #entry and #export"
-					);
+					this->emit_error("A function cannot have both attribute #entry and #export", attribute.attribute);
 					return evo::resultError;
 				}
 
@@ -32675,19 +30416,13 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "commutative"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #commutative does not accept any arguments"
-					);
+					this->emit_error("Attribute #commutative does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_swapped.is_set()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #commutative and #swapped"
+						"A function cannot have both attribute #commutative and #swapped", attribute.attribute
 					);
 					return evo::resultError;
 				}
@@ -32696,19 +30431,13 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "swapped"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #swapped does not accept any arguments"
-					);
+					this->emit_error("Attribute #swapped does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_commutative.is_set()){
 					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #swapped and #commutative"
+						"A function cannot have both attribute #swapped and #commutative", attribute.attribute
 					);
 					return evo::resultError;
 				}
@@ -32720,22 +30449,14 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "implicit"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #implicit does not accept any arguments"
-					);
+					this->emit_error("Attribute #implicit does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_implicit.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown function attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown function attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32797,11 +30518,7 @@ namespace pcit::panther{
 					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #pub does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
@@ -32830,33 +30547,21 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
 
 				}else{
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args[1],
-						"Attribute #priv does not accept more than 1 argument"
-					);
+					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
 					return evo::resultError;
 				}
 
 
 			}else if(attribute_str == "polymorphic"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #polymorphic does not accept any arguments"
-					);
+					this->emit_error("Attribute #polymorphic does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_polymorphic.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown interface attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -32887,52 +30592,32 @@ namespace pcit::panther{
 
 			if(attribute_str == "noJump"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #noJump does not accept any arguments"
-					);
+					this->emit_error("Attribute #noJump does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_no_jump.set(attribute.attribute).isError()){ return evo::resultError; }
 
 				if(attr_partial.is_set()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #noJump and #partial"
-					);
+					this->emit_error("A function cannot have both attribute #noJump and #partial", attribute.attribute);
 					return evo::resultError;
 				}
 
 			}else if(attribute_str == "partial"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_TOO_MANY_ATTRIBUTE_ARGS,
-						attribute.args.front(),
-						"Attribute #partial does not accept any arguments"
-					);
+					this->emit_error("Attribute #partial does not accept any arguments", attribute.args.front());
 					return evo::resultError;
 				}
 
 				if(attr_partial.set(attribute.attribute).isError()){ return evo::resultError; }
 
 				if(attr_no_jump.is_set()){
-					this->emit_error(
-						Diagnostic::Code::SEMA_THESE_ATTRIBUTES_CANNOT_BE_COMBINED,
-						attribute.attribute,
-						"A function cannot have both attribute #partial and #noJump"
-					);
+					this->emit_error("A function cannot have both attribute #partial and #noJump", attribute.attribute);
 					return evo::resultError;
 				}
 
 			}else{
-				this->emit_error(
-					Diagnostic::Code::SEMA_UNKNOWN_ATTRIBUTE,
-					attribute.attribute,
-					std::format("Unknown interface attribute #{}", attribute_str)
-				);
+				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -33197,9 +30882,7 @@ namespace pcit::panther{
 				if(got_expr.isMultiValue()) [[unlikely]] {
 					if(multi_type_index.has_value() == false){
 						this->emit_error(
-							Diagnostic::Code::SEMA_MULTI_RETURN_INTO_SINGLE_VALUE,
-							location,
-							std::format("{} cannot accept multiple values", expected_type_location_name)
+							std::format("{} cannot accept multiple values", expected_type_location_name), location
 						);
 						return TypeCheckInfo::fail();
 					}
@@ -33236,10 +30919,7 @@ namespace pcit::panther{
 									this->diagnostic_print_type_info(expected_type_id, infos, "Deducer type:       ");
 									this->diagnostic_print_type_info(decayed_got_type_id, infos,"Type of expression: ");
 									this->emit_error(
-										Diagnostic::Code::SEMA_TYPE_MISMATCH,
-										location,
-										"Type deducer not able to deduce type",
-										std::move(infos)
+										"Type deducer not able to deduce type", location, std::move(infos)
 									);
 								}
 								return TypeCheckInfo::fail();
@@ -33793,9 +31473,7 @@ namespace pcit::panther{
 						if(got_expr.is_ephemeral() == false){
 							if constexpr(MAY_EMIT_ERROR){
 								this->emit_error(
-									Diagnostic::Code::SEMA_IMPLICIT_CONVERT_TO_OPTIONAL_NOT_EPHEMERAL,
-									location,
-									"A value can only be implicitly converted if the value is ephemeral"
+									"A value can only be implicitly converted if the value is ephemeral", location
 								);
 							}
 							return TypeCheckInfo::fail();
@@ -33803,10 +31481,9 @@ namespace pcit::panther{
 
 						if(got_type.isUninitPointer() && this->currently_in_unsafe() == false){
 							this->emit_error(
-								Diagnostic::Code::SEMA_UNSAFE_IN_SAFE_SCOPE,
-								location,
 								"Unsafe implicit conversion to optional uninitialized qualified pointer while not in "
-									"an unsafe scope"
+									"an unsafe scope",
+								location
 							);
 							return TypeCheckInfo::fail();
 						}
@@ -33850,11 +31527,7 @@ namespace pcit::panther{
 					if constexpr(MAY_EMIT_ERROR){
 						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
 							// TODO(FUTURE): better messaging
-							this->emit_error(
-								Diagnostic::Code::SEMA_CANNOT_INFER_TYPE,
-								location,
-								"Cannot deduce the type of a fluid value"
-							);
+							this->emit_error("Cannot deduce the type of a fluid value", location);
 
 						}else{
 							this->error_type_mismatch(
@@ -33949,18 +31622,16 @@ namespace pcit::panther{
 
 										if(int_value.value.slt(target_min)){ // check for negatives
 											this->emit_error(
-												Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-												location,
 												"Cannot implicitly convert this fluid value to the target type "
 													"as fluid value is negative and the target type is unsigned",
+												location,
 												std::move(infos)
 											);
 										}else{
 											this->emit_error(
-												Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-												location,
 												"Cannot implicitly convert this fluid value to the target type "
 													"as it would require truncation",
+												location,
 												std::move(infos)
 											);
 										}
@@ -33973,10 +31644,9 @@ namespace pcit::panther{
 										auto infos = evo::SmallVector<Diagnostic::Info>();
 										this->diagnostic_print_type_info(expected_type_id, infos, "Target type: ");
 										this->emit_error(
-											Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-											location,
 											"Cannot implicitly convert this fluid value to the target type "
 												"as it would require truncation",
+											location,
 											std::move(infos)
 										);
 									}
@@ -34086,10 +31756,9 @@ namespace pcit::panther{
 								auto infos = evo::SmallVector<Diagnostic::Info>();
 								this->diagnostic_print_type_info(expected_type_id, infos, "Target type: ");
 								this->emit_error(
-									Diagnostic::Code::SEMA_CANNOT_CONVERT_FLUID_VALUE,
-									location,
 									"Cannot implicitly convert this fluid value to the target type "
 										"as it would require truncation",
+									location,
 									std::move(infos)
 								);
 							}
@@ -34138,20 +31807,12 @@ namespace pcit::panther{
 				const TypeInfo& expected_type = type_manager.getTypeInfo(decayed_expected_type_id);
 				
 				if(expected_type.isOptional() == false){
-					this->emit_error(
-						Diagnostic::Code::SEMA_ASSIGNED_NULL_TO_NON_OPTIONAL,
-						location,
-						"Value [null] can only be assigned to optional types"
-					);
+					this->emit_error("Value [null] can only be assigned to optional types", location);
 					return TypeCheckInfo::fail();
 				}
 
 				if(type_manager.isTypeDeducer(decayed_expected_type_id)){
-					this->emit_error(
-						Diagnostic::Code::SEMA_CANNOT_EXTRACT_DEDUCERS_FROM_NULL,
-						location,
-						"Cannot extract deducers from [null]"
-					);
+					this->emit_error("Cannot extract deducers from [null]", location);
 					return TypeCheckInfo::fail();
 				}
 
@@ -34313,13 +31974,12 @@ namespace pcit::panther{
 
 
 		this->emit_error(
-			Diagnostic::Code::SEMA_TYPE_MISMATCH,
-			actual_location,
 			std::format(
 				"{} cannot accept an expression of a different type, "
 					"and this expression cannot be implicitly converted to the correct type",
 				expected_type_location_name
 			),
+			actual_location,
 			std::move(infos)
 		);
 	}
@@ -34564,9 +32224,8 @@ namespace pcit::panther{
 			if(found_read_only_ptr){
 				if(qualifier.isPtr && qualifier.isMut){
 					this->emit_error(
-						Diagnostic::Code::SEMA_INVALID_TYPE_QUALIFIERS,
-						location,
 						"Invalid type qualifiers",
+						location,
 						Diagnostic::Info(
 							"If one type qualifier level is a not mut-qualified pointer, "
 							"all previous pointer qualifier levels must not also be mut-qualified"
@@ -34586,7 +32245,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::check_term_isnt_type(const TermInfo& term_info, const auto& location) -> evo::Result<> {
 		if(term_info.value_category == TermInfo::ValueCategory::TYPE){
-			this->emit_error(Diagnostic::Code::SEMA_TYPE_USED_AS_EXPR, location, "Type used as an expression");
+			this->emit_error("Type used as an expression", location);
 			return evo::resultError;
 		}
 
@@ -34634,9 +32293,8 @@ namespace pcit::panther{
 					}();
 					
 					this->emit_error(
-						Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
-						ast_node,
 						std::format("Identifier \"{}\" was already defined in this scope", ident_str),
+						ast_node,
 						evo::SmallVector<Diagnostic::Info>{
 							Diagnostic::Info("First defined here:", std::move(first_ident_location)),
 							Diagnostic::Info("Note: shadowing is not allowed")
@@ -34742,16 +32400,14 @@ namespace pcit::panther{
 
 			if constexpr(IS_FUNC_OVERLOAD_COLLISION){
 				this->emit_error(
-					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
-					redef_id,
 					std::format("Function \"{}\" has an overload that collides with this declaration", ident_str),
+					redef_id,
 					std::move(infos)
 				);
 			}else{
 				this->emit_error(
-					Diagnostic::Code::SEMA_IDENT_ALREADY_IN_SCOPE,
-					redef_id,
 					std::format("Identifier \"{}\" was already defined in this scope", ident_str),
+					redef_id,
 					std::move(infos)
 				);
 			}
@@ -34851,11 +32507,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::check_scope_isnt_terminated(const auto& location) -> evo::Result<> {
 		if(this->get_current_scope_level().isTerminated() == false){ return evo::Result<>(); }
 
-		this->emit_error(
-			Diagnostic::Code::SEMA_SCOPE_IS_ALREADY_TERMINATED,
-			location,
-			"Scope is already terminated"
-		);
+		this->emit_error("Scope is already terminated", location);
 		return evo::resultError;
 	}
 

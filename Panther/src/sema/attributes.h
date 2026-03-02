@@ -28,9 +28,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto set(Token::ID location) -> evo::Result<> {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
-						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-						location,
 						std::format("Attribute #{} was already set", this->name),
+						location,
 						Diagnostic::Info(
 							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
 						)
@@ -41,9 +40,8 @@ namespace pcit::panther{
 				if(this->implicitly_set_location.has_value()){
 					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						location,
 						std::format("Attribute #{} was already implicitly set", this->name),
+						location,
 						Diagnostic::Info(
 							"Implicitly set here:",
 							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
@@ -60,9 +58,8 @@ namespace pcit::panther{
 				if(this->set_location.has_value()){
 					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						this->set_location.value(),
 						std::format("Attribute #{} was implicitly set", this->name),
+						this->set_location.value(),
 						Diagnostic::Info(
 							"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
 						)
@@ -101,9 +98,8 @@ namespace pcit::panther{
 			EVO_NODISCARD auto set(Token::ID location, bool cond) -> evo::Result<> {
 				if(this->set_location.has_value()){
 					this->sema.emit_error(
-						Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-						location,
 						std::format("Attribute #{} was already set", this->name),
+						location,
 						Diagnostic::Info(
 							"First set here:", Diagnostic::Location::get(this->set_location.value(), this->sema.source)
 						)
@@ -114,9 +110,8 @@ namespace pcit::panther{
 				if(this->implicitly_set_location.has_value()){
 					// TODO(FEATURE): make this warning turn-off-able in settings
 					this->sema.emit_warning(
-						Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-						location,
 						std::format("Attribute #{} was already implicitly set", this->name),
+						location,
 						Diagnostic::Info(
 							"Implicitly set here:",
 							Diagnostic::Location::get(this->implicitly_set_location.value(), this->sema.source)
@@ -135,9 +130,8 @@ namespace pcit::panther{
 					if(this->is_set_true){
 						// TODO(FEATURE): make this warning turn-off-able in settings
 						this->sema.emit_warning(
-							Diagnostic::Code::SEMA_ATTRIBUTE_IMPLICT_SET,
-							this->set_location.value(),
 							std::format("Attribute #{} was implicitly set", this->name),
+							this->set_location.value(),
 							Diagnostic::Info(
 								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
 							)
@@ -145,9 +139,8 @@ namespace pcit::panther{
 						return;
 					}else{
 						this->sema.emit_error(
-							Diagnostic::Code::SEMA_ATTRIBUTE_ALREADY_SET,
-							this->set_location.value(),
 							std::format("Attribute #{} was implicitly set", this->name),
+							this->set_location.value(),
 							Diagnostic::Info(
 								"Implicitly set here:", Diagnostic::Location::get(location, this->sema.source)
 							)

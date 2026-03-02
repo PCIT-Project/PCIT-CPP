@@ -35,9 +35,8 @@ namespace pcit::panther{
 
 		if(id == this->getID()){
 			context.emitError(
-				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
-				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
 				"Detected a circular dependency when analyzing this symbol:",
+				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
 				Diagnostic::Info("Self dependency")
 			);
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
@@ -96,9 +95,8 @@ namespace pcit::panther{
 
 		if(id == this->getID()){
 			context.emitError(
-				Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
-				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
 				"Detected a circular dependency when analyzing this symbol:",
+				Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id]),
 				Diagnostic::Info("Self dependency")
 			);
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
@@ -234,9 +232,8 @@ namespace pcit::panther{
 				}
 
 				context.emitError(
-					Diagnostic::Code::SYMBOL_PROC_CIRCULAR_DEP,
-					Diagnostic::Location::get(visited.ast_node, context.getSourceManager()[visited.source_id]),
 					"Detected a circular dependency when analyzing this symbol:",
+					Diagnostic::Location::get(visited.ast_node, context.getSourceManager()[visited.source_id]),
 					std::move(infos)
 				);
 

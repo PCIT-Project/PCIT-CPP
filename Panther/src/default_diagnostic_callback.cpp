@@ -284,7 +284,7 @@ namespace pcit::panther{
 		return [&printer = printer_ref, &rel_dir = relative_dir](const Context& context, const Diagnostic& diagnostic) 
 		-> void {
 			const std::string diagnostic_message = std::format(
-				"<{}|{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.code, diagnostic.message
+				"<{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.message
 			);
 
 			switch(diagnostic.level){
@@ -347,7 +347,7 @@ namespace pcit::panther{
 
 	auto printDiagnosticWithoutLocation(pcit::core::Printer& printer, const Diagnostic& diagnostic) -> void {
 		const std::string diagnostic_message = std::format(
-			"<{}|{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.code, diagnostic.message
+			"<{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.message
 		);
 
 		switch(diagnostic.level){
