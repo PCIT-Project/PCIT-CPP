@@ -1,12 +1,11 @@
-def std_exp = @import("std_exp/std_exp.pthr");
 
-
-func entry = () #entry -> UI8 {
-	var arr = new std_exp.StaticArrayList<{Int, 4}>();
-
-	const new_elem_uninit: Int*uninit = arr.append();
-	new_elem_uninit.* = 12;
-
-	const new_elem: Int* = @makeInitPtr(new_elem_uninit);
-	return new_elem.* as UI8;
+type NonTrivial = struct {
+	func copy = (this) -> (output: This) {
+		output = new This();
+		return...;
+	}
 }
+
+
+// This is what was needed to get the check I added to fail
+const foo: [NonTrivial:3;$$] = 12;

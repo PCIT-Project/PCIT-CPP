@@ -20104,6 +20104,13 @@ namespace pcit::panther{
 			if(instr.terminator.has_value()){
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
+				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
+					this->emit_error(
+						"Terminated array type with non-trivially copyable element type", *instr.array_type.terminator
+					);
+					return Result::ERROR;
+				}
+
 				if(terminator_term_info.value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
 					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
 					
@@ -20160,7 +20167,7 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						"Terminated array type with non-trivially-copyable element type", instr.array_type
+						"Terminated array type with non-trivially copyable element type", *instr.array_type.terminator
 					);
 					return Result::ERROR;
 				}
@@ -20227,7 +20234,6 @@ namespace pcit::panther{
 						);
 
 					}else{
-
 						if(this->type_check<true, true>(
 							TypeManager::getTypeUSize(),
 							length_term_info,
@@ -20258,7 +20264,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						"Terminated array reference type with non-trivially-copyable element type", instr.array_type
+						"Terminated array reference type with non-trivially copyable element type",
+						*instr.array_type.terminator
 					);
 					return Result::ERROR;
 				}
@@ -20334,7 +20341,8 @@ namespace pcit::panther{
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
 					this->emit_error(
-						"Terminated array reference type with non-trivially-copyable element type", instr.array_type
+						"Terminated array reference type with non-trivially copyable element type",
+						*instr.array_type.terminator
 					);
 					return Result::ERROR;
 				}

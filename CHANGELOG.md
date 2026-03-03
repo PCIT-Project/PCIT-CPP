@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.248.1"></a>
+## v0.0.248.1
+
+### Panther
+- Fixed missing check in semantic analysis for terminated array / array reference types with deducers if the element is non-trivially copyable when the terminnator is a deducer
+
+
+<!---------------------------------->
 <a name="v0.0.248.0"></a>
 ## v0.0.248.0
 
