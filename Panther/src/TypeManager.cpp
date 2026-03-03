@@ -326,7 +326,7 @@ namespace pcit::panther{
 
 		bool is_first_qualifier = type_str.back() != '*'
 			&& type_str.ends_with("*mut")
-			&& type_str.back() != '!'
+			&& type_str.ends_with("*uninit")
 			&& type_str.back() != '?';
 
 		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
@@ -340,7 +340,7 @@ namespace pcit::panther{
 
 			if(qualifier.isPtr){ type_str += '*'; }
 			if(qualifier.isMut){ type_str += "mut"; }
-			if(qualifier.isUninit){ type_str += '!'; }
+			if(qualifier.isUninit){ type_str += "uninit"; }
 			if(qualifier.isOptional){ type_str += '?'; }
 		}
 

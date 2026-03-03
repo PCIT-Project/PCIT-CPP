@@ -128,7 +128,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 	}
 
 
-	func append = (this mut) -> T*! {
+	func append = (this mut) -> T*uninit {
 		std.assert(this.size() < CAPACITY, "Already at capacity");
 
 		this._size += 1;

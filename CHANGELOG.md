@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.248.0"></a>
+## v0.0.248.0
+
+### Panther
+- Changed uninit qualified pointer from `*!` to `*uninit`
+
+
+<!---------------------------------->
 <a name="v0.0.247.0"></a>
 ## v0.0.247.0
 

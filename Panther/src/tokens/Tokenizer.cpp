@@ -554,25 +554,6 @@ namespace pcit::panther{
 								return true;
 							}
 						} break;
-
-						case 'm': {
-							if(
-								ammount_left > 3 && this->char_stream.peek(2) == 'u' && this->char_stream.peek(3) == 't'
-							){
-								if(ammount_left > 4){
-									if(evo::isAlphaNumeric(this->char_stream.peek(4)) == false){
-										this->char_stream.skip(evo::stringSize("*mut"));
-										this->create_token(Token::lookupKind("*mut"));
-										return true;
-									}
-
-								}else{
-									this->char_stream.skip(evo::stringSize("*mut"));
-									this->create_token(Token::lookupKind("*mut"));
-									return true;
-								}
-							}
-						} break;
 					}
 				}
 

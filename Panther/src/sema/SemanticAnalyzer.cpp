@@ -20409,13 +20409,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-
-			const bool is_mut = [&]() -> bool {
-				const Token& base_token =
-					this->source.getTokenBuffer()[instr.interface_map.underlyingType.as<Token::ID>()];
-				return base_token.kind() == Token::lookupKind("*mut");
-			}();
-
+			const bool is_mut = instr.interface_map.underlyingType.as<AST::InterfaceMap::Ptr>().isMut;
 
 			const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreatePolyInterfaceRef(
 				BaseType::PolyInterfaceRef(got_interface_type.baseTypeID().interfaceID(), is_mut)

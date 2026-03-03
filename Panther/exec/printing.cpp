@@ -1658,15 +1658,11 @@ namespace pthr{
 
 						this->printer.printMagenta("impl(");
 
-						if(interface_map.underlyingType.is<panther::Token::ID>()){
-							const panther::Token& ptr_token = this->source.getTokenBuffer()[
-								interface_map.underlyingType.as<panther::Token::ID>()
-							];
-
-							if(ptr_token.kind() == panther::Token::lookupKind("*")){
-								this->printer.printMagenta("*");
-							}else{
+						if(interface_map.underlyingType.is<panther::AST::InterfaceMap::Ptr>()){
+							if(interface_map.underlyingType.as<panther::AST::InterfaceMap::Ptr>().isMut){
 								this->printer.printMagenta("*mut");
+							}else{
+								this->printer.printMagenta("*");
 							}
 						}else{
 							this->print_type(
@@ -1708,7 +1704,7 @@ namespace pthr{
 
 						if(qualifier.isPtr){ qualifier_str += '*'; }
 						if(qualifier.isMut){ qualifier_str += "mut"; }
-						if(qualifier.isUninit){ qualifier_str += '!'; }
+						if(qualifier.isUninit){ qualifier_str += "uninit"; }
 						if(qualifier.isOptional){ qualifier_str += '?'; }
 					}
 

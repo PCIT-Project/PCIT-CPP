@@ -1929,9 +1929,14 @@ namespace pcit::panther{
 
 
 				switch(this->reader[this->reader.peek()].kind()){
-					case Token::lookupKind("*"): case Token::lookupKind("*mut"): {
+					case Token::lookupKind("*"): {
 						is_ref = true;
-						is_mutable_ref = this->reader[this->reader.next()].kind() == Token::lookupKind("*mut");
+						this->reader.skip();
+
+						if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
+							is_mutable_ref = true;
+							this->reader.skip();
+						}
 
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 							this->reader.skip();
@@ -1972,14 +1977,6 @@ namespace pcit::panther{
 									case Token::lookupKind("*"): {
 										this->reader.skip();
 										dimensions.emplace_back();
-									} break;
-
-									case Token::lookupKind("*mut"): {
-										this->context.emitError(
-											"Mutable pointer dimensions cannot be mutable",
-											Diagnostic::Location::get(this->reader.peek(), this->source)
-										);
-										return Result(Result::Code::ERROR);
 									} break;
 
 									default: {
@@ -2120,30 +2117,34 @@ namespace pcit::panther{
 				}
 
 
-				auto underlying_type = std::optional<evo::Variant<Token::ID, AST::Node>>();
-				switch(this->reader[this->reader.peek()].kind()){
-					case Token::lookupKind("*"): case Token::lookupKind("*mut"): {
-						underlying_type = this->reader.next();
-					} break;
+				auto underlying_type = std::optional<evo::Variant<AST::InterfaceMap::Ptr, AST::Node>>();
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
+					this->reader.skip();
 
-					default: {
-						const Result underlying_type_result = [&](){
-							if constexpr(
-								KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-								|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-							){
-								return this->parse_type<KIND>();
-							}else{
-								return this->parse_type<TypeKind::EXPLICIT>();
-							}
-						}();
+					if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
+						underlying_type = AST::InterfaceMap::Ptr(true);
+						this->reader.skip();
+					}else{
+						underlying_type = AST::InterfaceMap::Ptr(false);
+					}
 
-						if(this->check_result(underlying_type_result, "underlying type in interface map").isError()){
-							return Result(Result::Code::ERROR);
+				}else{
+					const Result underlying_type_result = [&](){
+						if constexpr(
+							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+						){
+							return this->parse_type<KIND>();
+						}else{
+							return this->parse_type<TypeKind::EXPLICIT>();
 						}
+					}();
 
-						underlying_type = underlying_type_result.value();
-					} break;
+					if(this->check_result(underlying_type_result, "underlying type in interface map").isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+					underlying_type = underlying_type_result.value();
 				}
 
 
@@ -2229,21 +2230,16 @@ namespace pcit::panther{
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 				continue_looking_for_qualifiers = true;
 				is_ptr = true;
-				potential_backup_location = this->reader.peek();
-				if(this->assert_token(Token::lookupKind("*")).isError()){ return Result::Code::ERROR; }
+				potential_backup_location = this->reader.next();
 				
-				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("!")){
-					is_uninit = true;
-					potential_backup_location = this->reader.peek();
-					if(this->assert_token(Token::lookupKind("!")).isError()){ return Result::Code::ERROR; }
-				}
+				if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
+					is_mut = true;
+					potential_backup_location = this->reader.next();
 
-			}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*mut")){
-				continue_looking_for_qualifiers = true;
-				is_ptr = true;
-				is_mut = true;
-				potential_backup_location = this->reader.peek();
-				if(this->assert_token(Token::lookupKind("*mut")).isError()){ return Result::Code::ERROR; }
+				}else if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_UNINIT){
+					is_uninit = true;
+					potential_backup_location = this->reader.next();
+				}
 			}
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("?")){

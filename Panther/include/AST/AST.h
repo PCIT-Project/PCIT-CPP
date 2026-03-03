@@ -469,7 +469,9 @@ namespace pcit::panther::AST{
 	};
 
 	struct InterfaceMap{
-		evo::Variant<Token::ID, Node> underlyingType;
+		struct Ptr{ bool isMut; };
+
+		evo::Variant<Ptr, Node> underlyingType;
 		Token::ID colonToken;
 		Node interface;
 	};

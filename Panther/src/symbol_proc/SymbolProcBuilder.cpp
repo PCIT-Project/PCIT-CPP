@@ -4277,7 +4277,7 @@ namespace pcit::panther{
 
 			case AST::Kind::INTERFACE_MAP: {
 				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
-				if(interface_map_type.underlyingType.is<Token::ID>()){ return false; }
+				if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ return false; }
 				return this->is_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 
@@ -4327,7 +4327,7 @@ namespace pcit::panther{
 
 			case AST::Kind::INTERFACE_MAP: {
 				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
-				if(interface_map_type.underlyingType.is<Token::ID>()){ return false; }
+				if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ return false; }
 				return this->is_named_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 
