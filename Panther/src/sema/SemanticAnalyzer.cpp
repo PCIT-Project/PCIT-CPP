@@ -917,12 +917,10 @@ namespace pcit::panther{
 			TermInfo& value_term_info = this->get_term_info(*instr.value_id);
 
 			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-				if(instr.var_def.kind != AST::VarDef::Kind::VAR){
-					this->emit_error(
-						"Only [var] global variables can be defined with an initializer value", instr.var_def
-					);
-					return Result::ERROR;
-				}
+				this->emit_error(
+					"Global variables cannot be defined with an initializer literal", instr.var_def
+				);
+				return Result::ERROR;
 
 			}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
 				if(this->type_check<true, true>(
@@ -1086,7 +1084,7 @@ namespace pcit::panther{
 
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			this->emit_error(
-				"Cannot define a variable with an initializer value without an explicit type", *instr.var_def.value
+				"Cannot define a variable with an initializer literal without an explicit type", *instr.var_def.value
 			);
 			return Result::ERROR;
 
@@ -6154,7 +6152,7 @@ namespace pcit::panther{
 		if(var_attrs.isError()){ return Result::ERROR; }
 
 		if(var_attrs.value().is_global){
-			this->emit_error("Static variables are currently unimplemented", instr.var_def);
+			this->emit_error("Global variables in local scope are currently unimplemented", instr.var_def);
 			return Result::ERROR;
 		}
 
@@ -6184,7 +6182,7 @@ namespace pcit::panther{
 		if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
 			if(instr.type_id.has_value() == false){
 				this->emit_error(
-					"Cannot define a variable with an initializer value without an explicit type",
+					"Cannot define a variable with an initializer literal without an explicit type",
 					*instr.var_def.value
 				);
 				return Result::ERROR;
@@ -6192,7 +6190,7 @@ namespace pcit::panther{
 
 			if(this->context.getTypeManager().isTypeDeducer(this->get_type(*instr.type_id))){
 				this->emit_error(
-					"Cannot define a variable with an initializer value without an explicit type",
+					"Cannot define a variable with an initializer literal without an explicit type",
 					*instr.var_def.value,
 					Diagnostic::Info("Note: the type of the variable cannot be deduced from this value")
 				);
@@ -6220,7 +6218,7 @@ namespace pcit::panther{
 			if(this->check_term_isnt_type(value_term_info, *instr.var_def.value).isError()){ return Result::ERROR; }
 
 			this->emit_error(
-				"Cannot define a variable with a value that is not ephemeral, an initializer value, or [null]",
+				"Cannot define a variable with a value that is not ephemeral, an initializer literal, or [null]",
 				*instr.var_def.value
 			);
 			return Result::ERROR;

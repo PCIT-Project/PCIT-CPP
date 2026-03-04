@@ -1,28 +1,2 @@
 
-interface NumGetter = #polymorphic {
-	func get_num = (this) -> Int;
-}
-
-
-type Foo = struct {
-	impl NumGetter{
-		get_num = get_num,
-	}
-
-	func get_num = (this) -> Int {
-		return 12;
-	}
-}
-
-
-const foo = new Foo();
-
-func test = () -> impl(*:NumGetter) {
-	return foo as impl(*:NumGetter);
-}
-
-
-func entry = () #entry -> UI8 {
-	return test().get_num() as UI8;
-}
-
+var foo: Int = uninit;

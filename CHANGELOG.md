@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.249.1"></a>
+## v0.0.249.1
+
+### Panther
+- Fixed global variables being allowed to be defined with initializer literals
+
+
+<!---------------------------------->
 <a name="v0.0.249.0"></a>
 ## v0.0.249.0
 
