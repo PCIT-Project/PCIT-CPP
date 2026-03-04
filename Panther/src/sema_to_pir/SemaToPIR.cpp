@@ -140,7 +140,7 @@ namespace pcit::panther{
 				this->lowerInterfaceVTableDef(interface_id, target_type_id, impl.methods);
 			}
 		}
-
+		
 		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
@@ -3728,9 +3728,26 @@ namespace pcit::panther{
 
 					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
 
-					const pir::GlobalVar::ID vtable = this->data.get_vtable(
-						Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
-					);
+
+					const pir::Expr vtable_value = [&]() -> pir::Expr {
+						const pir::GlobalVar::ID vtable = this->data.get_vtable(
+							Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+						);
+
+						const BaseType::Interface& interface_type =
+							this->context.getTypeManager().getInterface(make_interface_ptr.interfaceID);
+
+						if(interface_type.methods.size() == 1){
+							const pir::GlobalVar& vtable_global = this->module.getGlobalVar(vtable);
+							const pir::GlobalVar::Array& vtable_array =
+								this->module.getGlobalArray(vtable_global.value.as<pir::GlobalVar::Array::ID>());
+
+							return vtable_array.values[0].as<pir::Expr>();
+
+						}else{
+							return this->agent.createGlobalValue(vtable);
+						}
+					}();
 
 
 					const pir::Expr target = [&](){
@@ -3756,7 +3773,7 @@ namespace pcit::panther{
 						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
 						this->name(".MAKE_INTERFACE_PTR.VTABLE")
 					);
-					this->agent.createStore(vtable_ptr, this->agent.createGlobalValue(vtable));
+					this->agent.createStore(vtable_ptr, vtable_value);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(target, interface_ptr_type);
@@ -3867,15 +3884,26 @@ namespace pcit::panther{
 					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
 				);
 
-				const pir::Expr target_func_ptr = this->agent.createCalcPtr(
-					vtable,
-					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
-					this->name(".VTABLE.FUNC.PTR")
-				);
-				const pir::Expr target_func = this->agent.createLoad(
-					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
-				);
+
+				const pir::Expr target_func = [&]() -> pir::Expr {
+					const BaseType::Interface& interface_type =
+						this->context.getTypeManager().getInterface(interface_call.interfaceID);
+
+					if(interface_type.methods.size() == 1){
+						return vtable;
+
+					}else{
+						const pir::Expr target_func_ptr = this->agent.createCalcPtr(
+							vtable,
+							this->module.createPtrType(),
+							evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
+							this->name(".VTABLE.FUNC.PTR")
+						);
+						return this->agent.createLoad(
+							target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+						);
+					}
+				}();
 
 
 				///////////////////////////////////
@@ -3883,13 +3911,42 @@ namespace pcit::panther{
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : interface_call.args){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(i == 0 && arg.kind() == sema::Expr::Kind::DEREF){
+						const sema::Deref& deref = this->context.getSemaBuffer().getDeref(arg.derefID());
+
+						if(deref.expr.kind() == sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS){
+							const sema::InterfacePtrExtractThis& interface_ptr_extract_this = 
+								this->context
+									.getSemaBuffer()
+									.getInterfacePtrExtractThis(deref.expr.interfacePtrExtractThisID());
+
+							if(interface_ptr_extract_this.expr == interface_call.value){
+								const pir::Expr this_ptr = this->agent.createCalcPtr(
+									target_interface_ptr,
+									interface_ptr_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+									this->name(".INTERFACE_PTR.this_ptr")
+								);
+
+								args.emplace_back(
+									this->agent.createLoad(
+										this_ptr, this->module.createPtrType(), this->name(".INTERFACE_PTR.this")
+									)
+								);
+
+								continue;
+							}
+						}
+					}
+
+
 					if(target_func_type.params[i].shouldCopy){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
-
-					i += 1;
 				}
 
 
@@ -10534,11 +10591,11 @@ namespace pcit::panther{
 					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid base type");
 
 					case BaseType::Kind::PRIMITIVE: {
-						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY: {
-						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY_REF: {
@@ -10546,7 +10603,7 @@ namespace pcit::panther{
 					} break;
 
 					case BaseType::Kind::STRUCT: {
-						return pir::GlobalVar::Value(pir::GlobalVar::Uninit());
+						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ALIAS:

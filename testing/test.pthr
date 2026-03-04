@@ -1,11 +1,28 @@
 
-type NonTrivial = struct {
-	func copy = (this) -> (output: This) {
-		output = new This();
-		return...;
+interface NumGetter = #polymorphic {
+	func get_num = (this) -> Int;
+}
+
+
+type Foo = struct {
+	impl NumGetter{
+		get_num = get_num,
+	}
+
+	func get_num = (this) -> Int {
+		return 12;
 	}
 }
 
 
-// This is what was needed to get the check I added to fail
-const foo: [NonTrivial:3;$$] = 12;
+const foo = new Foo();
+
+func test = () -> impl(*:NumGetter) {
+	return foo as impl(*:NumGetter);
+}
+
+
+func entry = () #entry -> UI8 {
+	return test().get_num() as UI8;
+}
+

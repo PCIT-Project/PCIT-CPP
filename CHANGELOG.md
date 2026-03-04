@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.249.0"></a>
+## v0.0.249.0
+
+### Panther
+- Optimized polymorphic interface references when the interface has 1 method
+- Fixed lowering of interface method calls duplicating the `this` expression
+
+
+<!---------------------------------->
 <a name="v0.0.248.1"></a>
 ## v0.0.248.1
 
