@@ -225,7 +225,10 @@ namespace pcit::panther{
 			EVO_NODISCARD auto instr_add_template_decl_instantiation_type(
 				const Instruction::AddTemplateDeclInstantiationType& instr
 			) -> Result;
-			EVO_NODISCARD auto instr_copy(const Instruction::Copy& instr) -> Result;
+
+			template<bool IS_COMPTIME>
+			EVO_NODISCARD auto instr_copy(const Instruction::Copy<IS_COMPTIME>& instr) -> Result;
+
 			EVO_NODISCARD auto instr_move(const Instruction::Move& instr) -> Result;
 			EVO_NODISCARD auto instr_forward(const Instruction::Forward& instr) -> Result;
 			EVO_NODISCARD auto instr_addr_of(const Instruction::AddrOf& instr) -> Result;
@@ -285,7 +288,7 @@ namespace pcit::panther{
 				-> Result;
 
 			template<bool IS_COMPTIME>
-			EVO_NODISCARD auto instr_expr_accessor(const Instruction::Accessor<IS_COMPTIME>& instr) -> Result;
+			EVO_NODISCARD auto instr_accessor(const Instruction::Accessor<IS_COMPTIME>& instr) -> Result;
 
 			EVO_NODISCARD auto instr_primitive_type(const Instruction::PrimitiveType& instr) -> Result;
 			EVO_NODISCARD auto instr_primitive_type_term(const Instruction::PrimitiveTypeTerm& instr) -> Result;
@@ -317,38 +320,38 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// accessors
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto module_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto clang_module_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto type_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto builtin_module_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
 			) -> Result;
 
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto interface_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -357,9 +360,9 @@ namespace pcit::panther{
 			) -> Result;
 
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto optional_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -368,9 +371,9 @@ namespace pcit::panther{
 			) -> Result;
 
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto struct_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -378,9 +381,9 @@ namespace pcit::panther{
 				bool is_pointer
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto union_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -388,9 +391,9 @@ namespace pcit::panther{
 				bool is_pointer
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto enum_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -398,9 +401,9 @@ namespace pcit::panther{
 				bool is_pointer
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto array_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -408,9 +411,9 @@ namespace pcit::panther{
 				bool is_pointer
 			) -> Result;
 
-			template<bool NEEDS_DEF>
+			template<bool IS_COMPTIME>
 			EVO_NODISCARD auto array_ref_accessor(
-				const Instruction::Accessor<NEEDS_DEF>& instr,
+				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
@@ -518,9 +521,7 @@ namespace pcit::panther{
 			// misc
 
 			EVO_NODISCARD auto comptime_func_call(
-				sema::Func::ID func_id,
-				evo::ArrayProxy<SymbolProc::TermInfoID> args_term_info_ids,
-				Diagnostic::Location location
+				sema::Func::ID func_id, evo::ArrayProxy<sema::Expr> args, Diagnostic::Location location
 			) -> evo::Result<sema::Expr>;
 
 

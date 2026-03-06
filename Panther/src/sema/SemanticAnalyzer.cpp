@@ -545,8 +545,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getAddTemplateDeclInstantiationType(instr)
 				);
 
+			case Instruction::Kind::COMPTIME_COPY:
+				return this->instr_copy<true>(this->context.symbol_proc_manager.getComptimeCopy(instr));
+
 			case Instruction::Kind::COPY:
-				return this->instr_copy(this->context.symbol_proc_manager.getCopy(instr));
+				return this->instr_copy<false>(this->context.symbol_proc_manager.getCopy(instr));
 
 			case Instruction::Kind::MOVE:
 				return this->instr_move(this->context.symbol_proc_manager.getMove(instr));
@@ -710,11 +713,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getMathInfixShift(instr)
 				);
 
-			case Instruction::Kind::ACCESSOR_NEEDS_DEF:
-				return this->instr_expr_accessor<true>(this->context.symbol_proc_manager.getAccessorNeedsDef(instr));
+			case Instruction::Kind::COMPTIME_ACCESSOR:
+				return this->instr_accessor<true>(this->context.symbol_proc_manager.getComptimeAccessor(instr));
 
 			case Instruction::Kind::ACCESSOR:
-				return this->instr_expr_accessor<false>(this->context.symbol_proc_manager.getAccessor(instr));
+				return this->instr_accessor<false>(this->context.symbol_proc_manager.getAccessor(instr));
 
 			case Instruction::Kind::PRIMITIVE_TYPE:
 				return this->instr_primitive_type(this->context.symbol_proc_manager.getPrimitiveType(instr));
@@ -10735,9 +10738,11 @@ namespace pcit::panther{
 						);
 					}
 
-					this->get_current_scope_level().stmtBlock().emplace_back(
-						this->context.sema_buffer.createUnusedExpr(fake_term_info.expr)
-					);
+					if constexpr(IS_COMPTIME == false){
+						this->get_current_scope_level().stmtBlock().emplace_back(
+							this->context.sema_buffer.createUnusedExpr(fake_term_info.expr)
+						);
+					}
 				}
 
 				if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::COMPTIME){
@@ -11343,7 +11348,7 @@ namespace pcit::panther{
 
 
 		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
-			sema_func_call.target.as<sema::Func::ID>(), instr.args, this->get_location(instr.func_call)
+			sema_func_call.target.as<sema::Func::ID>(), sema_func_call.args, this->get_location(instr.func_call)
 		);
 
 		if(func_call_result.isError()){ return Result::ERROR; }
@@ -13974,8 +13979,8 @@ namespace pcit::panther{
 
 
 
-
-	auto SemanticAnalyzer::instr_copy(const Instruction::Copy& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_copy(const Instruction::Copy<IS_COMPTIME>& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.is_concrete() == false){
@@ -13996,60 +14001,63 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(
-			this->get_current_func().attributes.isComptime
-			&& this->context.getTypeManager().isComptimeCopyable(
-				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
-			) == false
-		){
-			this->emit_error("Type of argument of operator [copy] is not comptime copyable", instr.prefix);
-			return Result::ERROR;
+		if constexpr(IS_COMPTIME){
+			if(this->context.getTypeManager().isTriviallyCopyable(target.type_id.as<TypeInfo::ID>()) == false){
+				this->emit_error(
+					"Type of argument of comptime operator [copy] is not trivially copyable", instr.prefix
+				);
+				return Result::ERROR;	
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				target.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target.type_id,
+				target.getExpr()
+			);
+
+			return Result::SUCCESS;
+			
+		}else{
+			if(
+				this->get_current_func().attributes.isComptime
+				&& this->context.getTypeManager().isComptimeCopyable(
+					target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+				) == false
+			){
+				this->emit_error("Type of argument of operator [copy] is not comptime copyable", instr.prefix);
+				return Result::ERROR;
+			}
+
+			if(
+				target.value_state != TermInfo::ValueState::INIT
+				&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
+			){
+				this->emit_error("Argument of operator [copy] must be initialized", instr.prefix);
+				return Result::ERROR;
+			}
+
+			if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
+				target,
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+				instr.prefix
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				target.value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target.type_id,
+				sema::Expr(
+					this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true)
+				)
+			);
+
+			return Result::SUCCESS;
 		}
-
-		if(
-			this->currently_in_unsafe() == false
-			&& this->context.getTypeManager().isSafeCopyable(
-				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
-			) == false
-		){
-			this->emit_error("Unsafe copy while not in an unsafe scope", instr.prefix);
-			return Result::ERROR;
-		}
-
-
-
-
-		if(this->currently_in_func() == false){
-			this->emit_error("Operator [copy] must be in function scope", instr.prefix);
-			return Result::ERROR;
-		}
-
-		if(
-			target.value_state != TermInfo::ValueState::INIT
-			&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
-		){
-			this->emit_error("Argument of operator [copy] must be initialized", instr.prefix);
-			return Result::ERROR;
-		}
-
-
-		if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
-			target,
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
-			instr.prefix
-		).isError()){
-			return Result::ERROR;
-		}
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			target.type_id,
-			sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true))
-		);
-
-		return Result::SUCCESS;
 	}
 
 	auto SemanticAnalyzer::instr_move(const Instruction::Move& instr) -> Result {
@@ -15353,30 +15361,32 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					SymbolProc& selected_func_symbol_proc =
-						this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
+					if(selected_func.symbolProcID.has_value()){
+						SymbolProc& selected_func_symbol_proc =
+							this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
 
-					const SymbolProc::WaitOnResult wait_on_result =
-						selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+						const SymbolProc::WaitOnResult wait_on_result =
+							selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
-					switch(wait_on_result){
-						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
-						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-							this->context.symbol_proc_manager.symbol_proc_unsuspended();
-							this->context.add_task_to_work_manager(*selected_func.symbolProcID);
-							[[fallthrough]];
+						switch(wait_on_result){
+							case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+							case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+								this->context.symbol_proc_manager.symbol_proc_unsuspended();
+								this->context.add_task_to_work_manager(*selected_func.symbolProcID);
+								[[fallthrough]];
+							}
+							case SymbolProc::WaitOnResult::WAITING:
+								return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+
+							case SymbolProc::WaitOnResult::WAS_ERRORED:
+								return Result::ERROR;
+
+							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+								evo::debugFatalBreak("Shouldn't be possible");
+
+							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+								evo::debugFatalBreak("Shouldn't be possible");
 						}
-						case SymbolProc::WaitOnResult::WAITING:
-							return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-
-						case SymbolProc::WaitOnResult::WAS_ERRORED:
-							return Result::ERROR;
-
-						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-							evo::debugFatalBreak("Shouldn't be possible");
-
-						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -15551,7 +15561,7 @@ namespace pcit::panther{
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
 
 		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
-			sema_func_call.target.as<sema::Func::ID>(), instr.args, this->get_location(instr.ast_new)
+			sema_func_call.target.as<sema::Func::ID>(), sema_func_call.args, this->get_location(instr.ast_new)
 		);
 
 		if(func_call_result.isError()){ return Result::ERROR; }
@@ -15575,9 +15585,8 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
-			const Instruction::ComptimeStructNewRun& comptime_struct_new_run = Instruction::ComptimeStructNewRun(
-				instr.ast_new, instr.target, instr.output, evo::SmallVector<SymbolProcTermInfoID>()
-			);
+			const Instruction::ComptimeStructNewRun& comptime_struct_new_run =
+				Instruction::ComptimeStructNewRun(instr.ast_new, instr.target, instr.output);
 
 			return this->instr_comptime_struct_new_run(comptime_struct_new_run);
 		}
@@ -15683,7 +15692,7 @@ namespace pcit::panther{
 					if(new_init_overload.minNumArgs != 0){ continue; }
 
 					return this->comptime_func_call(
-						new_init_overload_id, evo::SmallVector<SymbolProc::TermInfoID>(), this->get_location(ast_new)
+						new_init_overload_id, evo::SmallVector<sema::Expr>(), this->get_location(ast_new)
 					);
 				}
 
@@ -19732,22 +19741,22 @@ namespace pcit::panther{
 	}
 
 
-	template<bool NEEDS_DEF>
-	auto SemanticAnalyzer::instr_expr_accessor(const Instruction::Accessor<NEEDS_DEF>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_accessor(const Instruction::Accessor<IS_COMPTIME>& instr) -> Result {
 		const std::string_view rhs_ident_str = this->source.getTokenBuffer()[instr.rhs_ident].getString();
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 
 		if(lhs.type_id.is<Source::ID>()){
-			return this->module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 
 		}else if(lhs.type_id.is<ClangSource::ID>()){
-			return this->clang_module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->clang_module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
-			return this->type_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->type_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 
 		}else if(lhs.type_id.is<BuiltinModule::ID>()){
-			return this->builtin_module_accessor<NEEDS_DEF>(instr, rhs_ident_str, lhs);
+			return this->builtin_module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 		}
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
@@ -19772,74 +19781,76 @@ namespace pcit::panther{
 		bool is_pointer = false;
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
-			if(lhs.value_stage == TermInfo::ValueStage::COMPTIME){
-				this->emit_error("Accessor operator of this LHS is unimplemented", instr.infix.lhs);
-				return Result::ERROR;
-			}else{
-				if(decayed_lhs_type.qualifiers().size() > 1){
-					if(
-						decayed_lhs_type.qualifiers().back().isOptional == false
-						&& decayed_lhs_type.qualifiers()[decayed_lhs_type.qualifiers().size() - 2].isOptional
-					){
-						return this->optional_accessor<NEEDS_DEF>(
-							instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
-						);
-					}
-
-					this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
+			if constexpr(IS_COMPTIME){
+				if(lhs.value_stage != TermInfo::ValueStage::COMPTIME){
+					this->emit_error("This expression must be a comptime value", instr.infix.lhs);
 					return Result::ERROR;
 				}
+			}
 
-				if(decayed_lhs_type.qualifiers().back().isOptional){
-					return this->optional_accessor<NEEDS_DEF>(
-						instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
+			if(decayed_lhs_type.qualifiers().size() > 1){
+				if(
+					decayed_lhs_type.qualifiers().back().isOptional == false
+					&& decayed_lhs_type.qualifiers()[decayed_lhs_type.qualifiers().size() - 2].isOptional
+				){
+					return this->optional_accessor<IS_COMPTIME>(
+						instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
 					);
 				}
 
-				is_pointer = true;
+				this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
+				return Result::ERROR;
 			}
+
+			if(decayed_lhs_type.qualifiers().back().isOptional){
+				return this->optional_accessor<IS_COMPTIME>(
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
+				);
+			}
+
+			is_pointer = true;
 		}
 
 
 		switch(decayed_lhs_type.baseTypeID().kind()){
 			case BaseType::Kind::STRUCT: {
-				return this->struct_accessor<NEEDS_DEF>(
+				return this->struct_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::UNION: {
-				return this->union_accessor<NEEDS_DEF>(
+				return this->union_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ENUM: {
-				return this->enum_accessor<NEEDS_DEF>(
+				return this->enum_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				return this->array_accessor<NEEDS_DEF>(
+				return this->array_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				return this->array_ref_accessor<NEEDS_DEF>(
+				return this->array_ref_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, is_pointer
 				);
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return this->interface_accessor<NEEDS_DEF>(
+				return this->interface_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
 				);
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
-				return this->interface_accessor<NEEDS_DEF>(
+				return this->interface_accessor<IS_COMPTIME>(
 					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
 				);
 			} break;
@@ -20962,9 +20973,9 @@ namespace pcit::panther{
 	// accessor
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::module_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
 
@@ -20976,7 +20987,7 @@ namespace pcit::panther{
 			source_module_sema_scope.getGlobalLevel()
 		);
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			&source_module.global_symbol_procs, rhs_ident_str
 		);
 
@@ -21005,7 +21016,7 @@ namespace pcit::panther{
 		}
 
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::PUB>(
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::PUB>(
 				instr.rhs_ident, rhs_ident_str, scope_level, true, true, &source_module
 			);
 
@@ -21031,9 +21042,9 @@ namespace pcit::panther{
 	}
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::clang_module_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		const ClangSource& clang_source = this->context.getSourceManager()[lhs.type_id.as<ClangSource::ID>()];
 
@@ -21091,9 +21102,9 @@ namespace pcit::panther{
 	}
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::type_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		if(lhs.type_id.as<TypeInfo::VoidableID>().isVoid()){
 			this->emit_error("Accessor operator of type `Void` is invalid", instr.infix.lhs);
@@ -21203,7 +21214,7 @@ namespace pcit::panther{
 		}
 
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			namespaced_members, rhs_ident_str
 		);
 
@@ -21232,7 +21243,7 @@ namespace pcit::panther{
 		}
 
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NOT_PRIV>(
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NOT_PRIV>(
 				instr.rhs_ident, rhs_ident_str, *scope_level, true, false, type_source
 			);
 
@@ -21264,9 +21275,9 @@ namespace pcit::panther{
 	}
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::builtin_module_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
+		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
 		const BuiltinModule& builtin_module = this->context.getSourceManager()[lhs.type_id.as<BuiltinModule::ID>()];
 
@@ -21320,9 +21331,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::interface_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -21512,9 +21523,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::optional_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -21591,9 +21602,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::struct_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -21607,52 +21618,57 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// member var
 
-		{
-			const auto lock = std::scoped_lock(lhs_type_struct.memberVarsLock);
-			for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
-				const std::string_view member_ident_str = 
-					lhs_type_struct.getMemberName(*member_var, this->context.getSourceManager());
+		for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
+			const std::string_view member_ident_str = 
+				lhs_type_struct.getMemberName(*member_var, this->context.getSourceManager());
 
 
-				if(member_ident_str == rhs_ident_str){
-					if(member_var->isPriv){
-						const std::optional<EncapsulatingSymbolID> current_type_scope =
-							this->scope.getCurrentTypeScopeIfExists();
+			if(member_ident_str == rhs_ident_str){
+				if(member_var->isPriv){
+					const std::optional<EncapsulatingSymbolID> current_type_scope =
+						this->scope.getCurrentTypeScopeIfExists();
 
-						if(
-							current_type_scope.has_value() == false
-							|| current_type_scope->is<BaseType::Struct::ID>() == false
-							|| current_type_scope->as<BaseType::Struct::ID>() !=decayed_lhs_type.baseTypeID().structID()
-						){
-							this->emit_error(
-								std::format(
-									"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
-									member_ident_str
-								),
-								instr.infix.rhs
-							);
-							return Result::ERROR;
-						}
+					if(
+						current_type_scope.has_value() == false
+						|| current_type_scope->is<BaseType::Struct::ID>() == false
+						|| current_type_scope->as<BaseType::Struct::ID>() !=decayed_lhs_type.baseTypeID().structID()
+					){
+						this->emit_error(
+							std::format(
+								"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
+								member_ident_str
+							),
+							instr.infix.rhs
+						);
+						return Result::ERROR;
+					}
+				}
+
+				const TermInfo::ValueCategory value_category = [&](){
+					if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+
+					if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
+						return TermInfo::ValueCategory::CONCRETE_CONST;
 					}
 
-					const TermInfo::ValueCategory value_category = [&](){
-						if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+					if(member_var->kind == AST::VarDef::Kind::CONST){
+						return TermInfo::ValueCategory::CONCRETE_CONST;
+					}else{
+						return TermInfo::ValueCategory::CONCRETE_MUT;
+					}
+				}();
 
-						if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
-							return TermInfo::ValueCategory::CONCRETE_CONST;
-						}
-
-						if(member_var->kind == AST::VarDef::Kind::CONST){
-							return TermInfo::ValueCategory::CONCRETE_CONST;
-						}else{
-							return TermInfo::ValueCategory::CONCRETE_MUT;
-						}
-					}();
-
-					using ValueStage = TermInfo::ValueStage;
+				using ValueStage = TermInfo::ValueStage;
 
 
-					if(lhs.value_stage == ValueStage::COMPTIME){
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						"Comptime struct member variable accessors are currently unimplemented", instr.infix
+					);
+					return Result::ERROR;
+
+				}else{
+					if(lhs.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE){
 						const sema::AggregateValue& lhs_aggregate_value =
 							this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
 
@@ -21663,6 +21679,8 @@ namespace pcit::panther{
 							member_var->typeID,
 							lhs_aggregate_value.values[i]
 						);
+
+						return Result::SUCCESS;
 						
 					}else{
 						const sema::Expr sema_expr = [&](){
@@ -21689,46 +21707,58 @@ namespace pcit::panther{
 						}();
 
 
-						const TermInfo::ValueState value_state = [&](){
-							if(lhs.value_state == TermInfo::ValueState::INITIALIZING){
-								return this->get_ident_value_state(
-									sema::ReturnParamAccessorValueStateID(lhs.getExpr().returnParamID(), uint32_t(i))
-								);
-
-							}else if(
-								this->source.getTokenBuffer()[this->get_current_func().name.as<Token::ID>()].kind()
-									== Token::Kind::KEYWORD_DELETE
-								&& lhs.getExpr().kind() == sema::Expr::Kind::PARAM
-							){
-								return this->get_ident_value_state(sema::OpDeleteThisAccessorValueStateID(uint32_t(i)));
+						const TermInfo::ValueStage value_stage = [&]() -> TermInfo::ValueStage {
+							if constexpr(IS_COMPTIME){
+								return TermInfo::ValueStage::COMPTIME;
 							}else{
+								return this->get_current_func_value_stage();
+							}
+						}();
+
+
+						const TermInfo::ValueState value_state = [&]() -> TermInfo::ValueState {
+							if constexpr(IS_COMPTIME){
 								return TermInfo::ValueState::NOT_APPLICABLE;
+
+							}else{
+								if(lhs.value_state == TermInfo::ValueState::INITIALIZING){
+									return this->get_ident_value_state(
+										sema::ReturnParamAccessorValueStateID(
+											lhs.getExpr().returnParamID(), uint32_t(i)
+										)
+									);
+
+								}else if(
+									this->source.getTokenBuffer()[this->get_current_func().name.as<Token::ID>()].kind()
+										== Token::Kind::KEYWORD_DELETE
+									&& lhs.getExpr().kind() == sema::Expr::Kind::PARAM
+								){
+									return this->get_ident_value_state(
+										sema::OpDeleteThisAccessorValueStateID(uint32_t(i))
+									);
+								}else{
+									return TermInfo::ValueState::NOT_APPLICABLE;
+								}
 							}
 						}();
 
 						this->return_term_info(instr.output,
-							value_category,
-							this->get_current_func().attributes.isComptime
-								? ValueStage::INTERPTIME
-								: ValueStage::RUNTIME,
-							value_state,
-							member_var->typeID,
-							sema_expr
+							value_category, value_stage, value_state, member_var->typeID, sema_expr
 						);
+
+						return Result::SUCCESS;
 					}
-
-					return Result::SUCCESS;
 				}
-
-				i += 1;
 			}
+
+			i += 1;
 		}
 
 
 		///////////////////////////////////
 		// get sub-symbol with ident
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			lhs_type_struct.namespacedMembers, rhs_ident_str
 		);
 
@@ -21765,7 +21795,7 @@ namespace pcit::panther{
 		}();
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NOT_PRIV>(
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NOT_PRIV>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_struct.scopeLevel, true, false, struct_source
 			);
 
@@ -21854,9 +21884,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::union_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -21965,7 +21995,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// method / types
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			lhs_type_union.namespacedMembers, rhs_ident_str
 		);
 
@@ -21995,7 +22025,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NONE>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_union.scopeLevel, true, true, union_source
 			);
 
@@ -22083,9 +22113,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::enum_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -22135,7 +22165,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// method
 
-		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<NEEDS_DEF>(
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			lhs_type_enum.namespacedMembers, rhs_ident_str
 		);
 
@@ -22165,7 +22195,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NONE>(
 				instr.rhs_ident, rhs_ident_str, *lhs_type_enum.scopeLevel, true, true, enum_source
 			);
 
@@ -22254,9 +22284,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::array_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -22388,9 +22418,9 @@ namespace pcit::panther{
 
 
 
-	template<bool NEEDS_DEF>
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::array_ref_accessor(
-		const Instruction::Accessor<NEEDS_DEF>& instr,
+		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
@@ -23347,9 +23377,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::comptime_func_call(
-		sema::Func::ID func_id,
-		evo::ArrayProxy<SymbolProc::TermInfoID> args_term_info_ids,
-		Diagnostic::Location location
+		sema::Func::ID func_id, evo::ArrayProxy<sema::Expr> args, Diagnostic::Location location
 	) -> evo::Result<sema::Expr> {
 		const sema::Func& target_func = this->context.getSemaBuffer().getFunc(func_id); 
 		const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
@@ -23357,19 +23385,43 @@ namespace pcit::panther{
 		evo::debugAssert(target_func_type.returnsVoid() == false, "Comptime function call expr cannot return void");
 		evo::debugAssert(target_func.status == sema::Func::Status::DEF_DONE, "def of func not completed");
 
-		auto args = evo::SmallVector<core::GenericValue>();
-		args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
-		for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : args_term_info_ids){
-			const TermInfo& arg = this->get_term_info(arg_id);
+		if(this->context.getTypeManager().isTriviallyDeletable(target_func_type.returnTypes[0].asTypeID()) == false){
+			this->emit_error("Return type of comptime function call is not trivially deletable", location);
+			return evo::resultError;	
+		}
 
-			args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
+		auto arg_values = evo::SmallVector<core::GenericValue>();
+		arg_values.reserve(args.size());
+		for(const sema::Expr& arg : args){
+			arg_values.emplace_back(this->sema_expr_to_generic_value(arg));
+		}
 
+
+		auto actual_args = evo::SmallVector<core::GenericValue>();
+		actual_args.reserve(args.size());
+		for(size_t i = 0; core::GenericValue& arg_value : arg_values){
+			if(target_func_type.params[i].shouldCopy){
+				actual_args.emplace_back(std::move(arg_value));
+			}else{
+				actual_args.emplace_back(core::GenericValue::createPtr(arg_value.writableDataRange().data()));
+			}
+		
 			i += 1;
 		}
 
-		for(size_t i = args.size(); i < target_func.params.size(); i+=1){
-			args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
-		}
+
+		// args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
+		// for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : args_term_info_ids){
+		// 	const TermInfo& arg = this->get_term_info(arg_id);
+
+		// 	args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
+
+		// 	i += 1;
+		// }
+
+		// for(size_t i = args.size(); i < target_func.params.size(); i+=1){
+		// 	args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
+		// }
 
 		const bool uses_rvo = target_func_type.hasNamedReturns 
 			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
@@ -23382,7 +23434,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
 			);
 
-			args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
+			actual_args.emplace_back(core::GenericValue::createPtr(output.writableDataRange().data()));
 		}
 
 		// Uncomment this to print out the state of the comptime pir module (for debugging purposes)
@@ -23393,7 +23445,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, args);
+			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, actual_args);
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -27477,6 +27529,20 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::CHAR_VALUE: {
 				return core::GenericValue(this->context.getSemaBuffer().getCharValue(expr.charValueID()).value);
+			} break;
+
+			case sema::Expr::Kind::GLOBAL_VAR: {
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
+				return this->sema_expr_to_generic_value(*global_var.expr.load());
+			} break;
+
+			case sema::Expr::Kind::DEFAULT_NEW: {
+				const sema::DefaultNew& default_new_expr =
+					this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
+
+				const size_t num_bytes = this->context.getTypeManager().numBytes(default_new_expr.targetTypeID);
+
+				return core::GenericValue::createZeroinit(num_bytes);
 			} break;
 
 			default: evo::debugFatalBreak("Invalid comptime value");

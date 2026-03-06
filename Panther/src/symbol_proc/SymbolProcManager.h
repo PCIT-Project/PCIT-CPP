@@ -1897,6 +1897,22 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// ComptimeCopy
+
+			EVO_NODISCARD auto createComptimeCopy(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::COMPTIME_COPY,
+					this->comptime_copys.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getComptimeCopy(Instruction instr) const -> const Instruction::Copy<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::COMPTIME_COPY, "Not a ComptimeCopy");
+				return this->comptime_copys[instr._index];
+			}
+
+
+			//////////////////
 			// Copy
 
 			EVO_NODISCARD auto createCopy(auto&&... args) -> Instruction {
@@ -1906,8 +1922,8 @@ namespace pcit::panther{
 				);
 			}
 
-			EVO_NODISCARD auto getCopy(Instruction instr) const -> const Instruction::Copy& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::COPY, "Not a Copy");
+			EVO_NODISCARD auto getCopy(Instruction instr) const -> const Instruction::Copy<false>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::COPY, "Not a Copy<false>");
 				return this->copys[instr._index];
 			}
 
@@ -2671,16 +2687,16 @@ namespace pcit::panther{
 			//////////////////
 			// Accessor<true>
 
-			EVO_NODISCARD auto createAccessorNeedsDef(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createComptimeAccessor(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ACCESSOR_NEEDS_DEF,
-					this->accessor_needs_defs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::COMPTIME_ACCESSOR,
+					this->comptime_accessors.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getAccessorNeedsDef(Instruction instr) const -> const Instruction::Accessor<true>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ACCESSOR_NEEDS_DEF, "Not a Accessor<true>");
-				return this->accessor_needs_defs[instr._index];
+			EVO_NODISCARD auto getComptimeAccessor(Instruction instr) const -> const Instruction::Accessor<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::COMPTIME_ACCESSOR, "Not an Accessor<true>");
+				return this->comptime_accessors[instr._index];
 			}
 
 
@@ -2696,7 +2712,7 @@ namespace pcit::panther{
 			}
 
 			EVO_NODISCARD auto getAccessor(Instruction instr) const -> const Instruction::Accessor<false>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ACCESSOR, "Not a Accessor<false>");
+				evo::debugAssert(instr.kind() == Instruction::Kind::ACCESSOR, "Not an Accessor<false>");
 				return this->accessors[instr._index];
 			}
 
@@ -3252,7 +3268,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::AddTemplateDeclInstantiationType, uint32_t>
 				add_template_decl_instantiation_types{};
 
-			core::SyncLinearStepAlloc<Instruction::Copy, uint32_t> copys{};
+			core::SyncLinearStepAlloc<Instruction::Copy<true>, uint32_t> comptime_copys{};
+			core::SyncLinearStepAlloc<Instruction::Copy<false>, uint32_t> copys{};
 			core::SyncLinearStepAlloc<Instruction::Move, uint32_t> moves{};
 			core::SyncLinearStepAlloc<Instruction::Forward, uint32_t> forwards{};
 			core::SyncLinearStepAlloc<Instruction::AddrOf, uint32_t> addr_ofs{};
@@ -3321,7 +3338,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>, uint32_t>
 				math_infix_shifts{};
 
-			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint32_t> accessor_needs_defs{};
+			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint32_t> comptime_accessors{};
 			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint32_t> accessors{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveTypeTerm, uint32_t> primitive_type_terms{};

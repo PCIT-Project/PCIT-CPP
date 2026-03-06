@@ -688,7 +688,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Param> params;
 		evo::SmallVector<Token::ID> returnParamIdents; // empty if not named
 		evo::SmallVector<Token::ID> errorParamIdents;  // empty if not named
-		std::optional<SymbolProcID> symbolProcID; // only value if is sema src
+		std::optional<SymbolProcID> symbolProcID; // only value if is sema src and not auto-generated
 		uint32_t minNumArgs;
 		bool hasInParam;
 		Attributes attributes;

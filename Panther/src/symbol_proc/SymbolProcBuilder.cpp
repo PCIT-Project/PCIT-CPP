@@ -1853,7 +1853,7 @@ namespace pcit::panther{
 
 				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
 				this->add_instruction(
-					this->context.symbol_proc_manager.createAccessorNeedsDef(
+					this->context.symbol_proc_manager.createComptimeAccessor(
 						base_type_infix,
 						base_lhs.value(),
 						ast_buffer.getIdent(base_type_infix.rhs),
@@ -3296,14 +3296,14 @@ namespace pcit::panther{
 			}else{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createFuncCallExprComptime(
-						func_call, std::move(template_args), args, target.value(), new_term_info_id
+						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 					)
 				);
 
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						func_call, new_term_info_id, comptime_res_term_info_id, std::move(args)
+						func_call, new_term_info_id, comptime_res_term_info_id
 					)
 				);
 				return comptime_res_term_info_id;
@@ -3423,9 +3423,17 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(prefix.rhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					this->context.symbol_proc_manager.createCopy(prefix, target.value(), created_term_info_id)
-				);
+				if constexpr(IS_COMPTIME){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeCopy(
+							prefix, target.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createCopy(prefix, target.value(), created_term_info_id)
+					);
+				}
 
 				return created_term_info_id;
 			} break;
@@ -3546,7 +3554,7 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 				if constexpr(IS_COMPTIME){
 					this->add_instruction(
-						this->context.symbol_proc_manager.createAccessorNeedsDef(
+						this->context.symbol_proc_manager.createComptimeAccessor(
 							infix, lhs.value(), rhs, new_term_info_id
 						)
 					);
@@ -3858,7 +3866,7 @@ namespace pcit::panther{
 			}else{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeStructNewRun(
-						ast_new, new_term_info_id, comptime_res_term_info_id, std::move(args)
+						ast_new, new_term_info_id, comptime_res_term_info_id
 					)
 				);
 			}

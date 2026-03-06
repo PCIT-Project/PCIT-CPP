@@ -73,6 +73,12 @@ namespace pcit::core{
 			return GenericValue(num_bytes);
 		}
 
+		EVO_NODISCARD static auto createZeroinit(size_t num_bytes) -> GenericValue {
+			auto output = GenericValue(num_bytes);
+			std::memset(output.writableDataRange().data(), 0, num_bytes);
+			return output;
+		}
+
 		EVO_NODISCARD static auto fromData(evo::ArrayProxy<std::byte> data) -> GenericValue {
 			return GenericValue(std::string_view((const char*)data.data(), data.size()));
 		}

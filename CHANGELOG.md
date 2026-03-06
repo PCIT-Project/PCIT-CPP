@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.250.0"></a>
+## v0.0.250.0
+
+### Panther
+- Added support for comptime accessors
+- Added comptime copy
+- Fixed comptime function calls with parameters that are a pointer in the ABI
+- Fixed missing checks that return type of comptime func call is trivially deletable
+
+
+<!---------------------------------->
 <a name="v0.0.249.1"></a>
 ## v0.0.249.1
 

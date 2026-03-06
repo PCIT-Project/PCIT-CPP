@@ -1,2 +1,19 @@
 
-var foo: Int = uninit;
+
+type Struct = struct {
+	func new = (num: Int) -> (output: Struct) {
+		output.num = copy num;
+		return...;
+	}
+
+	func get_num = (this) -> Int {
+		return copy this.num;
+	}
+
+	var num: Int;
+}
+
+
+
+const s = new Struct(12);
+const s_num: Struct = copy s;

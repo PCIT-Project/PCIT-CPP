@@ -706,7 +706,6 @@ namespace pcit::panther{
 			const AST::FuncCall& func_call;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
-			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		enum class Language{
@@ -792,7 +791,7 @@ namespace pcit::panther{
 
 
 
-
+		template<bool IS_COMPTIME>
 		struct Copy{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
@@ -862,7 +861,6 @@ namespace pcit::panther{
 			const AST::New& ast_new;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
-			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
 		struct ComptimeDefaultNewRun{
@@ -1192,6 +1190,7 @@ namespace pcit::panther{
 			PUSH_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE,
 			POP_TEMPLATE_DECL_INSTANTIATION_TYPES_SCOPE,
 			ADD_TEMPLATE_DECL_INSTANTIATION_TYPE,
+			COMPTIME_COPY,
 			COPY,
 			MOVE,
 			FORWARD,
@@ -1233,9 +1232,7 @@ namespace pcit::panther{
 			MATH_INFIX_LOGICAL,
 			MATH_INFIX_BITWISE_LOGICAL,
 			MATH_INFIX_SHIFT,
-
-			// accessors
-			ACCESSOR_NEEDS_DEF,
+			COMPTIME_ACCESSOR,
 			ACCESSOR,
 
 			// types

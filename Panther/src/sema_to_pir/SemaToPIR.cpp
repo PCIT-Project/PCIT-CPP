@@ -10591,18 +10591,22 @@ namespace pcit::panther{
 					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid base type");
 
 					case BaseType::Kind::PRIMITIVE: {
+						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY: {
+						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY_REF: {
+						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::STRUCT: {
+						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
@@ -10658,6 +10662,11 @@ namespace pcit::panther{
 				return this->module.createGlobalStruct(array_ref_type, std::move(values));
 			} break;
 
+			case sema::Expr::Kind::GLOBAL_VAR: {
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
+				return this->get_global_var_value(*global_var.expr.load());
+			} break;
+
 			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
 			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
@@ -10677,7 +10686,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::RETURN_PARAM:               case sema::Expr::Kind::ERROR_RETURN_PARAM:
 			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:          case sema::Expr::Kind::EXCEPT_PARAM:
 			case sema::Expr::Kind::FOR_PARAM:                  case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::GLOBAL_VAR:                 case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

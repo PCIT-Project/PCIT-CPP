@@ -45,7 +45,8 @@ namespace pcit::pir{
 				-> evo::Expected<core::GenericValue, FuncRunError>;
 
 
-			EVO_NODISCARD auto lookupGlobalVar(const void* ptr_of_lowered_global) -> std::optional<GlobalVar::ID> {
+			EVO_NODISCARD auto lookupGlobalVar(const void* ptr_of_lowered_global) const
+			-> std::optional<GlobalVar::ID> {
 				const auto lock = std::scoped_lock(this->global_ptr_lookup_lock);
 
 				const auto find = this->global_ptr_lookup.find(ptr_of_lowered_global);
@@ -53,12 +54,23 @@ namespace pcit::pir{
 				return std::nullopt;
 			}
 
-			EVO_NODISCARD auto lookupFunction(const void* ptr_of_lowered_function) -> std::optional<Function::ID> {
+			EVO_NODISCARD auto lookupFunction(const void* ptr_of_lowered_function) const
+			-> std::optional<Function::ID> {
 				const auto lock = std::scoped_lock(this->function_ptr_lookup_lock);
 
 				const auto find = this->function_ptr_lookup.find(ptr_of_lowered_function);
 				if(find != this->function_ptr_lookup.end()){ return find->second; }
 				return std::nullopt;
+			}
+
+
+			EVO_NODISCARD auto getGlobalVarValue(GlobalVar::ID id) const -> core::GenericValue {
+				const auto lock = std::scoped_lock(this->lowered_globals_lock);
+
+				const LoweredGlobal& lowered_global = this->lowered_globals_map.at(id);
+				evo::debugAssert(lowered_global.was_lowered, "Global wasn't lowered yet");
+
+				return lowered_global.value;
 			}
 
 		
