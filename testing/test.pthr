@@ -2,7 +2,9 @@
 
 type Struct = struct {
 	func new = (num: Int) -> (output: Struct) {
+		output.flag = true;
 		output.num = copy num;
+		output.num_2 = 2;
 		return...;
 	}
 
@@ -10,10 +12,17 @@ type Struct = struct {
 		return copy this.num;
 	}
 
+	var flag: Bool;
 	var num: Int;
+	var num_2: Int;
 }
 
 
 
-const s = new Struct(12);
-const s_num: Struct = copy s;
+const s = new Struct(13);
+const s_num: Int = copy s.num;
+
+
+
+
+

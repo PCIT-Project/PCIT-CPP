@@ -2529,10 +2529,26 @@ namespace pcit::panther{
 	}
 
 
+	///////////////////////////////////
+	// offsetOf
+
+	auto TypeManager::offsetOf(BaseType::Struct::ID id, size_t member_index) const -> uint64_t {
+		uint64_t size = 0;
+
+		const BaseType::Struct& struct_type = this->getStruct(id);
+
+		for(size_t i = 0; i < member_index; i+=1){
+			size += this->numBytes(struct_type.memberVarsABI[i]->typeID);
+		}
+
+		return size;
+	}
+
+
+
 
 	///////////////////////////////////
 	// maxAtomicBytes
-
 
 	auto TypeManager::maxAtomicNumBytes() const -> uint64_t {
 		return 8;

@@ -21631,7 +21631,7 @@ namespace pcit::panther{
 					if(
 						current_type_scope.has_value() == false
 						|| current_type_scope->is<BaseType::Struct::ID>() == false
-						|| current_type_scope->as<BaseType::Struct::ID>() !=decayed_lhs_type.baseTypeID().structID()
+						|| current_type_scope->as<BaseType::Struct::ID>() != decayed_lhs_type.baseTypeID().structID()
 					){
 						this->emit_error(
 							std::format(
@@ -21662,10 +21662,27 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					this->emit_error(
-						"Comptime struct member variable accessors are currently unimplemented", instr.infix
+					const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
+					const size_t member_offset =
+						this->context.getTypeManager().offsetOf(decayed_lhs_type.baseTypeID().structID(), i);
+
+					const core::GenericValue lhs_generic_value = this->sema_expr_to_generic_value(lhs.getExpr());
+
+					const core::GenericValue rhs_generic_value = core::GenericValue::fromData(
+						lhs_generic_value.dataRange().subarr(member_offset, member_size)
 					);
-					return Result::ERROR;
+
+					this->return_term_info(instr.output,
+						value_category,
+						ValueStage::COMPTIME,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						member_var->typeID,
+						this->generic_value_to_sema_expr(
+							rhs_generic_value, member_var->typeID, Diagnostic::Location::NONE
+						).value()
+					);
+
+					return Result::SUCCESS;
 
 				}else{
 					if(lhs.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE){

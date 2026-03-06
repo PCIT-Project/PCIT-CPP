@@ -1282,6 +1282,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			EVO_NODISCARD auto isTriviallySized(BaseType::ID id) const -> bool;
 
+			EVO_NODISCARD auto offsetOf(BaseType::Struct::ID id, size_t member_index) const -> uint64_t;
 
 			EVO_NODISCARD auto maxAtomicNumBytes() const -> uint64_t;
 			EVO_NODISCARD auto maxAtomicNumBits() const -> uint64_t;
