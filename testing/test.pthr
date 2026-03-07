@@ -1,18 +1,14 @@
+def std = @import("std");
+def std_exp = @import("std_exp/std_exp.pthr");
 
-interface NumGetter = #polymorphic {
-	func get_num = () -> Int {
-		return 12;
+
+func entry = () #entry -> UI8 {
+	const arr = new std_exp.StaticArrayList<{Int, 4}>(new [Int:3][1, 2, 3]);
+
+	var sum: Int = 0;
+	for(arr) [_; value: Int] {
+		sum += value;
 	}
-}
-
-
-
-type Struct = struct {
-	impl NumGetter{}
-}
-
-
-
-func get_num = (num_getter: impl(*:NumGetter)) -> Int {
-	return num_getter.get_num();
+	
+	return sum as UI8;
 }

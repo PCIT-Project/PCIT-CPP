@@ -60,6 +60,7 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 	package_std.addSourceFile("./std.pthr");
 	setStdLibPackage(package_std);
 
+
 	const package_compiler_rt = new Package(path, "std._compiler_rt", copy warns);
 	package_compiler_rt.addSourceDirectory("./compiler_rt", true);
 	setStdLibPackage(package_compiler_rt);
@@ -79,6 +80,10 @@ func addStdLib = (path: [Char:*]) #pub #rt -> Void {
 	const package_mem = new Package(path, "std.mem", copy warns);
 	package_mem.addSourceFile("./mem.pthr");
 	setStdLibPackage(package_mem);
+
+	const package_ptr_math = new Package(path, "std.ptrMath", copy warns);
+	package_std.addSourceFile("./ptrMath.pthr");
+	setStdLibPackage(package_ptr_math);
 
 	const package_types = new Package(path, "std.types", copy warns);
 	package_types.addSourceFile("./types.pthr");

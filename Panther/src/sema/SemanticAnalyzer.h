@@ -624,8 +624,11 @@ namespace pcit::panther{
 				struct TemplateWrongExprType{
 					size_t arg_index; TypeInfo::ID expected_type_id; SymbolProc::TermInfoID got_term_id;
 				};
-				struct WrongNumArgs{ size_t expected_num; size_t got_num; };
+				struct TooFewArgs{ size_t min_num; size_t got_num; bool accepts_different_nums; };
+				struct TooManyArgs{ size_t max_num; size_t got_num; bool accepts_different_nums; };
 				struct CantDeduceArgType{ size_t arg_index; };
+				struct CantDeduceDefaultArgType{ size_t param_index; };
+
 
 				using Reason = evo::Variant<
 					Handled,
@@ -633,8 +636,10 @@ namespace pcit::panther{
 					TooManyTemplateArgs,
 					TemplateArgWrongKind,
 					TemplateWrongExprType,
-					WrongNumArgs,
-					CantDeduceArgType
+					TooFewArgs,
+					TooManyArgs,
+					CantDeduceArgType,
+					CantDeduceDefaultArgType
 				>;
 
 				Reason reason;

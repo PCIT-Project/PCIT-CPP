@@ -815,13 +815,6 @@ namespace pcit::panther{
 
 			for(size_t i = 0; const AST::FuncDef::Param& param : func_def.params){
 				EVO_DEFER([&](){ i += 1; });
-
-				if(param.defaultValue.has_value()){
-					this->emit_error(
-						"Template functions with default parameter values is unimplemented", *param.defaultValue
-					);
-					return evo::resultError;
-				}
 				
 				if(param.type.has_value() == false){ continue; } // skip `this`
  

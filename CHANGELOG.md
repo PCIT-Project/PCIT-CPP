@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.252.0"></a>
+## v0.0.252.0
+
+### Panther
+- Added template parameters with default paramters
+
+### Misc
+- Updated to [Panther-std v0.0.20.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.20.0)
+
+
+<!---------------------------------->
 <a name="v0.0.251.1"></a>
 ## v0.0.251.1
 
@@ -59,6 +70,9 @@
 
 ### Panther
 - Changed uninit qualified pointer from `*!` to `*uninit`
+
+### Misc
+- Updated to [Panther-std v0.0.19.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.19.0)
 
 
 <!---------------------------------->

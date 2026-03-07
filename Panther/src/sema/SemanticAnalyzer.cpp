@@ -26099,15 +26099,49 @@ namespace pcit::panther{
 								std::move(sub_infos)
 							);
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::WrongNumArgs>()){
-							instantiation_error_infos.emplace_back(
-								std::format(
-									"Failed to match: wrong number of arguments (requires {}, got {})",
-									reason.expected_num,
-									reason.got_num
-								),
-								get_func_location()
-							);
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few arguments (requires at least {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few arguments (requires {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many arguments (requires at most {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many arguments (requires {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
 
 						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
 							instantiation_error_infos.emplace_back(
@@ -26126,6 +26160,20 @@ namespace pcit::panther{
 											this->print_term_type(this->get_term_info(args[reason.arg_index]))
 										)
 									)
+								}
+							);
+							
+						}else if constexpr(
+							std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceDefaultArgType>()
+						){
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: can't deduce type from default argument (index: {})",
+									reason.param_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info("Note: parameter type cannot be duduced on a default argument"),
 								}
 							);
 							
@@ -26781,17 +26829,32 @@ namespace pcit::panther{
 		const bool is_method = templated_func.isMethod(this->context);
 
 		{
-			const size_t expected_num_args = ast_func.params.size() - size_t(is_member_call && is_method);
+			const size_t max_num_args = ast_func.params.size() - size_t(is_member_call && is_method);
 			const size_t got_num_args = args.size();
 
-			if(expected_num_args != got_num_args){
-				if(templated_func.isVariadic == false || expected_num_args > got_num_args){
-					return evo::Unexpected<TemplateOverloadMatchFail>(
-						TemplateOverloadMatchFail(
-							TemplateOverloadMatchFail::WrongNumArgs(expected_num_args, got_num_args)
-						)
-					);
-				}
+
+			size_t min_num_args = 0;
+			for(const AST::FuncDef::Param& param : ast_func.params){
+				if(param.defaultValue.has_value()){ break; }
+				min_num_args += 1;
+			}
+
+			min_num_args -= size_t(is_member_call && is_method);
+
+			if(got_num_args < min_num_args){
+				return evo::Unexpected<TemplateOverloadMatchFail>(
+					TemplateOverloadMatchFail(
+						TemplateOverloadMatchFail::TooFewArgs(min_num_args, got_num_args, min_num_args != max_num_args)
+					)
+				);
+			}
+
+			if(got_num_args > max_num_args){
+				return evo::Unexpected<TemplateOverloadMatchFail>(
+					TemplateOverloadMatchFail(
+						TemplateOverloadMatchFail::TooManyArgs(max_num_args, got_num_args, min_num_args != max_num_args)
+					)
+				);
 			}
 		}
 
@@ -26816,6 +26879,18 @@ namespace pcit::panther{
 					}
 					arg_types.emplace_back(std::nullopt);
 				}
+
+				if(param_i + 1 < templated_func.paramIsDeducer.size()){ param_i += 1; }
+				arg_i += 1;
+			}
+
+			while(arg_i < ast_func.params.size() - size_t(is_member_call && is_method)){
+				if(templated_func.paramIsDeducer[param_i]){
+					return evo::Unexpected<TemplateOverloadMatchFail>(
+						TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceDefaultArgType(arg_i))
+					);
+				}
+				arg_types.emplace_back(std::nullopt);
 
 				if(param_i + 1 < templated_func.paramIsDeducer.size()){ param_i += 1; }
 				arg_i += 1;

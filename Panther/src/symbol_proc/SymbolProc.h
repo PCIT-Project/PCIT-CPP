@@ -1648,9 +1648,10 @@ namespace pcit::panther{
 
 				std::optional<sema::Func::ID> flipped_version{};
 
-				std::unordered_set<sema::Func::ID> dependent_funcs{}; // Only needed if the func is comptime
-				std::unordered_set<sema::GlobalVar::ID> dependent_vars{}; // Only needed if the func is comptime
-				std::unordered_set<const BaseType::Interface::Impl*> dependent_impls{}; // Only needed if the func is comptime
+				// Only needed if the func is comptime
+				std::unordered_set<sema::Func::ID> dependent_funcs{};
+				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
+				std::unordered_set<const BaseType::Interface::Impl*> dependent_impls{};
 			};
 
 			struct TemplateFuncInfo{
@@ -1672,7 +1673,7 @@ namespace pcit::panther{
 				evo::SmallVector<TermInfo> targets{};
 			};
 
-			evo::Variant<
+			using ExtraInfo = evo::Variant<
 				std::monostate,
 				NonLocalVarInfo,
 				WhenCondInfo,
@@ -1683,7 +1684,8 @@ namespace pcit::panther{
 				FuncInfo,
 				TemplateFuncInfo,
 				InterfaceImplInfo
-			> extra_info{};
+			>;
+			ExtraInfo extra_info{};
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 
