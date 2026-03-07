@@ -1,28 +1,18 @@
 
-
-type Struct = struct {
-	func new = (num: Int) -> (output: Struct) {
-		output.flag = true;
-		output.num = copy num;
-		output.num_2 = 2;
-		return...;
+interface NumGetter = #polymorphic {
+	func get_num = () -> Int {
+		return 12;
 	}
-
-	func get_num = (this) -> Int {
-		return copy this.num;
-	}
-
-	var flag: Bool;
-	var num: Int;
-	var num_2: Int;
 }
 
 
 
-const s = new Struct(13);
-const s_num: Int = copy s.num;
+type Struct = struct {
+	impl NumGetter{}
+}
 
 
 
-
-
+func get_num = (num_getter: impl(*:NumGetter)) -> Int {
+	return num_getter.get_num();
+}

@@ -5153,6 +5153,40 @@ namespace pcit::panther{
 				}
 			}
 
+			for(
+				const BaseType::Interface::Impl* dependent_interface_impl
+				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls
+			){
+				SymbolProc& dependent_var_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*dependent_interface_impl->symbolProc);
+
+				const SymbolProc::WaitOnResult wait_on_result =
+					dependent_var_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*dependent_interface_impl->symbolProc);
+						[[fallthrough]];
+					}
+
+					case SymbolProc::WaitOnResult::WAITING:
+						any_waiting = true; break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
+				}
+			}
+
 
 			if(any_waiting){
 				if(this->symbol_proc.shouldContinueRunning()){
@@ -5302,39 +5336,6 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*dependent_var.symbolProcID);
-						[[fallthrough]];
-					}
-
-					case SymbolProc::WaitOnResult::WAITING:
-						any_waiting = true; break;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
-				}
-			}
-			for(
-				const BaseType::Interface::Impl* dependent_interface_impl
-				: this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls
-			){
-				SymbolProc& dependent_var_symbol_proc =
-					this->context.symbol_proc_manager.getSymbolProc(*dependent_interface_impl->symbolProc);
-
-				const SymbolProc::WaitOnResult wait_on_result =
-					dependent_var_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:
-						break;
-
-					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-						this->context.symbol_proc_manager.symbol_proc_unsuspended();
-						this->context.add_task_to_work_manager(*dependent_interface_impl->symbolProc);
 						[[fallthrough]];
 					}
 
@@ -5834,18 +5835,7 @@ namespace pcit::panther{
 			&interface_impl
 		);
 
-		if(target_interface.isPolymorphic){
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-			sema_to_pir.lowerInterfaceVTableDecl(
-				target_interface_id,
-				this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()))
-				)
-			);
-		}
-
 		this->push_scope_level();
-
 		this->propagate_finished_decl();
 
 		return Result::SUCCESS;
@@ -5916,11 +5906,6 @@ namespace pcit::panther{
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_deudcer_impl
 			);
 
-			if(target_interface.isPolymorphic){
-				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-				sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, target_type_id.asTypeID());
-			}
-
 			this->push_scope_level();
 
 		}else{
@@ -5930,11 +5915,6 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.emplace<SymbolProc::InterfaceImplInfo>(
 				target_interface_id, target_interface, target_type_id.asTypeID(), &interface_impl
 			);
-
-			if(target_interface.isPolymorphic){
-				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-				sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, target_type_id.asTypeID());
-			}
 
 			this->push_scope_level(
 				nullptr, EncapsulatingSymbolID::InterfaceImplInfo(target_type_id.asTypeID(), target_interface_id)
@@ -5960,10 +5940,6 @@ namespace pcit::panther{
 			target_interface_id, target_interface, instr.instantiation_type_id, &instr.created_impl
 		);
 
-		if(target_interface.isPolymorphic){
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-			sema_to_pir.lowerInterfaceVTableDecl(target_interface_id, instr.instantiation_type_id);
-		}
 
 		this->push_scope_level(
 			nullptr, EncapsulatingSymbolID::InterfaceImplInfo(instr.instantiation_type_id, target_interface_id)
@@ -6133,7 +6109,7 @@ namespace pcit::panther{
 
 			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-			sema_to_pir.lowerInterfaceVTableDefComptime(
+			sema_to_pir.lowerInterfaceVTableComptime(
 				info.target_interface_id, current_type_id, interface_impl.methods
 			);
 		}

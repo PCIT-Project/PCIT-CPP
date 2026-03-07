@@ -192,6 +192,12 @@ namespace pcit::panther{
 				this->reverse_vtables.emplace(pir_id, vtable_id);
 			}
 
+			auto create_single_method_vtable(VTableID single_method_vtable_id, pir::Function::ID pir_id) -> void {
+				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
+				const auto emplace_result = this->single_method_vtables.emplace(single_method_vtable_id, pir_id);
+				evo::debugAssert(emplace_result.second, "This single_method_vtable id was already added to PIR lower");
+			}
+
 
 			auto create_interface(BaseType::Interface::ID interface_id, auto&&... interface_info_args) -> void {
 				const auto lock = std::scoped_lock(this->interfaces_lock);
@@ -240,6 +246,15 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->vtables_lock);
 				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
 				return this->vtables.at(vtable_id);
+			}
+
+			EVO_NODISCARD auto get_single_method_vtable(VTableID single_method_vtable_id) -> pir::Function::ID {
+				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
+				evo::debugAssert(
+					this->single_method_vtables.contains(single_method_vtable_id),
+					"Doesn't have this single-method vtable"
+				);
+				return this->single_method_vtables.at(single_method_vtable_id);
 			}
 
 			EVO_NODISCARD auto get_interface(BaseType::Interface::ID interface_id) -> InterfaceInfo& {
@@ -307,6 +322,9 @@ namespace pcit::panther{
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
 			std::unordered_map<pir::GlobalVar::ID, VTableID> reverse_vtables{};
 			mutable evo::SpinLock vtables_lock{};
+
+			std::unordered_map<VTableID, pir::Function::ID> single_method_vtables{};
+			mutable evo::SpinLock single_method_vtables_lock{};
 
 			evo::StepVector<InterfaceInfo> interfaces_info_alloc{};
 			std::unordered_map<BaseType::Interface::ID, InterfaceInfo*> interfaces{};

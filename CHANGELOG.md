@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.251.1"></a>
+## v0.0.251.1
+
+### Panther
+- Fixed race condition in lowering functions that use polymorphic interface references
+- Fixed polymorphic interface vtables being lowered if there is only 1 method
+
+
+<!---------------------------------->
 <a name="v0.0.251.0"></a>
 ## v0.0.251.0
 
