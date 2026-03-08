@@ -15,6 +15,7 @@
 #include "../symbol_proc/SymbolProcBuilder.h"
 #include "./attributes.h"
 #include "./ComptimeIntrinsicEvaluator.h"
+#include "../../include/sema/conversion.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -8176,7 +8177,7 @@ namespace pcit::panther{
 				}
 
 				for(size_t j = 0; sema::Expr value : switch_case.values){
-					if(used_values.emplace(this->sema_expr_to_generic_value(value)).second == false){
+					if(used_values.emplace(sema::exprToGenericValue(value, this->context)).second == false){
 						this->emit_error(
 							"This case value in this [switch] statement was already used",
 							instr.switch_stmt.cases[i].values[j]
@@ -11372,7 +11373,8 @@ namespace pcit::panther{
 		}
 
 
-		const std::string_view lookup_path = this->extract_string_from_sema_expr(location_str_term_info.getExpr());
+		const std::string_view lookup_path =
+			sema::extractStringFromExpr(location_str_term_info.getExpr(), this->context);
 
 		auto lookup_error = std::optional<Context::LookupSourceIDError>();
 
@@ -11573,7 +11575,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+		const std::string_view message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
 
 
 		this->emit_error(std::format("Comptime error with message: \"{}\"", message), instr.func_call);
@@ -11615,7 +11617,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			const std::string_view message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+			const std::string_view message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
 
 
 			this->emit_error(std::format("Failed comptime assert with message: \"{}\"", message), instr.func_call);
@@ -11742,7 +11744,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				template_args.emplace_back(this->sema_expr_to_generic_value(template_arg.getExpr()));
+				template_args.emplace_back(sema::exprToGenericValue(template_arg.getExpr(), this->context));
 			}
 
 			i += 1;
@@ -12071,7 +12073,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				template_args.emplace_back(this->sema_expr_to_generic_value(template_arg.getExpr()));
+				template_args.emplace_back(sema::exprToGenericValue(template_arg.getExpr(), this->context));
 			}
 
 			i += 1;
@@ -16971,7 +16973,7 @@ namespace pcit::panther{
 
 				const sema::Expr& arg_expr = arg_term_info.getExpr();
 				instantiation_args.emplace_back(arg_expr);
-				instantiation_lookup_args.emplace_back(this->sema_expr_to_generic_value(arg_expr));
+				instantiation_lookup_args.emplace_back(sema::exprToGenericValue(arg_expr, this->context));
 				
 			}else{
 				const ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
@@ -17022,7 +17024,7 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Expected template default value, found none");
 
 				}else if constexpr(std::is_same<DefaultValue, sema::Expr>()){
-					instantiation_lookup_args.emplace_back(this->sema_expr_to_generic_value(default_value));
+					instantiation_lookup_args.emplace_back(sema::exprToGenericValue(default_value, this->context));
 					instantiation_args.emplace_back(default_value);
 
 				}else if constexpr(std::is_same<DefaultValue, TypeInfo::VoidableID>()){
@@ -20106,7 +20108,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					terminator = this->sema_expr_to_generic_value(terminator_term_info.getExpr());
+					terminator = sema::exprToGenericValue(terminator_term_info.getExpr(), this->context);
 				}
 			}
 
@@ -20163,7 +20165,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				terminator.emplace(this->sema_expr_to_generic_value(terminator_term_info.getExpr()));
+				terminator.emplace(sema::exprToGenericValue(terminator_term_info.getExpr(), this->context));
 			}
 
 
@@ -20268,7 +20270,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					terminator = this->sema_expr_to_generic_value(terminator_term_info.getExpr());
+					terminator = sema::exprToGenericValue(terminator_term_info.getExpr(), this->context);
 				}
 			}
 
@@ -20341,7 +20343,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				terminator.emplace(this->sema_expr_to_generic_value(terminator_term_info.getExpr()));
+				terminator.emplace(sema::exprToGenericValue(terminator_term_info.getExpr(), this->context));
 			}
 
 
@@ -21642,7 +21644,7 @@ namespace pcit::panther{
 					const size_t member_offset =
 						this->context.getTypeManager().offsetOf(decayed_lhs_type.baseTypeID().structID(), i);
 
-					const core::GenericValue lhs_generic_value = this->sema_expr_to_generic_value(lhs.getExpr());
+					const core::GenericValue lhs_generic_value = sema::exprToGenericValue(lhs.getExpr(), this->context);
 
 					const core::GenericValue rhs_generic_value = core::GenericValue::fromData(
 						lhs_generic_value.dataRange().subarr(member_offset, member_size)
@@ -23386,7 +23388,7 @@ namespace pcit::panther{
 		auto arg_values = evo::SmallVector<core::GenericValue>();
 		arg_values.reserve(args.size());
 		for(const sema::Expr& arg : args){
-			arg_values.emplace_back(this->sema_expr_to_generic_value(arg));
+			arg_values.emplace_back(sema::exprToGenericValue(arg, this->context));
 		}
 
 
@@ -23407,13 +23409,13 @@ namespace pcit::panther{
 		// for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : args_term_info_ids){
 		// 	const TermInfo& arg = this->get_term_info(arg_id);
 
-		// 	args.emplace_back(this->sema_expr_to_generic_value(arg.getExpr()));
+		// 	args.emplace_back(sema::exprToGenericValue(arg, this->context.getExpr()));
 
 		// 	i += 1;
 		// }
 
 		// for(size_t i = args.size(); i < target_func.params.size(); i+=1){
-		// 	args.emplace_back(this->sema_expr_to_generic_value(*target_func.params[i].defaultValue));
+		// 	args.emplace_back(sema::exprToGenericValue(*target_func, this->context.params[i].defaultValue));
 		// }
 
 		const bool uses_rvo = target_func_type.hasNamedReturns 
@@ -26798,7 +26800,7 @@ namespace pcit::panther{
 
 				const sema::Expr& arg_expr = template_arg.getExpr();
 				instantiation_args.emplace_back(arg_expr);
-				instantiation_lookup_args.emplace_back(this->sema_expr_to_generic_value(arg_expr));
+				instantiation_lookup_args.emplace_back(sema::exprToGenericValue(arg_expr, this->context));
 			}
 		}
 
@@ -26812,7 +26814,7 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Expected template default value, found none");
 
 				}else if constexpr(std::is_same<DefaultValue, sema::Expr>()){
-					instantiation_lookup_args.emplace_back(this->sema_expr_to_generic_value(default_value));
+					instantiation_lookup_args.emplace_back(sema::exprToGenericValue(default_value, this->context));
 					instantiation_args.emplace_back(default_value);
 
 				}else if constexpr(std::is_same<DefaultValue, TypeInfo::VoidableID>()){
@@ -27461,23 +27463,20 @@ namespace pcit::panther{
 
 				void* const vtable_ptr = *std::bit_cast<void**>(value.dataRange().data() + sizeof(void*));
 
-				if(vtable_ptr == nullptr){
-					evo::unimplemented("Null on vtable");
-				}
+				evo::debugAssert(vtable_ptr != nullptr, "Null on vtable");
+
 
 				const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
 					this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
 
-				if(pir_vtable_global_var_id.has_value() == false){
-					evo::unimplemented("Comptime global not found");
-				}
+				evo::debugAssert(pir_vtable_global_var_id.has_value(), "Unknown vtable ptr");
+
 
 				const std::optional<SemaToPIRData::VTableID> vtable_id =
 					this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
 
-				if(vtable_id.has_value() == false){
-					evo::unimplemented("VTable not found");
-				}
+				evo::debugAssert(vtable_id.has_value(), "Vtable not found");
+
 
 
 				//////////////////
@@ -27491,11 +27490,16 @@ namespace pcit::panther{
 
 				void* const target_ptr = *std::bit_cast<void**>(value.dataRange().data());
 
+				evo::debugAssert(target_ptr != nullptr, "Target pointer is Null");
+
 				const evo::Result<sema::Expr> target_value = this->generic_value_to_sema_expr(
 					core::GenericValue::createPtr(target_ptr), target_ptr_type, location
 				);
 
-				if(target_value.isError()){ return evo::resultError; }
+				if(target_value.isError()){
+					this->emit_error("Comptime pointer is not a valid value", location);
+					return evo::resultError;
+				}
 
 
 				//////////////////
@@ -27516,133 +27520,9 @@ namespace pcit::panther{
 			} break;
 		}
 
-		evo::unreachable();
+		evo::debugFatalBreak("Unknown base type");
 	}
 
-
-
-
-	auto SemanticAnalyzer::sema_expr_to_generic_value(const sema::Expr& expr) -> core::GenericValue {
-		switch(expr.kind()){
-			case sema::Expr::Kind::INT_VALUE: {
-				return core::GenericValue(this->context.getSemaBuffer().getIntValue(expr.intValueID()).value);
-			} break;
-
-			case sema::Expr::Kind::FLOAT_VALUE: {
-				return core::GenericValue(this->context.getSemaBuffer().getFloatValue(expr.floatValueID()).value);
-			} break;
-
-			case sema::Expr::Kind::BOOL_VALUE: {
-				return core::GenericValue(this->context.getSemaBuffer().getBoolValue(expr.boolValueID()).value);
-			} break;
-
-			case sema::Expr::Kind::STRING_VALUE: {
-				return core::GenericValue(
-					std::string_view(this->context.getSemaBuffer().getStringValue(expr.stringValueID()).value)
-				);
-			} break;
-
-			case sema::Expr::Kind::AGGREGATE_VALUE: {
-				const sema::AggregateValue& aggregate_value =
-					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
-
-				const size_t output_size = this->context.getTypeManager().numBytes(aggregate_value.typeID);
-				core::GenericValue output = core::GenericValue::createUninit(output_size);
-
-				if(aggregate_value.typeID.kind() == BaseType::Kind::STRUCT){
-					const BaseType::Struct& struct_type = 
-						this->context.getTypeManager().getStruct(aggregate_value.typeID.structID());
-
-					size_t offset = 0;
-
-					for(size_t i = 0; const BaseType::Struct::MemberVar* member : struct_type.memberVarsABI){
-						const core::GenericValue member_val =
-							this->sema_expr_to_generic_value(aggregate_value.values[i]);
-
-						const size_t member_size = this->context.getTypeManager().numBytes(member->typeID);
-
-						std::memcpy(&output.writableDataRange()[offset], member_val.dataRange().data(), member_size);
-
-						offset += member_size;
-
-						i += 1;
-					}
-
-				}else if(aggregate_value.typeID.kind() == BaseType::Kind::ARRAY){
-					const BaseType::Array& array_type = 
-						this->context.getTypeManager().getArray(aggregate_value.typeID.arrayID());
-
-					const size_t elem_size = this->context.getTypeManager().numBytes(array_type.elementTypeID);
-
-					const size_t num_elems = output_size / elem_size;
-					for(size_t i = 0; i < num_elems; i+=1){
-						const core::GenericValue elem_val = this->sema_expr_to_generic_value(aggregate_value.values[i]);
-
-						std::memcpy(&output.writableDataRange()[i * elem_size], elem_val.dataRange().data(), elem_size);
-					}
-
-				}else{
-					evo::debugAssert(aggregate_value.typeID.kind() == BaseType::Kind::UNION, "Unknown aggregate type");
-
-					const size_t num_elems = this->context.getTypeManager().numBytes(aggregate_value.typeID);
-					for(size_t i = 0; i < num_elems; i+=1){
-						const core::GenericValue elem_val = this->sema_expr_to_generic_value(aggregate_value.values[i]);
-
-						output.writableDataRange()[i] = *elem_val.dataRange().data();
-					}
-				}
-
-				return output;
-			} break;
-
-			case sema::Expr::Kind::CHAR_VALUE: {
-				return core::GenericValue(this->context.getSemaBuffer().getCharValue(expr.charValueID()).value);
-			} break;
-
-			case sema::Expr::Kind::GLOBAL_VAR: {
-				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
-				return this->sema_expr_to_generic_value(*global_var.expr.load());
-			} break;
-
-			case sema::Expr::Kind::DEFAULT_NEW: {
-				const sema::DefaultNew& default_new_expr =
-					this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
-
-				const size_t num_bytes = this->context.getTypeManager().numBytes(default_new_expr.targetTypeID);
-
-				return core::GenericValue::createZeroinit(num_bytes);
-			} break;
-
-			default: evo::debugFatalBreak("Invalid comptime value");
-		}
-	}
-
-
-
-	auto SemanticAnalyzer::extract_string_from_sema_expr(sema::Expr expr) -> std::string_view {
-		switch(expr.kind()){
-			case sema::Expr::Kind::STRING_VALUE: {
-				return this->context.getSemaBuffer().getStringValue(expr.stringValueID()).value;
-			} break;
-
-			case sema::Expr::Kind::INIT_ARRAY_REF: {
-				const sema::InitArrayRef& init_array_ref = 
-					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
-
-				return this->extract_string_from_sema_expr(init_array_ref.expr);
-			} break;
-
-			case sema::Expr::Kind::GLOBAL_VAR: {
-				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
-
-				return this->extract_string_from_sema_expr(*global_var.expr.load(std::memory_order::relaxed));
-			} break;
-
-			default: {
-				evo::debugFatalBreak("Not a string value");
-			} break;
-		}
-	}
 
 
 
@@ -29224,37 +29104,17 @@ namespace pcit::panther{
 			}();
 
 
-
-			if constexpr(IS_COMPTIME){
-				if(union_info.isUntagged){
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						value_stage,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type_info_id,
-						init_value.getExpr()
-					);
-
-				}else{
-					this->emit_error(
-						"Comptime tagged union designated init `new` is unimplemented", instr.designated_init_new
-					);
-					return Result::ERROR;
-				}
-
-			}else{
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					value_stage,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type_info_id,
-					sema::Expr(
-						this->context.sema_buffer.createUnionDesignatedInitNew(
-							init_value.getExpr(), target_type_info.baseTypeID().unionID(), uint32_t(i)
-						)
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				value_stage,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type_info_id,
+				sema::Expr(
+					this->context.sema_buffer.createUnionDesignatedInitNew(
+						init_value.getExpr(), target_type_info.baseTypeID().unionID(), uint32_t(i)
 					)
-				);
-			}
+				)
+			);
 
 			return Result::SUCCESS;
 		}
@@ -30151,7 +30011,7 @@ namespace pcit::panther{
 						return evo::resultError;
 					}
 
-					message = this->extract_string_from_sema_expr(message_term_info.getExpr());
+					message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
 				}
 
 				if(cond == false){

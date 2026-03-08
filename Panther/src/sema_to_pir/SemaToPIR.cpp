@@ -12,6 +12,7 @@
 #include <ranges>
 
 #include "../../include/Context.h"
+#include "../../include/sema/conversion.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -10680,6 +10681,64 @@ namespace pcit::panther{
 				return this->module.createGlobalStruct(array_ref_type, std::move(values));
 			} break;
 
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: {
+				const sema::UnionDesignatedInitNew& union_designated_init_new =
+					this->context.getSemaBuffer().getUnionDesignatedInitNew(expr.unionDesignatedInitNewID());
+
+				const BaseType::Union& union_type =
+					this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
+
+				const pir::Type union_pir_type = this->data.get_union(union_designated_init_new.unionTypeID);
+
+				const core::GenericValue generic_value = [&]() -> core::GenericValue {
+					if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
+						return sema::exprToGenericValue(union_designated_init_new.value, this->context);
+					}else{
+						return core::GenericValue();
+					}
+				}();
+
+
+				const size_t data_size = [&]() -> size_t {
+					if(union_type.isUntagged){
+						return this->module.getArrayType(union_pir_type).length;
+					}else{
+						return this->module.getArrayType(this->module.getStructType(union_pir_type).members[0]).length;
+					}
+				}();
+
+				auto byte_array_data = evo::SmallVector<std::byte>();
+				byte_array_data.resize(data_size);
+
+				std::memcpy(byte_array_data.data(), generic_value.dataRange().data(), generic_value.dataRange().size());
+
+				if(generic_value.dataRange().size() != data_size){
+					std::memset(
+						&byte_array_data[generic_value.dataRange().size()],
+						0,
+						data_size - generic_value.dataRange().size()
+					);
+				}
+
+
+				const pir::GlobalVar::ByteArray::ID pir_byte_array =
+					this->module.createGlobalByteArray(std::move(byte_array_data));
+
+				if(union_type.isUntagged){
+					return pir_byte_array;
+				}
+				
+				const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+				const pir::Expr tag_value = this->agent.createNumber(
+					tag_type,
+					core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+				);
+
+				auto aggregate_values = evo::SmallVector<pir::GlobalVar::Value>{pir_byte_array, tag_value};
+
+				return this->module.createGlobalStruct(union_pir_type, std::move(aggregate_values));
+			} break;
+
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
 				return this->get_global_var_value(*global_var.expr.load());
@@ -10698,13 +10757,12 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
 			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::PARAM:                      case sema::Expr::Kind::VARIADIC_PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:               case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:          case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::FOR_PARAM:                  case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:         case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:               case sema::Expr::Kind::FOR_PARAM:
+			case sema::Expr::Kind::VAR:                        case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

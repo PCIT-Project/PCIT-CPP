@@ -13,6 +13,7 @@
 #include <Evo.h>
 #include <PCIT_core.h>
 
+#include "../tokens/Token.h"
 #include "./sema_ids.h"
 #include "../intrinsics.h"
 

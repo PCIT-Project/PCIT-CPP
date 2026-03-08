@@ -1,14 +1,14 @@
-def std = @import("std");
-def std_exp = @import("std_exp/std_exp.pthr");
+type Union = union {
+	none   : Void,
+	num    : Int,
+	letter : Char,
+}
+
+
+const u = new Union{none = null};
 
 
 func entry = () #entry -> UI8 {
-	const arr = new std_exp.StaticArrayList<{Int, 4}>(new [Int:3][1, 2, 3]);
-
-	var sum: Int = 0;
-	for(arr) [_; value: Int] {
-		sum += value;
-	}
 	
-	return sum as UI8;
+	return (u == Union.none) as UI8;
 }

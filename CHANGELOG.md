@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.253.0"></a>
+## v0.0.253.0
+
+### Panther
+- Added comptime designated initializer `new` union
+
+
+<!---------------------------------->
 <a name="v0.0.252.0"></a>
 ## v0.0.252.0
 
@@ -39,7 +47,7 @@
 - Fixed missing checks that return type of comptime func call is trivially deletable
 
 
-<!---------------------------------->
+<!---------------------------------->                          
 <a name="v0.0.249.1"></a>
 ## v0.0.249.1
 
