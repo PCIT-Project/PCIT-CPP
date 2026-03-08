@@ -118,6 +118,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto lookupGlobalVar(pir::GlobalVar::ID id) const -> std::optional<sema::GlobalVar::ID>;
 			EVO_NODISCARD auto lookupGlobalString(pir::GlobalVar::ID id) const -> std::optional<sema::StringValue::ID>;
 			EVO_NODISCARD auto lookupVTable(pir::GlobalVar::ID id) const -> std::optional<VTableID>;
+			EVO_NODISCARD auto lookupSingleMethodVTable(pir::Function::ID id) const -> std::optional<VTableID>;
 
 
 
@@ -196,6 +197,7 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
 				const auto emplace_result = this->single_method_vtables.emplace(single_method_vtable_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This single_method_vtable id was already added to PIR lower");
+				this->reverse_single_method_vtables.emplace(pir_id, single_method_vtable_id);
 			}
 
 
@@ -324,6 +326,7 @@ namespace pcit::panther{
 			mutable evo::SpinLock vtables_lock{};
 
 			std::unordered_map<VTableID, pir::Function::ID> single_method_vtables{};
+			std::unordered_map<pir::Function::ID, VTableID> reverse_single_method_vtables{};
 			mutable evo::SpinLock single_method_vtables_lock{};
 
 			evo::StepVector<InterfaceInfo> interfaces_info_alloc{};

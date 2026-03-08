@@ -1,14 +1,19 @@
-type Union = union {
-	none   : Void,
-	num    : Int,
-	letter : Char,
+interface Interface = #polymorphic {
+	func get_num = () -> Int;
 }
 
 
-const u = new Union{none = null};
+type Struct = struct {
+	impl Interface{
+		get_num = () -> Int { return 12; }
+	}
+}
 
 
-func entry = () #entry -> UI8 {
-	
-	return (u == Union.none) as UI8;
+const foo = new Struct();
+const bar: impl(*:Interface) = get_interface();
+
+
+func get_interface = () -> impl(*:Interface) {
+	return foo as impl(*:Interface);
 }

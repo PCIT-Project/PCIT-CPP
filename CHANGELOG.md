@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.253.1"></a>
+## v0.0.253.1
+
+### Panther
+- Fixed converting a polymorphic interface reference to a comptime value when the interface has 1 method
+- Fixed lowering of creating a polymorphic interface reference when the interface has 1 method
+
+
+<!---------------------------------->
 <a name="v0.0.253.0"></a>
 ## v0.0.253.0
 

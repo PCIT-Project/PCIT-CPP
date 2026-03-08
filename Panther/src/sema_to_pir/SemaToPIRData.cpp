@@ -81,10 +81,18 @@ namespace pcit::panther{
 	}
 
 	auto SemaToPIRData::lookupVTable(pir::GlobalVar::ID id) const -> std::optional<VTableID> {
-		const auto lock = std::scoped_lock(this->global_strings_lock);
+		const auto lock = std::scoped_lock(this->vtables_lock);
 
 		const auto find = this->reverse_vtables.find(id);
 		if(find != this->reverse_vtables.end()){ return find->second; }
+		return std::nullopt;
+	}
+
+	auto SemaToPIRData::lookupSingleMethodVTable(pir::Function::ID id) const -> std::optional<VTableID> {
+		const auto lock = std::scoped_lock(this->single_method_vtables_lock);
+
+		const auto find = this->reverse_single_method_vtables.find(id);
+		if(find != this->reverse_single_method_vtables.end()){ return find->second; }
 		return std::nullopt;
 	}
 

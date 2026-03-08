@@ -27466,16 +27466,27 @@ namespace pcit::panther{
 				evo::debugAssert(vtable_ptr != nullptr, "Null on vtable");
 
 
-				const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
-					this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
+				
 
-				evo::debugAssert(pir_vtable_global_var_id.has_value(), "Unknown vtable ptr");
+				const SemaToPIRData::VTableID vtable_id = [&]() -> SemaToPIRData::VTableID {
+					const std::optional<pir::GlobalVar::ID> pir_vtable_global_var_id =
+						this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
+
+					if(pir_vtable_global_var_id.has_value()){ // multi-method vtable found
+						return *this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
+					}
 
 
-				const std::optional<SemaToPIRData::VTableID> vtable_id =
-					this->context.sema_to_pir_data.lookupVTable(*pir_vtable_global_var_id);
+					//////////////////
+					// Lookup single method vtable
 
-				evo::debugAssert(vtable_id.has_value(), "Vtable not found");
+					const std::optional<pir::Function::ID> pir_vtable_method_id =
+						this->context.comptime_execution_engine.lookupFunction(vtable_ptr);
+
+					evo::debugAssert(pir_vtable_method_id.has_value(), "vtable is not global or function");
+
+					return *this->context.sema_to_pir_data.lookupSingleMethodVTable(*pir_vtable_method_id);
+				}();
 
 
 
@@ -27483,7 +27494,7 @@ namespace pcit::panther{
 				// target
 
 				const TypeInfo::ID target_ptr_type = this->context.type_manager.getOrCreateTypeInfo(
-					this->context.getTypeManager().getTypeInfo(vtable_id->impl_id).copyWithPushedQualifier(
+					this->context.getTypeManager().getTypeInfo(vtable_id.impl_id).copyWithPushedQualifier(
 						TypeInfo::Qualifier(true, interface_ref_type.isMut, false, false)
 					)
 				);
@@ -27507,7 +27518,7 @@ namespace pcit::panther{
 
 				return sema::Expr(
 					this->context.sema_buffer.createMakeInterfacePtr(
-						target_value.value(), vtable_id->interface_id, vtable_id->impl_id
+						target_value.value(), vtable_id.interface_id, vtable_id.impl_id
 					)
 				);
 			} break;

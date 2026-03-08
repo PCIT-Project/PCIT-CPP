@@ -10569,17 +10569,25 @@ namespace pcit::panther{
 				const sema::MakeInterfacePtr& make_interface_ptr =
 					this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
 
+				const BaseType::Interface& interface_type =
+					this->context.getTypeManager().getInterface(make_interface_ptr.interfaceID);
+
+				const auto vtable_id = Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID);
+
+				const pir::GlobalVar::Value vtable_value = [&]() -> auto {
+					if(interface_type.methods.size() == 1){
+						return this->agent.createFunctionPointer(this->data.get_single_method_vtable(vtable_id));
+					}else{
+						return this->agent.createGlobalValue(this->data.get_vtable(vtable_id));
+					}
+				}();
+
 				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
-
-				const pir::GlobalVar::ID vtable = this->data.get_vtable(
-					Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
-				);
-
 
 				return this->module.createGlobalStruct(
 					interface_ptr_type,
 					evo::SmallVector<pir::GlobalVar::Value>{
-						this->get_global_var_value(make_interface_ptr.expr), this->agent.createGlobalValue(vtable)
+						this->get_global_var_value(make_interface_ptr.expr), vtable_value
 					}
 				);
 			} break;
