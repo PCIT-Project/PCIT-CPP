@@ -237,12 +237,6 @@ namespace pcit::panther::sema{
 			FORWARDABLE,
 		};
 
-		enum class ValueStage{
-			COMPTIME,
-			INTERPTIME,
-			RUNTIME,
-		};
-
 		enum class ValueState{
 			NOT_APPLICABLE,
 			INIT,
@@ -252,10 +246,10 @@ namespace pcit::panther::sema{
 		};
 		
 		ValueCategory valueCategory;
-		ValueStage valueStage;
 		ValueState valueState;
 		TypeInfo::ID typeID;
 		Expr expr;
+		bool isComptime;
 	};
 
 

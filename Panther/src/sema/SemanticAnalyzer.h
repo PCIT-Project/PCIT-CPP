@@ -480,9 +480,6 @@ namespace pcit::panther{
 			EVO_NODISCARD auto get_current_func() -> sema::Func&;
 			EVO_NODISCARD auto get_current_func() const -> const sema::Func&;
 
-			EVO_NODISCARD auto get_current_func_value_stage() const -> TermInfo::ValueStage;
-			EVO_NODISCARD auto get_current_value_stage() const -> TermInfo::ValueStage;
-
 
 			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
 
@@ -653,10 +650,6 @@ namespace pcit::panther{
 				bool is_member_call
 			) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail>;
 
-
-			EVO_NODISCARD auto expr_in_func_is_valid_value_stage(
-				const TermInfo& term_info, const auto& node_location
-			) -> bool;
 
 
 			EVO_NODISCARD auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;

@@ -421,7 +421,6 @@ namespace pcit::panther{
 				TypeInfoID typeID;
 
 				bool allowedInComptime;
-				bool allowedInInterptime;
 				bool allowedInRuntime;
 
 				bool allowedInCompile;
@@ -472,7 +471,6 @@ namespace pcit::panther{
 				evo::SmallVector<ReturnParam> returns;
 
 				bool allowedInComptime;
-				bool allowedInInterptime;
 				bool allowedInRuntime;
 
 				bool allowedInCompile;

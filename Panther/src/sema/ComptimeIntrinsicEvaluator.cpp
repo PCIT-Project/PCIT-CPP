@@ -21,7 +21,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::getTypeID(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -38,7 +38,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -55,7 +55,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -70,7 +70,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -85,7 +85,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeUSize(),
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -100,7 +100,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -114,7 +114,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -128,7 +128,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComptimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -142,7 +142,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isNoErrorDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -156,7 +156,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isSafeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -170,7 +170,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isTriviallyDeletable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -184,7 +184,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComptimeDeletable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -198,7 +198,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -212,7 +212,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isTriviallyCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -226,7 +226,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComptimeCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -240,7 +240,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isNoErrorCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -254,7 +254,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isSafeCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -268,7 +268,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -282,7 +282,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isTriviallyMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -296,7 +296,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComptimeMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -310,7 +310,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isNoErrorMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -324,7 +324,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isSafeMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -338,7 +338,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComparable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -352,7 +352,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isTriviallyComparable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -366,7 +366,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isComptimeComparable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -380,7 +380,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isNoErrorComparable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -394,7 +394,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::isSafeComparable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(
@@ -414,7 +414,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::trunc(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -424,7 +424,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::ftrunc(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -434,7 +434,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::sext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -444,7 +444,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::zext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -454,7 +454,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::fext(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
@@ -484,7 +484,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(std::move(result), to_type.baseTypeID()))
@@ -502,7 +502,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
 			sema::Expr(this->sema_buffer.createIntValue(
@@ -525,7 +525,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -542,7 +542,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -567,7 +567,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -585,7 +585,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -604,7 +604,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -621,7 +621,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -646,7 +646,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -664,7 +664,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -683,7 +683,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -700,7 +700,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -725,7 +725,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -743,7 +743,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -798,7 +798,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(*result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -816,7 +816,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -839,7 +839,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -857,7 +857,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -902,7 +902,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -926,7 +926,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -936,7 +936,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::eq(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs == rhs))
@@ -954,7 +954,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -973,7 +973,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -983,7 +983,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::neq(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs != rhs))
@@ -1001,7 +1001,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1024,7 +1024,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1034,7 +1034,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::lt(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs < rhs))
@@ -1052,7 +1052,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1075,7 +1075,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1085,7 +1085,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::lte(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs <= rhs))
@@ -1103,7 +1103,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1126,7 +1126,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1136,7 +1136,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::gt(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs > rhs))
@@ -1154,7 +1154,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1177,7 +1177,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1187,7 +1187,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::gte(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs >= rhs))
@@ -1205,7 +1205,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(result))
@@ -1230,7 +1230,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1240,7 +1240,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseAnd(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs & rhs))
@@ -1261,7 +1261,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1271,7 +1271,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseOr(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs | rhs))
@@ -1292,7 +1292,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1302,7 +1302,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseXor(bool lhs, bool rhs) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->sema_buffer.createBoolValue(lhs ^ rhs))
@@ -1336,7 +1336,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -1361,7 +1361,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1393,7 +1393,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
@@ -1418,7 +1418,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1441,7 +1441,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1464,7 +1464,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1487,7 +1487,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
@@ -1510,7 +1510,7 @@ namespace pcit::panther{
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))

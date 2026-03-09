@@ -1,19 +1,25 @@
-interface Interface = #polymorphic {
-	func get_num = () -> Int;
-}
-
-
 type Struct = struct {
-	impl Interface{
-		get_num = () -> Int { return 12; }
-	}
+	var num: Int;
+}
+
+const foo = new Struct{num = 12};
+const bar: Int = get_struct_num<{copy foo}>();
+
+
+func get_struct_num = <{S: Struct}> (num_to_add: Int = 0) -> Int {
+	return S.num + num_to_add;
 }
 
 
-const foo = new Struct();
-const bar: impl(*:Interface) = get_interface();
+func test = () #rt -> Void {
+	var local_var: Int = 12;
+	def TEST = get_struct_num<{copy foo}>(local_var);
+}
 
 
-func get_interface = () -> impl(*:Interface) {
-	return foo as impl(*:Interface);
+
+
+func get_foo_as_byte_arr = () #unsafe -> [Byte:8] {
+	def ARR: [Byte:8] = @bitCast<{Struct, [Byte:8]}>(foo);
+	return ARR;
 }

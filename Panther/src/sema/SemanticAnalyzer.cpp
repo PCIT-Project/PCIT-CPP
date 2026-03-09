@@ -1023,7 +1023,7 @@ namespace pcit::panther{
 
 			const auto lock = std::scoped_lock(current_struct.memberVarsLock);
 			current_struct.memberVars[member_index].defaultValue = BaseType::Struct::MemberVar::DefaultValue(
-				default_term.getExpr(), default_term.value_stage == TermInfo::ValueStage::COMPTIME
+				default_term.getExpr(), default_term.isComptime
 			);
 		}
 		
@@ -1260,9 +1260,7 @@ namespace pcit::panther{
 					instr.var_def.kind,
 					instr.var_def.ident,
 					*type_id,
-					BaseType::Struct::MemberVar::DefaultValue(
-						value_term_info.getExpr(), value_term_info.value_stage == TermInfo::ValueStage::COMPTIME
-					)
+					BaseType::Struct::MemberVar::DefaultValue(value_term_info.getExpr(), value_term_info.isComptime)
 				);
 			}
 
@@ -2971,7 +2969,7 @@ namespace pcit::panther{
 			if(enumerator.value.has_value()){
 				TermInfo& value_term_info = this->get_term_info(*instr.enumerator_values[i]);
 
-				if(value_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
+				if(value_term_info.isComptime == false){
 					this->emit_error("Enumerator value is not comptime", *enumerator.value);
 					return Result::ERROR;
 				}
@@ -7031,7 +7029,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.comptimeIfCond && cond.value_stage == TermInfo::ValueStage::COMPTIME){
+		if(this->get_package().warn.comptimeIfCond && cond.isComptime){
 			this->emit_warning(
 				"Condition in [if] condition is comptime",
 				instr.conditional.cond,
@@ -8602,15 +8600,7 @@ namespace pcit::panther{
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
 
-			if(this->get_current_func().attributes.isComptime){
-				if(intrinsic_func_info.allowedInInterptime == false){
-					this->emit_error(
-						"Cannot call a non-comptime function within a comptime function", instr.func_call.target
-					);
-					return Result::ERROR;
-				}
-
-			}else{
+			if(this->get_current_func().attributes.isComptime == false){
 				if(intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
 						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
@@ -9691,7 +9681,7 @@ namespace pcit::panther{
 
 		auto target_copy = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -9876,7 +9866,7 @@ namespace pcit::panther{
 
 		auto target_move = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -10110,7 +10100,7 @@ namespace pcit::panther{
 
 		auto target_forward = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -10722,7 +10712,7 @@ namespace pcit::panther{
 					}
 				}
 
-				if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::COMPTIME){
+				if(fake_term_info.isComptime == false){
 					all_args_are_comptime = false;
 				}
 			} break;
@@ -10733,7 +10723,7 @@ namespace pcit::panther{
 						target_term_info.getExpr().fakeTermInfoID()
 					);
 
-					if(fake_term_info.valueStage != sema::FakeTermInfo::ValueStage::COMPTIME){
+					if(fake_term_info.isComptime == false){
 						all_args_are_comptime = false;
 					}
 
@@ -10766,7 +10756,7 @@ namespace pcit::panther{
 		for(const SymbolProc::TermInfoID& arg : instr.args){
 			const TermInfo& arg_info = this->get_term_info(arg);
 			sema_args.emplace_back(arg_info.getExpr());
-			if(arg_info.value_stage != TermInfo::ValueStage::COMPTIME){ all_args_are_comptime = false; }
+			if(arg_info.isComptime == false){ all_args_are_comptime = false; }
 		}
 
 
@@ -10781,15 +10771,7 @@ namespace pcit::panther{
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-			if(this->get_current_func().attributes.isComptime){
-				if(intrinsic_func_info.allowedInInterptime == false){
-					this->emit_error(
-						"Cannot call a non-comptime function within a comptime function", instr.func_call.target
-					);
-					return Result::ERROR;
-				}
-
-			}else{
+			if(this->currently_in_func() && this->get_current_func().attributes.isComptime == false){
 				if(intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
 						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
@@ -10832,21 +10814,13 @@ namespace pcit::panther{
 			);
 
 
-			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_COMPTIME){
-					return TermInfo::ValueStage::COMPTIME;
-				}else{
-					return this->get_current_func_value_stage();
-				}
-			}();
-
 			const evo::SmallVector<TypeInfo::VoidableID>& selected_func_type_return_params = 
 				func_call_impl_res.value().selected_func_type.returnTypes;
 
 			if(selected_func_type_return_params.size() == 1){ // single return
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					value_stage,
+					IS_COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					selected_func_type_return_params[0].asTypeID(),
 					sema::Expr(sema_func_call_id)
@@ -10861,7 +10835,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					value_stage,
+					IS_COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
 					sema::Expr(sema_func_call_id)
@@ -10915,15 +10889,12 @@ namespace pcit::panther{
 			*func_call_impl_res.value().selected_func_id, std::move(sema_args)
 		);
 
-		const TermInfo::ValueStage value_stage = [&](){
+		const bool output_is_comptime = [&](){
 			if constexpr(IS_COMPTIME){
-				return TermInfo::ValueStage::COMPTIME;
-			}else{
-				if(all_args_are_comptime && func_call_impl_res.value().selected_func->attributes.isComptime){
-					return TermInfo::ValueStage::COMPTIME;
-				}
+				return true;
 
-				return this->get_current_func_value_stage();
+			}else{
+				return all_args_are_comptime && func_call_impl_res.value().selected_func->attributes.isComptime;
 			}
 		}();
 
@@ -10934,7 +10905,7 @@ namespace pcit::panther{
 		if(selected_func_type_return_params.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				value_stage,
+				output_is_comptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				selected_func_type_return_params[0].asTypeID(),
 				sema::Expr(sema_func_call_id)
@@ -10949,7 +10920,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				value_stage,
+				output_is_comptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(return_types),
 				sema::Expr(sema_func_call_id)
@@ -11047,7 +11018,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::convertValueStage(fake_term_info.valueStage),
+						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						held_type_id,
 						sema::Expr(
@@ -11076,7 +11047,7 @@ namespace pcit::panther{
 
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
+					fake_term_info.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeUSize(),
 					sema::Expr(created_int_value)
@@ -11113,7 +11084,7 @@ namespace pcit::panther{
 				
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::convertValueStage(fake_term_info.valueStage),
+					fake_term_info.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_type_id,
 					sema::Expr(created_aggregate_value)
@@ -11136,7 +11107,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::convertValueStage(fake_term_info.valueStage),
+						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type_id,
 						sema::Expr(this->context.sema_buffer.createAddrOf(fake_term_info.expr))
@@ -11160,7 +11131,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::convertValueStage(fake_term_info.valueStage),
+						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
 						sema::Expr(created_array_ref_size)
@@ -11190,7 +11161,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::convertValueStage(fake_term_info.valueStage),
+						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
 						sema::Expr(created_array_ref_dimensions)
@@ -11220,7 +11191,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::convertValueStage(fake_term_info.valueStage),
+						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
 						sema::Expr(created_array_ref_data)
@@ -11268,7 +11239,7 @@ namespace pcit::panther{
 				if(selected_func_type.returnTypes.size() == 1){ // single return
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						target_term_info.value_stage,
+						target_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						selected_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(interface_call_id)
@@ -11283,7 +11254,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						target_term_info.value_stage,
+						target_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						std::move(return_types),
 						sema::Expr(interface_call_id)
@@ -11333,7 +11304,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo(
 				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				func_call_term.type_id,
 				func_call_result.value()
@@ -11484,7 +11455,7 @@ namespace pcit::panther{
 			
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
@@ -11548,7 +11519,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			output_type_id,
 			sema::Expr(this->context.sema_buffer.createCopy(uninit_ptr_value.getExpr(), output_type_id, true))
@@ -11640,15 +11611,7 @@ namespace pcit::panther{
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
-		if(this->get_current_func().attributes.isComptime){
-			if(template_intrinsic_func_info.allowedInInterptime == false){
-				this->emit_error(
-					"Cannot call a non-interptime intrinsic function within a comptime function", instr.func_call.target
-				);
-				return Result::ERROR;
-			}
-
-		}else{
+		if(this->get_current_func().attributes.isComptime == false){
 			if(template_intrinsic_func_info.allowedInRuntime == false){
 				this->emit_error(
 					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
@@ -11969,16 +11932,7 @@ namespace pcit::panther{
 			}
 
 		}else{
-			if(this->get_current_func().attributes.isComptime){
-				if(template_intrinsic_func_info.allowedInInterptime == false){
-					this->emit_error(
-						"Cannot call a non-interptime intrinsic function within a comptime function",
-						instr.func_call.target
-					);
-					return Result::ERROR;
-				}
-
-			}else{
+			if(this->get_current_func().attributes.isComptime == false){
 				if(template_intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
 						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
@@ -12113,7 +12067,7 @@ namespace pcit::panther{
 			if(return_types.size() == 1){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					this->get_current_func_value_stage(),
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -12122,7 +12076,7 @@ namespace pcit::panther{
 			}else{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					this->get_current_func_value_stage(),
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
 					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
@@ -12434,7 +12388,24 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(create_runtime_call().isError()){ return Result::ERROR; }
+				if constexpr(IS_COMPTIME){
+					const core::GenericValue arg_generic_value = sema::exprToGenericValue(args[0], this->context);
+					const evo::Result<sema::Expr> converted_expr = this->generic_value_to_sema_expr(
+						arg_generic_value, to_type_id, this->get_location(instr.func_call)
+					);
+					if(converted_expr.isError()){ return Result::ERROR; }
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL, 
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						to_type_id,
+						converted_expr.value()
+					);
+
+				}else{
+					if(create_runtime_call().isError()){ return Result::ERROR; }
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
@@ -13698,195 +13669,211 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD: {
-				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-				const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-				);
+				if constexpr(IS_COMPTIME){
+					this->emit_error("Intrinsic function `@atomicLoad` cannot be a comptime value", instr.func_call);
+					return Result::ERROR;
+
+				}else{
+					const BuiltinModule& builtin_module_pthr =
+						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+					);
 
 
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
-				if(target_type.isPointerNotOptional() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					if(target_type.qualifiers().back().isOptional){
-						infos.emplace_back("NOTE: cannot be optional");
+					if(target_type.isPointerNotOptional() == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						if(target_type.qualifiers().back().isOptional){
+							infos.emplace_back("NOTE: cannot be optional");
+						}
+
+						this->emit_error(
+							"Target type of `@atomicLoad` must be a pointer",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
+							std::move(infos)
+						);
+						return Result::ERROR;
 					}
 
-					this->emit_error(
-						"Target type of `@atomicLoad` must be a pointer",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						std::move(infos)
-					);
-					return Result::ERROR;
-				}
-
-				if(target_type.copyWithPoppedQualifier() != value_type){
-					this->emit_error(
-						"Value type of `@atomicLoad` must be the pointee type of the target type",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-				if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
-					this->emit_error(
-						"Value type of `@atomicLoad` must be trivially copyable",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-				if(value_type_id == TypeManager::getTypeF80()){
-					this->emit_error(
-						"Value type of `@atomicLoad` cannot be F80",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-
-				const uint32_t atomic_ordering_number = static_cast<uint32_t>(
-					template_args[2].as<core::GenericValue>().getInt(32)
-				);
-
-				const TemplateIntrinsicFunc::AtomicOrdering atomic_ordering =
-					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(atomic_ordering_number);
-
-				switch(atomic_ordering){
-					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
-					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
-
-					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
+					if(target_type.copyWithPoppedQualifier() != value_type){
 						this->emit_error(
-							"Invalid atomic order for `@atomicLoad`",
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
+							"Value type of `@atomicLoad` must be the pointee type of the target type",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 						);
 						return Result::ERROR;
-					} break;
+					}
 
-					default: {
+					if(this->context.getTypeManager().isTriviallyCopyable(value_type_id) == false){
 						this->emit_error(
-							"Unknown atomic order",
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
+							"Value type of `@atomicLoad` must be trivially copyable",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 						);
 						return Result::ERROR;
-					} break;
-				}
+					}
 
-				if(create_runtime_call().isError()){ return Result::ERROR; }
+					if(value_type_id == TypeManager::getTypeF80()){
+						this->emit_error(
+							"Value type of `@atomicLoad` cannot be F80",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
+						);
+						return Result::ERROR;
+					}
+
+
+					const uint32_t atomic_ordering_number = static_cast<uint32_t>(
+						template_args[2].as<core::GenericValue>().getInt(32)
+					);
+
+					const TemplateIntrinsicFunc::AtomicOrdering atomic_ordering =
+						static_cast<TemplateIntrinsicFunc::AtomicOrdering>(atomic_ordering_number);
+
+					switch(atomic_ordering){
+						case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+						case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
+
+						case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
+							this->emit_error(
+								"Invalid atomic order for `@atomicLoad`",
+								this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
+							);
+							return Result::ERROR;
+						} break;
+
+						default: {
+							this->emit_error(
+								"Unknown atomic order",
+								this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[2]
+							);
+							return Result::ERROR;
+						} break;
+					}
+				
+					
+					if(create_runtime_call().isError()){ return Result::ERROR; }
+				}
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CMPXCHG: {
-				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-				const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-				);
+				if constexpr(IS_COMPTIME){
+					this->emit_error("Intrinsic function `@cmpxchg` cannot be a comptime value", instr.func_call);
+					return Result::ERROR;
+
+				}else{
+					const BuiltinModule& builtin_module_pthr =
+						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+					);
 
 
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
-				if(target_type.isPointerNotOptional() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					if(target_type.qualifiers().back().isOptional){
-						infos.emplace_back("NOTE: cannot be optional");
+					if(target_type.isPointerNotOptional() == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						if(target_type.qualifiers().back().isOptional){
+							infos.emplace_back("NOTE: cannot be optional");
+						}
+
+						this->emit_error(
+							"Target type of `@cmpxchg` must be a typed pointer",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
+							std::move(infos)
+						);
+						return Result::ERROR;
 					}
 
-					this->emit_error(
-						"Target type of `@cmpxchg` must be a typed pointer",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						std::move(infos)
-					);
-					return Result::ERROR;
-				}
-
-				if(target_type.copyWithPoppedQualifier() != value_type){
-					this->emit_error(
-						"Value type of `@cmpxchg` must be the pointee type of the target type",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-				if(
-					this->context.getTypeManager().isIntegral(value_type_id) == false
-					&& this->context.getTypeManager().isPointer(value_type_id) == false
-					&& value_type_id != TypeManager::getTypeBool()
-				){
-					this->emit_error(
-						"Value type of `@cmpxchg` must be integral, pointer, or Bool",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-
-				const uint32_t success_atomic_ordering_number = static_cast<uint32_t>(
-					template_args[3].as<core::GenericValue>().getInt(32)
-				);
-
-				const TemplateIntrinsicFunc::AtomicOrdering success_atomic_ordering =
-					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(success_atomic_ordering_number);
-
-				switch(success_atomic_ordering){
-					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
-					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:   break;
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL:   break;
-					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
-
-					default: {
+					if(target_type.copyWithPoppedQualifier() != value_type){
 						this->emit_error(
-							"Unknown atomic order",
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3]
+							"Value type of `@cmpxchg` must be the pointee type of the target type",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 						);
 						return Result::ERROR;
-					} break;
-				}
+					}
 
-
-
-
-				const uint32_t failure_atomic_ordering_number = static_cast<uint32_t>(
-					template_args[4].as<core::GenericValue>().getInt(32)
-				);
-
-				const TemplateIntrinsicFunc::AtomicOrdering failure_atomic_ordering =
-					static_cast<TemplateIntrinsicFunc::AtomicOrdering>(failure_atomic_ordering_number);
-
-				switch(failure_atomic_ordering){
-					case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
-					case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
-
-					case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
-					case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
+					if(
+						this->context.getTypeManager().isIntegral(value_type_id) == false
+						&& this->context.getTypeManager().isPointer(value_type_id) == false
+						&& value_type_id != TypeManager::getTypeBool()
+					){
 						this->emit_error(
-							"Invalid atomic order for `@cmpxchg`",
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
+							"Value type of `@cmpxchg` must be integral, pointer, or Bool",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
 						);
 						return Result::ERROR;
-					} break;
+					}
 
-					default: {
-						this->emit_error(
-							"Unknown atomic order",
-							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
-						);
-						return Result::ERROR;
-					} break;
+
+					const uint32_t success_atomic_ordering_number = static_cast<uint32_t>(
+						template_args[3].as<core::GenericValue>().getInt(32)
+					);
+
+					const TemplateIntrinsicFunc::AtomicOrdering success_atomic_ordering =
+						static_cast<TemplateIntrinsicFunc::AtomicOrdering>(success_atomic_ordering_number);
+
+					switch(success_atomic_ordering){
+						case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+						case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:   break;
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL:   break;
+						case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
+
+						default: {
+							this->emit_error(
+								"Unknown atomic order",
+								this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[3]
+							);
+							return Result::ERROR;
+						} break;
+					}
+
+
+
+
+					const uint32_t failure_atomic_ordering_number = static_cast<uint32_t>(
+						template_args[4].as<core::GenericValue>().getInt(32)
+					);
+
+					const TemplateIntrinsicFunc::AtomicOrdering failure_atomic_ordering =
+						static_cast<TemplateIntrinsicFunc::AtomicOrdering>(failure_atomic_ordering_number);
+
+					switch(failure_atomic_ordering){
+						case TemplateIntrinsicFunc::AtomicOrdering::MONOTONIC: break;
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQUIRE:   break;
+						case TemplateIntrinsicFunc::AtomicOrdering::SEQ_CST:   break;
+
+						case TemplateIntrinsicFunc::AtomicOrdering::RELEASE:
+						case TemplateIntrinsicFunc::AtomicOrdering::ACQ_REL: {
+							this->emit_error(
+								"Invalid atomic order for `@cmpxchg`",
+								this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
+							);
+							return Result::ERROR;
+						} break;
+
+						default: {
+							this->emit_error(
+								"Unknown atomic order",
+								this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[4]
+							);
+							return Result::ERROR;
+						} break;
+					}
+
+
+					if(create_runtime_call().isError()){ return Result::ERROR; }
 				}
-
-				if(create_runtime_call().isError()){ return Result::ERROR; }
 			} break;
 
 
@@ -13896,58 +13883,66 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
-				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+				if constexpr(IS_COMPTIME){
+					this->emit_error("Intrinsic function `@atomicRMW` cannot be a comptime value", instr.func_call);
+					return Result::ERROR;
 
-				const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-				);
+				}else{
+					const BuiltinModule& builtin_module_pthr =
+						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
 
-				const TypeInfo::ID atomic_rmw_op_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
-				);
+					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+					);
+
+					const TypeInfo::ID atomic_rmw_op_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
+					);
 
 
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
-				if(target_type.isPointerNotOptional() == false){
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					if(target_type.qualifiers().back().isOptional){
-						infos.emplace_back("NOTE: cannot be optional");
+					if(target_type.isPointerNotOptional() == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						if(target_type.qualifiers().back().isOptional){
+							infos.emplace_back("NOTE: cannot be optional");
+						}
+
+						this->emit_error(
+							"Target type of `@atomicRMW` must be a pointer",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
+							std::move(infos)
+						);
+						return Result::ERROR;
 					}
 
-					this->emit_error(
-						"Target type of `@atomicRMW` must be a pointer",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0],
-						std::move(infos)
-					);
-					return Result::ERROR;
+					if(target_type.copyWithPoppedQualifier() != value_type){
+						this->emit_error(
+							"Value type of `@atomicRMW` must be the pointee type of the target type",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
+						);
+						return Result::ERROR;
+					}
+
+					if(
+						this->context.getTypeManager().isIntegral(value_type_id) == false
+						&& this->context.getTypeManager().isPointer(value_type_id) == false
+						&& value_type_id != TypeManager::getTypeBool()
+					){
+						this->emit_error(
+							"Value type of `@atomicRMW` must be integral, pointer, or Bool",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
+						);
+						return Result::ERROR;
+					}
+
+					if(create_runtime_call().isError()){ return Result::ERROR; }
 				}
 
-				if(target_type.copyWithPoppedQualifier() != value_type){
-					this->emit_error(
-						"Value type of `@atomicRMW` must be the pointee type of the target type",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-				if(
-					this->context.getTypeManager().isIntegral(value_type_id) == false
-					&& this->context.getTypeManager().isPointer(value_type_id) == false
-					&& value_type_id != TypeManager::getTypeBool()
-				){
-					this->emit_error(
-						"Value type of `@atomicRMW` must be integral, pointer, or Bool",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
-					);
-					return Result::ERROR;
-				}
-
-				if(create_runtime_call().isError()){ return Result::ERROR; }
 			} break;
 		}
 
@@ -13984,15 +13979,28 @@ namespace pcit::panther{
 				this->emit_error(
 					"Type of argument of comptime operator [copy] is not trivially copyable", instr.prefix
 				);
-				return Result::ERROR;	
+				return Result::ERROR;
 			}
+
+			if(target.isComptime == false){
+				this->emit_error("Argument of comptime operator [copy] is not comptime", instr.prefix.rhs);
+				return Result::ERROR;
+			}
+
+			const sema::Expr output_value = [&]() -> sema::Expr {
+				if(target.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
+					return *this->context.getSemaBuffer().getGlobalVar(target.getExpr().globalVarID()).expr.load();
+				}else{
+					return target.getExpr();
+				}
+			}();
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				target.value_stage,
+				target.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target.type_id,
-				target.getExpr()
+				output_value
 			);
 
 			return Result::SUCCESS;
@@ -14026,7 +14034,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				target.value_stage,
+				target.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target.type_id,
 				sema::Expr(
@@ -14141,7 +14149,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true))
@@ -14246,7 +14254,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -14301,7 +14309,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createAddrOf(target.getExpr()))
@@ -14402,7 +14410,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						expr.value_stage,
+						expr.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
@@ -14426,7 +14434,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						expr.value_stage,
+						expr.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
@@ -14504,7 +14512,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TypeManager::getTypeBool(),
 				sema::Expr(created_func_call_id)
@@ -14598,7 +14606,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					expr.value_stage,
+					expr.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					expr.type_id.as<TypeInfo::ID>(),
 					sema::Expr(created_func_call_id)
@@ -14678,7 +14686,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
-			target.value_stage,
+			target.isComptime,
 			target_type.qualifiers().back().isUninit
 				? TermInfo::ValueState::UNINIT
 				: TermInfo::ValueState::NOT_APPLICABLE,
@@ -14728,7 +14736,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema::Expr(this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
@@ -14761,7 +14769,7 @@ namespace pcit::panther{
 					if(instr.args.empty()){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -14783,7 +14791,7 @@ namespace pcit::panther{
 						if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
 							this->return_term_info(instr.output,
 								TermInfo::ValueCategory::EPHEMERAL,
-								TermInfo::ValueStage::COMPTIME,
+								true,
 								TermInfo::ValueState::NOT_APPLICABLE,
 								target_type_id.asTypeID(),
 								sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -14819,7 +14827,7 @@ namespace pcit::panther{
 
 							this->return_term_info(instr.output,
 								TermInfo::ValueCategory::EPHEMERAL,
-								TermInfo::ValueStage::COMPTIME,
+								true,
 								TermInfo::ValueState::NOT_APPLICABLE,
 								target_type_id.asTypeID(),
 								sema::Expr(
@@ -14870,7 +14878,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -14953,7 +14961,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15067,7 +15075,7 @@ namespace pcit::panther{
 					if(instr.args.empty()){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15162,7 +15170,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createInitArrayRef(
@@ -15195,7 +15203,7 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							this->get_current_value_stage(),
+							this->currently_in_func(),
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(
@@ -15321,17 +15329,10 @@ namespace pcit::panther{
 					selected_func_id, std::move(output_args)
 				);
 
-				const TermInfo::ValueStage value_stage = [&]() -> TermInfo::ValueStage {
-					if constexpr(IS_COMPTIME){
-						return TermInfo::ValueStage::COMPTIME;
-					}else{
-						return this->get_current_func_value_stage();
-					}
-				}();
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					value_stage,
+					IS_COMPTIME,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(created_func_call_id)
@@ -15418,7 +15419,7 @@ namespace pcit::panther{
 				
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -15547,7 +15548,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo(
 				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				func_call_term.type_id,
 				func_call_result.value()
@@ -15588,7 +15589,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo(
 				TermInfo::ValueCategory::EPHEMERAL,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				default_new_expr.targetTypeID,
 				output_expr.value()
@@ -15797,18 +15798,10 @@ namespace pcit::panther{
 			std::move(values), decayed_target_type_info.baseTypeID()
 		);
 
-		const TermInfo::ValueStage value_stage = [&](){
-			if constexpr(IS_COMPTIME){
-				return TermInfo::ValueStage::COMPTIME;
-			}else{
-				return this->get_current_value_stage();
-			}
-		}();
-
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			value_stage,
+			IS_COMPTIME || this->currently_in_func(),
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -15893,18 +15886,9 @@ namespace pcit::panther{
 				evo::SmallVector<sema::Expr>(), target_type_info.baseTypeID()
 			);
 
-			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_COMPTIME){
-					return TermInfo::ValueStage::COMPTIME;
-				}else{
-					return this->get_current_value_stage();
-				}
-			}();
-
-
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				value_stage,
+				IS_COMPTIME || this->currently_in_func(),
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_id.asTypeID(),
 				sema::Expr(created_aggregate_value)
@@ -16039,18 +16023,10 @@ namespace pcit::panther{
 			std::move(values), target_type_info.baseTypeID()
 		);
 
-		const TermInfo::ValueStage value_stage = [&](){
-			if constexpr(IS_COMPTIME){
-				return TermInfo::ValueStage::COMPTIME;
-			}else{
-				return this->get_current_value_stage();
-			}
-		}();
-
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			value_stage,
+			IS_COMPTIME || this->currently_in_func(),
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -16162,7 +16138,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
-			this->get_current_func_value_stage(),
+			false,
 			TermInfo::ExceptParamPack{},
 			std::move(except_params)
 		);
@@ -16224,18 +16200,6 @@ namespace pcit::panther{
 		}
 
 
-		using ValueStage = TermInfo::ValueStage;
-		const ValueStage value_stage = [&](){
-			if(attempt_expr.value_stage == ValueStage::COMPTIME && except_expr.value_stage == ValueStage::COMPTIME){
-				return TermInfo::ValueStage::COMPTIME;
-			}
-
-			if(attempt_expr.value_stage >= ValueStage::INTERPTIME && except_expr.value_stage >= ValueStage::INTERPTIME){
-				return TermInfo::ValueStage::INTERPTIME;
-			}
-
-			return TermInfo::ValueStage::RUNTIME;
-		}();
 
 
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
@@ -16259,7 +16223,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			value_stage,
+			attempt_expr.isComptime && except_expr.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
 			try_else_expr
@@ -16308,7 +16272,7 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TypeID& output_type_id : instr.output_types){
 			const TypeInfo::VoidableID output_type = this->get_type(output_type_id);
 
-			if(output_type.isVoid()){
+			if(output_type.isVoid()){\
 				this->emit_error("Block expression output cannot be type `Void`", instr.block.outputs[i].typeID);
 				return Result::ERROR;
 			}
@@ -16354,7 +16318,7 @@ namespace pcit::panther{
 		if(sema_block_expr.outputs.size() == 1){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func_value_stage(),
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
@@ -16368,7 +16332,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				this->get_current_func_value_stage(),
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
 				sema::Expr(sema_block_expr_id)
@@ -16608,7 +16572,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					target.value_stage,
+					target.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					selected_overload_info.func_type.returnTypes[0].asTypeID(),
 					sema::Expr(
@@ -16645,10 +16609,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(
-				index.value_stage == TermInfo::ValueStage::COMPTIME
-				&& index.getExpr().kind() == sema::Expr::Kind::INT_VALUE
-			){
+			if(index.isComptime && index.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 				if(decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
 					const BaseType::Array& array_type =
 						this->context.getTypeManager().getArray(decayed_target_type.baseTypeID().arrayID());
@@ -16744,7 +16705,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.value_stage,
+			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			sema_indexer_expr
@@ -17371,7 +17332,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
@@ -17389,7 +17350,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_float_value)
@@ -17413,7 +17374,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_int_value)
@@ -17430,7 +17391,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
@@ -17569,7 +17530,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(conversion_call)
@@ -17683,7 +17644,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				created_array_to_array_ref
@@ -17749,7 +17710,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				expr.getExpr()
@@ -17769,7 +17730,7 @@ namespace pcit::panther{
 		if(from_underlying_type_id == to_underlying_type_id){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				expr.getExpr()
@@ -17786,7 +17747,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createIntValue(
@@ -17804,7 +17765,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F16: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17821,7 +17782,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_BF16: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17838,7 +17799,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F32: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17855,7 +17816,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F64: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17872,7 +17833,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F80: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17889,7 +17850,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -17926,7 +17887,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							expr.value_stage,
+							expr.isComptime,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(created_func_call_id)
@@ -17970,7 +17931,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							expr.value_stage,
+							expr.isComptime,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(conversion_call)
@@ -18133,7 +18094,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					expr.value_stage,
+					expr.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type.asTypeID(),
 					sema::Expr(created_func_call_id)
@@ -18345,7 +18306,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.value_stage,
+				expr.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(created_func_call_id)
@@ -18448,7 +18409,7 @@ namespace pcit::panther{
 
 				this->return_term_info(output_id,
 					TermInfo::ValueCategory::EPHEMERAL,
-					from_expr.value_stage,
+					from_expr.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					sema::Expr(make_interface_ptr_id)
@@ -18475,7 +18436,7 @@ namespace pcit::panther{
 
 				this->return_term_info(output_id,
 					from_expr.value_category,
-					from_expr.value_stage,
+					from_expr.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					from_expr.getExpr()
@@ -18526,7 +18487,7 @@ namespace pcit::panther{
 			
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			lhs.value_stage,
+			lhs.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_decayed_type_id, is_equal))
@@ -18633,7 +18594,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						lhs.value_stage,
+						lhs.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -18673,7 +18634,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						rhs.value_stage,
+						rhs.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -18749,7 +18710,7 @@ namespace pcit::panther{
 
 								this->return_term_info(instr.output,
 									TermInfo::ValueCategory::EPHEMERAL,
-									lhs.value_stage,
+									lhs.isComptime,
 									TermInfo::ValueState::NOT_APPLICABLE,
 									TypeManager::getTypeBool(),
 									sema::Expr(same_type_cmp)
@@ -18803,7 +18764,7 @@ namespace pcit::panther{
 
 									this->return_term_info(instr.output,
 										TermInfo::ValueCategory::EPHEMERAL,
-										lhs.value_stage,
+										lhs.isComptime,
 										TermInfo::ValueState::NOT_APPLICABLE,
 										TypeManager::getTypeBool(),
 										sema::Expr(same_type_cmp)
@@ -19037,7 +18998,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						lhs.value_stage,
+						lhs.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -19118,7 +19079,7 @@ namespace pcit::panther{
 								}else{
 									this->return_term_info(instr.output,
 										TermInfo::ValueCategory::EPHEMERAL,
-										lhs.value_stage,
+										lhs.isComptime,
 										TermInfo::ValueState::NOT_APPLICABLE,
 										TypeManager::getTypeBool(),
 										sema::Expr(
@@ -19205,7 +19166,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					rhs.value_stage,
+					rhs.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_func_type.returnTypes[0].asTypeID(),
 					sema::Expr(infix_overload_result.value())
@@ -19347,7 +19308,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value))
@@ -19378,7 +19339,7 @@ namespace pcit::panther{
 			if(op_kind == Token::lookupKind("&&")){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					lhs.value_stage,
+					lhs.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createLogicalAnd(lhs.getExpr(), rhs.getExpr()))
@@ -19388,7 +19349,7 @@ namespace pcit::panther{
 			}else if(op_kind == Token::lookupKind("||")){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					lhs.value_stage,
+					lhs.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createLogicalOr(lhs.getExpr(), rhs.getExpr()))
@@ -19709,7 +19670,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				lhs.value_stage,
+				lhs.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				*resultant_type,
 				sema::Expr(created_func_call_id)
@@ -19760,7 +19721,7 @@ namespace pcit::panther{
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
 			if constexpr(IS_COMPTIME){
-				if(lhs.value_stage != TermInfo::ValueStage::COMPTIME){
+				if(lhs.isComptime == false){
 					this->emit_error("This expression must be a comptime value", instr.infix.lhs);
 					return Result::ERROR;
 				}
@@ -19838,7 +19799,6 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 		}
-
 	}
 
 
@@ -20622,14 +20582,6 @@ namespace pcit::panther{
 		const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<NEEDS_DEF>(instr.ident);
 		if(lookup_ident_result.has_value() == false){ return lookup_ident_result.error(); }
 
-		if(
-			this->scope.inEncapsulatingSymbol()
-			&& this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()
-			&& this->expr_in_func_is_valid_value_stage(lookup_ident_result.value(), instr.ident) == false
-		){
-			return Result::ERROR;
-		}
-
 		this->return_term_info(instr.output, std::move(lookup_ident_result.value()));
 		return Result::SUCCESS;
 	}
@@ -20656,7 +20608,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTRINSIC_FUNC,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				intrinsic_type,
 				sema::Expr(*intrinsic_kind)
@@ -20773,7 +20725,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_INT: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
@@ -20786,7 +20738,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_FLOAT: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -20799,7 +20751,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_BOOL: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
@@ -20810,7 +20762,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_STRING: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(
@@ -20832,7 +20784,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_CHAR: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
@@ -20843,7 +20795,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_NULL: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::NULL_VALUE,
-					TermInfo::ValueStage::COMPTIME,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::NullType(),
 					sema::Expr(this->context.sema_buffer.createNull(instr.literal))
@@ -20859,7 +20811,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_uninit(const Instruction::Uninit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
@@ -20870,7 +20822,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
-			TermInfo::ValueStage::COMPTIME,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createZeroinit(instr.zeroinit_token))
@@ -20916,7 +20868,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			value_category,
-			this->get_current_func_value_stage(),
+			false,
 			TermInfo::ValueState::INIT,
 			param.typeID,
 			sema::Expr(*this_param_id)
@@ -21053,7 +21005,7 @@ namespace pcit::panther{
 				if(global_var.kind == AST::VarDef::Kind::DEF){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::INTERPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
 						*global_var.expr.load(std::memory_order::relaxed)
@@ -21064,7 +21016,7 @@ namespace pcit::panther{
 						global_var.kind == AST::VarDef::Kind::CONST 
 							? TermInfo::ValueCategory::CONCRETE_CONST
 							: TermInfo::ValueCategory::CONCRETE_MUT,
-						TermInfo::ValueStage::RUNTIME,
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
 						sema::Expr(symbol)
@@ -21102,8 +21054,6 @@ namespace pcit::panther{
 			);
 			return Result::ERROR;
 		}
-
-
 
 
 
@@ -21164,7 +21114,7 @@ namespace pcit::panther{
 					if(lhs_enum.getEnumeratorName(enumerator, this->context.getSourceManager()) == rhs_ident_str){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							TermInfo::ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							decayed_lhs_type_id,
 							sema::Expr(
@@ -21241,12 +21191,6 @@ namespace pcit::panther{
 			}
 		}
 
-		if(
-			this->currently_in_func()
-			&& this->expr_in_func_is_valid_value_stage(expr_ident.value(), instr.rhs_ident) == false
-		){
-			return Result::ERROR;
-		}
 
 		this->return_term_info(instr.output, std::move(expr_ident.value()));
 		return Result::SUCCESS;
@@ -21292,7 +21236,7 @@ namespace pcit::panther{
 					global_var.kind == AST::VarDef::Kind::CONST 
 						? TermInfo::ValueCategory::CONCRETE_CONST
 						: TermInfo::ValueCategory::CONCRETE_MUT,
-					TermInfo::ValueStage::RUNTIME,
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					*global_var.typeID,
 					sema::Expr(symbol)
@@ -21394,16 +21338,16 @@ namespace pcit::panther{
 
 			const sema::FakeTermInfo::ID created_fake_term_info = this->context.sema_buffer.createFakeTermInfo(
 				value_category,
-				TermInfo::convertValueStage(lhs.value_stage),
 				TermInfo::convertValueState(lhs.value_state),
 				lhs.type_id.as<TypeInfo::ID>(),
-				lhs.getExpr()
+				lhs.getExpr(),
+				lhs.isComptime
 			);
 
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::POLY_INTERFACE_CALL,
-				lhs.value_stage,
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(methods),
 				sema::Expr(created_fake_term_info)
@@ -21482,15 +21426,15 @@ namespace pcit::panther{
 
 			const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
 				TermInfo::convertValueCategory(lhs.value_category),
-				TermInfo::convertValueStage(lhs.value_stage),
 				TermInfo::convertValueState(lhs.value_state),
 				this_type_id,
-				this_expr
+				this_expr,
+				lhs.isComptime
 			);
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTERFACE_CALL,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(func_overload_list),
 				sema::Expr(method_this)
@@ -21532,10 +21476,10 @@ namespace pcit::panther{
 			return sema::Expr(
 				this->context.sema_buffer.createFakeTermInfo(
 					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
 					optional_type_id,
-					lhs_expr
+					lhs_expr,
+					lhs.isComptime
 				)
 			);
 		}();
@@ -21558,7 +21502,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(
 					method_type, TermInfo::BuiltinTypeMethod::Kind::OPT_EXTRACT
@@ -21636,7 +21580,6 @@ namespace pcit::panther{
 					}
 				}();
 
-				using ValueStage = TermInfo::ValueStage;
 
 
 				if constexpr(IS_COMPTIME){
@@ -21652,7 +21595,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						value_category,
-						ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						member_var->typeID,
 						this->generic_value_to_sema_expr(
@@ -21669,7 +21612,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							ValueStage::COMPTIME,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							member_var->typeID,
 							lhs_aggregate_value.values[i]
@@ -21702,14 +21645,6 @@ namespace pcit::panther{
 						}();
 
 
-						const TermInfo::ValueStage value_stage = [&]() -> TermInfo::ValueStage {
-							if constexpr(IS_COMPTIME){
-								return TermInfo::ValueStage::COMPTIME;
-							}else{
-								return this->get_current_func_value_stage();
-							}
-						}();
-
 
 						const TermInfo::ValueState value_state = [&]() -> TermInfo::ValueState {
 							if constexpr(IS_COMPTIME){
@@ -21738,7 +21673,7 @@ namespace pcit::panther{
 						}();
 
 						this->return_term_info(instr.output,
-							value_category, value_stage, value_state, member_var->typeID, sema_expr
+							value_category, IS_COMPTIME, value_state, member_var->typeID, sema_expr
 						);
 
 						return Result::SUCCESS;
@@ -21828,26 +21763,26 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createFakeTermInfo(
 							value_category,
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
-							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
+							lhs.isComptime
 						);
 						
 					}else{
 						return this->context.sema_buffer.createFakeTermInfo(
 							TermInfo::convertValueCategory(lhs.value_category),
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
-							lhs.getExpr()
+							lhs.getExpr(),
+							lhs.isComptime
 						);
 					}
 				}();
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
-					expr_ident.value().value_stage,
+					expr_ident.value().isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -21938,9 +21873,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			using ValueStage = TermInfo::ValueStage;
 
-			if(lhs.value_stage == ValueStage::COMPTIME){
+			if(lhs.isComptime){
 				this->emit_error("Comptime union accessor is currenlty unimplemented", instr.infix);
 				return Result::ERROR;
 				
@@ -21974,7 +21908,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					value_category,
-					this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[
 						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
@@ -22057,26 +21991,26 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createFakeTermInfo(
 							value_category,
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
-							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
+							lhs.isComptime
 						);
 						
 					}else{
 						return this->context.sema_buffer.createFakeTermInfo(
 							TermInfo::convertValueCategory(lhs.value_category),
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
-							lhs.getExpr()
+							lhs.getExpr(),
+							lhs.isComptime
 						);
 					}
 				}();
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
-					expr_ident.value().value_stage,
+					expr_ident.value().isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -22227,26 +22161,26 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createFakeTermInfo(
 							value_category,
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
-							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id))
+							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
+							lhs.isComptime
 						);
 						
 					}else{
 						return this->context.sema_buffer.createFakeTermInfo(
 							TermInfo::convertValueCategory(lhs.value_category),
-							TermInfo::convertValueStage(lhs.value_stage),
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
-							lhs.getExpr()
+							lhs.getExpr(),
+							lhs.isComptime
 						);
 					}
 				}();
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
-					expr_ident.value().value_stage,
+					expr_ident.value().isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -22292,10 +22226,10 @@ namespace pcit::panther{
 
 		const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
 			TermInfo::convertValueCategory(lhs.value_category),
-			TermInfo::convertValueStage(lhs.value_stage),
 			TermInfo::convertValueState(lhs.value_state),
 			decayed_lhs_type_id,
-			lhs.getExpr()
+			lhs.getExpr(),
+			lhs.isComptime
 		);
 
 		if(rhs_ident_str == "size"){
@@ -22316,7 +22250,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE),
 				sema::Expr(method_this)
@@ -22355,7 +22289,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS),
 				sema::Expr(method_this)
@@ -22397,7 +22331,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA),
 				sema::Expr(method_this)
@@ -22439,10 +22373,10 @@ namespace pcit::panther{
 			return sema::Expr(
 				this->context.sema_buffer.createFakeTermInfo(
 					TermInfo::convertValueCategory(lhs.value_category),
-					TermInfo::convertValueStage(lhs.value_stage),
 					TermInfo::convertValueState(lhs.value_state),
 					array_ref_target_type,
-					lhs_expr
+					lhs_expr,
+					lhs.isComptime
 				)
 			);
 		}();
@@ -22465,7 +22399,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
 				sema::Expr(method_this)
@@ -22504,7 +22438,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS),
 				sema::Expr(method_this)
@@ -22547,7 +22481,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				TermInfo::ValueStage::COMPTIME,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA),
 				sema::Expr(method_this)
@@ -23348,24 +23282,6 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::get_current_func_value_stage() const -> TermInfo::ValueStage {
-		if(this->get_current_func().attributes.isComptime){
-			return TermInfo::ValueStage::INTERPTIME;
-		}else{
-			return TermInfo::ValueStage::RUNTIME;
-		}
-	}
-
-	auto SemanticAnalyzer::get_current_value_stage() const -> TermInfo::ValueStage {
-		if(this->currently_in_func() == false){
-			return TermInfo::ValueStage::COMPTIME;
-		}else{
-			return this->get_current_func_value_stage();
-		}
-	}
-
-
-
 
 	//////////////////////////////////////////////////////////////////////
 	// misc
@@ -23755,14 +23671,13 @@ namespace pcit::panther{
 
 
 				using ValueCategory = TermInfo::ValueCategory;
-				using ValueStage = TermInfo::ValueStage;
 				using ValueState = TermInfo::ValueState;
 
 				switch(sema_var.kind){
 					case AST::VarDef::Kind::VAR: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
-							this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+							false,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -23772,7 +23687,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::CONST: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
-							this->get_current_func().attributes.isComptime ? ValueStage::INTERPTIME : ValueStage::RUNTIME,
+							false,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -23783,7 +23698,7 @@ namespace pcit::panther{
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
-								ValueStage::COMPTIME,
+								true,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								sema_var.expr
@@ -23791,7 +23706,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
-								ValueStage::COMPTIME,
+								true,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								sema_var.expr
@@ -23832,7 +23747,6 @@ namespace pcit::panther{
 
 
 				using ValueCategory = TermInfo::ValueCategory;
-				using ValueStage = TermInfo::ValueStage;
 				using ValueState = TermInfo::ValueState;
 
 				switch(sema_var.kind){
@@ -23845,24 +23759,16 @@ namespace pcit::panther{
 							}
 						}
 
-						const ValueStage value_stage = [&](){
-							if(is_global_scope){ return ValueStage::RUNTIME; }
-
-							evo::debugAssert(sema_var.parent.has_value(), "Not in global scope, should have parent");
-							if(sema_var.parent->is<sema::Func::ID>() == false){ return ValueStage::RUNTIME; }
-
-							const sema::Func& parent_sema_func =
-								this->context.getSemaBuffer().getFunc(sema_var.parent->as<sema::Func::ID>());
-							if(parent_sema_func.attributes.isComptime){
-								return ValueStage::INTERPTIME;
-							}else{
-								return ValueStage::RUNTIME;
-							}
-						}();
+						if(this->currently_in_func() == false || this->get_current_func().attributes.isComptime){
+							this->emit_error(
+								"`var` variables cannot be only be used within a runtime function scope", ident
+							);
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+						}
 						
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
-							value_stage,
+							false,
 							ValueState::NOT_APPLICABLE, 
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -23878,21 +23784,6 @@ namespace pcit::panther{
 							}
 						}
 
-						const ValueStage value_stage = [&](){
-							if(is_global_scope){ return ValueStage::INTERPTIME; }
-
-							if(this->currently_in_func() == false){
-								return ValueStage::INTERPTIME;
-							}
-
-							if(this->get_current_func().attributes.isComptime){
-								return ValueStage::INTERPTIME;
-							}else{
-								return ValueStage::RUNTIME;
-							}
-						}();
-
-
 
 						if(this->currently_in_func() && this->get_current_func().attributes.isComptime){
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
@@ -23900,7 +23791,7 @@ namespace pcit::panther{
 
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
-							value_stage,
+							true,
 							ValueState::NOT_APPLICABLE,
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -23911,7 +23802,7 @@ namespace pcit::panther{
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
-								ValueStage::COMPTIME,
+								true,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								*sema_var.expr.load(std::memory_order::relaxed)
@@ -23919,7 +23810,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
-								ValueStage::COMPTIME,
+								true,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
 								*sema_var.expr.load(std::memory_order::relaxed)
@@ -23969,7 +23860,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
@@ -23996,7 +23887,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::VARIADIC_PARAM,
-						this->get_current_func_value_stage(),
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
 						sema::Expr(ident_id)
@@ -24032,7 +23923,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						value_category,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id.param_id),
 						ident_id.type_id,
 						sema::Expr(ident_id.param_id)
@@ -24051,7 +23942,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						return_type.asTypeID(),
 						sema::Expr(ident_id)
@@ -24069,7 +23960,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						error_param.asTypeID(),
 						sema::Expr(ident_id)
@@ -24083,7 +23974,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						sema_block_expr_output.typeID,
 						sema::Expr(ident_id)
@@ -24095,7 +23986,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						except_param.typeID,
 						sema::Expr(ident_id)
@@ -24109,7 +24000,7 @@ namespace pcit::panther{
 						for_param.isMut
 							? TermInfo::ValueCategory::CONCRETE_MUT
 							: TermInfo::ValueCategory::CONCRETE_CONST,
-						this->get_current_func_value_stage(),
+						false,
 						this->get_ident_value_state(ident_id),
 						for_param.typeID,
 						sema::Expr(ident_id)
@@ -24149,7 +24040,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::MODULE,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
@@ -24189,7 +24080,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CLANG_MODULE,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.clangSourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
@@ -24526,7 +24417,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -24540,7 +24431,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -24589,7 +24480,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
-						TermInfo::ValueStage::COMPTIME,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -25808,6 +25699,22 @@ namespace pcit::panther{
 		evo::ArrayProxy<SymbolProc::TermInfoID> args,
 		evo::ArrayProxy<SymbolProc::TermInfoID> template_args
 	) -> evo::Expected<FuncCallImplData, bool> {
+		for(size_t i = 0; SymbolProc::TermInfoID template_arg_id : template_args){
+			EVO_DEFER([&](){ i += 1; });
+
+			const TermInfo& template_arg = this->get_term_info(template_arg_id);
+
+			if(template_arg.value_category == TermInfo::ValueCategory::TYPE){ continue; }
+
+			if(template_arg.is_ephemeral() == false){
+				const AST::TemplatedExpr& templated_expr =
+					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+
+				this->emit_error("Template arguments must be ephemerial", templated_expr.args[i]);
+				return evo::Unexpected(true);
+			}
+		}
+
 		TypeManager& type_manager = this->context.type_manager;
 
 		auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
@@ -26413,24 +26320,11 @@ namespace pcit::panther{
 			TermInfo& arg_term_info = this->get_term_info(arg);
 
 			if constexpr(IS_COMPTIME){
-				if(arg_term_info.value_stage != TermInfo::ValueStage::COMPTIME){
-					this->emit_error(
-						"Arguments in a comptime function call must have a value stage of comptime",
-						func_call.args[i].value,
-						Diagnostic::Info(
-							std::format(
-								"Value stage of the argument is {}",
-								arg_term_info.value_stage == TermInfo::ValueStage::INTERPTIME ? "interptime" : "runtime"
-							)
-						)
-					);
+				if(arg_term_info.isComptime == false){
+					this->emit_error("Arguments in a comptime function call must be comptime", func_call.args[i].value);
 					return evo::Unexpected(true);
 				}
 			}else{
-				if(this->expr_in_func_is_valid_value_stage(arg_term_info, func_call.args[i].value) == false){
-					return evo::Unexpected(true);
-				}
-
 				if(
 					arg_term_info.value_state != TermInfo::ValueState::INIT
 					&& arg_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
@@ -27030,19 +26924,6 @@ namespace pcit::panther{
 			return instantiation_info;
 		}
 	}
-
-
-
-
-	auto SemanticAnalyzer::expr_in_func_is_valid_value_stage(const TermInfo& term_info, const auto& node_location)
-	-> bool {
-		if(this->get_current_func().attributes.isComptime == false){ return true; }
-		if(term_info.value_stage != TermInfo::ValueStage::RUNTIME){ return true; }
-
-		this->emit_error("Expressions in a comptime function cannot have a value stage of runtime", node_location);
-		return false;
-	}
-
 
 
 
@@ -28641,7 +28522,7 @@ namespace pcit::panther{
 
 		this->return_term_info(output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			expr.value_stage,
+			expr.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			selected_overload_type.returnTypes[0].asTypeID(),
 			sema::Expr(
@@ -29106,18 +28987,10 @@ namespace pcit::panther{
 			}
 
 
-			const TermInfo::ValueStage value_stage = [&](){
-				if constexpr(IS_COMPTIME){
-					return TermInfo::ValueStage::COMPTIME;
-				}else{
-					return this->get_current_value_stage();
-				}
-			}();
-
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				value_stage,
+				IS_COMPTIME || this->currently_in_func(),
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_info_id,
 				sema::Expr(

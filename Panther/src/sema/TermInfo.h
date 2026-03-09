@@ -54,13 +54,6 @@ namespace pcit::panther{
 			VARIADIC_PARAM,
 		};
 
-		enum class ValueStage{
-			NOT_APPLICABLE,
-			COMPTIME,
-			INTERPTIME,
-			RUNTIME,
-		};
-
 		enum class ValueState{
 			NOT_APPLICABLE,
 			INIT,
@@ -125,21 +118,21 @@ namespace pcit::panther{
 		>;
 
 		ValueCategory value_category;
-		ValueStage value_stage;
 		ValueState value_state;
 		TypeID type_id;
+		bool isComptime;
 
 
 		///////////////////////////////////
 		// constructors
 
 		TermInfo(
-			ValueCategory cat, ValueStage stage, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr
+			ValueCategory cat, bool is_comptime, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr
 		) :
 			value_category(cat),
-			value_stage(stage),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType()),
+			isComptime(is_comptime),
 			exprs{_expr}
 		{
 			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL);
@@ -152,11 +145,11 @@ namespace pcit::panther{
 			#endif
 		}
 
-		TermInfo(ValueCategory cat, ValueStage stage, ValueState state, auto&& _type_id, const sema::Expr& _expr) :
+		TermInfo(ValueCategory cat, bool is_comptime, ValueState state, auto&& _type_id, const sema::Expr& _expr) :
 			value_category(cat),
-			value_stage(stage),
 			value_state(state),
 			type_id(std::forward<decltype(_type_id)>(_type_id)),
+			isComptime(is_comptime),
 			exprs{_expr}
 		{
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -168,8 +161,8 @@ namespace pcit::panther{
 			);
 		}
 
-		TermInfo(ValueCategory cat, ValueStage stage, ValueState state, const auto& _type_id, const sema::Expr& _expr)
-			: value_category(cat), value_stage(stage), value_state(state), type_id(_type_id), exprs{_expr} {
+		TermInfo(ValueCategory cat, bool is_comptime, ValueState state, const auto& _type_id, const sema::Expr& _expr)
+			: value_category(cat), value_state(state), type_id(_type_id), isComptime(is_comptime), exprs{_expr} {
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
@@ -182,9 +175,9 @@ namespace pcit::panther{
 
 		TermInfo(ValueCategory cat, auto&& _type_id) :
 			value_category(cat),
-			value_stage(ValueStage::NOT_APPLICABLE),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(std::forward<decltype(_type_id)>(_type_id)),
+			isComptime(true),
 			exprs()
 		{
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -195,9 +188,9 @@ namespace pcit::panther{
 
 		TermInfo(ValueCategory cat, const auto& _type_id) :
 			value_category(cat),
-			value_stage(ValueStage::NOT_APPLICABLE),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType()),
+			isComptime(true),
 			exprs()
 		{
 			// This is to get around the MSVC bug
@@ -211,14 +204,14 @@ namespace pcit::panther{
 
 		TermInfo(
 			ValueCategory cat,
-			ValueStage stage,
+			bool is_comptime,
 			evo::SmallVector<TypeInfo::ID>&& type_ids,
 			evo::SmallVector<sema::Expr>&& expr_list
 		) : 
 			value_category(cat),
-			value_stage(stage),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType{}),
+			isComptime(is_comptime),
 			exprs(std::move(expr_list))
 		{
 			// TODO(FUTURE): remove this and move directly into `type_id` when the MSVC bug is fixed
@@ -228,11 +221,11 @@ namespace pcit::panther{
 		}
 
 
-		TermInfo(ValueCategory cat, ValueStage stage, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list) :
+		TermInfo(ValueCategory cat, bool is_comptime, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list) :
 			value_category(cat),
-			value_stage(stage),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(ExceptParamPack{}),
+			isComptime(is_comptime),
 			exprs(std::move(expr_list))
 		{}
 
@@ -366,10 +359,11 @@ namespace pcit::panther{
 
 		EVO_NODISCARD static auto fromFakeTermInfo(const sema::FakeTermInfo& fake_term_info) -> TermInfo {
 			const ValueCategory value_category = convertValueCategory(fake_term_info.valueCategory);
-			const ValueStage value_stage = convertValueStage(fake_term_info.valueStage);
 			const ValueState value_state = convertValueState(fake_term_info.valueState);
 
-			return TermInfo(value_category, value_stage, value_state, fake_term_info.typeID, fake_term_info.expr);
+			return TermInfo(
+				value_category, fake_term_info.isComptime, value_state, fake_term_info.typeID, fake_term_info.expr
+			);
 		}
 
 
@@ -392,25 +386,6 @@ namespace pcit::panther{
 				case sema::FakeTermInfo::ValueCategory::FORWARDABLE:    return TermInfo::ValueCategory::FORWARDABLE;
 				default: evo::debugFatalBreak("Invalid value category");
 			}
-		}
-
-
-		EVO_NODISCARD static auto convertValueStage(ValueStage value_stage) -> sema::FakeTermInfo::ValueStage {
-			switch(value_stage){
-				case TermInfo::ValueStage::NOT_APPLICABLE: evo::debugFatalBreak("Invalid value stage to convert");
-				case TermInfo::ValueStage::COMPTIME:      return sema::FakeTermInfo::ValueStage::COMPTIME;
-				case TermInfo::ValueStage::INTERPTIME:     return sema::FakeTermInfo::ValueStage::INTERPTIME;
-				case TermInfo::ValueStage::RUNTIME:        return sema::FakeTermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
-		}
-		EVO_NODISCARD static auto convertValueStage(sema::FakeTermInfo::ValueStage value_stage) -> ValueStage {
-			switch(value_stage){
-				case sema::FakeTermInfo::ValueStage::COMPTIME:  return TermInfo::ValueStage::COMPTIME;
-				case sema::FakeTermInfo::ValueStage::INTERPTIME: return TermInfo::ValueStage::INTERPTIME;
-				case sema::FakeTermInfo::ValueStage::RUNTIME:    return TermInfo::ValueStage::RUNTIME;
-			}
-			evo::unreachable();
 		}
 
 

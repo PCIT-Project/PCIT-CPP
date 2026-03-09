@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.254.0"></a>
+## v0.0.254.0
+
+### Panther
+- Removed the concept of interptime
+	- Global `const` variables are now comptime, all other interptime values are now runtime
+- Added comptime func call values for `@bitCast`
+- Fixed `@cttz` not being allowed to be run as a comptime value
+- Fixed missing checking that argument of comptime operator `copy` is comptime
+
+
+<!---------------------------------->
 <a name="v0.0.253.1"></a>
 ## v0.0.253.1
 
