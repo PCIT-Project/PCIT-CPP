@@ -13,7 +13,7 @@ func get_struct_num = <{S: Struct}> (num_to_add: Int = 0) -> Int {
 
 func test = () #rt -> Void {
 	var local_var: Int = 12;
-	def TEST = get_struct_num<{copy foo}>(local_var);
+	// def TEST = get_struct_num<{copy foo}>(local_var);
 }
 
 

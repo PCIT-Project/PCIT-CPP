@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.254.1"></a>
+## v0.0.254.1
+
+### Panther
+- Fixed missing check that operator `as` is comptime in comptime scope when implicitly converting
+
+
+<!---------------------------------->
 <a name="v0.0.254.0"></a>
 ## v0.0.254.0
 

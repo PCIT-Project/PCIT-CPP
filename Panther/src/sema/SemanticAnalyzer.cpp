@@ -30881,6 +30881,22 @@ namespace pcit::panther{
 									return TypeCheckInfo::fail();
 								}
 
+								if(
+									this->get_current_func().attributes.isComptime
+									&& target_as_func.attributes.isComptime == false
+								){
+									if constexpr(MAY_EMIT_ERROR){
+										this->error_type_mismatch(
+											expected_type_id,
+											got_expr,
+											expected_type_location_name,
+											location,
+											multi_type_index
+										);
+									}
+									return TypeCheckInfo::fail();
+								}
+
 								if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 									if(is_initialization == false){
 										switch(got_expr.getExpr().kind()){
