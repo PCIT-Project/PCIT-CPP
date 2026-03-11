@@ -490,7 +490,9 @@ EVO_NODISCARD static auto run_compile(
 			}
 
 			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
-				pthr::print_AST(printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory);
+				pthr::print_AST(
+					printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory, false
+				);
 			}
 
 			return evo::Result<>();

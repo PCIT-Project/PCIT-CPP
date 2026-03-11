@@ -48,7 +48,7 @@ namespace pthr{
 
 	class Indenter{
 		public:
-			Indenter(core::Printer& _printer) : printer(_printer) {}
+			Indenter(core::Printer& _printer, bool _legacy_mode) : printer(_printer), legacy_mode(_legacy_mode) {}
 			~Indenter() = default;
 
 
@@ -74,9 +74,9 @@ namespace pthr{
 
 				for(const IndenterType& indent : this->indents){
 					switch(indent){
-						break; case IndenterType::LINE:      print_string += "|   ";
-						break; case IndenterType::ARROW:     print_string += "|-> ";
-						break; case IndenterType::END_ARROW: print_string += "\\-> ";
+						break; case IndenterType::LINE:      print_string += this->legacy_mode ? "|   "  : "│   ";
+						break; case IndenterType::ARROW:     print_string += this->legacy_mode ? "|-> "  : "├─> ";
+						break; case IndenterType::END_ARROW: print_string += this->legacy_mode ? "\\-> " : "╰─> ";
 						break; case IndenterType::NONE:      print_string += "    ";
 					}
 				}
@@ -107,6 +107,7 @@ namespace pthr{
 	
 		private:
 			core::Printer& printer;
+			bool legacy_mode;
 
 			enum class IndenterType : uint8_t {
 				LINE,
@@ -212,13 +213,15 @@ namespace pthr{
 
 	class ASTPrinter{
 		public:
-			ASTPrinter(core::Printer& _printer, const panther::Source& _source, const fs::path& _relative_dir) 
+			ASTPrinter(
+				core::Printer& _printer, const panther::Source& _source, const fs::path& _relative_dir, bool legacy_mode
+			) 
 				: printer(_printer),
 				source(_source),
 				relative_dir(_relative_dir),
 				ast_buffer(this->source.getASTBuffer()),
-				indenter(_printer)
-				{}
+				indenter(_printer, legacy_mode)
+			{}
 			~ASTPrinter() = default;
 
 
@@ -2539,8 +2542,10 @@ namespace pthr{
 
 
 
-	auto print_AST(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void {
-		auto ast_printer = ASTPrinter(printer, source, relative_dir);
+	auto print_AST(
+		core::Printer& printer, const panther::Source& source, const fs::path& relative_dir, bool legacy_mode
+	) -> void {
+		auto ast_printer = ASTPrinter(printer, source, relative_dir, legacy_mode);
 
 		ast_printer.print_header();
 		ast_printer.print_globals();

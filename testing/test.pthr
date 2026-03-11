@@ -1,16 +1,10 @@
 
-const foo: Int = test<{14, 12}>();
+const foo: Int = test();
 
-func test = <{COMPTIME: Int, RUNTIME: Int}> () #rtDiff -> Int {
+func test =  () #rtDiff -> Int {
 	when(@isComptime()){
-		return COMPTIME;
+		return 14;
 	}else{
-		return RUNTIME;
+		return 12;
 	}
-}
-
-
-
-func entry = () #entry -> UI8 {
-	return test<{14, 12}>() as UI8;
 }
