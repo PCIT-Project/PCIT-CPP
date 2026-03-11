@@ -689,7 +689,7 @@ namespace pcit::panther::sema{
 		bool hasInParam;
 		Attributes attributes;
 		
-		
+		std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt;
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
 
 		sema::StmtBlock stmtBlock{};
@@ -793,6 +793,8 @@ namespace pcit::panther::sema{
 			EVO_NODISCARD auto needsToBeCompiled() const -> bool { return this->instantiationID.has_value(); }
 		};
 		EVO_NODISCARD auto createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo;
+
+		EVO_NODISCARD auto getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg>;
 
 		EVO_NODISCARD auto hasAnyDefaultParams() const -> bool {
 			return this->minNumTemplateArgs != this->templateParams.size();

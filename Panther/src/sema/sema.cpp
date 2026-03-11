@@ -120,6 +120,21 @@ namespace pcit::panther::sema{
 	}
 
 
+	auto TemplatedFunc::getInstantiationArgs(uint32_t instantiation_id) const -> evo::SmallVector<Arg> {
+		const auto lock = std::scoped_lock(this->instantiation_lock);
+
+		const Instantiation* instantiation_ptr = &this->instantiations[instantiation_id];
+
+		for(const auto& instantiation_map_item : this->instantiation_map){
+			if(&instantiation_map_item.second == instantiation_ptr){
+				return instantiation_map_item.first;
+			}
+		}
+
+		evo::debugFatalBreak("Didn't find instantiation: {}", instantiation_id);
+	}
+
+
 	auto TemplatedFunc::isMethod(const Context& context) const -> bool {
 		const Source& source = context.getSourceManager()[this->symbolProc.getSourceID()];
 		const AST::FuncDef& ast_func = source.getASTBuffer().getFuncDef(this->symbolProc.getASTNode());

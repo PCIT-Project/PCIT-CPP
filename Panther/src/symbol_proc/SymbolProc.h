@@ -267,6 +267,7 @@ namespace pcit::panther{
 			const AST::FuncDef& func_def;
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			evo::SmallVector<std::optional<SymbolProcTermInfoID>> default_param_values;
+			std::optional<sema::TemplatedFunc::ID> templated_func_id = std::nullopt;
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 			size_t num_extra_variadics = 0;
 
@@ -323,6 +324,7 @@ namespace pcit::panther{
 				evo::SmallVector<AttributeParams>&& _attribute_params_info,
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
+				sema::TemplatedFunc::ID _templated_func_id,
 				uint32_t _instantiation_id,
 				size_t _num_extra_variadics
 			) requires(IS_INSTANTIATION) : 
@@ -330,6 +332,7 @@ namespace pcit::panther{
 				attribute_params_info(std::move(_attribute_params_info)),
 				default_param_values(std::move(_default_param_values)),
 				types(std::move(_types)),
+				templated_func_id(_templated_func_id),
 				instantiation_id(_instantiation_id),
 				num_extra_variadics(_num_extra_variadics)
 			{

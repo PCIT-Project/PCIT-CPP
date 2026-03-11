@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.256.0"></a>
+## v0.0.256.0
+
+### Panther
+- Added lowering of PIR names when using readable names to include template parameters in templated functions
+
+
+<!---------------------------------->
 <a name="v0.0.255.0"></a>
 ## v0.0.255.0
 

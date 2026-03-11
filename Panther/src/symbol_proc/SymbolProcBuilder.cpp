@@ -172,6 +172,7 @@ namespace pcit::panther{
 	// for functions
 	auto SymbolProcBuilder::buildTemplateInstance(
 		const SymbolProc& template_symbol_proc,
+		sema::TemplatedFunc::ID templated_func_id,
 		sema::TemplatedFunc::Instantiation& instantiation,
 		sema::ScopeManager::Scope::ID sema_scope_id,
 		uint32_t instantiation_id,
@@ -282,6 +283,7 @@ namespace pcit::panther{
 				std::move(attribute_params_info.value()),
 				std::move(default_param_values),
 				std::move(types),
+				templated_func_id,
 				instantiation_id,
 				num_extra_variadics
 			)

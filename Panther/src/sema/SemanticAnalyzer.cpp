@@ -3514,6 +3514,7 @@ namespace pcit::panther{
 				.isExport   = func_attrs.value().is_export,
 				.isImplicit = func_attrs.value().is_implicit,
 			},
+			instr.templated_func_id,
 			instr.instantiation_id
 		);
 
@@ -26900,6 +26901,7 @@ namespace pcit::panther{
 
 			const evo::Result<SymbolProc::ID> instantiation_symbol_proc_id = symbol_proc_builder.buildTemplateInstance(
 				templated_func.symbolProc,
+				func_id,
 				instantiation_info.instantiation,
 				instantiation_sema_scope_id,
 				*instantiation_info.instantiationID,

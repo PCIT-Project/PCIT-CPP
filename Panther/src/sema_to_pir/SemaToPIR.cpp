@@ -11115,12 +11115,96 @@ namespace pcit::panther{
 				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
 				if(name_token.kind() == Token::Kind::IDENT){
 					if(this->data.getConfig().useReadableNames){
-						return std::format(
+						std::string output = std::format(
 							"PTHR.f{}.{}.{}",
 							func_id.get(),
 							this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
 							name_token.getString()
 						);
+
+						if constexpr(PIR_STMT_NAME_SAFE == false){
+							if(func.templated_func_id.has_value()){
+								const sema::TemplatedFunc& templated_func =
+									this->context.getSemaBuffer().getTemplatedFunc(*func.templated_func_id);
+
+								const evo::SmallVector<sema::TemplatedFunc::Arg> template_args =
+									templated_func.getInstantiationArgs(func.instanceID);
+
+
+								output += "<{";
+
+								const TypeManager& type_manager = this->context.getTypeManager();
+
+								for(size_t i = 0; const sema::TemplatedFunc::Arg& template_arg : template_args){
+									if(template_arg.is<TypeInfo::VoidableID>()){
+										output += this->context.getTypeManager().printType(
+											template_arg.as<TypeInfo::VoidableID>(), context
+										);
+
+									}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){
+										output += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
+
+									}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeChar()){
+										output += "'";
+										output += template_arg.as<core::GenericValue>().getChar();
+										output += "'";
+
+									}else if(type_manager.isUnsignedIntegral(*templated_func.templateParams[i].typeID)){
+										output += template_arg.as<core::GenericValue>().getInt(
+											unsigned(type_manager.numBits(*templated_func.templateParams[i].typeID))
+										).toString(false);
+
+									}else if(type_manager.isIntegral(*templated_func.templateParams[i].typeID)){
+										output += template_arg.as<core::GenericValue>().getInt(
+											unsigned(type_manager.numBits(*templated_func.templateParams[i].typeID))
+										).toString(true);
+
+									}else if(type_manager.isFloatingPoint(*templated_func.templateParams[i].typeID)){
+										const BaseType::Primitive& primitive = type_manager.getPrimitive(
+											type_manager.getTypeInfo(*templated_func.templateParams[i].typeID)
+												.baseTypeID().primitiveID()
+										);
+
+										const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
+
+										switch(primitive.kind()){
+											break; case Token::Kind::TYPE_F16:
+												output += generic_value.getF16().toString();
+
+											break; case Token::Kind::TYPE_BF16:
+												output += generic_value.getBF16().toString();
+
+											break; case Token::Kind::TYPE_F32:
+												output += generic_value.getF32().toString();
+
+											break; case Token::Kind::TYPE_F64:
+												output += generic_value.getF64().toString();
+
+											break; case Token::Kind::TYPE_F80:
+												output += generic_value.getF80().toString();
+
+											break; case Token::Kind::TYPE_F128:
+												output += generic_value.getF128().toString();
+
+											break; default: evo::debugFatalBreak("Unknown float type");
+										}
+										
+									}else{
+										output += "<EXPR>";
+									}
+
+									if(i + 1 < template_args.size()){
+										output += ", ";
+										i += 1;
+									}
+								}
+
+								output += "}>";
+							}
+						}
+
+						return output;
+
 					}else{
 						return std::format("PTHR.f{}", func_id.get());
 					}

@@ -41,6 +41,7 @@ namespace pcit::panther{
 			// for func
 			EVO_NODISCARD auto buildTemplateInstance(
 				const SymbolProc& template_symbol_proc,
+				sema::TemplatedFunc::ID templated_func_id,
 				sema::TemplatedFunc::Instantiation& instantiation,
 				sema::ScopeManager::Scope::ID sema_scope_id,
 				uint32_t instantiation_id,
