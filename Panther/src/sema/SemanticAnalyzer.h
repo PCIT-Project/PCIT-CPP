@@ -85,12 +85,16 @@ namespace pcit::panther{
 				-> Result;
 			template<bool IS_INSTANTIATION>
 			EVO_NODISCARD auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
-			EVO_NODISCARD auto instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result;
+			EVO_NODISCARD auto instr_func_post_decl_checking_and_setup(
+				const Instruction::FuncPostDeclCheckingAndSetup& instr
+			) -> Result;
+			EVO_NODISCARD auto instr_func_body_setup(const Instruction::FuncBodySetup& instr) -> Result;
 			EVO_NODISCARD auto instr_func_def(const Instruction::FuncDef& instr) -> Result;
 			EVO_NODISCARD auto instr_func_prepare_comptime_pir_if_needed(
 				const Instruction::FuncPrepareComptimePIRIfNeeded& instr
 			) -> Result;
 			EVO_NODISCARD auto instr_func_comptime_pir_ready_if_needed() -> Result;
+			EVO_NODISCARD auto instr_func_rt_diff(const Instruction::FuncRTDiff& instr) -> Result;
 
 			EVO_NODISCARD auto instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result;
 			EVO_NODISCARD auto instr_template_set_param_is_deducer(
@@ -878,6 +882,7 @@ namespace pcit::panther{
 				bool is_pub;
 				bool is_priv;
 				bool is_runtime;
+				bool is_rt_diff;
 				bool is_unsafe;
 				bool is_export;
 				bool is_no_return;

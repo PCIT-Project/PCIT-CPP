@@ -34,63 +34,6 @@ namespace pcit::panther{
 
 
 
-
-	
-
-	// auto SemaToPIR::lower() -> void {
-	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
-	// 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
-
-	// 		if(struct_type.shouldLower){
-	// 			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
-	// 		}
-	// 	}
-
-	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
-	// 		this->lowerUnionAndDependencies(BaseType::Union::ID(i));
-	// 	}
-
-	// 	for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
-	// 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
-
-	// 		this->lowerGlobalDecl(global_var_id);
-
-	// 		if(global_var.expr.load().has_value()){				
-	// 			this->lowerGlobalDef(global_var_id);
-	// 		}
-	// 	}
-
-	// 	for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-	// 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-	// 		if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
-	// 		if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-
-	// 		this->lowerFuncDecl(func_id);
-	// 	}
-
-	// 	for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
-	// 		const auto interface_id = BaseType::Interface::ID(i);
-	// 		const BaseType::Interface& interface = this->context.getTypeManager().getInterface(interface_id);
-			
-	// 		if(interface.isPolymorphic == false){ continue; }
-
-	// 		this->lowerInterface(interface_id);
-
-	// 		for(const auto& [target_type_id, impl] : interface.impls){
-	// 			this->lowerInterfaceVTable(interface_id, target_type_id, impl.methods);
-	// 		}
-	// 	}
-
-	// 	for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-	// 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-	// 		if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
-	// 		if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-	// 		if(func.isClangFunc()){ continue; }
-
-	// 		this->lowerFuncDef(func_id);
-	// 	}
-	// }
-
 	auto SemaToPIR::lowerRuntime() -> void {
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
@@ -147,7 +90,29 @@ namespace pcit::panther{
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 			if(func.isClangFunc()){ continue; }
-			if(func.attributes.isComptime){ continue; }
+
+			if(func.attributes.isRuntime == false){
+				// TODO(FUTURE): delete function
+				continue;
+			}
+
+			if(func.attributes.isRTDiff){
+				const Data::FuncInfo& func_info = this->data.get_func(func_id);
+
+				using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
+				for(const PIRFuncID pir_id : func_info.pir_ids){
+					if(pir_id.is<pir::Function::ID>()){
+						this->module.deleteBodyOfFunction(pir_id.as<pir::Function::ID>());
+
+						this->agent.setTargetFunction(pir_id.as<pir::Function::ID>());
+						this->agent.createBasicBlock(this->name("begin"));
+						this->agent.removeTargetFunction();
+					}
+				}
+
+			}else if(func.attributes.isComptime){
+				continue;
+			}
 
 			this->lowerFuncDef(func_id);
 		}
@@ -590,8 +555,12 @@ namespace pcit::panther{
 	}
 
 
+	auto SemaToPIR::lowerFuncDefComptime(sema::Func::ID func_id) -> void { this->lower_func_def_detail(func_id, true); }
+	auto SemaToPIR::lowerFuncDef(sema::Func::ID func_id) -> void { this->lower_func_def_detail(func_id, false); }
 
-	auto SemaToPIR::lowerFuncDef(sema::Func::ID func_id) -> void {
+
+
+	auto SemaToPIR::lower_func_def_detail(sema::Func::ID func_id, bool lower_comptime) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
 		evo::debugAssert(sema_func.status == sema::Func::Status::DEF_DONE, "Incorrect status for lowering func def");
 		evo::debugAssert(sema_func.isClangFunc() == false, "cannot lower def of clang func");
@@ -691,12 +660,21 @@ namespace pcit::panther{
 			}
 
 
-			for(const sema::Stmt& stmt : sema_func.stmtBlock){
+			const sema::StmtBlock& stmt_block = [&]() -> const sema::StmtBlock& {
+				if(lower_comptime == false && sema_func.attributes.isRTDiff){
+					return sema_func.stmtBlockRT;
+				}else{
+					return sema_func.stmtBlock;
+				}
+			}();
+
+
+			for(const sema::Stmt& stmt : stmt_block){
 				this->lower_stmt(stmt);
 			}
 
 
-			if(sema_func.isTerminated == false){
+			if(stmt_block.isTerminated() == false){
 				if(this->current_func_type->returnsVoid()){
 					this->output_defers_for_scope_level<DeferTarget::RETURN>(this->scope_levels.back());
 					
@@ -718,6 +696,7 @@ namespace pcit::panther{
 
 		this->current_func_type = nullptr;
 	}
+
 
 
 

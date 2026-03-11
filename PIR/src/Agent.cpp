@@ -74,6 +74,21 @@ namespace pcit::pir{
 		this->insert_index = std::numeric_limits<size_t>::max();
 	}
 
+
+	auto Agent::deleteBodyOfTargetBasicBlock() -> void {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block is set");
+
+		this->setInsertIndexAtEnd();
+		
+		for(Expr expr : *this->target_basic_block){
+			this->delete_expr(expr);
+		}
+		
+		this->target_basic_block->clear();
+	}
+
+
+
 	auto Agent::getTargetBasicBlock() const -> BasicBlock& {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		return *this->target_basic_block;
@@ -757,24 +772,25 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetFunction(), "No target function is set");
 		evo::debugAssert(stmt_to_remove.isStmt(), "not a statement");
 
-		if(stmt_to_remove.kind() != Expr::Kind::ALLOCA){
-			for(const BasicBlock::ID& basic_block_id : *this->target_func){
-				BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
-	
-				for(size_t i = 0; Expr stmt : basic_block){
-					if(stmt == stmt_to_remove){
-						basic_block.remove(i);
-						this->delete_expr(stmt_to_remove);
-						return;
-					}
+		if(stmt_to_remove.kind() == Expr::Kind::ALLOCA){
+			this->delete_expr(stmt_to_remove);
+		}
 
-					i += 1;
+		for(const BasicBlock::ID& basic_block_id : *this->target_func){
+			BasicBlock& basic_block = this->getBasicBlock(basic_block_id);
+
+			for(size_t i = 0; Expr stmt : basic_block){
+				if(stmt == stmt_to_remove){
+					basic_block.remove(i);
+					this->delete_expr(stmt_to_remove);
+					return;
 				}
 
+				i += 1;
 			}
 		}
 
-		this->delete_expr(stmt_to_remove);
+		evo::debugFatalBreak("This expression is not in this function");
 	}
 
 	

@@ -74,6 +74,8 @@ namespace pcit::pir{
 				return this->functions[id];
 			}
 
+			
+			auto deleteBodyOfFunction(Function::ID id) -> void;
 
 
 			using FunctionIter = core::StepAlloc<Function, Function::ID>::Iter;

@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.255.0"></a>
+## v0.0.255.0
+
+### Panther
+- Added function attribute `#rtDiff`
+- Added intrinsic `@isComptime`
+
+
+<!---------------------------------->
 <a name="v0.0.254.1"></a>
 ## v0.0.254.1
 

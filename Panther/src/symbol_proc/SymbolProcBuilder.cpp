@@ -316,7 +316,12 @@ namespace pcit::panther{
 		}
 
 
-		this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_def));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def));
+		this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
+
+		SymbolProc::InstructionIndex rt_diff_instr_index = 
+			SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2));
+
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
@@ -326,9 +331,12 @@ namespace pcit::panther{
 		this->symbol_namespaces.pop_back();
 		this->symbol_scopes.pop_back();
 
+
 		this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
 		this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def));
 		this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
+
+		this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
 
 
 		///////////////////////////////////
@@ -760,7 +768,12 @@ namespace pcit::panther{
 					}
 				}
 
-				this->add_instruction(this->context.symbol_proc_manager.createFuncPreBody(func_def));
+				this->add_instruction(this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def));
+				this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
+
+				SymbolProc::InstructionIndex rt_diff_instr_index = SymbolProc::InstructionIndex(
+					uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2)
+				);
 
 				this->symbol_scopes.emplace_back(nullptr);
 				this->symbol_namespaces.emplace_back(nullptr);
@@ -775,6 +788,8 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def)
 				);
 				this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
+
+				this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
 
 			}else{
 				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_def));

@@ -10,6 +10,7 @@
 #include "../include/Module.h"
 
 #include "../include/ReaderAgent.h"
+#include "../include/Agent.h"
 
 #include <unordered_set>
 
@@ -23,6 +24,23 @@ namespace pcit::pir{
 
 	static constexpr auto round_up_to_nearest_multiple(size_t num, size_t multiple) -> size_t {
 		return (num + (multiple - 1)) & ~(multiple - 1);
+	}
+
+
+	auto Module::deleteBodyOfFunction(Function::ID id) -> void {
+		Function& func = this->getFunction(id);
+
+		auto agent = Agent(*this, func);
+
+		for(const BasicBlock::ID basic_block_id : func){
+			agent.setTargetBasicBlock(basic_block_id);
+			agent.deleteBodyOfTargetBasicBlock();
+			agent.removeTargetBasicBlock();
+
+			this->basic_blocks.erase(basic_block_id);
+		}
+
+		func.clear();
 	}
 
 

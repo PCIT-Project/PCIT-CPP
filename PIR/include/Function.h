@@ -192,6 +192,13 @@ namespace pcit::pir{
 			}
 
 
+			// Not intended to be called directly, better to be called by Module::deleteBodyOfFunction
+			// 	as it will delete all exprs and all basic blocks
+			auto clear() -> void {
+				this->basic_blocks.clear();
+				this->allocas.clear();
+			}
+
 
 		private:
 			auto append_basic_block(BasicBlock::ID id) -> void;

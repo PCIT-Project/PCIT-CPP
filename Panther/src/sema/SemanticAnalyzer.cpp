@@ -220,8 +220,13 @@ namespace pcit::panther{
 			case Instruction::Kind::FUNC_DECL:
 				return this->instr_func_decl<false>(this->context.symbol_proc_manager.getFuncDecl(instr));
 
-			case Instruction::Kind::FUNC_PRE_BODY:
-				return this->instr_func_pre_body(this->context.symbol_proc_manager.getFuncPreBody(instr));
+			case Instruction::Kind::FUNC_POST_DECL_CHECKING_AND_SETUP:
+				return this->instr_func_post_decl_checking_and_setup(
+					this->context.symbol_proc_manager.getFuncPostDeclCheckingAndSetup(instr)
+				);
+
+			case Instruction::Kind::FUNC_BODY_SETUP:
+				return this->instr_func_body_setup(this->context.symbol_proc_manager.getFuncBodySetup(instr));
 
 			case Instruction::Kind::FUNC_DEF:
 				return this->instr_func_def(this->context.symbol_proc_manager.getFuncDef(instr));
@@ -230,6 +235,9 @@ namespace pcit::panther{
 				return this->instr_func_prepare_comptime_pir_if_needed(
 					this->context.symbol_proc_manager.getFuncPrepareComptimePIRIfNeeded(instr)
 				);
+
+			case Instruction::Kind::FUNC_RT_DIFF:
+				return this->instr_func_rt_diff(this->context.symbol_proc_manager.getFuncRTDiff(instr));
 
 			case Instruction::Kind::FUNC_COMPTIME_PIR_READY_IF_NEEDED:
 				return this->instr_func_comptime_pir_ready_if_needed();
@@ -1861,6 +1869,8 @@ namespace pcit::panther{
 						.isPub      = false,
 						.isPriv     = false,
 						.isComptime = created_struct.isComptimeDefaultInitializable,
+						.isRuntime  = true,
+						.isRTDiff   = false,
 						.isNoReturn = false,
 						.isExport   = false,
 						.isImplicit = false,
@@ -1924,7 +1934,6 @@ namespace pcit::panther{
 
 				created_default_init_new.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
-				created_default_init_new.isTerminated = true;
 				created_default_init_new.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
@@ -2023,6 +2032,8 @@ namespace pcit::panther{
 						.isPub      = false,
 						.isPriv     = false,
 						.isComptime = is_comptime_deletable,
+						.isRuntime  = true,
+						.isRTDiff   = false,
 						.isNoReturn = false,
 						.isExport   = false,
 						.isImplicit = false,
@@ -2070,7 +2081,6 @@ namespace pcit::panther{
 
 				created_default_delete.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
-				created_default_delete.isTerminated = true;
 				created_default_delete.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.deleteOverload = created_default_delete_id;
@@ -2195,6 +2205,8 @@ namespace pcit::panther{
 							.isPub      = false,
 							.isPriv     = false,
 							.isComptime = is_comptime_movable,
+							.isRuntime  = true,
+							.isRTDiff   = false,
 							.isNoReturn = false,
 							.isExport   = false,
 							.isImplicit = false,
@@ -2250,7 +2262,6 @@ namespace pcit::panther{
 
 					created_default_move.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
-					created_default_move.isTerminated = true;
 					created_default_move.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(created_default_move_id);
@@ -2389,6 +2400,8 @@ namespace pcit::panther{
 							.isPub      = false,
 							.isPriv     = false,
 							.isComptime = is_comptime_copyable,
+							.isRuntime  = true,
+							.isRTDiff   = false,
 							.isNoReturn = false,
 							.isExport   = false,
 							.isImplicit = false,
@@ -2445,7 +2458,6 @@ namespace pcit::panther{
 
 					created_default_copy.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
-					created_default_copy.isTerminated = true;
 					created_default_copy.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(created_default_copy_id);
@@ -2508,7 +2520,7 @@ namespace pcit::panther{
 
 			target_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(target_func_id);
 
-			sema_to_pir.lowerFuncDef(target_func_id);
+			sema_to_pir.lowerFuncDefComptime(target_func_id);
 
 			///////////////////////////////////
 			// The following code commented code is for lowering directly to JIT
@@ -3496,6 +3508,8 @@ namespace pcit::panther{
 				.isPub      = func_attrs.value().is_pub,
 				.isPriv     = func_attrs.value().is_priv,
 				.isComptime = !func_attrs.value().is_runtime,
+				.isRuntime  = true,
+				.isRTDiff   = func_attrs.value().is_rt_diff,
 				.isNoReturn = func_attrs.value().is_no_return,
 				.isExport   = func_attrs.value().is_export,
 				.isImplicit = func_attrs.value().is_implicit,
@@ -4438,6 +4452,8 @@ namespace pcit::panther{
 										.isPub      = false,
 										.isPriv     = false,
 										.isComptime = created_func.attributes.isComptime,
+										.isRuntime  = true,
+										.isRTDiff   = false,
 										.isNoReturn = false,
 										.isExport   = false,
 										.isImplicit = false,
@@ -4462,7 +4478,6 @@ namespace pcit::panther{
 									)
 								);
 
-								created_swapped_func.isTerminated = true;
 								created_swapped_func.status = sema::Func::Status::DEF_DONE;
 
 								func_info.flipped_version = created_swapped_func_id;
@@ -4675,11 +4690,10 @@ namespace pcit::panther{
 		}
 
 
-		this->push_scope_level(&created_func.stmtBlock, created_func_id);
-
-
 		///////////////////////////////////
 		// done
+
+		this->push_scope_level(&created_func.stmtBlock, created_func_id);
 
 		this->propagate_finished_decl();
 
@@ -4687,7 +4701,9 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_pre_body(const Instruction::FuncPreBody& instr) -> Result {
+	auto SemanticAnalyzer::instr_func_post_decl_checking_and_setup(
+		const Instruction::FuncPostDeclCheckingAndSetup& instr
+	) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
@@ -4899,6 +4915,19 @@ namespace pcit::panther{
 		}
 
 
+		return Result::SUCCESS;
+	}
+
+
+
+
+	auto SemanticAnalyzer::instr_func_body_setup(const Instruction::FuncBodySetup& instr) -> Result {
+		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
+		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+
+		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
+
+
 		//////////////////
 		// setup scope
 
@@ -5069,10 +5098,7 @@ namespace pcit::panther{
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 
-		if(this->get_current_scope_level().isTerminated()){
-			current_func.isTerminated = true;
-
-		}else{
+		if(this->get_current_scope_level().isTerminated() == false){
 			if(func_type.returnsVoid() == false){
 				this->emit_error(
 					"Function isn't terminated",
@@ -5108,11 +5134,17 @@ namespace pcit::panther{
 		}
 
 
-		current_func.status = sema::Func::Status::DEF_DONE;
-		this->propagate_finished_def();
+
+		if(this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false){
+			current_func.status = sema::Func::Status::DEF_DONE;
+			this->propagate_finished_def();
+		}
 
 
-		if(current_func.attributes.isComptime){
+		if(
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
+			&& current_func.attributes.isComptime
+		){
 			bool any_waiting = false;
 			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
@@ -5208,14 +5240,17 @@ namespace pcit::panther{
 	) -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.attributes.isComptime){
+		if(
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
+			&& current_func.attributes.isComptime
+		){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
 			{
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				
-				sema_to_pir.lowerFuncDef(sema_func_id);
+				sema_to_pir.lowerFuncDefComptime(sema_func_id);
 
 
 				///////////////////////////////////
@@ -5371,11 +5406,34 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_comptime_pir_ready_if_needed() -> Result {
 		const sema::Func& current_func = this->get_current_func();
 
-		if(current_func.attributes.isComptime){
+		if(
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
+			&& current_func.attributes.isComptime
+		){
 			this->propagate_finished_pir_def();
 		}
 
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_func_rt_diff(const Instruction::FuncRTDiff& instr) -> Result {
+		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+		if(func_info.currently_rt_diff){ return Result::SUCCESS; }
+
+		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
+		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
+
+		if(current_func.attributes.isRTDiff){
+			this->symbol_proc.setInstructionIndex(instr.start_index);
+			func_info.currently_rt_diff = true;
+
+			this->push_scope_level(&current_func.stmtBlockRT, current_func_id);
+		}
 
 		return Result::SUCCESS;
 	}
@@ -5752,10 +5810,7 @@ namespace pcit::panther{
 		sema::Func& current_method = this->context.sema_buffer.funcs[current_method_id];
 
 		if(instr.func_def.block.has_value()){ // has default 
-			if(this->get_current_scope_level().isTerminated()){
-				current_method.isTerminated = true;
-
-			}else{
+			if(this->get_current_scope_level().isTerminated() == false){
 				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_method.typeID);
 
 				if(func_type.returnsVoid() == false){
@@ -10809,6 +10864,52 @@ namespace pcit::panther{
 				} break;
 			}
 
+
+			switch(intrinsic_kind){
+				case IntrinsicFunc::Kind::IS_COMPTIME: {
+					bool is_comptime_output_value = false;
+					{
+						const sema::Func& current_func = this->get_current_func();
+
+						if(current_func.attributes.isComptime){
+							if(current_func.attributes.isRuntime){
+								if(current_func.attributes.isRTDiff){
+									is_comptime_output_value =
+										!this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff;
+								}else{
+									this->emit_error(
+										"Cannot call `@isComptime` in this function as the value is ambiguous",
+										instr.func_call.target,
+										Diagnostic::Info("Did you give this function attribute #rtDiff?")
+									);
+									return Result::ERROR;
+								}
+
+							}else{
+								is_comptime_output_value = true;
+							}
+
+						}else{ // is runtime
+							is_comptime_output_value = false;
+						}
+					}
+
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeBool(),
+						sema::Expr(this->context.sema_buffer.createBoolValue(is_comptime_output_value))
+					);
+
+					return Result::SUCCESS;
+				} break;
+
+				default: break;
+			}
+
+
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 				intrinsic_kind, std::move(sema_args)
 			);
@@ -10843,26 +10944,7 @@ namespace pcit::panther{
 			}
 
 
-			if constexpr(IS_COMPTIME){
-				evo::debugFatalBreak("No comptime non-templated intrinsics exist");
-
-			}else{
-				if(this->get_current_func().attributes.isComptime){
-					if(func_call_impl_res.value().selected_func->attributes.isComptime == false){
-						this->emit_error(
-							"Cannot call a non-comptime function within a comptime function",
-							instr.func_call.target,
-							Diagnostic::Info(
-								"Called function was defined here:",
-								this->get_location(*func_call_impl_res.value().selected_func_id)
-							)
-						);
-						return Result::ERROR;
-					}
-				}
-
-				return Result::SUCCESS;
-			}
+			return Result::SUCCESS;
 		}
 
 
@@ -30118,6 +30200,7 @@ namespace pcit::panther{
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_rt = ConditionalAttribute(*this, "rt");
+		auto attr_rt_diff = ConditionalAttribute(*this, "rtDiff");
 		auto attr_unsafe = ConditionalAttribute(*this, "unsafe");
 		auto attr_export = Attribute(*this, "export");
 		auto attr_no_return = Attribute(*this, "noReturn");
@@ -30223,6 +30306,49 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+				if(attr_rt_diff.is_set()){
+					this->emit_error(
+						"Function cannot have both attribute #rt and attribute #rtDiff", attribute.attribute
+					);
+					return evo::resultError;
+				}
+
+			}else if(attribute_str == "rtDiff"){
+				if(attribute_params_info[i].empty()){
+					if(attr_rt_diff.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::resultError;
+					}
+
+					if(this->type_check<true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #rtDiff",
+						attribute.args[0]
+					).ok == false){
+						return evo::resultError;
+					}
+
+					const bool rt_diff_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_rt_diff.set(attribute.attribute, rt_diff_cond).isError()){ return evo::resultError; }
+
+				}else{
+					this->emit_error("Attribute #rtDiff does not accept more than 1 argument", attribute.args[1]);
+					return evo::resultError;
+				}
+
+				if(attr_rt.is_set()){
+					this->emit_error(
+						"Function cannot have both attribute #rtDiff and attribute #rt", attribute.attribute
+					);
+					return evo::resultError;
+				}
+
 			}else if(attribute_str == "unsafe"){
 				if(attribute_params_info[i].empty()){
 					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::resultError; } 
@@ -30292,6 +30418,13 @@ namespace pcit::panther{
 				if(attr_entry.set(attribute.attribute).isError()){ return evo::resultError; }
 				attr_rt.implicitly_set(attribute.attribute, true);
 
+				if(attr_rt_diff.is_set()){
+					this->emit_error(
+						"Function cannot have both attribute #entry and attribute #rtDiff", attribute.attribute
+					);
+					return evo::resultError;
+				}
+
 			}else if(attribute_str == "commutative"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #commutative does not accept any arguments", attribute.args.front());
@@ -30343,6 +30476,7 @@ namespace pcit::panther{
 			.is_pub         = attr_pub.is_set(),
 			.is_priv        = attr_priv.is_set(),
 			.is_runtime     = attr_rt.is_set(),
+			.is_rt_diff     = attr_rt_diff.is_set(),
 			.is_unsafe      = attr_unsafe.is_set(),
 			.is_export      = attr_export.is_set(),
 			.is_no_return   = attr_no_return.is_set(),

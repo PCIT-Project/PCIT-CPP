@@ -87,6 +87,7 @@ namespace pcit::panther{
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
 			EVO_NODISCARD auto lowerFuncDeclComptime(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> void;
+			auto lowerFuncDefComptime(sema::Func::ID func_id) -> void;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
 
 			auto lowerInterface(BaseType::Interface::ID interface_id) -> void;
@@ -129,6 +130,8 @@ namespace pcit::panther{
 
 			// see definition for explanation
 			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
+
+			auto lower_func_def_detail(sema::Func::ID func_id, bool lower_comptime) -> void;
 
 			template<bool IS_COMPTIME>
 			auto lower_interface_vtable_def_impl(

@@ -381,20 +381,40 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
-			// FuncPreBody
+			// FuncPostDeclCheckingAndSetup
 
-			EVO_NODISCARD auto createFuncPreBody(auto&&... args) -> Instruction {
+			EVO_NODISCARD auto createFuncPostDeclCheckingAndSetup(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_PRE_BODY,
-					this->func_pre_bodys.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_POST_DECL_CHECKING_AND_SETUP,
+					this->func_post_decl_checking_and_setups.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			EVO_NODISCARD auto getFuncPreBody(Instruction instr) const -> const Instruction::FuncPreBody& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_PRE_BODY, "Not a FuncPreBody");
-				return this->func_pre_bodys[instr._index];
+			EVO_NODISCARD auto getFuncPostDeclCheckingAndSetup(Instruction instr) const
+			-> const Instruction::FuncPostDeclCheckingAndSetup& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::FUNC_POST_DECL_CHECKING_AND_SETUP,
+					"Not a FuncPostDeclCheckingAndSetup"
+				);
+				return this->func_post_decl_checking_and_setups[instr._index];
+			}
+
+
+
+			//////////////////
+			// FuncBodySetup
+
+			EVO_NODISCARD auto createFuncBodySetup(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FUNC_BODY_SETUP,
+					this->func_body_setups.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getFuncBodySetup(Instruction instr) const -> const Instruction::FuncBodySetup& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_BODY_SETUP, "Not a FuncBodySetup");
+				return this->func_body_setups[instr._index];
 			}
 
 
@@ -443,6 +463,23 @@ namespace pcit::panther{
 			EVO_NODISCARD auto createFuncComptimePIRReadyIfNeeded() -> Instruction {
 				return Instruction(Instruction::Kind::FUNC_COMPTIME_PIR_READY_IF_NEEDED, 0);
 			}
+
+
+			//////////////////
+			// FuncRTDiff
+
+			EVO_NODISCARD auto createFuncRTDiff(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FUNC_RT_DIFF,
+					this->func_rt_diffs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			EVO_NODISCARD auto getFuncRTDiff(Instruction instr) const -> const Instruction::FuncRTDiff& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_RT_DIFF, "Not a FuncRTDiff");
+				return this->func_rt_diffs[instr._index];
+			}
+
 
 
 			//////////////////
@@ -3173,10 +3210,13 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducers, uint32_t> func_decl_extract_deducerss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
-			core::SyncLinearStepAlloc<Instruction::FuncPreBody, uint32_t> func_pre_bodys{};
+			core::SyncLinearStepAlloc<Instruction::FuncBodySetup, uint32_t> func_body_setups{};
+			core::SyncLinearStepAlloc<Instruction::FuncPostDeclCheckingAndSetup, uint32_t>
+				func_post_decl_checking_and_setups{};
 			core::SyncLinearStepAlloc<Instruction::FuncDef, uint32_t> func_defs{};
 			core::SyncLinearStepAlloc<Instruction::FuncPrepareComptimePIRIfNeeded, uint32_t>
 				func_prepare_comptime_pir_if_neededs{};
+			core::SyncLinearStepAlloc<Instruction::FuncRTDiff, uint32_t> func_rt_diffs{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncBegin, uint32_t> template_func_begins{};
 			core::SyncLinearStepAlloc<Instruction::TemplateFuncSetParamIsDeducer, uint32_t>
 				template_func_set_param_is_deducers{};

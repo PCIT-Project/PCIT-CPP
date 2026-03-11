@@ -1,25 +1,16 @@
-type Struct = struct {
-	var num: Int;
-}
 
-const foo = new Struct{num = 12};
-const bar: Int = get_struct_num<{copy foo}>();
+const foo: Int = test<{14, 12}>();
 
-
-func get_struct_num = <{S: Struct}> (num_to_add: Int = 0) -> Int {
-	return S.num + num_to_add;
-}
-
-
-func test = () #rt -> Void {
-	var local_var: Int = 12;
-	// def TEST = get_struct_num<{copy foo}>(local_var);
+func test = <{COMPTIME: Int, RUNTIME: Int}> () #rtDiff -> Int {
+	when(@isComptime()){
+		return COMPTIME;
+	}else{
+		return RUNTIME;
+	}
 }
 
 
 
-
-func get_foo_as_byte_arr = () #unsafe -> [Byte:8] {
-	def ARR: [Byte:8] = @bitCast<{Struct, [Byte:8]}>(foo);
-	return ARR;
+func entry = () #entry -> UI8 {
+	return test<{14, 12}>() as UI8;
 }

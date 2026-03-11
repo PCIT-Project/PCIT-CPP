@@ -44,6 +44,7 @@ namespace pcit::panther{
 			{"abort",                   Kind::ABORT},
 			{"breakpoint",              Kind::BREAKPOINT},
 			{"panic"     ,              Kind::PANIC},
+			{"isComptime",              Kind::IS_COMPTIME},
 			{"buildSetNumThreads",      Kind::BUILD_SET_NUM_THREADS},
 			{"buildSetOutput",          Kind::BUILD_SET_OUTPUT},
 			{"buildSetStdLibPackage",   Kind::BUILD_SET_STD_LIB_PACKAGE},

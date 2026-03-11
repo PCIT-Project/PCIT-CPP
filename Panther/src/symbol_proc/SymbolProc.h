@@ -353,8 +353,11 @@ namespace pcit::panther{
 		};
 
 
-		// Stuff that needs to happen after the decl but before body. This is separate so type definitions can be gotten
-		struct FuncPreBody{ 
+		struct FuncPostDeclCheckingAndSetup{
+			const AST::FuncDef& func_def;
+		};
+
+		struct FuncBodySetup{
 			const AST::FuncDef& func_def;
 		};
 
@@ -366,6 +369,10 @@ namespace pcit::panther{
 
 		struct FuncPrepareComptimePIRIfNeeded{
 			const AST::FuncDef& func_def;
+		};
+
+		struct FuncRTDiff{
+			SymbolProcInstructionIndex start_index;
 		};
 
 
@@ -1094,10 +1101,12 @@ namespace pcit::panther{
 			FUNC_DECL_EXTRACT_DEDUCERS,
 			FUNC_DECL_INSTANTIATION,
 			FUNC_DECL,
-			FUNC_PRE_BODY,
+			FUNC_POST_DECL_CHECKING_AND_SETUP,
+			FUNC_BODY_SETUP,
 			FUNC_DEF,
 			FUNC_PREPARE_COMPTIME_PIR_IF_NEEDED,
 			FUNC_COMPTIME_PIR_READY_IF_NEEDED,
+			FUNC_RT_DIFF,
 			TEMPLATE_FUNC_BEGIN,
 			TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER,
 			TEMPLATE_FUNC_END,
@@ -1652,6 +1661,8 @@ namespace pcit::panther{
 				std::unordered_set<sema::Func::ID> dependent_funcs{};
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
 				std::unordered_set<const BaseType::Interface::Impl*> dependent_impls{};
+
+				bool currently_rt_diff = false;
 			};
 
 			struct TemplateFuncInfo{

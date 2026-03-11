@@ -77,6 +77,10 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto size() const -> size_t { return this->exprs.size(); }
 
+			// Not intended to be called directly, better to be called by Agent::deleteBodyOfTargetBasicBlock
+			// 	as it will delete all exprs
+			auto clear() -> void { this->exprs.clear(); }
+
 			EVO_NODISCARD auto operator[](size_t i) const -> const Expr& { return this->exprs[i]; }
 			EVO_NODISCARD auto operator[](size_t i)       ->       Expr& { return this->exprs[i]; }
 

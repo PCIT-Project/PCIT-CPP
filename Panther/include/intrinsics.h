@@ -24,6 +24,8 @@ namespace pcit::panther{
 			BREAKPOINT,
 			PANIC,
 
+			IS_COMPTIME,
+
 			// build system
 			BUILD_SET_NUM_THREADS,
 			BUILD_SET_OUTPUT,

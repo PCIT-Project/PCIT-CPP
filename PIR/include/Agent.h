@@ -59,6 +59,7 @@ namespace pcit::pir{
 			auto setTargetBasicBlock(BasicBlock& basic_block) -> void;
 			auto setTargetBasicBlockAtEnd() -> void;
 			auto removeTargetBasicBlock() -> void;
+			auto deleteBodyOfTargetBasicBlock() -> void;
 
 			EVO_NODISCARD auto hasTargetBasicBlock() const -> bool { return this->target_basic_block != nullptr; }
 			EVO_NODISCARD auto getTargetBasicBlock() const -> BasicBlock&;
@@ -67,6 +68,7 @@ namespace pcit::pir{
 			auto setInsertIndex(size_t index) -> void;
 			auto setInsertIndexAtEnd() -> void;
 			auto getInsertIndexAtEnd() const -> bool {return this->insert_index == std::numeric_limits<size_t>::max();}
+
 
 
 			///////////////////////////////////

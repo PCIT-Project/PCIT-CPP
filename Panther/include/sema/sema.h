@@ -668,6 +668,8 @@ namespace pcit::panther::sema{
 			bool isPub      = ForceInit(); // meaningless if is Clang or builtin
 			bool isPriv     = ForceInit(); // meaningless if not member
 			bool isComptime = ForceInit();
+			bool isRuntime  = ForceInit();
+			bool isRTDiff   = ForceInit(); // meaningless if not both comptime and runtime
 			bool isNoReturn = ForceInit();
 			bool isExport   = ForceInit(); // always true if is clang
 			bool isImplicit = ForceInit(); // meaningless if not member
@@ -691,8 +693,8 @@ namespace pcit::panther::sema{
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
 
 		sema::StmtBlock stmtBlock{};
+		sema::StmtBlock stmtBlockRT{};
 
-		bool isTerminated = false;
 		std::atomic<Status> status = Status::NOT_DONE;
 
 		std::optional<pir::Function::ID> comptimeJITFunc{};
