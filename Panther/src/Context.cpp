@@ -1954,6 +1954,7 @@ namespace pcit::panther{
 						return package_id;
 					}
 				),
+
 				pir::JITEngine::FuncRegisterInfo(
 					"PTHR.BUILD.buildAddSourceFile",
 					[](Context* context, StringView* file_path, PackageID package_id) -> void {
@@ -3642,7 +3643,7 @@ namespace pcit::panther{
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
 				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
 
@@ -3675,7 +3676,7 @@ namespace pcit::panther{
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
 				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
 

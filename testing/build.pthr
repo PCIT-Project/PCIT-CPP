@@ -49,3 +49,53 @@ func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
 	std_exp_package.addSourceFile("StaticString.pthr");
 	std_exp_package.addSourceFile("std_exp.pthr");
 }
+
+
+
+//////////////////////////////////////////////////////////////////////
+// using new build system
+
+// def std = @import("std");
+// def std_exp = @import("std_exp/std_exp.pthr");
+// def build_exp = @import("std_exp/building_new.pthr");
+
+
+// func entry = () #entry -> UI8 {
+// 	var build = new build_exp.Build{
+// 		output        = std.build.Output.PIR,
+// 		numThreads    = 12,
+// 		// stdLibPackage = new build_exp.Package*?(), // TODO(FUTURE): fix this to allow null
+// 		// packages      = new std_exp.StaticArrayList<{build_exp.Package, 4}>(),
+// 	};
+
+
+// 	const warns = new @build.PackageWarningSettings{
+// 		methodCallOnNonMethod        = true,
+// 		memberTypeByValueAccessor    = true,
+// 		deleteMovedFromExpr          = true,
+// 		deleteTriviallyDeletableType = true,
+// 		comptimeIfCond               = true,
+// 		alreadyUnsafe                = true,
+// 		experimentalF80              = true,
+// 	};
+
+
+// 	var test_package_uninit: build_exp.Package*uninit = build.createPackage();
+// 	test_package_uninit.* = new build_exp.Package{
+// 		path     = "./",
+// 		name     = "test",
+// 		warnings = copy warns,
+// 	};
+
+// 	unsafe{
+// 		// TODO(FUTURE): fix makeInitPtr to return mutable pointer
+// 		var test_package: build_exp.Package*mut = std.bitCast<{build_exp.Package*mut}>(@makeInitPtr(test_package_uninit));
+// 		test_package.sourceFiles.append().* = "test.pthr";
+
+// 		build.add_package(test_package.*);
+// 	}
+
+// 	build.build();
+
+// 	return 0;
+// }

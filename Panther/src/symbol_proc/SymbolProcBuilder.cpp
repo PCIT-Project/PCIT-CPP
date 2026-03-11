@@ -580,7 +580,17 @@ namespace pcit::panther{
 
 		auto value_id = std::optional<SymbolProc::TermInfoID>();
 		if(var_def.value.has_value()){
-			const evo::Result<SymbolProc::TermInfoID> value_id_res = this->analyze_expr<true>(*var_def.value);
+			const evo::Result<SymbolProc::TermInfoID> value_id_res = [&]() -> evo::Result<SymbolProc::TermInfoID> {
+				if(this->is_child_symbol()){
+					return this->analyze_expr<false>(*var_def.value);
+					
+				}else{
+					return this->analyze_expr<true>(*var_def.value);
+				}
+			}();
+
+
+
 			if(value_id_res.isError()){ return evo::resultError; }
 
 			value_id = value_id_res.value();

@@ -1,0 +1,196 @@
+def std = @import("std");
+def std_exp = @import("./std_exp.pthr");
+
+
+
+
+type Package = struct #pub {
+	// func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
+	// -> (output: This) {
+	// 	output.package_id = @buildCreatePackage(path, name, forward warnings);
+	// 	return...;
+	// }
+
+
+	// func addSourceFile = (this, path: [Char:*]) #rt -> Void {
+	// 	@buildAddSourceFile(path, this.package_id);
+	// }
+
+	// func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
+	// 	@buildAddSourceDirectory(path, this.package_id, is_recursive);
+	// }
+
+	
+	// const package_id: @build.PackageID;
+
+	type Directory = struct {
+		var path: [Char:*];
+		var isRecursive: Bool;
+	}
+
+
+	var path: [Char:*];
+	var name: [Char:*];
+	var warnings: @build.PackageWarningSettings;
+	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>();
+	// var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
+}
+
+
+
+type Build = struct #pub {
+	func build = (this) #rt -> Void {
+		@buildSetOutput(this.output as UI32);
+		@buildSetNumThreads(this.numThreads);
+
+		for(this.packages) [i: USize; package: Package] {
+			this.add_package(package);
+		}
+	}
+
+	func createPackage = (this mut) -> Package*uninit {
+		return this.packages.append();
+	}
+
+
+
+	var output: std.build.Output;
+	var numThreads: UI32 = 0;
+	var stdLibPackage: Package*? = null;
+
+
+
+	///////////////////////////////////
+	// private
+
+	func add_package = (this, package: Package) #rt -> Void {
+		const package_id: @build.PackageID = @buildCreatePackage(package.path, package.name, copy package.warnings);
+
+		for(package.sourceFiles) [_; src_file: [Char:*]] {
+			@buildAddSourceFile(src_file, package_id);
+		}
+
+		// for(package.sourceDirectories) [_; src_dir: Package.Directory] {
+		// 	@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
+		// }
+
+		// if(this.stdLibPackage != null && &package == this.stdLibPackage.?){
+		// 	@buildSetStdLibPackage(package_id);
+		// }
+	}
+
+	var packages #priv = new std_exp.StaticArrayList<{Package, 4}>();
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////
+// old
+
+
+type OldPackage = struct #pub {
+	func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
+	-> (output: This) {
+		output.package_id = @buildCreatePackage(path, name, forward warnings);
+		return...;
+	}
+
+
+	func addSourceFile = (this, path: [Char:*]) #rt -> Void {
+		@buildAddSourceFile(path, this.package_id);
+	}
+
+	func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
+		@buildAddSourceDirectory(path, this.package_id, is_recursive);
+	}
+
+	
+	const package_id: @build.PackageID;
+}
+
+
+func setOutput = (output: std.build.Output) #pub #rt -> Void {
+	@buildSetOutput(output as UI32);
+}
+
+func setNumThreads = (num_threads: UI32) #pub #rt -> Void {
+	@buildSetNumThreads(num_threads);
+}
+
+
+func setStdLibPackage = (package: OldPackage) #pub #rt -> Void {
+	@buildSetStdLibPackage(package.package_id);
+}
+
+
+func addStdLib = (path: [Char:*]) #pub #rt -> Void {
+	const warns = new @build.PackageWarningSettings{
+		methodCallOnNonMethod        = true,
+		memberTypeByValueAccessor    = true,
+		deleteMovedFromExpr          = true,
+		deleteTriviallyDeletableType = true,
+		comptimeIfCond               = true,
+		alreadyUnsafe                = true,
+		experimentalF80              = true,
+	};
+
+	// const path_str = new std_exp.StaticString<{256}>(path);
+
+	// const std_lib_package = new OldPackage(path, "std", copy warns);
+	// std_lib_package.addSourceDirectory("./", true);
+	// setStdLibPackage(std_lib_package);
+
+	const package_std = new OldPackage(path, "std", copy warns);
+	package_std.addSourceDirectory("./containers", true);
+	package_std.addSourceFile("./asserts.pthr");
+	package_std.addSourceFile("./std.pthr");
+	setStdLibPackage(package_std);
+
+
+	const package_compiler_rt = new OldPackage(path, "std._compiler_rt", copy warns);
+	package_compiler_rt.addSourceDirectory("./compiler_rt", true);
+	// setStdLibPackage(package_compiler_rt);
+
+	const package_bit = new OldPackage(path, "std.bit", copy warns);
+	package_bit.addSourceFile("./bit.pthr");
+	// setStdLibPackage(package_bit);	
+
+	const package_build = new OldPackage(path, "std.build", copy warns);
+	package_build.addSourceFile("./building.pthr");
+	// setStdLibPackage(package_build);
+
+	const package_math = new OldPackage(path, "std.math", copy warns);
+	package_math.addSourceFile("./math.pthr");
+	// setStdLibPackage(package_math);
+
+	const package_mem = new OldPackage(path, "std.mem", copy warns);
+	package_mem.addSourceFile("./mem.pthr");
+	// setStdLibPackage(package_mem);
+
+	const package_ptr_math = new OldPackage(path, "std.ptrMath", copy warns);
+	package_std.addSourceFile("./ptrMath.pthr");
+	// setStdLibPackage(package_ptr_math);
+
+	const package_types = new OldPackage(path, "std.types", copy warns);
+	package_types.addSourceFile("./types.pthr");
+	// setStdLibPackage(package_types);
+}

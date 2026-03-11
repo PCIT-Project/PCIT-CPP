@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.257.1"></a>
+## v0.0.257.1
+
+### Panther
+- Fixed semantic analysis of structs with auto-generated special member methods
+	- Methods were considered unterminated despite being so
+	- Assert fires if any member is an enum
+- Fixed struct member variables being required to have comptime values
+
+
+<!---------------------------------->
 <a name="v0.0.257.0"></a>
 ## v0.0.257.0
 

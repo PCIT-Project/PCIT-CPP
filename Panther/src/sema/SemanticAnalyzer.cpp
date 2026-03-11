@@ -1934,6 +1934,7 @@ namespace pcit::panther{
 
 				created_default_init_new.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
+				created_default_init_new.stmtBlock.setTerminated();
 				created_default_init_new.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
@@ -2081,6 +2082,7 @@ namespace pcit::panther{
 
 				created_default_delete.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
+				created_default_delete.stmtBlock.setTerminated();
 				created_default_delete.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.deleteOverload = created_default_delete_id;
@@ -2262,6 +2264,7 @@ namespace pcit::panther{
 
 					created_default_move.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
+					created_default_move.stmtBlock.setTerminated();
 					created_default_move.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(created_default_move_id);
@@ -2458,6 +2461,7 @@ namespace pcit::panther{
 
 					created_default_copy.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
 
+					created_default_copy.stmtBlock.setTerminated();
 					created_default_copy.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(created_default_copy_id);
@@ -4479,6 +4483,7 @@ namespace pcit::panther{
 									)
 								);
 
+								created_swapped_func.stmtBlock.setTerminated();
 								created_swapped_func.status = sema::Func::Status::DEF_DONE;
 
 								func_info.flipped_version = created_swapped_func_id;
@@ -15387,7 +15392,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					if(this->get_current_func().attributes.isComptime){
+					if(this->currently_in_func() && this->get_current_func().attributes.isComptime){
 						if(selected_func.attributes.isComptime == false){
 							this->emit_error(
 								"Cannot call a non-comptime operator [new] within a comptime function",
@@ -15403,8 +15408,6 @@ namespace pcit::panther{
 							selected_func_id
 						);
 					}
-
-					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 				}
 
 
@@ -23311,6 +23314,11 @@ namespace pcit::panther{
 					}
 				}
 
+				return evo::Result<>();
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				// trivial
 				return evo::Result<>();
 			} break;
 
