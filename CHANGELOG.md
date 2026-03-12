@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.258.2"></a>
+## v0.0.258.2
+
+### Panther
+- Fixed array deducers where the array element type is the only deducer
+
+
+<!---------------------------------->
 <a name="v0.0.258.1"></a>
 ## v0.0.258.1
 

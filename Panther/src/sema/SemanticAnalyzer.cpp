@@ -20101,6 +20101,8 @@ namespace pcit::panther{
 		}
 
 		const bool is_deducer = [&](){
+			if(this->context.getTypeManager().isTypeDeducer(elem_type)){ return true; }
+
 			for(const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
 				if(this->get_term_info(length_term_info_id).value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
 					return true;
