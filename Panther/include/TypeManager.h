@@ -700,6 +700,7 @@ namespace pcit::panther{
 			evo::SmallVector<sema::FuncID> indexerOverloads{};
 			mutable evo::SpinLock indexerOverloadsLock{}; // only needed before def completed
 
+			bool mayDesignatedInitNew = false;
 
 			bool isDefaultInitializable = false;
 			bool isTriviallyDefaultInitializable = false;

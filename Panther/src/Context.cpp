@@ -2102,6 +2102,12 @@ namespace pcit::panther{
 			sema_to_pir.lowerStruct(package_warning_settings_type.structID());
 
 			build_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
+
+
+			BaseType::Struct& package_warning_settings =
+				this->type_manager.getStruct(package_warning_settings_type.structID());
+
+			package_warning_settings.mayDesignatedInitNew = true;
 		}
 
 

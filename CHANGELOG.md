@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.257.2"></a>
+## v0.0.257.2
+
+### Panther
+- Fixed structs being not being allowed to be designated initialized if the compiler automatically generated a default operator `new`
+
+
+<!---------------------------------->
 <a name="v0.0.257.1"></a>
 ## v0.0.257.1
 

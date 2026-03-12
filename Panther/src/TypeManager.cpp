@@ -1492,7 +1492,7 @@ namespace pcit::panther{
 					context.getSourceManager().getPackage(parent_source.getPackageID());
 
 				output = parent_package.name;
-				output += ".";
+				output += "=>";
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				switch(source_id.as<BuiltinModule::ID>()){
@@ -1506,9 +1506,9 @@ namespace pcit::panther{
 				const ClangSource& clang_source = context.getSourceManager()[source_id.as<ClangSource::ID>()];
 
 				if(clang_source.isCPP()){
-					output += "{CPP}.";
+					output += "{CPP}=>";
 				}else{
-					output += "{C}.";
+					output += "{C}=>";
 				}
 			}
 		}

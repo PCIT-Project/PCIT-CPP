@@ -1778,6 +1778,8 @@ namespace pcit::panther{
 
 
 		if(created_struct.newInitOverloads.empty()){
+			created_struct.mayDesignatedInitNew = true;
+
 			created_struct.isDefaultInitializable = true;
 			created_struct.isTriviallyDefaultInitializable = true;
 			created_struct.isComptimeDefaultInitializable = true;
@@ -15938,9 +15940,9 @@ namespace pcit::panther{
 		);
 
 
-		if(target_type.newInitOverloads.empty() == false){
+		if(target_type.mayDesignatedInitNew == false){
 			this->emit_error(
-				"Designatied initializer operator [new] on type that has overloaded operator [new]",
+				"Designatied initializer operator [new] on type that has an overloaded operator [new]",
 				instr.designated_init_new
 			);
 			return Result::ERROR;

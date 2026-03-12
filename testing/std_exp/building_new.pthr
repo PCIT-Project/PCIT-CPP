@@ -5,24 +5,6 @@ def std_exp = @import("./std_exp.pthr");
 
 
 type Package = struct #pub {
-	// func new = (path: [Char:*], name: [Char:*], warnings: @build.PackageWarningSettings in) #rt
-	// -> (output: This) {
-	// 	output.package_id = @buildCreatePackage(path, name, forward warnings);
-	// 	return...;
-	// }
-
-
-	// func addSourceFile = (this, path: [Char:*]) #rt -> Void {
-	// 	@buildAddSourceFile(path, this.package_id);
-	// }
-
-	// func addSourceDirectory = (this, path: [Char:*], is_recursive: Bool) #rt -> Void {
-	// 	@buildAddSourceDirectory(path, this.package_id, is_recursive);
-	// }
-
-	
-	// const package_id: @build.PackageID;
-
 	type Directory = struct {
 		var path: [Char:*];
 		var isRecursive: Bool;
@@ -31,9 +13,9 @@ type Package = struct #pub {
 
 	var path: [Char:*];
 	var name: [Char:*];
-	var warnings: @build.PackageWarningSettings;
+	// var warnings: @build.PackageWarningSettings;
 	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>();
-	// var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
+	var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
 }
 
 
@@ -63,8 +45,8 @@ type Build = struct #pub {
 	///////////////////////////////////
 	// private
 
-	func add_package = (this, package: Package) #rt -> Void {
-		const package_id: @build.PackageID = @buildCreatePackage(package.path, package.name, copy package.warnings);
+	func add_package = (this, package: Package) #rt #priv -> Void {
+		const package_id: @build.PackageID = @buildCreatePackage(package.path, package.name, new @build.PackageWarningSettings{});
 
 		for(package.sourceFiles) [_; src_file: [Char:*]] {
 			@buildAddSourceFile(src_file, package_id);
@@ -74,32 +56,13 @@ type Build = struct #pub {
 		// 	@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
 		// }
 
-		// if(this.stdLibPackage != null && &package == this.stdLibPackage.?){
-		// 	@buildSetStdLibPackage(package_id);
-		// }
+		if(this.stdLibPackage != null && &package == this.stdLibPackage.?){
+			@buildSetStdLibPackage(package_id);
+		}
 	}
 
 	var packages #priv = new std_exp.StaticArrayList<{Package, 4}>();
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

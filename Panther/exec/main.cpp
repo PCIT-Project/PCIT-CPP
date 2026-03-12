@@ -139,6 +139,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
 			panther::Source::Package{
 				.basePath = cmd_args_config.workingDirectory / "../extern/Panther-std/std",
+				.name     = "std",
 				.warn     = panther::Source::Package::Warns::all(),
 			}
 		);
@@ -160,6 +161,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
 		panther::Source::Package{
 			.basePath = cmd_args_config.workingDirectory,
+			.name     = "build",
 			.warn     = panther::Source::Package::Warns::all(),
 		}
 	);

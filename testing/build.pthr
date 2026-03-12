@@ -1,72 +1,10 @@
-def std = @import("std");
-def build_exp = @import("std_exp/building.pthr");
-
-
-func entry = () #entry -> UI8 {
-	build_exp.setOutput(std.build.Output.AST);
-	build_exp.setNumThreads(12);
-
-
-	const warns = new @build.PackageWarningSettings{
-		methodCallOnNonMethod        = true,
-		memberTypeByValueAccessor    = true,
-		deleteMovedFromExpr          = true,
-		deleteTriviallyDeletableType = true,
-		comptimeIfCond               = true,
-		alreadyUnsafe                = true,
-		experimentalF80              = true,
-	};
-
-
-	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
-	// build_exp.addStdLib("../../Panther-std/std");
-	// add_std_exp(copy warns);
-	
-
-	const test_package = new build_exp.Package(
-		path     : "./",
-		name     : "test",
-		warnings : copy warns,
-	);
-	test_package.addSourceFile("test.pthr");
-
-	// @buildAddCHeaderFile("test.h", true);
-	
-	
-	return 0;
-}
-
-
-
-func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
-	const std_exp_package = new build_exp.Package(
-		path     : "./std_exp",
-		name     : "std_exp",
-		warnings : forward warns,
-	);
-	std_exp_package.addSourceFile("atomic.pthr");
-	std_exp_package.addSourceFile("StaticArrayList.pthr");
-	std_exp_package.addSourceFile("StaticString.pthr");
-	std_exp_package.addSourceFile("std_exp.pthr");
-}
-
-
-
-//////////////////////////////////////////////////////////////////////
-// using new build system
-
 // def std = @import("std");
-// def std_exp = @import("std_exp/std_exp.pthr");
-// def build_exp = @import("std_exp/building_new.pthr");
+// def build_exp = @import("std_exp/building.pthr");
 
 
 // func entry = () #entry -> UI8 {
-// 	var build = new build_exp.Build{
-// 		output        = std.build.Output.PIR,
-// 		numThreads    = 12,
-// 		// stdLibPackage = new build_exp.Package*?(), // TODO(FUTURE): fix this to allow null
-// 		// packages      = new std_exp.StaticArrayList<{build_exp.Package, 4}>(),
-// 	};
+// 	build_exp.setOutput(std.build.Output.AST);
+// 	build_exp.setNumThreads(12);
 
 
 // 	const warns = new @build.PackageWarningSettings{
@@ -80,22 +18,82 @@ func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
 // 	};
 
 
-// 	var test_package_uninit: build_exp.Package*uninit = build.createPackage();
-// 	test_package_uninit.* = new build_exp.Package{
-// 		path     = "./",
-// 		name     = "test",
-// 		warnings = copy warns,
-// 	};
+// 	// build_exp.addStdLib("../extern/Panther-std/std/"); // shipped path
+// 	// build_exp.addStdLib("../../Panther-std/std");
+// 	// add_std_exp(copy warns);
+	
 
-// 	unsafe{
-// 		// TODO(FUTURE): fix makeInitPtr to return mutable pointer
-// 		var test_package: build_exp.Package*mut = std.bitCast<{build_exp.Package*mut}>(@makeInitPtr(test_package_uninit));
-// 		test_package.sourceFiles.append().* = "test.pthr";
+// 	const test_package = new build_exp.Package(
+// 		path     : "./",
+// 		name     : "test",
+// 		warnings : copy warns,
+// 	);
+// 	test_package.addSourceFile("test.pthr");
 
-// 		build.add_package(test_package.*);
-// 	}
-
-// 	build.build();
-
+// 	// @buildAddCHeaderFile("test.h", true);
+	
+	
 // 	return 0;
 // }
+
+
+
+// func add_std_exp = (warns: @build.PackageWarningSettings in) #rt -> Void {
+// 	const std_exp_package = new build_exp.Package(
+// 		path     : "./std_exp",
+// 		name     : "std_exp",
+// 		warnings : forward warns,
+// 	);
+// 	std_exp_package.addSourceFile("atomic.pthr");
+// 	std_exp_package.addSourceFile("StaticArrayList.pthr");
+// 	std_exp_package.addSourceFile("StaticString.pthr");
+// 	std_exp_package.addSourceFile("std_exp.pthr");
+// }
+
+
+
+//////////////////////////////////////////////////////////////////////
+// using new build system
+
+def std = @import("std");
+def std_exp = @import("std_exp/std_exp.pthr");
+def build_exp = @import("std_exp/building_new.pthr");
+
+
+func entry = () #entry -> UI8 {
+	var build = new build_exp.Build{
+		output        = std.build.Output.PIR,
+		numThreads    = 12,
+		// stdLibPackage = new build_exp.Package*?(), // TODO(FUTURE): fix this to allow null
+		// packages      = new std_exp.StaticArrayList<{build_exp.Package, 4}>(),
+	};
+
+
+	const warns = new @build.PackageWarningSettings{
+		methodCallOnNonMethod        = true,
+		memberTypeByValueAccessor    = true,
+		deleteMovedFromExpr          = true,
+		deleteTriviallyDeletableType = true,
+		comptimeIfCond               = true,
+		alreadyUnsafe                = true,
+		experimentalF80              = true,
+	};
+
+
+	var test_package_uninit: build_exp.Package*uninit = build.createPackage();
+	test_package_uninit.* = new build_exp.Package{
+		path     = "./",
+		name     = "test",
+		// warnings = copy warns,
+	};
+
+	unsafe{
+		// TODO(FUTURE): fix makeInitPtr to return mutable pointer
+		var test_package: build_exp.Package*mut = std.bitCast<{build_exp.Package*mut}>(@makeInitPtr(test_package_uninit));
+		test_package.sourceFiles.append().* = "test.pthr";
+	}
+
+	build.build();
+
+	return 0;
+}
