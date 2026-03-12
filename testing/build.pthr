@@ -5,8 +5,8 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.Build{
-		output        = std.build.Output.RUN,
-		numThreads    = 12,
+		output     = std.build.Output.PIR,
+		numThreads = 0,
 	};
 
 
@@ -21,9 +21,9 @@ func entry = () #entry -> UI8 {
 	};
 
 
-	build.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build.addStdLib("../../Panther-std/std");
-	add_std_exp(build, copy warns);
+	// add_std_exp(build, copy warns);
 
 
 	var test_package_uninit: build_exp.Package*uninit = build.createPackage();

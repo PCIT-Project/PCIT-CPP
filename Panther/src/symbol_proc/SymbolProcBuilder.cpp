@@ -1500,6 +1500,22 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> evo::Result<> {
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(stmt);
 
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace("", current_symbol.symbol_proc_id);
+		}
+
+
 		if(func_call.target.kind() == AST::Kind::INTRINSIC){
 			const Token::ID intrin_tok_id = this->source.getASTBuffer().getIntrinsic(func_call.target);
 			const std::string_view intrin_string = this->source.getTokenBuffer()[intrin_tok_id].getString();

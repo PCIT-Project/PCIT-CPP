@@ -1,15 +1,256 @@
-def std = @import("std");
 
-def std_exp = @import("std_exp/std_exp.pthr");
+impl [$$:*] #builtin("arrayRef.IterableRef") {
+	createIterator = (this) -> impl(ArrayRefIter<{This}>:@pthr.Iterator) {
+		return new impl(ArrayRefIter<{This}>:@pthr.Iterator)(this);
+	},
+}
+
+impl [$$:*mut] #builtin("arrayMutRef.IterableMutRef") {
+	createIterator = (this) -> impl(MutArrayRefIter<{This}>:@pthr.MutIterator) {
+		return new impl(MutArrayRefIter<{This}>:@pthr.MutIterator)(this);
+	},
+}
 
 
-func entry = () #entry -> UI8 {
-	var output: UI8 = 0;
+func advancePointer = (ptr: $T*) #pub #unsafe -> T* {
+	// @comptimeAssert(@getTypeID<{T}>() == @getTypeID<{Byte}>(), "Not expected type");
+	// @comptimeAssert(@numBytes<{T, true}>() == 1);
 
-	var arr = new std_exp.StaticArrayList<{UI8, 3}>(new [UI8:3][1, 2, 3]);
-	for(arr) [_; num: UI8] {
-		output += num;
+	var ptr_num: ISize = @bitCast<{T*, ISize}>(ptr);
+	ptr_num += 1;
+	return @bitCast<{ISize, T*}>(ptr_num);
+}
+func advancePointer = (ptr: $T*mut) #pub #unsafe -> T*mut {
+	// @comptimeAssert(@getTypeID<{T}>() == @getTypeID<{Byte}>(), "Not expected type");
+	// @comptimeAssert(@numBytes<{T, true}>() == 1);
+
+	var ptr_num: ISize = @bitCast<{T*mut, ISize}>(ptr);
+	ptr_num += 1;
+	return @bitCast<{ISize, T*mut}>(ptr_num);
+}
+
+
+
+
+type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+	type ELEM_TYPE = alias type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
+		assert(arr_ref_ptr.size() == 24);
+
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
+		return...;
 	}
 
-	return copy output;
+	func next = (this mut) -> Void {
+		assert(this.atEnd() == false);
+
+		unsafe{
+			this.current = advancePointer(this.current);
+		}
+	}
+
+	func get = (this) -> ELEM_TYPE* {
+		assert(this.atEnd() == false);
+		return copy this.current;
+	}
+
+	func atEnd = (this) -> Bool {
+		unsafe{
+			return @bitCast<{ELEM_TYPE*, USize}>(this.current) > @bitCast<{ELEM_TYPE*, USize}>(this.last);
+		}
+	}
+
+
+	impl @pthr.Iterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+
+	var current: ELEM_TYPE*;
+	var last: ELEM_TYPE*;
 }
+
+type MutArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+	type ELEM_TYPE = alias type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
+		assert(arr_ref_ptr.size() == 24);
+
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
+		return...;
+	}
+
+	func next = (this mut) -> Void {
+		assert(this.atEnd() == false);
+
+		unsafe{
+			this.current = advancePointer(this.current);
+		}
+	}
+
+	func get = (this) -> ELEM_TYPE*mut {
+		assert(this.atEnd() == false);
+		return copy this.current;
+	}
+
+	func atEnd = (this) -> Bool {
+		unsafe{
+			return @bitCast<{ELEM_TYPE*mut, USize}>(this.current) > @bitCast<{ELEM_TYPE*mut, USize}>(this.last);
+		}
+	}
+
+
+	impl @pthr.MutIterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+
+	var current: ELEM_TYPE*mut;
+	var last: ELEM_TYPE*mut;
+}
+
+
+
+
+
+
+
+
+func assert = (cond: Bool) -> Void {
+	if(cond == false){
+		@abort();
+	}
+}
+
+
+type ManualLifetime = struct <{T: Type}> #pub {
+	func get = (this) #unsafe -> T* { return @bitCast<{Byte*, T*}>(this.data.data()); }
+	func get = (this mut) #unsafe -> T*mut { return @bitCast<{Byte*mut, T*mut}>(this.data.data()); }
+	func getUninit = (this mut) #unsafe -> T*uninit { return @bitCast<{Byte*mut, T*uninit}>(this.data.data()); }
+	
+	var data: [Byte:@numBytes<{T, true}>()] #priv;
+
+	// TODO(NOW): fix this stalling
+	@comptimeAssert(@numBytes<{[Byte:@numBytes<{T, true}>()], true}>() == @numBytes<{T, true}>());
+}
+
+
+func mem_copy = (dst: [Byte:*mut], src: [Byte:*]) -> Void {
+	// TODO(FUTURE): assert dst.size() == src.size
+	// TODO(PERF): better than just naive approach
+
+	// TODO(NOW): remove
+	assert(dst.size() == src.size());
+
+	for(dst, src) [_; dst_value: Byte mut, src_value: Byte] {
+		dst_value = copy src_value;
+	}
+}
+
+
+
+
+func copyBuffer = (dst: [$T:*mut], src: [T:*]) -> Void {
+	assert(dst.size() == src.size());
+
+	const buffer_size: USize = dst.size() * @numBytes<{T, true}>();
+
+
+	assert(dst.size() == 1);
+	// @comptimeAssert(@numBytes<{Package.Directory, true}>() == 24);
+	// assert(buffer_size == 24);
+
+	unsafe{
+		const dst_buffer = new [Byte:*mut](@bitCast<{T*mut, Byte*mut}>(dst.data()), copy buffer_size);
+		const src_buffer = new [Byte:*](@bitCast<{T*, Byte*}>(src.data()), copy buffer_size);
+		mem_copy(dst_buffer, src_buffer);
+	}
+}
+
+
+
+
+
+type StaticArrayList = struct <{T: Type}> {
+	func new = () -> (output: This) {
+		output._data = new ManualLifetime<{T}>();
+		return...;
+	}
+
+
+	func new = (t: T) -> (output: This) {
+		output._data = new ManualLifetime<{T}>();
+
+		unsafe{
+			copyBuffer(new [T:*mut](output._data.get(), 1), new [T:*](&t, 1));
+		}
+
+		return...;
+	}
+
+
+
+
+	///////////////////////////////////
+	// type conversion
+
+	// func as = (this) #implicit -> [T:*] {
+	// 	unsafe{ return new [T:*](this._data[0].get(), copy this._size); }
+	// }
+	// func as = (this mut) #implicit -> [T:*mut] {
+	// 	unsafe{ return new [T:*mut](this._data[0].get(), copy this._size); }
+	// }
+
+
+
+	///////////////////////////////////
+	// member vars
+
+	var _data: ManualLifetime<{T}>;
+}
+
+
+
+
+// @comptimeAssert(@numBytes<{Package.Directory, true}>() == 24);
+
+
+type Package = struct #pub {
+	type Directory = struct {
+		var num1: Int;
+		var num2: Int;
+		var isRecursive: Bool;
+	}
+
+	var sourceFiles = new StaticArrayList<{Directory}>();
+	var sourceDirectories = new StaticArrayList<{Directory}>();
+}
+
+
+
+func test = () -> USize {
+	var package = new Package{
+		sourceFiles       = new StaticArrayList<{Package.Directory}>(),
+		sourceDirectories = new StaticArrayList<{Package.Directory}>(
+			new Package.Directory{num1 = 12, num2 = 14, isRecursive = true}
+		),
+	};
+
+
+	unsafe{
+		// assert(package.sourceDirectories._data.get().num1 == 12);
+		// assert(package.sourceDirectories._data.get().num2 == 14);
+		assert(package.sourceDirectories._data.get().isRecursive);
+	}
+
+	return @numBytes<{Package.Directory, true}>();
+}
+
+const foo: USize = test();

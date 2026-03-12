@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.258.1"></a>
+## v0.0.258.1
+
+### Panther
+- Fixed stalling in semantic analysis of `@comptimeAssert` when not in global scope
+
+
+<!---------------------------------->
 <a name="v0.0.258.0"></a>
 ## v0.0.258.0
 

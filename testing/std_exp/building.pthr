@@ -153,7 +153,6 @@ type Build = struct #pub {
 		}
 
 		for(package.sourceDirectories) [_; src_dir: Package.Directory] {
-			std.assert(src_dir.isRecursive);
 			@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
 		}
 

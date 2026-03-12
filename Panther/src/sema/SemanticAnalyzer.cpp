@@ -11663,7 +11663,10 @@ namespace pcit::panther{
 		}
 
 		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-		if(cond){ return Result::SUCCESS; }
+		if(cond){
+			this->propagate_finished_decl_def();
+			return Result::SUCCESS;
+		}
 
 		if(instr.message.has_value()){
 			TermInfo& message_term_info = this->get_term_info(*instr.message);
@@ -11687,6 +11690,7 @@ namespace pcit::panther{
 		}else{
 			this->emit_error("Failed comptime assert", instr.func_call);
 		}
+
 
 		return Result::ERROR;
 	}
