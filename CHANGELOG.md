@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.258.0"></a>
+## v0.0.258.0
+
+### Panther
+- Changed `@makeInitPtr` to return a mut-qualified pointer
+- Fixed designated initializer new members not allowing value `null`
+- Fixed adding source directory in build system when not recursive
+
+### Misc
+- Updated to [Panther-std v0.0.21.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.21.0)
+
+
+<!---------------------------------->
 <a name="v0.0.257.2"></a>
 ## v0.0.257.2
 

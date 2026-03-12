@@ -1,10 +1,15 @@
+def std = @import("std");
 
-const foo: Int = test();
+def std_exp = @import("std_exp/std_exp.pthr");
 
-func test =  () #rtDiff -> Int {
-	when(@isComptime()){
-		return 14;
-	}else{
-		return 12;
+
+func entry = () #entry -> UI8 {
+	var output: UI8 = 0;
+
+	var arr = new std_exp.StaticArrayList<{UI8, 3}>(new [UI8:3][1, 2, 3]);
+	for(arr) [_; num: UI8] {
+		output += num;
 	}
+
+	return copy output;
 }

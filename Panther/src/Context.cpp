@@ -1062,8 +1062,7 @@ namespace pcit::panther{
 		const fs::path target_directory = normalize_path(directory, package.basePath);
 
 		if(path_exitsts(target_directory) == false){ return AddSourceResult::DOESNT_EXIST; }
-		if(std::filesystem::is_directory(directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
-
+		if(std::filesystem::is_directory(target_directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		for(const fs::path& file_path : std::filesystem::directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){

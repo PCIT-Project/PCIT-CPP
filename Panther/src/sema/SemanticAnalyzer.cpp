@@ -11560,7 +11560,8 @@ namespace pcit::panther{
 
 		if(uninit_ptr_value.type_id.is<TypeInfo::ID>() == false){
 			this->emit_error(
-				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value", instr.func_call.args[0].value
+				"Arugment in `@makeInitPtr` must be an uninitialized-qualified pointer value",
+				instr.func_call.args[0].value
 			);
 			return Result::ERROR;
 		}
@@ -11602,6 +11603,7 @@ namespace pcit::panther{
 			uninit_ptr_type.qualifiers().begin(), uninit_ptr_type.qualifiers().end()
 		);
 		output_qualifiers.back().isUninit = false;
+		output_qualifiers.back().isMut = true;
 
 		const TypeInfo::ID output_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(uninit_ptr_type.baseTypeID(), std::move(output_qualifiers))
@@ -16072,8 +16074,11 @@ namespace pcit::panther{
 
 				TermInfo& member_init_expr = this->get_term_info(instr.member_init_exprs[member_init_i]);
 
-				if(member_init_expr.is_ephemeral() == false){
-					this->emit_error("Member initializer value is not ephemeral", member_init.expr);
+				if(
+					member_init_expr.is_ephemeral() == false
+					&& member_init_expr.value_category != TermInfo::ValueCategory::NULL_VALUE
+				){
+					this->emit_error("Member initializer value is not ephemeral or `null`", member_init.expr);
 					return Result::ERROR;
 				}
 

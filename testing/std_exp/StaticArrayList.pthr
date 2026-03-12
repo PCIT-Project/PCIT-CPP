@@ -101,10 +101,6 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 		return this[this.size() - 1];
 	}
 
-	func data = (this) -> T* { return this[0]; }
-	func data = (this mut) -> T*mut { return this[0]; }
-
-
 
 	///////////////////////////////////
 	// capacity
@@ -175,8 +171,12 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 	///////////////////////////////////
 	// type conversion
 
-	func as = (this) #implicit -> [T:*] { return new [T:*](this.data(), this.size()); }
-	func as = (this mut) #implicit -> [T:*mut] { return new [T:*mut](this.data(), this.size()); }
+	func as = (this) #implicit -> [T:*] {
+		unsafe{ return new [T:*](this._data[0].get(), this.size()); }
+	}
+	func as = (this mut) #implicit -> [T:*mut] {
+		unsafe{ return new [T:*mut](this._data[0].get(), this.size()); }
+	}
 
 
 	///////////////////////////////////
