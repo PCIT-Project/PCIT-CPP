@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.259.0"></a>
+## v0.0.259.0
+
+### Panther
+- Added requirement that `this` of operator `copy` is `read`
+- Added requirement that `this` of operator `move` is `mut`
+- Fixed functions with some type deducer parameter types
+- Fixed default `copy` having `this` as `mut` (should be `read`)
+
+
+<!---------------------------------->
 <a name="v0.0.258.2"></a>
 ## v0.0.258.2
 

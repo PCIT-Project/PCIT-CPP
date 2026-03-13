@@ -922,6 +922,21 @@ namespace pcit::panther{
 							}
 						} break;
 
+						case AST::Kind::INTERFACE_MAP: {
+							const AST::InterfaceMap& interface_map = 
+								this->source.getASTBuffer().getInterfaceMap(target_term);
+
+							if(interface_map.underlyingType.is<AST::Node>()){
+								terms_to_check_for_deducers.emplace(interface_map.underlyingType.as<AST::Node>());
+							}
+						} break;
+
+
+						case AST::Kind::TYPE: {
+							const AST::Type& ast_type = this->source.getASTBuffer().getType(target_term);
+							terms_to_check_for_deducers.emplace(ast_type.base);
+						} break;
+
 						default: break;
 					}
 				}

@@ -2374,7 +2374,7 @@ namespace pcit::panther{
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>{
 								BaseType::Function::Param(
-									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
+									created_struct_type_id, BaseType::Function::Param::Kind::READ, false
 								),
 							},
 							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
@@ -3948,9 +3948,9 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ){
 								this->emit_error(
-									"Operator [copy] initialization overload [this] parameter cannot be kind [in]",
+									"Operator [copy] initialization overload [this] parameter must be kind [read]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -4023,9 +4023,9 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ){
 								this->emit_error(
-									"Operator [copy] assignment overload [this] parameter cannot be kind [in]",
+									"Operator [copy] assignment overload [this] parameter must be kind [read]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -4128,9 +4128,9 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::MUT){
 								this->emit_error(
-									"Operator [move] initialization overload [this] parameter cannot be kind [in]",
+									"Operator [move] initialization overload [this] parameter must be kind [mut]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -4204,9 +4204,9 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind == BaseType::Function::Param::Kind::IN){
+							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::MUT){
 								this->emit_error(
-									"Operator [move] assignment overload [this] parameter cannot be kind [in]",
+									"Operator [move] assignment overload [this] parameter must be kind [mut]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -14229,7 +14229,11 @@ namespace pcit::panther{
 
 			default: {
 				if(this->currently_in_unsafe() == false){
-					this->emit_error("Unsafe move while not in an unsafe scope", instr.prefix);
+					this->emit_error(
+						"Unsafe move while not in an unsafe scope",
+						instr.prefix,
+						Diagnostic::Info("Note: moving anything but a local variable is unsafe")
+					);
 					return Result::ERROR;
 				}
 			} break;
@@ -22850,17 +22854,6 @@ namespace pcit::panther{
 								);
 								return evo::resultError;
 							}
-
-
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error(
-									"Initialization [copy] of this type requires a mutable value", location
-								);
-								return evo::resultError;
-							}
 						}
 
 						dependent_funcs.emplace(*copy_overload.funcID);
@@ -22917,14 +22910,6 @@ namespace pcit::panther{
 								);
 								return evo::resultError;
 							}
-
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error("Assignment [copy] of this type requires a mutable value", location);
-								return evo::resultError;
-							}
 						}
 
 						dependent_funcs.emplace(*copy_assign_overload);
@@ -22975,21 +22960,6 @@ namespace pcit::panther{
 												"explicit [copy] assignment overload"
 										)
 									}
-								);
-								return evo::resultError;
-							}
-
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error(
-									"Initialization [copy] of this type requires a mutable value",
-									location,
-									Diagnostic::Info(
-										"NOTE: [copy] initialization called here as this type does not have an "
-											"explicit [copy] assignment overload"
-									)
 								);
 								return evo::resultError;
 							}
@@ -23101,13 +23071,8 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error(
-									"Initialization [move] of this type requires a mutable value", location
-								);
+							if(TermInfo::isValueCategoryMutable(value_category) == false){
+								this->emit_error("Operator [move] requires a mutable value", location);
 								return evo::resultError;
 							}
 						}
@@ -23168,11 +23133,8 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error("Assignment [move] of this type requires a mutable value", location);
+							if(TermInfo::isValueCategoryMutable(value_category) == false){
+								this->emit_error("Operator [move] requires a mutable value", location);
 								return evo::resultError;
 							}
 						}
@@ -23228,18 +23190,8 @@ namespace pcit::panther{
 								return evo::resultError;
 							}
 
-							if(
-								sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
-								&& TermInfo::isValueCategoryMutable(value_category) == false
-							){
-								this->emit_error(
-									"Initialization [move] of this type requires a mutable value",
-									location,
-									Diagnostic::Info(
-										"NOTE: [move] initialization called here as this type does not have an "
-											"explicit [move] assignment overload"
-									)
-								);
+							if(TermInfo::isValueCategoryMutable(value_category) == false){
+								this->emit_error("Operator [move] requires a mutable value", location);
 								return evo::resultError;
 							}
 						}

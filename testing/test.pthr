@@ -6,10 +6,10 @@ func test = (val: [$T:3]*) -> Void {
 
 func entry = () #entry -> UI8 {
 	const arr1 = new [Int:3][1, 2, 3];
-	// const arr2 = new [UInt:3][1, 2, 3];
+	const arr2 = new [UInt:3][1, 2, 3];
 
 	test(&arr1);
-	// test(&arr2);
+	test(&arr2);
 	
 	return 0;
 }
