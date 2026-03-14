@@ -17,6 +17,7 @@ namespace fs = std::filesystem;
 #include "./symbol_proc/SymbolProcBuilder.h"
 #include "./sema/SemanticAnalyzer.h"
 #include "../src/sema_to_pir/SemaToPIR.h"
+#include "../../PIR/include/getDefaultDebugger.h"
 
 #include <PIR.h>
 
@@ -409,6 +410,14 @@ namespace pcit::panther{
 				);
 				return evo::resultError;
 			}
+
+			this->comptime_execution_engine.setDebugger(
+				[&](pir::ExecutionEngineDebuggerInterface& debugger, pir::Module& module)
+				-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
+					const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
+					return pir::getDefaultDebugger()(debugger, module);
+				}
+			);
 		}
 
 			

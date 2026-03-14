@@ -28,6 +28,10 @@ namespace pcit::pir{
 			using FuncRunError = ExecutionEngineExecutor::FuncRunError;
 			using InitConfig = JITEngine::InitConfig;
 
+			using DebuggerFunc = std::function<
+				evo::Expected<core::GenericValue, FuncRunError::Code>(class ExecutionEngineDebuggerInterface&, Module&)
+			>;
+
 		public:
 			ExecutionEngine(Module& _module, uint32_t _max_call_depth = 128);
 			~ExecutionEngine();
@@ -37,6 +41,10 @@ namespace pcit::pir{
 			// error is list of messages from LLVM
 			EVO_NODISCARD auto init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>>;
 			EVO_NODISCARD auto isInitialized() const -> bool { return this->jit_engine.isInitialized(); }
+
+			auto setDefaultDebugger() -> void;
+			auto setDebugger(DebuggerFunc&& _debugger_func) -> void { this->debugger_func = std::move(_debugger_func); }
+
 
 			EVO_NODISCARD auto maxCallDepth() const -> uint32_t { return this->max_call_depth; }
 
@@ -118,6 +126,10 @@ namespace pcit::pir{
 			}
 
 
+			auto run_debugger(Executor& executor)
+				-> std::optional<evo::Expected<core::GenericValue, FuncRunError::Code>>;
+
+
 		private:
 			Module& module;
 			const uint32_t max_call_depth;
@@ -137,6 +149,9 @@ namespace pcit::pir{
 
 			std::unordered_map<const void*, Function::ID> function_ptr_lookup{};
 			mutable evo::SpinLock function_ptr_lookup_lock{};
+
+			DebuggerFunc debugger_func{};
+			mutable evo::SpinLock debugger_lock;
 
 
 			std::array<evo::SpinLock, 64> atomic_locks{};

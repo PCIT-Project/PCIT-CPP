@@ -39,7 +39,7 @@ namespace pcit::pir{
 			this->printer.println();
 
 			for(const StructType& struct_type : this->get_module().getStructTypeIter()){
-				this->print_struct_type(struct_type);
+				this->printStructType(struct_type);
 			}
 		}
 
@@ -48,7 +48,7 @@ namespace pcit::pir{
 			this->printer.println();
 
 			for(const GlobalVar& global_var : this->get_module().getGlobalVarIter()){
-				this->print_global_var(global_var);
+				this->printGlobalVar(global_var);
 			}
 		}
 
@@ -56,7 +56,7 @@ namespace pcit::pir{
 			this->printer.println();
 
 			for(const ExternalFunction& external_function : this->get_module().getExternalFunctionIter()){
-				this->print_external_function(external_function);
+				this->printExternalFunction(external_function);
 			}
 		}
 
@@ -64,7 +64,7 @@ namespace pcit::pir{
 			this->printer.println();
 
 			for(size_t i = 0; const Function& function : this->get_module().getFunctionIter()){
-				this->print_function(function);
+				this->printFunction(function);
 
 				if(i + 1 < this->get_module().getFunctionIter().size()){
 					this->printer.println();
@@ -106,7 +106,7 @@ namespace pcit::pir{
 
 			this->printer.print("${}", param.getName());
 			this->printer.printRed(": ");
-			this->print_type(param.getType());
+			this->printType(param.getType());
 
 			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
 				attribute_variant.visit([&](const auto& attribute) -> void {
@@ -142,7 +142,7 @@ namespace pcit::pir{
 					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrRVO>()){
 						this->printer.printRed(" #ptrRVO");
 						this->printer.print("(");
-						this->print_type(attribute.type);
+						this->printType(attribute.type);
 						this->printer.print(")");
 					}
 				});
@@ -170,11 +170,11 @@ namespace pcit::pir{
 		}
 
 		this->printer.printRed("-> ");
-		this->print_type(func_decl.returnType);
+		this->printType(func_decl.returnType);
 	}
 
 
-	auto ModulePrinter::print_function(const Function& function) -> void {
+	auto ModulePrinter::printFunction(const Function& function) -> void {
 		this->reader.setTargetFunction(function);
 
 		this->print_function_decl_impl(
@@ -194,14 +194,14 @@ namespace pcit::pir{
 		for(const Alloca& alloca : function.getAllocasRange()){
 			this->printer.print("{}${} ", tabs(1), alloca.name);
 			this->printer.printRed("= @alloca ");
-			this->print_type(alloca.type);
+			this->printType(alloca.type);
 			this->printer.println();
 		}
 
 		if(function.getAllocasRange().empty() == false){ this->printer.println(); }
 
 		for(size_t i = 0; const BasicBlock::ID& basic_block_id : function){
-			this->print_basic_block(this->reader.getBasicBlock(basic_block_id));
+			this->printBasicBlock(this->reader.getBasicBlock(basic_block_id));
 
 			if(i + 1 < size_t(std::distance(function.begin(), function.end()))){
 				this->printer.println();
@@ -213,7 +213,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_external_function(const ExternalFunction& function_decl) -> void {
+	auto ModulePrinter::printExternalFunction(const ExternalFunction& function_decl) -> void {
 		this->print_function_decl_impl(
 			FuncDeclRef(
 				function_decl.name,
@@ -228,7 +228,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_struct_type(const StructType& struct_type) -> void {
+	auto ModulePrinter::printStructType(const StructType& struct_type) -> void {
 		this->printer.printCyan("type ");
 		if(isStandardName(struct_type.name)){
 			this->printer.printGreen("&{}", struct_type.name);
@@ -245,7 +245,7 @@ namespace pcit::pir{
 
 		this->printer.print("{");
 		for(size_t i = 0; const Type& member : struct_type.members){
-			this->print_type(member);
+			this->printType(member);
 
 			if(i < struct_type.members.size() - 1){
 				this->printer.print(", ");
@@ -257,7 +257,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_global_var(const GlobalVar& global_var) -> void {
+	auto ModulePrinter::printGlobalVar(const GlobalVar& global_var) -> void {
 		if(global_var.isConstant){
 			this->printer.printCyan("const ");
 		}else{
@@ -270,7 +270,7 @@ namespace pcit::pir{
 			this->print_non_standard_name(global_var.name, true);
 		}	
 		this->printer.printRed(": ");
-		this->print_type(global_var.type);
+		this->printType(global_var.type);
 		this->printer.print(" ");
 
 		this->print_linkage(global_var.linkage);
@@ -278,14 +278,14 @@ namespace pcit::pir{
 
 		if(global_var.value.is<GlobalVar::NoValue>() == false){
 			this->printer.printRed("= ");
-			this->print_global_var_value(global_var.value);
+			this->printGlobalVarValue(global_var.value);
 		}
 
 		this->printer.println();
 	}
 
 
-	auto ModulePrinter::print_global_var_value(const GlobalVar::Value& global_var_value) -> void {
+	auto ModulePrinter::printGlobalVarValue(const GlobalVar::Value& global_var_value) -> void {
 		global_var_value.visit([&](const auto& value) -> void {
 			using ValueT = std::decay_t<decltype(value)>;
 
@@ -357,7 +357,7 @@ namespace pcit::pir{
 
 				this->printer.print("[");
 				for(size_t i = 0; const GlobalVar::Value& array_elem : array.values){
-					this->print_global_var_value(array_elem);
+					this->printGlobalVarValue(array_elem);
 					
 					if(i + 1 < array.values.size()){
 						this->printer.print(", ");
@@ -390,7 +390,7 @@ namespace pcit::pir{
 
 				this->printer.print("{");
 				for(size_t i = 0; const GlobalVar::Value& struct_elem : struct_value.values){
-					this->print_global_var_value(struct_elem);
+					this->printGlobalVarValue(struct_elem);
 					
 					if(i + 1 < struct_value.values.size()){
 						this->printer.print(", ");
@@ -410,7 +410,7 @@ namespace pcit::pir{
 
 		
 
-	auto ModulePrinter::print_basic_block(const BasicBlock& basic_block) -> void {
+	auto ModulePrinter::printBasicBlock(const BasicBlock& basic_block) -> void {
 		this->printer.println("{}${}:", tabs(1), basic_block.getName());
 
 		for(const Expr& expr : basic_block){
@@ -420,7 +420,7 @@ namespace pcit::pir{
 
 
 
-	auto ModulePrinter::print_type(const Type& type) -> void {
+	auto ModulePrinter::printType(const Type& type) -> void {
 		switch(type.kind()){
 			case Type::Kind::VOID:     { this->printer.printCyan("Void");                 } break;
 			case Type::Kind::INTEGER:  { this->printer.printCyan("I{}", type.getWidth()); } break;
@@ -433,7 +433,7 @@ namespace pcit::pir{
 				const ArrayType& array_type = this->get_module().getArrayType(type);
 
 				printer.print("[");
-				this->print_type(array_type.elemType);
+				this->printType(array_type.elemType);
 				printer.printRed(":");
 				printer.printMagenta("{}", array_type.length);
 				printer.print("]");
@@ -453,7 +453,7 @@ namespace pcit::pir{
 			case Type::Kind::FUNCTION: {
 				const FunctionType& func_type = this->get_module().getFunctionType(type);
 
-				this->print_type(func_type.returnType);
+				this->printType(func_type.returnType);
 				printer.print(" ");
 				this->print_calling_convention(func_type.callingConvention);
 			} break;
@@ -479,7 +479,7 @@ namespace pcit::pir{
 
 			case Expr::Kind::NUMBER: {
 				const Number& number = this->reader.getNumber(expr);
-				this->print_type(number.type);
+				this->printType(number.type);
 				this->printer.print("(");
 				if(number.type.kind() == Type::Kind::INTEGER){
 					this->printer.printMagenta(number.getInt().toString(true));
@@ -1068,7 +1068,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), load.name);
 				this->printer.printRed("= @load ");
-				this->print_type(load.type);
+				this->printType(load.type);
 				this->printer.print(" ");
 				this->print_expr(load.source);
 				this->print_atomic_ordering(load.atomicOrdering);
@@ -1093,7 +1093,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), calc_ptr.name);
 				this->printer.printRed("= @calcPtr ");
-				this->print_type(calc_ptr.ptrType);
+				this->printType(calc_ptr.ptrType);
 				this->printer.print(" ");
 				this->print_expr(calc_ptr.basePtr);
 				this->printer.print(", ");
@@ -1146,7 +1146,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), bitcast.name);
 				this->printer.printRed("= @bitCast ");
-				this->print_type(bitcast.toType);
+				this->printType(bitcast.toType);
 				this->printer.print(" ");
 				this->print_expr(bitcast.fromValue);
 				this->printer.println();
@@ -1157,7 +1157,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), trunc.name);
 				this->printer.printRed("= @trunc ");
-				this->print_type(trunc.toType);
+				this->printType(trunc.toType);
 				this->printer.print(" ");
 				this->print_expr(trunc.fromValue);
 				this->printer.println();
@@ -1168,7 +1168,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), ftrunc.name);
 				this->printer.printRed("= @ftrunc ");
-				this->print_type(ftrunc.toType);
+				this->printType(ftrunc.toType);
 				this->printer.print(" ");
 				this->print_expr(ftrunc.fromValue);
 				this->printer.println();
@@ -1179,7 +1179,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), sext.name);
 				this->printer.printRed("= @sext ");
-				this->print_type(sext.toType);
+				this->printType(sext.toType);
 				this->printer.print(" ");
 				this->print_expr(sext.fromValue);
 				this->printer.println();
@@ -1190,7 +1190,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), zext.name);
 				this->printer.printRed("= @zext ");
-				this->print_type(zext.toType);
+				this->printType(zext.toType);
 				this->printer.print(" ");
 				this->print_expr(zext.fromValue);
 				this->printer.println();
@@ -1201,7 +1201,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), fext.name);
 				this->printer.printRed("= @fext ");
-				this->print_type(fext.toType);
+				this->printType(fext.toType);
 				this->printer.print(" ");
 				this->print_expr(fext.fromValue);
 				this->printer.println();
@@ -1212,7 +1212,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), itof.name);
 				this->printer.printRed("= @itof ");
-				this->print_type(itof.toType);
+				this->printType(itof.toType);
 				this->printer.print(" ");
 				this->print_expr(itof.fromValue);
 				this->printer.println();
@@ -1223,7 +1223,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), uitof.name);
 				this->printer.printRed("= @uitof ");
-				this->print_type(uitof.toType);
+				this->printType(uitof.toType);
 				this->printer.print(" ");
 				this->print_expr(uitof.fromValue);
 				this->printer.println();
@@ -1234,7 +1234,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), ftoi.name);
 				this->printer.printRed("= @ftoi ");
-				this->print_type(ftoi.toType);
+				this->printType(ftoi.toType);
 				this->printer.print(" ");
 				this->print_expr(ftoi.fromValue);
 				this->printer.println();
@@ -1245,7 +1245,7 @@ namespace pcit::pir{
 
 				this->printer.print("{}${} ", tabs(2), ftoui.name);
 				this->printer.printRed("= @ftoui ");
-				this->print_type(ftoui.toType);
+				this->printType(ftoui.toType);
 				this->printer.print(" ");
 				this->print_expr(ftoui.fromValue);
 				this->printer.println();
@@ -2011,7 +2011,7 @@ namespace pcit::pir{
 
 				
 			}else if constexpr(std::is_same_v<ValueT, PtrCall>){
-				this->print_type(target.funcType);
+				this->printType(target.funcType);
 				this->printer.print(" ");
 				this->print_expr(target.location);
 

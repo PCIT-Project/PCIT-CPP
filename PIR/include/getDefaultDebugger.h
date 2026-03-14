@@ -11,32 +11,18 @@
 
 
 #include <Evo.h>
+#include <PCIT_core.h>
 
-namespace pcit::core{
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
-	};
+#include "./ExecutionEngine.h"
 
-	constexpr auto version = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 260,
-		.patch   = 0,
-	};
+
+namespace pcit::pir{
+
+	
+	EVO_NODISCARD auto getDefaultDebugger() -> ExecutionEngine::DebuggerFunc;
+
 
 }
- 	
 
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};
+

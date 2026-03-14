@@ -1,144 +1,283 @@
 
-func test = (val: [$T:3]*) -> Void {
-	
+
+
+impl [$$:*] #builtin("arrayRef.IterableRef") {
+	createIterator = (this) -> impl(ArrayRefIter<{This}>:@pthr.Iterator) {
+		return new impl(ArrayRefIter<{This}>:@pthr.Iterator)(this);
+	},
 }
+
+
+
+impl [$$:*mut] #builtin("arrayMutRef.IterableMutRef") {
+	createIterator = (this) -> impl(MutArrayRefIter<{This}>:@pthr.MutIterator) {
+		return new impl(MutArrayRefIter<{This}>:@pthr.MutIterator)(this);
+	},
+}
+
+
+
+
+
+func advancePointer = (ptr: $T*, num_elems: ISize = 1) #pub #unsafe -> T* {
+	var ptr_num: ISize = bitCast<{ISize}>(ptr);
+	ptr_num += numBytes<{T}>() as ISize * num_elems;
+	return bitCast<{T*}>(ptr_num);
+}
+
+func advancePointer = (ptr: $T*mut, num_elems: ISize = 1) #pub #unsafe -> T*mut {
+	var ptr_num: ISize = bitCast<{ISize}>(ptr);
+	ptr_num += numBytes<{T}>() as ISize * num_elems;
+	return bitCast<{T*mut}>(ptr_num);
+}
+
+
+
+
+
+type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+	type ELEM_TYPE = alias type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
+		return...;
+	}
+
+	func next = (this mut) -> Void {
+		assert(this.atEnd() == false);
+		unsafe{
+			this.current = advancePointer(this.current);
+		}
+	}
+
+	func get = (this) -> ELEM_TYPE* {
+		assert(this.atEnd() == false);
+		return copy this.current;
+	}
+
+	func atEnd = (this) -> Bool {
+		unsafe{
+			return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+		}
+	}
+
+
+	impl @pthr.Iterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	impl @pthr.IteratorRT {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	var current: ELEM_TYPE*;
+	var last: ELEM_TYPE*;
+}
+
+
+
+type MutArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
+	type ELEM_TYPE = alias type(@arrayRefElementTypeID<{ARRAY_REF_TYPE}>());
+
+	func new = (arr_ref_ptr: ARRAY_REF_TYPE) -> (output: This) {
+		output.current = arr_ref_ptr.data();
+		output.last = arr_ref_ptr[arr_ref_ptr.size() - 1];
+		return...;
+	}
+
+	func next = (this mut) -> Void {
+		assert(this.atEnd() == false);
+
+		unsafe{
+			this.current = advancePointer(this.current);
+		}
+	}
+
+	func get = (this) -> ELEM_TYPE*mut {
+		assert(this.atEnd() == false);
+		return copy this.current;
+	}
+
+	func atEnd = (this) -> Bool {
+		unsafe{
+			return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+		}
+	}
+
+
+	impl @pthr.MutIterator {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	impl @pthr.MutIteratorRT {
+		next  = next,
+		get   = get,
+		atEnd = atEnd,
+	}
+
+	var current: ELEM_TYPE*mut;
+	var last: ELEM_TYPE*mut;
+}
+
+
+
+
+
+
+
+
+func numBytes = <{T: Type, INCLUDE_PADDING: Bool = true}> () #pub -> USize {
+	return @numBytes<{T, INCLUDE_PADDING}>();
+}
+
+func numBits = <{T: Type, INCLUDE_PADDING: Bool = true}> () #pub -> USize {
+	return @numBits<{T, INCLUDE_PADDING}>();
+}
+
+
+
+func bitCast = <{To: Type}> (from: $From) #pub #unsafe -> To {
+	return @bitCast<{From, To}>(from);
+}
+
+
+
+
+func copyBuffer = (dst: [$T:*mut], src: [T:*]) -> Void {
+	// @comptimeAssert(
+	// 	types.isNoErrorCopyable<{T}>(),
+	// 	"mem.copyBuffer requires that buffer element must be no-error copyable"
+	// );
+	// assert(dst.size() == src.size(), "Sizes of buffers must be the same");
+
+
+	const buffer_size: USize = dst.size() * @numBytes<{T, true}>();
+
+	unsafe{
+		const dst_buffer = new [Byte:*mut](bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
+		const src_buffer = new [Byte:*](bitCast<{Byte*}>(src.data()), copy buffer_size);
+
+		for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
+			dst_value = copy src_value;
+		}
+	}
+}
+
+
+
+type ManualLifetime = struct <{T: Type}> #pub {
+	func get = (this) #unsafe -> T* { return bitCast<{T*}>(this.data.data()); }
+	func get = (this mut) #unsafe -> T*mut { return bitCast<{T*mut}>(this.data.data()); }
+	func getUninit = (this mut) #unsafe -> T*uninit { return bitCast<{T*uninit}>(this.data.data()); }
+	
+	var data: [Byte:@numBytes<{T, true}>()] #priv;
+}
+
+
+
+type StaticArrayList = struct <{T: Type}> #pub {
+	func new = () -> (output: This) {
+		output._data = new ManualLifetime<{T}>();
+		return...;
+	}
+
+
+	func new = (data: T) -> (output: This) {
+		output._data = new ManualLifetime<{T}>();
+
+		unsafe{
+			// output._data.getUninit().* = copy data;
+			// copyBuffer(new [T:*mut](output._data.get(), 1), new [T:*](&data, 1));
+
+			const dst = new [T:*mut](output._data.get(), 1);
+			const src = new [T:*](&data, 1);
+
+
+			// copyBuffer(dst, src);
+
+
+			const buffer_size: USize = dst.size() * @numBytes<{T, true}>();
+
+			const dst_buffer = new [Byte:*mut](bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
+			const src_buffer = new [Byte:*](bitCast<{Byte*}>(src.data()), copy buffer_size);
+
+			for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
+				dst_value = copy src_value;
+			}
+		}
+
+		return...;
+	}
+
+
+	///////////////////////////////////
+	// member vars
+
+	var _data: ManualLifetime<{T}>;
+}
+
+
+
+
+
+type Package = struct #pub {
+	type Directory = struct {
+		var num: Int;
+		var shouldBeTrue: Bool;
+	}
+
+
+	var sourceFiles = new StaticArrayList<{Int}>();
+	var sourceDirectories = new StaticArrayList<{Directory}>();
+}
+
+
+
+func assert = (cond: Bool) -> Void {
+	if(cond == false){
+		@abort();
+	}
+}
+
+
+
+func test = () -> UI8 {
+	const package = new Package{
+		sourceFiles       = new StaticArrayList<{Int}>(),
+		sourceDirectories = new StaticArrayList<{Package.Directory}>(
+			new Package.Directory{num = 12, shouldBeTrue = true}
+		),
+	};
+
+	unsafe{
+		// assert(package.sourceDirectories._data.get().num == 12);
+
+		const sbt: Bool = copy package.sourceDirectories._data.get().shouldBeTrue;
+		// // const sbt: Bool = true;
+		assert(sbt);
+
+		// return 0;
+
+		return package.sourceDirectories._data.get().shouldBeTrue as UI8;
+	}
+
+}
+
+
+
+const foo: UI8 = test();
 
 
 func entry = () #entry -> UI8 {
-	const arr1 = new [Int:3][1, 2, 3];
-	const arr2 = new [UInt:3][1, 2, 3];
-
-	test(&arr1);
-	test(&arr2);
-	
-	return 0;
+	return test();
 }
-
-
-//////////////////////////////////////////////////////////////////////
-// test to be saved
-
-// def std = @import("std");
-
-// func copyBuffer = (dst: [$T:*mut], src: [T:*]) -> Void {
-// 	// @comptimeAssert(
-// 	// 	std.types.isNoErrorCopyable<{T}>(),
-// 	// 	"std.mem.copyBuffer requires that buffer element must be no-error copyable"
-// 	// );
-// 	// std.assert(dst.size() == src.size(), "Sizes of buffers must be the same");
-
-
-// 	const buffer_size: USize = dst.size() * std.types.numBytes<{T}>();
-
-// 	unsafe{
-// 		const dst_buffer = new [Byte:*mut](std.bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
-// 		const src_buffer = new [Byte:*](std.bitCast<{Byte*}>(src.data()), copy buffer_size);
-
-// 		for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
-// 			dst_value = copy src_value;
-// 		}
-// 	}
-// }
-
-
-
-// type ManualLifetime = struct <{T: Type}> #pub {
-// 	func get = (this) #unsafe -> T* { return std.bitCast<{T*}>(this.data.data()); }
-// 	func get = (this mut) #unsafe -> T*mut { return std.bitCast<{T*mut}>(this.data.data()); }
-// 	func getUninit = (this mut) #unsafe -> T*uninit { return std.bitCast<{T*uninit}>(this.data.data()); }
-	
-// 	var data: [Byte:std.types.numBytes<{T}>()] #priv;
-// }
-
-
-
-// type StaticArrayList = struct <{T: Type}> #pub {
-// 	func new = () -> (output: This) {
-// 		output._data = new ManualLifetime<{T}>();
-// 		return...;
-// 	}
-
-
-// 	func new = (data: T) -> (output: This) {
-// 		output._data = new ManualLifetime<{T}>();
-
-// 		unsafe{
-// 			// output._data.getUninit().* = copy data;
-// 			// copyBuffer(new [T:*mut](output._data.get(), 1), new [T:*](&data, 1));
-
-// 			const dst = new [T:*mut](output._data.get(), 1);
-// 			const src = new [T:*](&data, 1);
-
-// 			copyBuffer(dst, src);
-
-
-// 			const buffer_size: USize = dst.size() * std.types.numBytes<{T}>();
-
-// 			const dst_buffer = new [Byte:*mut](std.bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
-// 			const src_buffer = new [Byte:*](std.bitCast<{Byte*}>(src.data()), copy buffer_size);
-
-// 			for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
-// 				dst_value = copy src_value;
-// 			}
-// 		}
-
-// 		return...;
-// 	}
-
-
-// 	///////////////////////////////////
-// 	// member vars
-
-// 	var _data: ManualLifetime<{T}>;
-// }
-
-
-
-
-
-// type Package = struct #pub {
-// 	type Directory = struct {
-// 		var num: Int;
-// 		var shouldBeTrue: Bool;
-// 		var padding: [Byte:7];
-// 	}
-
-
-// 	var sourceFiles = new StaticArrayList<{Int}>();
-// 	var sourceDirectories = new StaticArrayList<{Directory}>();
-// }
-
-
-
-// func assert = (cond: Bool) -> Void {
-// 	if(cond == false){
-// 		@abort();
-// 	}
-// }
-
-
-
-// func entry = () #entry -> UI8 {
-// 	const package = new Package{
-// 		sourceFiles       = new StaticArrayList<{Int}>(),
-// 		sourceDirectories = new StaticArrayList<{Package.Directory}>(
-// 			new Package.Directory{num = 12, shouldBeTrue = true, padding = new [Byte:7]()}
-// 		),
-// 	};
-
-// 	unsafe{
-// 		// assert(package.sourceDirectories._data.get().num == 12);
-
-// 		const sbt: Bool = copy package.sourceDirectories._data.get().shouldBeTrue;
-// 		// // const sbt: Bool = true;
-// 		assert(sbt);
-
-// 		// return 0;
-
-// 		return package.sourceDirectories._data.get().shouldBeTrue as UI8;
-// 	}
-
-// }
 
 
 

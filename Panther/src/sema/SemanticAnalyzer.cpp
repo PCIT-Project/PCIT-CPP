@@ -23422,6 +23422,10 @@ namespace pcit::panther{
 					infos.emplace_back("Cause of error: abort");
 				} break;
 
+				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
+					infos.emplace_back("Cause of error: breakpoint");
+				} break;
+
 				case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {
 					infos.emplace_back(
 						std::format(
@@ -23429,10 +23433,6 @@ namespace pcit::panther{
 							this->context.comptime_execution_engine.maxCallDepth()
 						)
 					);
-				} break;
-
-				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
-					infos.emplace_back("Cause of error: breakpoint");
 				} break;
 
 				case pir::ExecutionEngine::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS: {

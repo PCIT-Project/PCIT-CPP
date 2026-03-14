@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.260.0"></a>
+## v0.0.260.0
+
+### Panther
+- Added automatic running of PIR default debugger when running comptime function
+
+### PIR
+- Added debugger support to `ExecutionEngine`
+- Added default debugger (`pir::getDefaultDebugger()`)
+
+
+<!---------------------------------->
 <a name="v0.0.259.0"></a>
 ## v0.0.259.0
 

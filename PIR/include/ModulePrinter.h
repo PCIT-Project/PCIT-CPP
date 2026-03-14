@@ -28,14 +28,15 @@ namespace pcit::pir{
 
 			auto print() -> void;
 
+			auto printFunction(const class Function& function) -> void;
+			auto printExternalFunction(const struct ExternalFunction& external_function) -> void;
+			auto printStructType(const struct StructType& struct_type) -> void;
+			auto printGlobalVar(const struct GlobalVar& global_var) -> void;
+			auto printGlobalVarValue(const GlobalVar::Value& global_var_value) -> void;
+			auto printBasicBlock(const class BasicBlock& basic_block) -> void;
+			auto printType(const class Type& type) -> void;
+
 		private:
-			auto print_function(const class Function& function) -> void;
-			auto print_external_function(const struct ExternalFunction& external_function) -> void;
-			auto print_struct_type(const struct StructType& struct_type) -> void;
-			auto print_global_var(const struct GlobalVar& global_var) -> void;
-			auto print_global_var_value(const GlobalVar::Value& global_var_value) -> void;
-			auto print_basic_block(const class BasicBlock& basic_block) -> void;
-			auto print_type(const class Type& type) -> void;
 			auto print_expr(const Expr& expr) -> void;
 			auto print_expr_stmt(const Expr& expr) -> void;
 

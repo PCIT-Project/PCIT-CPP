@@ -11,6 +11,9 @@
 
 #include <csignal>
 
+#include "../include/getDefaultDebugger.h"
+#include "../include/ExecutionEngineDebuggerInterface.h"
+
 
 namespace pcit::pir{
 
@@ -82,6 +85,10 @@ namespace pcit::pir{
 	}
 
 
+	auto ExecutionEngine::setDefaultDebugger() -> void {
+		this->setDebugger(getDefaultDebugger());
+	}
+
 
 	auto ExecutionEngine::runFunction(Function::ID func_id, std::span<core::GenericValue> arguments)
 	-> evo::Expected<core::GenericValue, FuncRunError> {
@@ -101,6 +108,18 @@ namespace pcit::pir{
 		Executor& created_executor = this->executors_alloc.emplace_back(*this);
 		this->executors.emplace(this_id, created_executor);
 		return created_executor;
+	}
+
+
+
+	auto ExecutionEngine::run_debugger(Executor& executor)
+	-> std::optional<evo::Expected<core::GenericValue, FuncRunError::Code>> {
+		const auto lock = std::scoped_lock(this->debugger_lock);
+
+		if(static_cast<bool>(this->debugger_func) == false){ return std::nullopt; }
+
+		auto debugger_interface = ExecutionEngineDebuggerInterface(executor);
+		return this->debugger_func(debugger_interface, this->module);
 	}
 
 
