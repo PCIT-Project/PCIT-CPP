@@ -33,18 +33,27 @@ namespace pcit::pir{
 
 	auto ExecutionEngineDebuggerInterface::continueExecution() const
 	-> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code> {
-		if(
-			this->executor.last_error.has_value()
-			&& *this->executor.last_error != ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT
-		){
+		if(this->may_continue_execution() == false){
 			return evo::Unexpected(*this->executor.last_error);
 		}
 
-
 		this->executor.last_error.reset();
-		this->executor.stack_frames.back().instruction_index += 1;
+		// this->executor.stack_frames.back().instruction_index += 1;
 		return this->executor.run_function_impl();
 	}
+
+	auto ExecutionEngineDebuggerInterface::stepExecution() const -> std::optional<core::GenericValue> {
+		if(this->may_continue_execution() == false){
+			return std::nullopt;
+		}
+
+		this->executor.last_error.reset();
+		// this->executor.stack_frames.back().instruction_index += 1;
+		return this->executor.run_step();
+	}
+
+
+
 
 	
 	auto ExecutionEngineDebuggerInterface::getStackTrace() const -> evo::SmallVector<pir::Function::ID> {
@@ -55,6 +64,12 @@ namespace pcit::pir{
 		}
 
 		return stack_trace;
+	}
+
+
+	auto ExecutionEngineDebuggerInterface::may_continue_execution() const -> bool {
+		return this->executor.last_error.has_value() == false
+			|| *this->executor.last_error == ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT;
 	}
 
 

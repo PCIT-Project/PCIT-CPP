@@ -20,6 +20,7 @@ namespace pcit::core{
 			enum class Mode{
 				CONSOLE_COLOR,
 				CONSOLE,
+				STRING_COLOR,
 				STRING,
 
 				UNINIT, // to facilitate move
@@ -40,8 +41,17 @@ namespace pcit::core{
 				return createConsole(platformSupportsColor() == DetectResult::YES);
 			}
 
+
+			static EVO_NODISCARD auto createString(bool with_color) -> Printer {
+				if(with_color){
+					return Printer(Mode::STRING_COLOR);
+				}else{
+					return Printer(Mode::STRING);
+				}
+			}
+
 			static EVO_NODISCARD auto createString() -> Printer {
-				return Printer(Mode::STRING);
+				return createString(platformSupportsColor() == DetectResult::YES);
 			}
 
 
@@ -59,17 +69,32 @@ namespace pcit::core{
 			EVO_NODISCARD static auto platformSupportsColor() -> DetectResult;
 
 
-			EVO_NODISCARD auto isPrintingColor() const -> bool { return this->mode == Mode::CONSOLE_COLOR; }
+			EVO_NODISCARD auto isPrintingColor() const -> bool {
+				return this->mode == Mode::CONSOLE_COLOR || this->mode == Mode::STRING_COLOR;
+			}
+
 			EVO_NODISCARD auto isPrintingToConsle() const -> bool {
 				return this->mode == Mode::CONSOLE_COLOR || this->mode == Mode::CONSOLE;
 			}
 
-			EVO_NODISCARD auto isPrintingString() const -> bool { return this->mode == Mode::STRING; }
+			EVO_NODISCARD auto isPrintingString() const -> bool {
+				return this->mode == Mode::STRING_COLOR || this->mode == Mode::STRING;
+			}
 
 
-			EVO_NODISCARD auto getString() const -> std::string {
+			EVO_NODISCARD auto getString() const& -> const std::string& {
 				evo::debugAssert(this->isPrintingString(), "not printing a string");
 				return this->string;
+			}
+
+			EVO_NODISCARD auto getString() & -> std::string& {
+				evo::debugAssert(this->isPrintingString(), "not printing a string");
+				return this->string;
+			}
+
+			EVO_NODISCARD auto getString() && -> std::string&& {
+				evo::debugAssert(this->isPrintingString(), "not printing a string");
+				return std::move(this->string);
 			}
 
 

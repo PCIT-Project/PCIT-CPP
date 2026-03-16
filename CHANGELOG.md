@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.261.0"></a>
+## v0.0.261.0
+
+### pthr
+- Improved performance of printing PIR to console
+
+### PIR
+- Added step execution to `ExecutionEngine` debugger
+	- added it to default debugger as a command
+- Added showing the line where execution stopped when printing function from stack frame index
+
+### PCIT_core
+- Added string color option to `Printer`
+- Fixed `Printer::println` when using string mode
+
+
+<!---------------------------------->
 <a name="v0.0.260.0"></a>
 ## v0.0.260.0
 

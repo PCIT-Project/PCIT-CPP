@@ -37,6 +37,37 @@
 namespace pcit::core{
 
 
+	namespace styleConsole{
+		static constexpr auto reset()  -> std::string_view { return "\033[0m"; };
+
+		namespace text{
+			static constexpr auto white()    -> std::string_view { return "\033[37m"; };
+			static constexpr auto gray()     -> std::string_view { return "\033[90m"; };
+			static constexpr auto black()    -> std::string_view { return "\033[30m"; };
+
+			static constexpr auto red()      -> std::string_view { return "\033[31m"; };
+			static constexpr auto yellow()   -> std::string_view { return "\033[33m"; };
+			static constexpr auto green()    -> std::string_view { return "\033[32m"; };
+			static constexpr auto cyan()     -> std::string_view { return "\033[36m"; };
+			static constexpr auto blue()     -> std::string_view { return "\033[34m"; };
+			static constexpr auto magenta()  -> std::string_view { return "\033[35m"; };
+		};
+
+		namespace background{
+			static constexpr auto white()    -> std::string_view { return "\033[47m"; };
+			static constexpr auto gray()     -> std::string_view { return "\033[100m"; };
+			static constexpr auto black()    -> std::string_view { return "\033[40m"; };
+
+			static constexpr auto red()      -> std::string_view { return "\033[41m"; };
+			static constexpr auto yellow()   -> std::string_view { return "\033[43m"; };
+			static constexpr auto green()    -> std::string_view { return "\033[42m"; };
+			static constexpr auto cyan()     -> std::string_view { return "\033[46m"; };
+			static constexpr auto blue()     -> std::string_view { return "\033[44m"; };
+			static constexpr auto magenta()  -> std::string_view { return "\033[45m"; };
+		};
+	}
+
+
 
 	Printer::Printer(Mode _mode) : mode(_mode) {
 		#if defined(EVO_PLATFORM_WINDOWS)
@@ -125,6 +156,7 @@ namespace pcit::core{
 	auto Printer::println(std::string_view str) -> void {
 		if(this->isPrintingString()){
 			this->string += str;
+			this->string += '\n';
 		}else{
 			evo::println(str);
 		}
@@ -133,9 +165,11 @@ namespace pcit::core{
 
 	auto Printer::printFatal(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::fatal();
+			this->print(styleConsole::text::white());
+			this->print(styleConsole::background::red());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
+
 		}else{
 			this->print(str);
 		}
@@ -143,9 +177,9 @@ namespace pcit::core{
 	
 	auto Printer::printError(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::error();
+			this->print(styleConsole::text::red());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -153,9 +187,9 @@ namespace pcit::core{
 	
 	auto Printer::printWarning(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::warning();
+			this->print(styleConsole::text::yellow());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -163,9 +197,9 @@ namespace pcit::core{
 	
 	auto Printer::printInfo(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::info();
+			this->print(styleConsole::text::cyan());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -173,9 +207,9 @@ namespace pcit::core{
 
 	auto Printer::printSuccess(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::success();
+			this->print(styleConsole::text::green());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -184,9 +218,9 @@ namespace pcit::core{
 
 	auto Printer::printRed(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::red();
+			this->print(styleConsole::text::red());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -194,9 +228,9 @@ namespace pcit::core{
 	
 	auto Printer::printYellow(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::yellow();
+			this->print(styleConsole::text::yellow());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -204,9 +238,9 @@ namespace pcit::core{
 	
 	auto Printer::printGreen(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::green();
+			this->print(styleConsole::text::green());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -214,9 +248,9 @@ namespace pcit::core{
 	
 	auto Printer::printBlue(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::blue();
+			this->print(styleConsole::text::blue());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -224,9 +258,9 @@ namespace pcit::core{
 	
 	auto Printer::printCyan(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::cyan();
+			this->print(styleConsole::text::cyan());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -234,9 +268,9 @@ namespace pcit::core{
 	
 	auto Printer::printMagenta(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::magenta();
+			this->print(styleConsole::text::magenta());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}
@@ -244,9 +278,9 @@ namespace pcit::core{
 	
 	auto Printer::printGray(std::string_view str) -> void {
 		if(this->isPrintingColor()){
-			evo::styleConsole::text::gray();
+			this->print(styleConsole::text::gray());
 			this->print(str);
-			evo::styleConsole::reset();
+			this->print(styleConsole::reset());
 		}else{
 			this->print(str);
 		}

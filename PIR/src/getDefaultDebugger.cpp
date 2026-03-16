@@ -159,10 +159,10 @@ namespace pcit::pir{
 				}
 
 				if(args[0] == "c" || args[0] == "continue"){
-					const evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code>
+					evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code>
 						continue_execution = this->debugger.continueExecution();
 
-					if(continue_execution.has_value()){ return continue_execution.value(); }
+					if(continue_execution.has_value()){ return std::move(continue_execution.value()); }
 
 					switch(continue_execution.error()){
 						break; case ExecutionEngineExecutor::FuncRunError::Code::ABORT:
@@ -196,6 +196,48 @@ namespace pcit::pir{
 					continue;
 				}
 
+
+				if(args[0] == "s" || args[0] == "step"){
+					std::optional<core::GenericValue> step_execution = this->debugger.stepExecution();
+
+					if(step_execution.has_value()){ return step_execution.value(); }
+
+					if(this->debugger.getLastErrorCode().has_value()){
+						switch(*this->debugger.getLastErrorCode()){
+							break; case ExecutionEngineExecutor::FuncRunError::Code::ABORT:
+								evo::printBlue("Process stopped with code: ABORT\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT:
+								evo::printBlue("Process stopped with code: BREAKPOINT\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH:
+								evo::printBlue("Process stopped with code: EXCEEDED_MAX_CALL_DEPTH\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS:
+								evo::printBlue("Process stopped with code: OUT_OF_BOUNDS_ACCESS\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::NULLPTR_ACCESS:
+								evo::printBlue("Process stopped with code: NULLPTR_ACCESS\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::SEG_FAULT:
+								evo::printBlue("Process stopped with code: SEG_FAULT\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::ARITHMETIC_WRAP:
+								evo::printBlue("Process stopped with code: ARITHMETIC_WRAP\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::FLOATING_POINT_EXCEPTION:
+								evo::printBlue("Process stopped with code: FLOATING_POINT_EXCEPTION\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
+								evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION\n\n");
+						}
+					}
+
+					continue;
+				}
+
+
+
 				const auto command_find = this->runners.find(args[0]);
 
 				if(command_find == this->runners.end()){
@@ -215,13 +257,17 @@ namespace pcit::pir{
 		auto command_help(evo::ArrayProxy<std::string_view> args) -> void {
 			std::ignore = args;
 			evo::println(R"(Help:
-	q  | quit          quit the debugger
-	st | stack-trace   print stack trace
-	c  | continue      continue execution
-	p  | print         print value
-	pf | print-func    print function by name
-	help               print the help
-)");
+	Commands:
+		q  | quit          quit the debugger        
+		st | stack-trace   print stack trace        
+		s  | step          step execution           
+		c  | continue      continue execution       
+		p  | print         print value              pf {expr} | pf {stack-frame} {expr}
+		pf | print-func    print function by name   pf | pf {func} | pf {stack-frame}
+		help               print the help           
+
+	Use `@x` to access stack frame number `x`
+	Use `@@` to access the current stack frame)");
 		}
 
 
@@ -263,7 +309,6 @@ namespace pcit::pir{
 
 				case 3: {
 					expr_name = args[2];
-
 
 					const evo::Result<const ExecutionEngineExecutor::StackFrame*> stack_frame_res =
 						this->get_stack_frame_from_arg(args[1]);
@@ -350,11 +395,6 @@ namespace pcit::pir{
 
 
 		auto command_print_func(evo::ArrayProxy<std::string_view> args) -> void {
-			if(args.size() < 2){
-				evo::printlnRed("Function argument required");
-				return;
-			}
-
 			if(args.size() > 2){
 				evo::printlnRed("Too many arguments");
 				return;
@@ -364,13 +404,18 @@ namespace pcit::pir{
 			this->setup_func_lookup_if_needed();
 
 			const Function* target_function = nullptr;
+			const ExecutionEngineExecutor::StackFrame* stack_frame = nullptr;
 
-			if(args[1][0] == '@'){
+			if(args.size() == 1){
+				target_function = &this->get_current_stack_frame().reader_agent.getTargetFunction();
+
+			}else if(args[1][0] == '@'){
 				const evo::Result<const ExecutionEngineExecutor::StackFrame*> stack_frame_res = 
 					this->get_stack_frame_from_arg(args[1]);
 
 				if(stack_frame_res.isError()){ return; }
 
+				stack_frame = stack_frame_res.value();
 				target_function = &stack_frame_res.value()->reader_agent.getTargetFunction();
 				
 			}else{
@@ -385,9 +430,78 @@ namespace pcit::pir{
 			}
 
 
-			auto printer = core::Printer::createConsole(true);
+			auto printer = core::Printer::createString(true);
+
 			auto module_printer = ModulePrinter(this->module, printer);
 			module_printer.printFunction(*target_function);
+
+			if(stack_frame != nullptr){
+				const std::string_view target_basic_block_name = stack_frame->current_basic_block->getName();
+
+				enum class SearchState{
+					LOOKING_FOR_BASIC_BLOCK,
+					LOOKING_FOR_EXPR,
+					LOOKING_FOR_BEGIN_OF_EXPR,
+					LOOKING_FOR_END_OF_EXPR,
+					DONE,
+				};
+
+				SearchState search_state = SearchState::LOOKING_FOR_BASIC_BLOCK;
+
+				size_t found_expressions = 0;
+
+				for(size_t i = 0; i < printer.getString().size(); i+=1){
+					switch(search_state){
+						case SearchState::LOOKING_FOR_BASIC_BLOCK: {
+							if(printer.getString()[i] == ':' && printer.getString()[i + 1] == '\n'){
+								const auto basic_block_name_cmp_target = std::string_view(
+									&printer.getString()[i - target_basic_block_name.size()],
+									target_basic_block_name.size()
+								);
+
+								if(basic_block_name_cmp_target == target_basic_block_name){
+									search_state = SearchState::LOOKING_FOR_EXPR;
+								}
+							}
+						} break;
+
+						case SearchState::LOOKING_FOR_EXPR: {
+							if(printer.getString()[i] == '\n'){
+								found_expressions += 1;
+							}
+
+							if(found_expressions == stack_frame->instruction_index){
+								search_state = SearchState::LOOKING_FOR_BEGIN_OF_EXPR;
+							}	
+						} break;
+
+						case SearchState::LOOKING_FOR_BEGIN_OF_EXPR: {
+							if(printer.getString()[i] == '@' || printer.getString()[i] == '$'){
+								printer.getString().insert(i, "\033[100m");
+								search_state = SearchState::LOOKING_FOR_END_OF_EXPR;
+								i += 5;
+							}
+						} break;
+
+						case SearchState::LOOKING_FOR_END_OF_EXPR: {
+							if(std::string_view(&printer.getString()[i], 4) == "\033[0m"){
+								printer.getString().insert(i + 4, "\033[100m");
+								i += 7;
+
+							}else if(printer.getString()[i] == '\n'){
+								printer.getString().insert(i, "\033[40m");
+								search_state = SearchState::DONE;
+							}
+						} break;
+
+						case SearchState::DONE: evo::unimplemented("Should have broken out of loop already");
+					}
+
+					if(search_state == SearchState::DONE){ break; }
+				}
+			}
+
+			evo::print(printer.getString());
 		}
 
 

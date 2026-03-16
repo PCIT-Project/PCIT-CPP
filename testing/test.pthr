@@ -192,6 +192,7 @@ type StaticArrayList = struct <{T: Type}> #pub {
 	func new = (data: T) -> (output: This) {
 		output._data = new ManualLifetime<{T}>();
 
+
 		unsafe{
 			// output._data.getUninit().* = copy data;
 			// copyBuffer(new [T:*mut](output._data.get(), 1), new [T:*](&data, 1));
@@ -208,6 +209,7 @@ type StaticArrayList = struct <{T: Type}> #pub {
 			const dst_buffer = new [Byte:*mut](bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
 			const src_buffer = new [Byte:*](bitCast<{Byte*}>(src.data()), copy buffer_size);
 
+			@breakpoint();
 			for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
 				dst_value = copy src_value;
 			}

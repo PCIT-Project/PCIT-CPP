@@ -33,7 +33,13 @@ namespace pcit::pir{
 			EVO_NODISCARD auto continueExecution() const
 				-> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code>;
 
+			EVO_NODISCARD auto stepExecution() const -> std::optional<core::GenericValue>;
+
 			EVO_NODISCARD auto getStackTrace() const -> evo::SmallVector<pir::Function::ID>;
+
+
+		private:
+			EVO_NODISCARD auto may_continue_execution() const -> bool;
 
 	
 		private:

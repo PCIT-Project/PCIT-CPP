@@ -210,7 +210,7 @@ namespace pcit::pir{
 
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -232,7 +232,7 @@ namespace pcit::pir{
 
 					if(target_function_id_lookup.has_value() == false){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
@@ -264,7 +264,7 @@ namespace pcit::pir{
 
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -307,7 +307,7 @@ namespace pcit::pir{
 					);
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -329,7 +329,7 @@ namespace pcit::pir{
 
 					if(target_function_id_lookup.has_value() == false){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
@@ -360,7 +360,7 @@ namespace pcit::pir{
 					);
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -403,7 +403,7 @@ namespace pcit::pir{
 					);
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -425,7 +425,7 @@ namespace pcit::pir{
 
 					if(target_function_id_lookup.has_value() == false){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
@@ -456,7 +456,7 @@ namespace pcit::pir{
 					);
 					if(this->stack_frames.size() > this->engine.max_call_depth){
 						this->last_error = FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH;
-						return std::nullopt;
+						break;
 					}
 
 					new_stack_frame.params = std::move(params);
@@ -469,12 +469,10 @@ namespace pcit::pir{
 
 			case Expr::Kind::ABORT: {
 				this->last_error = FuncRunError::Code::ABORT;
-				return std::nullopt;
 			} break;
 
 			case Expr::Kind::BREAKPOINT: {
 				this->last_error = FuncRunError::Code::BREAKPOINT;
-				return std::nullopt;
 			} break;
 
 			case Expr::Kind::RET: {
@@ -537,7 +535,7 @@ namespace pcit::pir{
 
 			case Expr::Kind::UNREACHABLE: {
 				this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-				return std::nullopt;
+				break;
 			} break;
 
 			case Expr::Kind::PHI: {
@@ -555,7 +553,7 @@ namespace pcit::pir{
 
 				if(found == false){
 					this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-					return std::nullopt;
+					break;
 				}
 			} break;
 
@@ -606,7 +604,7 @@ namespace pcit::pir{
 				const std::byte* source_ptr = this->get_expr_ptr(load_inst.source, stack_frame);
 				if(source_ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				const auto data_proxy = evo::ArrayProxy<std::byte>(source_ptr, type_size);
@@ -617,7 +615,7 @@ namespace pcit::pir{
 						generic_value = core::GenericValue::fromData(data_proxy);
 					}__except(0x1){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 					stack_frame.registers[expr] = std::move(generic_value);
@@ -636,7 +634,7 @@ namespace pcit::pir{
 				std::byte* destination_ptr = this->get_expr_ptr(store_inst.destination, stack_frame);
 				if(destination_ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				core::GenericValue* const value_ptr_generic =
@@ -650,7 +648,7 @@ namespace pcit::pir{
 							std::memmove(destination_ptr, value_ptr, store_type_size);
 						}__except(0x1){
 							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-							return std::nullopt;
+							break;
 						}
 
 					#else
@@ -665,7 +663,7 @@ namespace pcit::pir{
 							*dst_pointer_full = 0;
 						}__except(0x1){
 							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-							return std::nullopt;
+							break;
 						}
 
 					#else
@@ -682,7 +680,7 @@ namespace pcit::pir{
 				std::byte* ptr = this->get_expr_ptr(calc_ptr_inst.basePtr, stack_frame);
 				if(ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				const auto get_index = [&](const CalcPtr::Index& index) -> int64_t {
@@ -706,13 +704,13 @@ namespace pcit::pir{
 					if(ptr_type.kind() == Type::Kind::ARRAY){
 						if(index < 0){
 							this->last_error = FuncRunError::Code::OUT_OF_BOUNDS_ACCESS;
-							return std::nullopt;
+							break;
 						}
 
 						const ArrayType& array_type = this->engine.module.getArrayType(ptr_type);
 						if(uint64_t(index) + 1 > array_type.length){
 							this->last_error = FuncRunError::Code::OUT_OF_BOUNDS_ACCESS;
-							return std::nullopt;
+							break;
 						}
 
 						ptr_type = array_type.elemType;
@@ -723,13 +721,13 @@ namespace pcit::pir{
 					}else if(ptr_type.kind() == Type::Kind::STRUCT){
 						if(index < 0){
 							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-							return std::nullopt;
+							break;
 						}
 
 						const StructType& struct_type = this->engine.module.getStructType(ptr_type);
 						if(uint64_t(index) + 1 > struct_type.members.size()){
 							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-							return std::nullopt;
+							break;
 						}
 
 						size_t offset = 0;
@@ -755,13 +753,13 @@ namespace pcit::pir{
 				std::byte* dst_ptr = this->get_expr_ptr(memcpy_inst.dst, stack_frame);
 				if(dst_ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				std::byte* src_ptr = this->get_expr_ptr(memcpy_inst.src, stack_frame);
 				if(src_ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				const core::GenericValue& num_bytes_generic = this->get_expr(memcpy_inst.numBytes, stack_frame);
@@ -772,7 +770,7 @@ namespace pcit::pir{
 						std::memcpy(dst_ptr, src_ptr, num_bytes);
 					}__except(0x1){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 				#else
@@ -786,7 +784,7 @@ namespace pcit::pir{
 				std::byte* dst_ptr = this->get_expr_ptr(memset_inst.dst, stack_frame);
 				if(dst_ptr == nullptr){
 					this->last_error = FuncRunError::Code::NULLPTR_ACCESS;
-					return std::nullopt;
+					break;
 				}
 
 				const core::GenericValue& value_generic = this->get_expr(memset_inst.value, stack_frame);
@@ -800,7 +798,7 @@ namespace pcit::pir{
 						std::memset(dst_ptr, value, num_bytes);
 					}__except(0x1){
 						this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
-						return std::nullopt;
+						break;
 					}
 
 				#else
@@ -997,13 +995,13 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult unsigned_result = lhs.uadd(rhs);
 						if(unsigned_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						core::GenericInt::WrapResult signed_result = lhs.sadd(rhs);
 						if(signed_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
@@ -1012,7 +1010,7 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult result = lhs.sadd(rhs);
 						if(result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 						stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
 					}
@@ -1021,7 +1019,7 @@ namespace pcit::pir{
 					core::GenericInt::WrapResult result = lhs.uadd(rhs);
 					if(result.wrapped){
 						this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-						return std::nullopt;
+						break;
 					}
 					stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
 					
@@ -1133,14 +1131,14 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult unsigned_result = lhs.usub(rhs);
 						if(unsigned_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 
 						core::GenericInt::WrapResult signed_result = lhs.ssub(rhs);
 						if(signed_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
@@ -1149,7 +1147,7 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult result = lhs.ssub(rhs);
 						if(result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1159,7 +1157,7 @@ namespace pcit::pir{
 					core::GenericInt::WrapResult result = lhs.usub(rhs);
 					if(result.wrapped){
 						this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-						return std::nullopt;
+						break;
 					}
 
 					stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1272,13 +1270,13 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult unsigned_result = lhs.umul(rhs);
 						if(unsigned_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						core::GenericInt::WrapResult signed_result = lhs.smul(rhs);
 						if(signed_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
@@ -1287,7 +1285,7 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult result = lhs.smul(rhs);
 						if(result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1297,7 +1295,7 @@ namespace pcit::pir{
 					core::GenericInt::WrapResult result = lhs.umul(rhs);
 					if(result.wrapped){
 						this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-						return std::nullopt;
+						break;
 					}
 
 					stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1729,13 +1727,13 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult unsigned_result = lhs.ushl(rhs);
 						if(unsigned_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						core::GenericInt::WrapResult signed_result = lhs.sshl(rhs);
 						if(signed_result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(unsigned_result.result));	
@@ -1744,7 +1742,7 @@ namespace pcit::pir{
 						core::GenericInt::WrapResult result = lhs.sshl(rhs);
 						if(result.wrapped){
 							this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-							return std::nullopt;
+							break;
 						}
 
 						stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1754,7 +1752,7 @@ namespace pcit::pir{
 					core::GenericInt::WrapResult result = lhs.ushl(rhs);
 					if(result.wrapped){
 						this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-						return std::nullopt;
+						break;
 					}
 
 					stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1800,7 +1798,7 @@ namespace pcit::pir{
 				core::GenericInt::WrapResult result = lhs.sshr(rhs);
 				if(result.wrapped){
 					this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-					return std::nullopt;
+					break;
 				}
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(result.result));
@@ -1818,7 +1816,7 @@ namespace pcit::pir{
 				core::GenericInt::WrapResult result = lhs.ushr(rhs);
 				if(result.wrapped){
 					this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
-					return std::nullopt;
+					break;
 				}
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(result.result));

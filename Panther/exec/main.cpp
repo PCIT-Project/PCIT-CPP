@@ -515,8 +515,13 @@ EVO_NODISCARD static auto run_compile(
 				return evo::resultError;
 			}
 
+
+			auto printer_for_pir_module = core::Printer::createString(printer.isPrintingColor());
+
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
-			pir::printModule(context.getPIRModule(), printer);
+			pir::printModule(context.getPIRModule(), printer_for_pir_module);
+
+			evo::print(printer_for_pir_module.getString());
 
 			return evo::Result<>();
 		} break;
