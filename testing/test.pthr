@@ -58,7 +58,12 @@ type ArrayRefIter = struct <{ARRAY_REF_TYPE: Type}> #pub {
 
 	func atEnd = (this) -> Bool {
 		unsafe{
-			return bitCast<{USize}>(this.current) > bitCast<{USize}>(this.last);
+			const lhs: USize = bitCast<{USize}>(this.current);
+			const rhs: USize = bitCast<{USize}>(this.last);
+
+			if(lhs > rhs){ @breakpoint(); }
+
+			return lhs > rhs;
 		}
 	}
 
@@ -209,7 +214,6 @@ type StaticArrayList = struct <{T: Type}> #pub {
 			const dst_buffer = new [Byte:*mut](bitCast<{Byte*mut}>(dst.data()), copy buffer_size);
 			const src_buffer = new [Byte:*](bitCast<{Byte*}>(src.data()), copy buffer_size);
 
-			@breakpoint();
 			for(dst_buffer, src_buffer) [i: USize; dst_value: Byte mut, src_value: Byte] {
 				dst_value = copy src_value;
 			}

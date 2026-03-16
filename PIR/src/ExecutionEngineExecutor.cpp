@@ -561,17 +561,17 @@ namespace pcit::pir{
 				const Switch& switch_inst = stack_frame.reader_agent.getSwitch(expr);
 
 				const Type expr_pir_type = stack_frame.reader_agent.getExprType(switch_inst.cond);
-				const size_t expr_size = this->engine.module.getSize(expr_pir_type, false);
+				const unsigned num_bits = unsigned(this->engine.module.getSize(expr_pir_type, false) * 8);
 
 				const core::GenericValue& generic_cond = this->get_expr(switch_inst.cond, stack_frame);
-				const core::GenericInt cond = generic_cond.getInt(unsigned(expr_size * 8));
+				const core::GenericInt cond = generic_cond.getInt(num_bits);
 
 				stack_frame.previous_basic_block_id = stack_frame.current_basic_block_id;
 
 				bool found = false;
 				for(const Switch::Case& switch_case : switch_inst.cases){
 					const core::GenericValue& generic_case_value = this->get_expr(switch_case.value, stack_frame);
-					const core::GenericInt case_value = generic_case_value.getInt(unsigned(expr_size * 8));
+					const core::GenericInt case_value = generic_case_value.getInt(num_bits);
 
 					if(cond.eq(case_value)){
 						stack_frame.current_basic_block_id = switch_case.block;
@@ -1619,10 +1619,10 @@ namespace pcit::pir{
 				const UGT& ugt_inst = stack_frame.reader_agent.getUGT(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ugt_inst.lhs);
-				const size_t arg_size = this->engine.module.getSize(arg_type);
+				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
 
-				const core::GenericInt lhs = this->get_expr(ugt_inst.lhs, stack_frame).getInt(unsigned(arg_size));
-				const core::GenericInt rhs = this->get_expr(ugt_inst.rhs, stack_frame).getInt(unsigned(arg_size));
+				const core::GenericInt lhs = this->get_expr(ugt_inst.lhs, stack_frame).getInt(num_bits);
+				const core::GenericInt rhs = this->get_expr(ugt_inst.rhs, stack_frame).getInt(num_bits);
 
 				stack_frame.registers[expr] = core::GenericValue(lhs.ugt(rhs));
 			} break;
@@ -2283,9 +2283,9 @@ namespace pcit::pir{
 					return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(param_ptr)).first->second;
 
 				}else{
-					const size_t type_size = this->engine.module.getSize(param_type);
+					const size_t num_bytes = this->engine.module.getSize(param_type);
 					return &stack_frame.registers.emplace(
-						expr, core::GenericValue::fromData(evo::ArrayProxy<std::byte>(param_ptr, type_size))
+						expr, core::GenericValue::fromData(evo::ArrayProxy<std::byte>(param_ptr, num_bytes))
 					).first->second;
 				}
 
@@ -2470,11 +2470,11 @@ namespace pcit::pir{
 
 				size_t offset = 0;
 				for(size_t i = 0; const Type& member_type : struct_type.members){
-					const size_t member_type_size = this->engine.module.getSize(member_type);
+					const size_t member_num_bytes = this->engine.module.getSize(member_type);
 
-					this->lower_global_value(struct_value.values[i], dst.subspan(offset, member_type_size));
+					this->lower_global_value(struct_value.values[i], dst.subspan(offset, member_num_bytes));
 					
-					offset += member_type_size;
+					offset += member_num_bytes;
 					i += 1;
 				}
 
@@ -2491,10 +2491,10 @@ namespace pcit::pir{
 		size_t total_allocas_size = 0;
 
 		for(const Alloca& alloca_info : stack_frame.reader_agent.getTargetFunction().getAllocasRange()){
-			const size_t alloca_size = this->engine.module.getSize(alloca_info.type);
+			const size_t alloca_num_bytes = this->engine.module.getSize(alloca_info.type);
 
 			stack_frame.alloca_offsets.emplace(&alloca_info, total_allocas_size);
-			total_allocas_size += alloca_size;
+			total_allocas_size += alloca_num_bytes;
 		}
 
 		stack_frame.alloca_buffer = std::make_unique<std::byte[]>(total_allocas_size);
