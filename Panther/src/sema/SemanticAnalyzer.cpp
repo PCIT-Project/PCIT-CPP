@@ -17631,18 +17631,66 @@ namespace pcit::panther{
 			}
 
 
-			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-				selected_func_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
-			);
 
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				target_type.asTypeID(),
-				sema::Expr(conversion_call)
-			);
-			return Result::SUCCESS;
+			if constexpr(IS_COMPTIME){
+				SymbolProc& selected_func_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
+
+				const SymbolProc::WaitOnResult wait_on_result =
+					selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED:
+						break;
+
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*selected_func.symbolProcID);
+						[[fallthrough]];
+					}
+
+					case SymbolProc::WaitOnResult::WAITING:
+						return Result::NEED_TO_WAIT;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return Result::ERROR;
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						evo::debugFatalBreak("Shouldn't be possible");
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						evo::debugFatalBreak("Shouldn't be possible");
+				}
+
+				const evo::Result<sema::Expr> comptime_as_res = this->comptime_func_call(
+					selected_func_id, expr.getExpr(), this->get_location(instr.infix)
+				);
+				if(comptime_as_res.isError()){ return Result::ERROR; }
+
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					expr.isComptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type.asTypeID(),
+					comptime_as_res.value()
+				);
+				return Result::SUCCESS;
+
+			}else{
+				const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
+					selected_func_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+				);
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					expr.isComptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type.asTypeID(),
+					sema::Expr(conversion_call)
+				);
+				return Result::SUCCESS;
+			}
 		}
 
 

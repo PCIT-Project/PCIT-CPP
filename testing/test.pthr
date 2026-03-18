@@ -16,6 +16,6 @@ func copy_ui8 = (num: UI8) -> UI8 {
 
 def NUM = new Num{num = 12};
 func test = () #rt -> UI8 {
-	def OUTPUT: UI8 = copy_ui8(NUM);
+	def OUTPUT: UI8 = copy_ui8(NUM as UI8);
 	return OUTPUT;
 }
