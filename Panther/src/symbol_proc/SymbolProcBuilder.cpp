@@ -3398,11 +3398,20 @@ namespace pcit::panther{
 		}
 
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-		this->add_instruction(
-			this->context.symbol_proc_manager.createIndexerComptime(
-				indexer, target.value(), new_term_info_id, std::move(indices)
-			)
-		);
+		if constexpr(IS_COMPTIME){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createIndexerComptime(
+					indexer, target.value(), new_term_info_id, std::move(indices)
+				)
+			);
+			
+		}else{
+			this->add_instruction(
+				this->context.symbol_proc_manager.createIndexer(
+					indexer, target.value(), new_term_info_id, std::move(indices)
+				)
+			);
+		}
 		return new_term_info_id;
 	}
 

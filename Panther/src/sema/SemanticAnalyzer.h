@@ -518,7 +518,7 @@ namespace pcit::panther{
 
 
 
-			///////////////////////////////////
+			///////////////////////////////////T
 			// misc
 
 			EVO_NODISCARD auto comptime_func_call(
@@ -598,8 +598,9 @@ namespace pcit::panther{
 				std::span<SelectFuncOverloadArgInfo> arg_infos,
 				const auto& call_node,
 				bool is_member_call,
+				bool is_comptime,
 				evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos
-			) -> evo::Result<size_t>; // returns index of selected overload
+			) -> evo::Expected<size_t, Result>; // returns index of selected overload
 
 
 			struct FuncCallImplData{
@@ -615,7 +616,7 @@ namespace pcit::panther{
 				const TermInfo& target_term_info,
 				evo::ArrayProxy<SymbolProcTermInfoID> args,
 				evo::ArrayProxy<SymbolProcTermInfoID> template_args
-			) -> evo::Expected<FuncCallImplData, bool>; // unexpected true == error, unexpected false == need to wait
+			) -> evo::Expected<FuncCallImplData, Result>;
 
 			struct TemplateOverloadMatchFail{
 				using Handled = std::monostate;
@@ -808,7 +809,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto analyze_global_var_attrs(
 				const AST::VarDef& var_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<GlobalVarAttrs>;
+			) -> evo::Expected<GlobalVarAttrs, Result>;
 
 
 			struct VarAttrs{
@@ -826,7 +827,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_func_alias_attrs(
 				const AST::FuncAliasDef& func_alias_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<FuncAliasAttrs>;
+			) -> evo::Expected<FuncAliasAttrs, Result>;
 
 
 			struct AliasAttrs{
@@ -836,7 +837,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto analyze_alias_attrs(
 				const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<AliasAttrs>;
+			) -> evo::Expected<AliasAttrs, Result>;
 
 			struct LocalAliasAttrs{
 				bool is_distinct;
@@ -854,7 +855,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto analyze_struct_attrs(
 				const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<StructAttrs>;
+			) -> evo::Expected<StructAttrs, Result>;
 
 
 			struct UnionAttrs{
@@ -865,7 +866,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_union_attrs(
 				const AST::UnionDef& union_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<UnionAttrs>;
+			) -> evo::Expected<UnionAttrs, Result>;
 
 
 			struct EnumAttrs{
@@ -875,7 +876,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_enum_attrs(
 				const AST::EnumDef& enum_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<EnumAttrs>;
+			) -> evo::Expected<EnumAttrs, Result>;
 
 
 			struct FuncAttrs{
@@ -893,7 +894,7 @@ namespace pcit::panther{
 			};
 			EVO_NODISCARD auto analyze_func_attrs(
 				const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<FuncAttrs>;
+			) -> evo::Expected<FuncAttrs, Result>;
 
 
 
@@ -905,7 +906,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto analyze_interface_attrs(
 				const AST::InterfaceDef& interface_def,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-			) -> evo::Result<InterfaceAttrs>;
+			) -> evo::Expected<InterfaceAttrs, Result>;
 
 
 
@@ -967,7 +968,8 @@ namespace pcit::panther{
 				bool requires_implicit_conversion; // value is undefined if .ok == false
 
 				evo::SmallVector<DeducerMatchOutput::DeducedTerm> deduced_terms;
-				std::optional<Result> special_result_from_interface_match; // only set if should be checked
+				std::optional<Result> special_result; // only set if should be checked
+				                                      // set by interface match or comptime implicit conversion
 
 				struct InitAssignFunc{ sema::Func::ID func_id; };
 				struct AssignFunc{ sema::Func::ID func_id; };
@@ -977,7 +979,7 @@ namespace pcit::panther{
 				#if defined(PCIT_CONFIG_DEBUG)
 					~TypeCheckInfo(){
 						evo::debugAssert(
-							this->special_result_from_interface_match.has_value() == false,
+							this->special_result.has_value() == false,
 							"If a special result from interface match has value, it should be checked and cleared"
 						);
 						evo::debugAssert(
@@ -1013,23 +1015,35 @@ namespace pcit::panther{
 						return TypeCheckInfo(true, true, {}, std::nullopt, assign_func);
 					}
 
-					auto extractSpecialResultFromInterfaceMatch() -> Result {
-						const Result output = *this->special_result_from_interface_match;
-						this->special_result_from_interface_match.reset();
+
+					auto extractSpecialResult() -> Result {
+						const Result output = *this->special_result;
+						this->special_result.reset();
 						return output;
 					}
+
+					auto extractSpecialResultForReturning() -> Result {
+						if(this->special_result.has_value()){
+							const Result output = *this->special_result;
+							this->special_result.reset();
+							return output;
+						}else{
+							return Result::ERROR;
+						}
+					}
+
 
 				private:
 					TypeCheckInfo(
 						bool _ok,
 						bool _requires_implicit_conversion,
 						evo::SmallVector<DeducerMatchOutput::DeducedTerm>&& _deduced_terms,
-						std::optional<Result> _special_result_from_interface_match,
+						std::optional<Result> _special_result,
 						evo::Variant<std::monostate, InitAssignFunc, AssignFunc> _non_auto_implicit_conversion_target
 					) : ok(_ok),
 						requires_implicit_conversion(_requires_implicit_conversion),
 						deduced_terms(std::move(_deduced_terms)),
-						special_result_from_interface_match(_special_result_from_interface_match),
+						special_result(_special_result),
 						non_auto_implicit_conversion_target(_non_auto_implicit_conversion_target)
 					{}
 			};
@@ -1041,12 +1055,12 @@ namespace pcit::panther{
 			) -> evo::Result<bool>; // bool is if is implicit conversion to optional
 
 
-			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR>
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
 			EVO_NODISCARD auto type_check(
 				TypeInfo::ID expected_type_id,
 				TermInfo& got_expr,
 				std::string_view expected_type_location_name,
-				const auto& location,
+				Diagnostic::Location location,
 				bool is_initialization = true,
 				std::optional<unsigned> multi_type_index = std::nullopt
 			) -> TypeCheckInfo;

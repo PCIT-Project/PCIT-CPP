@@ -803,9 +803,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_def.ident].getString();
 
-		const evo::Result<GlobalVarAttrs> var_attrs =
+		const evo::Expected<GlobalVarAttrs, Result> var_attrs =
 			this->analyze_global_var_attrs(instr.var_def, instr.attribute_params_info);
-		if(var_attrs.isError()){ return Result::ERROR; }
+		if(var_attrs.has_value() == false){ return var_attrs.error(); }
 
 
 		const TypeInfo::VoidableID got_type_info_id = this->get_type(instr.type_id);
@@ -935,12 +935,17 @@ namespace pcit::panther{
 				return Result::ERROR;
 
 			}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
-				if(this->type_check<true, true>(
-					var_type_id, value_term_info, "Variable definition", *instr.var_def.value
-				).ok == false){
-					return Result::ERROR;
-				}
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					var_type_id, value_term_info, "Variable definition", this->get_location(*instr.var_def.value)
+				);
 
+				if(type_check_info.ok == false){
+					if(type_check_info.special_result.has_value()){
+						return type_check_info.extractSpecialResult();
+					}else{
+						return Result::ERROR;
+					}
+				}
 			}else{
 				if(value_term_info.is_ephemeral() == false){
 					if(this->check_term_isnt_type(value_term_info, *instr.var_def.value).isError()){
@@ -958,17 +963,11 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				TypeCheckInfo type_check_info = this->type_check<true, true>(
-					var_type_id, value_term_info, "Variable definition", *instr.var_def.value
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					var_type_id, value_term_info, "Variable definition", this->get_location(*instr.var_def.value)
 				);
 
-				if(type_check_info.ok == false){
-					if(type_check_info.special_result_from_interface_match.has_value()){
-						return type_check_info.extractSpecialResultFromInterfaceMatch();
-					}else{
-						return Result::ERROR;
-					}
-				}
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 			}
 
 		}else{
@@ -1044,9 +1043,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result {
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_def.ident].getString();
 
-		const evo::Result<GlobalVarAttrs> var_attrs =
+		const evo::Expected<GlobalVarAttrs, Result> var_attrs =
 			this->analyze_global_var_attrs(instr.var_def, instr.attribute_params_info);
-		if(var_attrs.isError()){ return Result::ERROR; }
+		if(var_attrs.has_value() == false){ return var_attrs.error(); }
 
 
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
@@ -1067,9 +1066,10 @@ namespace pcit::panther{
 				var_attrs.value().is_priv
 			);
 
-			// TODO(FUTURE): propgate if `add_ident_result` errored?
+			if(add_ident_result.isError()){ return Result::ERROR; }
+
 			this->propagate_finished_decl_def();
-			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
+			return Result::SUCCESS;
 
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::CLANG_MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
@@ -1088,9 +1088,10 @@ namespace pcit::panther{
 				var_attrs.value().is_priv
 			);
 
-			// TODO(FUTURE): propgate if `add_ident_result` errored?
+			if(add_ident_result.isError()){ return Result::ERROR; }
+
 			this->propagate_finished_decl_def();
-			return add_ident_result.isError() ? Result::ERROR : Result::SUCCESS;
+			return Result::SUCCESS;
 		}
 
 
@@ -1150,11 +1151,13 @@ namespace pcit::panther{
 			}
 
 
-			const TypeCheckInfo type_check_info = this->type_check<true, true>(
-				got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_def.value
+			TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+				got_type_info_id.asTypeID(),
+				value_term_info,
+				"Global variable definition",
+				this->get_location(*instr.var_def.value)
 			);
-
-			if(type_check_info.ok == false){ return Result::ERROR; }
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 			if(type_check_info.deduced_terms.empty() == false){
 				if(this->scope.isGlobalScope()){
@@ -1289,14 +1292,14 @@ namespace pcit::panther{
 		TermInfo& cond_term_info = this->get_term_info(instr.cond);
 		if(this->check_term_isnt_type(cond_term_info, instr.when_cond.cond).isError()){ return Result::ERROR; }
 
-		if(this->type_check<true, true>(
+		TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 			this->context.getTypeManager().getTypeBool(),
 			cond_term_info,
 			"Condition in when conditional",
-			instr.when_cond.cond
-		).ok == false){
-			return Result::ERROR;
-		}
+			this->get_location(instr.when_cond.cond)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
 
 		SymbolProc::WhenCondInfo& when_cond_info = this->symbol_proc.extra_info.as<SymbolProc::WhenCondInfo>();
 		auto passed_symbols = std::queue<SymbolProc::ID>();
@@ -1396,9 +1399,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_alias(const Instruction::Alias& instr) -> Result {
-		const evo::Result<AliasAttrs> alias_attrs =
+		const evo::Expected<AliasAttrs, Result> alias_attrs =
 			this->analyze_alias_attrs(instr.alias_def, instr.attribute_params_info);
-		if(alias_attrs.isError()){ return Result::ERROR; }
+		if(alias_attrs.has_value() == false){ return alias_attrs.error(); }
 
 
 		const TermInfo& aliased_type_term = this->get_term_info(instr.aliased_type);
@@ -1505,9 +1508,9 @@ namespace pcit::panther{
 
 	template<bool IS_INSTANTIATION>
 	auto SemanticAnalyzer::instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result {
-		const evo::Result<StructAttrs> struct_attrs =
+		const evo::Expected<StructAttrs, Result> struct_attrs =
 			this->analyze_struct_attrs(instr.struct_def, instr.attribute_params_info);
-		if(struct_attrs.isError()){ return Result::ERROR; }
+		if(struct_attrs.has_value() == false){ return struct_attrs.error(); }
 
 
 		///////////////////////////////////
@@ -2645,15 +2648,13 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					const TypeCheckInfo type_check_info = this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						*type_id,
 						*default_value,
 						"Default value of template parameter",
-						*template_param_info.param.defaultValue
+						this->get_location(*template_param_info.param.defaultValue)
 					);
-					if(type_check_info.ok == false){
-						return Result::ERROR;
-					}
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				}else{
 					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
@@ -2716,9 +2717,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_union_decl(const Instruction::UnionDecl& instr) -> Result {
-		const evo::Result<UnionAttrs> union_attrs = 
+		const evo::Expected<UnionAttrs, Result> union_attrs = 
 			this->analyze_union_attrs(instr.union_def, instr.attribute_params_info);
-		if(union_attrs.isError()){ return Result::ERROR; }
+		if(union_attrs.has_value() == false){ return union_attrs.error(); }
 
 
 
@@ -2881,6 +2882,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_enum_decl(const Instruction::EnumDecl& instr) -> Result {
 		BaseType::Primitive::ID underlying_type_id = BaseType::Primitive::ID::dummy();
 
+		const evo::Expected<EnumAttrs, Result> enum_attrs = 
+			this->analyze_enum_attrs(instr.enum_def, instr.attribute_params_info);
+		if(enum_attrs.has_value() == false){ return enum_attrs.error(); }
+
+
 		if(instr.underlying_type.has_value()){
 			const TypeInfo::VoidableID computed_underlying_type = this->get_type(*instr.underlying_type);
 
@@ -2902,11 +2908,6 @@ namespace pcit::panther{
 			underlying_type_id =
 				this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID();
 		}
-
-
-		const evo::Result<EnumAttrs> enum_attrs = 
-			this->analyze_enum_attrs(instr.enum_def, instr.attribute_params_info);
-		if(enum_attrs.isError()){ return Result::ERROR; }
 
 
 		///////////////////////////////////
@@ -2992,11 +2993,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
-					underlying_type_info_id, value_term_info, "Value for enumerator", *enumerator.value
-				).ok == false){
-					return Result::ERROR;
-				}
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					underlying_type_info_id,
+					value_term_info,
+					"Value for enumerator",
+					this->get_location(*enumerator.value)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				const sema::IntValue& int_value =
 					this->context.getSemaBuffer().getIntValue(value_term_info.getExpr().intValueID());
@@ -3100,9 +3103,9 @@ namespace pcit::panther{
 
 	template<bool IS_INSTANTIATION>
 	auto SemanticAnalyzer::instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result {
-		const evo::Result<FuncAttrs> func_attrs =
+		const evo::Expected<FuncAttrs, Result> func_attrs =
 			this->analyze_func_attrs(instr.func_def, instr.attribute_params_info);
-		if(func_attrs.isError()){ return Result::ERROR; }
+		if(func_attrs.has_value() == false){ return func_attrs.error(); }
 
 		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
@@ -3264,11 +3267,11 @@ namespace pcit::panther{
 						this->get_term_info(*instr.default_param_values[i - size_t(has_this_param)]);
 
 					if(
-						this->type_check<true, true>(
+						this->type_check<true, true, false>(
 							param_type_id,
 							default_param_value,
 							"Default value of function parameter",
-							*instr.func_def.params[i].defaultValue
+							this->get_location(*instr.func_def.params[i].defaultValue)
 						).ok == false
 					){
 						return Result::ERROR;
@@ -5499,15 +5502,13 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					const TypeCheckInfo type_check_info = this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						*type_id,
 						*default_value,
 						"Default value of template parameter",
-						*template_param_info.param.defaultValue
+						this->get_location(*template_param_info.param.defaultValue)
 					);
-					if(type_check_info.ok == false){
-						return Result::ERROR;
-					}
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				}else{
 					if(default_value->value_category != TermInfo::ValueCategory::TYPE){
@@ -5695,10 +5696,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_alias_def(const Instruction::FuncAliasDef& instr) -> Result {
-		const evo::Result<FuncAliasAttrs> func_alias = this->analyze_func_alias_attrs(
+		const evo::Expected<FuncAliasAttrs, Result> func_alias = this->analyze_func_alias_attrs(
 			instr.func_alias_def, instr.attribute_params_info
 		);
-		if(func_alias.isError()){ return Result::ERROR; }
+		if(func_alias.has_value() == false){ return func_alias.error(); }
 
 
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
@@ -5730,10 +5731,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_interface_prepare(const Instruction::InterfacePrepare& instr) -> Result {
-		const evo::Result<InterfaceAttrs> interface_attrs = this->analyze_interface_attrs(
+		const evo::Expected<InterfaceAttrs, Result> interface_attrs = this->analyze_interface_attrs(
 			instr.interface_def, instr.attribute_params_info
 		);
-		if(interface_attrs.isError()){ return Result::ERROR; }
+		if(interface_attrs.has_value() == false){ return interface_attrs.error(); }
 
 		const BaseType::ID created_interface_type_id = this->context.type_manager.createInterface(
 			BaseType::Interface(
@@ -6289,13 +6290,28 @@ namespace pcit::panther{
 
 
 			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
-				TypeCheckInfo type_check_info = this->type_check<true, true>(
-					got_type_info_id.asTypeID(), value_term_info, "Variable definition", *instr.var_def.value
-				);
+				TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
+					if(instr.var_def.kind == AST::VarDef::Kind::DEF){
+						return this->type_check<true, true, true>(
+							got_type_info_id.asTypeID(),
+							value_term_info,
+							"Variable definition",
+							this->get_location(*instr.var_def.value)
+						);
+
+					}else{
+						return this->type_check<true, true, false>(
+							got_type_info_id.asTypeID(),
+							value_term_info,
+							"Variable definition",
+							this->get_location(*instr.var_def.value)
+						);
+					}
+				}();
 
 				if(type_check_info.ok == false){
-					if(type_check_info.special_result_from_interface_match.has_value()){
-						return type_check_info.extractSpecialResultFromInterfaceMatch();
+					if(type_check_info.special_result.has_value()){
+						return type_check_info.extractSpecialResult();
 					}else{
 						return Result::ERROR;
 					}
@@ -6528,11 +6544,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
+			if(this->type_check<true, true, false>(
 				current_func_type.returnTypes.front().asTypeID(),
 				return_value_term,
 				"Return statement",
-				instr.return_stmt.value.as<AST::Node>()
+				this->get_location(instr.return_stmt.value.as<AST::Node>())
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -6675,11 +6691,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
+			if(this->type_check<true, true, false>(
 				target_block_expr.outputs.front().typeID,
 				return_value_term,
 				"Labeled return",
-				instr.return_stmt.value.as<AST::Node>()
+				this->get_location(instr.return_stmt.value.as<AST::Node>())
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -6791,11 +6807,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
+			if(this->type_check<true, true, false>(
 				current_func_type.errorTypes.front().asTypeID(),
 				error_value_term,
 				"Error return",
-				instr.error_stmt.value.as<AST::Node>()
+				this->get_location(instr.error_stmt.value.as<AST::Node>())
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -7086,8 +7102,8 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true, true>(
-			TypeManager::getTypeBool(), cond, "Condition in [if] condtional", instr.conditional.cond
+		if(this->type_check<true, true, false>(
+			TypeManager::getTypeBool(), cond, "Condition in [if] condtional", this->get_location(instr.conditional.cond)
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -7154,11 +7170,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result {
 		TermInfo& cond = this->get_term_info(instr.cond_expr);
 
-		if(this->type_check<true, true>(
-			TypeManager::getTypeBool(), cond, "Condition in [when] condtional", instr.when_cond.cond
-		).ok == false){
-			return Result::ERROR;
-		}
+		TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+			TypeManager::getTypeBool(), cond, "Condition in [when] condtional", this->get_location(instr.when_cond.cond)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
 
 		const bool when_cond_value = this->context.getSemaBuffer().getBoolValue(cond.getExpr().boolValueID()).value;
 
@@ -7190,8 +7206,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true, true>(
-			TypeManager::getTypeBool(), cond_term_info, "Condition in [while] loop", instr.while_stmt.cond
+		if(this->type_check<true, true, false>(
+			TypeManager::getTypeBool(),
+			cond_term_info,
+			"Condition in [while] loop",
+			this->get_location(instr.while_stmt.cond)
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -8195,14 +8214,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 					current_switch.condTypeID,
 					value,
 					"Switch case value",
-					instr.switch_case.values[current_case.values.size()]
-				).ok == false){
-					return Result::ERROR;
-				}
+					this->get_location(instr.switch_case.values[current_case.values.size()])
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				current_case.values.emplace_back(value.getExpr());
 			}
@@ -8549,16 +8567,11 @@ namespace pcit::panther{
 
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<false, false>(
+		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<false, false>(
 			instr.func_call, target_term_info, instr.args, instr.template_args
 		);
-		if(func_call_impl_res.has_value() == false){
-			if(func_call_impl_res.error()){
-				return Result::ERROR;
-			}else{
-				return Result::NEED_TO_WAIT;
-			}
-		}
+		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
+
 
 		//////////////////////////////////////////////////////////////////////
 		// 
@@ -8809,11 +8822,11 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			TypeCheckInfo type_check_info = this->type_check<true, true>(
+			TypeCheckInfo type_check_info = this->type_check<true, true, false>(
 				lhs.type_id.as<TypeInfo::ID>(),
 				rhs,
 				std::format("RHS of [{}]", op_kind),
-				instr.infix.rhs,
+				this->get_location(instr.infix.rhs),
 				lhs.isUninitialized()
 			);
 
@@ -9152,8 +9165,11 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->type_check<true, true>(
-							optional_held_type_id, arg, "Argument in operator [new] for optional", ast_new.args[0].value
+						if(this->type_check<true, true, false>(
+							optional_held_type_id,
+							arg,
+							"Argument in operator [new] for optional",
+							this->get_location(ast_new.args[0].value)
 						).ok == false){
 							return Result::ERROR;
 						}
@@ -9229,11 +9245,11 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->type_check<true, true>(
+					if(this->type_check<true, true, false>(
 						target_type_id.asTypeID(),
 						arg,
 						"Argument of operator [new] for primitive",
-						ast_new.args[0].value
+						this->get_location(ast_new.args[0].value)
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -9353,11 +9369,11 @@ namespace pcit::panther{
 						.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
 				);
 
-				if(this->type_check<true, true>(
+				if(this->type_check<true, true, false>(
 					array_ptr_type,
 					this->get_term_info(instr.args[0]),
 					"Pointer argument of operator [new] for array reference",
-					ast_new.args[0].value
+					this->get_location(ast_new.args[0].value)
 				).ok == false){
 					return Result::ERROR;
 				}
@@ -9381,11 +9397,11 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(this->type_check<true, true>(
+					if(this->type_check<true, true, false>(
 						TypeManager::getTypeUSize(),
 						arg,
 						"Dimension argument of operator [new] for array reference",
-						ast_new.args[i].value
+						this->get_location(ast_new.args[i].value)
 					).ok == false){
 						return Result::ERROR;
 					}
@@ -9496,10 +9512,10 @@ namespace pcit::panther{
 				}
 
 
-				const evo::Result<size_t> selected_overload = this->select_func_overload(
-					overloads, args, ast_new, !should_run_initialization, evo::SmallVector<Diagnostic::Info>()
+				const evo::Expected<size_t, Result> selected_overload = this->select_func_overload(
+					overloads, args, ast_new, !should_run_initialization, false, evo::SmallVector<Diagnostic::Info>()
 				);
-				if(selected_overload.isError()){ return Result::ERROR; }
+				if(selected_overload.has_value() == false){ return selected_overload.error(); }
 
 				const sema::Func::ID selected_func_id =
 					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
@@ -9755,8 +9771,12 @@ namespace pcit::panther{
 		);
 
 
-		TypeCheckInfo type_check_info = this->type_check<true, true>(
-			lhs.type_id.as<TypeInfo::ID>(), target_copy, "RHS of assignment", instr.infix.rhs, is_initialization
+		TypeCheckInfo type_check_info = this->type_check<true, true, false>(
+			lhs.type_id.as<TypeInfo::ID>(),
+			target_copy,
+			"RHS of assignment",
+			this->get_location(instr.infix.rhs),
+			is_initialization
 		);
 
 		if(type_check_info.ok == false){ return Result::ERROR; }
@@ -9940,8 +9960,12 @@ namespace pcit::panther{
 		);
 
 
-		TypeCheckInfo type_check_info = this->type_check<true, true>(
-			lhs.type_id.as<TypeInfo::ID>(), target_move, "RHS of assignment", instr.infix.rhs, is_initialization
+		TypeCheckInfo type_check_info = this->type_check<true, true, false>(
+			lhs.type_id.as<TypeInfo::ID>(),
+			target_move,
+			"RHS of assignment",
+			this->get_location(instr.infix.rhs),
+			is_initialization
 		);
 
 		if(type_check_info.ok == false){ return Result::ERROR; }
@@ -10174,12 +10198,14 @@ namespace pcit::panther{
 		);
 
 
-		TypeCheckInfo type_check_info = this->type_check<true, true>(
-			lhs.type_id.as<TypeInfo::ID>(), target_forward, "RHS of assignment", instr.infix.rhs, is_initialization
+		TypeCheckInfo type_check_info = this->type_check<true, true, false>(
+			lhs.type_id.as<TypeInfo::ID>(),
+			target_forward,
+			"RHS of assignment",
+			this->get_location(instr.infix.rhs),
+			is_initialization
 		);
-
 		if(type_check_info.ok == false){ return Result::ERROR; }
-
 		if(type_check_info.non_auto_implicit_conversion_target.is<std::monostate>() == false){
 			return this->handle_non_auto_implicit_conversion(
 				type_check_info.non_auto_implicit_conversion_target,
@@ -10253,8 +10279,13 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
-				target.type_id.as<TypeInfo::ID>(), value, "RHS of assignment", instr.multi_assign, true, unsigned(i)
+			if(this->type_check<true, true, false>(
+				target.type_id.as<TypeInfo::ID>(),
+				value,
+				"RHS of assignment",
+				this->get_location(instr.multi_assign),
+				true,
+				unsigned(i)
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -10327,16 +10358,10 @@ namespace pcit::panther{
 
 		const TermInfo& target_term_info = this->get_term_info(instr.func_call_target);
 
-		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<false, true>(
+		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<false, true>(
 			ast_func_call, target_term_info, instr.func_call_args, instr.func_call_template_args
 		);
-		if(func_call_impl_res.has_value() == false){
-			if(func_call_impl_res.error()){
-				return Result::ERROR;
-			}else{
-				return Result::NEED_TO_WAIT;
-			}
-		}
+		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
@@ -10731,16 +10756,10 @@ namespace pcit::panther{
 	-> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
-		const evo::Expected<FuncCallImplData, bool> func_call_impl_res = this->func_call_impl<IS_COMPTIME, ERRORS>(
+		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<IS_COMPTIME, ERRORS>(
 			instr.func_call, target_term_info, instr.args, instr.template_args
 		);
-		if(func_call_impl_res.has_value() == false){
-			if(func_call_impl_res.error()){
-				return Result::ERROR;
-			}else{
-				return Result::NEED_TO_WAIT;
-			}
-		}
+		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		bool all_args_are_comptime = true;
@@ -11424,14 +11443,13 @@ namespace pcit::panther{
 			}
 		}();
 
-		if(this->type_check<true, true>(
+		TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 			TypeManager::getTypeStringRef(),
 			location_str_term_info,
 			diagnostic_location_str,
-			instr.func_call.args[0].value
-		).ok == false){
-			return Result::ERROR;;
-		}
+			this->get_location(instr.func_call.args[0].value)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 
 		const std::string_view lookup_path =
@@ -11629,14 +11647,13 @@ namespace pcit::panther{
 		}
 
 
-		if(this->type_check<true, true>(
+		TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 			TypeManager::getTypeStringRef(),
 			message_term_info,
 			"Message in @comptimeError",
-			instr.func_call.args[0].value
-		).ok == false){
-			return Result::ERROR;
-		}
+			this->get_location(instr.func_call.args[0].value)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 		const std::string_view message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
 
@@ -11653,13 +11670,14 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true, true>(
-			this->context.getTypeManager().getTypeBool(),
-			cond_term_info,
-			"Condition in @comptimeAssert",
-			instr.func_call.args[0].value
-		).ok == false){
-			return Result::ERROR;
+		{
+			TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+				this->context.getTypeManager().getTypeBool(),
+				cond_term_info,
+				"Condition in @comptimeAssert",
+				this->get_location(instr.func_call.args[0].value)
+			);
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 		}
 
 		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
@@ -11674,14 +11692,13 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
+			TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 				TypeManager::getTypeStringRef(),
 				message_term_info,
 				"Message in @comptimeAssert",
-				instr.func_call.args[1].value
-			).ok == false){
-				return Result::ERROR;
-			}
+				this->get_location(instr.func_call.args[1].value)
+			);
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 			const std::string_view message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
 
@@ -11794,14 +11811,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 					template_param.getExprType(),
 					template_arg,
 					"This template argument",
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
-				).ok == false){
-					return Result::ERROR;
-				}
+					this->get_location(this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i])
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				template_args.emplace_back(sema::exprToGenericValue(template_arg.getExpr(), this->context));
 			}
@@ -11984,16 +12000,10 @@ namespace pcit::panther{
 		}
 
 
-		const evo::Expected<FuncCallImplData, bool> selected_func = this->func_call_impl<false, false>(
+		const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<false, false>(
 			instr.func_call, target_term_info, instr.args, instr.template_args
 		);
-		if(selected_func.has_value() == false){
-			if(selected_func.error()){
-				return Result::ERROR;
-			}else{
-				evo::debugFatalBreak("Should never have to wait");
-			}
-		}
+		if(selected_func.has_value() == false){ return selected_func.error(); }
 
 
 		const sema::TemplateIntrinsicFuncInstantiation::ID intrinsic_target = 
@@ -12114,14 +12124,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 					template_param.getExprType(),
 					template_arg,
 					"This template argument",
-					this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
-				).ok == false){
-					return Result::ERROR;
-				}
+					this->get_location(this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i])
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				template_args.emplace_back(sema::exprToGenericValue(template_arg.getExpr(), this->context));
 			}
@@ -12139,15 +12148,12 @@ namespace pcit::panther{
 		// helper funcs
 
 		const auto create_runtime_call = [&]() -> evo::Result<> {
-			const evo::Expected<FuncCallImplData, bool> selected_func = this->func_call_impl<IS_COMPTIME, false>(
+			const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<IS_COMPTIME, false>(
 				instr.func_call, target_term_info, instr.args, instr.template_args
 			);
 			if(selected_func.has_value() == false){
-				if(selected_func.error()){
-					return evo::resultError;
-				}else{
-					evo::debugFatalBreak("Should never have to wait");
-				}
+				evo::debugAssert(selected_func.error() == Result::ERROR, "Should never have to wait here");
+				return evo::resultError;
 			}
 
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
@@ -14572,8 +14578,8 @@ namespace pcit::panther{
 		}
 
 
-		if(this->type_check<true, true>(
-			TypeManager::getTypeBool(), expr, "RHS of operator [!]", instr.prefix.rhs
+		if(this->type_check<true, true, false>(
+			TypeManager::getTypeBool(), expr, "RHS of operator [!]", this->get_location(instr.prefix.rhs)
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -14916,14 +14922,13 @@ namespace pcit::panther{
 								)
 							);
 
-							if(this->type_check<true, true>(
+							TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 								optional_held_type_id,
 								arg,
 								"Argument in operator [new] for optional",
-								instr.ast_new.args[0].value
-							).ok == false){
-								return Result::ERROR;
-							}
+								this->get_location(instr.ast_new.args[0].value)
+							);
+							if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning();}
 
 							this->return_term_info(instr.output,
 								TermInfo::ValueCategory::EPHEMERAL,
@@ -14996,14 +15001,13 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(this->type_check<true, true>(
+						TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 							target_type_id.asTypeID(),
 							arg,
 							"Argument of operator [new] for primitive",
-							instr.ast_new.args[0].value
-						).ok == false){
-							return Result::ERROR;
-						}
+							this->get_location(instr.ast_new.args[0].value)
+						);
+						if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 						this->return_term_info(instr.output, arg);
 						return Result::SUCCESS;
@@ -15212,13 +15216,14 @@ namespace pcit::panther{
 							.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
 					);
 
-					if(this->type_check<true, true>(
-						array_ptr_type,
-						this->get_term_info(instr.args[0]),
-						"Pointer argument of operator [new] for array reference",
-						instr.ast_new.args[0].value
-					).ok == false){
-						return Result::ERROR;
+					{
+						TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+							array_ptr_type,
+							this->get_term_info(instr.args[0]),
+							"Pointer argument of operator [new] for array reference",
+							this->get_location(instr.ast_new.args[0].value)
+						);
+						if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 					}
 
 					if(instr.ast_new.args[0].label.has_value()){
@@ -15241,13 +15246,14 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(this->type_check<true, true>(
-							TypeManager::getTypeUSize(),
-							arg_term_info,
-							"Dimension argument of operator [new] for array reference",
-							instr.ast_new.args[i].value
-						).ok == false){
-							return Result::ERROR;
+						{
+							TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+								TypeManager::getTypeUSize(),
+								arg_term_info,
+								"Dimension argument of operator [new] for array reference",
+								this->get_location(instr.ast_new.args[i].value)
+							);
+							if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 						}
 
 						if(instr.ast_new.args[i].label.has_value()){
@@ -15350,10 +15356,10 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const evo::Result<size_t> selected_overload = this->select_func_overload(
-					overloads, args, instr.ast_new, false, evo::SmallVector<Diagnostic::Info>()
+				const evo::Expected<size_t, Result> selected_overload = this->select_func_overload(
+					overloads, args, instr.ast_new, false, IS_COMPTIME, evo::SmallVector<Diagnostic::Info>()
 				);
-				if(selected_overload.isError()){ return Result::ERROR; }
+				if(selected_overload.has_value() == false){ return selected_overload.error(); }
 
 				const sema::Func::ID selected_func_id =
 					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
@@ -15872,11 +15878,13 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->type_check<true, true>(
-				target_type.elementTypeID, value, "Value initializer", instr.array_init_new.values[i]
-			).ok == false){
-				return Result::ERROR;
-			}
+			TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+				target_type.elementTypeID,
+				value,
+				"Value initializer",
+				this->get_location(instr.array_init_new.values[i])
+			);
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 			values.emplace_back(value.getExpr());
 
@@ -16090,11 +16098,10 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
-					member_var->typeID, member_init_expr, "Member initializer", member_init.expr
-				).ok == false){
-					return Result::ERROR;
-				}
+				TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+					member_var->typeID, member_init_expr, "Member initializer", this->get_location(member_init.expr)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				values.emplace_back(member_init_expr.getExpr());
 
@@ -16282,11 +16289,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true, true>(
+		if(this->type_check<true, true, false>(
 			attempt_expr.type_id.as<TypeInfo::ID>(),
 			except_expr,
 			"Except in try/else expression",
-			instr.try_else.exceptExpr
+			this->get_location(instr.try_else.exceptExpr)
 		).ok == false){
 			return Result::ERROR;
 		}
@@ -16637,10 +16644,10 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const evo::Result<size_t> selected_overload_index = this->select_func_overload(
-					func_infos, arg_infos, instr.indexer, true, evo::SmallVector<Diagnostic::Info>{}
+				const evo::Expected<size_t, Result> selected_overload_index = this->select_func_overload(
+					func_infos, arg_infos, instr.indexer, true, IS_COMPTIME, evo::SmallVector<Diagnostic::Info>{}
 				);
-				if(selected_overload_index.isError()){ return Result::ERROR; }
+				if(selected_overload_index.has_value() == false){ return selected_overload_index.error(); }
 
 				const SelectFuncOverloadFuncInfo& selected_overload_info = func_infos[selected_overload_index.value()];
 				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
@@ -16704,11 +16711,10 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
 			TermInfo& index = this->get_term_info(index_id);
 
-			if(this->type_check<true, true>(
-				TypeManager::getTypeUSize(), index, "Index in indexer", instr.indexer.indices[i]
-			).ok == false){
-				return Result::ERROR;
-			}
+			TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+				TypeManager::getTypeUSize(), index, "Index in indexer", this->get_location(instr.indexer.indices[i])
+			);
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 			if(index.isComptime && index.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 				if(decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
@@ -17026,12 +17032,14 @@ namespace pcit::panther{
 				}();
 				if(expr_type_id.isError()){ return Result::ERROR; }
 				
-			
-				if(this->type_check<true, true>(
-					expr_type_id.value(), arg_term_info, "Template argument", instr.templated_expr.args[i]
-				).ok == false){
-					return Result::ERROR;
-				}
+				
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					expr_type_id.value(),
+					arg_term_info,
+					"Template argument",
+					this->get_location(instr.templated_expr.args[i])
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				const sema::Expr& arg_expr = arg_term_info.getExpr();
 				instantiation_args.emplace_back(arg_expr);
@@ -17425,11 +17433,10 @@ namespace pcit::panther{
 		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
 			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 				if(this->context.getTypeManager().isIntegral(target_type.asTypeID())){ // int to int
-					if(this->type_check<true, true>(
-						target_type.asTypeID(), expr, "Operator [as]", instr.infix
-					).ok == false){
-						return Result::ERROR;
-					}
+					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -17484,11 +17491,10 @@ namespace pcit::panther{
 					return Result::SUCCESS;
 
 				}else{ // float to float
-					if(this->type_check<true, true>(
-						target_type.asTypeID(), expr, "Operator [as]", instr.infix
-					).ok == false){
-						return Result::ERROR;
-					}
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -18748,17 +18754,16 @@ namespace pcit::panther{
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::COMPARATIVE){
 					const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 						lhs.type_id.as<TypeInfo::ID>(),
 						rhs,
 						std::format(
 							"RHS of infix [{}] operator",
 							this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 						),
-						instr.infix
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(instr.infix)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					if(op_kind == Token::lookupKind("==") || op_kind == Token::lookupKind("!=")){
 						if(lhs_decayed_type.qualifiers().empty() == false){
@@ -18977,16 +18982,15 @@ namespace pcit::panther{
 					}
 
 				}else{
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 						lhs.type_id.as<TypeInfo::ID>(),
 						rhs,
 						std::format(
 							"RHS of infix [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 						),
-						instr.infix
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(instr.infix)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
@@ -19137,16 +19141,15 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 						expected_rhs_type,
 						rhs,
 						std::format(
 							"RHS of operator [{}]", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 						),
-						instr.infix.rhs
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(instr.infix.rhs)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 
 				}else{
@@ -19200,16 +19203,15 @@ namespace pcit::panther{
 
 
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 						lhs_decayed_type_id,
 						rhs,
 						std::format(
 							"RHS of operator [{}]", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 						),
-						instr.infix.rhs
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(instr.infix.rhs)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 						if(
@@ -19316,31 +19318,23 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 					expected_lhs_type,
 					lhs,
-					std::format(
-						"LHS of [{}] operator",
-						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-					),
-					instr.infix
-				).ok == false){
-					return Result::ERROR;
-				}
+					std::format("LHS of [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()),
+					this->get_location(instr.infix)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 
 			}else{
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 					rhs_decayed_type_id,
 					lhs,
-					std::format(
-						"LHS of [{}] operator",
-						this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
-					),
-					instr.infix
-				).ok == false){
-					return Result::ERROR;
-				}
+					std::format("LHS of [{}] operator", this->source.getTokenBuffer()[instr.infix.opTokenID].kind()),
+					this->get_location(instr.infix)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				if constexpr(MATH_INFIX_KIND == Instruction::MathInfixKind::MATH){
 					if(
@@ -20129,14 +20123,13 @@ namespace pcit::panther{
 					dimensions.emplace_back(length_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id);
 
 				}else{
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						TypeManager::getTypeUSize(),
 						length_term_info,
 						"Array dimension",
-						*instr.array_type.dimensions[i]
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(*instr.array_type.dimensions[i])
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					dimensions.emplace_back(
 						static_cast<uint64_t>(
@@ -20165,11 +20158,13 @@ namespace pcit::panther{
 					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
 					
 				}else{
-					if(this->type_check<true, true>(
-						elem_type.asTypeID(), terminator_term_info, "Array terminator", *instr.array_type.terminator
-					).ok == false){
-						return Result::ERROR;
-					}
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						elem_type.asTypeID(),
+						terminator_term_info,
+						"Array terminator",
+						this->get_location(*instr.array_type.terminator)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					terminator = sema::exprToGenericValue(terminator_term_info.getExpr(), this->context);
 				}
@@ -20195,11 +20190,13 @@ namespace pcit::panther{
 			for(size_t i = 0; const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
 				TermInfo& length_term_info = this->get_term_info(length_term_info_id);
 
-				if(this->type_check<true, true>(
-					TypeManager::getTypeUSize(), length_term_info, "Array dimension", *instr.array_type.dimensions[i]
-				).ok == false){
-					return Result::ERROR;
-				}
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					TypeManager::getTypeUSize(),
+					length_term_info,
+					"Array dimension",
+					this->get_location(*instr.array_type.dimensions[i])
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				dimensions.emplace_back(
 					static_cast<uint64_t>(
@@ -20222,11 +20219,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
-					elem_type.asTypeID(), terminator_term_info, "Array terminator", *instr.array_type.terminator
-				).ok == false){
-					return Result::ERROR;
-				}
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					elem_type.asTypeID(),
+					terminator_term_info,
+					"Array terminator",
+					this->get_location(*instr.array_type.terminator)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				terminator.emplace(sema::exprToGenericValue(terminator_term_info.getExpr(), this->context));
 			}
@@ -20284,14 +20283,13 @@ namespace pcit::panther{
 						);
 
 					}else{
-						if(this->type_check<true, true>(
+						TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 							TypeManager::getTypeUSize(),
 							length_term_info,
 							"Array reference dimension",
-							*instr.array_type.dimensions[i]
-						).ok == false){
-							return Result::ERROR;
-						}
+							this->get_location(*instr.array_type.dimensions[i])
+						);
+						if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 						dimensions.emplace_back(
 							static_cast<uint64_t>(
@@ -20324,14 +20322,13 @@ namespace pcit::panther{
 					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
 
 				}else{
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						elem_type.asTypeID(),
 						terminator_term_info,
 						"Array reference terminator",
-						*instr.array_type.terminator
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(*instr.array_type.terminator)
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					terminator = sema::exprToGenericValue(terminator_term_info.getExpr(), this->context);
 				}
@@ -20362,14 +20359,13 @@ namespace pcit::panther{
 				if(length_term_info_id.has_value()){
 					TermInfo& length_term_info = this->get_term_info(*length_term_info_id);
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						TypeManager::getTypeUSize(),
 						length_term_info,
 						"Array reference dimension",
-						*instr.array_type.dimensions[i]
-					).ok == false){
-						return Result::ERROR;
-					}
+						this->get_location(*instr.array_type.dimensions[i])
+					);
+					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 					dimensions.emplace_back(
 						static_cast<uint64_t>(
@@ -20397,14 +20393,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 					elem_type.asTypeID(),
 					terminator_term_info,
 					"Array reference terminator",
-					*instr.array_type.terminator
-				).ok == false){
-					return Result::ERROR;
-				}
+					this->get_location(*instr.array_type.terminator)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				terminator.emplace(sema::exprToGenericValue(terminator_term_info.getExpr(), this->context));
 			}
@@ -20526,11 +20521,13 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result {
 		TermInfo& type_id_expr = this->get_term_info(instr.expr);
 
-		if(this->type_check<true, true>(
-			TypeManager::getTypeTypeID(), type_id_expr, "Type ID converter", instr.type_id_converter.expr
-		).ok == false){
-			return Result::ERROR;
-		}
+		TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+			TypeManager::getTypeTypeID(),
+			type_id_expr,
+			"Type ID converter",
+			this->get_location(instr.type_id_converter.expr)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 		const sema::IntValue& int_value =
 			this->context.getSemaBuffer().getIntValue(type_id_expr.getExpr().intValueID());
@@ -25139,8 +25136,9 @@ namespace pcit::panther{
 		std::span<SelectFuncOverloadArgInfo> arg_infos,
 		const auto& call_node,
 		bool is_member_call,
+		bool is_comptime,
 		evo::SmallVector<Diagnostic::Info>&& instantiation_error_infos
-	) -> evo::Result<size_t> {
+	) -> evo::Expected<size_t, Result> {
 		evo::debugAssert(func_infos.empty() == false, "need at least 1 function");
 
 		struct OverloadScore{
@@ -25245,14 +25243,34 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// check type mismatch
 
-				const TypeCheckInfo& type_check_info = this->type_check<false, false>(
-					this->context.type_manager.decayType<false, false>(func_info.func_type.params[arg_i].typeID),
-					arg_info.term_info,
-					"",
-					arg_info.ast_node
-				);
+				TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
+					if(is_comptime){
+						return this->type_check<false, false, true>(
+							this->context.type_manager.decayType<false, false>(
+								func_info.func_type.params[arg_i].typeID
+							),
+							arg_info.term_info,
+							"",
+							this->get_location(arg_info.ast_node)
+						);
+						
+					}else{
+						return this->type_check<false, false, false>(
+							this->context.type_manager.decayType<false, false>(
+								func_info.func_type.params[arg_i].typeID
+							),
+							arg_info.term_info,
+							"",
+							this->get_location(arg_info.ast_node)
+						);
+					}
+				}();
 
 				if(type_check_info.ok == false){
+					if(type_check_info.special_result.has_value()){
+						return evo::Unexpected(type_check_info.extractSpecialResult());
+					}
+
 					scores.emplace_back(OverloadScore::TypeMismatch(arg_i));
 					arg_checking_failed = true;
 					break;
@@ -25672,7 +25690,7 @@ namespace pcit::panther{
 			}
 
 			this->emit_error("No matching function overload found", call_node, std::move(infos));
-			return evo::resultError;
+			return evo::Unexpected(Result::ERROR);
 
 
 		}else if(found_matching_best_score){ // found multiple matches
@@ -25701,14 +25719,20 @@ namespace pcit::panther{
 			}
 
 			this->emit_error("Multiple matching function overloads found", call_node, std::move(infos));
-			return evo::resultError;
+			return evo::Unexpected(Result::ERROR);
 		}
 
 
 		const SelectFuncOverloadFuncInfo& selected_func = func_infos[best_score_index];
 
+		auto term_infos = evo::SmallVector<TermInfo>();
+		term_infos.reserve(arg_infos.size());
+		for(const SelectFuncOverloadArgInfo& arg_info : arg_infos){
+			term_infos.emplace_back(arg_info.term_info);
+		}
+
 		bool is_first = true;
-		for(size_t i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
+		for(size_t i = 0; TermInfo& term_info : term_infos){
 			if(is_first && is_member_call){
 				is_first = false;
 
@@ -25727,20 +25751,45 @@ namespace pcit::panther{
 
 			is_first = false;
 
-			// implicitly convert all the required args
-			const TypeInfo& param_id_type_info =
-				this->context.getTypeManager().getTypeInfo(selected_func.func_type.params[i].typeID);
-			if(param_id_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE){
-				if(this->type_check<true, true>(
-					this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
-					arg_info.term_info,
-					"Function call argument",
-					arg_info.ast_node
-				).ok == false){
-					evo::debugFatalBreak("This should not be able to fail");
-				}
-			}
+			EVO_DEFER([&](){ i += 1; });
 
+			// implicitly convert all the required args
+
+			TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
+				if(is_comptime){
+					return this->type_check<true, false, true>(
+						this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
+						term_info,
+						"",
+						Diagnostic::Location::NONE
+					);
+
+				}else{
+					return this->type_check<true, false, false>(
+						this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
+						term_info,
+						"",
+						Diagnostic::Location::NONE
+					);
+				}
+			}();
+
+			if(is_comptime){
+				if(type_check_info.ok == false){
+					const Result special_result = type_check_info.extractSpecialResultForReturning();
+						
+					evo::debugAssert(special_result == Result::NEED_TO_WAIT, "Should never error here");
+
+					return evo::Unexpected(Result::NEED_TO_WAIT);
+				}
+
+			}else{
+				evo::debugAssert(type_check_info.ok, "Should never error here");
+			}
+		}
+
+		for(size_t i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
+			arg_info.term_info = std::move(term_infos[i]);
 			i += 1;
 		}
 
@@ -25754,7 +25803,7 @@ namespace pcit::panther{
 		const TermInfo& target_term_info,
 		evo::ArrayProxy<SymbolProc::TermInfoID> args,
 		evo::ArrayProxy<SymbolProc::TermInfoID> template_args
-	) -> evo::Expected<FuncCallImplData, bool> {
+	) -> evo::Expected<FuncCallImplData, Result> {
 		for(size_t i = 0; SymbolProc::TermInfoID template_arg_id : template_args){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -25767,7 +25816,7 @@ namespace pcit::panther{
 					this->source.getASTBuffer().getTemplatedExpr(func_call.target);
 
 				this->emit_error("Template arguments must be ephemerial", templated_expr.args[i]);
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -25892,7 +25941,7 @@ namespace pcit::panther{
 							std::format("Expected {}, got {}", func_info.templateParams.size(), template_args.size())
 						)
 					);
-					return evo::Unexpected(true);
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
@@ -25925,7 +25974,7 @@ namespace pcit::panther{
 
 			default: {
 				this->emit_error("Cannot call expression like a function", func_call.target);
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			} break;
 		}
 
@@ -26152,7 +26201,7 @@ namespace pcit::panther{
 					this->emit_error(
 						"No matching function overload found", func_call.target, std::move(instantiation_error_infos)
 					);
-					return evo::Unexpected(true);
+					return evo::Unexpected(Result::ERROR);
 				}
 			}
 
@@ -26184,9 +26233,9 @@ namespace pcit::panther{
 						[[fallthrough]];
 					}
 					case SymbolProc::WaitOnResult::WAITING:                    any_waiting_or_ready = true; break;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(true);
+					case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(Result::ERROR);
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: break;
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return evo::Unexpected(true);
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return evo::Unexpected(Result::ERROR);
 				}
 			}
 
@@ -26196,12 +26245,12 @@ namespace pcit::panther{
 					func_call.target,
 					Diagnostic::Info("All were passed by when conditionals")
 				);
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			}
 
 
 			if(this->symbol_proc.shouldContinueRunning() == false){
-				return evo::Unexpected(false);
+				return evo::Unexpected(Result::NEED_TO_WAIT);
 			}
 
 			using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
@@ -26224,7 +26273,7 @@ namespace pcit::panther{
 					){
 						instantiation_errors.emplace_back(func_info.instantiation->errored_reason);
 					}else{
-						return evo::Unexpected(true);
+						return evo::Unexpected(Result::ERROR);
 					}
 					continue;
 				}
@@ -26353,7 +26402,7 @@ namespace pcit::panther{
 
 			if(func_infos.empty()){ // if all instantiations errored
 				this->emit_error("No function overload found", func_call.target, std::move(instantiation_error_infos));
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -26378,7 +26427,7 @@ namespace pcit::panther{
 			if constexpr(IS_COMPTIME){
 				if(arg_term_info.isComptime == false){
 					this->emit_error("Arguments in a comptime function call must be comptime", func_call.args[i].value);
-					return evo::Unexpected(true);
+					return evo::Unexpected(Result::ERROR);
 				}
 			}else{
 				if(
@@ -26386,7 +26435,7 @@ namespace pcit::panther{
 					&& arg_term_info.value_state != TermInfo::ValueState::NOT_APPLICABLE
 				){
 					this->emit_error("Arguments to functions must be initialized", func_call.args[i].value);
-					return evo::Unexpected(true);
+					return evo::Unexpected(Result::ERROR);
 				}
 			}
 
@@ -26395,31 +26444,34 @@ namespace pcit::panther{
 		}
 
 
-		const evo::Result<size_t> selected_func_overload_index = this->select_func_overload(
+		const evo::Expected<size_t, Result> selected_func_overload_index = this->select_func_overload(
 			func_infos,
 			arg_infos,
 			func_call.target,
 			method_this_term_info.has_value(),
+			IS_COMPTIME,
 			std::move(instantiation_error_infos)
 		);
-		if(selected_func_overload_index.isError()){ return evo::Unexpected(true); }
+		if(selected_func_overload_index.has_value() == false){
+			return evo::Unexpected(selected_func_overload_index.error());
+		}
 
 
 		if constexpr(ERRORS){
 			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn() == false){
 				this->emit_error("Function doesn't error", func_call);
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			}
 		}else{
 			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn()){
 				this->emit_error("Function error not handled", func_call);
-				return evo::Unexpected(true);
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
 		if(func_infos[selected_func_overload_index.value()].func_type.isUnsafe && this->currently_in_unsafe() == false){
 			this->emit_error("Call to unsafe function while not in an unsafe scope", func_call);
-			return evo::Unexpected(true);
+			return evo::Unexpected(Result::ERROR);
 		}
 
 
@@ -26485,7 +26537,7 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
 							)
 						);
-						return evo::Unexpected(true);
+						return evo::Unexpected(Result::ERROR);
 					}
 
 					return FuncCallImplData(
@@ -26519,7 +26571,7 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
 						);
-						return evo::Unexpected(true);
+						return evo::Unexpected(Result::ERROR);
 					}
 
 					if(instantiation_symbol_proc.unsuspendIfNeeded()){
@@ -26554,7 +26606,7 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
 							)
 						);
-						return evo::Unexpected(true);
+						return evo::Unexpected(Result::ERROR);
 					}
 
 					return FuncCallImplData(
@@ -26587,7 +26639,7 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
 						);
-						return evo::Unexpected(true);
+						return evo::Unexpected(Result::ERROR);
 					}
 
 					if(instantiation_symbol_proc.unsuspendIfNeeded()){
@@ -26737,7 +26789,7 @@ namespace pcit::panther{
 				}
 
 
-				if(this->type_check<true, false>(
+				if(this->type_check<false, false, true>(
 					expr_type_id.value(), template_arg, "", Diagnostic::Location::NONE
 				).ok == false){
 					return evo::Unexpected<TemplateOverloadMatchFail>(
@@ -28485,11 +28537,11 @@ namespace pcit::panther{
 			SelectFuncOverloadArgInfo(rhs, ast_infix.rhs, std::nullopt)
 		};
 
-		const evo::Result<size_t> selected_overload_index = this->select_func_overload(
-			overloads_list, arg_infos, ast_infix, false, evo::SmallVector<Diagnostic::Info>()
+		const evo::Expected<size_t, Result> selected_overload_index = this->select_func_overload(
+			overloads_list, arg_infos, ast_infix, false, false, evo::SmallVector<Diagnostic::Info>()
 		);
 
-		if(selected_overload_index.isError()){ return evo::Unexpected(Result::ERROR); }
+		if(selected_overload_index.has_value() == false){ return evo::Unexpected(selected_overload_index.error()); }
 
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
@@ -28547,11 +28599,10 @@ namespace pcit::panther{
 			SelectFuncOverloadArgInfo(expr, ast_prefix.rhs, std::nullopt)
 		};
 
-		const evo::Result<size_t> selected_overload_index = this->select_func_overload(
-			overloads_list, arg_infos, ast_prefix, false, evo::SmallVector<Diagnostic::Info>()
+		const evo::Expected<size_t, Result> selected_overload_index = this->select_func_overload(
+			overloads_list, arg_infos, ast_prefix, false, false, evo::SmallVector<Diagnostic::Info>()
 		);
-
-		if(selected_overload_index.isError()){ return Result::ERROR; }
+		if(selected_overload_index.has_value() == false){ return selected_overload_index.error(); }
 
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
@@ -29022,14 +29073,13 @@ namespace pcit::panther{
 				}
 				
 			}else{
-				if(this->type_check<true, true>(
+				TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 					field.typeID.asTypeID(),
 					init_value,
 					"Union field initializer",
-					instr.designated_init_new.memberInits[0].ident
-				).ok == false){
-					return Result::ERROR;
-				}
+					this->get_location(instr.designated_init_new.memberInits[0].ident)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 				if(
 					this->currently_in_unsafe() == false
@@ -29445,7 +29495,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_global_var_attrs(
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<GlobalVarAttrs> {
+	) -> evo::Expected<GlobalVarAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_global = Attribute(*this, "global");
@@ -29460,75 +29510,81 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
+
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
+
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "global"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #global does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_global.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(
 					std::format("Unknown global variable attribute #{}", attribute_str), attribute.attribute
 				);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -29543,7 +29599,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_func_alias_attrs(
 		const AST::FuncAliasDef& func_alias_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<FuncAliasAttrs> {
+	) -> evo::Expected<FuncAliasAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 
@@ -29558,65 +29614,67 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else{
 				this->emit_error(std::format("Unknown variable attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -29681,7 +29739,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_alias_attrs(
 		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<AliasAttrs> {
+	) -> evo::Expected<AliasAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_distinct = Attribute(*this, "distinct");
@@ -29696,74 +29754,78 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 
 			}else if(attribute_str == "distinct"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #distinct does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_distinct.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_distinct.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(std::format("Unknown alias attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -29813,7 +29875,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_struct_attrs(
 		const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<StructAttrs> {
+	) -> evo::Expected<StructAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_packed = Attribute(*this, "packed");
@@ -29831,105 +29893,112 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 
 			}else if(attribute_str == "ordered"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #ordered does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_ordered.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_ordered.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "packed"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #packed does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_packed.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_packed.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "comptimeAssert"){
 				if(attribute_params_info[i].empty()){
 					this->emit_error("Attribute #comptimeAssert requires a condition argument", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attribute_params_info[i].size() > 2){
 					this->emit_error(
 						"Attribute #comptimeAssert does not accept more than 2 arguments", attribute.args[2]
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 
 				TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 				if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(this->type_check<true, true>(
-					this->context.getTypeManager().getTypeBool(),
-					cond_term_info,
-					"Condition in #comptimeAssert",
-					attribute.args[0]
-				).ok == false){
-					return evo::resultError;
+				{
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #comptimeAssert",
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+					}
 				}
 
 				const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
@@ -29940,16 +30009,19 @@ namespace pcit::panther{
 				if(attribute_params_info[i].size() == 2){
 					TermInfo& message_term_info = this->get_term_info(attribute_params_info[i][1]);
 					if(this->check_term_isnt_type(message_term_info, attribute.args[1]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
-						TypeManager::getTypeStringRef(),
-						message_term_info,
-						"Message in #comptimeAssert",
-						attribute.args[1]
-					).ok == false){
-						return evo::resultError;
+					{
+						TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+							TypeManager::getTypeStringRef(),
+							message_term_info,
+							"Message in #comptimeAssert",
+							this->get_location(attribute.args[1])
+						);
+						if(type_check_info.ok == false){
+							return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+						}
 					}
 
 					message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
@@ -29963,19 +30035,19 @@ namespace pcit::panther{
 					}
 
 					this->emit_error("Comptime assert fail", attribute.attribute, std::move(infos));
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else{
 				this->emit_error(std::format("Unknown struct attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
 
 		return StructAttrs{
 			.is_pub     = attr_pub.is_set(),
-			.is_priv     = attr_priv.is_set(),
+			.is_priv    = attr_priv.is_set(),
 			.is_ordered = attr_ordered.is_set(),
 			.is_packed  = attr_packed.is_set(),
 		};
@@ -29984,7 +30056,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_union_attrs(
 		const AST::UnionDef& union_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<UnionAttrs> {
+	) -> evo::Expected<UnionAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_untagged = Attribute(*this, "untagged");
@@ -30000,73 +30072,77 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "untagged"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #untagged does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_untagged.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_untagged.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(std::format("Unknown union attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -30082,7 +30158,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_enum_attrs(
 		const AST::EnumDef& enum_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<EnumAttrs> {
+	) -> evo::Expected<EnumAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 
@@ -30097,65 +30173,69 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info= this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info= this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else{
 				this->emit_error(std::format("Unknown enum attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -30171,7 +30251,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDef& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<FuncAttrs> {
+	) -> evo::Expected<FuncAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_rt = ConditionalAttribute(*this, "rt");
@@ -30196,239 +30276,250 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "rt"){
 				if(attribute_params_info[i].empty()){
-					if(attr_rt.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_rt.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #rt",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool rt_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::resultError; }
+					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #rt does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_rt_diff.is_set()){
 					this->emit_error(
 						"Function cannot have both attribute #rt and attribute #rtDiff", attribute.attribute
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "rtDiff"){
 				if(attribute_params_info[i].empty()){
-					if(attr_rt_diff.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_rt_diff.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #rtDiff",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool rt_diff_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_rt_diff.set(attribute.attribute, rt_diff_cond).isError()){ return evo::resultError; }
+					if(attr_rt_diff.set(attribute.attribute, rt_diff_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #rtDiff does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_rt.is_set()){
 					this->emit_error(
 						"Function cannot have both attribute #rtDiff and attribute #rt", attribute.attribute
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "unsafe"){
 				if(attribute_params_info[i].empty()){
-					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #unsafe",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool unsafe_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_unsafe.set(attribute.attribute, unsafe_cond).isError()){ return evo::resultError; }
+					if(attr_unsafe.set(attribute.attribute, unsafe_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #unsafe does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "export"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #export does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_entry.is_set()){
 					this->emit_error("A function cannot have both attribute #export and #entry", attribute.attribute);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_export.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_export.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "noReturn"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #noReturn does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_entry.is_set()){
 					this->emit_error("A function cannot have both attribute #noReturn and #entry", attribute.attribute);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_no_return.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_no_return.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "entry"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #entry does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_export.is_set()){
 					this->emit_error("A function cannot have both attribute #entry and #export", attribute.attribute);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_entry.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_entry.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 				attr_rt.implicitly_set(attribute.attribute, true);
 
 				if(attr_rt_diff.is_set()){
 					this->emit_error(
 						"Function cannot have both attribute #entry and attribute #rtDiff", attribute.attribute
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "commutative"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #commutative does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_swapped.is_set()){
 					this->emit_error(
 						"A function cannot have both attribute #commutative and #swapped", attribute.attribute
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 				
-				if(attr_commutative.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_commutative.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "swapped"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #swapped does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attr_commutative.is_set()){
 					this->emit_error(
 						"A function cannot have both attribute #swapped and #commutative", attribute.attribute
 					);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 				
-				if(attr_swapped.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_swapped.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "builtin"){
 				// do nothing (checked already in SymbolProc)
@@ -30436,14 +30527,14 @@ namespace pcit::panther{
 			}else if(attribute_str == "implicit"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #implicit does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_implicit.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_implicit.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(std::format("Unknown function attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -30466,7 +30557,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::analyze_interface_attrs(
 		const AST::InterfaceDef& interface_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
-	) -> evo::Result<InterfaceAttrs> {
+	) -> evo::Expected<InterfaceAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_polymorphic = Attribute(*this, "polymorphic");
@@ -30482,74 +30573,78 @@ namespace pcit::panther{
 
 			if(attribute_str == "pub"){
 				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #pub",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool pub_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::resultError; }
+					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
 					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 			}else if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::resultError; } 
+					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
 					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::resultError;
+						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(this->type_check<true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
-						attribute.args[0]
-					).ok == false){
-						return evo::resultError;
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 					}
 
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::resultError; }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
 
 			}else if(attribute_str == "polymorphic"){
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #polymorphic does not accept any arguments", attribute.args.front());
-					return evo::resultError;
+					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_polymorphic.set(attribute.attribute).isError()){ return evo::resultError; }
+				if(attr_polymorphic.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
-				return evo::resultError;
+				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -30830,12 +30925,12 @@ namespace pcit::panther{
 		return expected_qualifiers.back().isOptional && got_qualifiers.back().isOptional == false; // pointers
 	}
 
-	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR>
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
 	auto SemanticAnalyzer::type_check(
 		TypeInfo::ID expected_type_id,
 		TermInfo& got_expr,
 		std::string_view expected_type_location_name,
-		const auto& location,
+		Diagnostic::Location location,
 		bool is_initialization,
 		std::optional<unsigned> multi_type_index
 	) -> TypeCheckInfo {
@@ -30990,23 +31085,78 @@ namespace pcit::panther{
 									return TypeCheckInfo::fail();
 								}
 
-								if(
-									this->get_current_func().attributes.isComptime
-									&& target_as_func.attributes.isComptime == false
-								){
-									if constexpr(MAY_EMIT_ERROR){
-										this->error_type_mismatch(
-											expected_type_id,
-											got_expr,
-											expected_type_location_name,
-											location,
-											multi_type_index
-										);
+
+								if(target_as_func.attributes.isComptime == false){
+									if constexpr(IS_COMPTIME){
+										if constexpr(MAY_EMIT_ERROR){
+											this->error_type_mismatch(
+												expected_type_id,
+												got_expr,
+												expected_type_location_name,
+												location,
+												multi_type_index
+											);
+										}
+										return TypeCheckInfo::fail();
+
+									}else{
+										if(
+											this->currently_in_func() == false
+											|| this->get_current_func().attributes.isComptime
+										){
+											if constexpr(MAY_EMIT_ERROR){
+												this->error_type_mismatch(
+													expected_type_id,
+													got_expr,
+													expected_type_location_name,
+													location,
+													multi_type_index
+												);
+											}
+											return TypeCheckInfo::fail();
+										}
 									}
-									return TypeCheckInfo::fail();
 								}
 
+
+
 								if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+									if constexpr(IS_COMPTIME){
+										SymbolProc& target_as_func_symbol_proc =
+											this->context.symbol_proc_manager.getSymbolProc(
+												*target_as_func.symbolProcID
+											);
+
+										const SymbolProc::WaitOnResult wait_on_result =
+											target_as_func_symbol_proc.waitOnPIRDefIfNeeded(
+												this->symbol_proc.getID(), this->context
+											);
+
+										switch(wait_on_result){
+											case SymbolProc::WaitOnResult::NOT_NEEDED:
+												break;
+
+											case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+												this->context.symbol_proc_manager.symbol_proc_unsuspended();
+												this->context.add_task_to_work_manager(*target_as_func.symbolProcID);
+												[[fallthrough]];
+											}
+
+											case SymbolProc::WaitOnResult::WAITING:
+												return TypeCheckInfo::fail(Result::NEED_TO_WAIT);
+
+											case SymbolProc::WaitOnResult::WAS_ERRORED:
+												return TypeCheckInfo::fail();
+
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+												evo::debugFatalBreak("Shouldn't be possible");
+
+											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+												evo::debugFatalBreak("Shouldn't be possible");
+										}
+									}
+
+
 									if(is_initialization == false){
 										switch(got_expr.getExpr().kind()){
 											case sema::Expr::Kind::COPY: {
@@ -31039,16 +31189,31 @@ namespace pcit::panther{
 
 
 									got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-									got_expr.getExpr() = sema::Expr(
-										this->context.sema_buffer.createFuncCall(
-											target_as_func_id, evo::SmallVector<sema::Expr>{got_expr.getExpr()}
-										)
-									);
 
-									if(this->get_current_func().attributes.isComptime){
-										this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
-											target_as_func_id
+									if constexpr(IS_COMPTIME){
+										const evo::Result<sema::Expr> comptime_func_res = this->comptime_func_call(
+											target_as_func_id,
+											evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+											this->get_location(location)
 										);
+
+										if(comptime_func_res.isError()){ return TypeCheckInfo::fail(); }
+
+										got_expr.getExpr() = comptime_func_res.value();
+
+									}else{
+										got_expr.getExpr() = sema::Expr(
+											this->context.sema_buffer.createFuncCall(
+												target_as_func_id, evo::SmallVector<sema::Expr>{got_expr.getExpr()}
+											)
+										);
+									}
+
+									if constexpr(IS_COMPTIME == false){
+										if(this->get_current_func().attributes.isComptime){
+											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
+												.dependent_funcs.emplace(target_as_func_id);
+										}
 									}
 								}
 
