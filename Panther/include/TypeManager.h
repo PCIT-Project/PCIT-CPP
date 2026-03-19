@@ -670,7 +670,6 @@ namespace pcit::panther{
 			bool isPriv;
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
-			bool shouldLower = true;
 
 			std::atomic<bool> defCompleted = false; // includes PIR lowering
 

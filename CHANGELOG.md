@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.263.0"></a>
+## v0.0.263.0
+
+### Panther
+- Improved lowering of builtin structs and unions by only doing the lowering if used
+
+
+<!---------------------------------->
 <a name="v0.0.262.0"></a>
 ## v0.0.262.0
 

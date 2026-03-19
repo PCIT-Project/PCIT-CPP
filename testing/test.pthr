@@ -1,5 +1,7 @@
 def test = @importCpp("test.h");
 
 func get_test_enum = () -> test.TestEnum {
+	// const pws: @build.PackageWarningSettings = uninit;
+
 	return test.TestEnum.TEST_ENUM_BAR;
 }

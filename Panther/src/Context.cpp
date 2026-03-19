@@ -1336,7 +1336,6 @@ namespace pcit::panther{
 									.isPriv            =  true,
 									.isOrdered         =  false,
 									.isPacked          =  false,
-									.shouldLower       =  true
 								}
 							);
 
@@ -2159,11 +2158,9 @@ namespace pcit::panther{
 					.isPriv            = true,
 					.isOrdered         = false,
 					.isPacked          = false,
-					.shouldLower       = false,
 				}
 			);
 
-			sema_to_pir.lowerStruct(package_warning_settings_type.structID());
 
 			build_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
 

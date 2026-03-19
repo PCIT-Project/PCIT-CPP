@@ -39,9 +39,7 @@ namespace pcit::panther{
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
 			if(struct_type.isClangType() == false){ continue; }
 
-			if(struct_type.shouldLower){
-				this->lowerStructAndDependencies(BaseType::Struct::ID(i));
-			}
+			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
 		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){

@@ -1534,7 +1534,6 @@ namespace pcit::panther{
 				.isPriv            = struct_attrs.value().is_priv,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
-				.shouldLower       = true,
 			}
 		);
 
@@ -21363,8 +21362,16 @@ namespace pcit::panther{
 
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
 				if(symbol.kind() == BaseType::Kind::STRUCT){
-					BaseType::Struct& struct_type = this->context.type_manager.getStruct(symbol.structID());
-					struct_type.shouldLower = true;
+					auto sema_to_pir = SemaToPIR(
+						this->context, this->context.pir_module, this->context.sema_to_pir_data
+					);
+					sema_to_pir.lowerStructAndDependencies(symbol.structID());
+
+				}else if(symbol.kind() == BaseType::Kind::UNION){
+					auto sema_to_pir = SemaToPIR(
+						this->context, this->context.pir_module, this->context.sema_to_pir_data
+					);
+					sema_to_pir.lowerUnionAndDependencies(symbol.unionID());
 				}
 
 				this->return_term_info(instr.output,
