@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.262.0"></a>
+## v0.0.262.0
+
+### Panther
+- Added support for C/C++ enums
+- Fixed C/C++ structs being packed
+
+
+<!---------------------------------->
 <a name="v0.0.261.3"></a>
 ## v0.0.261.3
 

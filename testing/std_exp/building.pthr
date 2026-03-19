@@ -14,8 +14,8 @@ type Package = struct #pub {
 	var path: [Char:*];
 	var name: [Char:*];
 	var warnings: @build.PackageWarningSettings;
-	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>();
-	var sourceDirectories = new std_exp.StaticArrayList<{Directory, 16}>();
+	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>();
+	var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
 }
 
 
@@ -61,10 +61,10 @@ type Build = struct #pub {
 			path              = copy path,
 			name              = "std",
 			warnings          = copy warns,
-			sourceFiles       = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles       = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:2]["./asserts.pthr", "./std.pthr"],
 			),
-			sourceDirectories = new std_exp.StaticArrayList<{Package.Directory, 16}>(
+			sourceDirectories = new std_exp.StaticArrayList<{Package.Directory, 4}>(
 				new [Package.Directory:1][new Package.Directory{path = "./containers", isRecursive = true}]
 			),
 		};
@@ -75,7 +75,7 @@ type Build = struct #pub {
 			path              = copy path,
 			name              = "std._compiler_rt",
 			warnings          = copy warns,
-			sourceDirectories = new std_exp.StaticArrayList<{Package.Directory, 16}>(
+			sourceDirectories = new std_exp.StaticArrayList<{Package.Directory, 4}>(
 				new [Package.Directory:1][new Package.Directory{path = "./compiler_rt", isRecursive = true}]
 			),
 		};
@@ -84,7 +84,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.bit",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./bit.pthr"],
 			),
 		};
@@ -93,7 +93,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.build",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./building.pthr"],
 			),
 		};
@@ -102,7 +102,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.math",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./math.pthr"],
 			),
 		};
@@ -111,7 +111,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.mem",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./mem.pthr"],
 			),
 		};
@@ -120,7 +120,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.ptrMath",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./ptrMath.pthr"],
 			),
 		};
@@ -129,7 +129,7 @@ type Build = struct #pub {
 			path        = copy path,
 			name        = "std.types",
 			warnings    = copy warns,
-			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./types.pthr"],
 			),
 		};
@@ -155,6 +155,7 @@ type Build = struct #pub {
 		for(package.sourceDirectories) [_; src_dir: Package.Directory] {
 			@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
 		}
+
 
 		if(this.std_lib_package != null && &package == this.std_lib_package.?){
 			@buildSetStdLibPackage(package_id);

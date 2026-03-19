@@ -1765,8 +1765,7 @@ namespace pcit::panther{
 			new_type.isPub,
 			new_type.isPriv,
 			new_type.isOrdered,
-			new_type.isPacked,
-			new_type.shouldLower
+			new_type.isPacked
 		);
 
 		this->structs_lock.unlock();

@@ -418,10 +418,38 @@ namespace pcit::clangint{
 
 			auto VisitEnumDecl(clang::EnumDecl* enum_decl) -> bool {
 				if(enum_decl->getDeclContext()->isRecord()){ return true; } // skip members
+				if(enum_decl->getParentFunctionOrMethod() != nullptr){ return true; } // skip scoped to functions
 
-				// const bool is_class = enum_decl->isScopedUsingClassTag();
+				const bool is_scoped = enum_decl->isScoped();
 
-				// TODO(FUTURE): handle enums properly
+				auto enumerators = evo::SmallVector<API::Enum::Enumerator>();
+				enumerators.reserve(std::distance(enum_decl->enumerator_begin(), enum_decl->enumerator_end()));
+
+				for(const clang::EnumConstantDecl* enumerator : enum_decl->enumerators()){
+					const clang::PresumedLoc presumed_loc =
+						this->source_manager.getPresumedLoc(enumerator->getLocation());
+
+					enumerators.emplace_back(
+						enumerator->getNameAsString(),
+						enumerator->getInitVal().getExtValue(),
+						uint32_t(presumed_loc.getLine()),
+						uint32_t(presumed_loc.getColumn())
+					);
+				}
+
+
+				const clang::PresumedLoc presumed_loc =
+					this->source_manager.getPresumedLoc(enum_decl->getLocation());
+
+				this->api.addEnum(
+					enum_decl->getNameAsString(),
+					make_type(enum_decl->getIntegerType(), this->api),
+					std::move(enumerators),
+					is_scoped,
+					std::filesystem::path(std::string(presumed_loc.getFilename())),
+					uint32_t(presumed_loc.getLine()),
+					uint32_t(presumed_loc.getColumn())
+				);
 
 				return true;
 			}

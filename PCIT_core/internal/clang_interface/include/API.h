@@ -72,6 +72,25 @@ namespace pcit::clangint{
 				uint32_t declCollumn;
 			};
 
+			struct Enum{
+				struct Enumerator{
+					std::string name;
+					int64_t value;
+
+					uint32_t declLine;
+					uint32_t declCollumn;
+				};
+
+				std::string name;
+				Type type;
+				evo::SmallVector<Enumerator> enumerators;
+				bool isScoped;
+
+				std::filesystem::path declFilePath;
+				uint32_t declLine;
+				uint32_t declCollumn;
+			};
+
 			struct Function{
 				struct Param{
 					std::string name;
@@ -134,7 +153,7 @@ namespace pcit::clangint{
 
 				
 				private:
-					evo::Variant<Alias*, Struct*, Union*, Function*, GlobalVar*> ptr;
+					evo::Variant<Alias*, Struct*, Union*, Enum*, Function*, GlobalVar*> ptr;
 			};
 
 
@@ -160,6 +179,12 @@ namespace pcit::clangint{
 				Union& created_union = this->unions.emplace_back(std::forward<decltype(union_args)>(union_args)...);
 
 				this->decls.emplace_back(&created_union);
+			}
+
+			auto addEnum(auto&&... enum_args) -> void {
+				Enum& created_enum = this->enums.emplace_back(std::forward<decltype(enum_args)>(enum_args)...);
+
+				this->decls.emplace_back(&created_enum);
 			}
 
 			auto addFunction(auto&&... function_args) -> void {
@@ -207,6 +232,7 @@ namespace pcit::clangint{
 			evo::StepVector<Alias> aliases{};
 			evo::StepVector<Struct> structs{};
 			evo::StepVector<Union> unions{};
+			evo::StepVector<Enum> enums{};
 			evo::StepVector<Function> functions{};
 			evo::StepVector<GlobalVar> global_vars{};
 

@@ -37,6 +37,9 @@ func entry = () #entry -> UI8 {
 	test_package.sourceFiles.append().* = "test.pthr";
 
 
+	@buildAddCPPHeaderFile("test.h", false);
+
+
 	build.build();
 
 	return 0;
@@ -49,7 +52,7 @@ func add_std_exp = (build: build_exp.Build mut, warns: @build.PackageWarningSett
 		path        = "./std_exp",
 		name        = "std_exp",
 		warnings    = forward warns,
-		sourceFiles = new std_exp.StaticArrayList<{[Char:*], 16}>(
+		sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 			new [[Char:*]:4]["atomic.pthr", "StaticArrayList.pthr", "StaticString.pthr", "std_exp.pthr"],
 		),
 

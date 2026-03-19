@@ -1320,23 +1320,24 @@ namespace pcit::panther{
 						struct_decl.name,
 						[&]() -> ClangSource::Symbol {
 							const BaseType::ID created_struct_id = this->type_manager.createStruct(
-								BaseType::Struct(
-									source_clang_source_id,
-									source_clang_source.createDeclInfo(
+								BaseType::Struct{
+									.sourceID          =  source_clang_source_id,
+									.name              =  source_clang_source.createDeclInfo(
 										struct_decl.name, struct_decl.declLine, struct_decl.declCollumn
 									),
-									std::nullopt,
-									std::nullopt,
-									std::numeric_limits<uint32_t>::max(),
-									std::move(member_vars),
-									std::move(member_vars_abi),
-									nullptr,
-									nullptr,
-									false,
-									true,
-									false,
-									true
-								)
+									.parent            =  std::nullopt,
+									.templateID        =  std::nullopt,
+									.instantiation     =  std::numeric_limits<uint32_t>::max(),
+									.memberVars        =  std::move(member_vars),
+									.memberVarsABI     =  std::move(member_vars_abi),
+									.namespacedMembers =  nullptr,
+									.scopeLevel        =  nullptr,
+									.isPub             =  false,
+									.isPriv            =  true,
+									.isOrdered         =  false,
+									.isPacked          =  false,
+									.shouldLower       =  true
+								}
 							);
 
 							return ClangSource::Symbol(std::in_place_type<BaseType::ID>, created_struct_id);
@@ -1381,6 +1382,7 @@ namespace pcit::panther{
 									nullptr,
 									nullptr,
 									false,
+									false,
 									true
 								)
 							);
@@ -1392,6 +1394,59 @@ namespace pcit::panther{
 					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
 						created_clang_source.addImportedSymbol(
 							union_decl.name, created_symbol, source_clang_source_id
+						);
+					}
+
+				}else if constexpr(std::is_same<DeclPtr, clangint::API::Enum*>()){
+					const clangint::API::Enum& enum_decl = *decl_ptr;
+
+					const std::optional<TypeInfo::VoidableID> panther_type = 
+						clang_type_to_panther_type(enum_decl.type, this->type_manager, type_map);
+					if(panther_type.has_value() == false){ return; }
+
+					const BaseType::ID panther_base_type_id = 
+						this->type_manager.getTypeInfo(panther_type->asTypeID()).baseTypeID();
+
+					const size_t bit_width = this->type_manager.numBits(panther_base_type_id, false);
+					const bool is_signed = this->type_manager.isSignedIntegral(panther_base_type_id);
+
+					auto enumerators = evo::SmallVector<BaseType::Enum::Enumerator>();
+					enumerators.reserve(enum_decl.enumerators.size());
+					for(const clangint::API::Enum::Enumerator& enumerator : enum_decl.enumerators){
+						enumerators.emplace_back(
+							source_clang_source.createDeclInfo(
+								enumerator.name, enumerator.declLine, enumerator.declCollumn
+							),
+							core::GenericInt(unsigned(bit_width), std::bit_cast<uint64_t>(enumerator.value), is_signed)
+						);
+					}
+
+					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+						enum_decl.name,
+						[&]() -> ClangSource::Symbol {
+							return this->type_manager.createEnum(
+								BaseType::Enum(
+									source_clang_source_id,
+									source_clang_source.createDeclInfo(
+										enum_decl.name, enum_decl.declLine, enum_decl.declCollumn
+									),
+									std::nullopt,
+									std::move(enumerators),
+									panther_base_type_id.primitiveID(),
+									nullptr,
+									nullptr,
+									false,
+									false
+								)
+							);
+						}
+					);
+
+					type_map.emplace(enum_decl.name, created_symbol.as<BaseType::ID>());
+
+					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
+						created_clang_source.addImportedSymbol(
+							enum_decl.name, created_symbol, source_clang_source_id
 						);
 					}
 
@@ -2090,21 +2145,22 @@ namespace pcit::panther{
 			}
 
 			const BaseType::ID package_warning_settings_type = this->type_manager.createStruct(
-				BaseType::Struct(
-					BuiltinModule::ID::BUILD,
-					build_module.createString("PackageWarningSettings"),
-					std::nullopt,
-					std::nullopt,
-					std::numeric_limits<uint32_t>::max(),
-					std::move(package_warning_settings_members),
-					std::move(package_warning_settings_member_vars_abi),
-					nullptr,
-					nullptr,
-					false,
-					true,
-					false,
-					false
-				)
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PackageWarningSettings"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(package_warning_settings_members),
+					.memberVarsABI     = std::move(package_warning_settings_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = true,
+					.isOrdered         = false,
+					.isPacked          = false,
+					.shouldLower       = false,
+				}
 			);
 
 			sema_to_pir.lowerStruct(package_warning_settings_type.structID());
@@ -2125,7 +2181,7 @@ namespace pcit::panther{
 		build_module.createSymbol("PackageID", this->type_manager.createDistinctAlias(
 			BaseType::DistinctAlias(
 				BuiltinModule::ID::BUILD,
-				pthr_module.createString("PackageID"),
+				build_module.createString("PackageID"),
 				std::nullopt,
 				TypeManager::getTypeUI32(),
 				false
@@ -3714,15 +3770,15 @@ namespace pcit::panther{
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInComptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 
 			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE))] = 
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
 				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript     = false, .allowedInBuild   = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
 

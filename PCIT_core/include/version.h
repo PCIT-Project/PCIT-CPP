@@ -24,8 +24,8 @@ namespace pcit::core{
 	constexpr auto version = Version{
 		.major   = 0,
 		.release = 0,
-		.minor   = 261,
-		.patch   = 3,
+		.minor   = 262,
+		.patch   = 0,
 	};
 
 }
