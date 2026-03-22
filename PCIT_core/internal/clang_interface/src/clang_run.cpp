@@ -441,9 +441,21 @@ namespace pcit::clangint{
 				const clang::PresumedLoc presumed_loc =
 					this->source_manager.getPresumedLoc(enum_decl->getLocation());
 
+
+				Type underlying_type = [&]() -> Type {
+					const clang::QualType enum_integer_type = enum_decl->getIntegerType();
+
+					if(enum_integer_type.isNull()){
+						return Type(BaseType::Primitive::C_INT, evo::SmallVector<Type::Qualifier>(), false);
+					}else{
+						return make_type(enum_integer_type, this->api);
+					}
+					
+				}();
+
 				this->api.addEnum(
 					enum_decl->getNameAsString(),
-					make_type(enum_decl->getIntegerType(), this->api),
+					std::move(underlying_type),
 					std::move(enumerators),
 					is_scoped,
 					std::filesystem::path(std::string(presumed_loc.getFilename())),
@@ -490,7 +502,7 @@ namespace pcit::clangint{
 							case clang::AS_public:    return API::Struct::Member::Access::PUBLIC;
 							case clang::AS_protected: return API::Struct::Member::Access::PROTECTED;
 							case clang::AS_private:   return API::Struct::Member::Access::PRIVATE;
-							case clang::AS_none:      evo::debugFatalBreak("Unknown struct member access");
+							case clang::AS_none:      return API::Struct::Member::Access::PUBLIC;
 						}
 						evo::debugFatalBreak("Unknown clang member access kind");
 					}();
