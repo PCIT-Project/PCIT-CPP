@@ -897,6 +897,14 @@ namespace pcit::panther{
 			) -> evo::Expected<FuncAttrs, Result>;
 
 
+			struct FuncParamAttrs{
+				bool is_must_label;
+			};
+			EVO_NODISCARD auto analyze_func_param_attrs(
+				const AST::FuncDef::Param& param, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<FuncParamAttrs>;
+
+
 
 			struct InterfaceAttrs{
 				bool is_pub;

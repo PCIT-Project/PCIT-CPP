@@ -1,11 +1,9 @@
-def test = @importC("test.h");
 
-func get_test_enum = () -> test.TestEnum {
-	// const pws: @build.PackageWarningSettings = uninit;
-
-	return test.TestEnum.TEST_ENUM_BAR;
+func square_num = (num: UInt) -> UInt {
+	return num * num;
 }
 
+
 func entry = () #entry -> UI8 {
-	return get_test_enum() as UI8;
+	return square_num(num: 12) as UI8;
 }

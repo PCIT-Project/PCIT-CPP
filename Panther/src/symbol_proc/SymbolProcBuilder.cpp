@@ -214,6 +214,9 @@ namespace pcit::panther{
 		auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 		default_param_values.reserve(func_def.params.size());
 
+		auto param_attribute_params = evo::SmallVector<evo::SmallVector<Instruction::AttributeParams>>();
+		param_attribute_params.reserve(func_def.params.size());
+
 		for(size_t i = 0; const AST::FuncDef::Param& param : func_def.params){
 			if(param.type.has_value() == false){ // skip `this` param
 				types.emplace_back();
@@ -247,6 +250,12 @@ namespace pcit::panther{
 			}else{
 				default_param_values.emplace_back();
 			}
+
+			evo::Result<evo::SmallVector<Instruction::AttributeParams>> param_attribute_params_info =
+				this->analyze_attributes(ast_buffer.getAttributeBlock(param.attributeBlock));
+			if(param_attribute_params_info.isError()){ return evo::resultError; }
+
+			param_attribute_params.emplace_back(std::move(param_attribute_params_info.value()));
 		}
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
@@ -282,6 +291,7 @@ namespace pcit::panther{
 				func_def,
 				std::move(attribute_params_info.value()),
 				std::move(default_param_values),
+				std::move(param_attribute_params),
 				std::move(types),
 				templated_func_id,
 				instantiation_id,
@@ -689,13 +699,18 @@ namespace pcit::panther{
 
 			auto default_param_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 			default_param_values.reserve(func_def.params.size());
+
+			auto param_attribute_params = evo::SmallVector<evo::SmallVector<Instruction::AttributeParams>>();
+			param_attribute_params.reserve(func_def.params.size());
+
 			for(const AST::FuncDef::Param& param : func_def.params){
 				if(param.type.has_value() == false){
 					types.emplace_back();
 					default_param_values.emplace_back();
+					param_attribute_params.emplace_back();
 					continue;
 				}
-					
+
 				const evo::Result<SymbolProc::TypeID> param_type =
 					this->analyze_type<false>(ast_buffer.getType(*param.type));
 				if(param_type.isError()){ return evo::resultError; }
@@ -710,6 +725,12 @@ namespace pcit::panther{
 				}else{
 					default_param_values.emplace_back();
 				}
+
+				evo::Result<evo::SmallVector<Instruction::AttributeParams>> param_attribute_params_info =
+					this->analyze_attributes(ast_buffer.getAttributeBlock(param.attributeBlock));
+				if(param_attribute_params_info.isError()){ return evo::resultError; }
+
+				param_attribute_params.emplace_back(std::move(param_attribute_params_info.value()));
 			}
 
 			evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
@@ -738,6 +759,7 @@ namespace pcit::panther{
 					func_def,
 					std::move(attribute_params_info.value()),
 					std::move(default_param_values),
+					std::move(param_attribute_params),
 					std::move(types)
 				)
 			);

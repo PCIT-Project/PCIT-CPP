@@ -3202,6 +3202,11 @@ namespace pcit::panther{
 			}();
 
 
+			const evo::Result<FuncParamAttrs> param_attrs =
+				this->analyze_func_param_attrs(param, instr.param_attribute_params[i]);
+			if(param_attrs.isError()){ return Result::ERROR; }
+
+
 			if(symbol_proc_param_type_id.has_value()){ // regular param
 				const TypeInfo::VoidableID decl_param_type_id = this->get_type(*symbol_proc_param_type_id);
 
@@ -3276,15 +3281,28 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					sema_params.emplace_back(ast_buffer.getIdent(param.name), default_param_value.getExpr());
+					sema_params.emplace_back(
+						ast_buffer.getIdent(param.name),
+						default_param_value.getExpr(),
+						param_attrs.value().is_must_label
+					);
 
 				}else{
-					sema_params.emplace_back(ast_buffer.getIdent(param.name), std::nullopt);
+					sema_params.emplace_back(
+						ast_buffer.getIdent(param.name),
+						std::nullopt,
+						param_attrs.value().is_must_label
+					);
 					min_num_args += 1;
 				}
 
 			}else{ // [this] param
 				has_this_param = true;
+
+				if(param_attrs.value().is_must_label){
+					this->emit_error("[this] parameters cannot have attribute `#mustLabel`", param);
+					return Result::ERROR;
+				}
 
 				const std::optional<EncapsulatingSymbolID> current_type_scope = 
 					this->scope.getCurrentTypeScopeIfExists();
@@ -25205,6 +25223,7 @@ namespace pcit::panther{
 			struct ValueKindMismatch{ size_t arg_index; };
 			struct InArgNotMovable{ size_t arg_index; };
 			struct IncorrectLabel{ size_t arg_index; };
+			struct MissingLabel{ size_t arg_index; };
 			struct IntrinsicArgWithLabel{ size_t arg_index; };
 
 			using Reason = evo::Variant<
@@ -25216,6 +25235,7 @@ namespace pcit::panther{
 				ValueKindMismatch,
 				InArgNotMovable,
 				IncorrectLabel,
+				MissingLabel,
 				IntrinsicArgWithLabel
 			>;
 			
@@ -25453,6 +25473,29 @@ namespace pcit::panther{
 
 						if(arg_label != param_name){
 							scores.emplace_back(OverloadScore::IncorrectLabel(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+					}
+
+				}else{
+					if(func_info.func_id.is<sema::Func::ID>()){
+						const sema::Func& sema_func =
+							this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+
+						if(sema_func.params[arg_i].mustLabel){
+							scores.emplace_back(OverloadScore::MissingLabel(arg_i));
+							arg_checking_failed = true;
+							break;
+						}
+						
+					}else if(func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(
+							*func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+						);
+
+						if(sema_func.params[arg_i].mustLabel){
+							scores.emplace_back(OverloadScore::MissingLabel(arg_i));
 							arg_checking_failed = true;
 							break;
 						}
@@ -25721,6 +25764,15 @@ namespace pcit::panther{
 										)
 									)
 								),
+							}
+						);
+
+					}else if constexpr(std::is_same<ReasonT, OverloadScore::MissingLabel>()){
+						infos.emplace_back(
+							std::format("Failed to match: argument (index: {}) is missing label", reason.arg_index),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("This argument has attribute `#mustLabel` so it requires a label"),
 							}
 						);
 
@@ -30607,6 +30659,43 @@ namespace pcit::panther{
 			.is_implicit    = attr_implicit.is_set(),
 		};
 	}
+
+
+
+	auto SemanticAnalyzer::analyze_func_param_attrs(
+		const AST::FuncDef::Param& param, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<FuncParamAttrs> {
+		auto attr_must_label = Attribute(*this, "mustLabel");
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(param.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "mustLabel"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #mustLabel does not accept any arguments", attribute.args.front());
+					return evo::resultError;
+				}
+
+				if(attr_must_label.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else{
+				this->emit_error(
+					std::format("Unknown function parameter attribute #{}", attribute_str), attribute.attribute
+				);
+				return evo::resultError;
+			}
+		}
+
+		return FuncParamAttrs{
+			.is_must_label = attr_must_label.is_set(),
+		};
+	}
+
 
 
 

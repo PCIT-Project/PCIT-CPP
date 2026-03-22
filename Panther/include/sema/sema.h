@@ -654,6 +654,7 @@ namespace pcit::panther::sema{
 		struct Param{
 			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> ident;
 			std::optional<Expr> defaultValue;
+			bool mustLabel;
 		};
 
 		enum class Status{

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.266.0"></a>
+## v0.0.266.0
+
+### Panther
+- Added funciton parameter attribute `#mustLabel`
+
+
+<!---------------------------------->
 <a name="v0.0.265.0"></a>
 ## v0.0.265.0
 
