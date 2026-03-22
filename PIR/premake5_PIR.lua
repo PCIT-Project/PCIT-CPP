@@ -2,7 +2,10 @@
 
 project "PIR"
 	kind "StaticLib"
-	-- staticruntime "On"
+	
+	filter "configurations:Optimize or Release or ReleaseDist"
+		staticruntime "On"
+	filter{}
 	
 
 	targetdir(target.lib)

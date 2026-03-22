@@ -55,7 +55,7 @@ workspace "PCIT-CPP"
 	filter {}
 
 	filter "configurations:Optimize"
-		runtime "Debug" -- TODO: figure out how to have LLVM build with release runtime
+		runtime "Release"
 		symbols "On"
 		optimize "Full"
 
@@ -68,7 +68,7 @@ workspace "PCIT-CPP"
 
 
 	filter "configurations:Release"
-		runtime "Debug" -- TODO: figure out how to have LLVM build with release runtime
+		runtime "Release"
 		symbols "Off"
 		optimize "Full"
 
@@ -82,7 +82,7 @@ workspace "PCIT-CPP"
 
 
 	filter "configurations:ReleaseDist"
-		runtime "Debug" -- TODO: figure out how to have LLVM build with release runtime
+		runtime "Release"
 		symbols "Off"
 		optimize "Full"
 

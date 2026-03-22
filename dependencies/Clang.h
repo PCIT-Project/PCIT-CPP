@@ -14,6 +14,7 @@
     #pragma warning(disable : 4217) // needed for some reason...
 #endif
 
+#define CLANG_BUILD_STATIC
 
 #include <clang/AST/RecursiveASTVisitor.h>
 #include <clang/AST/Mangle.h>

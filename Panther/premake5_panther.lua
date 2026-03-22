@@ -2,7 +2,12 @@
 
 project "Panther"
 	kind "StaticLib"
-	-- staticruntime "On"
+
+	filter "configurations:Optimize or Release or ReleaseDist"
+		staticruntime "On"
+	filter{}
+
+
 	
 
 	targetdir(target.lib)
@@ -39,7 +44,10 @@ project "*"
 
 project "pthr"
 	kind "ConsoleApp"
-	-- staticruntime "On"
+	
+	filter "configurations:Optimize or Release or ReleaseDist"
+		staticruntime "On"
+	filter{}
 	
 
 	targetdir(target.bin)

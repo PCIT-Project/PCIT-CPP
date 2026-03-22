@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.264.0"></a>
+## v0.0.264.0
+
+- Release builds now work with release build of LLVM
+	- See [https://discourse.llvm.org/t/building-a-release-build-created-a-debug-build/89180/11](https://discourse.llvm.org/t/building-a-release-build-created-a-debug-build/89180/11)
+
+
+<!---------------------------------->
 <a name="v0.0.263.0"></a>
 ## v0.0.263.0
 

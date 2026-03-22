@@ -5,3 +5,7 @@ func get_test_enum = () -> test.TestEnum {
 
 	return test.TestEnum.TEST_ENUM_BAR;
 }
+
+func entry = () #entry -> UI8 {
+	return get_test_enum() as UI8;
+}

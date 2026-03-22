@@ -4,7 +4,10 @@
 
 project "PLNK_lib"
 	kind "StaticLib"
-	-- staticruntime "On"
+	
+	filter "configurations:Optimize or Release or ReleaseDist"
+		staticruntime "On"
+	filter{}
 	
 
 	targetdir(target.lib)
@@ -26,8 +29,14 @@ project "PLNK_lib"
 		"PCIT_core",
 	}
 
-	LLVM.link.all_platforms()
-	LLD.link_all()
+	llvm_link_all_platforms()
+	-- LLD.link_all()
+	llvm_link("lldCOFF")
+	llvm_link("lldCommon")
+	llvm_link("lldELF")
+	llvm_link("lldMachO")
+	llvm_link("lldMinGW")
+	llvm_link("lldWasm")
 
 
 project "*"

@@ -6,6 +6,10 @@ project "Evo"
 	cppdialect "C++20"
 	exceptionhandling "Off"
 	allmodulespublic "Off"
+	
+	filter "configurations:Optimize or Release or ReleaseDist"
+		staticruntime "On"
+	filter{}
 
 	
 	targetdir(target.lib)
