@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.267.0"></a>
+## v0.0.267.0
+
+### Misc
+- Added debug info option C/C++ compilation
+
+
+<!---------------------------------->
 <a name="v0.0.266.0"></a>
 ## v0.0.266.0
 
@@ -14,7 +22,7 @@
 
 - Removed "Optimize" and "ReleaseDist" build options. This is intended to only be temporary.
 
-### Panther
+### Misc
 - Fixed C/C++ compilation of unnamed struct members
 - Fixed C compilation of enums
 

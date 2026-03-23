@@ -27,6 +27,7 @@ namespace pcit::pir{
 	auto lowerToLLVMIR(
 		const class Module& module,
 		OptMode opt_mode = OptMode::NONE,
+		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
 		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> std::string;
@@ -34,6 +35,7 @@ namespace pcit::pir{
 	auto lowerToAssembly(
 		const class Module& module,
 		OptMode opt_mode = OptMode::NONE,
+		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
 		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> evo::Result<std::string>;
@@ -41,6 +43,7 @@ namespace pcit::pir{
 	auto lowerToObject(
 		const class Module& module,
 		OptMode opt_mode = OptMode::NONE,
+		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
 		evo::SmallVector<llvm::Module*>&& modules = {}
 	) -> evo::Result<std::vector<evo::byte>>;

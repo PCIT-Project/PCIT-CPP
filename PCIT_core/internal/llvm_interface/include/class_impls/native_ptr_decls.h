@@ -19,6 +19,8 @@ namespace llvm{
 	class IRBuilderBase;
 	class NoFolder;
 	class IRBuilderDefaultInserter;
+	class DIBuilder;
+	class DIFile;
 
 	
 	class Function;

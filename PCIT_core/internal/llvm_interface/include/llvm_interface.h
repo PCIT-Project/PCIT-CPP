@@ -18,6 +18,7 @@
 #include "./Module.h"
 #include "./Function.h"
 
+#include "./DIBuilder.h"
 #include "./IRBuilder.h"
 #include "./OrcJIT.h"
 

@@ -21,10 +21,10 @@ namespace pcit::core{
 		uint16_t patch;
 	};
 
-	constexpr auto version = Version{
+	constexpr auto VERSION = Version{
 		.major   = 0,
 		.release = 0,
-		.minor   = 266,
+		.minor   = 267,
 		.patch   = 0,
 	};
 

@@ -59,6 +59,23 @@ namespace pcit::pir{
 
 
 
+	auto PIRToLLVMIR::addModuleLevelDebugInfo() -> void {
+		evo::debugAssert(this->add_debug_info, "Not set to add debug info");
+
+		this->di_builder.addModuleLevelDebugInfo();
+
+		this->di_builder.createCompileUnit(
+			llvmint::DIBuilder::Language::PANTHER,
+			this->di_builder.createFile(this->module.getName(), "."), // TODO(NOW): proper path?
+			std::format("PCIT-CPP v{}", core::VERSION),
+			false
+		);
+	}
+
+
+
+
+
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_subset_impl(const Subset& subset) -> void {
 		for(const Type& struct_type : subset.structs){

@@ -25,12 +25,22 @@ namespace pcit::pir{
 	class PIRToLLVMIR{
 		public:
 			PIRToLLVMIR(
-				const Module& _module, llvmint::LLVMContext& llvm_context, llvmint::Module& _llvm_module
-			) : module(_module), llvm_module(_llvm_module), builder(llvm_context), reader(this->module) {}
+				const Module& _module,
+				llvmint::LLVMContext& llvm_context,
+				llvmint::Module& _llvm_module,
+				bool _add_debug_info
+			) : 
+				module(_module),
+				llvm_module(_llvm_module),
+				builder(llvm_context),
+				di_builder(_llvm_module),
+				reader(this->module),
+				add_debug_info(_add_debug_info)
+			{}
+
 			~PIRToLLVMIR() = default;
 
 			auto lower() -> void;
-
 
 			struct Subset{
 				evo::ArrayProxy<Type> structs;
@@ -42,6 +52,9 @@ namespace pcit::pir{
 			};
 			auto lowerSubset(const Subset& subset) -> void;
 			auto lowerSubsetWithWeakDependencies(const Subset& subset) -> void;
+
+
+			auto addModuleLevelDebugInfo() -> void;
 
 
 		private:
@@ -109,8 +122,10 @@ namespace pcit::pir{
 			const Module& module;
 			llvmint::Module& llvm_module;
 			llvmint::IRBuilder builder;
+			llvmint::DIBuilder di_builder;
 
 			ReaderAgent reader;
+			bool add_debug_info;
 
 			std::unordered_map<const StructType*, llvmint::StructType> struct_types{};
 			std::unordered_map<const void*, llvmint::Function> funcs{}; // void* for funcs and extern funcs

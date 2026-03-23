@@ -31,6 +31,7 @@ namespace pcit::pir{
 		LoweringData(
 			const Module& pir_module,
 			OptMode opt_mode,
+			bool add_debug_info,
 			llvm::LLVMContext* llvm_context,
 			evo::SmallVector<llvm::Module*>&& modules
 		){
@@ -71,7 +72,12 @@ namespace pcit::pir{
 
 
 
-			auto lowerer = PIRToLLVMIR(pir_module, this->context, this->module);
+			auto lowerer = PIRToLLVMIR(pir_module, this->context, this->module, add_debug_info);
+
+			if(add_debug_info){
+				lowerer.addModuleLevelDebugInfo();
+			}
+
 			lowerer.lower();
 
 			switch(opt_mode){
@@ -106,10 +112,11 @@ namespace pcit::pir{
 	auto lowerToLLVMIR(
 		const Module& module,
 		OptMode opt_mode,
+		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
 		evo::SmallVector<llvm::Module*>&& modules
 	) -> std::string {
-		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
 		return lowering_data.module.print();
 	}
 
@@ -117,20 +124,22 @@ namespace pcit::pir{
 	auto lowerToAssembly(
 		const Module& module,
 		OptMode opt_mode,
+		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
 		evo::SmallVector<llvm::Module*>&& modules
 	) -> evo::Result<std::string> {
-		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
 		return lowering_data.module.lowerToAssembly();
 	}
 
 	auto lowerToObject(
 		const Module& module,
 		OptMode opt_mode,
+		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
 		evo::SmallVector<llvm::Module*>&& modules
 	) -> evo::Result<std::vector<evo::byte>> {
-		auto lowering_data = LoweringData(module, opt_mode, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
 		return lowering_data.module.lowerToObject();
 	}
 	

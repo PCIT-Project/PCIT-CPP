@@ -80,7 +80,7 @@ namespace pcit::pir{
 			}
 		}
 
-		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module, false);
 		lowerer.lower();
 
 		return this->data->orc_jit.addModule(std::move(llvm_context), std::move(llvm_module));
@@ -121,11 +121,12 @@ namespace pcit::pir{
 			}
 		}
 
-		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module, false);
 		lowerer.lowerSubset(PIRToLLVMIR::Subset{
 			.structs        = module_subsets.structs,
 			.globalVars     = module_subsets.globalVars,
 			.globalVarDecls = module_subsets.globalVarDecls,
+
 			.externFuncs    = module_subsets.externFuncs,
 			.funcDecls      = module_subsets.funcDecls,
 			.funcs          = module_subsets.funcs,
@@ -158,7 +159,7 @@ namespace pcit::pir{
 			}
 		}
 
-		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module);
+		auto lowerer = PIRToLLVMIR(module, llvm_context, llvm_module, false);
 		lowerer.lowerSubsetWithWeakDependencies(PIRToLLVMIR::Subset{
 			.structs        = module_subsets.structs,
 			.globalVars     = module_subsets.globalVars,

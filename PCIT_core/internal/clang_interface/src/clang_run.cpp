@@ -668,7 +668,7 @@ namespace pcit::clangint{
 
 
 	EVO_NODISCARD static auto get_compiler_args(
-		const std::string& file_name, evo::Variant<COpts, CPPOpts> opts, core::Target target
+		const std::string& file_name, evo::Variant<COpts, CPPOpts> opts, core::Target target, bool include_debug_info
 	) -> evo::SmallVector<const char*> {
 		auto args = evo::SmallVector<const char*>{
 			file_name.c_str(),
@@ -676,6 +676,28 @@ namespace pcit::clangint{
 			"-D__GNUC__",
 			"-DNO_OLDNAMES",
 		};
+
+
+		// found by running `clang -v file.cpp -g` and looking at cc1 invocation
+		if(include_debug_info){
+			switch(target.platform){
+				case core::Target::Platform::WINDOWS: {
+					args.emplace_back("-gno-column-info");
+					args.emplace_back("-gcodeview");
+					args.emplace_back("-debug-info-kind=constructor");
+				} break;
+
+				case core::Target::Platform::LINUX: {
+					args.emplace_back("-debug-info-kind=constructor");
+					args.emplace_back("-dwarf-version=5");
+				} break;
+
+				case core::Target::Platform::UNKNOWN: {
+					// do nothing...
+				} break;
+			}
+
+		}
 
 		opts.visit([&](const auto& opts) -> void {
 			using OptsType = std::decay_t<decltype(opts)>;
@@ -758,6 +780,7 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
+		bool include_debug_info,
 		DiagnosticList& diagnostic_list,
 		API& api
 	) -> evo::Result<> {
@@ -766,7 +789,7 @@ namespace pcit::clangint{
 		auto diagnostic_options = clang::DiagnosticOptions();
 		auto diagnostic_consumer = DiagnosticConsumer(diagnostic_list);
 
-		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target);
+		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target, include_debug_info);
 		
 
 		// will be given ownership to clang by `setDiagnostics`
@@ -812,6 +835,7 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
+		bool include_debug_info,
 		llvm::LLVMContext* llvm_context,
 		DiagnosticList& diagnostic_list
 	) -> evo::Result<llvm::Module*> {
@@ -820,7 +844,7 @@ namespace pcit::clangint{
 		auto diagnostic_options = clang::DiagnosticOptions();
 		auto diagnostic_consumer = DiagnosticConsumer(diagnostic_list);
 
-		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target);
+		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target, include_debug_info);
 		
 		// will be given ownership to clang by `setDiagnostics`
 		clang::DiagnosticsEngine* diagnostics_engine =

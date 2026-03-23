@@ -5,5 +5,5 @@ func square_num = (num: UInt) -> UInt {
 
 
 func entry = () #entry -> UI8 {
-	return square_num(num: 12) as UI8;
+	return square_num(12) as UI8;
 }

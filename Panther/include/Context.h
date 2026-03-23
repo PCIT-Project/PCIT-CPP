@@ -62,6 +62,8 @@ namespace pcit::panther{
 				core::Target target;
 				std::filesystem::path workingDirectory;
 
+				bool includeDebugInfo = true;
+				
 				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
 				NumThreads numThreads = NumThreads::single();
 			};

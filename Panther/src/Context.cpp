@@ -808,6 +808,7 @@ namespace pcit::panther{
 		llvmint::LLVMContext& llvm_context,
 		clangint::DiagnosticList& diagnostic_list,
 		core::Target target,
+		bool include_debug_info,
 		Context& context,
 		SourceManager& source_manager
 	) -> evo::Result<llvm::Module*> {
@@ -841,6 +842,7 @@ namespace pcit::panther{
 				header_interface_str,
 				opts,
 				target,
+				include_debug_info,
 				llvm_context.native(),
 				diagnostic_list
 			);
@@ -930,7 +932,13 @@ namespace pcit::panther{
 
 
 			const evo::Result<llvm::Module*> clang_module = get_clang_module(
-				clang_source, llvm_context, diagnostic_list, this->_config.target, *this, this->source_manager
+				clang_source,
+				llvm_context,
+				diagnostic_list,
+				this->_config.target,
+				this->_config.includeDebugInfo,
+				*this,
+				this->source_manager
 			);
 
 			if(clang_module.isError()){ return evo::resultError; }
@@ -966,6 +974,7 @@ namespace pcit::panther{
 		llvmint::LLVMContext& llvm_context,
 		SourceManager& source_manager,
 		core::Target target,
+		bool include_debug_info,
 		Context& context
 	) -> evo::Result<evo::SmallVector<llvm::Module*>> {
 		auto clang_modules = evo::SmallVector<llvm::Module*>();
@@ -977,7 +986,7 @@ namespace pcit::panther{
 			const ClangSource& clang_source = source_manager[clang_source_id];
 
 			const evo::Result<llvm::Module*> clang_module = get_clang_module(
-				clang_source, llvm_context, diagnostic_list, target, context, source_manager
+				clang_source, llvm_context, diagnostic_list, target, include_debug_info, context, source_manager
 			);
 
 			if(clang_module.isError()){ return evo::resultError; }
@@ -994,14 +1003,16 @@ namespace pcit::panther{
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
 
-		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = 
-			get_clang_modules(llvm_context, this->source_manager, this->_config.target, *this);
+		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = get_clang_modules(
+			llvm_context, this->source_manager, this->_config.target, this->_config.includeDebugInfo, *this
+		);
 
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToLLVMIR(
 			this->pir_module,
 			pir::OptMode::O0,
+			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
 		);
@@ -1012,14 +1023,16 @@ namespace pcit::panther{
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
 
-		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = 
-			get_clang_modules(llvm_context, this->source_manager, this->_config.target, *this);
+		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = get_clang_modules(
+			llvm_context, this->source_manager, this->_config.target, this->_config.includeDebugInfo, *this
+		);
 
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToAssembly(
 			this->pir_module,
 			pir::OptMode::O0,
+			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
 		);
@@ -1030,14 +1043,16 @@ namespace pcit::panther{
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
 
-		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = 
-			get_clang_modules(llvm_context, this->source_manager, this->_config.target, *this);
+		evo::Result<evo::SmallVector<llvm::Module*>> clang_modules = get_clang_modules(
+			llvm_context, this->source_manager, this->_config.target, this->_config.includeDebugInfo, *this
+		);
 
 		if(clang_modules.isError()){ return evo::resultError; }
 
 		return pir::lowerToObject(
 			this->pir_module,
 			pir::OptMode::O0,
+			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
 		);
@@ -1229,7 +1244,13 @@ namespace pcit::panther{
 
 		auto clang_api = pcit::clangint::API();
 		const evo::Result<> get_clang_header_api_res = pcit::clangint::getHeaderAPI(
-			filepath_str, std::string_view(file.value()), opts, this->getConfig().target, diagnostic_list, clang_api
+			filepath_str,
+			std::string_view(file.value()),
+			opts,
+			this->getConfig().target,
+			this->getConfig().includeDebugInfo,
+			diagnostic_list,
+			clang_api
 		);
 
 

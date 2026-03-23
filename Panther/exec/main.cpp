@@ -784,13 +784,13 @@ auto main(int argc, const char* argv[]) -> int {
 		pthr::print_logo(printer);
 
 		#if defined(PCIT_BUILD_DEBUG)
-			printer.printlnMagenta("v{} (debug)", pcit::core::version);
+			printer.printlnMagenta("v{} (debug)", pcit::core::VERSION);
 		#elif defined(PCIT_BUILD_OPTIMIZE)
-			printer.printlnMagenta("v{} (optimize)", pcit::core::version);
+			printer.printlnMagenta("v{} (optimize)", pcit::core::VERSION);
 		#elif defined(PCIT_BUILD_RELEASE)
-			printer.printlnMagenta("v{} (release)", pcit::core::version);
+			printer.printlnMagenta("v{} (release)", pcit::core::VERSION);
 		#elif defined(PCIT_BUILD_DIST)
-			printer.printlnMagenta("v{}", pcit::core::version);
+			printer.printlnMagenta("v{}", pcit::core::VERSION);
 		#else
 			#error Unknown or unsupported build
 		#endif

@@ -52,6 +52,7 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
+		bool include_debug_info,
 		DiagnosticList& diagnostic_list,
 		API& api
 	) -> evo::Result<>;
@@ -63,6 +64,7 @@ namespace pcit::clangint{
 		std::string_view file_data,
 		evo::Variant<COpts, CPPOpts> opts,
 		core::Target target,
+		bool include_debug_info,
 		llvm::LLVMContext* llvm_context,
 		DiagnosticList& diagnostic_list
 	) -> evo::Result<llvm::Module*>; // consumer must delete the result
