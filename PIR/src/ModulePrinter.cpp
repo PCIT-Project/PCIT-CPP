@@ -112,13 +112,7 @@ namespace pcit::pir{
 				attribute_variant.visit([&](const auto& attribute) -> void {
 					using Attribute = std::decay_t<decltype(attribute)>;
 
-					if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Unsigned>()){
-						this->printer.printRed(" #unsigned");
-
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::Signed>()){
-						this->printer.printRed(" #signed");
-
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNoAlias>()){
+					if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNoAlias>()){
 						this->printer.printRed(" #ptrNoAlias");
 
 					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrNonNull>()){
@@ -132,9 +126,6 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrReadOnly>()){
 						this->printer.printRed(" #ptrReadOnly");
-
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWriteOnly>()){
-						this->printer.printRed(" #ptrWriteOnly");
 
 					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWritable>()){
 						this->printer.printRed(" #ptrWritable");
@@ -422,12 +413,13 @@ namespace pcit::pir{
 
 	auto ModulePrinter::printType(const Type& type) -> void {
 		switch(type.kind()){
-			case Type::Kind::VOID:     { this->printer.printCyan("Void");                 } break;
-			case Type::Kind::INTEGER:  { this->printer.printCyan("I{}", type.getWidth()); } break;
-			case Type::Kind::BOOL:     { this->printer.printCyan("Bool");                 } break;
-			case Type::Kind::FLOAT:    { this->printer.printCyan("F{}", type.getWidth()); } break;
-			case Type::Kind::BFLOAT:   { this->printer.printCyan("BF16");                 } break;
-			case Type::Kind::PTR:      { this->printer.printCyan("Ptr");                  } break;
+			case Type::Kind::VOID:     { this->printer.printCyan("Void");                  } break;
+			case Type::Kind::UNSIGNED: { this->printer.printCyan("UI{}", type.getWidth()); } break;
+			case Type::Kind::SIGNED:   { this->printer.printCyan("I{}", type.getWidth());  } break;
+			case Type::Kind::BOOL:     { this->printer.printCyan("Bool");                  } break;
+			case Type::Kind::FLOAT:    { this->printer.printCyan("F{}", type.getWidth());  } break;
+			case Type::Kind::BFLOAT:   { this->printer.printCyan("BF16");                  } break;
+			case Type::Kind::PTR:      { this->printer.printCyan("Ptr");                   } break;
 
 			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->get_module().getArrayType(type);
@@ -481,11 +473,17 @@ namespace pcit::pir{
 				const Number& number = this->reader.getNumber(expr);
 				this->printType(number.type);
 				this->printer.print("(");
-				if(number.type.kind() == Type::Kind::INTEGER){
+
+				if(number.type.kind() == Type::Kind::UNSIGNED){
+					this->printer.printMagenta(number.getInt().toString(false));
+
+				}else if(number.type.kind() == Type::Kind::SIGNED){
 					this->printer.printMagenta(number.getInt().toString(true));
+
 				}else{
 					this->printer.printMagenta(number.getFloat().toString());
 				}
+				
 				this->printer.print(")");
 			} break;
 

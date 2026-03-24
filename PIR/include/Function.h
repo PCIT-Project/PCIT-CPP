@@ -29,29 +29,22 @@ namespace pcit::pir{
 			struct AttributePtrNonNull{};
 			struct AttributePtrDereferencable{ uint64_t size; };
 			struct AttributePtrReadOnly{};
-			struct AttributePtrWriteOnly{};
 			struct AttributePtrWritable{};
 			struct AttributePtrRVO{ Type type; }; // only 1 may be used
 
 		public:
 			struct Attribute : public evo::Variant<
-				AttributeUnsigned,
-				AttributeSigned,
 				AttributePtrNoAlias,
 				AttributePtrNonNull,
 				AttributePtrDereferencable,
 				AttributePtrReadOnly,
-				AttributePtrWriteOnly,
 				AttributePtrWritable,
 				AttributePtrRVO
 			>{
-				using Unsigned          = AttributeUnsigned;
-				using Signed            = AttributeSigned;
 				using PtrNoAlias        = AttributePtrNoAlias;
 				using PtrNonNull        = AttributePtrNonNull;
 				using PtrDereferencable = AttributePtrDereferencable;
 				using PtrReadOnly       = AttributePtrReadOnly;
-				using PtrWriteOnly      = AttributePtrWriteOnly;
 				using PtrWritable       = AttributePtrWritable;
 				using PtrRVO            = AttributePtrRVO;
 			};
@@ -75,20 +68,10 @@ namespace pcit::pir{
 					attribute.visit([&](const auto& attr) -> void {
 						using AttrType = std::decay_t<decltype(attr)>;
 
-						if constexpr(
-							std::is_same<AttrType, Attribute::Unsigned>() || std::is_same<AttrType, Attribute::Signed>()
-						){
-							evo::debugAssert(
-								this->type.kind() == Type::Kind::INTEGER,
-								"This attribute can only be added to a parameter with an integer type"
-							);
-						
-						}else{
-							evo::debugAssert(
-								this->type.kind() == Type::Kind::PTR,
-								"This attribute can only be added to a parameter with a pointer type"
-							);
-						}
+						evo::debugAssert(
+							this->type.kind() == Type::Kind::PTR,
+							"This attribute can only be added to a parameter with a pointer type"
+						);
 					});
 				#endif
 

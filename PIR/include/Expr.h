@@ -332,7 +332,7 @@ namespace pcit::pir{
 		const Type type;
 
 		EVO_NODISCARD auto getInt() const -> const core::GenericInt& {
-			evo::debugAssert(this->type.kind() == Type::Kind::INTEGER, "This number is not integral");
+			evo::debugAssert(this->type.isIntegral(), "This number is not integral");
 			return this->value.as<core::GenericInt>();
 		}
 

@@ -234,17 +234,22 @@ namespace pcit::pir{
 			llvmint::Argument arg = llvm_func.getArg(i);
 			arg.setName(param.getName());
 
+			switch(param.getType().kind()){
+				case Type::Kind::UNSIGNED: case Type::Kind::BOOL: {
+					arg.setZeroExt();
+				} break;
+
+				case Type::Kind::SIGNED: {
+					arg.setSignExt();
+				} break;
+			}
+
+
 			for(const Parameter::Attribute& attribute_variant : param.attributes){
 				attribute_variant.visit([&](const auto& attribute) -> void {
 					using Attribute = std::decay_t<decltype(attribute)>;
 
-					if constexpr(std::is_same<Attribute, Parameter::Attribute::Unsigned>()){
-						arg.setZeroExt();
-
-					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::Signed>()){
-						arg.setSignExt();
-
-					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrNoAlias>()){
+					if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrNoAlias>()){
 						arg.setNoAlias();
 
 					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrNonNull>()){
@@ -255,9 +260,6 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrReadOnly>()){
 						arg.setReadOnly();
-
-					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrWriteOnly>()){
-						arg.setWriteOnly();
 
 					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrWritable>()){
 						arg.setWritable();
@@ -1609,7 +1611,11 @@ namespace pcit::pir{
 				const Number& number = this->reader.getNumber(expr);
 
 				switch(number.type.kind()){
-					case Type::Kind::INTEGER: {
+					case Type::Kind::UNSIGNED: {
+						return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asConstant();
+					} break;
+
+					case Type::Kind::SIGNED: {
 						return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asConstant();
 					} break;
 
@@ -1665,7 +1671,7 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 				switch(type.kind()){
-					case Type::Kind::INTEGER: {
+					case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
 						return this->builder.getValueI_N(type.getWidth(), 0).asConstant();
 					} break;
 
@@ -1759,8 +1765,12 @@ namespace pcit::pir{
 				const Number& number = this->reader.getNumber(expr);
 
 				switch(number.type.kind()){
-					case Type::Kind::INTEGER: {
+					case Type::Kind::UNSIGNED: {
 						return this->builder.getValueI_N(number.type.getWidth(), true, number.getInt()).asValue();
+					} break;
+
+					case Type::Kind::SIGNED: {
+						return this->builder.getValueI_N(number.type.getWidth(), false, number.getInt()).asValue();
 					} break;
 
 					case Type::Kind::FLOAT: {
@@ -1955,7 +1965,11 @@ namespace pcit::pir{
 	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
 		switch(type.kind()){
 			case Type::Kind::VOID:     return this->builder.getTypeVoid();
-			case Type::Kind::INTEGER:  return this->builder.getTypeI_N(type.getWidth()).asType();
+
+			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
+				return this->builder.getTypeI_N(type.getWidth()).asType();
+			}
+
 			case Type::Kind::BOOL:     return this->builder.getTypeBool().asType();
 			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){

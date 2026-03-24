@@ -94,10 +94,10 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// numbers
 
-			EVO_NODISCARD auto createNumber(const Type& type, core::GenericInt&& value) const -> Expr;
-			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericInt& value) const -> Expr;
-			EVO_NODISCARD auto createNumber(const Type& type, core::GenericFloat&& value) const -> Expr;
-			EVO_NODISCARD auto createNumber(const Type& type, const core::GenericFloat& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(Type type, core::GenericInt&& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(Type type, const core::GenericInt& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(Type type, core::GenericFloat&& value) const -> Expr;
+			EVO_NODISCARD auto createNumber(Type type, const core::GenericFloat& value) const -> Expr;
 
 			EVO_NODISCARD auto getNumber(Expr expr) const -> const Number&;
 
@@ -162,10 +162,10 @@ namespace pcit::pir{
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCall(
-				Expr func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
+				Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			EVO_NODISCARD auto createCall(
-				Expr func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
+				Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			EVO_NODISCARD auto getCall(Expr expr) const -> const Call&;
@@ -180,8 +180,8 @@ namespace pcit::pir{
 			auto createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
 			auto createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoid(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoid(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			EVO_NODISCARD auto getCallVoid(Expr expr) const -> const CallVoid&;
 
@@ -195,8 +195,8 @@ namespace pcit::pir{
 			auto createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
 			auto createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallNoReturn(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallNoReturn(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallNoReturn(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			EVO_NODISCARD auto getCallNoReturn(Expr expr) const -> const CallNoReturn&;
 
@@ -254,7 +254,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// alloca
 
-			EVO_NODISCARD auto createAlloca(const Type& type, std::string&& name = "") const -> Expr;
+			EVO_NODISCARD auto createAlloca(Type type, std::string&& name = "") const -> Expr;
 			EVO_NODISCARD auto getAlloca(Expr expr) const -> const Alloca&;
 
 
@@ -263,7 +263,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createLoad(
 				Expr source,
-				const Type& type,
+				Type type,
 				std::string&& name = "",
 				bool is_volatile = false,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NONE
@@ -282,7 +282,7 @@ namespace pcit::pir{
 				AtomicOrdering atomic_ordering = AtomicOrdering::NONE
 			) const -> void;
 
-			EVO_NODISCARD auto createStore(const Expr&, const Type&, const char*) const -> Expr = delete;
+			EVO_NODISCARD auto createStore(const Expr&, Type, const char*) const -> Expr = delete;
 
 			EVO_NODISCARD auto getStore(Expr expr) const -> const Store&;
 
@@ -292,7 +292,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createCalcPtr(
 				Expr base_ptr,
-				const Type& ptr_type,
+				Type ptr_type,
 				evo::SmallVector<CalcPtr::Index>&& indices,
 				std::string&& name = ""
 			) const -> Expr;
@@ -304,7 +304,7 @@ namespace pcit::pir{
 
 			auto createMemcpy(Expr dst, Expr src, Expr num_bytes, bool is_volatile = false) const -> Expr;
 
-			auto createMemcpy(Expr dst, Expr src, const Type& src_type, bool is_volatile = false) const
+			auto createMemcpy(Expr dst, Expr src, Type src_type, bool is_volatile = false) const
 			-> Expr {
 				return this->createMemcpy(dst, src, this->module.numBytes(src_type), is_volatile);
 			}
@@ -312,7 +312,7 @@ namespace pcit::pir{
 			auto createMemcpy(Expr dst, Expr src, size_t num_bytes, bool is_volatile = false) const
 			-> Expr {
 				const pir::Expr num_bytes_expr = this->createNumber(
-					this->module.createIntegerType(unsigned(this->module.sizeOfPtr() * 8)),
+					this->module.createUnsignedType(unsigned(this->module.sizeOfPtr() * 8)),
 					core::GenericInt(unsigned(this->module.sizeOfPtr() * 8), unsigned(num_bytes))
 				);
 
@@ -328,7 +328,7 @@ namespace pcit::pir{
 			auto createMemset(Expr dst, Expr value, Expr num_bytes, bool is_volatile = false) const
 				-> Expr;
 
-			auto createMemset(Expr dst, Expr value, const Type& dst_type, bool is_volatile = false) const
+			auto createMemset(Expr dst, Expr value, Type dst_type, bool is_volatile = false) const
 			-> Expr {
 				return this->createMemset(dst, value, this->module.numBytes(dst_type), is_volatile);
 			}
@@ -336,7 +336,7 @@ namespace pcit::pir{
 			auto createMemset(Expr dst, Expr value, size_t num_bytes, bool is_volatile = false) const
 			-> Expr {
 				const pir::Expr num_bytes_expr = this->createNumber(
-					this->module.createIntegerType(unsigned(this->module.sizeOfPtr() * 8)),
+					this->module.createUnsignedType(unsigned(this->module.sizeOfPtr() * 8)),
 					core::GenericInt(unsigned(this->module.sizeOfPtr() * 8), unsigned(num_bytes))
 				);
 
@@ -353,7 +353,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// BitCast
 
-			EVO_NODISCARD auto createBitCast(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createBitCast(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getBitCast(Expr expr) const -> const BitCast&;
 
@@ -361,7 +361,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// Trunc
 
-			EVO_NODISCARD auto createTrunc(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createTrunc(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getTrunc(Expr expr) const -> const Trunc&;
 
@@ -369,7 +369,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// FTrunc
 
-			EVO_NODISCARD auto createFTrunc(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createFTrunc(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getFTrunc(Expr expr) const -> const FTrunc&;
 
@@ -377,7 +377,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// SExt
 
-			EVO_NODISCARD auto createSExt(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createSExt(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getSExt(Expr expr) const -> const SExt&;
 
@@ -385,15 +385,27 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// ZExt
 
-			EVO_NODISCARD auto createZExt(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createZExt(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getZExt(Expr expr) const -> const ZExt&;
+
+
+			///////////////////////////////////
+			// Ext (select SExt or ZExt)
+
+			EVO_NODISCARD auto createExt(Expr fromValue, Type toType, std::string&& name = "") const -> Expr {
+				if(toType.kind() == Type::Kind::UNSIGNED){
+					return this->createZExt(fromValue, toType, std::move(name));
+				}else{
+					return this->createSExt(fromValue, toType, std::move(name));
+				}
+			}
 
 			
 			///////////////////////////////////
 			// FExt
 
-			EVO_NODISCARD auto createFExt(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createFExt(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getFExt(Expr expr) const -> const FExt&;
 
@@ -401,7 +413,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// IToF
 
-			EVO_NODISCARD auto createIToF(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createIToF(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getIToF(Expr expr) const -> const IToF&;
 
@@ -409,7 +421,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// UIToF
 
-			EVO_NODISCARD auto createUIToF(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createUIToF(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getUIToF(Expr expr) const -> const UIToF&;
 
@@ -417,7 +429,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// FToI
 
-			EVO_NODISCARD auto createFToI(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createFToI(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getFToI(Expr expr) const -> const FToI&;
 
@@ -425,7 +437,7 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// FToUI
 
-			EVO_NODISCARD auto createFToUI(Expr fromValue, const Type& toType, std::string&& name = "") const
+			EVO_NODISCARD auto createFToUI(Expr fromValue, Type toType, std::string&& name = "") const
 				-> Expr;
 			EVO_NODISCARD auto getFToUI(Expr expr) const -> const FToUI&;
 

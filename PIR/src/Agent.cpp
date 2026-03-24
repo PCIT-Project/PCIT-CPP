@@ -802,7 +802,7 @@ namespace pcit::pir{
 	}
 
 	auto Agent::createBasicBlock(Function& func, std::string&& name) const -> BasicBlock::ID {
-		const pcit::pir::BasicBlock::ID new_block_id =
+		const BasicBlock::ID new_block_id =
 			this->module.basic_blocks.emplace_back(this->get_stmt_name(std::move(name)));
 		func.append_basic_block(new_block_id);
 
@@ -819,7 +819,7 @@ namespace pcit::pir{
 	auto Agent::createBasicBlockInline(std::string&& name) const -> BasicBlock::ID {
 		evo::debugAssert(this->hasTargetBasicBlock(), "Cannot use this function as there is no target basic block set");
 
-		const pcit::pir::BasicBlock::ID new_block_id =
+		const BasicBlock::ID new_block_id =
 			this->module.basic_blocks.emplace_back(this->get_stmt_name(std::move(name)));
 		this->target_func->insert_basic_block_after(new_block_id, this->getTargetBasicBlock());
 
@@ -836,28 +836,28 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// numbers
 
-	auto Agent::createNumber(const Type& type, core::GenericInt&& value) const -> Expr {
+	auto Agent::createNumber(Type type, core::GenericInt&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-		evo::debugAssert(type.kind() == Type::Kind::INTEGER, "Type and value must both be integer or both be floating");
+		evo::debugAssert(type.isIntegral(), "Type and value must both be integer or both be floating");
 
 		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
-	auto Agent::createNumber(const Type& type, const core::GenericInt& value) const -> Expr {
+	auto Agent::createNumber(Type type, const core::GenericInt& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
-		evo::debugAssert(type.kind() == Type::Kind::INTEGER, "Type and value must both be integer or both be floating");
+		evo::debugAssert(type.isIntegral(), "Type and value must both be integer or both be floating");
 
 		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, value));
 	}
 
-	auto Agent::createNumber(const Type& type, core::GenericFloat&& value) const -> Expr {
+	auto Agent::createNumber(Type type, core::GenericFloat&& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integer or both be floating");
 
 		return Expr(Expr::Kind::NUMBER, this->module.numbers.emplace_back(type, std::move(value)));
 	}
 
-	auto Agent::createNumber(const Type& type, const core::GenericFloat& value) const -> Expr {
+	auto Agent::createNumber(Type type, const core::GenericFloat& value) const -> Expr {
 		evo::debugAssert(type.isNumeric(), "Number type must be numeric");
 		evo::debugAssert(type.isFloat(), "Type and value must both be integer or both be floating");
 
@@ -998,9 +998,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCall(
-		Expr func, const Type& func_type, evo::SmallVector<Expr>&& args, std::string&& name
-	) const -> Expr {
+	auto Agent::createCall(Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
@@ -1018,9 +1016,8 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCall(
-		Expr func, const Type& func_type, const evo::SmallVector<Expr>& args, std::string&& name
-	) const -> Expr {
+	auto Agent::createCall(Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
@@ -1119,8 +1116,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallVoid(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const
-	-> Expr {
+	auto Agent::createCallVoid(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1136,8 +1132,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const
-	-> Expr {
+	auto Agent::createCallVoid(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1235,8 +1230,7 @@ namespace pcit::pir{
 	}
 
 
-	auto Agent::createCallNoReturn(Expr func, const Type& func_type, evo::SmallVector<Expr>&& args) const
-	-> Expr {
+	auto Agent::createCallNoReturn(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1252,8 +1246,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::createCallNoReturn(Expr func, const Type& func_type, const evo::SmallVector<Expr>& args) const
-	-> Expr {
+	auto Agent::createCallNoReturn(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1405,9 +1398,9 @@ namespace pcit::pir{
 		evo::debugAssert(cases.empty() == false, "Switch statement must have at least 1 case");
 
 		#if defined(PCIT_CONFIG_DEBUG)
-			const pir::Type cond_type = this->getExprType(cond);
+			const Type cond_type = this->getExprType(cond);
 
-			evo::debugAssert(cond_type.kind() == pir::Type::Kind::INTEGER, "Cond type must be integral");
+			evo::debugAssert(cond_type.isIntegral(), "Cond type must be integral");
 
 			for(const Switch::Case& target_case : cases){
 				evo::debugAssert(
@@ -1432,7 +1425,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// alloca
 
-	auto Agent::createAlloca(const Type& type, std::string&& name) const -> Expr {
+	auto Agent::createAlloca(Type type, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetFunction(), "No target functions set");
 
 		return Expr(
@@ -1449,7 +1442,7 @@ namespace pcit::pir{
 	// load
 
 	auto Agent::createLoad(
-		Expr source, const Type& type, std::string&& name, bool is_volatile, AtomicOrdering atomic_ordering
+		Expr source, Type type, std::string&& name, bool is_volatile, AtomicOrdering atomic_ordering
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(atomic_ordering.isValidForLoad(), "This atomic ordering is not valid for a load");
@@ -1458,7 +1451,7 @@ namespace pcit::pir{
 		#if defined(PCIT_CONFIG_DEBUG)
 			if(atomic_ordering != AtomicOrdering::NONE){
 				// evo::debugAssert(
-				// 	type.kind() == Type::Kind::INTEGER
+				// 	type.isIntegral()
 				// 	|| type.kind() == Type::Kind::FLOAT
 				// 	|| type.kind() == Type::Kind::BFLOAT
 				// 	|| type.kind() == Type::Kind::BOOL
@@ -1466,7 +1459,7 @@ namespace pcit::pir{
 				// 	"Atomic load must be integral, float, bfloat, Bool, or Ptr"
 				// );
 
-				if(type.kind() == Type::Kind::INTEGER){
+				if(type.isIntegral()){
 					evo::debugAssert(
 						std::has_single_bit(type.getWidth()),
 						"atomic load of integral must have bit-width of a power of 2"
@@ -1513,7 +1506,7 @@ namespace pcit::pir{
 				const Type value_type = this->getExprType(value);
 
 				// evo::debugAssert(
-				// 	value_type.kind() == Type::Kind::INTEGER
+				// 	value_type.isIntegral()
 				// 	|| value_type.kind() == Type::Kind::FLOAT
 				// 	|| value_type.kind() == Type::Kind::BFLOAT
 				// 	|| value_type.kind() == Type::Kind::BOOL
@@ -1521,7 +1514,7 @@ namespace pcit::pir{
 				// 	"Atomic store must be integral, float, bfloat, Bool, or Ptr"
 				// );
 
-				if(value_type.kind() == Type::Kind::INTEGER){
+				if(value_type.isIntegral()){
 					evo::debugAssert(
 						std::has_single_bit(value_type.getWidth()),
 						"atomic store of integral must have bit-width of a power of 2"
@@ -1551,7 +1544,7 @@ namespace pcit::pir{
 	// calc ptr
 
 	EVO_NODISCARD auto Agent::createCalcPtr(
-		Expr base_ptr, const Type& ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
+		Expr base_ptr, Type ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(base_ptr).kind() == Type::Kind::PTR, "Base ptr must be of type Ptr");
@@ -1564,7 +1557,7 @@ namespace pcit::pir{
 					const CalcPtr::Index& index = indices[i];
 
 					evo::debugAssert(
-						index.is<int64_t>() || this->getExprType(index.as<Expr>()).kind() == Type::Kind::INTEGER,
+						index.is<int64_t>() || this->getExprType(index.as<Expr>()).isIntegral(),
 						"@calcPtr indicies must be integers"
 					);
 
@@ -1631,7 +1624,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
 		evo::debugAssert(this->getExprType(src).kind() == Type::Kind::PTR, "src must be pointer");
 		evo::debugAssert(
-			this->getExprType(num_bytes).kind() == Type::Kind::INTEGER && this->getExprType(num_bytes).getWidth() <= 64,
+			this->getExprType(num_bytes).isIntegral() && this->getExprType(num_bytes).getWidth() <= 64,
 			"num bytes must be integral and have a max width of 64"
 		);
 
@@ -1655,11 +1648,11 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->getExprType(dst).kind() == Type::Kind::PTR, "dst must be pointer");
 		evo::debugAssert(
-			this->getExprType(value).kind() == Type::Kind::INTEGER && this->getExprType(value).getWidth() == 8,
+			this->getExprType(value).isIntegral() && this->getExprType(value).getWidth() == 8,
 			"value must be of type I8"
 		);
 		evo::debugAssert(
-			this->getExprType(num_bytes).kind() == Type::Kind::INTEGER
+			this->getExprType(num_bytes).isIntegral()
 			&& this->getExprType(num_bytes).getWidth() <= 64,
 			"num bytes must be integral and have a max width of 64"
 		);
@@ -1680,12 +1673,12 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// BitCast
 	
-	EVO_NODISCARD auto Agent::createBitCast(Expr fromValue, const Type& toType, std::string&& name) const
+	EVO_NODISCARD auto Agent::createBitCast(Expr fromValue, Type toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
 		#if defined(PCIT_CONFIG_DEBUG)
-			const pir::Type from_type = this->getExprType(fromValue);
+			const Type from_type = this->getExprType(fromValue);
 
 			evo::debugAssert(
 				this->module.numBytes(from_type) == this->module.numBytes(toType),
@@ -1715,14 +1708,14 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// Trunc
 	
-	EVO_NODISCARD auto Agent::createTrunc(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createTrunc(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) >= this->module.numBytes(toType),
 			"Cannot convert to a type of a greater size"
 		);
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
-		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
+		evo::debugAssert(this->getExprType(fromValue).isIntegral(), "can only convert integers");
+		evo::debugAssert(toType.isIntegral(), "can only convert to integers");
 
 		const auto new_expr = Expr(
 			Expr::Kind::TRUNC,
@@ -1740,7 +1733,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FTrunc
 	
-	EVO_NODISCARD auto Agent::createFTrunc(Expr fromValue, const Type& toType, std::string&& name) const
+	EVO_NODISCARD auto Agent::createFTrunc(Expr fromValue, Type toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -1766,14 +1759,14 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// SExt
 	
-	EVO_NODISCARD auto Agent::createSExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createSExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
 			"Cannot convert to a type of a smaller size"
 		);
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
-		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
+		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::SIGNED, "can only convert signed");
+		evo::debugAssert(toType.kind() == Type::Kind::SIGNED, "can only convert to signed");
 
 		const auto new_expr = Expr(
 			Expr::Kind::SEXT,
@@ -1791,18 +1784,18 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ZExt
 	
-	EVO_NODISCARD auto Agent::createZExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createZExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(
-			this->getExprType(fromValue).kind() == Type::Kind::INTEGER
+			this->getExprType(fromValue).kind() == Type::Kind::UNSIGNED
 			|| this->getExprType(fromValue).kind() == Type::Kind::BOOL,
-			"can only convert from integers and Bool"
+			"can only convert from unsigned and Bool"
 		);
-		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
+		evo::debugAssert(toType.kind() == Type::Kind::UNSIGNED, "can only convert to unsigned");
 
 		const auto new_expr = Expr(
 			Expr::Kind::ZEXT,
@@ -1820,7 +1813,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FExt
 	
-	EVO_NODISCARD auto Agent::createFExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
@@ -1845,9 +1838,9 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// IToF
 	
-	EVO_NODISCARD auto Agent::createIToF(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
+		evo::debugAssert(this->getExprType(fromValue).isIntegral(), "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
@@ -1866,9 +1859,9 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// UIToF
 	
-	EVO_NODISCARD auto Agent::createUIToF(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createUIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
+		evo::debugAssert(this->getExprType(fromValue).isIntegral(), "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
 
 		const auto new_expr = Expr(
@@ -1887,10 +1880,10 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToI
 	
-	EVO_NODISCARD auto Agent::createFToI(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFToI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
-		evo::debugAssert(toType.kind() == Type::Kind::INTEGER, "can only convert to integers");
+		evo::debugAssert(toType.isIntegral(), "can only convert to integers");
 
 		const auto new_expr = Expr(
 			Expr::Kind::FTOI,
@@ -1908,11 +1901,11 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToUI
 	
-	EVO_NODISCARD auto Agent::createFToUI(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
+	EVO_NODISCARD auto Agent::createFToUI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(
-			toType.kind() == Type::Kind::INTEGER || toType.kind() == Type::Kind::BOOL,
+			toType.isIntegral() || toType.kind() == Type::Kind::BOOL,
 			"can only convert to integers and Bool"
 		);
 
@@ -1939,7 +1932,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @add instruction only supports integers"
+			this->getExprType(lhs).isIntegral(), "The @add instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -1964,7 +1957,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::SIGNED, "Can only add wrap signed");
 
 		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2002,7 +1995,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only add wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "Can only add wrap unsigned");
 
 		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2039,7 +2032,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @saddSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @saddSat instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2063,7 +2056,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @uaddSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @uaddSat instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2109,7 +2102,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sub instruction only supports integers"
+			this->getExprType(lhs).isIntegral(), "The @sub instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2134,7 +2127,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::SIGNED, "Can only sub wrap signed");
 
 		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2172,7 +2165,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only sub wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "Can only sub wrap unsigned");
 
 		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2209,7 +2202,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ssubSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @ssubSat instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2233,7 +2226,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @usubSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @usubSat instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2279,7 +2272,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @mul instruction only supports integers"
+			this->getExprType(lhs).isIntegral(), "The @mul instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -2304,7 +2297,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only mul wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::SIGNED, "Can only mul wrap signed");
 
 		const std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		const std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2342,7 +2335,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
-		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::INTEGER, "Can only mul wrap integers");
+		evo::debugAssert(this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "Can only mul wrap unsigned");
 
 		std::string result_stmt_name = this->get_stmt_name(std::move(result_name));
 		std::string wrapped_stmt_name = this->get_stmt_name_with_forward_include(
@@ -2379,7 +2372,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @smulSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @smulSat instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2403,7 +2396,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @umulSat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @umulSat instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2449,7 +2442,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sdiv instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @sdiv instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2474,7 +2467,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @udiv instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @udiv instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2521,7 +2514,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @srem instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @srem instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2546,7 +2539,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @urem instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @urem instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2614,7 +2607,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER 
+			this->getExprType(lhs).isIntegral() 
 				|| this->getExprType(lhs).kind() == Type::Kind::BOOL
 				|| this->getExprType(lhs).kind() == Type::Kind::PTR,
 			"The @ieq instruction only supports integers, Bools, and pointers"
@@ -2660,7 +2653,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER 
+			this->getExprType(lhs).isIntegral() 
 				|| this->getExprType(lhs).kind() == Type::Kind::BOOL
 				|| this->getExprType(lhs).kind() == Type::Kind::PTR,
 			"The @ineq instruction only supports integers, Bools, and pointers"
@@ -2706,7 +2699,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @slt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @slt instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2727,7 +2720,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ult instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ult instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2770,7 +2763,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @slte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @slte instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2791,7 +2784,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ulte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ulte instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2834,7 +2827,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sgt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @sgt instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2855,7 +2848,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ugt instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ugt instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2898,7 +2891,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sgte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @sgte instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -2919,7 +2912,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ugte instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ugte instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -2963,7 +2956,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			this->getExprType(lhs).isIntegral()
 			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @and instruction only supports integers and Bool"
 		);
@@ -2986,7 +2979,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			this->getExprType(lhs).isIntegral()
 			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @or instruction only supports integers and Bool"
 		);
@@ -3009,7 +3002,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER
+			this->getExprType(lhs).isIntegral()
 			|| this->getExprType(lhs).kind() == Type::Kind::BOOL,
 			"The @xor instruction only supports integers and Bool"
 		);
@@ -3032,7 +3025,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @shl instruction only supports integers"
+			this->getExprType(lhs).isIntegral(), "The @shl instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3053,7 +3046,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sshlsat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @sshlsat instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -3074,7 +3067,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ushlsat instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ushlsat instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -3095,7 +3088,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @sshr instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::SIGNED, "The @sshr instruction only supports signed"
 		);
 
 		const auto new_expr = Expr(
@@ -3116,7 +3109,7 @@ namespace pcit::pir{
 		evo::debugAssert(lhs.isValue() && rhs.isValue(), "Arguments must be values");
 		evo::debugAssert(this->getExprType(lhs) == this->getExprType(rhs), "Arguments must be same type");
 		evo::debugAssert(
-			this->getExprType(lhs).kind() == Type::Kind::INTEGER, "The @ushr instruction only supports integers"
+			this->getExprType(lhs).kind() == Type::Kind::UNSIGNED, "The @ushr instruction only supports unsigned"
 		);
 
 		const auto new_expr = Expr(
@@ -3139,7 +3132,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @bitReverse instruction only supports integers"
+			this->getExprType(expr).isIntegral(), "The @bitReverse instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3158,7 +3151,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @byteSwaP instruction only supports integers"
+			this->getExprType(expr).isIntegral(), "The @byteSwaP instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3177,7 +3170,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctPop instruction only supports integers"
+			this->getExprType(expr).isIntegral(), "The @ctPop instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3196,7 +3189,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctlz instruction only supports integers"
+			this->getExprType(expr).isIntegral(), "The @ctlz instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3215,7 +3208,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Expr must be value");
 		evo::debugAssert(
-			this->getExprType(expr).kind() == Type::Kind::INTEGER, "The @ctTZ instruction only supports integers"
+			this->getExprType(expr).isIntegral(), "The @ctTZ instruction only supports integers"
 		);
 
 		const auto new_expr = Expr(
@@ -3268,13 +3261,13 @@ namespace pcit::pir{
 			const Type value_type = this->getExprType(expected);
 
 			evo::debugAssert(
-				value_type.kind() == Type::Kind::INTEGER
+				value_type.isIntegral()
 				|| value_type.kind() == Type::Kind::BOOL
 				|| value_type.kind() == Type::Kind::PTR,
 				"Expected must be integral, Bool, or Ptr"
 			);
 
-			if(value_type.kind() == Type::Kind::INTEGER){
+			if(value_type.isIntegral()){
 				evo::debugAssert(
 					std::has_single_bit(value_type.getWidth()),
 					"bit-width of integral value type must be a power of 2"
@@ -3331,7 +3324,7 @@ namespace pcit::pir{
 					evo::debugFatalBreak("Cannot be Void");
 				} break;
 
-				case Type::Kind::INTEGER: {
+				case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
 					evo::debugAssert(
 						std::has_single_bit(value_type.getWidth()),
 						"bit-width of integral value type must be a power of 2"
@@ -3377,68 +3370,68 @@ namespace pcit::pir{
 
 				case AtomicRMW::Op::ADD: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER,
+						value_type.isIntegral(),
 						"value of atomicrmw add must be integral"
 					);
 				} break;
 
 				case AtomicRMW::Op::SUB: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER,
+						value_type.isIntegral(),
 						"value of atomicrmw sub must be integral"
 					);
 				} break;
 
 				case AtomicRMW::Op::AND: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw and must be integral or Bool"
 					);
 				} break;
 
 				case AtomicRMW::Op::NAND: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw nand must be integral or Bool"
 					);
 				} break;
 
 				case AtomicRMW::Op::OR: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw or must be integral or Bool"
 					);
 				} break;
 
 				case AtomicRMW::Op::XOR: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw xor must be integral or Bool"
 					);
 				} break;
 
 				case AtomicRMW::Op::SMAX: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER, "value of atomicrmw smax must be integral"
+						value_type.isIntegral(), "value of atomicrmw smax must be integral"
 					);
 				} break;
 
 				case AtomicRMW::Op::SMIN: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER, "value of atomicrmw smin must be integral"
+						value_type.isIntegral(), "value of atomicrmw smin must be integral"
 					);
 				} break;
 
 				case AtomicRMW::Op::UMAX: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw umax must be integral or Bool"
 					);
 				} break;
 
 				case AtomicRMW::Op::UMIN: {
 					evo::debugAssert(
-						value_type.kind() == Type::Kind::INTEGER || value_type.kind() == Type::Kind::BOOL,
+						value_type.isIntegral() || value_type.kind() == Type::Kind::BOOL,
 						"value of atomicrmw umin must be integral or Bool"
 					);
 				} break;

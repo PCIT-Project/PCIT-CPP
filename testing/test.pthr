@@ -4,7 +4,7 @@ type Struct = struct {
 	var a: UI16;
 	var b: UI8;
 	var c: UI16;
-	var d: UI8;
+	var d: I8;
 	var e: UI16;
 }
 

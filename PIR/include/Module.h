@@ -155,7 +155,7 @@ namespace pcit::pir{
 			// global values
 
 			EVO_NODISCARD auto createGlobalString(std::string&& string) -> GlobalVar::String::ID {
-				const Type str_type = this->getOrCreateArrayType(this->createIntegerType(8), string.size());
+				const Type str_type = this->getOrCreateArrayType(this->createSignedType(8), string.size());
 				return this->global_strings.emplace_back(std::move(string), str_type);
 			}
 
@@ -231,7 +231,7 @@ namespace pcit::pir{
 			// global byte array
 
 			EVO_NODISCARD auto createGlobalByteArray(evo::SmallVector<std::byte>&& bytes) -> GlobalVar::ByteArray::ID {
-				const Type array_type = this->getOrCreateArrayType(this->createIntegerType(8), bytes.size());
+				const Type array_type = this->getOrCreateArrayType(this->createUnsignedType(8), bytes.size());
 				return this->global_byte_arrays.emplace_back(array_type, std::move(bytes));
 			}
 
@@ -409,9 +409,14 @@ namespace pcit::pir{
 
 			EVO_NODISCARD static auto createPtrType() -> Type { return Type(Type::Kind::PTR); }
 
-			EVO_NODISCARD static auto createIntegerType(uint32_t width) -> Type {
+			EVO_NODISCARD static auto createUnsignedType(uint32_t width) -> Type {
 				evo::debugAssert(width != 0 && width < 1 << 23, "Invalid width for an integer ({})", width);
-				return Type(Type::Kind::INTEGER, width);
+				return Type(Type::Kind::UNSIGNED, width);
+			}
+
+			EVO_NODISCARD static auto createSignedType(uint32_t width) -> Type {
+				evo::debugAssert(width != 0 && width < 1 << 23, "Invalid width for an integer ({})", width);
+				return Type(Type::Kind::SIGNED, width);
 			}
 
 			EVO_NODISCARD static auto createBoolType() -> Type { return Type(Type::Kind::BOOL); }

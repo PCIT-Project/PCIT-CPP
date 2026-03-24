@@ -240,16 +240,6 @@ namespace pcit::panther{
 			if(param.shouldCopy){
 				const pir::Type param_type = this->get_type<false>(param.typeID);
 
-				if(param_type.kind() == pir::Type::Kind::INTEGER){
-					const TypeInfo::ID underlying_id = this->context.type_manager.getUnderlyingType(param.typeID);
-					if(this->context.getTypeManager().isUnsignedIntegral(underlying_id)){
-						attributes.emplace_back(pir::Parameter::Attribute::Unsigned());
-					}else{
-						attributes.emplace_back(pir::Parameter::Attribute::Signed());
-					}
-				}
-
-
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
@@ -875,7 +865,7 @@ namespace pcit::panther{
 
 
 		const pir::Function::ID entry_func_id = this->module.createFunction(
-			"PTHR.entry", {}, pir::CallingConvention::C, pir::Linkage::EXTERNAL, this->module.createIntegerType(8)
+			"PTHR.entry", {}, pir::CallingConvention::C, pir::Linkage::EXTERNAL, this->module.createUnsignedType(8)
 		);
 
 		pir::Function& entry_func = this->module.getFunction(entry_func_id);
@@ -900,12 +890,12 @@ namespace pcit::panther{
 		const pir::Function::ID entry_func_id = this->module.createFunction(
 			"main",
 			{
-				pir::Parameter("argc", this->module.createIntegerType(32)),
+				pir::Parameter("argc", this->module.createSignedType(32)),
 				pir::Parameter("argv", this->module.createPtrType()),
 			},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
-			this->module.createIntegerType(32)
+			this->module.createSignedType(32)
 		);
 
 		pir::Function& entry_func = this->module.getFunction(entry_func_id);
@@ -917,7 +907,7 @@ namespace pcit::panther{
 
 		const pir::Expr entry_call =
 			this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
-		const pir::Expr zext = this->agent.createZExt(entry_call, this->module.createIntegerType(32));
+		const pir::Expr zext = this->agent.createZExt(entry_call, this->module.createSignedType(32));
 		this->agent.createRet(zext);
 
 		return entry_func_id;
@@ -935,11 +925,11 @@ namespace pcit::panther{
 						pir::Parameter("hInstance", this->module.createPtrType()),
 						pir::Parameter("hPrevInstance", this->module.createPtrType()),
 						pir::Parameter("lpCmdLine", this->module.createPtrType()),
-						pir::Parameter("nShowCmd", this->module.createIntegerType(32)),
+						pir::Parameter("nShowCmd", this->module.createSignedType(32)),
 					},
 					pir::CallingConvention::C,
 					pir::Linkage::EXTERNAL,
-					this->module.createIntegerType(32)
+					this->module.createSignedType(32)
 				);
 
 				pir::Function& entry_func = this->module.getFunction(entry_func_id);
@@ -952,7 +942,7 @@ namespace pcit::panther{
 				std::ignore = this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
 
 				this->agent.createRet(
-					this->agent.createNumber(this->module.createIntegerType(32), core::GenericInt::create<uint32_t>(0))
+					this->agent.createNumber(this->module.createSignedType(32), core::GenericInt::create<int32_t>(0))
 				);
 
 				return entry_func_id;
@@ -1100,9 +1090,9 @@ namespace pcit::panther{
 
 		if(struct_type.memberVarsABI.empty()){
 			if(struct_type.isClangType()){
-				member_var_types.emplace_back(this->module.createIntegerType(8));
+				member_var_types.emplace_back(this->module.createSignedType(8));
 			}else{
-				member_var_types.emplace_back(this->module.createIntegerType(1));
+				member_var_types.emplace_back(this->module.createUnsignedType(1));
 			}
 
 		}else{
@@ -1128,7 +1118,7 @@ namespace pcit::panther{
 
 		const pir::Type new_type = [&](){
 			const pir::Type data_type = this->module.getOrCreateArrayType(
-				this->module.createIntegerType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
+				this->module.createUnsignedType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
 			);
 
 
@@ -1139,7 +1129,8 @@ namespace pcit::panther{
 				return this->module.createStructType(
 					this->mangle_name(union_id),
 					evo::SmallVector<pir::Type>{
-						data_type, this->module.createIntegerType(unsigned(std::bit_ceil(union_info.fields.size() - 1)))
+						data_type,
+						this->module.createUnsignedType(unsigned(std::bit_ceil(union_info.fields.size() - 1)))
 					},
 					true
 				);
@@ -2566,7 +2557,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::STORE){
 					const pir::Expr zero = this->agent.createNumber(
-						this->module.createIntegerType(8), core::GenericInt::create<evo::byte>(0)
+						this->module.createUnsignedType(8), core::GenericInt::create<evo::byte>(0)
 					);
 
 					this->agent.createMemset(store_locations[0], zero, this->agent.getAlloca(store_locations[0]).type);
@@ -2770,7 +2761,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::CHAR_VALUE: {
 				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
-				const pir::Type value_type = this->module.createIntegerType(8);
+				const pir::Type value_type = this->module.createUnsignedType(8);
 				const pir::Expr number = this->agent.createNumber(
 					value_type, core::GenericInt(8, uint64_t(char_value.value))
 				);
@@ -4099,7 +4090,7 @@ namespace pcit::panther{
 						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
 							if(dimension.is<uint64_t>()){
 								const pir::Expr dimension_expr = this->agent.createNumber(
-									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
 									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
 								);
 
@@ -4142,7 +4133,7 @@ namespace pcit::panther{
 						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
 							if(dimension.is<uint64_t>()){
 								const pir::Expr dimension_expr = this->agent.createNumber(
-									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
 									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
 								);
 
@@ -4184,7 +4175,7 @@ namespace pcit::panther{
 						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
 							if(dimension.is<uint64_t>()){
 								const pir::Expr dimension_expr = this->agent.createNumber(
-									this->module.createIntegerType(uint32_t(num_bits_ptr)),
+									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
 									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
 								);
 
@@ -5502,6 +5493,35 @@ namespace pcit::panther{
 							}
 						} break;
 
+						case Token::Kind::TYPE_C_LONG_DOUBLE: {
+							const pir::Type pir_type =  this->module.createFloatType(
+								uint32_t(this->context.getTypeManager().numBits(expr_type.baseTypeID()))
+							);
+
+							if constexpr(MODE == GetExprMode::REGISTER){
+								return this->agent.createNumber(pir_type, generic_value.getF128());
+
+							}else if constexpr(MODE == GetExprMode::POINTER){
+								const pir::Expr output_alloca = this->agent.createAlloca(pir_type);
+
+								this->agent.createStore(
+									output_alloca, this->agent.createNumber(pir_type, generic_value.getF128())
+								);
+
+								return output_alloca;
+								
+							}else if constexpr(MODE == GetExprMode::STORE){
+								this->agent.createStore(
+									store_locations[0],
+									this->agent.createNumber(pir_type, generic_value.getF128())
+								);
+								return std::nullopt;
+								
+							}else{
+								return std::nullopt;
+							}
+						} break;
+
 						case Token::Kind::TYPE_BOOL: {
 							if constexpr(MODE == GetExprMode::REGISTER){
 								return this->agent.createBoolean(generic_value.getBool());
@@ -5529,20 +5549,49 @@ namespace pcit::panther{
 
 						case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Generic value to RawPtr");
 
-						case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:
-						case Token::Kind::TYPE_I_N:           case Token::Kind::TYPE_UINT:
-						case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_UI_N:
-						case Token::Kind::TYPE_BYTE:          case Token::Kind::TYPE_CHAR:
-						case Token::Kind::TYPE_TYPEID:        case Token::Kind::TYPE_C_WCHAR:
-						case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:
-						case Token::Kind::TYPE_C_INT:         case Token::Kind::TYPE_C_UINT:
-						case Token::Kind::TYPE_C_LONG:        case Token::Kind::TYPE_C_ULONG:
-						case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
-						case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						case Token::Kind::TYPE_UINT:         case Token::Kind::TYPE_USIZE:
+						case Token::Kind::TYPE_UI_N:         case Token::Kind::TYPE_BYTE:
+						case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_USHORT:
+						case Token::Kind::TYPE_C_UINT:       case Token::Kind::TYPE_C_ULONG:
+						case Token::Kind::TYPE_C_ULONG_LONG: {
 							const unsigned bit_width = 
 								unsigned(this->context.getTypeManager().numBits(expr_type.baseTypeID(), false));
 
-							const pir::Type pir_type = this->module.createIntegerType(bit_width);
+							const pir::Type pir_type = this->module.createUnsignedType(bit_width);
+
+							if constexpr(MODE == GetExprMode::REGISTER){
+								return this->agent.createNumber(pir_type, generic_value.getInt(bit_width));
+
+							}else if constexpr(MODE == GetExprMode::POINTER){
+								const pir::Expr output_alloca = this->agent.createAlloca(pir_type);
+
+								this->agent.createStore(
+									output_alloca, this->agent.createNumber(pir_type, generic_value.getInt(bit_width))
+								);
+
+								return output_alloca;
+								
+							}else if constexpr(MODE == GetExprMode::STORE){
+								this->agent.createStore(
+									store_locations[0],
+									this->agent.createNumber(pir_type, generic_value.getInt(bit_width))
+								);
+								return std::nullopt;
+								
+							}else{
+								return std::nullopt;
+							}
+						} break;
+
+						case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+						case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_CHAR:
+						case Token::Kind::TYPE_C_WCHAR:     case Token::Kind::TYPE_C_SHORT:
+						case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_LONG:
+						case Token::Kind::TYPE_C_LONG_LONG: {
+							const unsigned bit_width = 
+								unsigned(this->context.getTypeManager().numBits(expr_type.baseTypeID(), false));
+
+							const pir::Type pir_type = this->module.createSignedType(bit_width);
 
 							if constexpr(MODE == GetExprMode::REGISTER){
 								return this->agent.createNumber(pir_type, generic_value.getInt(bit_width));
@@ -5638,7 +5687,14 @@ namespace pcit::panther{
 					const unsigned bit_width = 
 						unsigned(this->context.getTypeManager().numBits(expr_type.baseTypeID(), false));
 
-					const pir::Type pir_type = this->module.createIntegerType(bit_width);
+					const pir::Type pir_type = [&]() -> pir::Type {
+						if(this->context.getTypeManager().isUnsignedIntegral(expr_type.baseTypeID())){
+							return this->module.createUnsignedType(bit_width);
+						}else{
+							return this->module.createSignedType(bit_width);
+						}
+					}();
+
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createNumber(pir_type, generic_value.getInt(bit_width));
@@ -5717,7 +5773,7 @@ namespace pcit::panther{
 					const pir::Type primitive_type = this->get_type<false>(expr_type_id);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
-						if(primitive_type.kind() == pir::Type::Kind::INTEGER){
+						if(primitive_type.isIntegral()){
 							return this->agent.createNumber(
 								primitive_type, core::GenericInt(primitive_type.getWidth(), 0)
 							);
@@ -6007,7 +6063,7 @@ namespace pcit::panther{
 						this->agent.createMemset(
 							output_alloca,
 							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+								this->module.createUnsignedType(8), core::GenericInt::create<uint8_t>(0)
 							),
 							pir_array_ref_type
 						);
@@ -6024,7 +6080,7 @@ namespace pcit::panther{
 						this->agent.createMemset(
 							output_alloca,
 							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+								this->module.createUnsignedType(8), core::GenericInt::create<uint8_t>(0)
 							),
 							pir_array_ref_type
 						);
@@ -6037,7 +6093,7 @@ namespace pcit::panther{
 						this->agent.createMemset(
 							store_locations[0],
 							this->agent.createNumber(
-								this->module.createIntegerType(8), core::GenericInt::create<uint8_t>(0)
+								this->module.createUnsignedType(8), core::GenericInt::create<uint8_t>(0)
 							),
 							pir_array_ref_type
 						);
@@ -7429,7 +7485,8 @@ namespace pcit::panther{
 			const pir::Type pir_type = this->get_type<false>(expr_type_id);
 
 			switch(pir_type.kind()){
-				case pir::Type::Kind::INTEGER: case pir::Type::Kind::BOOL: case pir::Type::Kind::PTR: {
+				case pir::Type::Kind::UNSIGNED: case pir::Type::Kind::SIGNED:
+				case pir::Type::Kind::BOOL:     case pir::Type::Kind::PTR: {
 					lhs_register = this->get_expr_register(lhs);
 					rhs_register = this->get_expr_register(rhs);
 				} break;
@@ -7437,7 +7494,7 @@ namespace pcit::panther{
 				default: {
 					const uint32_t expr_type_num_bits =
 						uint32_t(this->context.getTypeManager().numBits(expr_type_id, false));
-					const pir::Type target_pir_type = this->module.createIntegerType(expr_type_num_bits);
+					const pir::Type target_pir_type = this->module.createUnsignedType(expr_type_num_bits);
 
 					lhs_register = this->agent.createLoad(this->get_expr_pointer(lhs), target_pir_type);
 					rhs_register = this->agent.createLoad(this->get_expr_pointer(rhs), target_pir_type);
@@ -7504,7 +7561,7 @@ namespace pcit::panther{
 		if(this->context.getTypeManager().isTriviallyComparable(expr_type_id)){
 			const uint32_t expr_type_num_bits =
 				uint32_t(this->context.getTypeManager().numBits(expr_type_id, false));
-			const pir::Type target_pir_type = this->module.createIntegerType(expr_type_num_bits);
+			const pir::Type target_pir_type = this->module.createUnsignedType(expr_type_num_bits);
 
 			const pir::Expr lhs_register = this->agent.createLoad(lhs, target_pir_type);
 			const pir::Expr rhs_register = this->agent.createLoad(rhs, target_pir_type);
@@ -7907,7 +7964,7 @@ namespace pcit::panther{
 						this->name(is_equal ? ".EQ.ARR_REF.RHS_REF_PTRS_PTR" : ".NEQ.ARR_REF.RHS_REF_PTRS_PTR")
 					);
 
-					const pir::Type ref_ptrs_int_type = this->module.createIntegerType(
+					const pir::Type ref_ptrs_int_type = this->module.createUnsignedType(
 						unsigned(array_ref_type.getNumRefPtrs() * this->context.getTypeManager().numBitsOfPtr())
 					);
 
@@ -8625,7 +8682,7 @@ namespace pcit::panther{
 
 		const auto get_context_ptr = [&]() -> pir::Expr {
 			return this->agent.createNumber(
-				this->module.createIntegerType(sizeof(size_t) * 8),
+				this->module.createUnsignedType(sizeof(size_t) * 8),
 				core::GenericInt::create<size_t>(size_t(&this->context))
 			);
 		};
@@ -9929,14 +9986,18 @@ namespace pcit::panther{
 				}();
 
 				const pir::Expr atomic_load = [&]() -> pir::Expr {
-					if(pir_type.kind() == pir::Type::Kind::INTEGER){
+					if(pir_type.isIntegral()){
 						if(pir_type.getWidth() < 8 || std::has_single_bit(pir_type.getWidth()) == false){
+							const pir::Type load_type = [&]() -> pir::Type {
+								if(pir_type.kind() == pir::Type::Kind::UNSIGNED){
+									return this->module.createUnsignedType(std::bit_ceil(pir_type.getWidth()));
+								}else{
+									return this->module.createSignedType(std::bit_ceil(pir_type.getWidth()));
+								}
+							}();
+
 							const pir::Expr intermediate = this->agent.createLoad(
-								value,
-								this->module.createIntegerType(std::bit_ceil(pir_type.getWidth())),
-								this->name(".ATOMIC_LOAD_INTERMEDIATE"),
-								false,
-								atomic_ordering
+								value, load_type, this->name(".ATOMIC_LOAD_INTERMEDIATE"), false, atomic_ordering
 							);
 
 							return this->agent.createTrunc(intermediate, pir_type, std::move(expr_name));
@@ -9980,21 +10041,18 @@ namespace pcit::panther{
 				const pir::Type value_pir_type = this->agent.getExprType(expected);
 
 				bool requires_type_conversion = false;
-				if(value_pir_type.kind() == pir::Type::Kind::INTEGER){
+				if(value_pir_type.isIntegral()){
 					if(value_pir_type.getWidth() < 8 || std::has_single_bit(value_pir_type.getWidth()) == false){
 						requires_type_conversion = true;
 
 						const uint32_t target_width = std::bit_ceil(value_pir_type.getWidth());
 						
-						const TypeInfo::ID value_type_id =
-							instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
-
-						if(this->context.getTypeManager().isUnsignedIntegral(value_type_id)){
-							expected = this->agent.createZExt(expected, this->module.createIntegerType(target_width));
-							desired = this->agent.createZExt(desired, this->module.createIntegerType(target_width));
+						if(value_pir_type.kind() == pir::Type::Kind::UNSIGNED){
+							expected = this->agent.createZExt(expected, this->module.createUnsignedType(target_width));
+							desired = this->agent.createZExt(desired, this->module.createUnsignedType(target_width));
 						}else{
-							expected = this->agent.createSExt(expected, this->module.createIntegerType(target_width));
-							desired = this->agent.createSExt(desired, this->module.createIntegerType(target_width));
+							expected = this->agent.createSExt(expected, this->module.createSignedType(target_width));
+							desired = this->agent.createSExt(desired, this->module.createSignedType(target_width));
 						}
 					}
 				}
@@ -10038,6 +10096,8 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
 				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
 
+				const pir::Type pir_type = this->get_type<false>(type_id);
+
 				const pir::Expr target = this->get_expr_register(func_call.args[0]);
 
 				pir::Expr value = this->get_expr_register(func_call.args[1]);
@@ -10050,13 +10110,13 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
 							value = this->agent.createZExt(
 								value,
-								this->module.createIntegerType(uint32_t(std::bit_ceil(bit_width))),
+								this->module.createUnsignedType(uint32_t(std::bit_ceil(bit_width))),
 								this->name(".ATOMIC_RMW_EXT")
 							);
 						}else{
 							value = this->agent.createSExt(
 								value,
-								this->module.createIntegerType(uint32_t(std::bit_ceil(bit_width))),
+								this->module.createSignedType(uint32_t(std::bit_ceil(bit_width))),
 								this->name(".ATOMIC_RMW_EXT")
 							);
 						}
@@ -10156,9 +10216,7 @@ namespace pcit::panther{
 						);
 
 						const uint32_t num_bits = uint32_t(this->context.getTypeManager().numBits(type_id, false));
-						return this->agent.createTrunc(
-							intermediate, this->module.createIntegerType(num_bits), std::move(expr_name)
-						);
+						return this->agent.createTrunc(intermediate, pir_type, std::move(expr_name));
 					}
 
 					return this->agent.createAtomicRMW(op, target, value, std::move(expr_name), atomic_ordering);
@@ -10169,8 +10227,6 @@ namespace pcit::panther{
 					return atomic_rmw_expr;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type pir_type = this->get_type<false>(type_id);
-
 					const pir::Expr pointer_alloca = this->agent.createAlloca(pir_type);
 					this->agent.createStore(pointer_alloca, atomic_rmw_expr);
 					return pointer_alloca;
@@ -10213,7 +10269,7 @@ namespace pcit::panther{
 
 		const auto get_context_ptr = [&]() -> pir::Expr {
 			return this->agent.createNumber(
-				this->module.createIntegerType(sizeof(size_t) * 8),
+				this->module.createUnsignedType(sizeof(size_t) * 8),
 				core::GenericInt::create<size_t>(size_t(&this->context))
 			);
 		};
@@ -10317,17 +10373,15 @@ namespace pcit::panther{
 
 				const pir::Type value_type = this->agent.getExprType(value);
 
-				if(value_type.kind() == pir::Type::Kind::INTEGER){
+				if(value_type.isIntegral()){
 					if(value_type.getWidth() < 8 || std::has_single_bit(value_type.getWidth()) == false){
-						const TypeInfo::ID type_id = 
-							instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
-						if(this->context.getTypeManager().isUnsignedIntegral(type_id)){
+						if(value_type.kind() == pir::Type::Kind::UNSIGNED){
 							value = this->agent.createZExt(
-								value, this->module.createIntegerType(std::bit_ceil(value_type.getWidth()))
+								value, this->module.createUnsignedType(std::bit_ceil(value_type.getWidth()))
 							);
 						}else{
 							value = this->agent.createSExt(
-								value, this->module.createIntegerType(std::bit_ceil(value_type.getWidth()))
+								value, this->module.createSignedType(std::bit_ceil(value_type.getWidth()))
 							);
 						}
 					}
@@ -10385,7 +10439,7 @@ namespace pcit::panther{
 		this->agent.createStore(
 			size_ptr,
 			this->agent.createNumber(
-				this->module.createIntegerType(uint32_t(num_bits_of_ptr)),
+				this->module.createUnsignedType(uint32_t(num_bits_of_ptr)),
 				core::GenericInt(unsigned(num_bits_of_ptr), message.size())
 			)
 		);
@@ -10479,7 +10533,7 @@ namespace pcit::panther{
 					// for empty structs
 					if(values.empty()){
 						values.emplace_back(
-							this->agent.createNumber(this->module.createIntegerType(1), core::GenericInt(1, 0))
+							this->agent.createNumber(this->module.createUnsignedType(1), core::GenericInt(1, 0))
 						);
 					}
 
@@ -10497,7 +10551,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::CHAR_VALUE: {
 				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
 				return this->agent.createNumber(
-					this->module.createIntegerType(8), core::GenericInt(8, uint64_t(char_value.value))
+					this->module.createSignedType(8), core::GenericInt(8, uint64_t(char_value.value))
 				);
 			} break;
 
@@ -10654,7 +10708,7 @@ namespace pcit::panther{
 					if(dimension.is<uint64_t>()){
 						values.emplace_back(
 							this->agent.createNumber(
-								this->module.createIntegerType(uint32_t(num_bits_of_ptr)),
+								this->module.createUnsignedType(uint32_t(num_bits_of_ptr)),
 								core::GenericInt(unsigned(num_bits_of_ptr), dimension.as<uint64_t>())
 							)
 						);
@@ -10818,19 +10872,30 @@ namespace pcit::panther{
 					this->context.getTypeManager().getPrimitive(base_type_id.primitiveID());
 
 				switch(primitive.kind()){
-					case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:    case Token::Kind::TYPE_UINT:
-					case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_TYPEID:   case Token::Kind::TYPE_C_WCHAR:
-					case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_INT:
-					case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:   case Token::Kind::TYPE_C_ULONG:
-					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
-						return this->module.createIntegerType(
+					case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:
+					case Token::Kind::TYPE_TYPEID:
+					case Token::Kind::TYPE_C_USHORT:
+					case Token::Kind::TYPE_C_UINT:
+					case Token::Kind::TYPE_C_ULONG:
+					case Token::Kind::TYPE_C_ULONG_LONG:
+						return this->module.createUnsignedType(
 							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
 
-					case Token::Kind::TYPE_I_N:
-					case Token::Kind::TYPE_UI_N:
-						return this->module.createIntegerType(primitive.bitWidth());
+					case Token::Kind::TYPE_INT:
+					case Token::Kind::TYPE_ISIZE:
+					case Token::Kind::TYPE_C_WCHAR:
+					case Token::Kind::TYPE_C_SHORT:
+					case Token::Kind::TYPE_C_INT:
+					case Token::Kind::TYPE_C_LONG:
+					case Token::Kind::TYPE_C_LONG_LONG:
+						return this->module.createSignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
 
+					case Token::Kind::TYPE_I_N:    return this->module.createSignedType(primitive.bitWidth());
+					case Token::Kind::TYPE_UI_N:   return this->module.createUnsignedType(primitive.bitWidth());
 					case Token::Kind::TYPE_F16:    return this->module.createFloatType(16);
 					case Token::Kind::TYPE_BF16:   return this->module.createBFloatType();
 					case Token::Kind::TYPE_F32:    return this->module.createFloatType(32);
@@ -10838,9 +10903,9 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F80:    return this->module.createFloatType(80);
 					case Token::Kind::TYPE_F128:   return this->module.createFloatType(128);
 
-					case Token::Kind::TYPE_BYTE:   return this->module.createIntegerType(8);
+					case Token::Kind::TYPE_BYTE:   return this->module.createUnsignedType(8);
 					case Token::Kind::TYPE_BOOL:   return this->module.createBoolType();
-					case Token::Kind::TYPE_CHAR:   return this->module.createIntegerType(8);
+					case Token::Kind::TYPE_CHAR:   return this->module.createSignedType(8);
 
 					case Token::Kind::TYPE_RAWPTR: return this->module.createPtrType();
 

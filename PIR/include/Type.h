@@ -29,7 +29,8 @@ namespace pcit::pir{
 		public:
 			enum class Kind : uint32_t {
 				VOID,
-				INTEGER,
+				UNSIGNED,
+				SIGNED,
 				BOOL,
 				FLOAT,
 				BFLOAT,
@@ -65,13 +66,16 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// property checking
 
+			EVO_NODISCARD auto isIntegral() const -> bool {
+				return this->_kind == Kind::UNSIGNED || this->_kind == Kind::SIGNED;
+			}
 
 			EVO_NODISCARD auto isFloat() const -> bool {
 				return this->_kind == Kind::FLOAT || this->_kind == Kind::BFLOAT;
 			}
 
 			EVO_NODISCARD auto isNumeric() const -> bool {
-				return this->_kind == Kind::INTEGER || this->isFloat();
+				return this->isIntegral() || this->isFloat();
 			}
 
 			EVO_NODISCARD auto isAggregate() const -> bool {
@@ -79,7 +83,8 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isPrimitive() const -> bool {
-				return this->_kind == Kind::INTEGER
+				return this->_kind == Kind::UNSIGNED
+					|| this->_kind == Kind::SIGNED
 					|| this->_kind == Kind::BOOL
 					|| this->_kind == Kind::FLOAT
 					|| this->_kind == Kind::BFLOAT
@@ -87,7 +92,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto hasWidth() const -> bool {
-				return this->_kind == Kind::INTEGER || this->_kind == Kind::FLOAT;
+				return this->_kind == Kind::UNSIGNED || this->_kind == Kind::SIGNED || this->_kind == Kind::FLOAT;
 			}
 
 
@@ -112,8 +117,8 @@ namespace pcit::pir{
 		Type elemType;
 		uint64_t length;
 
-		EVO_NODISCARD auto isString() const -> bool {
-			return this->elemType.kind() == Type::Kind::INTEGER && this->elemType.getWidth() == 8;
+		EVO_NODISCARD auto mayBeString() const -> bool {
+			return this->elemType.kind() == Type::Kind::SIGNED && this->elemType.getWidth() == 8;
 		}
 	};
  

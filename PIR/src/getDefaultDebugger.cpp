@@ -518,7 +518,14 @@ namespace pcit::pir{
 					printer.printCyan("Void");
 				} break;
 
-				case Type::Kind::INTEGER: {
+				case Type::Kind::UNSIGNED: {
+					printer.printCyan("UI{}", type.getWidth());
+					printer.print("(");
+					printer.printMagenta(value.getInt(type.getWidth()).toString(false));
+					printer.print(")");
+				} break;
+
+				case Type::Kind::SIGNED: {
 					printer.printCyan("I{}", type.getWidth());
 					printer.print("(");
 					printer.printMagenta(value.getInt(type.getWidth()).toString(true));
