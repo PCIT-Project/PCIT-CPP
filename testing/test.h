@@ -18,7 +18,7 @@
 // #include <stdbool.h>
 // #include <stdckdint.h>
 // #include <stddef.h>
-// #include <stdint.h>
+#include <stdint.h>
 // #include <stdio.h>
 // #include <stdlib.h>
 // // #include <stdmchar.h>
@@ -52,13 +52,25 @@
 // };
 
 
-typedef struct{
-	int a;
-	long b;
-} StructThing;
+// typedef struct{
+// 	int a;
+// 	long b;
+// } StructThing;
 
-StructThing get_struct(){
-	return (StructThing){ .a = 1, .b = 2 };
+// StructThing get_struct(){
+// 	return (StructThing){ .a = 1, .b = 2 };
+// }
+
+struct Struct{
+	uint16_t a;
+    uint8_t b;
+};
+
+
+size_t ALIGNMENT = alignof(Struct);
+
+auto test() noexcept -> void {
+	Struct foo;
 }
 
 

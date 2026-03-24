@@ -306,7 +306,7 @@ namespace pcit::pir{
 
 			auto createMemcpy(Expr dst, Expr src, const Type& src_type, bool is_volatile = false) const
 			-> Expr {
-				return this->createMemcpy(dst, src, this->module.getSize(src_type, true), is_volatile);
+				return this->createMemcpy(dst, src, this->module.numBytes(src_type), is_volatile);
 			}
 
 			auto createMemcpy(Expr dst, Expr src, size_t num_bytes, bool is_volatile = false) const
@@ -330,7 +330,7 @@ namespace pcit::pir{
 
 			auto createMemset(Expr dst, Expr value, const Type& dst_type, bool is_volatile = false) const
 			-> Expr {
-				return this->createMemset(dst, value, this->module.getSize(dst_type, true), is_volatile);
+				return this->createMemset(dst, value, this->module.numBytes(dst_type), is_volatile);
 			}
 
 			auto createMemset(Expr dst, Expr value, size_t num_bytes, bool is_volatile = false) const

@@ -386,7 +386,7 @@ namespace pcit::panther{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
 				pir::Parameter::Attribute(
-					pir::Parameter::Attribute::PtrDereferencable(this->module.getSize(*error_return_type))
+					pir::Parameter::Attribute::PtrDereferencable(this->module.numBytes(*error_return_type))
 				),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable())
 			};

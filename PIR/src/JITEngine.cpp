@@ -192,7 +192,7 @@ namespace pcit::pir{
 
 		core::GenericValue return_value = [&](){
 			if(return_type.kind() != Type::Kind::VOID){
-				return core::GenericValue::createUninit(module.getSize(return_type));
+				return core::GenericValue::createUninit(module.numBytes(return_type));
 			}else{
 				return core::GenericValue();
 			}

@@ -101,7 +101,7 @@ namespace pcit::pir{
 				if(find != this->lowered_globals_map.end()){ return LoweredResult(false, find->second); }
 
 				const GlobalVar& global_var = this->module.getGlobalVar(global_id);
-				const size_t global_size = this->module.getSize(global_var.type);
+				const size_t global_size = this->module.numBytes(global_var.type);
 
 				LoweredGlobal& new_global = this->lowered_globals.emplace_back(
 					core::GenericValue::createUninit(global_size), false

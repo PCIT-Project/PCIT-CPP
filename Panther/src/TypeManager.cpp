@@ -2258,6 +2258,7 @@ namespace pcit::panther{
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
 					total += this->numBytes(member_var.typeID, struct_info.isPacked);
+					total = ceil_to_multiple(total, this->alignmentOf(member_var.typeID));
 				}
 
 				return add_padding_bytes_if_needed(std::max(total, size_t(1)), include_padding);
@@ -2539,17 +2540,192 @@ namespace pcit::panther{
 		const BaseType::Struct& struct_type = this->getStruct(id);
 
 		for(size_t i = 0; i < member_index; i+=1){
-			size += this->numBytes(struct_type.memberVarsABI[i]->typeID);
+			const TypeInfo::ID member_type_id = struct_type.memberVarsABI[i]->typeID;
+			size += this->numBytes(member_type_id);
+			size = ceil_to_multiple(size, this->alignmentOf(member_type_id));
 		}
 
 		return size;
 	}
 
 
+	///////////////////////////////////
+	// alignmentOf
+
+	auto TypeManager::alignmentOf(TypeInfo::ID id) const -> uint64_t {
+		const TypeInfo& type_info = this->getTypeInfo(id);
+
+		if(type_info.isPointer()){
+			return this->numBytesOfPtr();
+		}
+
+		return this->alignmentOf(type_info.baseTypeID());
+	}
+
+
+	auto TypeManager::alignmentOf(BaseType::ID id) const -> uint64_t {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Dummy type should not be used");
+
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
+
+				switch(primitive.kind()){
+					case Token::Kind::TYPE_INT: case Token::Kind::TYPE_UINT:
+						return this->numBytesOfGeneralRegister();
+
+					case Token::Kind::TYPE_ISIZE: case Token::Kind::TYPE_USIZE:
+						return this->numBytesOfPtr();
+
+					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
+						const size_t unpadded_num_bytes = ceil_to_multiple(primitive.bitWidth(), 8) / 8;
+						return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->maxAlignmentOfPrimitive());
+					}
+
+					case Token::Kind::TYPE_F16:    return 2;
+					case Token::Kind::TYPE_BF16:   return 2;
+					case Token::Kind::TYPE_F32:    return 4;
+					case Token::Kind::TYPE_F64:    return 8;
+					case Token::Kind::TYPE_F80:    return 16;
+					case Token::Kind::TYPE_F128:   return 16;
+					case Token::Kind::TYPE_BYTE:   return 1;
+					case Token::Kind::TYPE_BOOL:   return 1;
+					case Token::Kind::TYPE_CHAR:   return 1;
+					case Token::Kind::TYPE_RAWPTR: return this->numBytesOfPtr();
+					case Token::Kind::TYPE_TYPEID: return 4;
+
+					// https://en.cppreference.com/w/cpp/language/types
+					case Token::Kind::TYPE_C_WCHAR:
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 2 : 4;
+
+					case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_USHORT:
+					    return 2;
+
+					case Token::Kind::TYPE_C_INT: case Token::Kind::TYPE_C_UINT:
+						return 4;
+
+					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 4 : 8;
+
+					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
+						return 8;
+
+					case Token::Kind::TYPE_C_LONG_DOUBLE:
+						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 8 : 16;
+
+					default: evo::debugFatalBreak("Unknown or unsupported built-in type");
+				}
+			} break;
+
+			case BaseType::Kind::FUNCTION: {
+				return this->numBytesOfPtr();
+			} break;
+
+			case BaseType::Kind::ARRAY: {
+				const BaseType::Array& array = this->getArray(id.arrayID());
+				return this->alignmentOf(array.elementTypeID);
+			} break;
+
+			case BaseType::Kind::ARRAY_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array deducer");
+			} break;
+
+			case BaseType::Kind::ARRAY_REF: {
+				return this->numBytesOfPtr();
+			} break;
+
+			case BaseType::Kind::ARRAY_REF_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of array ref deducer");
+			} break;
+
+			case BaseType::Kind::ALIAS: {
+				const BaseType::Alias& alias = this->getAlias(id.aliasID());
+				return this->alignmentOf(alias.aliasedType);
+			} break;
+
+			case BaseType::Kind::DISTINCT_ALIAS: {
+				const BaseType::DistinctAlias& distinct_alias = this->getDistinctAlias(id.distinctAliasID());
+				return this->alignmentOf(distinct_alias.underlyingType);
+			} break;
+
+			case BaseType::Kind::STRUCT: {
+				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				
+				size_t max_align = 1;
+
+				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+					max_align = std::max(max_align, this->alignmentOf(member_var.typeID));
+				}
+
+				return max_align;
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of Struct Template");
+			} break;
+
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of Struct Template Deducer");
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_info = this->getUnion(id.unionID());
+
+				size_t max_align = 1;
+
+				for(const BaseType::Union::Field& union_field : union_info.fields){
+					if(union_field.typeID.isVoid()){ continue; }
+					max_align = std::max(max_align, this->alignmentOf(union_field.typeID.asTypeID()));
+				}
+
+				return max_align;
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_info = this->getEnum(id.enumID());
+				return this->alignmentOf(BaseType::ID(enum_info.underlyingTypeID));
+			} break;
+
+			case BaseType::Kind::TYPE_DEDUCER: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of type deducer");
+			} break;
+
+			case BaseType::Kind::INTERFACE: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of interface");
+			} break;
+
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				return this->numBytesOfPtr();
+			} break;
+
+			case BaseType::Kind::INTERFACE_MAP: {
+				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
+				return this->alignmentOf(interface_map_info.underlyingTypeID);
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported base-type kind");
+	}
+
 
 
 	///////////////////////////////////
-	// maxAtomicBytes
+	// maxAlignmentOfPrimitive
+
+	auto TypeManager::maxAlignmentOfPrimitive() const -> uint64_t {
+		return 16;
+	}
+
+
+
+	///////////////////////////////////
+	// maxAtomicNumBytes
 
 	auto TypeManager::maxAtomicNumBytes() const -> uint64_t {
 		return 8;

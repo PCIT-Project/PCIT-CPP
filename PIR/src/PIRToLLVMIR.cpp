@@ -66,7 +66,7 @@ namespace pcit::pir{
 
 		this->di_builder.createCompileUnit(
 			llvmint::DIBuilder::Language::PANTHER,
-			this->di_builder.createFile(this->module.getName(), "."), // TODO(NOW): proper path?
+			this->di_builder.createFile(this->module.getName(), "."), // TODO(FUTURE): proper path?
 			std::format("PCIT-CPP v{}", core::VERSION),
 			false
 		);

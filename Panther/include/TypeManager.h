@@ -1284,6 +1284,11 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto offsetOf(BaseType::Struct::ID id, size_t member_index) const -> uint64_t;
 
+			EVO_NODISCARD auto alignmentOf(TypeInfo::ID id) const -> uint64_t;
+			EVO_NODISCARD auto alignmentOf(BaseType::ID id) const -> uint64_t;
+
+			EVO_NODISCARD auto maxAlignmentOfPrimitive() const -> uint64_t;
+
 			EVO_NODISCARD auto maxAtomicNumBytes() const -> uint64_t;
 			EVO_NODISCARD auto maxAtomicNumBits() const -> uint64_t;
 

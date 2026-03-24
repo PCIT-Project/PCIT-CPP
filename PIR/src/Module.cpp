@@ -57,14 +57,19 @@ namespace pcit::pir{
 	}
 
 
-	auto Module::getSize(const Type& type, bool packed) const -> size_t {
+	auto Module::maxAlignmentOfPrimitive() const -> size_t {
+		return 16;
+	}
+
+
+	auto Module::numBytes(const Type& type, bool include_padding) const -> size_t {
 		switch(type.kind()){
 			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
 
 			case Type::Kind::INTEGER: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
 
-				if(packed){
+				if(include_padding == false){
 					return unpadded_num_bytes;
 
 				}else if(unpadded_num_bytes < this->sizeOfPtr() * 8){
@@ -88,11 +93,11 @@ namespace pcit::pir{
 			} break;
 
 			case Type::Kind::BFLOAT: return 2;
-			case Type::Kind::PTR: return this->sizeOfPtr();
+			case Type::Kind::PTR:    return this->sizeOfPtr();
 
 			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->getArrayType(type);
-				return this->getSize(array_type.elemType) * array_type.length;
+				return this->numBytes(array_type.elemType) * array_type.length;
 			} break;
 
 			case Type::Kind::STRUCT: {
@@ -102,17 +107,17 @@ namespace pcit::pir{
 
 				for(const Type& member : struct_type.members){
 					if(struct_type.isPacked){
-						size += this->getSize(member, true);
+						size += this->numBytes(member, false);
 					}else{
-						size += this->getSize(member);
+						size += this->numBytes(member, true);
 						size = round_up_to_nearest_multiple(size, this->getAlignment(member));
 					}
 				}
 
-				if(packed){
-					return size;
-				}else{
+				if(include_padding){
 					return round_up_to_nearest_multiple(size, this->getAlignment(type));
+				}else{
+					return size;
 				}
 			} break;
 
@@ -129,23 +134,23 @@ namespace pcit::pir{
 
 			case Type::Kind::INTEGER: {
 				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
-				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->sizeOfPtr());
+				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->maxAlignmentOfPrimitive());
 			} break;
 
 			case Type::Kind::BOOL: return 1;
 
 			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
-					case 16: return 2;
-					case 32: return 4;
-					case 64: return 8;
-					case 80: return 8;
-					case 128: return 8;
+					case 16:  return 2;
+					case 32:  return 4;
+					case 64:  return 8;
+					case 80:  return 16;
+					case 128: return 16;
 				}
 			} break;
 
 			case Type::Kind::BFLOAT: return 2;
-			case Type::Kind::PTR: return this->sizeOfPtr();
+			case Type::Kind::PTR:    return this->sizeOfPtr();
 
 			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->getArrayType(type);

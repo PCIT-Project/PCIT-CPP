@@ -353,7 +353,7 @@ namespace pcit::pir{
 
 				const core::GenericValue alloca_value = core::GenericValue::fromData(
 					evo::ArrayProxy<std::byte>(
-						&stack_frame->alloca_buffer[alloca_offset], this->module.getSize(alloca_expr.type)
+						&stack_frame->alloca_buffer[alloca_offset], this->module.numBytes(alloca_expr.type)
 					)
 				);
 
@@ -376,7 +376,7 @@ namespace pcit::pir{
 					}else{
 						return core::GenericValue::fromData(
 							evo::ArrayProxy<std::byte>(
-								stack_frame->params[param_index], this->module.getSize(param.getType())
+								stack_frame->params[param_index], this->module.numBytes(param.getType())
 							)
 						);
 					}
@@ -589,7 +589,7 @@ namespace pcit::pir{
 				case Type::Kind::ARRAY: {
 					const ArrayType& array_type = this->module.getArrayType(type);
 
-					const size_t elem_size = this->module.getSize(array_type.elemType);
+					const size_t elem_size = this->module.numBytes(array_type.elemType);
 
 
 					ModulePrinter(this->module, printer).printType(type);
@@ -622,7 +622,7 @@ namespace pcit::pir{
 					size_t offset = 0;
 
 					for(size_t i = 0; Type member : struct_type.members){
-						const size_t member_type_size = this->module.getSize(member);
+						const size_t member_type_size = this->module.numBytes(member);
 
 						const core::GenericValue generic_value = core::GenericValue::fromData(
 							value.dataRange().subarr(offset, member_type_size)

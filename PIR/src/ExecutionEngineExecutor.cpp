@@ -561,7 +561,7 @@ namespace pcit::pir{
 				const Switch& switch_inst = stack_frame.reader_agent.getSwitch(expr);
 
 				const Type expr_pir_type = stack_frame.reader_agent.getExprType(switch_inst.cond);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(expr_pir_type, false) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(expr_pir_type) * 8);
 
 				const core::GenericValue& generic_cond = this->get_expr(switch_inst.cond, stack_frame);
 				const core::GenericInt cond = generic_cond.getInt(num_bits);
@@ -599,7 +599,7 @@ namespace pcit::pir{
 			case Expr::Kind::LOAD: {
 				const Load& load_inst = stack_frame.reader_agent.getLoad(expr);
 
-				const size_t type_size = this->engine.module.getSize(load_inst.type);
+				const size_t type_size = this->engine.module.numBytes(load_inst.type);
 
 				const std::byte* source_ptr = this->get_expr_ptr(load_inst.source, stack_frame);
 				if(source_ptr == nullptr){
@@ -629,7 +629,7 @@ namespace pcit::pir{
 				const Store& store_inst = stack_frame.reader_agent.getStore(expr);
 
 				const Type store_type = stack_frame.reader_agent.getExprType(store_inst.value);
-				const size_t store_type_size = this->engine.module.getSize(store_type);
+				const size_t store_type_size = this->engine.module.numBytes(store_type);
 
 				std::byte* destination_ptr = this->get_expr_ptr(store_inst.destination, stack_frame);
 				if(destination_ptr == nullptr){
@@ -693,7 +693,7 @@ namespace pcit::pir{
 
 
 				{
-					const size_t ptr_type_size = this->engine.module.getSize(ptr_type);
+					const size_t ptr_type_size = this->engine.module.numBytes(ptr_type);
 					ptr += get_index(calc_ptr_inst.indices[0]) * ptr_type_size;
 				}
 
@@ -715,7 +715,7 @@ namespace pcit::pir{
 
 						ptr_type = array_type.elemType;
 
-						const size_t ptr_type_size = this->engine.module.getSize(ptr_type);
+						const size_t ptr_type_size = this->engine.module.numBytes(ptr_type);
 						ptr += index * ptr_type_size;
 
 					}else if(ptr_type.kind() == Type::Kind::STRUCT){
@@ -732,14 +732,14 @@ namespace pcit::pir{
 
 						size_t offset = 0;
 						for(size_t j = 0; j < size_t(index); j+=1){
-							offset += this->engine.module.getSize(struct_type.members[j]);
+							offset += this->engine.module.numBytes(struct_type.members[j]);
 						}
 
 						ptr_type = struct_type.members[index];
 						ptr += offset;
 
 					}else{
-						const size_t ptr_type_size = this->engine.module.getSize(ptr_type);
+						const size_t ptr_type_size = this->engine.module.numBytes(ptr_type);
 						ptr += index * ptr_type_size;
 					}
 				}
@@ -985,7 +985,7 @@ namespace pcit::pir{
 				const Add& add_inst = stack_frame.reader_agent.getAdd(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(add_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(add_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(add_inst.rhs, stack_frame).getInt(num_bits);
@@ -1032,7 +1032,7 @@ namespace pcit::pir{
 				const SAddWrap& sadd_wrap_inst = stack_frame.reader_agent.getSAddWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sadd_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sadd_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sadd_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1058,7 +1058,7 @@ namespace pcit::pir{
 				const UAddWrap& sadd_wrap_inst = stack_frame.reader_agent.getUAddWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sadd_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sadd_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sadd_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1084,7 +1084,7 @@ namespace pcit::pir{
 				const SAddSat& sadd_sat_inst = stack_frame.reader_agent.getSAddSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sadd_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sadd_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sadd_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1096,7 +1096,7 @@ namespace pcit::pir{
 				const UAddSat& uadd_sat_inst = stack_frame.reader_agent.getUAddSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(uadd_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(uadd_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(uadd_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1121,7 +1121,7 @@ namespace pcit::pir{
 				const Sub& sub_inst = stack_frame.reader_agent.getSub(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sub_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sub_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sub_inst.rhs, stack_frame).getInt(num_bits);
@@ -1171,7 +1171,7 @@ namespace pcit::pir{
 				const SSubWrap& ssub_wrap_inst = stack_frame.reader_agent.getSSubWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ssub_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ssub_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ssub_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1197,7 +1197,7 @@ namespace pcit::pir{
 				const USubWrap& ssub_wrap_inst = stack_frame.reader_agent.getUSubWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ssub_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ssub_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ssub_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1223,7 +1223,7 @@ namespace pcit::pir{
 				const SSubSat& ssub_sat_inst = stack_frame.reader_agent.getSSubSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ssub_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ssub_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ssub_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1235,7 +1235,7 @@ namespace pcit::pir{
 				const USubSat& usub_sat_inst = stack_frame.reader_agent.getUSubSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(usub_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(usub_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(usub_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1260,7 +1260,7 @@ namespace pcit::pir{
 				const Mul& mul_inst = stack_frame.reader_agent.getMul(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(mul_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(mul_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(mul_inst.rhs, stack_frame).getInt(num_bits);
@@ -1309,7 +1309,7 @@ namespace pcit::pir{
 				const SMulWrap& smul_wrap_inst = stack_frame.reader_agent.getSMulWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(smul_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(smul_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(smul_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1335,7 +1335,7 @@ namespace pcit::pir{
 				const UMulWrap& umul_wrap_inst = stack_frame.reader_agent.getUMulWrap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(umul_wrap_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(umul_wrap_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(umul_wrap_inst.rhs, stack_frame).getInt(num_bits);
@@ -1361,7 +1361,7 @@ namespace pcit::pir{
 				const SMulSat& smul_sat_inst = stack_frame.reader_agent.getSMulSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(smul_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(smul_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(smul_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1373,7 +1373,7 @@ namespace pcit::pir{
 				const UMulSat& umul_sat_inst = stack_frame.reader_agent.getUMulSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(umul_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(umul_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(umul_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1398,7 +1398,7 @@ namespace pcit::pir{
 				const SDiv& sdiv_inst = stack_frame.reader_agent.getSDiv(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sdiv_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sdiv_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sdiv_inst.rhs, stack_frame).getInt(num_bits);
@@ -1410,7 +1410,7 @@ namespace pcit::pir{
 				const UDiv& udiv_inst = stack_frame.reader_agent.getUDiv(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(udiv_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(udiv_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(udiv_inst.rhs, stack_frame).getInt(num_bits);
@@ -1435,7 +1435,7 @@ namespace pcit::pir{
 				const SRem& srem_inst = stack_frame.reader_agent.getSRem(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(srem_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(srem_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(srem_inst.rhs, stack_frame).getInt(num_bits);
@@ -1447,7 +1447,7 @@ namespace pcit::pir{
 				const URem& urem_inst = stack_frame.reader_agent.getURem(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(urem_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(urem_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(urem_inst.rhs, stack_frame).getInt(num_bits);
@@ -1483,7 +1483,7 @@ namespace pcit::pir{
 				const IEq& ieq_inst = stack_frame.reader_agent.getIEq(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ieq_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ieq_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ieq_inst.rhs, stack_frame).getInt(num_bits);
@@ -1508,7 +1508,7 @@ namespace pcit::pir{
 				const INeq& ineq_inst = stack_frame.reader_agent.getINeq(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ineq_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ineq_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ineq_inst.rhs, stack_frame).getInt(num_bits);
@@ -1533,7 +1533,7 @@ namespace pcit::pir{
 				const SLT& slt_inst = stack_frame.reader_agent.getSLT(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(slt_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(slt_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(slt_inst.rhs, stack_frame).getInt(num_bits);
@@ -1545,7 +1545,7 @@ namespace pcit::pir{
 				const ULT& ult_inst = stack_frame.reader_agent.getULT(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ult_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ult_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ult_inst.rhs, stack_frame).getInt(num_bits);
@@ -1570,7 +1570,7 @@ namespace pcit::pir{
 				const SLTE& slte_inst = stack_frame.reader_agent.getSLTE(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(slte_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(slte_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(slte_inst.rhs, stack_frame).getInt(num_bits);
@@ -1582,7 +1582,7 @@ namespace pcit::pir{
 				const ULTE& ulte_inst = stack_frame.reader_agent.getULTE(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ulte_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ulte_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ulte_inst.rhs, stack_frame).getInt(num_bits);
@@ -1607,7 +1607,7 @@ namespace pcit::pir{
 				const SGT& sgt_inst = stack_frame.reader_agent.getSGT(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sgt_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sgt_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sgt_inst.rhs, stack_frame).getInt(num_bits);
@@ -1619,7 +1619,7 @@ namespace pcit::pir{
 				const UGT& ugt_inst = stack_frame.reader_agent.getUGT(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ugt_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ugt_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ugt_inst.rhs, stack_frame).getInt(num_bits);
@@ -1644,7 +1644,7 @@ namespace pcit::pir{
 				const SGTE& sgte_inst = stack_frame.reader_agent.getSGTE(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sgte_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sgte_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sgte_inst.rhs, stack_frame).getInt(num_bits);
@@ -1656,7 +1656,7 @@ namespace pcit::pir{
 				const UGTE& ugte_inst = stack_frame.reader_agent.getUGTE(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ugte_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ugte_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ugte_inst.rhs, stack_frame).getInt(num_bits);
@@ -1681,7 +1681,7 @@ namespace pcit::pir{
 				const And& and_inst = stack_frame.reader_agent.getAnd(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(and_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(and_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(and_inst.rhs, stack_frame).getInt(num_bits);
@@ -1693,7 +1693,7 @@ namespace pcit::pir{
 				const Or& or_inst = stack_frame.reader_agent.getOr(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(or_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(or_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(or_inst.rhs, stack_frame).getInt(num_bits);
@@ -1705,7 +1705,7 @@ namespace pcit::pir{
 				const Xor& xor_inst = stack_frame.reader_agent.getXor(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(xor_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(xor_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(xor_inst.rhs, stack_frame).getInt(num_bits);
@@ -1717,7 +1717,7 @@ namespace pcit::pir{
 				const SHL& shl_inst = stack_frame.reader_agent.getSHL(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(shl_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(shl_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(shl_inst.rhs, stack_frame).getInt(num_bits);
@@ -1766,7 +1766,7 @@ namespace pcit::pir{
 				const SSHLSat& sshl_sat_inst = stack_frame.reader_agent.getSSHLSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sshl_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sshl_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sshl_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1778,7 +1778,7 @@ namespace pcit::pir{
 				const USHLSat& ushl_sat_inst = stack_frame.reader_agent.getUSHLSat(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ushl_sat_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ushl_sat_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ushl_sat_inst.rhs, stack_frame).getInt(num_bits);
@@ -1790,7 +1790,7 @@ namespace pcit::pir{
 				const SSHR& sshr_inst = stack_frame.reader_agent.getSSHR(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(sshr_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(sshr_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(sshr_inst.rhs, stack_frame).getInt(num_bits);
@@ -1808,7 +1808,7 @@ namespace pcit::pir{
 				const USHR& ushr_inst = stack_frame.reader_agent.getUSHR(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ushr_inst.lhs);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt lhs = this->get_expr(ushr_inst.lhs, stack_frame).getInt(num_bits);
 				const core::GenericInt rhs = this->get_expr(ushr_inst.rhs, stack_frame).getInt(num_bits);
@@ -1826,7 +1826,7 @@ namespace pcit::pir{
 				const BitReverse& bit_reverse_inst = stack_frame.reader_agent.getBitReverse(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(bit_reverse_inst.arg);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt arg = this->get_expr(bit_reverse_inst.arg, stack_frame).getInt(num_bits);
 
@@ -1837,7 +1837,7 @@ namespace pcit::pir{
 				const ByteSwap& byte_swap_inst = stack_frame.reader_agent.getByteSwap(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(byte_swap_inst.arg);
-				const unsigned num_bytes = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bytes = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt arg = this->get_expr(byte_swap_inst.arg, stack_frame).getInt(num_bytes);
 
@@ -1848,7 +1848,7 @@ namespace pcit::pir{
 				const CtPop& ctpop_inst = stack_frame.reader_agent.getCtPop(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ctpop_inst.arg);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt arg = this->get_expr(ctpop_inst.arg, stack_frame).getInt(num_bits);
 
@@ -1859,7 +1859,7 @@ namespace pcit::pir{
 				const CTLZ& ctlz_inst = stack_frame.reader_agent.getCTLZ(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(ctlz_inst.arg);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt arg = this->get_expr(ctlz_inst.arg, stack_frame).getInt(num_bits);
 
@@ -1870,7 +1870,7 @@ namespace pcit::pir{
 				const CTTZ& cttz_inst = stack_frame.reader_agent.getCTTZ(expr);
 
 				const Type arg_type = stack_frame.reader_agent.getExprType(cttz_inst.arg);
-				const unsigned num_bits = unsigned(this->engine.module.getSize(arg_type) * 8);
+				const unsigned num_bits = unsigned(this->engine.module.numBytes(arg_type) * 8);
 
 				const core::GenericInt arg = this->get_expr(cttz_inst.arg, stack_frame).getInt(num_bits);
 
@@ -1883,7 +1883,7 @@ namespace pcit::pir{
 				std::byte* target_ptr = this->get_expr_ptr(cmpxchg.target, stack_frame);
 
 				const Type expected_type = stack_frame.reader_agent.getExprType(cmpxchg.expected);
-				const unsigned num_bytes = unsigned(this->engine.module.getSize(expected_type));
+				const unsigned num_bytes = unsigned(this->engine.module.numBytes(expected_type));
 
 				const core::GenericValue& generic_expected = this->get_expr(cmpxchg.expected, stack_frame);
 				const core::GenericValue& generic_desired = this->get_expr(cmpxchg.desired, stack_frame);
@@ -1965,7 +1965,7 @@ namespace pcit::pir{
 				std::byte* target_ptr = this->get_expr_ptr(atomic_rmw.target, stack_frame);
 
 				const Type value_type = stack_frame.reader_agent.getExprType(atomic_rmw.value);
-				const unsigned num_bytes = unsigned(this->engine.module.getSize(value_type));
+				const unsigned num_bytes = unsigned(this->engine.module.numBytes(value_type));
 
 				const core::GenericValue& generic_value = this->get_expr(atomic_rmw.value, stack_frame);
 
@@ -2283,7 +2283,7 @@ namespace pcit::pir{
 					return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(param_ptr)).first->second;
 
 				}else{
-					const size_t num_bytes = this->engine.module.getSize(param_type);
+					const size_t num_bytes = this->engine.module.numBytes(param_type);
 					return &stack_frame.registers.emplace(
 						expr, core::GenericValue::fromData(evo::ArrayProxy<std::byte>(param_ptr, num_bytes))
 					).first->second;
@@ -2447,11 +2447,11 @@ namespace pcit::pir{
 				const GlobalVar::Array& array_value = this->engine.module.getGlobalArray(decayed_value);
 
 				evo::debugAssert(
-					dst.size() == this->engine.module.getSize(array_value.type), "dst is not this array"
+					dst.size() == this->engine.module.numBytes(array_value.type), "dst is not this array"
 				);
 
 				const ArrayType& array_type = this->engine.module.getArrayType(array_value.type);
-				const size_t elem_size = this->engine.module.getSize(array_type.elemType);
+				const size_t elem_size = this->engine.module.numBytes(array_type.elemType);
 
 				size_t offset = 0;
 				for(const GlobalVar::Value& elem_value : array_value.values){
@@ -2463,14 +2463,14 @@ namespace pcit::pir{
 				const GlobalVar::Struct& struct_value = this->engine.module.getGlobalStruct(decayed_value);
 
 				evo::debugAssert(
-					dst.size() == this->engine.module.getSize(struct_value.type), "dst is not this struct"
+					dst.size() == this->engine.module.numBytes(struct_value.type), "dst is not this struct"
 				);
 
 				const StructType& struct_type = this->engine.module.getStructType(struct_value.type);
 
 				size_t offset = 0;
 				for(size_t i = 0; const Type& member_type : struct_type.members){
-					const size_t member_num_bytes = this->engine.module.getSize(member_type);
+					const size_t member_num_bytes = this->engine.module.numBytes(member_type);
 
 					this->lower_global_value(struct_value.values[i], dst.subspan(offset, member_num_bytes));
 					
@@ -2491,7 +2491,7 @@ namespace pcit::pir{
 		size_t total_allocas_size = 0;
 
 		for(const Alloca& alloca_info : stack_frame.reader_agent.getTargetFunction().getAllocasRange()){
-			const size_t alloca_num_bytes = this->engine.module.getSize(alloca_info.type);
+			const size_t alloca_num_bytes = this->engine.module.numBytes(alloca_info.type);
 
 			stack_frame.alloca_offsets.emplace(&alloca_info, total_allocas_size);
 			total_allocas_size += alloca_num_bytes;

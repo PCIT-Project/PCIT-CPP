@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.267.1"></a>
+## v0.0.267.1
+
+### Panther
+- Fixed size calculations for some structs
+
+### PIR
+- Fixed alignment calculation for `F80`, `F128`, and integer types larger than `I64`
+
+
+<!---------------------------------->
 <a name="v0.0.267.0"></a>
 ## v0.0.267.0
 

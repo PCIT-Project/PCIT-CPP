@@ -535,8 +535,9 @@ namespace pcit::pir{
 			EVO_NODISCARD auto sizeOfPtr() const -> size_t;
 			EVO_NODISCARD auto alignmentOfPtr() const -> size_t;
 			EVO_NODISCARD auto sizeOfGeneralRegister() const -> size_t;
+			EVO_NODISCARD auto maxAlignmentOfPrimitive() const -> size_t;
 
-			EVO_NODISCARD auto getSize(const Type& type, bool packed = false) const -> size_t;
+			EVO_NODISCARD auto numBytes(const Type& type, bool include_padding = true) const -> size_t;
 			EVO_NODISCARD auto getAlignment(const Type& type) const -> size_t;
 
 

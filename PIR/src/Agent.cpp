@@ -1688,10 +1688,10 @@ namespace pcit::pir{
 			const pir::Type from_type = this->getExprType(fromValue);
 
 			evo::debugAssert(
-				this->module.getSize(from_type) == this->module.getSize(toType),
+				this->module.numBytes(from_type) == this->module.numBytes(toType),
 				"Cannot convert to a type of a different size ({} != {})",
-				this->module.getSize(from_type),
-				this->module.getSize(toType)
+				this->module.numBytes(from_type),
+				this->module.numBytes(toType)
 			);
 
 			evo::debugAssert(from_type.isPrimitive(), "Cast type must be a primitive");
@@ -1718,7 +1718,7 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createTrunc(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
+			this->module.numBytes(this->getExprType(fromValue)) >= this->module.numBytes(toType),
 			"Cannot convert to a type of a greater size"
 		);
 		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
@@ -1744,7 +1744,7 @@ namespace pcit::pir{
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) >= this->module.getSize(toType),
+			this->module.numBytes(this->getExprType(fromValue)) >= this->module.numBytes(toType),
 			"Cannot convert to a type of a greater size"
 		);
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
@@ -1769,7 +1769,7 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createSExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::INTEGER, "can only convert integers");
@@ -1794,7 +1794,7 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createZExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(
@@ -1823,7 +1823,7 @@ namespace pcit::pir{
 	EVO_NODISCARD auto Agent::createFExt(Expr fromValue, const Type& toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
-			this->module.getSize(this->getExprType(fromValue)) <= this->module.getSize(toType),
+			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");

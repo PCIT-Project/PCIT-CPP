@@ -1,9 +1,23 @@
 
-func square_num = (num: UInt) -> UInt {
-	return num * num;
+
+type Struct = struct {
+	var a: UI16;
+	var b: UI8;
+	var c: UI16;
+	var d: UI8;
+	var e: UI16;
 }
 
 
-func entry = () #entry -> UI8 {
-	return square_num(12) as UI8;
+
+const size: USize = @numBytes<{Struct, true}>();
+
+func test = (b: Bool) #export -> Void {
+	// var foo: UI1485 = 12;
+
+	if(b){
+		var s: Struct = uninit;
+	}
+
+	// return copy @importCpp("test.h").ALLIGNMENT;
 }
