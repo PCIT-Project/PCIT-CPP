@@ -37,8 +37,10 @@ namespace pcit::pir{
 			auto printType(const class Type& type) -> void;
 
 		private:
-			auto print_expr(const Expr& expr) -> void;
-			auto print_expr_stmt(const Expr& expr) -> void;
+			auto print_expr(Expr expr) -> void;
+			auto print_expr_stmt(Expr expr) -> void;
+
+			auto print_meta_file(const meta::File& file) -> void;
 
 			auto print_function_call_impl(
 				const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target,

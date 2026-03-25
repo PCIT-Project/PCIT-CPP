@@ -72,6 +72,14 @@ namespace pcit::pir{
 				i += 1;
 			}
 		}
+
+		if(this->get_module().getMetaFileIter().empty() == false){
+			this->printer.println();
+			
+			for(const meta::File& meta_file : this->get_module().getMetaFileIter()){
+				this->print_meta_file(meta_file);
+			}
+		}
 	}
 
 
@@ -455,7 +463,7 @@ namespace pcit::pir{
 
 
 
-	auto ModulePrinter::print_expr(const Expr& expr) -> void {
+	auto ModulePrinter::print_expr(Expr expr) -> void {
 		switch(expr.kind()){
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
@@ -933,7 +941,7 @@ namespace pcit::pir{
 	}
 
 
-	auto ModulePrinter::print_expr_stmt(const Expr& stmt) -> void {
+	auto ModulePrinter::print_expr_stmt(Expr stmt) -> void {
 		switch(stmt.kind()){
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 
@@ -1972,6 +1980,23 @@ namespace pcit::pir{
 		}
 	}
 
+
+
+	auto ModulePrinter::print_meta_file(const meta::File& file) -> void {
+		this->printer.printCyan("meta ");
+		this->printer.printGreen("!{}", file.metaID.get());
+		this->printer.printRed(" = ");
+		this->printer.printCyan("file ");
+		this->printer.printYellow("\"{}\"", file.path);
+
+		switch(file.language){
+			break; case meta::Language::PANTHER: this->printer.print(", Panther, ");
+			break; case meta::Language::C:       this->printer.print(", C, ");
+			break; case meta::Language::CPP:     this->printer.print(", C++, ");
+		}
+
+		this->printer.printYellow("\"{}\"\n", file.producerName);
+	}
 
 
 	auto ModulePrinter::print_function_call_impl(

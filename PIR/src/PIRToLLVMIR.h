@@ -58,6 +58,9 @@ namespace pcit::pir{
 
 
 		private:
+			auto lower_meta_file(const meta::File& meta_file) -> void;
+
+
 			template<bool ADD_WEAK_DEPS>
 			auto lower_subset_impl(const Subset& subset) -> void;
 

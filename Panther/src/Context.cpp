@@ -424,6 +424,8 @@ namespace pcit::panther{
 		if(this->compileOtherLangHeaders().isError()){ return evo::resultError; }
 
 
+		const std::string producer_name = std::format("PCIT-CPP v{}", core::VERSION);
+
 		for(const Source::ID& source_id : this->source_manager.getSourceIDRange()){
 			Source& source = this->source_manager[source_id];
 
@@ -432,6 +434,12 @@ namespace pcit::panther{
 				.pushLevel(this->sema_buffer.scope_manager.createLevel());
 
 			source.is_ready_for_sema = true;
+
+			if(this->_config.includeDebugInfo){
+				this->pir_module.createMetaFile(
+					source.getPath().string(), pir::meta::Language::PANTHER, evo::copy(producer_name)
+				);
+			}
 		}
 
 		const auto worker = [&](Task& task_variant) -> evo::Result<> {

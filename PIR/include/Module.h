@@ -16,6 +16,7 @@
 
 #include "./Function.h"
 #include "./GlobalVar.h"
+#include "./meta.h"
 
 
 
@@ -547,6 +548,41 @@ namespace pcit::pir{
 
 
 
+			//////////////////////////////////////////////////////////////////////
+			// meta
+
+			///////////////////////////////////
+			// meta files
+
+			EVO_NODISCARD auto createMetaFile(
+				std::string&& file_path, meta::Language language, std::string&& producer_name
+			) -> meta::File::ID {
+				return this->meta_files.emplace_back(
+					meta::ID(this->meta_id.fetch_add(1)), std::move(file_path), language, std::move(producer_name)
+				);
+			}
+
+			EVO_NODISCARD auto getMetaFile(meta::File::ID id) const -> const meta::File& {
+				return this->meta_files[id];
+			}
+
+			using MetaFileIter = core::StepAlloc<meta::File, meta::File::ID>::Iter;
+			using MetaFilesConstIter = core::StepAlloc<meta::File, meta::File::ID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaFileIter() -> evo::IterRange<MetaFileIter> {
+				return evo::IterRange<MetaFileIter>(this->meta_files.begin(), this->meta_files.end());
+			}
+
+			EVO_NODISCARD auto getMetaFileIter() const -> evo::IterRange<MetaFilesConstIter> {
+				return evo::IterRange<MetaFilesConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
+			}
+
+			EVO_NODISCARD auto getMetaFilesConstIter() const -> evo::IterRange<MetaFilesConstIter> {
+				return evo::IterRange<MetaFilesConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
+			}
+
+
+
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
@@ -671,6 +707,11 @@ namespace pcit::pir{
 			core::StepAlloc<GlobalVar::Array, GlobalVar::Array::ID> global_arrays{};
 			core::StepAlloc<GlobalVar::ByteArray, GlobalVar::ByteArray::ID> global_byte_arrays{};
 			core::StepAlloc<GlobalVar::Struct, GlobalVar::Struct::ID> global_structs{};
+
+
+			// meta
+			std::atomic<uint32_t> meta_id{};
+			core::StepAlloc<meta::File, meta::File::ID> meta_files{};
 
 
 			friend class ReaderAgent;

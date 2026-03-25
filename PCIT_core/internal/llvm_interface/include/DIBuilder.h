@@ -25,6 +25,8 @@ namespace pcit::llvmint{
 			struct Language{
 				enum class Name : unsigned {
 					PANTHER = 0x000c, // using the C99 code for now
+					C       = 0x000c, // C99
+					CPP     = 0x0021, // C++ 14
 				};
 
 				using enum class Name;

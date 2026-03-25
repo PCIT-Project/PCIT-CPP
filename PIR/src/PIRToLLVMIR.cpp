@@ -9,7 +9,7 @@
 
 #include "./PIRToLLVMIR.h"
 
-
+#include <filesystem>
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -20,11 +20,16 @@
 namespace pcit::pir{
 	
 	auto PIRToLLVMIR::lower() -> void {
+		if(this->add_debug_info){
+			for(const meta::File& meta_file : this->module.getMetaFileIter()){
+				this->lower_meta_file(meta_file);
+			}
+		}
+
 		for(const StructType& struct_type : this->module.getStructTypeIter()){
 			this->lower_struct_type<true>(struct_type);
 		}
 
-		
 		for(const ExternalFunction& external_function : this->module.getExternalFunctionIter()){
 			this->lower_external_func<false>(external_function);
 		}
@@ -63,16 +68,29 @@ namespace pcit::pir{
 		evo::debugAssert(this->add_debug_info, "Not set to add debug info");
 
 		this->di_builder.addModuleLevelDebugInfo();
-
-		this->di_builder.createCompileUnit(
-			llvmint::DIBuilder::Language::PANTHER,
-			this->di_builder.createFile(this->module.getName(), "."), // TODO(FUTURE): proper path?
-			std::format("PCIT-CPP v{}", core::VERSION),
-			false
-		);
 	}
 
 
+
+
+	auto PIRToLLVMIR::lower_meta_file(const meta::File& meta_file) -> void {
+		const auto path = std::filesystem::path(meta_file.path);
+
+		const llvmint::DIBuilder::Language language = [&]() -> llvmint::DIBuilder::Language {
+			switch(meta_file.language){
+				case meta::Language::PANTHER: return llvmint::DIBuilder::Language::PANTHER;
+				case meta::Language::C:       return llvmint::DIBuilder::Language::C;
+				case meta::Language::CPP:     return llvmint::DIBuilder::Language::CPP;
+			}
+			evo::debugFatalBreak("Unknown language");
+		}();
+
+
+		const llvmint::DIBuilder::File di_file =
+			this->di_builder.createFile(path.filename().string(), path.parent_path().string());
+
+		this->di_builder.createCompileUnit(language, di_file, meta_file.producerName, false);
+	}
 
 
 
