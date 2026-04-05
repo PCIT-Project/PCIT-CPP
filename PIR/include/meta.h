@@ -15,12 +15,12 @@
 #include <PCIT_core.h>
 
 
+#include "./meta_ids.h"
+#include "./Type.h"
+
+
 
 namespace pcit::pir::meta{
-
-	struct ID : public core::UniqueID<uint32_t, struct ID> {
-		using core::UniqueID<uint32_t, ID>::UniqueID;
-	};
 
 
 	enum class Language{
@@ -31,18 +31,43 @@ namespace pcit::pir::meta{
 
 	
 	struct File{
-		struct ID : public core::UniqueID<uint32_t, struct ID> {
-			using core::UniqueID<uint32_t, ID>::UniqueID;
-		};
+		using ID = FileID;
 
-
-		meta::ID metaID;
+		ItemID itemID;
 		std::string path;
 		Language language;
 		std::string producerName;
 	};
 
 
+	struct BasicType{
+		using ID = BasicTypeID;
+
+		ItemID itemID;
+		std::string name;
+		pir::Type underlyingType;
+	};
+
+
+	struct QualifiedType{
+		using ID = QualifiedTypeID;
+
+		enum class Qualifier{
+			POINTER,
+			MUT_POINTER,
+		};
+
+		ItemID itemID;
+		std::string name;
+		Type qualeeType;
+		Qualifier qualifier;
+	};
+
+
+	struct SourceLocation{
+		LocalScope scope;
+		uint32_t line;
+		uint32_t collumn;
+	};
+
 }
-
-

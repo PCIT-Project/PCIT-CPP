@@ -15,6 +15,7 @@
 #include "./forward_decl_ids.h"
 #include "./Type.h"
 #include "./enums.h"
+#include "./meta.h"
 
 namespace pcit::pir{
 
@@ -362,22 +363,38 @@ namespace pcit::pir{
 	struct PtrCall{
 		Expr location;
 		Type funcType;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct Call{
 		std::string name;
 		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct CallVoid{
 		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct CallNoReturn{
 		evo::Variant<FunctionID, ExternalFunctionID, PtrCall> target;
 		evo::SmallVector<Expr> args;
+		std::optional<meta::SourceLocation> sourceLocation;
+	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// breakpoint / abort
+
+	struct Abort{
+		std::optional<meta::SourceLocation> sourceLocation;
+	};
+
+	struct Breakpoint{
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 

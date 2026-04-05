@@ -17,6 +17,7 @@
 
 #include "../../include/sema/sema.h"
 #include "./SemaToPIRData.h"
+#include "../../include/Diagnostic.h"
 
 
 
@@ -250,17 +251,20 @@ namespace pcit::panther{
 			EVO_NODISCARD auto create_call(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
 				evo::SmallVector<pir::Expr>&& args,
+				std::optional<pir::meta::SourceLocation> source_location,
 				std::string&& name = ""
 			) -> pir::Expr;
 
 			auto create_call_void(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args
+				evo::SmallVector<pir::Expr>&& args,
+				std::optional<pir::meta::SourceLocation> source_location
 			) -> void;
 
 			auto create_call_no_return(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args
+				evo::SmallVector<pir::Expr>&& args,
+				std::optional<pir::meta::SourceLocation> source_location
 			) -> void;
 
 
@@ -279,18 +283,47 @@ namespace pcit::panther{
 			auto template_intrinsic_func_call(const sema::FuncCall& func_call) -> void;
 
 
-			auto create_panic(pir::Expr message) -> void;
-			auto create_panic(std::string_view message) -> void;
+			auto create_panic(
+				pir::Expr message, std::optional<pir::meta::SourceLocation> source_location = std::nullopt
+			) -> void;
+			auto create_panic(
+				std::string_view message, std::optional<pir::meta::SourceLocation> source_location = std::nullopt
+			) -> void;
 
 
 			EVO_NODISCARD auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
-			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(TypeInfo::VoidableID voidable_type_id) -> pir::Type;
-			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(TypeInfo::ID type_id) -> pir::Type;
-			template<bool MAY_LOWER_DEPENDENCY>
-			EVO_NODISCARD auto get_type(BaseType::ID base_type_id) -> pir::Type;
+			struct PIRType{
+				pir::Type type;
+				std::optional<pir::meta::Type> meta_type_id;
+			};
+
+			template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+			EVO_NODISCARD auto get_type(TypeInfo::VoidableID voidable_type_id) -> PIRType;
+
+			template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+			EVO_NODISCARD auto get_type(TypeInfo::ID type_id) -> PIRType;
+
+			template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+			EVO_NODISCARD auto get_type(BaseType::ID base_type_id) -> PIRType;
+
+			template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+			EVO_NODISCARD auto get_type(TypeInfo::ID type_id, BaseType::ID base_type_id) -> PIRType;
+
+
+			struct Location{
+				pir::meta::File::ID meta_file_id;
+				uint32_t line_number;
+				uint32_t collumn_number;
+			};
+
+			EVO_NODISCARD auto get_location(const Diagnostic::Location& location) const -> Location;
+
+			EVO_NODISCARD auto get_current_meta_scope() const -> pir::meta::Scope;
+			EVO_NODISCARD auto get_current_meta_local_scope() const -> pir::meta::LocalScope;
+
+
+			EVO_NODISCARD auto get_unmangled_func_name(const sema::Func& func) const -> std::string;
 
 			
 			template<bool PIR_STMT_NAME_SAFE = false>
@@ -466,7 +499,7 @@ namespace pcit::panther{
 			const BaseType::Function* current_func_type = nullptr;
 
 			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};
-			evo::SmallVector<ScopeLevel> scope_levels{}; // TODO(PERF): use stack?
+			evo::SmallVector<ScopeLevel> scope_levels{};
 
 			uint32_t in_param_bitmap = 0; // 0 bit means move, 1 bit means copy
 

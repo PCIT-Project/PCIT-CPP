@@ -52,6 +52,7 @@ namespace pcit::plnk{
 		Options(Target _target) : target(_target) { this->init(); }
 
 		std::string outputFilePath{}; // if empty, default
+		bool includeDebugInfo = true;
 
 
 		EVO_NODISCARD auto getTarget() const -> Target { return this->target; }

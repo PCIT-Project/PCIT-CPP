@@ -58,7 +58,9 @@ namespace pcit::pir{
 
 
 		private:
-			auto lower_meta_file(const meta::File& meta_file) -> void;
+			auto lower_meta_file(meta::File::ID meta_file_id) -> void;
+			auto lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void;
+			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void;
 
 
 			template<bool ADD_WEAK_DEPS>
@@ -116,6 +118,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto get_global_var(const GlobalVar& global_var) -> llvmint::GlobalVariable;
 
 
+			EVO_NODISCARD auto get_meta_scope(meta::Scope scope) -> llvmint::DIBuilder::Scope;
+			EVO_NODISCARD auto get_meta_local_scope(meta::LocalScope local_scope) -> llvmint::DIBuilder::LocalScope;
+			EVO_NODISCARD auto get_meta_type(meta::Type type) -> llvmint::DIBuilder::Type;
+
+
 			EVO_NODISCARD static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			EVO_NODISCARD static auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
 			EVO_NODISCARD static auto get_atomic_ordering(const AtomicOrdering& atomic_ordering)
@@ -135,7 +142,13 @@ namespace pcit::pir{
 			std::unordered_map<const GlobalVar*, llvmint::GlobalVariable> global_vars{};
 			std::unordered_map<Expr, llvmint::Value> stmt_values{};
 			std::unordered_map<const Alloca*, llvmint::Alloca> allocas{};
-			std::vector<llvmint::Argument> args{};
+			evo::SmallVector<llvmint::Argument, 8> args{};
+
+			std::unordered_map<meta::File::ID, llvmint::DIBuilder::File> meta_files{};
+			std::unordered_map<meta::BasicType::ID, llvmint::DIBuilder::BasicType> meta_basic_types{};
+			std::unordered_map<meta::QualifiedType::ID, llvmint::DIBuilder::DerivedType> meta_qualified_types{};
+			std::unordered_map<const Function*, llvmint::DIBuilder::Subprogram> meta_functions{};
+			std::unordered_map<const StructType*, llvmint::DIBuilder::CompositeType> meta_structs{};
 	};
 
 }

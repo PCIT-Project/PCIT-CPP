@@ -17,6 +17,7 @@
 #include "./Expr.h"
 #include "./GlobalVar.h"
 #include "./ReaderAgent.h"
+#include "./meta.h"
 
 namespace pcit::pir{
 
@@ -41,10 +42,17 @@ namespace pcit::pir{
 			auto print_expr_stmt(Expr expr) -> void;
 
 			auto print_meta_file(const meta::File& file) -> void;
+			auto print_meta_basic_type(const meta::BasicType& type) -> void;
+			auto print_meta_qualified_type(const meta::QualifiedType& qualified_type) -> void;
+			auto print_meta_type_id(meta::Type meta_type) -> void;
+			auto print_meta_file_id(meta::File::ID meta_file_id) -> void;
+			auto print_source_location(const std::optional<meta::SourceLocation>& source_location) -> void;
+			auto print_meta_scope(const meta::Scope& scope) -> void;
 
 			auto print_function_call_impl(
 				const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target,
 				evo::ArrayProxy<Expr> args,
+				const std::optional<meta::SourceLocation>& source_location,
 				bool is_no_return
 			) -> void;
 

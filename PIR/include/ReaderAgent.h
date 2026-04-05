@@ -56,6 +56,8 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getCall(Expr expr) const -> const Call&;
 			EVO_NODISCARD auto getCallVoid(Expr expr) const -> const CallVoid&;
 			EVO_NODISCARD auto getCallNoReturn(Expr expr) const -> const CallNoReturn&;
+			EVO_NODISCARD auto getAbort(Expr expr) const -> const Abort&;
+			EVO_NODISCARD auto getBreakpoint(Expr expr) const -> const Breakpoint&;
 			EVO_NODISCARD auto getRet(Expr expr) const -> const Ret&;
 			EVO_NODISCARD static auto getJump(Expr expr) -> Jump;
 			EVO_NODISCARD auto getBranch(Expr expr) const -> const Branch&;

@@ -60,7 +60,6 @@ namespace pcit::panther{
 				TYPE_UI_N,
 
 				TYPE_F16,
-				TYPE_BF16,
 				TYPE_F32,
 				TYPE_F64,
 				TYPE_F80,
@@ -438,7 +437,6 @@ namespace pcit::panther{
 					break; case Kind::TYPE_UI_N:              return "UI{n}";
 
 					break; case Kind::TYPE_F16:               return "F16";
-					break; case Kind::TYPE_BF16:              return "BF16";
 					break; case Kind::TYPE_F32:               return "F32";
 					break; case Kind::TYPE_F64:               return "F64";
 					break; case Kind::TYPE_F80:               return "F80";

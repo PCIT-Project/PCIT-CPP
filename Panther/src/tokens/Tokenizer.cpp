@@ -166,7 +166,6 @@ namespace pcit::panther{
 		{"USize",       Token::Kind::TYPE_USIZE},
 
 		{"F16",         Token::Kind::TYPE_F16},
-		{"BF16",        Token::Kind::TYPE_BF16},
 		{"F32",         Token::Kind::TYPE_F32},
 		{"F64",         Token::Kind::TYPE_F64},
 		{"F80",         Token::Kind::TYPE_F80},

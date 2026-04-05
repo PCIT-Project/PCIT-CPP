@@ -16,6 +16,8 @@
 
 #include "./misc.h"
 #include "./enums.h"
+#include "./meta_ids.h"
+
 
 namespace pcit::pir{
 
@@ -33,7 +35,6 @@ namespace pcit::pir{
 				SIGNED,
 				BOOL,
 				FLOAT,
-				BFLOAT,
 				PTR,
 				ARRAY,
 				STRUCT,
@@ -71,7 +72,7 @@ namespace pcit::pir{
 			}
 
 			EVO_NODISCARD auto isFloat() const -> bool {
-				return this->_kind == Kind::FLOAT || this->_kind == Kind::BFLOAT;
+				return this->_kind == Kind::FLOAT;
 			}
 
 			EVO_NODISCARD auto isNumeric() const -> bool {
@@ -87,7 +88,6 @@ namespace pcit::pir{
 					|| this->_kind == Kind::SIGNED
 					|| this->_kind == Kind::BOOL
 					|| this->_kind == Kind::FLOAT
-					|| this->_kind == Kind::BFLOAT
 					|| this->_kind == Kind::PTR;
 			}
 
@@ -126,6 +126,20 @@ namespace pcit::pir{
 		std::string name;
 		evo::SmallVector<Type> members;
 		bool isPacked;
+
+		struct DebugInfo{
+			struct Member{
+				meta::Type type;
+				std::string name;
+			};
+
+			meta::FileID fileID;
+			meta::Scope scopeWhereDefined;
+			uint32_t lineNumber;
+			evo::SmallVector<Member> members;
+		};
+
+		std::optional<DebugInfo> debugInfo;
 	};
 
 

@@ -200,6 +200,8 @@ namespace pcit::panther::sema{
 		Expr attempt;
 		Expr except;
 		evo::SmallVector<ExceptParamID> exceptParams;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct TryElseInterfaceExpr{
@@ -208,6 +210,8 @@ namespace pcit::panther::sema{
 		Expr attempt;
 		Expr except;
 		evo::SmallVector<ExceptParamID> exceptParams;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 
@@ -373,7 +377,8 @@ namespace pcit::panther::sema{
 
 		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
 		evo::SmallVector<Expr> args;
-		// SourceLocation location;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 
@@ -383,7 +388,9 @@ namespace pcit::panther::sema{
 		FuncID target;
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
-		StmtBlock elseBlock{};
+		StmtBlock elseBlock;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct TryElseInterface{
@@ -395,7 +402,9 @@ namespace pcit::panther::sema{
 		uint32_t vtableFuncIndex;
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
-		StmtBlock elseBlock{};
+		StmtBlock elseBlock;
+		uint32_t line;
+		uint32_t collumn;
 	};	
 
 

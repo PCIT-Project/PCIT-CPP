@@ -28,13 +28,6 @@ namespace pcit::core{
 				return createF16(GenericInt(16, value));
 			}
 
-			EVO_NODISCARD static auto createBF16(GenericInt&& value) -> GenericFloat {
-				return GenericFloat(llvmint::APFloatBase::BFloat(), std::move(value));
-			}
-			EVO_NODISCARD static auto createBF16(uint16_t value) -> GenericFloat {
-				return createBF16(GenericInt(16, value));
-			}
-
 			EVO_NODISCARD static auto createF32(GenericInt&& value) -> GenericFloat {
 				return GenericFloat(llvmint::APFloatBase::IEEEsingle(), std::move(value));
 			}
@@ -64,14 +57,6 @@ namespace pcit::core{
 			}
 
 
-
-			EVO_NODISCARD static auto createBF16FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
-				auto output = createBF16(0);
-				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
-				);
-				return GenericFloat(std::move(output));
-			}
 
 			EVO_NODISCARD static auto createF16FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF16(0);
@@ -225,15 +210,6 @@ namespace pcit::core{
 				bool loses_info;
 				ap_float_copy.convert(
 					llvmint::APFloatBase::IEEEhalf(), llvmint::glue::RoundingMode::TowardZero, &loses_info
-				);
-				return ap_float_copy;
-			}
-
-			EVO_NODISCARD auto asBF16() const -> GenericFloat {
-				llvmint::APFloat ap_float_copy = this->ap_float;
-				bool loses_info;
-				ap_float_copy.convert(
-					llvmint::APFloatBase::BFloat(), llvmint::glue::RoundingMode::TowardZero, &loses_info
 				);
 				return ap_float_copy;
 			}

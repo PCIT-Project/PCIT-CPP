@@ -317,7 +317,6 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueIntegral(const IntegerType& type, uint64_t value) const -> ConstantInt;
 
 			EVO_NODISCARD auto getValueF16(evo::float64_t value) const -> Constant;
-			EVO_NODISCARD auto getValueBF16(evo::float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF32(evo::float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF64(evo::float64_t value) const -> Constant;
 			EVO_NODISCARD auto getValueF80(evo::float64_t value) const -> Constant;
@@ -327,14 +326,12 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getValueFloat(const Type& type, const class core::GenericFloat& value) const -> Constant;
 
 			EVO_NODISCARD auto getNaNF16() const -> Constant;
-			EVO_NODISCARD auto getNaNBF16() const -> Constant;
 			EVO_NODISCARD auto getNaNF32() const -> Constant;
 			EVO_NODISCARD auto getNaNF64() const -> Constant;
 			EVO_NODISCARD auto getNaNF80() const -> Constant;
 			EVO_NODISCARD auto getNaNF128() const -> Constant;
 
 			EVO_NODISCARD auto getInfinityF16() const -> Constant;
-			EVO_NODISCARD auto getInfinityBF16() const -> Constant;
 			EVO_NODISCARD auto getInfinityF32() const -> Constant;
 			EVO_NODISCARD auto getInfinityF64() const -> Constant;
 			EVO_NODISCARD auto getInfinityF80() const -> Constant;
@@ -379,7 +376,6 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getTypeI_N(unsigned width) const -> IntegerType;
 
 			EVO_NODISCARD auto getTypeF16() const -> Type;
-			EVO_NODISCARD auto getTypeBF16() const -> Type;
 			EVO_NODISCARD auto getTypeF32() const -> Type;
 			EVO_NODISCARD auto getTypeF64() const -> Type;
 			EVO_NODISCARD auto getTypeF80() const -> Type;

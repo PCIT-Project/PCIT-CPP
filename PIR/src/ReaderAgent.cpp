@@ -219,6 +219,21 @@ namespace pcit::pir{
 
 
 
+	auto ReaderAgent::getAbort(Expr expr) const -> const Abort& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::ABORT, "Not an abort");
+
+		return this->module.aborts[expr.index];
+	}
+
+	auto ReaderAgent::getBreakpoint(Expr expr) const -> const Breakpoint& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::BREAKPOINT, "Not a breakpoint");
+
+		return this->module.breakpoints[expr.index];
+	}
+
+
 
 	auto ReaderAgent::getRet(Expr expr) const -> const Ret& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");

@@ -166,7 +166,6 @@ namespace pcit::clangint{
 							case clang::BuiltinType::Kind::Double:     return BaseType::Primitive::F64;
 							case clang::BuiltinType::Kind::LongDouble: return BaseType::Primitive::C_LONG_DOUBLE;
 							case clang::BuiltinType::Kind::Float16:    return BaseType::Primitive::F16;
-							case clang::BuiltinType::Kind::BFloat16:   return BaseType::Primitive::BF16;
 							case clang::BuiltinType::Kind::Float128:   return BaseType::Primitive::F128;
 							default:                                   return BaseType::Primitive::UNKNOWN;
 						}

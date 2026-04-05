@@ -73,11 +73,26 @@ namespace pcit::pir{
 			}
 		}
 
-		if(this->get_module().getMetaFileIter().empty() == false){
+		if(this->get_module().getMetaItemIter().empty() == false){
 			this->printer.println();
 			
-			for(const meta::File& meta_file : this->get_module().getMetaFileIter()){
-				this->print_meta_file(meta_file);
+			for(const meta::Item& meta_item : this->get_module().getMetaItemIter()){
+				meta_item.visit([&](const auto& item_id) -> void {
+					using ItemType = std::decay_t<decltype(item_id)>;
+
+					if constexpr(std::is_same<ItemType, meta::File::ID>()){
+						this->print_meta_file(this->get_module().getMetaFile(item_id));
+
+					}else if constexpr(std::is_same<ItemType, meta::BasicType::ID>()){
+						this->print_meta_basic_type(this->get_module().getMetaBasicType(item_id));
+
+					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
+						this->print_meta_qualified_type(this->get_module().getMetaQualifiedType(item_id));
+						
+					}else{
+						static_assert(false, "Unknown meta ID");
+					}
+				});
 			}
 		}
 	}
@@ -91,6 +106,7 @@ namespace pcit::pir{
 		Linkage linkage;
 		Type returnType;
 		bool isNoReturn;
+		const std::optional<FunctionDebugInfo>& debugInfo;
 	};
 
 	auto ModulePrinter::print_function_decl_impl(const FuncDeclRef& func_decl) -> void {
@@ -115,6 +131,10 @@ namespace pcit::pir{
 			this->printer.print("${}", param.getName());
 			this->printer.printRed(": ");
 			this->printType(param.getType());
+
+			if(func_decl.debugInfo.has_value()){
+				this->print_meta_type_id(func_decl.debugInfo->paramMetaTypes[i]);
+			}
 
 			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
 				attribute_variant.visit([&](const auto& attribute) -> void {
@@ -168,8 +188,26 @@ namespace pcit::pir{
 			this->printer.printRed("#noReturn ");
 		}
 
+		if(func_decl.debugInfo.has_value()){
+			this->printer.printRed("#unmangledName");
+			this->printer.print("(");
+			this->printer.printYellow("\"{}\"", func_decl.debugInfo->unmangledName);
+			this->printer.print(") ");
+
+			this->printer.printRed("#location");
+			this->printer.print("(");
+			this->print_meta_scope(func_decl.debugInfo->scopeWhereDefined);
+			this->printer.print(", ");
+			this->printer.printMagenta(std::to_string(func_decl.debugInfo->lineNumber));
+			this->printer.print(") ");
+		}
+
 		this->printer.printRed("-> ");
 		this->printType(func_decl.returnType);
+
+		if(func_decl.debugInfo.has_value() && func_decl.debugInfo->returnMetaType.has_value()){
+			this->print_meta_type_id(*func_decl.debugInfo->returnMetaType);
+		}
 	}
 
 
@@ -183,7 +221,8 @@ namespace pcit::pir{
 				function.getCallingConvention(),
 				function.getLinkage(),
 				function.getReturnType(),
-				function.getIsNoReturn()
+				function.getIsNoReturn(),
+				function.getDebugInfo()
 			)
 		);
 		
@@ -220,7 +259,8 @@ namespace pcit::pir{
 				function_decl.callingConvention,
 				function_decl.linkage,
 				function_decl.returnType,
-				function_decl.isNoReturn
+				function_decl.isNoReturn,
+				function_decl.debugInfo
 			)
 		);
 		this->printer.println();
@@ -242,9 +282,30 @@ namespace pcit::pir{
 			this->printer.printRed("#packed ");
 		}
 
+		if(struct_type.debugInfo.has_value()){
+			this->printer.printRed("#location");
+			this->printer.print("(");
+			this->print_meta_file_id(struct_type.debugInfo->fileID);
+			this->printer.print(", ");
+			this->print_meta_scope(struct_type.debugInfo->scopeWhereDefined);
+			this->printer.print(", ");
+			this->printer.printMagenta(std::to_string(struct_type.debugInfo->lineNumber));
+			this->printer.print(") ");
+		}
+
 		this->printer.print("{");
 		for(size_t i = 0; const Type& member : struct_type.members){
+			if(struct_type.debugInfo.has_value()){
+				this->printer.print(struct_type.debugInfo->members[i].name);
+				this->printer.printRed(": ");
+			}
+
 			this->printType(member);
+
+			if(struct_type.debugInfo.has_value()){
+				this->print_meta_type_id(struct_type.debugInfo->members[i].type);
+			}
+
 
 			if(i < struct_type.members.size() - 1){
 				this->printer.print(", ");
@@ -426,7 +487,6 @@ namespace pcit::pir{
 			case Type::Kind::SIGNED:   { this->printer.printCyan("I{}", type.getWidth());  } break;
 			case Type::Kind::BOOL:     { this->printer.printCyan("Bool");                  } break;
 			case Type::Kind::FLOAT:    { this->printer.printCyan("F{}", type.getWidth());  } break;
-			case Type::Kind::BFLOAT:   { this->printer.printCyan("BF16");                  } break;
 			case Type::Kind::PTR:      { this->printer.printCyan("Ptr");                   } break;
 
 			case Type::Kind::ARRAY: {
@@ -959,7 +1019,7 @@ namespace pcit::pir{
 				this->printer.print("{}${} ", tabs(2), call_inst.name);
 				this->printer.printRed("= ");
 
-				this->print_function_call_impl(call_inst.target, call_inst.args, false);
+				this->print_function_call_impl(call_inst.target, call_inst.args, call_inst.sourceLocation, false);
 			} break;
 
 			case Expr::Kind::CALL_VOID: {
@@ -967,7 +1027,9 @@ namespace pcit::pir{
 
 				this->printer.print(tabs(2));
 
-				this->print_function_call_impl(call_void_inst.target, call_void_inst.args, false);
+				this->print_function_call_impl(
+					call_void_inst.target, call_void_inst.args, call_void_inst.sourceLocation, false
+				);
 			} break;
 
 			case Expr::Kind::CALL_NO_RETURN: {
@@ -975,15 +1037,25 @@ namespace pcit::pir{
 
 				this->printer.print(tabs(2));
 
-				this->print_function_call_impl(call_no_return_inst.target, call_no_return_inst.args, true);
+				this->print_function_call_impl(
+					call_no_return_inst.target, call_no_return_inst.args, call_no_return_inst.sourceLocation, true
+				);
 			} break;
 
 			case Expr::Kind::ABORT: {
-				this->printer.printlnRed("{}@abort", tabs(2));
+				const Abort& abort = this->reader.getAbort(stmt);
+
+				this->printer.printRed("{}@abort", tabs(2));
+				this->print_source_location(abort.sourceLocation);
+				this->printer.println();
 			} break;
 
 			case Expr::Kind::BREAKPOINT: {
-				this->printer.printlnRed("{}@breakpoint", tabs(2));
+				const Breakpoint& breakpoint = this->reader.getBreakpoint(stmt);
+
+				this->printer.printRed("{}@breakpoint", tabs(2));
+				this->print_source_location(breakpoint.sourceLocation);
+				this->printer.println();
 			} break;
 
 			case Expr::Kind::RET: {
@@ -1984,7 +2056,7 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_file(const meta::File& file) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", file.metaID.get());
+		this->printer.printGreen("!{}", file.itemID.get());
 		this->printer.printRed(" = ");
 		this->printer.printCyan("file ");
 		this->printer.printYellow("\"{}\"", file.path);
@@ -1999,9 +2071,132 @@ namespace pcit::pir{
 	}
 
 
+	auto ModulePrinter::print_meta_basic_type(const meta::BasicType& basic_type) -> void {
+		this->printer.printCyan("meta ");
+		this->printer.printGreen("!{}", basic_type.itemID.get());
+		this->printer.printRed(" = ");
+		this->printer.printCyan("type ");
+		this->printer.printYellow("\"{}\"", basic_type.name);
+		this->printer.print(", ");
+		this->printType(basic_type.underlyingType);
+		this->printer.println();
+	}
+
+	auto ModulePrinter::print_meta_qualified_type(const meta::QualifiedType& qualified_type) -> void {
+		this->printer.printCyan("meta ");
+		this->printer.printGreen("!{}", qualified_type.itemID.get());
+		this->printer.printRed(" = ");
+		this->printer.printCyan("type ");
+		this->printer.printYellow("\"{}\"", qualified_type.name);
+
+		switch(qualified_type.qualifier){
+			break; case meta::QualifiedType::Qualifier::POINTER:     this->printer.print(", POINTER, ");
+			break; case meta::QualifiedType::Qualifier::MUT_POINTER: this->printer.print(", MUT_POINTER, ");
+		}
+
+		const meta::ItemID qualee_item_id = [&]() -> meta::ItemID {
+			if(qualified_type.qualeeType.is<meta::BasicType::ID>()){
+				return this->get_module().getMetaBasicType(qualified_type.qualeeType.as<meta::BasicType::ID>()).itemID;
+			}else{
+				return this->get_module().getMetaQualifiedType(
+					qualified_type.qualeeType.as<meta::QualifiedType::ID>()
+				).itemID;
+			}
+		}();
+
+		this->printer.printGreen("!{}\n", qualee_item_id.get());
+	}
+
+	auto ModulePrinter::print_meta_type_id(meta::Type meta_type) -> void {
+		meta_type.visit([&](auto id) -> void {
+			using MetaIDType = std::decay_t<decltype(id)>;
+
+			if constexpr(std::is_same<MetaIDType, meta::BasicType::ID>()){
+				this->printer.print(" !{}", this->reader.getModule().getMetaBasicType(id).itemID.get());
+
+			}else if constexpr(std::is_same<MetaIDType, meta::QualifiedType::ID>()){
+				this->printer.print(" !{}", this->reader.getModule().getMetaQualifiedType(id).itemID.get());
+
+			}else if constexpr(std::is_same<MetaIDType, const StructType*>()){
+				if(isStandardName(id->name)){
+					printer.print(" &{}", id->name);
+				}else{
+					printer.print(" &", id->name);
+					this->print_non_standard_name(id->name, false);
+				}
+				
+			}else{
+				static_assert(false, "unknown meta type");
+			}
+		});
+	}
+
+	auto ModulePrinter::print_meta_file_id(meta::File::ID meta_file_id) -> void {
+		this->printer.print("!{}", this->reader.getModule().getMetaFile(meta_file_id).itemID.get());
+	}
+
+
+	auto ModulePrinter::print_source_location(const std::optional<meta::SourceLocation>& source_location) -> void {
+		if(source_location.has_value() == false){ return; }
+
+		this->printer.printRed(" #location");
+
+		source_location->scope.visit([&](const auto& id) -> void {
+			using IDType = std::decay_t<decltype(id)>;
+
+			if constexpr(std::is_same<IDType, Function::ID>()){
+				const std::string_view name = this->get_module().getFunction(id).getName();
+				if(isStandardName(name)){
+					this->printer.print("(&{}, ", name);
+				}else{
+					this->printer.print("(&");
+					this->print_non_standard_name(name, false);
+					this->printer.print(", ");
+				}
+				
+			// }else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				// this->printer.print("(!{}, ", id.get());
+
+			}else{
+				static_assert(false, "Unknown scope id");
+			}
+		});
+
+		this->printer.printMagenta(std::to_string(source_location->line));
+		this->printer.print(", ");
+		this->printer.printMagenta(std::to_string(source_location->collumn));
+		this->printer.print(")");
+	}
+
+
+	auto ModulePrinter::print_meta_scope(const meta::Scope& scope) -> void {
+		scope.visit([&](const auto& id) -> void {
+			using IDType = std::decay_t<decltype(id)>;
+		
+			if constexpr(std::is_same<IDType, Function::ID>()){
+				const std::string_view name = this->get_module().getFunction(id).getName();
+				if(isStandardName(name)){
+					this->printer.print("&{}", name);
+				}else{
+					this->printer.print("&");
+					this->print_non_standard_name(name, false);
+				}
+		
+			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
+				this->print_meta_file_id(id);
+		
+			}else{
+				static_assert(false, "Unknown scope id");
+			}
+		});
+	}
+
+
+
 	auto ModulePrinter::print_function_call_impl(
 		const evo::Variant<FunctionID, ExternalFunctionID, PtrCall>& call_target,
 		evo::ArrayProxy<Expr> args,
+		const std::optional<meta::SourceLocation>& source_location,
 		bool is_no_return
 	) -> void {
 		if(is_no_return){
@@ -2055,7 +2250,11 @@ namespace pcit::pir{
 			i += 1;
 		}
 
-		this->printer.println(")");
+		this->printer.print(")");
+
+		this->print_source_location(source_location);
+
+		this->printer.println();
 	}
 
 
@@ -2168,6 +2367,8 @@ namespace pcit::pir{
 			} break;
 		}
 	}
+
+
 
 
 }

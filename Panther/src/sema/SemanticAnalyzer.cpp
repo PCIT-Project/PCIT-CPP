@@ -4490,6 +4490,9 @@ namespace pcit::panther{
 								sema::Func& created_swapped_func =
 									this->context.sema_buffer.funcs[created_swapped_func_id];
 
+								const Diagnostic::Location func_location = 
+									Diagnostic::Location::get(created_func, this->context);
+
 								created_swapped_func.stmtBlock.emplace_back(
 									this->context.sema_buffer.createReturn(
 										sema::Expr(
@@ -4497,8 +4500,10 @@ namespace pcit::panther{
 												created_func_id,
 												evo::SmallVector<sema::Expr>{
 													sema::Expr(this->context.sema_buffer.createParam(1, 1)),
-													sema::Expr(this->context.sema_buffer.createParam(0, 0))
-												}
+													sema::Expr(this->context.sema_buffer.createParam(0, 0)),
+												},
+												func_location.as<SourceLocation>().lineStart,
+												func_location.as<SourceLocation>().collumnStart
 											)
 										),
 										std::nullopt
@@ -8085,10 +8090,9 @@ namespace pcit::panther{
 							// valid
 						} break;
 
-						case Token::Kind::TYPE_F16:    case Token::Kind::TYPE_BF16:
-						case Token::Kind::TYPE_F32:    case Token::Kind::TYPE_F64:
-						case Token::Kind::TYPE_F80:    case Token::Kind::TYPE_F128:
-						case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
+						case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
+						case Token::Kind::TYPE_F128: case Token::Kind::TYPE_C_LONG_DOUBLE: {
 							this->emit_error(
 								"Invalid condition value in [switch] statement",
 								instr.switch_stmt.cond,
@@ -8419,10 +8423,10 @@ namespace pcit::panther{
 							}
 						} break;
 
-						case Token::Kind::TYPE_F16:    case Token::Kind::TYPE_BF16:
-						case Token::Kind::TYPE_F32:    case Token::Kind::TYPE_F64:
-						case Token::Kind::TYPE_F80:    case Token::Kind::TYPE_F128:
-						case Token::Kind::TYPE_RAWPTR: case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
+						case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
+						case Token::Kind::TYPE_F128: case Token::Kind::TYPE_RAWPTR:
+						case Token::Kind::TYPE_C_LONG_DOUBLE: {
 							evo::debugFatalBreak("Invalid switch cond type (base type)");
 						} break;
 
@@ -8729,11 +8733,15 @@ namespace pcit::panther{
 				} break;
 			}
 
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call.target, this->source);
 
 			switch(intrinsic_kind){
 				case IntrinsicFunc::Kind::ABORT: case IntrinsicFunc::Kind::PANIC: {
 					const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-						intrinsic_kind, std::move(sema_args)
+						intrinsic_kind,
+						std::move(sema_args),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -8742,7 +8750,10 @@ namespace pcit::panther{
 
 				default: {
 					const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-						intrinsic_kind, std::move(sema_args)
+						intrinsic_kind,
+						std::move(sema_args),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -8787,8 +8798,14 @@ namespace pcit::panther{
 				}
 
 			}else{
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call.target, this->source);
+
+
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-					*func_call_impl_res.value().selected_func_id, std::move(sema_args)
+					*func_call_impl_res.value().selected_func_id,
+					std::move(sema_args),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -9572,8 +9589,13 @@ namespace pcit::panther{
 					}
 				}
 
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix.rhs, this->source);
+
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-					selected_func_id, std::move(output_args)
+					selected_func_id,
+					std::move(output_args),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
@@ -10515,6 +10537,8 @@ namespace pcit::panther{
 
 			for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
 				if(method == *func_call_impl_res.value().selected_func_id){
+					const Diagnostic::Location location = Diagnostic::Location::get(ast_func_call, this->source);
+
 					const sema::TryElseInterface::ID sema_try_else_interface_id = 
 						this->context.sema_buffer.createTryElseInterface(
 							fake_term_info.expr,
@@ -10522,7 +10546,10 @@ namespace pcit::panther{
 							expr_type_info.baseTypeID().interfaceID(),
 							uint32_t(i),
 							std::move(sema_args),
-							std::move(except_params)
+							std::move(except_params),
+							sema::StmtBlock{},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_interface_id);
@@ -10540,8 +10567,16 @@ namespace pcit::panther{
 				*func_call_impl_res.value().selected_func_id
 			);
 
+			const Diagnostic::Location location = Diagnostic::Location::get(ast_func_call, this->source);
+
+
 			const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
-				*func_call_impl_res.value().selected_func_id, std::move(sema_args), std::move(except_params)
+				*func_call_impl_res.value().selected_func_id,
+				std::move(sema_args),
+				std::move(except_params),
+				sema::StmtBlock{},
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
@@ -10954,8 +10989,13 @@ namespace pcit::panther{
 			}
 
 
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
+
 			const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-				intrinsic_kind, std::move(sema_args)
+				intrinsic_kind,
+				std::move(sema_args),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
 			);
 
 
@@ -11010,9 +11050,13 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
 
 		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-			*func_call_impl_res.value().selected_func_id, std::move(sema_args)
+			*func_call_impl_res.value().selected_func_id,
+			std::move(sema_args),
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
 		);
 
 		const bool output_is_comptime = [&](){
@@ -12028,8 +12072,15 @@ namespace pcit::panther{
 				target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
 			);
 
+		const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args))
+			this->context.sema_buffer.createFuncCall(
+				intrinsic_target,
+				std::move(args),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		return Result::SUCCESS;
@@ -12183,13 +12234,24 @@ namespace pcit::panther{
 					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
 				);
 
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
+
+			const auto expr = sema::Expr(
+				this->context.sema_buffer.createFuncCall(
+					intrinsic_target,
+					std::move(args),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
+				)
+			);
+
 			if(return_types.size() == 1){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
-					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
+					expr
 				);
 
 			}else{
@@ -12198,7 +12260,7 @@ namespace pcit::panther{
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
-					sema::Expr(this->context.sema_buffer.createFuncCall(intrinsic_target, std::move(args)))
+					expr
 				);
 			}
 
@@ -14527,8 +14589,14 @@ namespace pcit::panther{
 						this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
 					);
 
+					
+					const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix, this->source);
+
 					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-						instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(zero), expr.getExpr()}
+						instantiation_id,
+						evo::SmallVector<sema::Expr>{sema::Expr(zero), expr.getExpr()},
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					);
 
 					this->return_term_info(instr.output,
@@ -14551,8 +14619,14 @@ namespace pcit::panther{
 							}
 						);
 
+					
+					const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix, this->source);
+
 					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-						instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+						instantiation_id,
+						evo::SmallVector<sema::Expr>{expr.getExpr()},
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					);
 
 					this->return_term_info(instr.output,
@@ -14629,8 +14703,14 @@ namespace pcit::panther{
 
 			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true);
 
+
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix.rhs, this->source);
+
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(true_value)}
+				instantiation_id,
+				evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(true_value)},
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
 			);
 
 			this->return_term_info(instr.output,
@@ -14723,8 +14803,14 @@ namespace pcit::panther{
 					this->context.getTypeManager().getTypeInfo(expr.type_id.as<TypeInfo::ID>()).baseTypeID()
 				);
 
+
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix.rhs, this->source);
+
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-					instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)}
+					instantiation_id,
+					evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)},
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 				this->return_term_info(instr.output,
@@ -15446,8 +15532,13 @@ namespace pcit::panther{
 				}
 
 
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.ast_new, this->source);
+
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-					selected_func_id, std::move(output_args)
+					selected_func_id,
+					std::move(output_args),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 
@@ -16331,16 +16422,26 @@ namespace pcit::panther{
 
 
 		const sema::Expr try_else_expr = [&](){
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.try_else.attemptExpr, this->source);
+
 			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
 				return sema::Expr(
 					this->context.sema_buffer.createTryElseExpr(
-						attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
+						attempt_expr.getExpr(),
+						except_expr.getExpr(),
+						std::move(except_params),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 			}else{
 				return sema::Expr(
 					this->context.sema_buffer.createTryElseInterfaceExpr(
-						attempt_expr.getExpr(), except_expr.getExpr(), std::move(except_params)
+						attempt_expr.getExpr(),
+						except_expr.getExpr(),
+						std::move(except_params),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 			}
@@ -16695,6 +16796,8 @@ namespace pcit::panther{
 					sema_args.emplace_back(arg_info.term_info.getExpr());
 				}
 
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.indexer, this->source);
+
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					target.isComptime,
@@ -16702,7 +16805,10 @@ namespace pcit::panther{
 					selected_overload_info.func_type.returnTypes[0].asTypeID(),
 					sema::Expr(
 						this->context.sema_buffer.createFuncCall(
-							selected_overload_info.func_id.as<sema::Func::ID>(), std::move(sema_args)
+							selected_overload_info.func_id.as<sema::Func::ID>(),
+							std::move(sema_args),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						)
 					)
 				);
@@ -17695,8 +17801,13 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 
 			}else{
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
 				const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-					selected_func_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+					selected_func_id,
+					evo::SmallVector<sema::Expr>{expr.getExpr()},
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 				this->return_term_info(instr.output,
@@ -17951,23 +18062,6 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::Kind::TYPE_BF16: {
-						this->return_term_info(instr.output,
-							TermInfo::ValueCategory::EPHEMERAL,
-							true,
-							TermInfo::ValueState::NOT_APPLICABLE,
-							target_type.asTypeID(),
-							sema::Expr(this->context.sema_buffer.createFloatValue(
-								core::GenericFloat::createF32(
-									float(
-										this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value
-									)
-								).asBF16(),
-								to_type.baseTypeID()
-							))
-						);
-					} break;
-
 					case Token::Kind::TYPE_F32: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
@@ -18042,6 +18136,8 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 
 			}else{
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
 				switch(to_primitive.kind()){
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
@@ -18054,7 +18150,10 @@ namespace pcit::panther{
 							);
 
 						const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-							instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+							instantiation_id,
+							evo::SmallVector<sema::Expr>{expr.getExpr()},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						);
 
 						this->return_term_info(instr.output,
@@ -18067,8 +18166,8 @@ namespace pcit::panther{
 						return Result::SUCCESS;
 					} break;
 
-					case Token::Kind::TYPE_F16: case Token::Kind::TYPE_BF16: case Token::Kind::TYPE_F32:
-					case Token::Kind::TYPE_F64: case Token::Kind::TYPE_F80:  case Token::Kind::TYPE_F128: {
+					case Token::Kind::TYPE_F16: case Token::Kind::TYPE_F32: case Token::Kind::TYPE_F64:
+					case Token::Kind::TYPE_F80: case Token::Kind::TYPE_F128: {
 						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
 
 						const TypeInfo::ID type_id_UI1 = this->context.type_manager.getOrCreateTypeInfo(
@@ -18085,7 +18184,10 @@ namespace pcit::panther{
 							);
 
 						const sema::FuncCall::ID bitcast_call = this->context.sema_buffer.createFuncCall(
-							bitcast_instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+							bitcast_instantiation_id,
+							evo::SmallVector<sema::Expr>{expr.getExpr()},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						);
 
 
@@ -18098,7 +18200,10 @@ namespace pcit::panther{
 							);
 
 						const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-							conv_instantiation_id, evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)}
+							conv_instantiation_id,
+							evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						);
 
 						this->return_term_info(instr.output,
@@ -18140,17 +18245,6 @@ namespace pcit::panther{
 								from_underlying_type_id,
 								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
 								core::GenericFloat::createF16(0)
-							)
-						);
-					} break;
-
-					case Token::Kind::TYPE_BF16: {
-						this->return_term_info(
-							instr.output,
-							comptime_intrinsic_evaluator.neq(
-								from_underlying_type_id,
-								this->context.getSemaBuffer().getFloatValue(expr.getExpr().floatValueID()).value,
-								core::GenericFloat::createBF16(0)
 							)
 						);
 					} break;
@@ -18217,12 +18311,6 @@ namespace pcit::panther{
 							));
 						} break;
 
-						case Token::Kind::TYPE_BF16: {
-							return sema::Expr(this->context.sema_buffer.createFloatValue(
-								core::GenericFloat::createBF16(0), from_underlying_type.baseTypeID()
-							));
-						} break;
-
 						case Token::Kind::TYPE_F32: {
 							return sema::Expr(this->context.sema_buffer.createFloatValue(
 								core::GenericFloat::createF32(0), from_underlying_type.baseTypeID()
@@ -18260,8 +18348,13 @@ namespace pcit::panther{
 						}
 					);
 
+				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-					instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr(), zero}
+					instantiation_id,
+					evo::SmallVector<sema::Expr>{expr.getExpr(), zero},
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				);
 
 				this->return_term_info(instr.output,
@@ -18293,7 +18386,6 @@ namespace pcit::panther{
 				case Token::Kind::TYPE_UI_N:
 					return TypeConversionData(TypeConversionData::Kind::UNSIGNED_INTEGER, primitive_type.bitWidth());
 				case Token::Kind::TYPE_F16:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 16);
-				case Token::Kind::TYPE_BF16: return TypeConversionData(TypeConversionData::Kind::FLOAT, 16);
 				case Token::Kind::TYPE_F32:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 32);
 				case Token::Kind::TYPE_F64:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 64);
 				case Token::Kind::TYPE_F80:  return TypeConversionData(TypeConversionData::Kind::FLOAT, 80);
@@ -18472,8 +18564,13 @@ namespace pcit::panther{
 				}
 			);
 
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-				instantiation_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+				instantiation_id,
+				evo::SmallVector<sema::Expr>{expr.getExpr()},
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
 			);
 
 			this->return_term_info(instr.output,
@@ -19824,8 +19921,13 @@ namespace pcit::panther{
 				}
 			}();
 
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-				instantiation_id, evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()}
+				instantiation_id,
+				evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()},
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
 			);
 
 			this->return_term_info(instr.output,
@@ -20003,11 +20105,6 @@ namespace pcit::panther{
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
-			case Token::Kind::TYPE_BF16: {
-				// TODO(FUTURE): not supported on WASM, SPIR
-				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
-			} break;
-
 			case Token::Kind::TYPE_F80: {
 				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
 					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
@@ -20096,11 +20193,6 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_F16: {
 				// TODO(FUTURE): not supported on WASM
-				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
-			} break;
-
-			case Token::Kind::TYPE_BF16: {
-				// TODO(FUTURE): not supported on WASM, SPIR
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
@@ -27303,12 +27395,6 @@ namespace pcit::panther{
 						);
 					} break;
 
-					case Token::Kind::TYPE_BF16: {
-						return sema::Expr(
-							this->context.sema_buffer.createFloatValue(value.getBF16(), target_type.baseTypeID())
-						);
-					} break;
-
 					case Token::Kind::TYPE_F32: {
 						return sema::Expr(
 							this->context.sema_buffer.createFloatValue(value.getF32(), target_type.baseTypeID())
@@ -28669,8 +28755,13 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
 		}
 
+		const Diagnostic::Location location = Diagnostic::Location::get(ast_infix, this->source);
+
 		return this->context.sema_buffer.createFuncCall(
-			selected_overload_id, evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()}
+			selected_overload_id,
+			evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()},
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
 		);
 	}
 
@@ -28735,6 +28826,8 @@ namespace pcit::panther{
 		const BaseType::Function& selected_overload_type =
 			this->context.getTypeManager().getFunction(selected_overload.typeID);
 
+		const Diagnostic::Location location = Diagnostic::Location::get(ast_prefix, this->source);
+
 		this->return_term_info(output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			expr.isComptime,
@@ -28742,7 +28835,10 @@ namespace pcit::panther{
 			selected_overload_type.returnTypes[0].asTypeID(),
 			sema::Expr(
 				this->context.sema_buffer.createFuncCall(
-					selected_overload_id, evo::SmallVector<sema::Expr>{expr.getExpr()}
+					selected_overload_id,
+					evo::SmallVector<sema::Expr>{expr.getExpr()},
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
 				)
 			)
 		);
@@ -31348,7 +31444,10 @@ namespace pcit::panther{
 									}else{
 										got_expr.getExpr() = sema::Expr(
 											this->context.sema_buffer.createFuncCall(
-												target_as_func_id, evo::SmallVector<sema::Expr>{got_expr.getExpr()}
+												target_as_func_id,
+												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+												location.as<SourceLocation>().lineStart,
+												location.as<SourceLocation>().collumnStart
 											)
 										);
 									}
@@ -31418,7 +31517,10 @@ namespace pcit::panther{
 										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 										got_expr.getExpr() = sema::Expr(
 											this->context.sema_buffer.createFuncCall(
-												new_func_id, evo::SmallVector<sema::Expr>{got_expr.getExpr()}
+												new_func_id,
+												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+												location.as<SourceLocation>().lineStart,
+												location.as<SourceLocation>().collumnStart
 											)
 										);
 
@@ -31984,7 +32086,6 @@ namespace pcit::panther{
 
 					switch(expected_type_primitive.kind()){
 						case Token::Kind::TYPE_F16:
-						case Token::Kind::TYPE_BF16:
 						case Token::Kind::TYPE_F32:
 						case Token::Kind::TYPE_F64:
 						case Token::Kind::TYPE_F80:
@@ -32011,8 +32112,6 @@ namespace pcit::panther{
 							switch(expected_type_primitive.kind()){
 								break; case Token::Kind::TYPE_F16:
 									return type_manager.getMin(expected_type_info.baseTypeID()).getF16();
-								break; case Token::Kind::TYPE_BF16:
-									return type_manager.getMin(expected_type_info.baseTypeID()).getBF16();
 								break; case Token::Kind::TYPE_F32:
 									return type_manager.getMin(expected_type_info.baseTypeID()).getF32();
 								break; case Token::Kind::TYPE_F64:
@@ -32038,8 +32137,6 @@ namespace pcit::panther{
 							switch(expected_type_primitive.kind()){
 								break; case Token::Kind::TYPE_F16:
 									return type_manager.getMax(expected_type_info.baseTypeID()).getF16();
-								break; case Token::Kind::TYPE_BF16:
-									return type_manager.getMax(expected_type_info.baseTypeID()).getBF16();
 								break; case Token::Kind::TYPE_F32:
 									return type_manager.getMax(expected_type_info.baseTypeID()).getF32();
 								break; case Token::Kind::TYPE_F64:
@@ -32080,7 +32177,6 @@ namespace pcit::panther{
 
 						switch(expected_type_primitive.kind()){
 							break; case Token::Kind::TYPE_F16:  float_value.value = float_value.value.asF16();
-							break; case Token::Kind::TYPE_BF16: float_value.value = float_value.value.asBF16();
 							break; case Token::Kind::TYPE_F32:  float_value.value = float_value.value.asF32();
 							break; case Token::Kind::TYPE_F64:  float_value.value = float_value.value.asF64();
 							break; case Token::Kind::TYPE_F80:  float_value.value = float_value.value.asF80();
@@ -32187,6 +32283,8 @@ namespace pcit::panther{
 		return non_auto_implicit_conversion_target.visit([&](const auto& conversion_target) -> Result {
 			using TargetT = std::decay_t<decltype(conversion_target)>;
 
+			const Diagnostic::Location location = Diagnostic::Location::get(infix, this->source);
+
 			if constexpr(std::is_same<TargetT, std::monostate>()){
 				evo::debugFatalBreak("Not a non-auto implicit conversion");
 
@@ -32206,7 +32304,10 @@ namespace pcit::panther{
 						lhs.getExpr(),
 						sema::Expr(
 							this->context.sema_buffer.createFuncCall(
-								conversion_target.func_id, evo::SmallVector<sema::Expr>{value}
+								conversion_target.func_id,
+								evo::SmallVector<sema::Expr>{value},
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
 							)
 						)
 					)
@@ -32224,7 +32325,9 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createFuncCall(
 						conversion_target.func_id,
-						evo::SmallVector<sema::Expr>{lhs.getExpr(), value}
+						evo::SmallVector<sema::Expr>{lhs.getExpr(), value},
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 

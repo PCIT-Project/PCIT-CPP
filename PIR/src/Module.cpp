@@ -92,7 +92,6 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::BFLOAT: return 2;
 			case Type::Kind::PTR:    return this->sizeOfPtr();
 
 			case Type::Kind::ARRAY: {
@@ -149,7 +148,6 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::BFLOAT: return 2;
 			case Type::Kind::PTR:    return this->sizeOfPtr();
 
 			case Type::Kind::ARRAY: {

@@ -37,31 +37,31 @@ type StaticString = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 
 	// element access
 
 	func [] = (this, index: USize) -> Char* {
-		std.assert(index < this.size(), "Index is out-of-bounds");
+		std.debug.assert(index < this.size(), "Index is out-of-bounds");
 		unsafe{ return std.bitCast<{Char*}>(this.data_block[index]); }
 	}
 
 	func [] = (this mut, index: USize) -> Char*mut {
-		std.assert(index < this.size(), "Index is out-of-bounds");
+		std.debug.assert(index < this.size(), "Index is out-of-bounds");
 		unsafe{ return std.bitCast<{Char*mut}>(this.data_block[index]); }
 	}
 
 
 	func first = (this) -> Char* {
-		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		std.debug.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
 		return this[0];
 	}
 	func first = (this mut) -> Char*mut {
-		std.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
+		std.debug.assert(this.isEmpty() == false, "Cannot get first element as current size is 0");
 		return this[0];
 	}
 
 	func last = (this) -> Char* {
-		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		std.debug.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
 		return this[this.size() - 1];
 	}
 	func last = (this mut) -> Char*mut {
-		std.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
+		std.debug.assert(this.isEmpty() == false, "Cannot get last element as current size is 0");
 		return this[this.size() - 1];
 	}
 
@@ -88,20 +88,20 @@ type StaticString = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 
 
 
 	func resize = (this mut, new_size: USize) -> Void {
-		std.assert(new_size < CAPACITY, "New string size is larger than the capacity");
+		std.debug.assert(new_size < CAPACITY, "New string size is larger than the capacity");
 		this.remaining_capacity().* = (CAPACITY - new_size) as RemainingCapacityType;
 	}
 
 
 
 	func += = (this mut, character: Char) -> Void {
-		std.assert(this.remaining_capacity().* > 0, "Already at capacity");
+		std.debug.assert(this.remaining_capacity().* > 0, "Already at capacity");
 		unsafe{ std.bitCast<{Char*mut}>(this.data_block[this.size()]).* = copy character; }
 		this.remaining_capacity().* -= 1;
 	}
 
 	func += = (this mut, str: [Char:*]) -> Void {
-		std.assert(
+		std.debug.assert(
 			this.remaining_capacity().* as USize >= str.size(), "String to append is longer than remaining capacity"
 		);
 		

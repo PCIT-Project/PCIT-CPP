@@ -22,6 +22,11 @@
 
 namespace pcit::panther{
 
+	EVO_NODISCARD static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+		return (num + (multiple - 1)) & ~(multiple - 1);
+	}
+
+
 	EVO_NODISCARD static auto remove_alloca_from_name(std::string_view str) -> std::string {
 		const size_t alloca_loc = str.find(".ALLOCA");
 
@@ -142,9 +147,11 @@ namespace pcit::panther{
 
 		if(sema_global_var.kind == AST::VarDef::Kind::DEF){ return std::nullopt; }
 
+		const PIRType pir_type = this->get_type<false, false>(*sema_global_var.typeID);
+
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
-			this->get_type<false>(*sema_global_var.typeID),
+			pir_type.type,
 			pir::Linkage::INTERNAL,
 			pir::GlobalVar::NoValue{},
 			sema_global_var.kind == AST::VarDef::Kind::CONST
@@ -205,6 +212,14 @@ namespace pcit::panther{
 		auto param_infos = evo::SmallVector<Data::FuncInfo::Param>();
 		param_infos.reserve(func_type.params.size());
 
+		auto meta_params = evo::SmallVector<pir::meta::Type>();
+		if(this->data.config.includeDebugInfo){
+			meta_params.reserve(
+				func_type.params.size() + func_type.returnTypes.size() + size_t(!func_type.errorTypes.empty())
+			);
+		}
+
+
 		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -237,9 +252,17 @@ namespace pcit::panther{
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>();
 
-			if(param.shouldCopy){
-				const pir::Type param_type = this->get_type<false>(param.typeID);
+			const pir::Type param_type = [&]() -> pir::Type {
+				if(this->data.config.includeDebugInfo){
+					const PIRType param_pir_type = this->get_type<false, true>(param.typeID);
+					meta_params.emplace_back(*param_pir_type.meta_type_id);
+					return param_pir_type.type;
+				}else{
+					return this->get_type<false, false>(param.typeID).type;
+				}
+			}();
 
+			if(param.shouldCopy){
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
@@ -265,10 +288,10 @@ namespace pcit::panther{
 				params.emplace_back(std::move(param_name), this->module.createPtrType(), std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
-					param_infos.emplace_back(this->get_type<false>(param.typeID), in_param_index);
+					param_infos.emplace_back(param_type, in_param_index);
 					in_param_index += 1;
 				}else{
-					param_infos.emplace_back(this->get_type<false>(param.typeID), std::nullopt);
+					param_infos.emplace_back(param_type, std::nullopt);
 				}
 			}
 		}
@@ -277,7 +300,17 @@ namespace pcit::panther{
 		auto return_params = evo::SmallVector<SemaToPIRData::FuncInfo::ReturnParam>();
 		if(func_type.hasNamedReturns){
 			for(const TypeInfo::VoidableID return_type_id : func_type.returnTypes){
-				const pir::Type reference_type = this->get_type<false>(return_type_id.asTypeID());
+				const pir::Type reference_type = [&]() -> pir::Type {
+					if(this->data.config.includeDebugInfo){
+						const PIRType reference_pir_type = this->get_type<false, true>(return_type_id.asTypeID());
+						meta_params.emplace_back(*reference_pir_type.meta_type_id);
+						return reference_pir_type.type;
+					}else{
+						return this->get_type<false, false>(return_type_id.asTypeID()).type;
+					}
+				}();
+
+
 				return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())), reference_type);
 
 				auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
@@ -309,10 +342,18 @@ namespace pcit::panther{
 			}
 
 		}else if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
-			return_params.emplace_back(
-				this->agent.createParamExpr(uint32_t(params.size())),
-				this->get_type<false>(func_type.returnTypes[0].asTypeID())
-			);
+			const pir::Type ret_type = [&]() -> pir::Type {
+				if(this->data.config.includeDebugInfo){
+					const PIRType ret_pir_type = this->get_type<false, true>(func_type.returnTypes[0].asTypeID());
+					meta_params.emplace_back(*ret_pir_type.meta_type_id);
+					return ret_pir_type.type;
+				}else{
+					return this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type;
+				}
+			}();
+
+
+			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())), ret_type);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -334,10 +375,17 @@ namespace pcit::panther{
 		}else if(func.isClangFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
 			is_implicit_rvo = true;
 
-			return_params.emplace_back(
-				this->agent.createParamExpr(uint32_t(params.size())),
-				this->get_type<false>(func_type.returnTypes[0].asTypeID())
-			);
+			const pir::Type ret_type = [&]() -> pir::Type {
+				if(this->data.config.includeDebugInfo){
+					const PIRType ret_pir_type = this->get_type<false, true>(func_type.returnTypes[0].asTypeID());
+					meta_params.emplace_back(*ret_pir_type.meta_type_id);
+					return ret_pir_type.type;
+				}else{
+					return this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type;
+				}
+			}();
+
+			return_params.emplace_back(this->agent.createParamExpr(uint32_t(params.size())), ret_type);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -365,7 +413,9 @@ namespace pcit::panther{
 
 			auto error_return_param_types = evo::SmallVector<pir::Type>();
 			for(TypeInfo::VoidableID error_type_id : func_type.errorTypes){
-				error_return_param_types.emplace_back(this->get_type<false>(error_type_id.asTypeID()));
+				const PIRType error_type = this->get_type<false, false>(error_type_id.asTypeID());
+
+				error_return_param_types.emplace_back(error_type.type);
 			}
 
 			error_return_type = this->module.createStructType(
@@ -390,15 +440,23 @@ namespace pcit::panther{
 			}
 		}
 
+		auto return_meta_type = std::optional<pir::meta::Type>();
 		const pir::Type return_type = [&](){
 			if(func_type.hasErrorReturn()){
+				if(this->data.config.includeDebugInfo){
+					return_meta_type = this->data.get_or_create_meta_basic_type(
+						TypeManager::getTypeBool(), this->module, "Bool", this->module.createBoolType()
+					);
+				}
 				return this->module.createBoolType();
 
 			}else if(func_type.hasNamedReturns || is_implicit_rvo){
 				return this->module.createVoidType();
 
 			}else{
-				return this->get_type<false>(func_type.returnTypes[0]);
+				const PIRType pir_type = this->get_type<false, true>(func_type.returnTypes[0]);
+				return_meta_type = pir_type.meta_type_id;
+				return pir_type.type;
 			}
 		}();
 
@@ -417,6 +475,23 @@ namespace pcit::panther{
 		}();
 
 
+
+
+		auto debug_info = std::optional<pir::FunctionDebugInfo>();
+		if(this->data.config.includeDebugInfo){
+			const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+			debug_info = pir::FunctionDebugInfo{
+				.unmangledName     = this->get_unmangled_func_name(func),
+				.fileID            = location.meta_file_id,
+				.scopeWhereDefined = location.meta_file_id, // TODO(FUTURE): get proper scope
+				.lineNumber        = location.line_number,
+				.returnMetaType    = return_meta_type,
+				.paramMetaTypes    = std::move(meta_params),
+			};
+		}
+
+
 		if(func.hasInParam == false){
 			if(func.isClangFunc()){
 				std::string mangled_name = this->mangle_name(func_id);
@@ -428,7 +503,8 @@ namespace pcit::panther{
 						pir::CallingConvention::C,
 						linkage,
 						return_type,
-						func.attributes.isNoReturn
+						func.attributes.isNoReturn,
+						std::move(debug_info)
 					);
 
 					pir_funcs.emplace_back(created_external_func_id);
@@ -455,7 +531,8 @@ namespace pcit::panther{
 					calling_conv,
 					linkage,
 					return_type,
-					func.attributes.isNoReturn
+					func.attributes.isNoReturn,
+					std::move(debug_info)
 				);
 
 				pir_funcs.emplace_back(new_func_id);
@@ -507,7 +584,13 @@ namespace pcit::panther{
 				}
 
 				const pir::Function::ID new_func_id = this->module.createFunction(
-					std::move(name), evo::copy(params), calling_conv, linkage, return_type
+					std::move(name),
+					evo::copy(params),
+					calling_conv,
+					linkage,
+					return_type,
+					func.attributes.isNoReturn,
+					std::move(debug_info)
 				);
 
 				this->agent.setTargetFunction(new_func_id);
@@ -702,7 +785,7 @@ namespace pcit::panther{
 			if(method_type.hasNamedErrorReturns){
 				auto error_return_param_types = evo::SmallVector<pir::Type>();
 				for(TypeInfo::VoidableID error_type : method_type.errorTypes){
-					error_return_param_types.emplace_back(this->get_type<false>(error_type.asTypeID()));
+					error_return_param_types.emplace_back(this->get_type<false, false>(error_type.asTypeID()).type);
 				}
 
 				error_return_types.emplace_back(
@@ -863,9 +946,12 @@ namespace pcit::panther{
 	auto SemaToPIR::createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
 		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
 
-
 		const pir::Function::ID entry_func_id = this->module.createFunction(
-			"PTHR.entry", {}, pir::CallingConvention::C, pir::Linkage::EXTERNAL, this->module.createUnsignedType(8)
+			"PTHR.entry",
+			evo::SmallVector<pir::Parameter>{},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			this->module.createUnsignedType(8)
 		);
 
 		pir::Function& entry_func = this->module.getFunction(entry_func_id);
@@ -889,7 +975,7 @@ namespace pcit::panther{
 
 		const pir::Function::ID entry_func_id = this->module.createFunction(
 			"main",
-			{
+			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("argc", this->module.createSignedType(32)),
 				pir::Parameter("argv", this->module.createPtrType()),
 			},
@@ -905,10 +991,15 @@ namespace pcit::panther{
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
-		const pir::Expr entry_call =
-			this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
-		const pir::Expr zext = this->agent.createZExt(entry_call, this->module.createSignedType(32));
-		this->agent.createRet(zext);
+
+		const pir::Expr entry_call = this->agent.createCall(
+			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {}
+		);
+
+		const pir::Expr entry_call_conv = this->agent.createBitCast(entry_call, this->module.createSignedType(8));
+		const pir::Expr sext = this->agent.createSExt(entry_call_conv, this->module.createSignedType(32));
+
+		this->agent.createRet(sext);
 
 		return entry_func_id;
 	}
@@ -980,7 +1071,9 @@ namespace pcit::panther{
 			std::move(params),
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
-			this->module.createVoidType()
+			this->module.createVoidType(),
+			false,
+			std::nullopt
 		);
 
 
@@ -1079,6 +1172,24 @@ namespace pcit::panther{
 	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> pir::Type {
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
+		this->current_source = struct_type.sourceID.visit([&](const auto& source) -> Source* {
+			using SourceType = std::decay_t<decltype(source)>;
+		
+			if constexpr(std::is_same<SourceType, Source::ID>()){
+				return &this->context.getSourceManager()[source];
+		
+			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+				return nullptr;
+
+			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
+				return nullptr;
+		
+			}else{
+				static_assert(false, "Unknown source type");
+			}
+		});
+
+
 		if constexpr(MAY_LOWER_DEPENDENCY){
 			if(this->data.has_struct(struct_id)){
 				return this->data.get_struct(struct_id);
@@ -1098,12 +1209,35 @@ namespace pcit::panther{
 		}else{
 			member_var_types.reserve(struct_type.memberVarsABI.size());
 			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
-				member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY>(member_var->typeID));
+				member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY, false>(member_var->typeID).type);
 			}
 		}
 
+
+		auto debug_info = std::optional<pir::StructType::DebugInfo>();
+		if(this->data.config.includeDebugInfo && this->current_source != nullptr){
+			const Location location = this->get_location(Diagnostic::Location::get(struct_type, this->context));
+
+			auto member_debug_infos = evo::SmallVector<pir::StructType::DebugInfo::Member>();
+			member_debug_infos.reserve(struct_type.memberVarsABI.size());
+			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+				member_debug_infos.emplace_back(
+					*this->get_type<MAY_LOWER_DEPENDENCY, true>(member_var->typeID).meta_type_id,
+					std::string(struct_type.getMemberName(*member_var, this->context.getSourceManager()))
+				);
+			}
+
+			debug_info.emplace(
+				location.meta_file_id,
+				this->get_current_meta_scope(),
+				location.line_number,
+				std::move(member_debug_infos)
+			);
+		}
+
+
 		const pir::Type new_type = this->module.createStructType(
-			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked
+			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked, debug_info
 		);
 
 		this->data.create_struct(struct_id, new_type);
@@ -1192,7 +1326,7 @@ namespace pcit::panther{
 				if(var.kind == AST::VarDef::Kind::DEF){ break; }
 
 				const pir::Expr var_alloca = this->agent.createAlloca(
-					this->get_type<false>(*var.typeID),
+					this->get_type<false, false>(*var.typeID).type,
 					this->name("{}.ALLOCA", this->current_source->getTokenBuffer()[var.ident].getString())
 				);
 
@@ -1260,15 +1394,28 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), func_call.line, func_call.collumn
+					);
+				}
+
 				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
 					if(target_func_info.isNoReturn){
-						this->create_call_no_return(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_no_return(
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
+						);
 					}else{	
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
+						);
 					}
 
 				}else{
-					std::ignore = this->create_call(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					std::ignore = this->create_call(
+						target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
+					);
 				}
 			} break;
 
@@ -1340,8 +1487,15 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, try_else.args);
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), try_else.line, try_else.collumn
+					);
+				}
+
 				const pir::Expr err_occurred = this->create_call(
-					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+					target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
 				);
 
 				const pir::BasicBlock::ID start_block = this->agent.getTargetBasicBlock().getID();
@@ -1387,7 +1541,7 @@ namespace pcit::panther{
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
 					if(param.shouldCopy){
-						param_types.emplace_back(this->get_type<false>(param.typeID));
+						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
 					}
@@ -1477,7 +1631,20 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Expr err_occurred = this->agent.createCall(target_func, func_pir_type, std::move(args));
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), try_else_interface.line, try_else_interface.collumn
+					);
+				}
+
+				const pir::Expr err_occurred = this->agent.createCall(
+					target_func,
+					func_pir_type,
+					std::move(args),
+					this->name(".TRY_ELSE_INTERFACE.ERR_OCCURRED"),
+					source_location
+				);
 
 				const pir::BasicBlock::ID start_block = this->agent.getTargetBasicBlock().getID();
 
@@ -1521,13 +1688,13 @@ namespace pcit::panther{
 				const pir::Type return_type = [&](){
 					if(target_func_type.hasNamedReturns){ return this->module.createVoidType(); }
 					if(target_func_type.returnsVoid()){ return this->module.createVoidType(); }
-					return this->get_type<false>(target_func_type.returnTypes[0].asTypeID());
+					return this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
 				}();
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
 					if(param.shouldCopy){
-						param_types.emplace_back(this->get_type<false>(param.typeID));
+						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
 					}
@@ -1613,7 +1780,7 @@ namespace pcit::panther{
 						targets.emplace_back(this->get_expr_pointer(target.as<sema::Expr>()));
 					}else{
 						const pir::Expr discard_alloca = this->agent.createAlloca(
-							this->get_type<false>(target.as<TypeInfo::ID>()), this->name(".DISCARD")
+							this->get_type<false, false>(target.as<TypeInfo::ID>()).type, this->name(".DISCARD")
 						);
 
 						targets.emplace_back(discard_alloca);
@@ -1985,7 +2152,7 @@ namespace pcit::panther{
 				auto value_params = evo::SmallVector<pir::Expr>();
 
 				if(for_stmt.hasIndex){
-					index_type = this->get_type<false>(for_stmt.params[0].typeID);
+					index_type = this->get_type<false, false>(for_stmt.params[0].typeID).type;
 
 					index = this->agent.createAlloca(
 						*index_type,
@@ -2044,7 +2211,8 @@ namespace pcit::panther{
 					iterator_type_ids.emplace_back(iterator_type_id);
 					
 					const pir::Expr iterator_alloca = this->agent.createAlloca(
-						this->get_type<false>(iterator_type_id), this->name("FOR.iterator_{}", iterator_allocas.size())
+						this->get_type<false, false>(iterator_type_id).type,
+						this->name("FOR.iterator_{}", iterator_allocas.size())
 					);
 
 					const Data::FuncInfo& create_iterable_func_info = 
@@ -2054,13 +2222,15 @@ namespace pcit::panther{
 					if(create_iterable_func_info.isImplicitRVO){
 						this->create_call_void(
 							create_iterable_func_info.pir_ids[0],
-							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr), iterator_alloca}
+							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr), iterator_alloca},
+							std::nullopt
 						);
 
 					}else{
 						const pir::Expr iterator_value = this->create_call(
 							create_iterable_func_info.pir_ids[0],
-							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr)}
+							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr)},
+							std::nullopt
 						);
 						this->agent.createStore(iterator_alloca, iterator_value);
 					}
@@ -2089,6 +2259,7 @@ namespace pcit::panther{
 					const pir::Expr cond_value = this->create_call(
 						at_end_func_info.pir_ids[0],
 						evo::SmallVector<pir::Expr>{iterator_allocas[0]},
+						std::nullopt,
 						this->name("FOR.at_end")
 					);
 
@@ -2147,6 +2318,7 @@ namespace pcit::panther{
 					const pir::Expr get_value = this->create_call(
 						get_func_info.pir_ids[0],
 						evo::SmallVector<pir::Expr>{iterator_allocas[i]},
+						std::nullopt,
 						this->name("FOR.GET_{}", i)
 					);
 
@@ -2161,7 +2333,9 @@ namespace pcit::panther{
 
 					this->get_current_scope_level().defers.emplace_back(
 						[this, pir_func = next_func_info.pir_ids[0], iterator_alloca = iterator_allocas[i]]() -> void {
-							this->create_call_void(pir_func, evo::SmallVector<pir::Expr>{iterator_alloca});
+							this->create_call_void(
+								pir_func, evo::SmallVector<pir::Expr>{iterator_alloca}, std::nullopt
+							);
 						},
 						DeferItem::Targets{
 							.on_scope_end = true,
@@ -2267,8 +2441,9 @@ namespace pcit::panther{
 								} break;
 
 								case BaseType::Kind::UNION: {
-									const pir::Type union_pir_type =
-										this->get_type<false>(target_cond_type.baseTypeID());
+									const pir::Type union_pir_type = this->get_type<false, false>(
+										target_cond_type_id, target_cond_type.baseTypeID()
+									).type;
 
 									const pir::StructType union_pir_struct_type =
 										this->module.getStructType(union_pir_type);
@@ -2578,7 +2753,7 @@ namespace pcit::panther{
 
 				}else{
 					const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
-					const pir::Type value_type = this->get_type<false>(*int_value.typeID);
+					const pir::Type value_type = this->get_type<false, false>(*int_value.typeID).type;
 					const pir::Expr number = this->agent.createNumber(value_type, int_value.value);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -2604,7 +2779,7 @@ namespace pcit::panther{
 				}else{
 					const sema::FloatValue& float_value =
 						this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
-					const pir::Type value_type = this->get_type<false>(*float_value.typeID);
+					const pir::Type value_type = this->get_type<false, false>(*float_value.typeID).type;
 					const pir::Expr number = this->agent.createNumber(value_type, float_value.value);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -2690,7 +2865,7 @@ namespace pcit::panther{
 
 
 				if constexpr(MODE != GetExprMode::DISCARD){
-					const pir::Type pir_type = this->get_type<false>(aggregate.typeID);
+					const pir::Type pir_type = this->get_type<false, false>(aggregate.typeID).type;
 
 					const pir::Expr initialization_target = [&](){
 						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
@@ -2881,25 +3056,34 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), func_call.line, func_call.collumn
+					);
+				}
+
 				if(target_type.hasNamedReturns || target_func_info.isImplicitRVO){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type return_type =
-							this->get_type<false>(target_type.returnTypes[0].asTypeID());
+							this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
 
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
+						);
 
 						return this->agent.createLoad(return_alloc, return_type);
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type return_type =
-							this->get_type<false>(target_type.returnTypes[0].asTypeID());
+							this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
 						
 						const pir::Expr return_alloc = this->agent.createAlloca(return_type);
 						args.emplace_back(return_alloc);
 						this->create_call_void(
-							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
 						);
 
 						this->end_of_stmt_deletes.emplace_back(return_alloc, target_type.returnTypes[0].asTypeID());
@@ -2911,7 +3095,7 @@ namespace pcit::panther{
 							args.emplace_back(store_location);
 						}
 						this->create_call_void(
-							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
 						);
 						return std::nullopt;
 
@@ -2934,15 +3118,16 @@ namespace pcit::panther{
 						}
 
 						this->create_call_void(
-							target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+							target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
 						);
 						return std::nullopt;
 					}
 
 				}else{
-					const pir::Expr call_return  = this->create_call(
+					const pir::Expr call_return = this->create_call(
 						target_func_info.pir_ids[target_in_param_bitmap],
 						std::move(args),
+						source_location,
 						this->name("CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>()))
 					);
 
@@ -3007,7 +3192,8 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Type target_pir_type = this->get_type<false>(conversion_to_optional.targetTypeID);
+				const pir::Type target_pir_type =
+					this->get_type<false, false>(conversion_to_optional.targetTypeID).type;
 
 
 				const pir::Expr target = [&](){
@@ -3193,7 +3379,8 @@ namespace pcit::panther{
 
 						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
 
-						const pir::Type target_type = this->get_type<false>(optional_null_check.targetTypeID);
+						const pir::Type target_type =
+							this->get_type<false, false>(optional_null_check.targetTypeID).type;
 						const pir::Expr calc_ptr = this->agent.createCalcPtr(
 							lhs,
 							target_type,
@@ -3267,7 +3454,7 @@ namespace pcit::panther{
 
 				}else if(target_type_info.isOptionalNotPointer()){
 					const pir::Expr lhs = this->get_expr_pointer(optional_extract.expr);
-					const pir::Type target_type = this->get_type<false>(optional_extract.targetTypeID);
+					const pir::Type target_type = this->get_type<false, false>(optional_extract.targetTypeID).type;
 
 					const pir::Expr held_value = this->agent.createCalcPtr(
 						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".EXTRACT_OPT.value")
@@ -3322,7 +3509,9 @@ namespace pcit::panther{
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
-						this->get_expr_register(deref.expr), this->get_type<false>(deref.targetTypeID), "DEREF"
+						this->get_expr_register(deref.expr),
+						this->get_type<false, false>(deref.targetTypeID).type,
+						"DEREF"
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -3334,7 +3523,7 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations.front(),
 						this->get_expr_register(deref.expr),
-						this->get_type<false>(deref.targetTypeID)
+						this->get_type<false, false>(deref.targetTypeID).type
 					);
 					return std::nullopt;
 
@@ -3364,7 +3553,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const pir::Type target_pir_type = this->get_type<false>(unwrap.targetTypeID);
+					const pir::Type target_pir_type = this->get_type<false, false>(unwrap.targetTypeID).type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createCalcPtr(
@@ -3410,7 +3599,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ACCESSOR: {
 				const sema::Accessor& accessor = this->context.getSemaBuffer().getAccessor(expr.accessorID());
 
-				const pir::Type target_pir_type = this->get_type<false>(accessor.targetTypeID);
+				const pir::Type target_pir_type = this->get_type<false, false>(accessor.targetTypeID).type;
 
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(accessor.targetTypeID);
 				const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
@@ -3427,7 +3616,9 @@ namespace pcit::panther{
 
 					return this->agent.createLoad(
 						calc_ptr,
-						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
+						this->get_type<false, false>(
+							target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
+						).type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -3449,7 +3640,9 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations[0],
 						calc_ptr,
-						this->get_type<false>(target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID)
+						this->get_type<false, false>(
+							target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
+						).type
 					);
 					return std::nullopt;
 
@@ -3592,7 +3785,7 @@ namespace pcit::panther{
 						}else{
 							return this->agent.createCalcPtr(
 								this->get_expr_pointer(union_accessor.target),
-								this->get_type<false>(target_type.baseTypeID()),
+								this->get_type<false, false>(target_type.baseTypeID()).type,
 								evo::SmallVector<pir::CalcPtr::Index>{0, 0},
 								this->name(".UNION_DATA")
 							);
@@ -3602,9 +3795,9 @@ namespace pcit::panther{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(
 							data_ptr,
-							this->get_type<false>(
+							this->get_type<false, false>(
 								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
-							),
+							).type,
 							this->name("UNION_ACCESSOR")
 						);
 						
@@ -3615,9 +3808,9 @@ namespace pcit::panther{
 						return this->agent.createMemcpy(
 							store_locations[0],
 							data_ptr,
-							this->get_type<false>(
+							this->get_type<false, false>(
 								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
-							)
+							).type
 						);
 					}
 				}
@@ -3632,7 +3825,7 @@ namespace pcit::panther{
 
 				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
 					auto label_output_locations = evo::SmallVector<pir::Expr>();
-					const pir::Type output_type = this->get_type<false>(block_expr.outputs[0].typeID);
+					const pir::Type output_type = this->get_type<false, false>(block_expr.outputs[0].typeID).type;
 					label_output_locations.emplace_back(
 						this->agent.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
 					);
@@ -3832,13 +4025,13 @@ namespace pcit::panther{
 				const pir::Type return_type = [&](){
 					if(target_func_type.hasNamedReturns){ return this->module.createVoidType(); }
 
-					return this->get_type<false>(target_func_type.returnTypes[0].asTypeID());
+					return this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
 				}();
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
 					if(param.shouldCopy){
-						param_types.emplace_back(this->get_type<false>(param.typeID));
+						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
 					}
@@ -3940,7 +4133,7 @@ namespace pcit::panther{
 				if(target_func_type.hasNamedReturns){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type actual_return_type =
-							this->get_type<false>(target_func_type.returnTypes[0].asTypeID());
+							this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
 
 						const pir::Expr return_alloc = this->agent.createAlloca(
 							actual_return_type, this->name(".INTERFACE_CALL.ALLOCA")
@@ -3952,7 +4145,7 @@ namespace pcit::panther{
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type actual_return_type =
-							this->get_type<false>(target_func_type.returnTypes[0].asTypeID());
+							this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
 
 						const pir::Expr return_alloc = this->agent.createAlloca(
 							actual_return_type, this->name("INTERFACE_CALL.ALLOCA")
@@ -4006,7 +4199,7 @@ namespace pcit::panther{
 
 				const pir::Expr target = this->get_expr_pointer(indexer.target);
 
-				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+				const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 				auto indices = evo::SmallVector<pir::CalcPtr::Index>();
 				indices.reserve(indexer.indices.size() + 1);
@@ -4019,7 +4212,10 @@ namespace pcit::panther{
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createCalcPtr(
-						target, this->get_type<false>(indexer.targetTypeID), std::move(indices), this->name("INDEXER")
+						target,
+						this->get_type<false, false>(indexer.targetTypeID).type,
+						std::move(indices),
+						this->name("INDEXER")
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -4028,7 +4224,10 @@ namespace pcit::panther{
 					);
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						target, this->get_type<false>(indexer.targetTypeID), std::move(indices), this->name(".INDEXER")
+						target,
+						this->get_type<false, false>(indexer.targetTypeID).type,
+						std::move(indices),
+						this->name(".INDEXER")
 					);
 					this->agent.createStore(indexer_alloca, calc_ptr);
 
@@ -4038,7 +4237,10 @@ namespace pcit::panther{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
-						target, this->get_type<false>(indexer.targetTypeID), std::move(indices), this->name(".INDEXER")
+						target,
+						this->get_type<false, false>(indexer.targetTypeID).type,
+						std::move(indices),
+						this->name(".INDEXER")
 					);
 
 					this->agent.createStore(store_locations[0], calc_ptr);
@@ -4230,7 +4432,7 @@ namespace pcit::panther{
 					get_arr_calc_ptr, this->module.createPtrType(), this->name(".ARRAY_REF.PTR")
 				);
 
-				const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+				const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 
 				uint32_t ref_length_index = uint32_t(num_ref_ptrs);
@@ -4289,7 +4491,7 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createCalcPtr(
 						target,
-						this->get_type<false>(array_ref_type.elementTypeID),
+						this->get_type<false, false>(array_ref_type.elementTypeID).type,
 						evo::SmallVector<pir::CalcPtr::Index>{index},
 						this->name("ARRAY_REF_INDEXER")
 					);
@@ -4301,7 +4503,7 @@ namespace pcit::panther{
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
 						target,
-						this->get_type<false>(array_ref_type.elementTypeID),
+						this->get_type<false, false>(array_ref_type.elementTypeID).type,
 						evo::SmallVector<pir::CalcPtr::Index>{index},
 						this->name(".ARRAY_REF_INDEXER")
 					);
@@ -4314,7 +4516,7 @@ namespace pcit::panther{
 
 					const pir::Expr calc_ptr = this->agent.createCalcPtr(
 						target,
-						this->get_type<false>(array_ref_type.elementTypeID),
+						this->get_type<false, false>(array_ref_type.elementTypeID).type,
 						evo::SmallVector<pir::CalcPtr::Index>{index},
 						this->name(".ARRAY_REF_INDEXER")
 					);
@@ -4345,7 +4547,7 @@ namespace pcit::panther{
 
 					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_size.target);
 
-					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+					const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 
 					uint32_t ref_length_index = 0;
@@ -4418,7 +4620,7 @@ namespace pcit::panther{
 
 					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_dimensions.target);
 
-					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+					const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 					const pir::Type return_type =
 						this->module.getOrCreateArrayType(type_usize, array_ref_type.dimensions.size());
@@ -4549,7 +4751,7 @@ namespace pcit::panther{
 				if(union_info.isUntagged){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type union_pir_type =
-							this->get_type<false>(BaseType::ID(union_designated_init_new.unionTypeID));
+							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
 
 						const pir::Expr storage_alloca =
 							this->agent.createAlloca(union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW"));
@@ -4562,7 +4764,7 @@ namespace pcit::panther{
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
 						const pir::Type union_pir_type =
-							this->get_type<false>(BaseType::ID(union_designated_init_new.unionTypeID));
+							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
 
 						const pir::Expr storage_alloca =
 							this->agent.createAlloca(union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW"));
@@ -4587,7 +4789,7 @@ namespace pcit::panther{
 
 					}else{
 						const pir::Type union_pir_type =
-							this->get_type<false>(BaseType::ID(union_designated_init_new.unionTypeID));
+							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
 
 						const pir::Expr target = [&](){
 							if constexpr(MODE == GetExprMode::REGISTER){
@@ -4663,7 +4865,8 @@ namespace pcit::panther{
 					const sema::UnionTagCmp& union_tag_cmp =
 						this->context.getSemaBuffer().getUnionTagCmp(expr.unionTagCmpID());
 					
-					const pir::Type union_pir_type = this->get_type<false>(BaseType::ID(union_tag_cmp.unionTypeID));
+					const pir::Type union_pir_type =
+						this->get_type<false, false>(BaseType::ID(union_tag_cmp.unionTypeID)).type;
 					const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
 
 					const pir::Expr tag_ptr = this->agent.createCalcPtr(
@@ -4762,7 +4965,7 @@ namespace pcit::panther{
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 						return store_locations[0];
 					}else{
-						return this->agent.createAlloca(this->get_type<false>(target_type.returnTypes[0]));
+						return this->agent.createAlloca(this->get_type<false, false>(target_type.returnTypes[0]).type);
 					}
 				}();
 
@@ -4799,8 +5002,15 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), try_else_expr.line, try_else_expr.collumn
+					);
+				}
+
 				const pir::Expr err_occurred = this->create_call(
-					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
+					target_func_info.pir_ids[target_in_param_bitmap], std::move(args), source_location
 				);
 
 				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
@@ -4815,7 +5025,7 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 
 				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Type return_type = this->get_type<false>(target_type.returnTypes[0]);
+					const pir::Type return_type = this->get_type<false, false>(target_type.returnTypes[0]).type;
 					return this->agent.createLoad(return_address, return_type);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -4846,7 +5056,7 @@ namespace pcit::panther{
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
 					if(param.shouldCopy){
-						param_types.emplace_back(this->get_type<false>(param.typeID));
+						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
 					}
@@ -4910,7 +5120,9 @@ namespace pcit::panther{
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 						return store_locations[0];
 					}else{
-						return this->agent.createAlloca(this->get_type<false>(target_func_type.returnTypes[0]));
+						return this->agent.createAlloca(
+							this->get_type<false, false>(target_func_type.returnTypes[0]).type
+						);
 					}
 				}();
 
@@ -4950,7 +5162,18 @@ namespace pcit::panther{
 				}
 
 
-				const pir::Expr err_occurred = this->agent.createCall(target_func, func_pir_type, std::move(args));
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(),
+						try_else_interface_expr.line,
+						try_else_interface_expr.collumn
+					);
+				}
+
+				const pir::Expr err_occurred = this->agent.createCall(
+					target_func, func_pir_type, std::move(args), this->name(".TRY.ERRORED"), source_location
+				);
 
 				const pir::BasicBlock::ID if_error_block = this->agent.createBasicBlock(this->name("TRY.ERROR"));
 				const pir::BasicBlock::ID end_block = this->agent.createBasicBlock(this->name("TRY.END"));
@@ -4964,7 +5187,7 @@ namespace pcit::panther{
 				this->agent.setTargetBasicBlock(end_block);
 
 				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Type return_type = this->get_type<false>(target_func_type.returnTypes[0]);
+					const pir::Type return_type = this->get_type<false, false>(target_func_type.returnTypes[0]).type;
 					return this->agent.createLoad(return_address, return_type);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -5083,9 +5306,9 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
 						calc_ptr,
-						this->get_type<false>(
+						this->get_type<false, false>(
 							this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
-						)
+						).type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -5097,9 +5320,9 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations[0],
 						calc_ptr,
-						this->get_type<false>(
+						this->get_type<false, false>(
 							this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
-						)
+						).type
 					);
 					return std::nullopt;
 
@@ -5121,7 +5344,7 @@ namespace pcit::panther{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(
 							scope_level.label_output_locations[block_expr_output_param.index],
-							this->get_type<false>(block_expr_output_param.typeID),
+							this->get_type<false, false>(block_expr_output_param.typeID).type,
 							"LOAD.BLOCK_EXPR_OUTPUT"
 						);
 
@@ -5134,7 +5357,7 @@ namespace pcit::panther{
 						this->agent.createMemcpy(
 							store_locations[0],
 							scope_level.label_output_locations[block_expr_output_param.index],
-							this->get_type<false>(block_expr_output_param.typeID)
+							this->get_type<false, false>(block_expr_output_param.typeID).type
 						);
 						return std::nullopt;
 
@@ -5151,9 +5374,9 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->agent.createLoad(
 						this->local_func_exprs.at(expr),
-						this->get_type<false>(
+						this->get_type<false, false>(
 							this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
-						)
+						).type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -5165,9 +5388,9 @@ namespace pcit::panther{
 					this->agent.createMemcpy(
 						store_locations[0],
 						this->local_func_exprs.at(expr),
-						this->get_type<false>(
+						this->get_type<false, false>(
 							this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
-						)
+						).type
 					);
 					return std::nullopt;
 
@@ -5199,7 +5422,7 @@ namespace pcit::panther{
 
 						return this->agent.createLoad(
 							for_param_load,
-							this->get_type<false>(for_param.typeID),
+							this->get_type<false, false>(for_param.typeID).type,
 							this->name(remove_alloca_from_name(for_param_alloca.name) + ".LOAD")
 						);
 					}
@@ -5234,7 +5457,7 @@ namespace pcit::panther{
 						);
 
 						this->agent.createMemcpy(
-							store_locations[0], for_param_load, this->get_type<false>(for_param.typeID)
+							store_locations[0], for_param_load, this->get_type<false, false>(for_param.typeID).type
 						);
 					}
 
@@ -5350,33 +5573,6 @@ namespace pcit::panther{
 								this->agent.createStore(
 									store_locations[0],
 									this->agent.createNumber(pir_type, generic_value.getF16())
-								);
-								return std::nullopt;
-								
-							}else{
-								return std::nullopt;
-							}
-						} break;
-
-						case Token::Kind::TYPE_BF16: {
-							const pir::Type pir_type = this->module.createBFloatType();
-
-							if constexpr(MODE == GetExprMode::REGISTER){
-								return this->agent.createNumber(pir_type, generic_value.getBF16());
-
-							}else if constexpr(MODE == GetExprMode::POINTER){
-								const pir::Expr output_alloca = this->agent.createAlloca(pir_type);
-
-								this->agent.createStore(
-									output_alloca, this->agent.createNumber(pir_type, generic_value.getBF16())
-								);
-
-								return output_alloca;
-								
-							}else if constexpr(MODE == GetExprMode::STORE){
-								this->agent.createStore(
-									store_locations[0],
-									this->agent.createNumber(pir_type, generic_value.getBF16())
 								);
 								return std::nullopt;
 								
@@ -5770,16 +5966,13 @@ namespace pcit::panther{
 				const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
 				if(expr_type.qualifiers().empty() && expr_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE){
-					const pir::Type primitive_type = this->get_type<false>(expr_type_id);
+					const pir::Type primitive_type = this->get_type<false, false>(expr_type_id).type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						if(primitive_type.isIntegral()){
 							return this->agent.createNumber(
 								primitive_type, core::GenericInt(primitive_type.getWidth(), 0)
 							);
-
-						}else if(primitive_type.kind() == pir::Type::Kind::BFLOAT){
-							return this->agent.createNumber(primitive_type, core::GenericFloat::createBF16(0));
 
 						}else{
 							switch(primitive_type.getWidth()){
@@ -5826,7 +6019,7 @@ namespace pcit::panther{
 					}
 					
 				}else{
-					const pir::Type expr_pir_type = this->get_type<false>(expr_type_id);
+					const pir::Type expr_pir_type = this->get_type<false, false>(expr_type_id).type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->agent.createLoad(
@@ -5886,7 +6079,7 @@ namespace pcit::panther{
 				}
 			}
 
-			const pir::Type opt_pir_type = this->get_type<false>(expr_type_id);
+			const pir::Type opt_pir_type = this->get_type<false, false>(expr_type_id).type;
 
 			const pir::Expr target = [&]() -> pir::Expr {
 				if constexpr(MODE == GetExprMode::REGISTER){
@@ -5969,7 +6162,7 @@ namespace pcit::panther{
 			} break;
 			
 			case BaseType::Kind::ARRAY: {
-				const pir::Type array_pir_type = this->get_type<false>(expr_type_id);
+				const pir::Type array_pir_type = this->get_type<false, false>(expr_type_id).type;
 
 				const pir::Expr target = [&]() -> pir::Expr {
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -6121,7 +6314,7 @@ namespace pcit::panther{
 			} break;
 			
 			case BaseType::Kind::STRUCT: {
-				const pir::Type struct_pir_type = this->get_type<false>(expr_type.baseTypeID());
+				const pir::Type struct_pir_type = this->get_type<false, false>(expr_type.baseTypeID()).type;
 
 				const pir::Expr target = [&]() -> pir::Expr {
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -6148,7 +6341,7 @@ namespace pcit::panther{
 						const Data::FuncInfo& target_func_info = this->data.get_func(new_init_overload_id);
 						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
-						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target}, std::nullopt);
 
 						break;
 					}
@@ -6161,7 +6354,7 @@ namespace pcit::panther{
 						const Data::FuncInfo& target_func_info = this->data.get_func(new_assign_overload_id);
 						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
-						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target}, std::nullopt);
 
 						found_assign_overload = true;
 						break;
@@ -6175,7 +6368,7 @@ namespace pcit::panther{
 							const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
 							this->delete_expr(target, expr_type_id);
-							this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
+							this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target}, std::nullopt);
 
 							break;
 						}
@@ -6212,7 +6405,7 @@ namespace pcit::panther{
 
 				evo::debugAssert(union_type.isUntagged == false, "Tagged union should be trivially-initable");
 
-				const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+				const pir::Type union_pir_type = this->get_type<false, false>(expr_type.baseTypeID()).type;
 
 				const pir::Expr target = [&]() -> pir::Expr {
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -6327,7 +6520,7 @@ namespace pcit::panther{
 				expr_type.qualifiers().back().isOptional, "Unknown non-trivially-deletable type with qualifiers"
 			);
 
-			const pir::Type target_type = this->get_type<false>(expr_type_id);
+			const pir::Type target_type = this->get_type<false, false>(expr_type_id).type;
 			const pir::Expr flag_ptr = this->agent.createCalcPtr(
 				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".DELETE_OPT.flag_ptr")
 			);
@@ -6375,7 +6568,7 @@ namespace pcit::panther{
 				const BaseType::Array& array_type =
 					this->context.getTypeManager().getArray(expr_type.baseTypeID().arrayID());
 
-				const pir::Type array_pir_type = this->get_type<false>(expr_type_id);
+				const pir::Type array_pir_type = this->get_type<false, false>(expr_type_id).type;
 
 				this->iterate_array(array_type, true, "DELETE_ARR", [&](pir::Expr index) -> void {
 					const pir::Expr target_elem = this->agent.createCalcPtr(
@@ -6420,7 +6613,7 @@ namespace pcit::panther{
 				const Data::FuncInfo& target_func_info = this->data.get_func(*struct_type.deleteOverload.load());
 				const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
-				this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr});
+				this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr}, std::nullopt);
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -6435,7 +6628,7 @@ namespace pcit::panther{
 				const BaseType::Union& union_type =
 					this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
-				const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+				const pir::Type union_pir_type = this->get_type<false, false>(expr_type.baseTypeID()).type;
 				const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
 
 				evo::debugAssert(union_type.isUntagged == false, "untagged union types aren't non-trivially-deletable");
@@ -6530,7 +6723,7 @@ namespace pcit::panther{
 
 			}else if constexpr(MODE == GetExprMode::POINTER){
 				const pir::Expr copy_alloca = 
-					this->agent.createAlloca(this->get_type<false>(expr_type_id), this->name("COPY"));
+					this->agent.createAlloca(this->get_type<false, false>(expr_type_id).type, this->name("COPY"));
 				this->get_expr_store(expr, copy_alloca);
 				return copy_alloca;
 				
@@ -6561,7 +6754,7 @@ namespace pcit::panther{
 
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
-		const pir::Type target_type = this->get_type<false>(expr_type_id);
+		const pir::Type target_type = this->get_type<false, false>(expr_type_id).type;
 
 
 		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
@@ -6839,7 +7032,7 @@ namespace pcit::panther{
 					const pir::Function::ID pir_id = 
 						this->data.get_func(target_func_id).pir_ids[0].as<pir::Function::ID>();
 
-					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target});
+					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target}, std::nullopt);
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -6854,7 +7047,7 @@ namespace pcit::panther{
 					const BaseType::Union& union_type =
 						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
-					const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+					const pir::Type union_pir_type = this->get_type<false, false>(expr_type.baseTypeID()).type;
 					const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
 
 					evo::debugAssert(
@@ -7011,7 +7204,7 @@ namespace pcit::panther{
 
 			}else if constexpr(MODE == GetExprMode::POINTER){
 				const pir::Expr move_alloca = 
-					this->agent.createAlloca(this->get_type<false>(expr_type_id), this->name("MOVE"));
+					this->agent.createAlloca(this->get_type<false, false>(expr_type_id).type, this->name("MOVE"));
 
 				this->get_expr_store(expr, move_alloca);
 				return move_alloca;
@@ -7043,7 +7236,7 @@ namespace pcit::panther{
 
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
-		const pir::Type target_type = this->get_type<false>(expr_type_id);
+		const pir::Type target_type = this->get_type<false, false>(expr_type_id).type;
 
 
 		if(this->context.getTypeManager().isTriviallyCopyable(expr_type_id)){
@@ -7311,7 +7504,7 @@ namespace pcit::panther{
 					const pir::Function::ID pir_id = 
 						this->data.get_func(target_func_id).pir_ids[0].as<pir::Function::ID>();
 
-					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target});
+					this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{expr, target}, std::nullopt);
 				} break;
 
 				case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -7326,7 +7519,7 @@ namespace pcit::panther{
 					const BaseType::Union& union_type =
 						this->context.getTypeManager().getUnion(expr_type.baseTypeID().unionID());
 
-					const pir::Type union_pir_type = this->get_type<false>(expr_type.baseTypeID());
+					const pir::Type union_pir_type = this->get_type<false, false>(expr_type.baseTypeID()).type;
 					const pir::StructType union_struct_type = this->module.getStructType(union_pir_type);
 
 					evo::debugAssert(
@@ -7482,7 +7675,7 @@ namespace pcit::panther{
 			auto lhs_register = std::optional<pir::Expr>();
 			auto rhs_register = std::optional<pir::Expr>();
 
-			const pir::Type pir_type = this->get_type<false>(expr_type_id);
+			const pir::Type pir_type = this->get_type<false, false>(expr_type_id).type;
 
 			switch(pir_type.kind()){
 				case pir::Type::Kind::UNSIGNED: case pir::Type::Kind::SIGNED:
@@ -7556,7 +7749,7 @@ namespace pcit::panther{
 		evo::ArrayProxy<pir::Expr> store_locations
 	) -> std::optional<pir::Expr> {
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
-		const pir::Type pir_type = this->get_type<false>(expr_type_id);
+		const pir::Type pir_type = this->get_type<false, false>(expr_type_id).type;
 
 		if(this->context.getTypeManager().isTriviallyComparable(expr_type_id)){
 			const uint32_t expr_type_num_bits =
@@ -7811,7 +8004,7 @@ namespace pcit::panther{
 						return output_num_elems;
 					}();
 
-					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+					const pir::Type usize_type = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 					const pir::Expr pir_i = this->agent.createAlloca(
 						usize_type, this->name(is_equal ? ".EQ.arr.i.ALLOCA" : ".NEQ.arr.i.ALLOCA")
@@ -8012,7 +8205,7 @@ namespace pcit::panther{
 					//////////////////
 					// calc size
 
-					const pir::Type type_usize = this->get_type<false>(TypeManager::getTypeUSize());
+					const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 
 					uint32_t ref_length_index = 0;
@@ -8085,7 +8278,7 @@ namespace pcit::panther{
 					//////////////////
 					// elem check
 
-					const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+					const pir::Type usize_type = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 					const pir::Expr pir_i = this->agent.createAlloca(
 						usize_type, this->name(is_equal ? ".EQ.ARR_REF.i.ALLOCA" : ".NEQ.ARR_REF.i.ALLOCA")
@@ -8127,7 +8320,7 @@ namespace pcit::panther{
 					this->agent.setTargetBasicBlock(elem_check_then_block);
 
 
-					const pir::Type elem_type = this->get_type<false>(array_ref_type.elementTypeID);
+					const pir::Type elem_type = this->get_type<false, false>(array_ref_type.elementTypeID).type;
 
 					const pir::Expr lhs_elem = this->agent.createCalcPtr(
 						lhs_data_ptr,
@@ -8553,7 +8746,7 @@ namespace pcit::panther{
 			return output_num_elems;
 		}();
 
-		const pir::Type usize_type = this->get_type<false>(TypeManager::getTypeUSize());
+		const pir::Type usize_type = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 		const pir::Expr pir_i = this->agent.createAlloca(usize_type, this->name(".{}.i.ALLOCA", op_name));
 		this->agent.createStore(
@@ -8619,37 +8812,45 @@ namespace pcit::panther{
 	auto SemaToPIR::create_call(
 		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
 		evo::SmallVector<pir::Expr>&& args,
+		std::optional<pir::meta::SourceLocation> source_location,
 		std::string&& name
 	) -> pir::Expr {
 		if(func_id.is<pir::Function::ID>()){
-			return this->agent.createCall(func_id.as<pir::Function::ID>(), std::move(args), std::move(name));
+			return this->agent.createCall(
+				func_id.as<pir::Function::ID>(), std::move(args), std::move(name), source_location
+			);
+
 		}else{
 			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			return this->agent.createCall(func_id.as<pir::ExternalFunction::ID>(), std::move(args), std::move(name));
+			return this->agent.createCall(
+				func_id.as<pir::ExternalFunction::ID>(), std::move(args), std::move(name), source_location
+			);
 		}
 	}
 
 	auto SemaToPIR::create_call_void(
 		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-		evo::SmallVector<pir::Expr>&& args
+		evo::SmallVector<pir::Expr>&& args,
+		std::optional<pir::meta::SourceLocation> source_location
 	) -> void {
 		if(func_id.is<pir::Function::ID>()){
-			this->agent.createCallVoid(func_id.as<pir::Function::ID>(), std::move(args));
+			this->agent.createCallVoid(func_id.as<pir::Function::ID>(), std::move(args), source_location);
 		}else{
 			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			this->agent.createCallVoid(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
+			this->agent.createCallVoid(func_id.as<pir::ExternalFunction::ID>(), std::move(args), source_location);
 		}
 	}
 
 	auto SemaToPIR::create_call_no_return(
 		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-		evo::SmallVector<pir::Expr>&& args
+		evo::SmallVector<pir::Expr>&& args,
+		std::optional<pir::meta::SourceLocation> source_location
 	) -> void {
 		if(func_id.is<pir::Function::ID>()){
-			this->agent.createCallNoReturn(func_id.as<pir::Function::ID>(), std::move(args));
+			this->agent.createCallNoReturn(func_id.as<pir::Function::ID>(), std::move(args), source_location);
 		}else{
 			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			this->agent.createCallNoReturn(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
+			this->agent.createCallNoReturn(func_id.as<pir::ExternalFunction::ID>(), std::move(args), source_location);
 		}
 	}
 
@@ -8753,7 +8954,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Type to_type =
-						this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+						this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 					if(
 						to_type.isPrimitive()
@@ -8783,7 +8984,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
 				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->agent.createTrunc(from_value, to_type, this->name("TRUNC"));
@@ -8806,7 +9007,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
 				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->agent.createFTrunc(from_value, to_type, this->name("FTRUNC"));
@@ -8829,7 +9030,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
 				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->agent.createSExt(from_value, to_type, this->name("SEXT"));
@@ -8852,7 +9053,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
 				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->agent.createZExt(from_value, to_type, this->name("ZEXT"));
@@ -8875,7 +9076,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
 				const pir::Type to_type =
-					this->get_type<false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>());
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->agent.createFExt(from_value, to_type, this->name("FEXT"));
@@ -8897,9 +9098,9 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
-				const pir::Type to_type = this->get_type<false>(
+				const pir::Type to_type = this->get_type<false, false>(
 					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID()
-				);
+				).type;
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 
 				const pir::Expr register_value = [&](){
@@ -8932,7 +9133,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
 				const TypeInfo::VoidableID to_type_id =
 					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
-				const pir::Type to_type = this->get_type<false>(to_type_id);
+				const pir::Type to_type = this->get_type<false, false>(to_type_id).type;
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 
 				const pir::Expr register_value = [&](){
@@ -8976,7 +9177,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9048,7 +9249,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9072,7 +9273,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9102,7 +9303,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9174,7 +9375,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9198,7 +9399,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9228,7 +9429,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9300,7 +9501,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9324,7 +9525,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9358,7 +9559,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9382,7 +9583,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9418,7 +9619,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9441,7 +9642,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9474,7 +9675,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9507,7 +9708,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9543,7 +9744,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9579,7 +9780,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9615,7 +9816,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9651,7 +9852,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9676,7 +9877,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9700,7 +9901,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9724,7 +9925,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9739,7 +9940,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::SHL: {
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const bool is_exact = !instantiation.templateArgs[2].as<core::GenericValue>().getBool();
@@ -9771,7 +9972,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::SHL_SAT: {
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -9813,7 +10014,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::SHR: {
 				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-				const pir::Type arg_pir_type = this->get_type<false>(arg_type_id);
+				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 				const bool is_exact = !instantiation.templateArgs[2].as<core::GenericValue>().getBool();
 
@@ -9859,7 +10060,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9882,7 +10083,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9905,7 +10106,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9928,7 +10129,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9951,7 +10152,7 @@ namespace pcit::panther{
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
-					const pir::Type arg_pir_type = this->get_type<false>(type_id);
+					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->agent.createAlloca(arg_pir_type);
 					this->agent.createStore(pointer_alloca, register_value);
 					return pointer_alloca;
@@ -9971,7 +10172,7 @@ namespace pcit::panther{
 					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[2].as<core::GenericValue>());
 
 				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
-				const pir::Type pir_type = this->get_type<false>(type_id);
+				const pir::Type pir_type = this->get_type<false, false>(type_id).type;
 
 				std::string expr_name = [&]() -> std::string {
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -10096,7 +10297,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
 				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
 
-				const pir::Type pir_type = this->get_type<false>(type_id);
+				const pir::Type pir_type = this->get_type<false, false>(type_id).type;
 
 				const pir::Expr target = this->get_expr_register(func_call.args[0]);
 
@@ -10274,17 +10475,40 @@ namespace pcit::panther{
 			);
 		};
 
+
+
 		switch(intrinsic_func_kind){
 			case IntrinsicFunc::Kind::ABORT: {
-				this->agent.createAbort();
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), func_call.line, func_call.collumn
+					);
+				}
+
+				this->agent.createAbort(source_location);
 			} break;
 
 			case IntrinsicFunc::Kind::BREAKPOINT: {
-				this->agent.createBreakpoint();
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), func_call.line, func_call.collumn
+					);
+				}
+
+				this->agent.createBreakpoint(source_location);
 			} break;
 
 			case IntrinsicFunc::Kind::PANIC: {
-				this->create_panic(this->get_expr_pointer(func_call.args[0]));
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					source_location = pir::meta::SourceLocation(
+						this->get_current_meta_local_scope(), func_call.line, func_call.collumn
+					);
+				}
+
+				this->create_panic(this->get_expr_pointer(func_call.args[0]), source_location);
 			} break;
 
 			case IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS: {
@@ -10301,6 +10525,14 @@ namespace pcit::panther{
 				get_args(args);
 
 				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_output, std::move(args));
+			} break;
+
+			case IntrinsicFunc::Kind::BUILD_SET_ADD_DEBUG_INFO: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(get_context_ptr());
+				get_args(args);
+
+				this->agent.createCallVoid(this->data.getJITBuildFuncs().build_set_add_debug_info, std::move(args));
 			} break;
 
 			case IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE: {
@@ -10397,16 +10629,17 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::create_panic(pir::Expr message) -> void {
+	auto SemaToPIR::create_panic(pir::Expr message, std::optional<pir::meta::SourceLocation> source_location) -> void {
 		const Data::FuncInfo& func_info = this->data.get_func(*this->context.panic);
 
 		this->agent.createCallNoReturn(
-			func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{message}
+			func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{message}, source_location
 		);
 	}
 
 
-	auto SemaToPIR::create_panic(std::string_view message) -> void {
+	auto SemaToPIR::create_panic(std::string_view message, std::optional<pir::meta::SourceLocation> source_location)
+	-> void {
 		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message) + '\0');
 
 		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
@@ -10444,7 +10677,7 @@ namespace pcit::panther{
 			)
 		);
 
-		this->create_panic(string_ref_alloca);
+		this->create_panic(string_ref_alloca, source_location);
 	}
 
 
@@ -10467,12 +10700,16 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::INT_VALUE: {
 				const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
-				return this->agent.createNumber(this->get_type<false>(*int_value.typeID), int_value.value);
+				return this->agent.createNumber(
+					this->get_type<false, false>(*int_value.typeID).type, int_value.value
+				);
 			} break;
 
 			case sema::Expr::Kind::FLOAT_VALUE: {
 				const sema::FloatValue& float_value = this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
-				return this->agent.createNumber(this->get_type<false>(*float_value.typeID), float_value.value);
+				return this->agent.createNumber(
+					this->get_type<false, false>(*float_value.typeID).type, float_value.value
+				);
 			} break;
 
 			case sema::Expr::Kind::BOOL_VALUE: {
@@ -10527,7 +10764,7 @@ namespace pcit::panther{
 					values.emplace_back(this->get_global_var_value(value));
 				}
 
-				const pir::Type aggregate_type = this->get_type<false>(aggregate_value.typeID);
+				const pir::Type aggregate_type = this->get_type<false, false>(aggregate_value.typeID).type;
 
 				if(aggregate_type.kind() == pir::Type::Kind::STRUCT){
 					// for empty structs
@@ -10588,7 +10825,7 @@ namespace pcit::panther{
 
 
 				return this->module.createGlobalStruct(
-					this->get_type<false>(conversion_to_optional.targetTypeID),
+					this->get_type<false, false>(conversion_to_optional.targetTypeID).type,
 					evo::SmallVector<pir::GlobalVar::Value>{
 						this->get_global_var_value(conversion_to_optional.expr),
 						this->agent.createBoolean(true)
@@ -10637,7 +10874,7 @@ namespace pcit::panther{
 
 				if(target_type.isOptional()){
 					return this->module.createGlobalStruct(
-						this->get_type<false>(default_new.targetTypeID),
+						this->get_type<false, false>(default_new.targetTypeID).type,
 						evo::SmallVector<pir::GlobalVar::Value>{
 							pir::GlobalVar::Uninit(),
 							this->agent.createBoolean(false)
@@ -10815,23 +11052,66 @@ namespace pcit::panther{
 	// get type
 
 
-	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(TypeInfo::VoidableID voidable_type_id) -> pir::Type {
-		if(voidable_type_id.isVoid()){ return this->module.createVoidType(); }
-		return this->get_type<MAY_LOWER_DEPENDENCY>(voidable_type_id.asTypeID());
+	template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+	auto SemaToPIR::get_type(TypeInfo::VoidableID voidable_type_id) -> PIRType {
+		if(voidable_type_id.isVoid()){
+			return PIRType(this->module.createVoidType(), std::nullopt);
+		}
+
+		return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(voidable_type_id.asTypeID());
 	}
 
 
-	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(TypeInfo::ID type_id) -> pir::Type {
+	template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+	auto SemaToPIR::get_type(TypeInfo::ID type_id) -> PIRType {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
 
-		if(type_info.isPointer()){ return this->module.createPtrType(); }
+		if(type_info.isPointer()){
+			if constexpr(GET_META){
+				if(this->data.config.includeDebugInfo == false){
+					return PIRType(this->module.createPtrType(), std::nullopt);
+				}
+
+				std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
+
+				const TypeInfo::ID pointee_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					type_info.copyWithPoppedQualifier()
+				);
+
+				PIRType pointee_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, true>(pointee_type_id);
+
+				const pir::meta::QualifiedType::Qualifier qualifier = [&]() -> pir::meta::QualifiedType::Qualifier {
+					if(type_info.qualifiers().back().isMut){
+						return pir::meta::QualifiedType::Qualifier::MUT_POINTER;
+					}else{
+						return pir::meta::QualifiedType::Qualifier::POINTER;
+					}
+				}();
+
+				return PIRType(
+					this->module.createPtrType(),
+					this->data.get_or_create_meta_qualified_type(
+						type_id, this->module, std::move(type_name), *pointee_pir_type.meta_type_id, qualifier
+					)
+				);
+
+			}else{
+				return PIRType(this->module.createPtrType(), std::nullopt);
+			}
+		}
 
 		if(type_info.isOptionalNotPointer()){
 			const auto lock = std::scoped_lock(this->data.optional_types_lock);
 			const auto find = this->data.optional_types.find(&type_info);
-			if(find != this->data.optional_types.end()){ return find->second; }
+			if(find != this->data.optional_types.end()){
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of optional (not pointer)");
+
+				}else{
+					return PIRType(find->second, std::nullopt);
+				}
+			}
 
 
 			auto target_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
@@ -10847,23 +11127,37 @@ namespace pcit::panther{
 			const pir::Type created_struct = this->module.createStructType(
 				std::format("PTHR.optional_{}", type_id.get()),
 				evo::SmallVector<pir::Type>{
-					this->get_type<MAY_LOWER_DEPENDENCY>(target_type_id), this->module.createBoolType()
+					this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(target_type_id).type,
+					this->module.createBoolType()
 				},
 				true
 			);
 
 			this->data.optional_types.emplace(&type_info, created_struct);
 
-			return created_struct;
+			if constexpr(GET_META){
+				// TODO(FUTURE): 
+				evo::unimplemented("Getting debug info of optional (not pointer)");
+
+			}else{
+				return PIRType(created_struct, std::nullopt);
+			}
 		}
 
-		return this->get_type<MAY_LOWER_DEPENDENCY>(type_info.baseTypeID());
+		return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(type_id, type_info.baseTypeID());
 	}
 
 
+	template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+	auto SemaToPIR::get_type(BaseType::ID base_type_id) -> PIRType {
+		return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type_id)), base_type_id
+		);
+	}
 
-	template<bool MAY_LOWER_DEPENDENCY>
-	auto SemaToPIR::get_type(BaseType::ID base_type_id) -> pir::Type {
+
+	template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
+	auto SemaToPIR::get_type(TypeInfo::ID type_id, BaseType::ID base_type_id) -> PIRType {
 		switch(base_type_id.kind()){
 			case BaseType::Kind::DUMMY: evo::debugFatalBreak("Not a valid base type");
 			
@@ -10872,47 +11166,525 @@ namespace pcit::panther{
 					this->context.getTypeManager().getPrimitive(base_type_id.primitiveID());
 
 				switch(primitive.kind()){
-					case Token::Kind::TYPE_UINT:
-					case Token::Kind::TYPE_USIZE:
-					case Token::Kind::TYPE_TYPEID:
-					case Token::Kind::TYPE_C_USHORT:
-					case Token::Kind::TYPE_C_UINT:
-					case Token::Kind::TYPE_C_ULONG:
-					case Token::Kind::TYPE_C_ULONG_LONG:
-						return this->module.createUnsignedType(
+					case Token::Kind::TYPE_INT: {
+						const pir::Type pir_type = this->module.createSignedType(
+							uint32_t(this->module.sizeOfGeneralRegister() * 8)
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "Int", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_ISIZE: {
+						const pir::Type pir_type = this->module.createSignedType(
+							uint32_t(this->module.sizeOfPtr() * 8)
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "ISize", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_I_N: {
+						const uint32_t bit_width = [&]() -> uint32_t {
+							if(primitive.bitWidth() <= 8){
+								return 8;
+
+							}else if(primitive.bitWidth() <= 16){
+								return 16;
+
+							}else if(primitive.bitWidth() <= 32){
+								return 32;
+
+							}else{
+								return uint32_t(ceil_to_multiple(primitive.bitWidth(), 64));
+							}
+						}();
+
+
+						const pir::Type pir_type = this->module.createSignedType(bit_width);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(
+										type_id, this->module, std::format("I{}", primitive.bitWidth()), pir_type
+									)
+								);
+
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_UINT: {
+						const pir::Type pir_type = this->module.createUnsignedType(
+							uint32_t(this->module.sizeOfGeneralRegister() * 8)
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "UInt", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_USIZE: {
+						const pir::Type pir_type = this->module.createUnsignedType(
+							uint32_t(this->module.sizeOfPtr() * 8)
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "USize", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_UI_N: {
+						const uint32_t bit_width = [&]() -> uint32_t {
+							if(primitive.bitWidth() <= 8){
+								return 8;
+
+							}else if(primitive.bitWidth() <= 16){
+								return 16;
+
+							}else if(primitive.bitWidth() <= 32){
+								return 32;
+
+							}else{
+								return uint32_t(ceil_to_multiple(primitive.bitWidth(), 64));
+							}
+						}();
+
+
+						const pir::Type pir_type = this->module.createUnsignedType(bit_width);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(
+										type_id, this->module, std::format("UI{}", primitive.bitWidth()), pir_type
+									)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_F16: {
+						const pir::Type pir_type = this->module.createFloatType(16);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "F16", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_F32: {
+						const pir::Type pir_type = this->module.createFloatType(32);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "F32", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_F64: {
+						const pir::Type pir_type = this->module.createFloatType(64);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "F64", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_F80: {
+						const pir::Type pir_type = this->module.createFloatType(80);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "F80", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_F128: {
+						const pir::Type pir_type = this->module.createFloatType(128);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "F128", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_BYTE: {
+						const pir::Type pir_type = this->module.createUnsignedType(8);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "Byte", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_BOOL: {
+						const pir::Type pir_type = this->module.createBoolType();
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "Bool", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_CHAR: {
+						const pir::Type pir_type = this->module.createSignedType(8);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "Char", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_RAWPTR: {
+						const pir::Type pir_type = this->module.createPtrType();
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "RawPtr", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_TYPEID: {
+						const pir::Type pir_type = this->module.createUnsignedType(32);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "TypeID", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_WCHAR: {
+						const pir::Type pir_type = this->module.createSignedType(
 							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
 
-					case Token::Kind::TYPE_INT:
-					case Token::Kind::TYPE_ISIZE:
-					case Token::Kind::TYPE_C_WCHAR:
-					case Token::Kind::TYPE_C_SHORT:
-					case Token::Kind::TYPE_C_INT:
-					case Token::Kind::TYPE_C_LONG:
-					case Token::Kind::TYPE_C_LONG_LONG:
-						return this->module.createSignedType(
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CWChar", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_SHORT: {
+						const pir::Type pir_type = this->module.createSignedType(
 							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
 
-					case Token::Kind::TYPE_I_N:    return this->module.createSignedType(primitive.bitWidth());
-					case Token::Kind::TYPE_UI_N:   return this->module.createUnsignedType(primitive.bitWidth());
-					case Token::Kind::TYPE_F16:    return this->module.createFloatType(16);
-					case Token::Kind::TYPE_BF16:   return this->module.createBFloatType();
-					case Token::Kind::TYPE_F32:    return this->module.createFloatType(32);
-					case Token::Kind::TYPE_F64:    return this->module.createFloatType(64);
-					case Token::Kind::TYPE_F80:    return this->module.createFloatType(80);
-					case Token::Kind::TYPE_F128:   return this->module.createFloatType(128);
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CShort", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
 
-					case Token::Kind::TYPE_BYTE:   return this->module.createUnsignedType(8);
-					case Token::Kind::TYPE_BOOL:   return this->module.createBoolType();
-					case Token::Kind::TYPE_CHAR:   return this->module.createSignedType(8);
-
-					case Token::Kind::TYPE_RAWPTR: return this->module.createPtrType();
-
-					case Token::Kind::TYPE_C_LONG_DOUBLE: 
-						return this->module.createFloatType(
+					case Token::Kind::TYPE_C_USHORT: {
+						const pir::Type pir_type = this->module.createUnsignedType(
 							uint32_t(this->context.getTypeManager().numBits(base_type_id))
 						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CUShort", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_C_INT: {
+						const pir::Type pir_type = this->module.createSignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CInt", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_UINT: {
+						const pir::Type pir_type = this->module.createUnsignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CUInt", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_LONG: {
+						const pir::Type pir_type = this->module.createSignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CLong", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_ULONG: {
+						const pir::Type pir_type = this->module.createUnsignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "CULong", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_C_LONG_LONG: {
+						const pir::Type pir_type = this->module.createSignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(
+										type_id, this->module, "CLongLong", pir_type
+									)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+
+					case Token::Kind::TYPE_C_ULONG_LONG: {
+						const pir::Type pir_type = this->module.createUnsignedType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(
+										type_id, this->module, "CULongLong", pir_type
+									)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						const pir::Type pir_type = this->module.createFloatType(
+							uint32_t(this->context.getTypeManager().numBits(base_type_id))
+						);
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(
+										type_id, this->module, "CULongLong", pir_type
+									)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
 
 					default: evo::debugFatalBreak("Unknown builtin type");
 				}
@@ -10924,25 +11696,34 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
-				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY>(array.elementTypeID);
+				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(array.elementTypeID).type;
 
-				if(array.dimensions.size() == 1){
-					return this->module.getOrCreateArrayType(
-						elem_type, array.dimensions.back() + uint64_t(array.terminator.has_value())
-					);
-					
-				}else{
-					pir::Type array_type = this->module.getOrCreateArrayType(elem_type, array.dimensions.back());
+				const pir::Type pir_type = [&]() -> pir::Type {
+					if(array.dimensions.size() == 1){
+						return this->module.getOrCreateArrayType(
+							elem_type, array.dimensions.back() + uint64_t(array.terminator.has_value())
+						);
+						
+					}else{
+						pir::Type array_type = this->module.getOrCreateArrayType(elem_type, array.dimensions.back());
 
-					if(array.dimensions.size() > 1){
-						for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
-							array_type = this->module.getOrCreateArrayType(array_type, array.dimensions[i]);
+						if(array.dimensions.size() > 1){
+							for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
+								array_type = this->module.getOrCreateArrayType(array_type, array.dimensions[i]);
+							}
 						}
+
+						return array_type;
 					}
+				}();
 
-					return array_type;
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of array");
+
+				}else{
+					return PIRType(pir_type, std::nullopt);
 				}
-
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
@@ -10959,18 +11740,26 @@ namespace pcit::panther{
 					if(dimension.isPtr()){ num_ptr_dimensions += 1; }
 				}
 
-				return this->data.getArrayRefType(this->module, num_ptr_dimensions);
+				const pir::Type pir_type = this->data.getArrayRefType(this->module, num_ptr_dimensions);
+
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of array reference");
+
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 			
 			case BaseType::Kind::ALIAS: {
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(base_type_id.aliasID());
-				return this->get_type<MAY_LOWER_DEPENDENCY>(alias.aliasedType);
+				return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(alias.aliasedType);
 			} break;
 			
 			case BaseType::Kind::DISTINCT_ALIAS: {
 				const BaseType::DistinctAlias& distinct_alias_type = 
 					this->context.getTypeManager().getDistinctAlias(base_type_id.distinctAliasID());
-				return this->get_type<MAY_LOWER_DEPENDENCY>(distinct_alias_type.underlyingType);
+				return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(distinct_alias_type.underlyingType);
 			} break;
 			
 			case BaseType::Kind::STRUCT: {
@@ -10980,7 +11769,14 @@ namespace pcit::panther{
 					}
 				}
 
-				return this->data.get_struct(base_type_id.structID());
+				const pir::Type pir_type = this->data.get_struct(base_type_id.structID());
+
+				if constexpr(GET_META){
+					return PIRType(pir_type, &this->module.getStructType(pir_type));
+
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 
 
@@ -10991,12 +11787,29 @@ namespace pcit::panther{
 					}
 				}
 
-				return this->data.get_union(base_type_id.unionID());
+				const pir::Type pir_type = this->data.get_union(base_type_id.unionID());
+
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of union");
+
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 
 			case BaseType::Kind::ENUM: {
 				const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(base_type_id.enumID());
-				return this->get_type<MAY_LOWER_DEPENDENCY>(BaseType::ID(enum_type.underlyingTypeID));
+				const pir::Type pir_type =
+					this->get_type<MAY_LOWER_DEPENDENCY, false>(BaseType::ID(enum_type.underlyingTypeID)).type;
+
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of enum");
+
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 			
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -11016,23 +11829,250 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return this->data.getInterfacePtrType(this->module);
+				const pir::Type pir_type = this->data.getInterfacePtrType(this->module);
+
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of poly interface ref");
+					
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map =
 					this->context.getTypeManager().getInterfaceMap(base_type_id.interfaceMapID());
 
-				return this->get_type<MAY_LOWER_DEPENDENCY>(
+				const pir::Type pir_type = this->get_type<MAY_LOWER_DEPENDENCY, false>(
 					this->context.getTypeManager().getTypeInfo(
 						interface_map.underlyingTypeID
 					).baseTypeID()
-				);
+				).type;
+
+				if constexpr(GET_META){
+					// TODO(FUTURE): 
+					evo::unimplemented("Getting debug info of interface map");
+					
+				}else{
+					return PIRType(pir_type, std::nullopt);
+				}
 			} break;
 		}
 
 		evo::debugFatalBreak("Unknown base type");
 	}
+
+
+
+
+	auto SemaToPIR::get_location(const Diagnostic::Location& location) const -> Location {
+		pir::meta::File::ID meta_file_id = pir::meta::File::ID::dummy();
+		uint32_t line_number = 0;
+		uint32_t collumn_number = 0;
+
+		location.visit([&](const auto& location) -> void {
+			using LocationType = std::decay_t<decltype(location)>;
+
+			if constexpr(std::is_same<LocationType, Diagnostic::Location::None>()){
+				// do nothing
+
+			}else if constexpr(std::is_same<LocationType, Diagnostic::Location::Builtin>()){
+				// do nothing
+
+			}else if constexpr(std::is_same<LocationType, SourceLocation>()){
+				meta_file_id = *this->context.getSourceManager()[location.sourceID].getPIRMetaFileID();
+				line_number = location.lineStart;
+				collumn_number = location.collumnStart;
+
+			}else if constexpr(std::is_same<LocationType, ClangSourceLocation>()){
+				// TODO(FUTURE): 
+				evo::unimplemented("Getting debug location of clang source file");
+
+			}else{
+				static_assert(false, "Unknown location");
+			}
+		});
+
+		return Location(meta_file_id, line_number, collumn_number);
+	}
+
+
+	auto SemaToPIR::get_current_meta_scope() const -> pir::meta::Scope {
+		return *this->current_source->getPIRMetaFileID();
+	}
+
+	auto SemaToPIR::get_current_meta_local_scope() const -> pir::meta::LocalScope {
+		return this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>();
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// unmangled func name
+
+	auto SemaToPIR::get_unmangled_func_name(const sema::Func& func) const -> std::string {
+		if(func.isClangFunc()){
+			return std::string(func.getName(this->context.getSourceManager()));
+
+		}else if(func.attributes.isExport){
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
+
+		}else{
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+
+			auto op_kind = std::optional<Token::Kind>();
+
+			if(func.name.is<Token::ID>()){
+				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
+
+				if(name_token.kind() == Token::Kind::IDENT){
+					std::string output = std::format(
+						"{}{}",
+						this->get_parent_name<false>(func.parent, func.sourceID),
+						name_token.getString()
+					);
+
+					if(func.templated_func_id.has_value()){
+						const sema::TemplatedFunc& templated_func =
+							this->context.getSemaBuffer().getTemplatedFunc(*func.templated_func_id);
+
+						const evo::SmallVector<sema::TemplatedFunc::Arg> template_args =
+							templated_func.getInstantiationArgs(func.instanceID);
+
+
+						output += "<{";
+
+						const TypeManager& type_manager = this->context.getTypeManager();
+
+						for(size_t i = 0; const sema::TemplatedFunc::Arg& template_arg : template_args){
+							if(template_arg.is<TypeInfo::VoidableID>()){
+								output += this->context.getTypeManager().printType(
+									template_arg.as<TypeInfo::VoidableID>(), context
+								);
+
+							}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){
+								output += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
+
+							}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeChar()){
+								output += "'";
+								output += template_arg.as<core::GenericValue>().getChar();
+								output += "'";
+
+							}else if(type_manager.isUnsignedIntegral(*templated_func.templateParams[i].typeID)){
+								output += template_arg.as<core::GenericValue>().getInt(
+									unsigned(type_manager.numBits(*templated_func.templateParams[i].typeID))
+								).toString(false);
+
+							}else if(type_manager.isIntegral(*templated_func.templateParams[i].typeID)){
+								output += template_arg.as<core::GenericValue>().getInt(
+									unsigned(type_manager.numBits(*templated_func.templateParams[i].typeID))
+								).toString(true);
+
+							}else if(type_manager.isFloatingPoint(*templated_func.templateParams[i].typeID)){
+								const BaseType::Primitive& primitive = type_manager.getPrimitive(
+									type_manager.getTypeInfo(*templated_func.templateParams[i].typeID)
+										.baseTypeID().primitiveID()
+								);
+
+								const core::GenericValue& generic_value = template_arg.as<core::GenericValue>();
+
+								switch(primitive.kind()){
+									break; case Token::Kind::TYPE_F16:
+										output += generic_value.getF16().toString();
+
+									break; case Token::Kind::TYPE_F32:
+										output += generic_value.getF32().toString();
+
+									break; case Token::Kind::TYPE_F64:
+										output += generic_value.getF64().toString();
+
+									break; case Token::Kind::TYPE_F80:
+										output += generic_value.getF80().toString();
+
+									break; case Token::Kind::TYPE_F128:
+										output += generic_value.getF128().toString();
+
+									break; default: evo::debugFatalBreak("Unknown float type");
+								}
+								
+							}else{
+								output += "<EXPR>";
+							}
+
+							if(i + 1 < template_args.size()){
+								output += ", ";
+								i += 1;
+							}
+						}
+
+						output += "}>";
+					}
+
+					return output;
+
+				}else{
+					op_kind = name_token.kind();
+				}
+
+			}else{
+				op_kind = func.name.as<sema::Func::CompilerCreatedOpOverload>().overloadKind;
+			}
+
+
+			switch(*op_kind){
+				case Token::lookupKind("["): {
+					return std::format("{}[]", this->get_parent_name<false>(func.parent, func.sourceID));
+				} break;
+
+				case Token::Kind::KEYWORD_COPY: {
+					if(func.params.size() == 1){
+						return std::format("{}copy.init", this->get_parent_name<false>(func.parent, func.sourceID));	
+					}else{
+						return std::format("{}copy.assign", this->get_parent_name<false>(func.parent, func.sourceID));
+					}
+				} break;
+
+				case Token::Kind::KEYWORD_MOVE: {
+					if(func.params.size() == 1){
+						return std::format("{}move.init", this->get_parent_name<false>(func.parent, func.sourceID));	
+					}else{
+						return std::format("{}move.assign", this->get_parent_name<false>(func.parent, func.sourceID));
+					}
+				} break;
+
+				case Token::Kind::KEYWORD_NEW: {
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+					if(func_type.returnTypes.size() == 1){
+						return std::format("{}new.init", this->get_parent_name<false>(func.parent, func.sourceID));	
+					}else{
+						return std::format("{}new.assign", this->get_parent_name<false>(func.parent, func.sourceID));
+					}
+				} break;
+
+
+				case Token::Kind::KEYWORD_AS: {
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+					return std::format(
+						"{}as.{}",
+						this->get_parent_name<false>(func.parent, func.sourceID),
+						this->context.getTypeManager().printType(func_type.returnTypes[0].asTypeID(), this->context)
+					);
+				} break;
+
+				default: {
+					return std::format(
+						"{}{}", this->get_parent_name<false>(func.parent, func.sourceID), Token::printKind(*op_kind)
+					);
+				} break;
+			}
+		}
+	}
+
+
 
 
 
@@ -11050,7 +12090,7 @@ namespace pcit::panther{
 			}else{
 				if constexpr(PIR_STMT_NAME_SAFE){
 					return std::format(
-						"PTHR.s{}.{}.{}",
+						"PTHR.s{}.{}{}",
 						struct_id.get(),
 						this->get_parent_name<true>(struct_type.parent, struct_type.sourceID),
 						struct_type.getName(this->context.getSourceManager())
@@ -11058,7 +12098,7 @@ namespace pcit::panther{
 
 				}else{
 					return std::format(
-						"PTHR.s{}.{}",
+						"PTHR.s{}-{}",
 						struct_id.get(),
 						this->context.getTypeManager().printType(BaseType::ID(struct_id), this->context) 
 					);
@@ -11080,7 +12120,7 @@ namespace pcit::panther{
 		}else if(this->data.getConfig().useReadableNames){
 			if constexpr(PIR_STMT_NAME_SAFE){
 				return std::format(
-					"PTHR.u{}.{}.{}",
+					"PTHR.u{}.{}{}",
 					union_id.get(),
 					this->get_parent_name<true>(union_type.parent, union_type.sourceID),
 					union_type.getName(this->context.getSourceManager())
@@ -11088,7 +12128,7 @@ namespace pcit::panther{
 				
 			}else{
 				return std::format(
-					"PTHR.u{}.{}",
+					"PTHR.u{}-{}",
 					union_id.get(),
 					this->context.getTypeManager().printType(BaseType::ID(union_id), this->context)
 				);
@@ -11107,7 +12147,7 @@ namespace pcit::panther{
 				const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
 
 				return std::format(
-					"PTHR.i{}.{}.{}",
+					"PTHR.i{}.{}{}",
 					interface_id.get(),
 					this->get_parent_name<true>(interface_type.parent, interface_type.sourceID),
 					interface_type.getName(this->context.getSourceManager())
@@ -11115,7 +12155,7 @@ namespace pcit::panther{
 				
 			}else{
 				return std::format(
-					"PTHR.i{}.{}",
+					"PTHR.i{}-{}",
 					interface_id.get(),
 					this->context.getTypeManager().printType(BaseType::ID(interface_id), this->context)
 				);
@@ -11142,12 +12182,22 @@ namespace pcit::panther{
 		}else{
 			const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
 			if(this->data.getConfig().useReadableNames){
-				return std::format(
-					"PTHR.g{}.{}.{}",
-					global_var_id.get(),
-					this->get_parent_name<PIR_STMT_NAME_SAFE>(std::nullopt, global_var.sourceID),
-					source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString()
-				);
+				if constexpr(PIR_STMT_NAME_SAFE){
+					return std::format(
+						"PTHR.g{}.{}{}",
+						global_var_id.get(),
+						this->get_parent_name<PIR_STMT_NAME_SAFE>(std::nullopt, global_var.sourceID),
+						source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString()
+					);
+					
+				}else{
+					return std::format(
+						"PTHR.g{}-{}{}",
+						global_var_id.get(),
+						this->get_parent_name<PIR_STMT_NAME_SAFE>(std::nullopt, global_var.sourceID),
+						source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString()
+					);
+				}
 				
 			}else{
 				return std::format("PTHR.g{}", global_var_id.get());
@@ -11178,14 +12228,22 @@ namespace pcit::panther{
 				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
 				if(name_token.kind() == Token::Kind::IDENT){
 					if(this->data.getConfig().useReadableNames){
-						std::string output = std::format(
-							"PTHR.f{}.{}.{}",
-							func_id.get(),
-							this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
-							name_token.getString()
-						);
+						if constexpr(PIR_STMT_NAME_SAFE){
+							return std::format(
+								"PTHR.f{}.{}{}",
+								func_id.get(),
+								this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
+								name_token.getString()
+							);
 
-						if constexpr(PIR_STMT_NAME_SAFE == false){
+						}else{
+							std::string output = std::format(
+								"PTHR.f{}-{}{}",
+								func_id.get(),
+								this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
+								name_token.getString()
+							);
+
 							if(func.templated_func_id.has_value()){
 								const sema::TemplatedFunc& templated_func =
 									this->context.getSemaBuffer().getTemplatedFunc(*func.templated_func_id);
@@ -11234,9 +12292,6 @@ namespace pcit::panther{
 											break; case Token::Kind::TYPE_F16:
 												output += generic_value.getF16().toString();
 
-											break; case Token::Kind::TYPE_BF16:
-												output += generic_value.getBF16().toString();
-
 											break; case Token::Kind::TYPE_F32:
 												output += generic_value.getF32().toString();
 
@@ -11264,9 +12319,10 @@ namespace pcit::panther{
 
 								output += "}>";
 							}
+
+							return output;
 						}
 
-						return output;
 
 					}else{
 						return std::format("PTHR.f{}", func_id.get());
@@ -11298,13 +12354,13 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_COPY: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_copy_init",
+							"PTHR.f{}.{}OP_copy_init",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.OP_copy_assign",
+							"PTHR.f{}.{}OP_copy_assign",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
@@ -11314,13 +12370,13 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_MOVE: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_move_init",
+							"PTHR.f{}.{}OP_move_init",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.OP_move_assign",
+							"PTHR.f{}.{}OP_move_assign",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
@@ -11332,13 +12388,13 @@ namespace pcit::panther{
 
 					if(func_type.returnTypes.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.OP_new_init",
+							"PTHR.f{}.{}OP_new_init",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.OP_new_assign",
+							"PTHR.f{}.{}OP_new_assign",
 							func_id.get(),
 							this->get_parent_name<true>(func.parent, func.sourceID)
 						);
@@ -11347,13 +12403,13 @@ namespace pcit::panther{
 
 				case Token::Kind::KEYWORD_DELETE: {
 					return std::format(
-						"PTHR.f{}.{}.OP_delete", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_delete", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::Kind::KEYWORD_AS: {
 					return std::format(
-						"PTHR.f{}.{}.OP_as", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_as", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -11361,7 +12417,7 @@ namespace pcit::panther{
 				// assignment
 				case Token::lookupKind("+="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_ADD",
+						"PTHR.f{}.{}OP_ASSIGN_ADD",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11369,7 +12425,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("+%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_ADD_WRAP",
+						"PTHR.f{}.{}OP_ASSIGN_ADD_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11377,7 +12433,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("+|="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_ADD_SAT",
+						"PTHR.f{}.{}OP_ASSIGN_ADD_SAT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11385,7 +12441,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SUB",
+						"PTHR.f{}.{}OP_ASSIGN_SUB",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11393,7 +12449,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SUB_WRAP",
+						"PTHR.f{}.{}OP_ASSIGN_SUB_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11401,7 +12457,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-|="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SUB_SAT",
+						"PTHR.f{}.{}OP_ASSIGN_SUB_SAT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11409,7 +12465,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MUL",
+						"PTHR.f{}.{}OP_ASSIGN_MUL",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11417,7 +12473,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MUL_WRAP",
+						"PTHR.f{}.{}OP_ASSIGN_MUL_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11425,7 +12481,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*|="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MUL_SAT",
+						"PTHR.f{}.{}OP_ASSIGN_MUL_SAT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11433,7 +12489,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("/="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_DIV",
+						"PTHR.f{}.{}OP_ASSIGN_DIV",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11441,7 +12497,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("%="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_MOD",
+						"PTHR.f{}.{}OP_ASSIGN_MOD",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11449,7 +12505,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<<="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_LEFT",
+						"PTHR.f{}.{}OP_ASSIGN_SHIFT_LEFT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11457,7 +12513,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<<|="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_LEFT_SAT",
+						"PTHR.f{}.{}OP_ASSIGN_SHIFT_LEFT_SAT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11465,7 +12521,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">>="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_SHIFT_RIGHT",
+						"PTHR.f{}.{}OP_ASSIGN_SHIFT_RIGHT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11473,7 +12529,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("&="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_AND",
+						"PTHR.f{}.{}OP_ASSIGN_BITWISE_AND",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11481,7 +12537,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("|="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_OR",
+						"PTHR.f{}.{}OP_ASSIGN_BITWISE_OR",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11489,7 +12545,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("^="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASSIGN_BITWISE_XOR",
+						"PTHR.f{}.{}OP_ASSIGN_BITWISE_XOR",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11499,13 +12555,13 @@ namespace pcit::panther{
 				// arithmetic
 				case Token::lookupKind("+"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_PLUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_PLUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("+%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ADD_WRAP",
+						"PTHR.f{}.{}OP_ADD_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11513,19 +12569,19 @@ namespace pcit::panther{
 
 				case Token::lookupKind("+|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ADD_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_ADD_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MINUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_MINUS", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("-%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SUB_WRAP",
+						"PTHR.f{}.{}OP_SUB_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11533,13 +12589,13 @@ namespace pcit::panther{
 
 				case Token::lookupKind("-|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SUB_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_SUB_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("*"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_ASTERISK",
+						"PTHR.f{}.{}OP_ASTERISK",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11547,7 +12603,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MUL_WRAP",
+						"PTHR.f{}.{}OP_MUL_WRAP",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11555,13 +12611,13 @@ namespace pcit::panther{
 
 				case Token::lookupKind("*|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MUL_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_MUL_SAT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("/"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_FORWARD_SLASH",
+						"PTHR.f{}.{}OP_FORWARD_SLASH",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11569,7 +12625,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("%"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_MOD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_MOD", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -11577,13 +12633,13 @@ namespace pcit::panther{
 				// comparative
 				case Token::lookupKind("=="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_EQUAL", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_EQUAL", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("!="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_NOT_EQUAL",
+						"PTHR.f{}.{}OP_NOT_EQUAL",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11591,7 +12647,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_LESS_THAN",
+						"PTHR.f{}.{}OP_LESS_THAN",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11599,7 +12655,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_LESS_THAN_EQUAL",
+						"PTHR.f{}.{}OP_LESS_THAN_EQUAL",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11607,7 +12663,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_GREATER_THAN",
+						"PTHR.f{}.{}OP_GREATER_THAN",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11615,7 +12671,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">="): {
 					return std::format(
-						"PTHR.f{}.{}.OP_GREATER_THAN_EQUAL",
+						"PTHR.f{}.{}OP_GREATER_THAN_EQUAL",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11625,19 +12681,19 @@ namespace pcit::panther{
 				// logical
 				case Token::lookupKind("!"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_NOT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_NOT", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("&&"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_AND", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_AND", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::lookupKind("||"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_OR", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_OR", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -11645,7 +12701,7 @@ namespace pcit::panther{
 				// bitwise
 				case Token::lookupKind("<<"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SHIFT_LEFT",
+						"PTHR.f{}.{}OP_SHIFT_LEFT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11653,7 +12709,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("<<|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SHIFT_LEFT_SAT",
+						"PTHR.f{}.{}OP_SHIFT_LEFT_SAT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11661,7 +12717,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind(">>"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_SHIFT_RIGHT",
+						"PTHR.f{}.{}OP_SHIFT_RIGHT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11669,7 +12725,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("&"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_AND",
+						"PTHR.f{}.{}OP_BITWISE_AND",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11677,7 +12733,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("|"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_OR",
+						"PTHR.f{}.{}OP_BITWISE_OR",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11685,7 +12741,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("^"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_XOR",
+						"PTHR.f{}.{}OP_BITWISE_XOR",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11693,7 +12749,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("~"): {
 					return std::format(
-						"PTHR.f{}.{}.OP_BITWISE_NOT",
+						"PTHR.f{}.{}OP_BITWISE_NOT",
 						func_id.get(),
 						this->get_parent_name<true>(func.parent, func.sourceID)
 					);
@@ -11702,7 +12758,7 @@ namespace pcit::panther{
 
 				case Token::lookupKind("["): {
 					return std::format(
-						"PTHR.f{}.{}.OP_INDEXER", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
+						"PTHR.f{}.{}OP_INDEXER", func_id.get(), this->get_parent_name<true>(func.parent, func.sourceID)
 					);
 				} break;
 
@@ -11716,20 +12772,20 @@ namespace pcit::panther{
 			switch(op_kind){
 				case Token::lookupKind("["): {
 					return std::format(
-						"PTHR.f{}.{}.[]", func_id.get(), this->get_parent_name<false>(func.parent, func.sourceID)
+						"PTHR.f{}-{}[]", func_id.get(), this->get_parent_name<false>(func.parent, func.sourceID)
 					);
 				} break;
 
 				case Token::Kind::KEYWORD_COPY: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.copy.init",
+							"PTHR.f{}-{}copy-init",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.copy.assign",
+							"PTHR.f{}-{}copy-assign",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
@@ -11739,13 +12795,13 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_MOVE: {
 					if(func.params.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.move.init",
+							"PTHR.f{}-{}move-init",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.move.assign",
+							"PTHR.f{}-{}move-assign",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
@@ -11757,13 +12813,13 @@ namespace pcit::panther{
 
 					if(func_type.returnTypes.size() == 1){
 						return std::format(
-							"PTHR.f{}.{}.new.init",
+							"PTHR.f{}-{}new-init",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);	
 					}else{
 						return std::format(
-							"PTHR.f{}.{}.new.assign",
+							"PTHR.f{}-{}new-assign",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);
@@ -11775,7 +12831,7 @@ namespace pcit::panther{
 					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
 					return std::format(
-						"PTHR.f{}.{}.as.{}",
+						"PTHR.f{}-{}as-{}",
 						func_id.get(),
 						this->get_parent_name<false>(func.parent, func.sourceID),
 						this->context.getTypeManager().printType(func_type.returnTypes[0].asTypeID(), this->context)
@@ -11784,7 +12840,7 @@ namespace pcit::panther{
 
 				default: {
 					return std::format(
-						"PTHR.f{}.{}.{}",
+						"PTHR.f{}-{}{}",
 						func_id.get(),
 						this->get_parent_name<false>(func.parent, func.sourceID),
 						Token::printKind(op_kind)
@@ -11812,7 +12868,7 @@ namespace pcit::panther{
 					if constexpr(PIR_STMT_NAME_SAFE){
 						const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(parent_id);
 						return std::format(
-							"{}.{}",
+							"{}{}.",
 							this->get_parent_name<true>(struct_type.parent, struct_type.sourceID),
 							std::string(struct_type.getName(this->context.getSourceManager()))
 						);
@@ -11825,7 +12881,7 @@ namespace pcit::panther{
 						const BaseType::Union& union_type = this->context.getTypeManager().getUnion(parent_id);
 						
 						return std::format(
-							"{}.{}",
+							"{}{}.",
 							this->get_parent_name<true>(union_type.parent, union_type.sourceID),
 							std::string(union_type.getName(this->context.getSourceManager()))
 						);
@@ -11838,7 +12894,7 @@ namespace pcit::panther{
 						const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(parent_id);
 						
 						return std::format(
-							"{}.{}",
+							"{}{}.",
 							this->get_parent_name<true>(enum_type.parent, enum_type.sourceID),
 							std::string(enum_type.getName(this->context.getSourceManager()))
 						);
@@ -11852,7 +12908,7 @@ namespace pcit::panther{
 							this->context.getTypeManager().getInterface(parent_id);
 						
 						return std::format(
-							"{}.{}",
+							"{}{}.",
 							this->get_parent_name<true>(interface_type.parent, interface_type.sourceID),
 							std::string(interface_type.getName(this->context.getSourceManager()))
 						);
@@ -11864,7 +12920,7 @@ namespace pcit::panther{
 					const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(parent_id);
 					
 					return std::format(
-						"{}.{}",
+						"{}{}.",
 						this->get_parent_name<PIR_STMT_NAME_SAFE>(sema_func.parent, sema_func.sourceID),
 						std::string(sema_func.getName(this->context.getSourceManager()))
 					);
@@ -11874,7 +12930,7 @@ namespace pcit::panther{
 						this->context.getTypeManager().getInterface(parent_id.interfaceID);
 
 					return std::format(
-						"{}.{}.impl_t{}",
+						"{}{}.impl_t{}.",
 						this->get_parent_name<PIR_STMT_NAME_SAFE>(interface_type.parent, interface_type.sourceID),
 						interface_type.getName(this->context.getSourceManager()),
 						parent_id.targetTypeID.get()
@@ -11891,18 +12947,23 @@ namespace pcit::panther{
 				const Source::Package& parent_package =
 					context.getSourceManager().getPackage(parent_source.getPackageID());
 
-				return parent_package.name;
+				if constexpr(PIR_STMT_NAME_SAFE){
+					return std::format("{}.", parent_package.name);
+					
+				}else{
+					return std::format("{}::", parent_package.name);
+				}
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				if constexpr(PIR_STMT_NAME_SAFE){
 					switch(source_id.as<BuiltinModule::ID>()){
-						break; case BuiltinModule::ID::PTHR:  return "pthr";
-						break; case BuiltinModule::ID::BUILD: return "build";
+						break; case BuiltinModule::ID::PTHR:  return "pthr.";
+						break; case BuiltinModule::ID::BUILD: return "build.";
 					}
 				}else{
 					switch(source_id.as<BuiltinModule::ID>()){
-						break; case BuiltinModule::ID::PTHR:  return "@pthr";
-						break; case BuiltinModule::ID::BUILD: return "@build";
+						break; case BuiltinModule::ID::PTHR:  return "@pthr.";
+						break; case BuiltinModule::ID::BUILD: return "@build.";
 					}
 				}
 

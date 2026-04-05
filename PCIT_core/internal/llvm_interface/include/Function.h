@@ -16,6 +16,8 @@
 #include "./class_impls/stmts.h"
 #include "./class_impls/values.h"
 #include "./class_impls/types.h"
+#include "./DIBuilder.h"
+
 
 namespace pcit::llvmint{
 
@@ -63,6 +65,8 @@ namespace pcit::llvmint{
 			auto setNoThrow() -> void;
 			auto setNoReturn() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;
+
+			auto setSubprogram(DIBuilder::Subprogram subprogram) -> void;
 
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }

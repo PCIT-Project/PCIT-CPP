@@ -18,6 +18,7 @@
 #include "./Type.h"
 #include "./BasicBlock.h"
 #include "./Expr.h"
+#include "./meta.h"
 
 namespace pcit::pir{
 
@@ -87,6 +88,14 @@ namespace pcit::pir{
 	};
 
 
+	struct FunctionDebugInfo{
+		std::string unmangledName;
+		meta::File::ID fileID;
+		meta::Scope scopeWhereDefined;
+		uint32_t lineNumber;
+		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
+		evo::SmallVector<meta::Type> paramMetaTypes;
+	};
 
 
 	// Create through Module
@@ -97,6 +106,7 @@ namespace pcit::pir{
 		Linkage linkage;
 		Type returnType;
 		bool isNoReturn;
+		std::optional<FunctionDebugInfo> debugInfo;
 
 
 		// for lookup in Module
@@ -123,7 +133,7 @@ namespace pcit::pir{
 			~Function() = default;
 
 
-			EVO_NODISCARD auto getName() const -> const std::string& { return this->func_decl.name; }
+			EVO_NODISCARD auto getName() const -> std::string_view { return this->func_decl.name; }
 			EVO_NODISCARD auto getParameters() const -> evo::ArrayProxy<Parameter> {
 				return this->func_decl.parameters;
 			}
@@ -135,7 +145,9 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getIsNoReturn() const -> bool { return this->func_decl.isNoReturn; }
 
-
+			EVO_NODISCARD auto getDebugInfo() const -> const std::optional<FunctionDebugInfo>& {
+				return this->func_decl.debugInfo;
+			}
 
 			EVO_NODISCARD auto getParentModule() const -> const Module& { return this->parent_module; }
 			EVO_NODISCARD auto getParentModule()       ->       Module& { return this->parent_module; }

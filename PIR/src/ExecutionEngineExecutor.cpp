@@ -21,18 +21,14 @@ namespace pcit::pir{
 
 	static EVO_NODISCARD auto generic_value_to_float(const core::GenericValue& generic_value, Type type)
 	-> core::GenericFloat {
-		if(type.kind() == Type::Kind::BFLOAT){
-			return generic_value.getBF16();
-		}else{
-			switch(type.getWidth()){
-				case 16:  return generic_value.getF16();
-				case 32:  return generic_value.getF32();
-				case 64:  return generic_value.getF64();
-				case 80:  return generic_value.getF80();
-				case 128: return generic_value.getF128();
-			}
-			evo::debugFatalBreak("Unknown or unsupported float width");
+		switch(type.getWidth()){
+			case 16:  return generic_value.getF16();
+			case 32:  return generic_value.getF32();
+			case 64:  return generic_value.getF64();
+			case 80:  return generic_value.getF80();
+			case 128: return generic_value.getF128();
 		}
+		evo::debugFatalBreak("Unknown or unsupported float width");
 	}
 
 
@@ -832,18 +828,14 @@ namespace pcit::pir{
 				const core::GenericFloat float_value = generic_value_to_float(generic_value, from_type);
 
 				core::GenericFloat output_float = [&]() -> core::GenericFloat {
-					if(ftrunc_inst.toType.kind() == Type::Kind::BFLOAT){
-						return float_value.asBF16();
-					}else{
-						switch(ftrunc_inst.toType.getWidth()){
-							case 16:  return float_value.asF16();
-							case 32:  return float_value.asF32();
-							case 64:  return float_value.asF64();
-							case 80:  return float_value.asF80();
-							case 128: return float_value.asF128();
-						}
-						evo::debugFatalBreak("Unknown or unsupported float width");
+					switch(ftrunc_inst.toType.getWidth()){
+						case 16:  return float_value.asF16();
+						case 32:  return float_value.asF32();
+						case 64:  return float_value.asF64();
+						case 80:  return float_value.asF80();
+						case 128: return float_value.asF128();
 					}
+					evo::debugFatalBreak("Unknown or unsupported float width");
 				}();
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(output_float));
@@ -888,18 +880,14 @@ namespace pcit::pir{
 				const core::GenericFloat float_value = generic_value_to_float(generic_value, from_type);
 
 				core::GenericFloat output_float = [&]() -> core::GenericFloat {
-					if(fext_inst.toType.kind() == Type::Kind::BFLOAT){
-						return float_value.asBF16();
-					}else{
-						switch(fext_inst.toType.getWidth()){
-							case 16:  return float_value.asF16();
-							case 32:  return float_value.asF32();
-							case 64:  return float_value.asF64();
-							case 80:  return float_value.asF80();
-							case 128: return float_value.asF128();
-						}
-						evo::debugFatalBreak("Unknown or unsupported float width");
+					switch(fext_inst.toType.getWidth()){
+						case 16:  return float_value.asF16();
+						case 32:  return float_value.asF32();
+						case 64:  return float_value.asF64();
+						case 80:  return float_value.asF80();
+						case 128: return float_value.asF128();
 					}
+					evo::debugFatalBreak("Unknown or unsupported float width");
 				}();
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(output_float));
@@ -914,18 +902,14 @@ namespace pcit::pir{
 				const core::GenericInt int_value = generic_value.getInt(from_type.getWidth());
 
 				core::GenericFloat output_float = [&]() -> core::GenericFloat {
-					if(itof_inst.toType.kind() == Type::Kind::BFLOAT){
-						return core::GenericFloat::createBF16FromInt(int_value, true);
-					}else{
-						switch(itof_inst.toType.getWidth()){
-							case 16:  return core::GenericFloat::createF16FromInt(int_value, true);
-							case 32:  return core::GenericFloat::createF32FromInt(int_value, true);
-							case 64:  return core::GenericFloat::createF64FromInt(int_value, true);
-							case 80:  return core::GenericFloat::createF80FromInt(int_value, true);
-							case 128: return core::GenericFloat::createF128FromInt(int_value, true);
-						}
-						evo::debugFatalBreak("Unknown or unsupported float width");
+					switch(itof_inst.toType.getWidth()){
+						case 16:  return core::GenericFloat::createF16FromInt(int_value, true);
+						case 32:  return core::GenericFloat::createF32FromInt(int_value, true);
+						case 64:  return core::GenericFloat::createF64FromInt(int_value, true);
+						case 80:  return core::GenericFloat::createF80FromInt(int_value, true);
+						case 128: return core::GenericFloat::createF128FromInt(int_value, true);
 					}
+					evo::debugFatalBreak("Unknown or unsupported float width");
 				}();
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(output_float));
@@ -940,18 +924,14 @@ namespace pcit::pir{
 				const core::GenericInt int_value = generic_value.getInt(from_type.getWidth());
 
 				core::GenericFloat output_float = [&]() -> core::GenericFloat {
-					if(itof_inst.toType.kind() == Type::Kind::BFLOAT){
-						return core::GenericFloat::createBF16FromInt(int_value, false);
-					}else{
-						switch(itof_inst.toType.getWidth()){
-							case 16:  return core::GenericFloat::createF16FromInt(int_value, false);
-							case 32:  return core::GenericFloat::createF32FromInt(int_value, false);
-							case 64:  return core::GenericFloat::createF64FromInt(int_value, false);
-							case 80:  return core::GenericFloat::createF80FromInt(int_value, false);
-							case 128: return core::GenericFloat::createF128FromInt(int_value, false);
-						}
-						evo::debugFatalBreak("Unknown or unsupported float width");
+					switch(itof_inst.toType.getWidth()){
+						case 16:  return core::GenericFloat::createF16FromInt(int_value, false);
+						case 32:  return core::GenericFloat::createF32FromInt(int_value, false);
+						case 64:  return core::GenericFloat::createF64FromInt(int_value, false);
+						case 80:  return core::GenericFloat::createF80FromInt(int_value, false);
+						case 128: return core::GenericFloat::createF128FromInt(int_value, false);
 					}
+					evo::debugFatalBreak("Unknown or unsupported float width");
 				}();
 
 				stack_frame.registers[expr] = core::GenericValue(std::move(output_float));

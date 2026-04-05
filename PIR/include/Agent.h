@@ -148,24 +148,44 @@ namespace pcit::pir{
 			// calls
 
 			EVO_NODISCARD auto createCall(
-				Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
+				Function::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 			EVO_NODISCARD auto createCall(
-				Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
+				Function::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCall(
-				ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
+				ExternalFunction::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 			EVO_NODISCARD auto createCall(
-				ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
+				ExternalFunction::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 
 			EVO_NODISCARD auto createCall(
-				Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
+				Expr func,
+				Type func_type,
+				evo::SmallVector<Expr>&& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 			EVO_NODISCARD auto createCall(
-				Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
+				Expr func,
+				Type func_type,
+				const evo::SmallVector<Expr>& args,
+				std::string&& name = "",
+				std::optional<meta::SourceLocation> source_location = std::nullopt
 			) const -> Expr;
 
 			EVO_NODISCARD auto getCall(Expr expr) const -> const Call&;
@@ -174,14 +194,40 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// call voids
 
-			auto createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(
+				Function::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallVoid(
+				Function::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
-			auto createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(
+				ExternalFunction::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallVoid(
+				ExternalFunction::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
-			auto createCallVoid(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallVoid(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallVoid(
+				Expr func,
+				Type func_type,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallVoid(
+				Expr func,
+				Type func_type,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
 			EVO_NODISCARD auto getCallVoid(Expr expr) const -> const CallVoid&;
 
@@ -189,14 +235,40 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// call no return
 
-			auto createCallNoReturn(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallNoReturn(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallNoReturn(
+				Function::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallNoReturn(
+				Function::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
-			auto createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallNoReturn(
+				ExternalFunction::ID func,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallNoReturn(
+				ExternalFunction::ID func,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
-			auto createCallNoReturn(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
-			auto createCallNoReturn(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
+			auto createCallNoReturn(
+				Expr func,
+				Type func_type,
+				evo::SmallVector<Expr>&& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+			auto createCallNoReturn(
+				Expr func,
+				Type func_type,
+				const evo::SmallVector<Expr>& args,
+				std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
 
 			EVO_NODISCARD auto getCallNoReturn(Expr expr) const -> const CallNoReturn&;
 
@@ -204,8 +276,11 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// breakpoint / abort
 
-			auto createAbort() const -> Expr;
-			auto createBreakpoint() const -> Expr;
+			auto createAbort(std::optional<meta::SourceLocation> source_location = std::nullopt) const -> Expr;
+			EVO_NODISCARD auto getAbort(Expr expr) const -> const Abort&;
+
+			auto createBreakpoint(std::optional<meta::SourceLocation> source_location = std::nullopt) const -> Expr;
+			EVO_NODISCARD auto getBreakpoint(Expr expr) const -> const Breakpoint&;
 
 
 			///////////////////////////////////

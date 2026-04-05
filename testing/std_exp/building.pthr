@@ -22,15 +22,16 @@ type Package = struct #pub {
 
 type Build = struct #pub {
 	func delete = (this) -> Void {
-		std.assert(this.built, "Didn't call Build.build()");
+		std.debug.assert(this.built, "Didn't call Build.build()");
 	}
 
 
 	func build = (this mut) #rt -> Void {
-		std.assert(this.built == false, "Already built");
+		std.debug.assert(this.built == false, "Already built");
 
 		@buildSetOutput(this.output as UI32);
 		@buildSetNumThreads(this.numThreads);
+		@buildSetAddDebugInfo(this.addDebugInfo);
 
 		for(this.packages) [i: USize; package: Package] {
 			this.add_package(package);
@@ -62,7 +63,7 @@ type Build = struct #pub {
 			name              = "std",
 			warnings          = copy warns,
 			sourceFiles       = new std_exp.StaticArrayList<{[Char:*], 4}>(
-				new [[Char:*]:2]["./asserts.pthr", "./std.pthr"],
+				new [[Char:*]:1]["./std.pthr"],
 			),
 			sourceDirectories = new std_exp.StaticArrayList<{Package.Directory, 4}>(
 				new [Package.Directory:1][new Package.Directory{path = "./containers", isRecursive = true}]
@@ -95,6 +96,15 @@ type Build = struct #pub {
 			warnings    = copy warns,
 			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 				new [[Char:*]:1]["./building.pthr"],
+			),
+		};
+
+		this.createPackage().* = new Package{
+			path        = copy path,
+			name        = "std.debug",
+			warnings    = copy warns,
+			sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
+				new [[Char:*]:1]["./debug.pthr"],
 			),
 		};
 
@@ -138,6 +148,7 @@ type Build = struct #pub {
 
 
 	var output: std.build.Output;
+	var addDebugInfo: Bool = false;
 	var numThreads: UI32 = 0;
 
 

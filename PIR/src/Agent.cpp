@@ -930,7 +930,12 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// calls
 
-	auto Agent::createCall(Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
+	auto Agent::createCall(
+		Function::ID func,
+		evo::SmallVector<Expr>&& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() != Type::Kind::VOID,
@@ -940,14 +945,20 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
-			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, std::move(args))
+			this->module.calls.emplace_back(
+				this->get_stmt_name(std::move(name)), func, std::move(args), source_location
+			)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCall(Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
-	-> Expr {
+	auto Agent::createCall(
+		Function::ID func,
+		const evo::SmallVector<Expr>& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() != Type::Kind::VOID,
@@ -957,14 +968,19 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
-			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args)
+			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args, source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCall(ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
+	auto Agent::createCall(
+		ExternalFunction::ID func,
+		evo::SmallVector<Expr>&& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
@@ -974,14 +990,20 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
-			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, std::move(args))
+			this->module.calls.emplace_back(
+				this->get_stmt_name(std::move(name)), func, std::move(args), source_location
+			)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCall(ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
-	-> Expr {
+	auto Agent::createCall(
+		ExternalFunction::ID func,
+		const evo::SmallVector<Expr>& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
@@ -991,14 +1013,20 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
-			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args)
+			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), func, args, source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCall(Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
+	auto Agent::createCall(
+		Expr func,
+		Type func_type,
+		evo::SmallVector<Expr>&& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
@@ -1009,15 +1037,20 @@ namespace pcit::pir{
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
 			this->module.calls.emplace_back(
-				this->get_stmt_name(std::move(name)), PtrCall(func, func_type), std::move(args)
+				this->get_stmt_name(std::move(name)), PtrCall(func, func_type), std::move(args), source_location
 			)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCall(Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name) const
-	-> Expr {
+	auto Agent::createCall(
+		Expr func,
+		Type func_type,
+		const evo::SmallVector<Expr>& args,
+		std::string&& name,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
@@ -1027,7 +1060,9 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL,
-			this->module.calls.emplace_back(this->get_stmt_name(std::move(name)), PtrCall(func, func_type), args)
+			this->module.calls.emplace_back(
+				this->get_stmt_name(std::move(name)), PtrCall(func, func_type), args, source_location
+			)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1042,7 +1077,9 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// call voids
 
-	auto Agent::createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallVoid(
+		Function::ID func, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
@@ -1055,13 +1092,15 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallVoid(
+		Function::ID func, const evo::SmallVector<Expr>& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
@@ -1073,13 +1112,17 @@ namespace pcit::pir{
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args));
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args, source_location)
+		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallVoid(
+		ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
@@ -1092,13 +1135,17 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallVoid(
+		ExternalFunction::ID func,
+		const evo::SmallVector<Expr>& args,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
@@ -1110,13 +1157,17 @@ namespace pcit::pir{
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args));
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(func, args, source_location)
+		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCallVoid(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallVoid(
+		Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1126,13 +1177,18 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL_VOID,
-			this->module.call_voids.emplace_back(PtrCall(func, func_type), std::move(args))
+			this->module.call_voids.emplace_back(PtrCall(func, func_type), std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallVoid(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallVoid(
+		Expr func,
+		Type func_type,
+		const evo::SmallVector<Expr>& args,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1141,7 +1197,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(PtrCall(func, func_type), args)
+			Expr::Kind::CALL_VOID, this->module.call_voids.emplace_back(PtrCall(func, func_type), args, source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1156,7 +1212,9 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// call no returns
 
-	auto Agent::createCallNoReturn(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		Function::ID func, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
@@ -1169,13 +1227,16 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_NO_RETURN,
+			this->module.call_no_returns.emplace_back(func, std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallNoReturn(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		Function::ID func, const evo::SmallVector<Expr>& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() == Type::Kind::VOID,
@@ -1187,13 +1248,17 @@ namespace pcit::pir{
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args));
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args, source_location)
+		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
@@ -1206,13 +1271,18 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, std::move(args))
+			Expr::Kind::CALL_NO_RETURN,
+			this->module.call_no_returns.emplace_back(func, std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		ExternalFunction::ID func,
+		const evo::SmallVector<Expr>& args,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() == Type::Kind::VOID,
@@ -1224,13 +1294,17 @@ namespace pcit::pir{
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
 
-		const auto new_expr = Expr(Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args));
+		const auto new_expr = Expr(
+			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(func, args, source_location)
+		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
 
-	auto Agent::createCallNoReturn(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1240,13 +1314,18 @@ namespace pcit::pir{
 
 		const auto new_expr = Expr(
 			Expr::Kind::CALL_NO_RETURN,
-			this->module.call_no_returns.emplace_back(PtrCall(func, func_type), std::move(args))
+			this->module.call_no_returns.emplace_back(PtrCall(func, func_type), std::move(args), source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createCallNoReturn(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr {
+	auto Agent::createCallNoReturn(
+		Expr func,
+		Type func_type,
+		const evo::SmallVector<Expr>& args,
+		std::optional<meta::SourceLocation> source_location
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() == Type::Kind::VOID,
@@ -1255,7 +1334,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->target_func->check_func_call_args(func_type, args), "Func call args don't match");
 
 		const auto new_expr = Expr(
-			Expr::Kind::CALL_NO_RETURN, this->module.call_no_returns.emplace_back(PtrCall(func, func_type), args)
+			Expr::Kind::CALL_NO_RETURN,
+			this->module.call_no_returns.emplace_back(PtrCall(func, func_type), args, source_location)
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;
@@ -1270,16 +1350,25 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// abort / breakpoint
 
-	auto Agent::createAbort() const -> Expr {
-		const auto new_expr = Expr(Expr::Kind::ABORT);
+	auto Agent::createAbort(std::optional<meta::SourceLocation> source_location) const -> Expr {
+		const auto new_expr = Expr(Expr::Kind::ABORT, this->module.aborts.emplace_back(source_location));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::createBreakpoint() const -> Expr {
-		const auto new_expr = Expr(Expr::Kind::BREAKPOINT);
+	auto Agent::getAbort(Expr expr) const -> const Abort& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getAbort(expr);
+	}
+
+
+	auto Agent::createBreakpoint(std::optional<meta::SourceLocation> source_location) const -> Expr {
+		const auto new_expr = Expr(Expr::Kind::BREAKPOINT, this->module.breakpoints.emplace_back(source_location));
 		this->insert_stmt(new_expr);
 		return new_expr;
+	}
+
+	auto Agent::getBreakpoint(Expr expr) const -> const Breakpoint& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getBreakpoint(expr);
 	}
 
 
@@ -1453,7 +1542,6 @@ namespace pcit::pir{
 				// evo::debugAssert(
 				// 	type.isIntegral()
 				// 	|| type.kind() == Type::Kind::FLOAT
-				// 	|| type.kind() == Type::Kind::BFLOAT
 				// 	|| type.kind() == Type::Kind::BOOL
 				// 	|| type.kind() == Type::Kind::PTR,
 				// 	"Atomic load must be integral, float, bfloat, Bool, or Ptr"
@@ -1508,7 +1596,6 @@ namespace pcit::pir{
 				// evo::debugAssert(
 				// 	value_type.isIntegral()
 				// 	|| value_type.kind() == Type::Kind::FLOAT
-				// 	|| value_type.kind() == Type::Kind::BFLOAT
 				// 	|| value_type.kind() == Type::Kind::BOOL
 				// 	|| value_type.kind() == Type::Kind::PTR,
 				// 	"Atomic store must be integral, float, bfloat, Bool, or Ptr"
@@ -3342,10 +3429,6 @@ namespace pcit::pir{
 					evo::debugAssert(value_type.getWidth() != 80, "Cannot be F80");
 				} break;
 
-				case Type::Kind::BFLOAT: {
-					// fine...
-				} break;
-
 				case Type::Kind::PTR: {
 					// fine...
 				} break;
@@ -3821,7 +3904,7 @@ namespace pcit::pir{
 		std::string&& name, evo::ArrayProxy<std::string_view> forward_includes
 	) const -> std::string {
 		evo::debugAssert(this->hasTargetFunction(), "Not target function is set");
-		evo::debugAssert(name.empty() || isStandardName(name), "Not a valid stmt name ({})", name);
+		evo::debugAssert(name.empty() || isStandardExprName(name), "Not a valid stmt name ({})", name);
 
 		unsigned suffix_num = 1;
 		std::string converted_name = [&](){

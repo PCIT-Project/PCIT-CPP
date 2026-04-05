@@ -21,8 +21,23 @@ namespace pcit::pir{
 	
 	auto PIRToLLVMIR::lower() -> void {
 		if(this->add_debug_info){
-			for(const meta::File& meta_file : this->module.getMetaFileIter()){
-				this->lower_meta_file(meta_file);
+			for(const meta::Item& meta_item : this->module.getMetaItemIter()){
+				meta_item.visit([&](const auto& item_id) -> void {
+					using ItemType = std::decay_t<decltype(item_id)>;
+
+					if constexpr(std::is_same<ItemType, meta::File::ID>()){
+						this->lower_meta_file(item_id);
+
+					}else if constexpr(std::is_same<ItemType, meta::BasicType::ID>()){
+						this->lower_meta_basic_type(item_id);
+
+					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
+						this->lower_meta_qualified_type(item_id);
+						
+					}else{
+						static_assert(false, "Unknown meta ID");
+					}
+				});
 			}
 		}
 
@@ -67,13 +82,14 @@ namespace pcit::pir{
 	auto PIRToLLVMIR::addModuleLevelDebugInfo() -> void {
 		evo::debugAssert(this->add_debug_info, "Not set to add debug info");
 
-		this->di_builder.addModuleLevelDebugInfo();
+		this->di_builder.addModuleLevelDebugInfo(this->module.getTarget());
 	}
 
 
 
 
-	auto PIRToLLVMIR::lower_meta_file(const meta::File& meta_file) -> void {
+	auto PIRToLLVMIR::lower_meta_file(meta::File::ID meta_file_id) -> void {
+		const meta::File& meta_file = this->module.getMetaFile(meta_file_id);
 		const auto path = std::filesystem::path(meta_file.path);
 
 		const llvmint::DIBuilder::Language language = [&]() -> llvmint::DIBuilder::Language {
@@ -90,7 +106,89 @@ namespace pcit::pir{
 			this->di_builder.createFile(path.filename().string(), path.parent_path().string());
 
 		this->di_builder.createCompileUnit(language, di_file, meta_file.producerName, false);
+
+		this->meta_files.emplace(meta_file_id, di_file);
 	}
+
+
+	auto PIRToLLVMIR::lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void {
+		const meta::BasicType& meta_basic_type = this->module.getMetaBasicType(meta_basic_type_id);
+
+		const llvmint::DIBuilder::BasicType basic_type = [&]() -> llvmint::DIBuilder::BasicType {
+			switch(meta_basic_type.underlyingType.kind()){
+				case Type::Kind::VOID: evo::debugFatalBreak("Not a valid type");
+
+				case Type::Kind::UNSIGNED: {
+					return this->di_builder.createBasicType(
+						meta_basic_type.name,
+						meta_basic_type.underlyingType.getWidth(),
+						llvmint::DIBuilder::BasicTypeKind::UNSIGNED_INT
+					);
+				} break;
+
+				case Type::Kind::SIGNED: {
+					return this->di_builder.createBasicType(
+						meta_basic_type.name,
+						meta_basic_type.underlyingType.getWidth(),
+						llvmint::DIBuilder::BasicTypeKind::SIGNED_INT
+					);
+				} break;
+
+				case Type::Kind::BOOL: {
+					return this->di_builder.createBasicType(
+						meta_basic_type.name, 8, llvmint::DIBuilder::BasicTypeKind::BOOL
+					);
+				} break;
+
+				case Type::Kind::FLOAT: {
+					return this->di_builder.createBasicType(
+						meta_basic_type.name,
+						meta_basic_type.underlyingType.getWidth(),
+						llvmint::DIBuilder::BasicTypeKind::FLOAT
+					);
+				} break;
+
+				case Type::Kind::PTR:      evo::debugFatalBreak("Invalid meta type");
+				case Type::Kind::ARRAY:    evo::debugFatalBreak("Invalid meta type");
+				case Type::Kind::STRUCT:   evo::debugFatalBreak("Invalid meta type");
+				case Type::Kind::FUNCTION: evo::debugFatalBreak("Invalid meta type");
+			}
+
+			evo::debugFatalBreak("Unknown pir type kind");
+		}();
+
+		this->meta_basic_types.emplace(meta_basic_type_id, basic_type);
+	}
+
+
+	auto PIRToLLVMIR::lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void {
+		const meta::QualifiedType& meta_qualified_type =  this->module.getMetaQualifiedType(meta_qualified_type_id);
+
+		const llvmint::DIBuilder::Type qualee_type = this->get_meta_type(meta_qualified_type.qualeeType);
+
+		const uint64_t pointer_num_bits = this->module.sizeOfPtr() * 8;
+
+		const llvmint::DIBuilder::DerivedType derived_type = [&]() -> llvmint::DIBuilder::DerivedType {
+			switch(meta_qualified_type.qualifier){
+				case meta::QualifiedType::Qualifier::POINTER: {
+					return this->di_builder.createPointerType(
+						this->di_builder.createConstType(qualee_type).asType(),
+						pointer_num_bits,
+						meta_qualified_type.name
+					);
+				} break;
+
+				case meta::QualifiedType::Qualifier::MUT_POINTER: {
+					return this->di_builder.createPointerType(qualee_type, pointer_num_bits, meta_qualified_type.name);
+				} break;
+			}
+
+			evo::debugFatalBreak("Unknown qualifier");
+ 		}();
+		
+		this->meta_qualified_types.emplace(meta_qualified_type_id, derived_type);
+	}
+
 
 
 
@@ -138,6 +236,7 @@ namespace pcit::pir{
 		}
 
 		auto members = evo::SmallVector<llvmint::Type>();
+		members.reserve(struct_type.members.size());
 		for(const Type& member : struct_type.members){
 			members.emplace_back(this->get_type<ADD_WEAK_DEPS>(member));
 		}
@@ -147,6 +246,56 @@ namespace pcit::pir{
 		);
 
 		this->struct_types.emplace(&struct_type, llvm_struct_type);
+
+		if(this->add_debug_info && struct_type.debugInfo.has_value()){
+			auto debug_members = evo::SmallVector<llvmint::DIBuilder::DerivedType>();
+			debug_members.reserve(struct_type.members.size());
+
+			llvmint::DIBuilder::Scope scope_where_defined = 
+				this->get_meta_scope(struct_type.debugInfo->scopeWhereDefined);
+			llvmint::DIBuilder::File file = this->meta_files.at(struct_type.debugInfo->fileID);
+
+			uint64_t member_offset_bits = 0;
+			uint32_t struct_align_bits = 8;
+
+			for(size_t i = 0; const Type& member_type : struct_type.members){
+				EVO_DEFER([&](){ i += 1; });
+
+				// TODO(FUTURE): properly deal with packed structs
+				const uint64_t member_size_bits = this->module.numBytes(member_type) * 8;
+				const uint32_t member_align_bits = uint32_t(this->module.getAlignment(member_type)) * 8;
+
+				const StructType::DebugInfo::Member& debug_member = struct_type.debugInfo->members[i];
+
+				debug_members.emplace_back(
+					this->di_builder.createMemberType(
+						scope_where_defined,
+						debug_member.name,
+						file,
+						struct_type.debugInfo->lineNumber,
+						member_size_bits,
+						member_align_bits,
+						member_offset_bits,
+						this->get_meta_type(debug_member.type)
+					)
+				);
+
+				member_offset_bits += member_size_bits;
+				struct_align_bits = std::max(struct_align_bits, member_align_bits);
+			}
+
+			const llvmint::DIBuilder::CompositeType composite_type = this->di_builder.createClassType(
+				scope_where_defined,
+				struct_type.name,
+				file,
+				struct_type.debugInfo->lineNumber,
+				member_offset_bits,
+				struct_align_bits,
+				debug_members
+			);
+
+			this->meta_structs.emplace(&struct_type, composite_type);
+		}
 	}
 
 
@@ -227,6 +376,37 @@ namespace pcit::pir{
 		}
 
 		this->funcs.emplace(&func, llvm_func_decl);
+
+		if(func.getDebugInfo().has_value()){
+			const llvmint::DIBuilder::Type return_type = [&]() -> llvmint::DIBuilder::Type {
+				if(func.getDebugInfo()->returnMetaType.has_value()){
+					return this->get_meta_type(*func.getDebugInfo()->returnMetaType);
+
+				}else{
+					return this->di_builder.createVoidType();
+				}
+			}();
+
+			auto param_meta_types = evo::SmallVector<llvmint::DIBuilder::Type, 16>();
+			param_meta_types.reserve(func.getDebugInfo()->paramMetaTypes.size());
+			for(const meta::Type& param_meta_type : func.getDebugInfo()->paramMetaTypes){
+				param_meta_types.emplace_back(this->get_meta_type(param_meta_type));
+			}
+
+			llvmint::DIBuilder::SubroutineType subroutine_type =
+				this->di_builder.createSubroutineType(return_type, param_meta_types);
+
+			llvmint::DIBuilder::Subprogram subprogram = this->di_builder.createFunction(
+				this->get_meta_scope(func.getDebugInfo()->scopeWhereDefined),
+				func.getDebugInfo()->unmangledName,
+				func.getName(),
+				this->meta_files.at(func.getDebugInfo()->fileID),
+				func.getDebugInfo()->lineNumber,
+				subroutine_type
+			);
+
+			llvm_func_decl.setSubprogram(subprogram);
+		}
 	}
 
 
@@ -293,8 +473,45 @@ namespace pcit::pir{
 		}
 
 		this->funcs.emplace(&func, llvm_func);
+
+		if(func.getDebugInfo().has_value()){
+			const llvmint::DIBuilder::Type return_type = [&]() -> llvmint::DIBuilder::Type {
+				if(func.getDebugInfo()->returnMetaType.has_value()){
+					return this->get_meta_type(*func.getDebugInfo()->returnMetaType);
+
+				}else{
+					return this->di_builder.createVoidType();
+				}
+			}();
+
+			auto param_meta_types = evo::SmallVector<llvmint::DIBuilder::Type, 16>();
+			param_meta_types.reserve(func.getDebugInfo()->paramMetaTypes.size());
+			for(const meta::Type& param_meta_type : func.getDebugInfo()->paramMetaTypes){
+				param_meta_types.emplace_back(this->get_meta_type(param_meta_type));
+			}
+
+			llvmint::DIBuilder::SubroutineType subroutine_type =
+				this->di_builder.createSubroutineType(return_type, param_meta_types);
+
+
+			llvmint::DIBuilder::Subprogram subprogram = this->di_builder.createFunction(
+				this->get_meta_scope(func.getDebugInfo()->scopeWhereDefined),
+				func.getDebugInfo()->unmangledName,
+				func.getName(),
+				this->meta_files.at(func.getDebugInfo()->fileID),
+				func.getDebugInfo()->lineNumber,
+				subroutine_type
+			);
+
+			llvm_func.setSubprogram(subprogram);
+
+			this->meta_functions.emplace(&func, subprogram);
+		}
+
 		return FuncLoweredSetup(func, llvm_func);
 	}
+
+
 
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void {
@@ -370,6 +587,16 @@ namespace pcit::pir{
 										this->get_calling_conv(func_target.getCallingConvention())
 									);
 
+									if(this->add_debug_info && call.sourceLocation.has_value()){
+										call_inst.setLocation(
+											this->di_builder.createSourceLocation(
+												this->get_meta_local_scope(call.sourceLocation->scope),
+												call.sourceLocation->line,
+												call.sourceLocation->collumn
+											)
+										);
+									}
+
 									return call_inst.asValue();
 
 								}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
@@ -381,6 +608,16 @@ namespace pcit::pir{
 									call_inst.setCallingConv(
 										this->get_calling_conv(func_target.callingConvention)
 									);
+
+									if(this->add_debug_info && call.sourceLocation.has_value()){
+										call_inst.setLocation(
+											this->di_builder.createSourceLocation(
+												this->get_meta_local_scope(call.sourceLocation->scope),
+												call.sourceLocation->line,
+												call.sourceLocation->collumn
+											)
+										);
+									}
 
 									return call_inst.asValue();
 
@@ -396,6 +633,16 @@ namespace pcit::pir{
 											this->module.getFunctionType(target.funcType).callingConvention
 										)
 									);
+
+									if(this->add_debug_info && call.sourceLocation.has_value()){
+										call_inst.setLocation(
+											this->di_builder.createSourceLocation(
+												this->get_meta_local_scope(call.sourceLocation->scope),
+												call.sourceLocation->line,
+												call.sourceLocation->collumn
+											)
+										);
+									}
 
 									return call_inst.asValue();
 
@@ -425,12 +672,32 @@ namespace pcit::pir{
 									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 								call_inst.setCallingConv(this->get_calling_conv(func_target.getCallingConvention()));
 
+								if(this->add_debug_info && call_void.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_void.sourceLocation->scope),
+											call_void.sourceLocation->line,
+											call_void.sourceLocation->collumn
+										)
+									);
+								}
+
 							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 								const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
 								llvmint::CallInst call_inst = 
 									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 								call_inst.setCallingConv(this->get_calling_conv(func_target.callingConvention));
+
+								if(this->add_debug_info && call_void.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_void.sourceLocation->scope),
+											call_void.sourceLocation->line,
+											call_void.sourceLocation->collumn
+										)
+									);
+								}
 
 							}else if constexpr(std::is_same<TargetT, PtrCall>()){
 								const llvmint::FunctionType target_func_type = 
@@ -444,6 +711,16 @@ namespace pcit::pir{
 										this->module.getFunctionType(target.funcType).callingConvention
 									)
 								);
+
+								if(this->add_debug_info && call_void.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_void.sourceLocation->scope),
+											call_void.sourceLocation->line,
+											call_void.sourceLocation->collumn
+										)
+									);
+								}
 							}else{
 								static_assert(false, "Unknown func call target");
 							}
@@ -467,12 +744,32 @@ namespace pcit::pir{
 									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 								call_inst.setCallingConv(this->get_calling_conv(func_target.getCallingConvention()));
 
+								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
+											call_no_return.sourceLocation->line,
+											call_no_return.sourceLocation->collumn
+										)
+									);
+								}
+
 							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
 								const ExternalFunction& func_target = this->module.getExternalFunction(target);
 
 								llvmint::CallInst call_inst = 
 									this->builder.createCall(this->get_func<ADD_WEAK_DEPS>(func_target), call_args);
 								call_inst.setCallingConv(this->get_calling_conv(func_target.callingConvention));
+
+								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
+											call_no_return.sourceLocation->line,
+											call_no_return.sourceLocation->collumn
+										)
+									);
+								}
 
 							}else if constexpr(std::is_same<TargetT, PtrCall>()){
 								const llvmint::FunctionType target_func_type = 
@@ -486,6 +783,16 @@ namespace pcit::pir{
 										this->module.getFunctionType(target.funcType).callingConvention
 									)
 								);
+
+								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
+									call_inst.setLocation(
+										this->di_builder.createSourceLocation(
+											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
+											call_no_return.sourceLocation->line,
+											call_no_return.sourceLocation->collumn
+										)
+									);
+								}
 							}else{
 								static_assert(false, "Unknown func call target");
 							}
@@ -495,29 +802,75 @@ namespace pcit::pir{
 					} break;
 
 					case Expr::Kind::ABORT: {
+						const Abort& abort_stmt = this->reader.getAbort(stmt);
+
 						// follows how clang lowers `__builtin_trap()` 
 						// 	(which prevents it complaining about basic blocks not terminated)
-						if(this->reader.getTargetFunction().getReturnType().kind() == pir::Type::Kind::VOID){
-							this->builder.createIntrinsicCall(
+						if(this->reader.getTargetFunction().getReturnType().kind() == Type::Kind::VOID){
+							llvmint::CallInst call_inst = this->builder.createIntrinsicCall(
 								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
 							);
+
+							if(this->add_debug_info && abort_stmt.sourceLocation.has_value()){
+								call_inst.setLocation(
+									this->di_builder.createSourceLocation(
+										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
+										abort_stmt.sourceLocation->line,
+										abort_stmt.sourceLocation->collumn
+									)
+								);
+							}
+
 							this->builder.createRet();
 
 						}else{
-							this->builder.createIntrinsicCall(
+							llvmint::CallInst call_inst_1 = this->builder.createIntrinsicCall(
 								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
 							);
-							this->builder.createIntrinsicCall(
+
+							llvmint::CallInst call_inst_2 = this->builder.createIntrinsicCall(
 								llvmint::IRBuilder::IntrinsicID::TRAP, this->builder.getTypeVoid(), nullptr
 							);
+
+							if(this->add_debug_info && abort_stmt.sourceLocation.has_value()){
+								call_inst_1.setLocation(
+									this->di_builder.createSourceLocation(
+										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
+										abort_stmt.sourceLocation->line,
+										abort_stmt.sourceLocation->collumn
+									)
+								);
+
+								call_inst_2.setLocation(
+									this->di_builder.createSourceLocation(
+										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
+										abort_stmt.sourceLocation->line,
+										abort_stmt.sourceLocation->collumn
+									)
+								);
+							}
+
 							this->builder.createUnreachable();
 						}
 					} break;
 
 					case Expr::Kind::BREAKPOINT: {
-						this->builder.createIntrinsicCall(
+						const Breakpoint& breakpoint_stmt = this->reader.getBreakpoint(stmt);
+
+
+						llvmint::CallInst call_inst = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::DEBUG_TRAP, this->builder.getTypeVoid(), nullptr
 						);
+
+						if(this->add_debug_info && breakpoint_stmt.sourceLocation.has_value()){
+							call_inst.setLocation(
+								this->di_builder.createSourceLocation(
+									this->get_meta_local_scope(breakpoint_stmt.sourceLocation->scope),
+									breakpoint_stmt.sourceLocation->line,
+									breakpoint_stmt.sourceLocation->collumn
+								)
+							);
+						}
 					} break;
 
 					case Expr::Kind::RET: {
@@ -1641,11 +1994,6 @@ namespace pcit::pir{
 						return this->builder.getValueFloat(this->get_type<false>(number.type), number.getFloat());
 					} break;
 
-					case Type::Kind::BFLOAT: {
-						return this->builder.getValueFloat(this->builder.getTypeBF16(), number.getFloat());
-					} break;
-
-
 					default: evo::debugFatalBreak("Unknown or unsupported number kind");
 				}
 			} break;
@@ -1707,10 +2055,6 @@ namespace pcit::pir{
 						}
 
 						evo::debugFatalBreak("Unknown float width");
-					} break;
-
-					case Type::Kind::BFLOAT: {
-						return this->builder.getValueBF16(0);
 					} break;
 
 					case Type::Kind::PTR: {
@@ -1803,12 +2147,6 @@ namespace pcit::pir{
 							}
 						}();
 						return this->builder.getValueFloat(this->get_type<false>(number.type), float_value).asValue();
-					} break;
-
-					case Type::Kind::BFLOAT: {
-						return this->builder.getValueFloat(
-							this->builder.getTypeBF16(), number.getFloat().asBF16()
-						).asValue();
 					} break;
 
 					default: evo::debugFatalBreak("Unknown or unsupported number kind");
@@ -1998,7 +2336,6 @@ namespace pcit::pir{
 					case 128: return this->builder.getTypeF128();
 				}
 			} break;
-			case Type::Kind::BFLOAT: return this->builder.getTypeBF16();
 			case Type::Kind::PTR:    return this->builder.getTypePtr().asType();
 
 			case Type::Kind::ARRAY: {
@@ -2104,6 +2441,61 @@ namespace pcit::pir{
 
 		return this->global_vars.at(&global_var);
 	}
+
+
+
+	auto PIRToLLVMIR::get_meta_scope(meta::Scope scope) -> llvmint::DIBuilder::Scope {
+		return scope.visit([&](const auto& id) -> llvmint::DIBuilder::Scope {
+			using IDType = std::decay_t<decltype(id)>;
+		
+			if constexpr(std::is_same<IDType, Function::ID>()){
+				return this->meta_functions.at(&this->module.getFunction(id)).asScope();
+
+			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
+				return this->meta_files.at(id).asScope();
+
+			}else{
+				static_assert(false, "Unknown scope id");
+			}
+		});
+	}
+
+	auto PIRToLLVMIR::get_meta_local_scope(meta::LocalScope scope) -> llvmint::DIBuilder::LocalScope {
+		return scope.visit([&](const auto& id) -> llvmint::DIBuilder::LocalScope {
+			using IDType = std::decay_t<decltype(id)>;
+		
+			if constexpr(std::is_same<IDType, Function::ID>()){
+				return this->meta_functions.at(&this->module.getFunction(id)).asLocalScope();
+
+			// }else if constexpr(std::is_same<IDType, meta::File::ID>()){
+			// 	return this->meta_files.at(id).asLocalScope();
+
+			}else{
+				static_assert(false, "Unknown scope id");
+			}
+		});
+	}
+
+
+	auto PIRToLLVMIR::get_meta_type(meta::Type type) -> llvmint::DIBuilder::Type {
+		return type.visit([&](const auto& meta_type) -> llvmint::DIBuilder::Type {
+			using ValueType = std::decay_t<decltype(meta_type)>;
+		
+			if constexpr(std::is_same<ValueType, meta::BasicType::ID>()){
+				return this->meta_basic_types.at(meta_type).asType();
+		
+			}else if constexpr(std::is_same<ValueType, meta::QualifiedType::ID>()){
+				return this->meta_qualified_types.at(meta_type).asType();
+
+			}else if constexpr(std::is_same<ValueType, const StructType*>()){
+				return this->meta_structs.at(meta_type).asType();
+		
+			}else{
+				static_assert(false, "Unknown meta type");
+			}
+		});
+	}
+
 
 
 

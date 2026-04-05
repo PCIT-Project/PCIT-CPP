@@ -46,10 +46,10 @@
 // #define FOO true
 
 
-// enum TestEnum {
-// 	TEST_ENUM_FOO,
-// 	TEST_ENUM_BAR = 12,
-// };
+enum TestEnum {
+	TEST_ENUM_FOO,
+	TEST_ENUM_BAR = 12,
+};
 
 
 // typedef struct{
@@ -61,17 +61,17 @@
 // 	return (StructThing){ .a = 1, .b = 2 };
 // }
 
-struct Struct{
-	uint16_t a;
-    uint8_t b;
-};
+// struct Struct{
+// 	uint16_t a;
+//     uint8_t b;
+// };
 
 
-size_t ALIGNMENT = alignof(Struct);
+// size_t ALIGNMENT = alignof(Struct);
 
-auto test() noexcept -> void {
-	Struct foo;
-}
+// auto test() noexcept -> void {
+// 	Struct foo;
+// }
 
 
 

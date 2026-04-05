@@ -475,8 +475,6 @@ namespace pcit::pir::passes{
 				const Number& rhs = agent.getNumber(fneg.rhs);
 
 				const core::GenericFloat zero = [&](){
-					if(rhs.type.kind() == Type::Kind::BFLOAT){ return core::GenericFloat::createBF16(0); }
-
 					switch(rhs.type.getWidth()){
 						case 16:  return core::GenericFloat::createF16(0);
 						case 32:  return core::GenericFloat::createF32(0);

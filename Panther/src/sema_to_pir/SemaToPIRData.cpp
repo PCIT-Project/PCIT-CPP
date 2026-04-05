@@ -117,8 +117,6 @@ namespace pcit::panther{
 
 
 
-
-
 		this->jit_build_funcs.build_set_num_threads = create_func_decl(
 			"PTHR.BUILD.buildSetNumThreads",
 			{
@@ -133,6 +131,15 @@ namespace pcit::panther{
 			{
 				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
 				pir::Parameter("output", module.createUnsignedType(32))
+			},
+			module.createVoidType()
+		);
+
+		this->jit_build_funcs.build_set_add_debug_info = create_func_decl(
+			"PTHR.BUILD.buildSetAddDebugInfo",
+			{
+				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
+				pir::Parameter("add_debug_info", module.createBoolType())
 			},
 			module.createVoidType()
 		);

@@ -570,10 +570,6 @@ namespace pcit::llvmint{
 		return this->getValueFloat(this->getTypeF16(), value);
 	}
 
-	auto IRBuilder::getValueBF16(evo::float64_t value) const -> Constant {
-		return this->getValueFloat(this->getTypeBF16(), value);
-	}
-
 	auto IRBuilder::getValueF32(evo::float64_t value) const -> Constant {
 		return this->getValueFloat(this->getTypeF32(), value);
 	}
@@ -603,10 +599,6 @@ namespace pcit::llvmint{
 		return Constant(llvm::ConstantFP::getNaN(this->getTypeF16().native()));
 	}
 
-	auto IRBuilder::getNaNBF16() const -> Constant {
-		return Constant(llvm::ConstantFP::getNaN(this->getTypeBF16().native()));
-	}
-
 	auto IRBuilder::getNaNF32() const -> Constant {
 		return Constant(llvm::ConstantFP::getNaN(this->getTypeF32().native()));
 	}
@@ -627,10 +619,6 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::getInfinityF16() const -> Constant {
 		return Constant(llvm::ConstantFP::getInfinity(this->getTypeF16().native()));
-	}
-
-	auto IRBuilder::getInfinityBF16() const -> Constant {
-		return Constant(llvm::ConstantFP::getInfinity(this->getTypeBF16().native()));
 	}
 
 	auto IRBuilder::getInfinityF32() const -> Constant {
@@ -724,7 +712,6 @@ namespace pcit::llvmint{
 	}
 
 	auto IRBuilder::getTypeF16() const -> Type { return Type(this->builder->getHalfTy()); }
-	auto IRBuilder::getTypeBF16() const -> Type { return Type(this->builder->getBFloatTy()); }
 	auto IRBuilder::getTypeF32() const -> Type { return Type(this->builder->getFloatTy()); }
 	auto IRBuilder::getTypeF64() const -> Type { return Type(this->builder->getDoubleTy()); }
 	auto IRBuilder::getTypeF80() const -> Type { return Type(llvm::Type::getX86_FP80Ty(this->builder->getContext())); }

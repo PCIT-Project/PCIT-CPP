@@ -473,7 +473,6 @@ namespace pcit::panther{
 		core::GenericFloat result = [&](){
 			switch(to_type_primitive.kind()){
 				case Token::Kind::TYPE_F16:  return core::GenericFloat::createF16FromInt(arg, is_signed);
-				case Token::Kind::TYPE_BF16: return core::GenericFloat::createBF16FromInt(arg, is_signed);
 				case Token::Kind::TYPE_F32:  return core::GenericFloat::createF32FromInt(arg, is_signed);
 				case Token::Kind::TYPE_F64:  return core::GenericFloat::createF64FromInt(arg, is_signed);
 				case Token::Kind::TYPE_F80:  return core::GenericFloat::createF80FromInt(arg, is_signed);
@@ -873,10 +872,6 @@ namespace pcit::panther{
 		switch(primitive.kind()){
 			case Token::Kind::TYPE_F16: {
 				arg_converted = arg.asF16();
-			} break;
-
-			case Token::Kind::TYPE_BF16: {
-				arg_converted = arg.asBF16();
 			} break;
 
 			case Token::Kind::TYPE_F32: {
@@ -1618,11 +1613,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F16: {
 				lhs_converted = lhs.asF16();
 				rhs_converted = rhs.asF16();
-			} break;
-
-			case Token::Kind::TYPE_BF16: {
-				lhs_converted = lhs.asBF16();
-				rhs_converted = rhs.asBF16();
 			} break;
 
 			case Token::Kind::TYPE_F32: {

@@ -56,9 +56,9 @@ namespace pcit::panther{
 	class SemaToPIRData{
 		public:
 			struct Config{
+				bool includeDebugInfo;
 				bool useReadableNames;
 				bool checkedMath;
-				bool addSourceLocations;
 
 				bool useDebugUnreachables;
 			};
@@ -90,6 +90,7 @@ namespace pcit::panther{
 			struct JITBuildFuncs{
 				pir::ExternalFunction::ID build_set_num_threads      = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_set_output           = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID build_set_add_debug_info   = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_set_std_lib_package  = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_create_package       = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_add_source_file      = pir::ExternalFunction::ID::dummy();
@@ -135,17 +136,43 @@ namespace pcit::panther{
 
 
 		private:
+
 			auto create_struct(BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->structs_lock);
 				const auto emplace_result = this->structs.emplace(struct_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This struct id was already added to PIR lower");
 			}
 
+			EVO_NODISCARD auto get_struct(BaseType::Struct::ID struct_id) -> pir::Type {
+				const auto lock = std::scoped_lock(this->structs_lock);
+				evo::debugAssert(this->structs.contains(struct_id), "Doesn't have this struct");
+				return this->structs.at(struct_id);
+			}
+
+			EVO_NODISCARD auto has_struct(BaseType::Struct::ID struct_id) -> bool {
+				const auto lock = std::scoped_lock(this->structs_lock);
+				return this->structs.contains(struct_id);
+			}
+
+
+
 			auto create_union(BaseType::Union::ID union_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->unions_lock);
 				const auto emplace_result = this->unions.emplace(union_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This union id was already added to PIR lower");
 			}
+
+			EVO_NODISCARD auto get_union(BaseType::Union::ID union_id) -> pir::Type {
+				const auto lock = std::scoped_lock(this->unions_lock);
+				evo::debugAssert(this->unions.contains(union_id), "Doesn't have this union");
+				return this->unions.at(union_id);
+			}
+
+			EVO_NODISCARD auto has_union(BaseType::Union::ID union_id) -> bool {
+				const auto lock = std::scoped_lock(this->unions_lock);
+				return this->unions.contains(union_id);
+			}
+
 
 
 			auto create_global_var(sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
@@ -155,11 +182,26 @@ namespace pcit::panther{
 				evo::debugAssert(emplace_result.second, "This global var id was already added to PIR lower");
 			}
 
+			EVO_NODISCARD auto get_global_var(sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
+				const auto lock = std::scoped_lock(this->global_vars_lock);
+				evo::debugAssert(this->global_vars.contains(global_var_id), "Doesn't have this global var");
+				return this->global_vars.at(global_var_id);
+			}
+
+
+
 			auto create_global_string(sema::StringValue::ID global_string_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->global_strings_lock);
 				this->global_strings.emplace(global_string_id, pir_id);
 				this->reverse_global_strings.emplace(pir_id, global_string_id);
 			}
+
+			EVO_NODISCARD auto get_global_string(sema::StringValue::ID string_value_id) -> pir::GlobalVar::ID {
+				const auto lock = std::scoped_lock(this->global_vars_lock);
+				evo::debugAssert(this->global_strings.contains(string_value_id), "Doesn't have this global string");
+				return this->global_strings.at(string_value_id);
+			}
+
 
 
 			auto create_func(sema::Func::ID func_id, auto&&... func_info_args) -> void {
@@ -172,6 +214,13 @@ namespace pcit::panther{
 				);
 				evo::debugAssert(emplace_result.second, "This func id was already added to PIR lower");
 			}
+
+			EVO_NODISCARD auto get_func(sema::Func::ID func_id) -> FuncInfo& {
+				const auto lock = std::scoped_lock(this->funcs_lock);
+				evo::debugAssert(this->funcs.contains(func_id), "Doesn't have this func");
+				return *this->funcs.at(func_id);
+			}
+
 
 			// returns true if added
 			auto add_extern_func_if_needed(const std::string& func_name) -> bool {
@@ -186,6 +235,7 @@ namespace pcit::panther{
 			}
 
 
+
 			auto create_vtable(VTableID vtable_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->vtables_lock);
 				const auto emplace_result = this->vtables.emplace(vtable_id, pir_id);
@@ -193,12 +243,30 @@ namespace pcit::panther{
 				this->reverse_vtables.emplace(pir_id, vtable_id);
 			}
 
+			EVO_NODISCARD auto get_vtable(VTableID vtable_id) -> pir::GlobalVar::ID {
+				const auto lock = std::scoped_lock(this->vtables_lock);
+				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
+				return this->vtables.at(vtable_id);
+			}
+
+
+
 			auto create_single_method_vtable(VTableID single_method_vtable_id, pir::Function::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
 				const auto emplace_result = this->single_method_vtables.emplace(single_method_vtable_id, pir_id);
 				evo::debugAssert(emplace_result.second, "This single_method_vtable id was already added to PIR lower");
 				this->reverse_single_method_vtables.emplace(pir_id, single_method_vtable_id);
 			}
+
+			EVO_NODISCARD auto get_single_method_vtable(VTableID single_method_vtable_id) -> pir::Function::ID {
+				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
+				evo::debugAssert(
+					this->single_method_vtables.contains(single_method_vtable_id),
+					"Doesn't have this single-method vtable"
+				);
+				return this->single_method_vtables.at(single_method_vtable_id);
+			}
+
 
 
 			auto create_interface(BaseType::Interface::ID interface_id, auto&&... interface_info_args) -> void {
@@ -212,53 +280,6 @@ namespace pcit::panther{
 				evo::debugAssert(emplace_result.second, "This interface id was already added to PIR lower");
 			}
 
-
-
-			EVO_NODISCARD auto get_struct(BaseType::Struct::ID struct_id) -> pir::Type {
-				const auto lock = std::scoped_lock(this->structs_lock);
-				evo::debugAssert(this->structs.contains(struct_id), "Doesn't have this struct");
-				return this->structs.at(struct_id);
-			}
-
-			EVO_NODISCARD auto get_union(BaseType::Union::ID union_id) -> pir::Type {
-				const auto lock = std::scoped_lock(this->unions_lock);
-				evo::debugAssert(this->unions.contains(union_id), "Doesn't have this union");
-				return this->unions.at(union_id);
-			}
-
-			EVO_NODISCARD auto get_global_var(sema::GlobalVar::ID global_var_id) -> pir::GlobalVar::ID {
-				const auto lock = std::scoped_lock(this->global_vars_lock);
-				evo::debugAssert(this->global_vars.contains(global_var_id), "Doesn't have this global var");
-				return this->global_vars.at(global_var_id);
-			}
-
-			EVO_NODISCARD auto get_global_string(sema::StringValue::ID string_value_id) -> pir::GlobalVar::ID {
-				const auto lock = std::scoped_lock(this->global_vars_lock);
-				evo::debugAssert(this->global_strings.contains(string_value_id), "Doesn't have this global string");
-				return this->global_strings.at(string_value_id);
-			}
-
-			EVO_NODISCARD auto get_func(sema::Func::ID func_id) -> FuncInfo& {
-				const auto lock = std::scoped_lock(this->funcs_lock);
-				evo::debugAssert(this->funcs.contains(func_id), "Doesn't have this func");
-				return *this->funcs.at(func_id);
-			}
-
-			EVO_NODISCARD auto get_vtable(VTableID vtable_id) -> pir::GlobalVar::ID {
-				const auto lock = std::scoped_lock(this->vtables_lock);
-				evo::debugAssert(this->vtables.contains(vtable_id), "Doesn't have this vtable");
-				return this->vtables.at(vtable_id);
-			}
-
-			EVO_NODISCARD auto get_single_method_vtable(VTableID single_method_vtable_id) -> pir::Function::ID {
-				const auto lock = std::scoped_lock(this->single_method_vtables_lock);
-				evo::debugAssert(
-					this->single_method_vtables.contains(single_method_vtable_id),
-					"Doesn't have this single-method vtable"
-				);
-				return this->single_method_vtables.at(single_method_vtable_id);
-			}
-
 			EVO_NODISCARD auto get_interface(BaseType::Interface::ID interface_id) -> InterfaceInfo& {
 				const auto lock = std::scoped_lock(this->interfaces_lock);
 				evo::debugAssert(this->interfaces.contains(interface_id), "Doesn't have this interface");
@@ -266,16 +287,75 @@ namespace pcit::panther{
 			}
 
 
+			auto get_or_create_meta_basic_type(
+				TypeInfo::ID id, pir::Module& module, std::string&& type_name, pir::Type pir_type
+			) -> pir::meta::BasicType::ID {
+				this->meta_types_lock.lock(); // not using scoped_lock for performance
 
-			EVO_NODISCARD auto has_struct(BaseType::Struct::ID struct_id) -> bool {
-				const auto lock = std::scoped_lock(this->structs_lock);
-				return this->structs.contains(struct_id);
+				auto find = this->meta_types_map.find(id);
+				if(find == this->meta_types_map.end()){
+					MetaBasicType& meta_type = this->meta_types.emplace_back();
+					this->meta_types_map.emplace(id, meta_type);
+
+					this->meta_types_lock.unlock();
+
+					const pir::meta::ItemID item_id =
+						module.createMetaBasicType(std::string(type_name), pir_type);
+					meta_type.id = module.getMetaItem(item_id).as<pir::meta::BasicType::ID>();
+
+					meta_type.has_value = true;
+
+					return meta_type.id;
+
+				}else{
+					this->meta_types_lock.unlock();
+
+					while(find->second.has_value.load() == false){
+						std::this_thread::yield();
+					}
+
+					return find->second.id;
+				}
 			}
 
-			EVO_NODISCARD auto has_union(BaseType::Union::ID union_id) -> bool {
-				const auto lock = std::scoped_lock(this->unions_lock);
-				return this->unions.contains(union_id);
+
+			auto get_or_create_meta_qualified_type(
+				TypeInfo::ID id,
+				pir::Module& module,
+				std::string&& type_name,
+				pir::meta::Type qualee_type,
+				pir::meta::QualifiedType::Qualifier qualifier
+			) -> pir::meta::QualifiedType::ID {
+				this->meta_qualified_types_lock.lock(); // not using scoped_lock for performance
+
+				auto find = this->meta_qualified_types_map.find(id);
+				if(find == this->meta_qualified_types_map.end()){
+					MetaQualifiedType& meta_type = this->meta_qualified_types.emplace_back();
+					this->meta_qualified_types_map.emplace(id, meta_type);
+
+					this->meta_qualified_types_lock.unlock();
+
+					const pir::meta::ItemID item_id =
+						module.createMetaQualifiedType(std::string(type_name), qualee_type, qualifier);
+					meta_type.id = module.getMetaItem(item_id).as<pir::meta::QualifiedType::ID>();
+
+					meta_type.has_value = true;
+
+					return meta_type.id;
+
+				}else{
+					this->meta_qualified_types_lock.unlock();
+
+					while(find->second.has_value.load() == false){
+						std::this_thread::yield();
+					}
+
+					return find->second.id;
+				}
 			}
+
+
+
 
 
 			EVO_NODISCARD auto get_string_literal_id() -> uint64_t {
@@ -338,6 +418,30 @@ namespace pcit::panther{
 
 			std::atomic<uint64_t> num_string_literals = 0;
 			std::atomic<uint64_t> num_byte_arrays = 0;
+
+
+			struct MetaBasicType{
+				std::atomic<bool> has_value = false;
+				pir::meta::BasicType::ID id = pir::meta::BasicType::ID::dummy();
+			};
+
+			evo::StepVector<MetaBasicType> meta_types{};
+			std::unordered_map<TypeInfo::ID, MetaBasicType&> meta_types_map{};
+
+			mutable evo::SpinLock meta_types_lock{};
+
+
+			struct MetaQualifiedType{
+				std::atomic<bool> has_value = false;
+				pir::meta::QualifiedType::ID id = pir::meta::QualifiedType::ID::dummy();
+			};
+
+			evo::StepVector<MetaQualifiedType> meta_qualified_types{};
+			std::unordered_map<TypeInfo::ID, MetaQualifiedType&> meta_qualified_types_map{};
+
+			mutable evo::SpinLock meta_qualified_types_lock{};
+
+
 
 			friend class SemaToPIR;
 	};

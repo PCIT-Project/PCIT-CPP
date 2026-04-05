@@ -14,6 +14,7 @@
 #include "./types.h"
 #include "./native_ptr_decls.h"
 #include "./enums.h"
+#include "../DIBuilder.h"
 
 namespace pcit::llvmint{
 	
@@ -92,6 +93,7 @@ namespace pcit::llvmint{
 			~CallInst() = default;
 
 			auto setCallingConv(CallingConv calling_conv) -> void;
+			auto setLocation(DIBuilder::Location location) -> void;
 
 			EVO_NODISCARD explicit operator Value() const;
 			EVO_NODISCARD auto asValue() const -> Value { return static_cast<Value>(*this); }

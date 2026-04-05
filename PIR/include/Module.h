@@ -44,10 +44,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createFunction(
 				std::string&& func_name,
 				evo::SmallVector<Parameter>&& parameters,
-				CallingConvention callingConvention,
+				CallingConvention calling_convension,
 				Linkage linkage,
-				Type returnType,
-				bool isNoReturn = false
+				Type return_type,
+				bool is_no_return = false,
+				std::optional<FunctionDebugInfo>&& debug_info = std::nullopt
 			) -> Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
@@ -55,14 +56,20 @@ namespace pcit::pir{
 				#endif
 
 				evo::debugAssert(
-					isNoReturn == false || returnType.kind() == Type::Kind::VOID,
+					is_no_return == false || return_type.kind() == Type::Kind::VOID,
 					"`#noReturn` can only be on a function that returns `Void`"
 				);
 
 				return this->functions.emplace_back(
 					*this,
 					ExternalFunction(
-						std::move(func_name), std::move(parameters), callingConvention, linkage, returnType, isNoReturn
+						std::move(func_name),
+						std::move(parameters),
+						calling_convension,
+						linkage,
+						return_type,
+						is_no_return,
+						std::move(debug_info)
 					)
 				);
 			}
@@ -101,10 +108,11 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createExternalFunction(
 				std::string&& func_name,
 				evo::SmallVector<Parameter>&& parameters,
-				CallingConvention callingConvention,
+				CallingConvention calling_convension,
 				Linkage linkage,
-				Type returnType,
-				bool isNoReturn = false
+				Type return_type,
+				bool is_no_return = false,
+				std::optional<FunctionDebugInfo>&& debug_info = std::nullopt
 			) -> ExternalFunction::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
@@ -112,12 +120,18 @@ namespace pcit::pir{
 				#endif
 
 				evo::debugAssert(
-					isNoReturn == false || returnType.kind() == Type::Kind::VOID,
+					is_no_return == false || return_type.kind() == Type::Kind::VOID,
 					"`#noReturn` can only be on a function that returns `Void`"
 				);
 
 				return this->external_funcs.emplace_back(
-					std::move(func_name), std::move(parameters), callingConvention, linkage, returnType, isNoReturn
+					std::move(func_name),
+					std::move(parameters),
+					calling_convension,
+					linkage,
+					return_type,
+					is_no_return,
+					std::move(debug_info)
 				);
 			}
 
@@ -431,8 +445,6 @@ namespace pcit::pir{
 				return Type(Type::Kind::FLOAT, width);
 			}
 
-			EVO_NODISCARD static auto createBFloatType() -> Type { return Type(Type::Kind::BFLOAT); }
-
 
 			EVO_NODISCARD auto getOrCreateArrayType(Type elem_type, uint64_t length) -> Type {
 				const auto lock = std::scoped_lock(array_types_lock);
@@ -460,7 +472,10 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto createStructType(
-				std::string&& struct_name, evo::SmallVector<Type>&& members, bool is_packed
+				std::string&& struct_name,
+				evo::SmallVector<Type>&& members,
+				bool is_packed,
+				std::optional<StructType::DebugInfo> debug_info = std::nullopt
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_global_name_reuse(struct_name);
@@ -468,7 +483,7 @@ namespace pcit::pir{
 				evo::debugAssert(members.empty() == false, "Cannot create a struct type with no members");
 
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
-					std::move(struct_name), std::move(members), is_packed
+					std::move(struct_name), std::move(members), is_packed, debug_info
 				);
 				return Type(Type::Kind::STRUCT, struct_type_index);
 			}
@@ -552,33 +567,109 @@ namespace pcit::pir{
 			// meta
 
 			///////////////////////////////////
+			// items
+
+			EVO_NODISCARD auto getMetaItem(meta::ItemID id) const -> const meta::Item& {
+				return this->meta_items[id];
+			}
+
+
+			using MetaItemIter = core::StepAlloc<meta::Item, meta::ItemID>::Iter;
+			using MetaItemsConstIter = core::StepAlloc<meta::Item, meta::ItemID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaItemIter() -> evo::IterRange<MetaItemIter> {
+				return evo::IterRange<MetaItemIter>(this->meta_items.begin(), this->meta_items.end());
+			}
+
+			EVO_NODISCARD auto getMetaItemIter() const -> evo::IterRange<MetaItemsConstIter> {
+				return evo::IterRange<MetaItemsConstIter>(this->meta_items.cbegin(), this->meta_items.cend());
+			}
+
+			EVO_NODISCARD auto getMetaItemsConstIter() const -> evo::IterRange<MetaItemsConstIter> {
+				return evo::IterRange<MetaItemsConstIter>(this->meta_items.cbegin(), this->meta_items.cend());
+			}
+
+
+			///////////////////////////////////
 			// meta files
 
 			EVO_NODISCARD auto createMetaFile(
 				std::string&& file_path, meta::Language language, std::string&& producer_name
-			) -> meta::File::ID {
-				return this->meta_files.emplace_back(
-					meta::ID(this->meta_id.fetch_add(1)), std::move(file_path), language, std::move(producer_name)
+			) -> meta::ItemID {
+				const meta::File::ID created_file_id = this->meta_files.emplace_back(
+					meta::ItemID::dummy(), std::move(file_path), language, std::move(producer_name)
 				);
+
+				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_file_id);
+				this->meta_files[created_file_id].itemID = created_item_id;
+
+				return created_item_id;
 			}
 
 			EVO_NODISCARD auto getMetaFile(meta::File::ID id) const -> const meta::File& {
 				return this->meta_files[id];
 			}
 
-			using MetaFileIter = core::StepAlloc<meta::File, meta::File::ID>::Iter;
-			using MetaFilesConstIter = core::StepAlloc<meta::File, meta::File::ID>::ConstIter;
-
-			EVO_NODISCARD auto getMetaFileIter() -> evo::IterRange<MetaFileIter> {
-				return evo::IterRange<MetaFileIter>(this->meta_files.begin(), this->meta_files.end());
+			EVO_NODISCARD auto getMetaFile(meta::ItemID id) const -> const meta::File& {
+				return this->getMetaFile(this->getMetaItem(id).as<meta::File::ID>());
 			}
 
-			EVO_NODISCARD auto getMetaFileIter() const -> evo::IterRange<MetaFilesConstIter> {
-				return evo::IterRange<MetaFilesConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
+
+			///////////////////////////////////
+			// meta types
+
+			EVO_NODISCARD auto createMetaBasicType(std::string&& type_name, Type underlying_type) -> meta::ItemID {
+				evo::debugAssert(
+					underlying_type.kind() == Type::Kind::UNSIGNED
+						|| underlying_type.kind() == Type::Kind::SIGNED
+						|| underlying_type.kind() == Type::Kind::BOOL
+						|| underlying_type.kind() == Type::Kind::FLOAT,
+					"Invalid underlying type"
+				);
+
+				const meta::BasicType::ID created_type_id = this->meta_basic_types.emplace_back(
+					meta::ItemID::dummy(), std::move(type_name), underlying_type
+				);
+
+				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
+				this->meta_basic_types[created_type_id].itemID = created_item_id;
+
+				return created_item_id;
 			}
 
-			EVO_NODISCARD auto getMetaFilesConstIter() const -> evo::IterRange<MetaFilesConstIter> {
-				return evo::IterRange<MetaFilesConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
+			EVO_NODISCARD auto getMetaBasicType(meta::BasicType::ID id) const -> const meta::BasicType& {
+				return this->meta_basic_types[id];
+			}
+
+			EVO_NODISCARD auto getMetaBasicType(meta::ItemID id) const -> const meta::BasicType& {
+				return this->getMetaBasicType(this->getMetaItem(id).as<meta::BasicType::ID>());
+			}
+
+
+			///////////////////////////////////
+			// meta qualified types
+
+			EVO_NODISCARD auto createMetaQualifiedType(
+				std::string&& type_name,
+				meta::Type qualee_type,
+				meta::QualifiedType::Qualifier qualifier
+			) -> meta::ItemID {
+				const meta::QualifiedType::ID created_type_id = this->meta_qualified_types.emplace_back(
+					meta::ItemID::dummy(), std::move(type_name), qualee_type, qualifier
+				);
+
+				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
+				this->meta_qualified_types[created_type_id].itemID = created_item_id;
+
+				return created_item_id;
+			}
+
+			EVO_NODISCARD auto getMetaQualifiedType(meta::QualifiedType::ID id) const -> const meta::QualifiedType& {
+				return this->meta_qualified_types[id];
+			}
+
+			EVO_NODISCARD auto getMetaQualifiedType(meta::ItemID id) const -> const meta::QualifiedType& {
+				return this->getMetaQualifiedType(this->getMetaItem(id).as<meta::QualifiedType::ID>());
 			}
 
 
@@ -617,6 +708,8 @@ namespace pcit::pir{
 			core::StepAlloc<Call, uint32_t> calls{};
 			core::StepAlloc<CallVoid, uint32_t> call_voids{};
 			core::StepAlloc<CallNoReturn, uint32_t> call_no_returns{};
+			core::StepAlloc<Abort, uint32_t> aborts{};
+			core::StepAlloc<Breakpoint, uint32_t> breakpoints{};
 			core::StepAlloc<Ret, uint32_t> rets{};
 			core::StepAlloc<Branch, uint32_t> branches{};
 			core::StepAlloc<Phi, uint32_t> phis{};
@@ -710,8 +803,10 @@ namespace pcit::pir{
 
 
 			// meta
-			std::atomic<uint32_t> meta_id{};
+			core::StepAlloc<meta::Item, meta::ItemID> meta_items{};
 			core::StepAlloc<meta::File, meta::File::ID> meta_files{};
+			core::StepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
+			core::StepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 
 
 			friend class ReaderAgent;

@@ -130,7 +130,7 @@ namespace pcit::llvmint{
 
 
 
-			EVO_NODISCARD auto createFunction(evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage) 
+			EVO_NODISCARD auto createFunction(std::string_view name, const FunctionType& prototype, LinkageType linkage) 
 				-> Function;
 
 
@@ -139,19 +139,19 @@ namespace pcit::llvmint{
 				const Type& type,
 				LinkageType linkage,
 				bool is_constant,
-				evo::CStrProxy name = '\0'
+				std::string_view name = ""
 			) -> GlobalVariable;
 
 			EVO_NODISCARD auto createGlobalUninit(
-				const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+				const Type& type, LinkageType linkage, bool is_constant, std::string_view name = ""
 			) -> GlobalVariable;
 
 			EVO_NODISCARD auto createGlobalZeroinit(
-				const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+				const Type& type, LinkageType linkage, bool is_constant, std::string_view name = ""
 			) -> GlobalVariable;
 
 			EVO_NODISCARD auto createGlobalString(
-				std::string value, LinkageType linkage, bool is_constant, evo::CStrProxy name = '\0'
+				std::string value, LinkageType linkage, bool is_constant, std::string_view name = ""
 			) -> GlobalVariable;
 
 

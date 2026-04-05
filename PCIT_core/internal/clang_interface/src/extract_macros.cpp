@@ -82,10 +82,6 @@ namespace pcit::clangint{
 							float_type = MacroToken::FloatValue::Type::F16;
 							suffix_size = 3;
 
-						}else if(full_number_view.ends_with("bf16") || full_number_view.ends_with("BF16")){
-							float_type = MacroToken::FloatValue::Type::BF16;
-							suffix_size = 4;
-							
 						}else if(full_number_view.ends_with("f32") || full_number_view.ends_with("F32")){
 							float_type = MacroToken::FloatValue::Type::F32;
 							suffix_size = 3;

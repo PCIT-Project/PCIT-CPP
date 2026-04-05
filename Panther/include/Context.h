@@ -102,6 +102,7 @@ namespace pcit::panther{
 
 
 				Output output         = Output::RUN;
+				bool addDebugInfo     = false;
 				NumThreads numThreads = NumThreads::single();
 				std::optional<Source::Package::ID> stdLibPackageID{};
 
@@ -125,9 +126,9 @@ namespace pcit::panther{
 				type_manager(config.target),
 				pir_module(std::string(config.title), config.target),
 				sema_to_pir_data(SemaToPIR::Data::Config{
+					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.addSourceLocations   = true,
 					.useDebugUnreachables = true,
 				})
 			{
@@ -143,9 +144,9 @@ namespace pcit::panther{
 				type_manager(config.target),
 				pir_module(std::string(config.title), config.target),
 				sema_to_pir_data(SemaToPIR::Data::Config{
+					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.addSourceLocations   = true,
 					.useDebugUnreachables = true,
 				})
 			{

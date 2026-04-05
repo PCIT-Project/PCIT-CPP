@@ -18,11 +18,11 @@ namespace pcit::plnk{
 		auto args = Args();
 
 
-		args.addArg("-wx"); // treat warnings as errors
-		args.addArg("-nologo"); // suppress copyright banner (doesn't seem to do anything, but just in case)
+		// args.addArg("-wx"); // treat warnings as errors
 
 		args.addArg("-defaultlib:libcmt"); // libc for multithreaded programms
 		args.addArg("-defaultlib:oldnames");
+
 
 		switch(options.getWindowsSpecific().subsystem){
 			break; case Options::WindowsSpecific::Subsystem::CONSOLE:
@@ -53,9 +53,15 @@ namespace pcit::plnk{
 				args.addArg("-subsystem:posix");
 		}
 
-		// TODO(FUTURE): how to add more than one
-		// evo::debugAssert(object_file_paths.size() == 1, "only 1 object file is supported at this time");
+		args.addArg("-nologo"); // suppress copyright banner (doesn't seem to do anything, but just in case)
+
+		if(options.includeDebugInfo){
+			args.addArg("-debug");
+		}
+
 		args.addArg(object_file_paths.front().string());
+
+		args.addArg("libcmt.lib");
 
 
 		if(options.outputFilePath.empty()){

@@ -414,7 +414,6 @@ namespace pcit::panther{
 
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:  builder += array.terminator->getF16().toString();
-							break; case Token::Kind::TYPE_BF16: builder += array.terminator->getBF16().toString();
 							break; case Token::Kind::TYPE_F32:  builder += array.terminator->getF32().toString();
 							break; case Token::Kind::TYPE_F64:  builder += array.terminator->getF64().toString();
 							break; case Token::Kind::TYPE_F80:  builder += array.terminator->getF80().toString();
@@ -495,9 +494,6 @@ namespace pcit::panther{
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:
 								builder += array_deducer.terminator.as<core::GenericValue>().getF16().toString();
-
-							break; case Token::Kind::TYPE_BF16:
-								builder += array_deducer.terminator.as<core::GenericValue>().getBF16().toString();
 
 							break; case Token::Kind::TYPE_F32:
 								builder += array_deducer.terminator.as<core::GenericValue>().getF32().toString();
@@ -610,9 +606,6 @@ namespace pcit::panther{
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:
 								builder += array_ref.terminator->getF16().toString();
-
-							break; case Token::Kind::TYPE_BF16:
-								builder += array_ref.terminator->getBF16().toString();
 
 							break; case Token::Kind::TYPE_F32:
 								builder += array_ref.terminator->getF32().toString();
@@ -728,9 +721,6 @@ namespace pcit::panther{
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:
 								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF16().toString();
-
-							break; case Token::Kind::TYPE_BF16:
-								builder += array_ref_deducer.terminator.as<core::GenericValue>().getBF16().toString();
 
 							break; case Token::Kind::TYPE_F32:
 								builder += array_ref_deducer.terminator.as<core::GenericValue>().getF32().toString();
@@ -850,7 +840,6 @@ namespace pcit::panther{
 
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
-							break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
 							break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
 							break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
 							break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
@@ -933,7 +922,6 @@ namespace pcit::panther{
 
 						switch(primitive.kind()){
 							break; case Token::Kind::TYPE_F16:  builder += generic_value.getF16().toString();
-							break; case Token::Kind::TYPE_BF16: builder += generic_value.getBF16().toString();
 							break; case Token::Kind::TYPE_F32:  builder += generic_value.getF32().toString();
 							break; case Token::Kind::TYPE_F64:  builder += generic_value.getF64().toString();
 							break; case Token::Kind::TYPE_F80:  builder += generic_value.getF80().toString();
@@ -1494,7 +1482,7 @@ namespace pcit::panther{
 					context.getSourceManager().getPackage(parent_source.getPackageID());
 
 				output = parent_package.name;
-				output += "=>";
+				output += "::";
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				switch(source_id.as<BuiltinModule::ID>()){
@@ -1508,9 +1496,9 @@ namespace pcit::panther{
 				const ClangSource& clang_source = context.getSourceManager()[source_id.as<ClangSource::ID>()];
 
 				if(clang_source.isCPP()){
-					output += "{CPP}=>";
+					output += "{CPP}::";
 				}else{
-					output += "{C}=>";
+					output += "{C}::";
 				}
 			}
 		}
@@ -2169,7 +2157,6 @@ namespace pcit::panther{
 					}
 
 					case Token::Kind::TYPE_F16:    return 2;
-					case Token::Kind::TYPE_BF16:   return 2;
 					case Token::Kind::TYPE_F32:    return 4;
 					case Token::Kind::TYPE_F64:    return 8;
 					case Token::Kind::TYPE_F80:    return 16;
@@ -2371,7 +2358,6 @@ namespace pcit::panther{
 						return add_padding_bits_if_needed(primitive.bitWidth(), include_padding);
 
 					case Token::Kind::TYPE_F16:    return 16;
-					case Token::Kind::TYPE_BF16:   return 16;
 					case Token::Kind::TYPE_F32:    return 32;
 					case Token::Kind::TYPE_F64:    return 64;
 					case Token::Kind::TYPE_F80:    return 80;
@@ -2583,7 +2569,6 @@ namespace pcit::panther{
 					}
 
 					case Token::Kind::TYPE_F16:    return 2;
-					case Token::Kind::TYPE_BF16:   return 2;
 					case Token::Kind::TYPE_F32:    return 4;
 					case Token::Kind::TYPE_F64:    return 8;
 					case Token::Kind::TYPE_F80:    return 16;
@@ -3020,7 +3005,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_USIZE:         return true;
 			case Token::Kind::TYPE_UI_N:          return true;
 			case Token::Kind::TYPE_F16:           return false;
-			case Token::Kind::TYPE_BF16:          return false;
 			case Token::Kind::TYPE_F32:           return false;
 			case Token::Kind::TYPE_F64:           return false;
 			case Token::Kind::TYPE_F80:           return false;
@@ -3075,7 +3059,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_USIZE:         return true;
 			case Token::Kind::TYPE_UI_N:          return true;
 			case Token::Kind::TYPE_F16:           return false;
-			case Token::Kind::TYPE_BF16:          return false;
 			case Token::Kind::TYPE_F32:           return false;
 			case Token::Kind::TYPE_F64:           return false;
 			case Token::Kind::TYPE_F80:           return false;
@@ -3130,7 +3113,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_USIZE:         return false;
 			case Token::Kind::TYPE_UI_N:          return false;
 			case Token::Kind::TYPE_F16:           return false;
-			case Token::Kind::TYPE_BF16:          return false;
 			case Token::Kind::TYPE_F32:           return false;
 			case Token::Kind::TYPE_F64:           return false;
 			case Token::Kind::TYPE_F80:           return false;
@@ -3185,7 +3167,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_USIZE:         return false;
 			case Token::Kind::TYPE_UI_N:          return false;
 			case Token::Kind::TYPE_F16:           return true;
-			case Token::Kind::TYPE_BF16:          return true;
 			case Token::Kind::TYPE_F32:           return true;
 			case Token::Kind::TYPE_F64:           return true;
 			case Token::Kind::TYPE_F80:           return true;
@@ -3341,10 +3322,6 @@ namespace pcit::panther{
 				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
 
-			case Token::Kind::TYPE_BF16: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
-			} break;
-
 			case Token::Kind::TYPE_F32: {
 				return this->getOrCreateTypeInfo(TypeInfo(id));
 			} break;
@@ -3497,9 +3474,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F16:
 				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 15, 11)).neg());
 
-			case Token::Kind::TYPE_BF16:
-				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 127, 8)).neg());
-
 			case Token::Kind::TYPE_F32:
 				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 127, 24)).neg());
 
@@ -3591,9 +3565,6 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F16:
 				return core::GenericValue(core::GenericFloat::createF16(float_data_from_exponent(16, 1, 11)));
 
-			case Token::Kind::TYPE_BF16:
-				return core::GenericValue(core::GenericFloat::createBF16(float_data_from_exponent(16, 1, 8)));
-
 			case Token::Kind::TYPE_F32:
 				return core::GenericValue(core::GenericFloat::createF32(float_data_from_exponent(32, 1, 24)));
 
@@ -3676,9 +3647,6 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_F16:
 				return core::GenericValue(core::GenericFloat::createF16(calc_float_max(16, 15, 11)));
-
-			case Token::Kind::TYPE_BF16:
-				return core::GenericValue(core::GenericFloat::createBF16(calc_float_max(16, 127, 8)));
 
 			case Token::Kind::TYPE_F32:
 				return core::GenericValue(core::GenericFloat::createF32(calc_float_max(32, 127, 24)));

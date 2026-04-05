@@ -35,7 +35,6 @@ namespace pcit::clangint{
 			UI64,
 			UI128,
 			F16,
-			BF16,
 			F32,
 			F64,
 			F80,

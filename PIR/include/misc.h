@@ -20,6 +20,17 @@ namespace pcit::pir{
 		if(name.empty()){ return false; }
 
 		for(char c : name){
+			if(!evo::isAlphaNumeric(c) && c != '.' && c != '_' && c != '-'){ return false; }
+		}
+
+		return true;
+	}
+
+
+	EVO_NODISCARD inline auto isStandardExprName(std::string_view name) -> bool {
+		if(name.empty()){ return false; }
+
+		for(char c : name){
 			if(!evo::isAlphaNumeric(c) && c != '.' && c != '_'){ return false; }
 		}
 

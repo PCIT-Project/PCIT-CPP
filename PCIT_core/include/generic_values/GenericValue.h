@@ -154,10 +154,6 @@ namespace pcit::core{
 			return core::GenericFloat::createF16(this->getInt(16));
 		}
 
-		EVO_NODISCARD auto getBF16() const -> core::GenericFloat {
-			return core::GenericFloat::createBF16(this->getInt(16));
-		}
-
 		EVO_NODISCARD auto getF32() const -> core::GenericFloat {
 			return core::GenericFloat::createF32(this->getInt(32));
 		}

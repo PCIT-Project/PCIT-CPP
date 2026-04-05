@@ -47,6 +47,9 @@ namespace pcit::pir{
 
 
 		EVO_NODISCARD auto run() -> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code> {
+			// evo::print("\033[?1049h"); // switch to alternate buffer
+			// EVO_DEFER([&](){ evo::print("\033[?1049l"); }); // switch back to normal buffer
+
 			evo::println("Debugger:");
 			evo::printlnGray("Type \"help\" for help");
 
@@ -577,13 +580,6 @@ namespace pcit::pir{
 							printer.print(")");
 						} break;
 					}
-				} break;
-
-				case Type::Kind::BFLOAT: {
-					printer.printCyan("BF16");
-					printer.print("(");
-					printer.printMagenta(value.getBF16().toString());
-					printer.print(")");
 				} break;
 
 				case Type::Kind::PTR: {

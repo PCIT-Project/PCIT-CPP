@@ -5,8 +5,9 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.Build{
-		output     = std.build.Output.LLVMIR,
-		numThreads = 12,
+		output       = std.build.Output.PIR,
+		addDebugInfo = true, // in development feature - if crashing occurs, set to false
+		numThreads   = 12,
 	};
 
 
@@ -55,6 +56,5 @@ func add_std_exp = (build: build_exp.Build mut, warns: @build.PackageWarningSett
 		sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>(
 			new [[Char:*]:4]["atomic.pthr", "StaticArrayList.pthr", "StaticString.pthr", "std_exp.pthr"],
 		),
-
 	};
 }

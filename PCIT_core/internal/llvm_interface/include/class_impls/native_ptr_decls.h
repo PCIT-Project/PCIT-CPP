@@ -21,6 +21,15 @@ namespace llvm{
 	class IRBuilderDefaultInserter;
 	class DIBuilder;
 	class DIFile;
+	class DIType;
+	class DIScope;
+	class DILocalScope;
+	class DIBasicType;
+	class DIDerivedType;
+	class DISubroutineType;
+	class DICompositeType;
+	class DISubprogram;
+	class DILocation;
 
 	
 	class Function;

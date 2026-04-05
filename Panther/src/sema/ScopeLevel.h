@@ -415,7 +415,6 @@ namespace pcit::panther::sema{
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 			bool is_unsafe = false;
 
-		private:
 			unsigned num_sub_scopes = false;
 			unsigned num_sub_scopes_terminated = 0;
 			unsigned num_sub_scopes_label_terminated = 0;

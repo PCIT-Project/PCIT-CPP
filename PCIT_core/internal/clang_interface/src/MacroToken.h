@@ -137,7 +137,6 @@ namespace pcit::clangint{
 				enum class Type{
 					FLUID,
 					F16,
-					BF16,
 					F32,
 					F64,
 					// F128,

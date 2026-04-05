@@ -90,10 +90,6 @@ namespace pcit::clangint{
 							return Type(BaseType::Primitive::F16, evo::SmallVector<Type::Qualifier>(), false);
 						} break;
 
-						case MacroToken::FloatValue::Type::BF16: {
-							return Type(BaseType::Primitive::BF16, evo::SmallVector<Type::Qualifier>(), false);
-						} break;
-
 						case MacroToken::FloatValue::Type::F32: {
 							return Type(BaseType::Primitive::F32, evo::SmallVector<Type::Qualifier>(), false);
 						} break;

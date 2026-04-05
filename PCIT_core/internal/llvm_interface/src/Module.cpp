@@ -215,18 +215,18 @@ namespace pcit::llvmint{
 
 
 	auto Module::createFunction(
-		evo::CStrProxy name, const FunctionType& prototype, LinkageType linkage
+		std::string_view name, const FunctionType& prototype, LinkageType linkage
 	) -> Function {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		return Function(llvm::Function::Create(
-			prototype.native(), static_cast<llvm::GlobalValue::LinkageTypes>(linkage), name.c_str(), this->native()
+			prototype.native(), static_cast<llvm::GlobalValue::LinkageTypes>(linkage), name, this->native()
 		));
 	};
 
 
 	auto Module::createGlobal(
-		const Constant& value, const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name
+		const Constant& value, const Type& type, LinkageType linkage, bool is_constant, std::string_view name
 	) -> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
@@ -237,21 +237,21 @@ namespace pcit::llvmint{
 			is_constant,
 			static_cast<llvm::GlobalValue::LinkageTypes>(linkage),
 			value.native(),
-			name.c_str()
+			name
 		);
 
 
 		return GlobalVariable(global);
 	}
 
-	auto Module::createGlobalUninit(const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	auto Module::createGlobalUninit(const Type& type, LinkageType linkage, bool is_constant, std::string_view name)
 	-> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		return this->createGlobal(llvm::UndefValue::get(type.native()), type, linkage, is_constant, name);
 	}
 
-	auto Module::createGlobalZeroinit(const Type& type, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	auto Module::createGlobalZeroinit(const Type& type, LinkageType linkage, bool is_constant, std::string_view name)
 	-> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
@@ -259,7 +259,7 @@ namespace pcit::llvmint{
 	}
 
 
-	auto Module::createGlobalString(std::string value, LinkageType linkage, bool is_constant, evo::CStrProxy name)
+	auto Module::createGlobalString(std::string value, LinkageType linkage, bool is_constant, std::string_view name)
 	-> GlobalVariable {
 		evo::debugAssert(this->isInitialized(), "not initialized");
 

@@ -17,15 +17,15 @@ project "PCIT_llvm_interface"
 
 	
 	includedirs{
+		(config.location .. "/PCIT_core/include"),
 		(config.location .. "/dependencies/LLVM_build/include"),
 		(config.location .. "/dependencies"),
 	}
 
 
-
-
 	links{
 		"Evo",
+		"PCIT_core"
 	}
 
 	-- AArch64

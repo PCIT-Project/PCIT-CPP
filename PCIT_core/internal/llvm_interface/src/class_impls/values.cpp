@@ -35,6 +35,9 @@ namespace pcit::llvmint{
 	auto CallInst::setCallingConv(CallingConv calling_conv) -> void {
 		this->native()->setCallingConv(evo::to_underlying(calling_conv));
 	}
+	auto CallInst::setLocation(DIBuilder::Location location) -> void {
+		this->native()->setDebugLoc(llvm::DebugLoc(location.location));
+	}
 	CallInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
 

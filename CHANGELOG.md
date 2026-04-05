@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.270.0"></a>
+## v0.0.270.0
+
+### Panther
+- Added `@buildSetAddDebugInfo()`
+- Removed type `BF16`
+
+### PIR
+- Added type metadata
+- Added function metadata
+- Added struct metadata
+- Added source location to `@call`
+- Added source location to `@breakpoint`
+- Added source location to `@abort`
+- Added support for `-` in standard names for types, globals, and functions
+- Removed type `BF16`
+
+
+<!---------------------------------->
 <a name="v0.0.269.0"></a>
 ## v0.0.269.0
 

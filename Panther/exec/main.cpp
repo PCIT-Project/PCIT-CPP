@@ -123,6 +123,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
 
+		.includeDebugInfo = false, // TODO(FUTURE): set to true
+
 		.numThreads = cmd_args_config.numBuildThreads,
 	};
 
@@ -225,6 +227,7 @@ EVO_NODISCARD static auto run_compile(
 		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
 
+		.includeDebugInfo = config.addDebugInfo,
 		.numThreads = config.numThreads,
 	};
 

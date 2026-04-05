@@ -21,6 +21,7 @@
 #include "../AST/ASTBuffer.h"
 #include "../../src/symbol_proc/SymbolProc.h"
 #include "../../src/sema/ScopeManager.h"
+#include "../../../PIR/include/meta.h"
 
 
 namespace pcit::panther{
@@ -58,9 +59,12 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getData() const -> const std::string& { return this->data; }
 			EVO_NODISCARD auto getPackageID() const -> Package::ID { return this->packagage_id; }
 
-
 			EVO_NODISCARD auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
 			EVO_NODISCARD auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
+
+			EVO_NODISCARD auto getPIRMetaFileID() const -> std::optional<pir::meta::File::ID> {
+				return this->pir_file_id;
+			}
 			
 
 			Source(const Source&) = delete;
@@ -84,6 +88,8 @@ namespace pcit::panther{
 
 			std::optional<sema::ScopeManager::Scope::ID> sema_scope_id{};
 			SymbolProc::Namespace global_symbol_procs{};
+
+			std::optional<pir::meta::File::ID> pir_file_id;
 
 			friend class SourceManager;
 			friend class Context;
