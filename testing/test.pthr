@@ -1,52 +1,11 @@
 
-type Struct = struct {
-	var foo: Int;
-	var bar: UInt;
+func errors = () -> UI8 <Void> {
+	error;
 }
 
-
-// var num: UI8 = 12;
-
-
-// func get_num = () #rt -> UI8* {
-// 	return &num;
-// }
-
-// func function = () -> Void {
-// 	@breakpoint();
-	
-// 	@breakpoint();
-// }
 
 func entry = () #entry -> UI8 {
-	_ = test();
-	return 0;
+	return try errors() else {->expr:UI8
+		return->expr 12;
+	};
 }
-
-
-
-func test = () -> Struct {
-	@breakpoint();
-	return new Struct{foo = 12, bar = 14};
-}
-
-
-
-///////////////////////////////////
-// TODO(FUTURE): fix this being a circular dependency
-
-// type Function = struct {
-// 	type ID = alias #distinct UI32;
-// }
-
-// type Subscope = struct {
-// 	type ID = alias #distinct UI32;
-
-// 	var parent: Scope;
-// }
-
-
-// type Scope = union {
-// 	function: Function.ID,
-// 	subscope: Subscope.ID,
-// }

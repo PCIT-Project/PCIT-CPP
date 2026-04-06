@@ -81,7 +81,7 @@ namespace pcit::panther::sema{
 
 	auto ScopeLevel::isLabelTerminated() const -> bool {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
-		return this->_stmt_block->isLabelTerminated();
+		return this->hasStmtBlock() && this->_stmt_block->isLabelTerminated();
 	}
 	
 	auto ScopeLevel::allTerminatedSubScopesAreLabelTerminated() const -> bool {
