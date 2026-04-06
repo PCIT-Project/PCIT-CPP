@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.270.2"></a>
+## v0.0.270.2
+
+### Panther
+- Fixed semantic analysis of try/else with unnamed error return value
+- Fixed lowering of function with unnamed error return value
+
+
+<!---------------------------------->
 <a name="v0.0.270.1"></a>
 ## v0.0.270.1
 

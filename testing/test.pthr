@@ -1,11 +1,11 @@
 
-func errors = () -> UI8 <Void> {
-	error;
+func errors = () -> UI8 <UI8> {
+	error 12;
 }
 
 
 func entry = () #entry -> UI8 {
-	return try errors() else {->expr:UI8
-		return->expr 12;
+	return try errors() else <code> {->expr:UI8
+		return->expr copy code;
 	};
 }

@@ -407,19 +407,54 @@ namespace pcit::panther{
 
 		auto error_return_param = std::optional<pir::Expr>();
 		auto error_return_type = std::optional<pir::Type>();
-		if(func_type.hasNamedErrorReturns){
+		if(func_type.hasErrorReturn()){
 			error_return_param = this->agent.createParamExpr(uint32_t(params.size()));
+
+			auto debug_info = std::optional<pir::StructType::DebugInfo>();
+			if(this->data.config.includeDebugInfo){
+				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+				debug_info = pir::StructType::DebugInfo{
+					.fileID            = location.meta_file_id,
+					.scopeWhereDefined = location.meta_file_id, // TODO(FUTURE): get proper scope
+					.lineNumber        = location.line_number,
+					.members           = evo::SmallVector<pir::StructType::DebugInfo::Member>{}
+				};
+			}
 
 
 			auto error_return_param_types = evo::SmallVector<pir::Type>();
-			for(TypeInfo::VoidableID error_type_id : func_type.errorTypes){
-				const PIRType error_type = this->get_type<false, false>(error_type_id.asTypeID());
+			error_return_param_types.reserve(func_type.errorTypes.size());
+			for(size_t i = 0; TypeInfo::VoidableID error_type_id : func_type.errorTypes){
+				EVO_DEFER([&](){ i += 1; });
+
+				const PIRType error_type = [&]() -> PIRType {
+					if(this->data.config.includeDebugInfo){
+						return this->get_type<false, true>(error_type_id.asTypeID());
+					}else{
+						return this->get_type<false, false>(error_type_id.asTypeID());
+					}
+				}();
 
 				error_return_param_types.emplace_back(error_type.type);
+
+				if(this->data.config.includeDebugInfo){
+					std::string member_name = [&]() -> std::string {
+						if(func_type.hasNamedErrorReturns){
+							return std::string(
+								this->current_source->getTokenBuffer()[func.returnParamIdents[i]].getString()
+							);	
+						}else{
+							return "_UNNAMED_";
+						}
+					}();
+
+					debug_info->members.emplace_back(*error_type.meta_type_id, std::move(member_name));
+				}
 			}
 
 			error_return_type = this->module.createStructType(
-				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true
+				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true, debug_info
 			);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
@@ -438,6 +473,8 @@ namespace pcit::panther{
 					std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
 				);
 			}
+
+			meta_params.emplace_back(&this->module.getStructType(*error_return_type));
 		}
 
 		auto return_meta_type = std::optional<pir::meta::Type>();
