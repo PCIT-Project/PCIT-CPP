@@ -1921,18 +1921,32 @@ namespace pcit::panther{
 				const AST::Infix& base_type_infix = ast_buffer.getInfix(ast_type_base);
 
 				const evo::Result<SymbolProc::TermInfoID> base_lhs =
-					this->analyze_type_base<NEEDS_DEF>(base_type_infix.lhs);
+					this->analyze_type_base<false>(base_type_infix.lhs);
 				if(base_lhs.isError()){ return evo::resultError; }
 
 				const SymbolProc::TermInfoID created_base_type_type = this->create_term_info();
-				this->add_instruction(
-					this->context.symbol_proc_manager.createComptimeAccessor(
-						base_type_infix,
-						base_lhs.value(),
-						ast_buffer.getIdent(base_type_infix.rhs),
-						created_base_type_type
-					)
-				);
+
+				if constexpr(NEEDS_DEF){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeAccessor(
+							base_type_infix,
+							base_lhs.value(),
+							ast_buffer.getIdent(base_type_infix.rhs),
+							created_base_type_type
+						)
+					);
+					
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createAccessor(
+							base_type_infix,
+							base_lhs.value(),
+							ast_buffer.getIdent(base_type_infix.rhs),
+							created_base_type_type
+						)
+					);
+				}
+
 				return created_base_type_type;
 			} break;
 

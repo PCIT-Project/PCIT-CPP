@@ -1,11 +1,17 @@
 
-func errors = () -> UI8 <UI8> {
-	error 12;
+type Function = struct {
+	type ID = alias #distinct UI32;
 }
 
 
-func entry = () #entry -> UI8 {
-	return try errors() else <code> {->expr:UI8
-		return->expr copy code;
-	};
+type SubScope = struct {
+	type ID = alias #distinct UI32;
+
+	var parent: Scope;
+}
+
+
+type Scope = union {
+	function: Function.ID,
+	sub_scope: SubScope.ID,
 }

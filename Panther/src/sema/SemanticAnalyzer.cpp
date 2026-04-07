@@ -12299,7 +12299,6 @@ namespace pcit::panther{
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID: {
-
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
@@ -21333,9 +21332,9 @@ namespace pcit::panther{
 
 
 
-		SymbolProcNamespace const * namespaced_members = nullptr;
-		sema::ScopeLevel const * scope_level = nullptr;
-		Source const * type_source = nullptr;
+		SymbolProcNamespace const* namespaced_members = nullptr;
+		sema::ScopeLevel const* scope_level = nullptr;
+		Source const* type_source = nullptr;
 
 		switch(decayed_lhs_type.baseTypeID().kind()){
 			case BaseType::Kind::STRUCT: {

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.271.1"></a>
+## v0.0.271.1
+
+### Panther
+- Fixed incorrectly detecting a circular dependency when accessing struct member types
+
+
+<!---------------------------------->
 <a name="v0.0.271.0"></a>
 ## v0.0.271.0
 
