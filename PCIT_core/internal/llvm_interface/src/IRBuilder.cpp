@@ -74,12 +74,12 @@ namespace pcit::llvmint{
 		return BasicBlock(llvm::BasicBlock::Create(this->get_native_context(), name, func.native()));
 	}
 
-	auto IRBuilder::createRet() -> void {
-		this->builder->CreateRetVoid();
+	auto IRBuilder::createRet() -> ReturnInst {
+		return this->builder->CreateRetVoid();
 	}
 
-	auto IRBuilder::createRet(const Value& value) -> void {
-		this->builder->CreateRet(value.native());
+	auto IRBuilder::createRet(const Value& value) -> ReturnInst {
+		return this->builder->CreateRet(value.native());
 	}
 
 

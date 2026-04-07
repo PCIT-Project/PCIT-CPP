@@ -1375,7 +1375,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ret instructions
 
-	auto Agent::createRet(Expr expr) const -> Expr {
+	auto Agent::createRet(Expr expr, std::optional<meta::SourceLocation> source_location) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(expr.isValue(), "Must return value");
 		evo::debugAssert(
@@ -1383,7 +1383,16 @@ namespace pcit::pir{
 			"Return type must match function"
 		);
 
-		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(expr));
+		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(expr, source_location));
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::createRet(std::nullopt_t, std::optional<meta::SourceLocation> source_location) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(this->target_func->getReturnType().kind() == Type::Kind::VOID, "Return type must match");
+
+		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(std::nullopt, source_location));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
@@ -1392,7 +1401,7 @@ namespace pcit::pir{
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->target_func->getReturnType().kind() == Type::Kind::VOID, "Return type must match");
 
-		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(std::nullopt));
+		const auto new_expr = Expr(Expr::Kind::RET, this->module.rets.emplace_back(std::nullopt, std::nullopt));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}

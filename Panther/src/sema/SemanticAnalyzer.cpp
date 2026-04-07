@@ -4506,7 +4506,9 @@ namespace pcit::panther{
 												func_location.as<SourceLocation>().collumnStart
 											)
 										),
-										std::nullopt
+										std::nullopt,
+										func_location.as<SourceLocation>().lineStart,
+										func_location.as<SourceLocation>().collumnStart
 									)
 								);
 
@@ -6633,7 +6635,14 @@ namespace pcit::panther{
 			}
 		}
 
-		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value, std::nullopt);
+		const Diagnostic::Location location = this->get_location(instr.return_stmt);
+
+		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(
+			return_value,
+			std::nullopt,
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
+		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
 		this->get_current_scope_level().setTerminated();
@@ -6756,8 +6765,14 @@ namespace pcit::panther{
 			}
 		}
 
+		const Diagnostic::Location location = this->get_location(instr.return_stmt);
 
-		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(return_value, target_label_id);
+		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(
+			return_value,
+			target_label_id,
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
+		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
 		this->get_current_scope_level().setLabelTerminated();
@@ -6868,7 +6883,11 @@ namespace pcit::panther{
 			}
 		}
 
-		const sema::Error::ID sema_error_id = this->context.sema_buffer.createError(error_value);
+		const Diagnostic::Location location = this->get_location(instr.error_stmt);
+
+		const sema::Error::ID sema_error_id = this->context.sema_buffer.createError(
+			error_value, location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
+		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_error_id);
 		this->get_current_scope_level().setTerminated();

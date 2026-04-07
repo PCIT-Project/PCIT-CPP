@@ -875,10 +875,23 @@ namespace pcit::pir{
 
 					case Expr::Kind::RET: {
 						const Ret& ret = this->reader.getRet(stmt);
-						if(ret.value.has_value()){
-							this->builder.createRet(this->get_value<ADD_WEAK_DEPS>(*ret.value));
-						}else{
-							this->builder.createRet();
+
+						llvmint::ReturnInst ret_inst = [&]() -> llvmint::ReturnInst {
+							if(ret.value.has_value()){
+								return this->builder.createRet(this->get_value<ADD_WEAK_DEPS>(*ret.value));
+							}else{
+								return this->builder.createRet();
+							}
+						}();
+
+						if(this->add_debug_info && ret.sourceLocation.has_value()){
+							ret_inst.setLocation(
+								this->di_builder.createSourceLocation(
+									this->get_meta_local_scope(ret.sourceLocation->scope),
+									ret.sourceLocation->line,
+									ret.sourceLocation->collumn
+								)
+							);
 						}
 					} break;
 

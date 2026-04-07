@@ -1861,6 +1861,15 @@ namespace pcit::panther{
 					}
 
 				}else{
+					auto source_location = std::optional<pir::meta::SourceLocation>();
+					if(this->data.config.includeDebugInfo){
+						if(return_stmt.line != 0){
+							source_location = pir::meta::SourceLocation(
+								this->get_current_meta_local_scope(), return_stmt.line, return_stmt.collumn
+							);
+						}
+					}
+
 					if(this->current_func_type->hasErrorReturn()){
 						if(return_stmt.value.has_value()){
 							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
@@ -1876,7 +1885,7 @@ namespace pcit::panther{
 							this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 						}
 
-						this->agent.createRet(this->agent.createBoolean(false));
+						this->agent.createRet(this->agent.createBoolean(false), source_location);
 
 					}else{
 						if(return_stmt.value.has_value()){
@@ -1889,7 +1898,7 @@ namespace pcit::panther{
 									this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 								}
 
-								this->agent.createRet();
+								this->agent.createRet(std::nullopt, source_location);
 
 							}else{
 								const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);
@@ -1898,14 +1907,14 @@ namespace pcit::panther{
 									this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 								}
 
-								this->agent.createRet(ret_value);
+								this->agent.createRet(ret_value, source_location);
 							}
 
 						}else{
 							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 								this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 							}
-							this->agent.createRet();
+							this->agent.createRet(std::nullopt, source_location);
 						}
 					}
 				}
@@ -1915,6 +1924,15 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::ERROR: {
 				const sema::Error& error_stmt = this->context.getSemaBuffer().getError(stmt.errorID());
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					if(error_stmt.line != 0){
+						source_location = pir::meta::SourceLocation(
+							this->get_current_meta_local_scope(), error_stmt.line, error_stmt.collumn
+						);
+					}
+				}
+
 				if(error_stmt.value.has_value()){
 					this->agent.createStore(
 						*this->current_func_info->error_return_param, this->get_expr_register(*error_stmt.value)
@@ -1922,13 +1940,13 @@ namespace pcit::panther{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::ERROR>(scope_level);
 					}
-					this->agent.createRet(this->agent.createBoolean(true));
+					this->agent.createRet(this->agent.createBoolean(true), source_location);
 
 				}else{
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::ERROR>(scope_level);
 					}
-					this->agent.createRet(this->agent.createBoolean(true));
+					this->agent.createRet(this->agent.createBoolean(true), source_location);
 				}
 				
 			} break;

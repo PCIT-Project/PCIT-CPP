@@ -71,8 +71,8 @@ namespace pcit::llvmint{
 
 			auto createBasicBlock(const Function& func, std::string_view name = {}) -> BasicBlock;
 
-			auto createRet() -> void;
-			auto createRet(const Value& value) -> void;
+			auto createRet() -> ReturnInst;
+			auto createRet(const Value& value) -> ReturnInst;
 
 			auto createUnreachable() -> void;
 			

@@ -427,12 +427,16 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> value; // nullopt means return void
 		std::optional<Token::ID> targetLabel;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
 	struct Error{
 		using ID = ErrorID;
 
 		std::optional<Expr> value; // nullopt means return void
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
 	struct Break{

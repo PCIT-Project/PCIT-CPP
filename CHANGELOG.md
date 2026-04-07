@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.271.0"></a>
+## v0.0.271.0
+
+### Panther
+- Added debug source information for non-labeled return and error statements
+
+
+<!---------------------------------->
 <a name="v0.0.270.2"></a>
 ## v0.0.270.2
 
@@ -32,6 +40,7 @@
 - Added source location to `@call`
 - Added source location to `@breakpoint`
 - Added source location to `@abort`
+- Added debug source information for function calls
 - Added support for `-` in standard names for types, globals, and functions
 - Removed type `BF16`
 
@@ -76,7 +85,7 @@
 ## v0.0.266.0
 
 ### Panther
-- Added funciton parameter attribute `#mustLabel`
+- Added function parameter attribute `#mustLabel`
 
 
 <!---------------------------------->

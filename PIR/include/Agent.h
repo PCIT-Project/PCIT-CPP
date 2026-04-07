@@ -286,7 +286,10 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// ret instructions
 
-			auto createRet(Expr expr) const -> Expr;
+			auto createRet(Expr expr, std::optional<meta::SourceLocation> source_location = std::nullopt) const
+				-> Expr;
+			auto createRet(std::nullopt_t, std::optional<meta::SourceLocation> source_location = std::nullopt) const
+				-> Expr;
 			auto createRet() const -> Expr;
 			EVO_NODISCARD auto getRet(Expr expr) const -> const Ret&;
 

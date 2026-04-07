@@ -1067,6 +1067,9 @@ namespace pcit::pir{
 				}else{
 					this->printer.printRed("{}@ret", tabs(2));
 				}
+
+				this->print_source_location(ret_inst.sourceLocation);
+
 				this->printer.println();
 			} break;
 

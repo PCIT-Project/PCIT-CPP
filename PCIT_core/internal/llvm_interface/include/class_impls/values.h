@@ -85,6 +85,19 @@ namespace pcit::llvmint{
 			llvm::ConstantInt* _native;
 	};
 
+	class ReturnInst{
+		public:
+			ReturnInst(llvm::ReturnInst* native_type) : _native(native_type) {};
+			~ReturnInst() = default;
+
+			auto setLocation(DIBuilder::Location location) -> void;
+
+
+			EVO_NODISCARD auto native() const -> llvm::ReturnInst* { return this->_native; }
+	
+		private:
+			llvm::ReturnInst* _native;
+	};
 
 
 	class CallInst{
