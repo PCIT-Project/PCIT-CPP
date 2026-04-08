@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.274.0"></a>
+## v0.0.274.0
+
+### PIR
+- Made lowering to LLVM-IR include function attribute `uwtable` which is required on some targets and fixes some issues with debugging
+
+
+<!---------------------------------->
 <a name="v0.0.273.0"></a>
 ## v0.0.273.0
 

@@ -351,6 +351,7 @@ namespace pcit::pir{
 
 		llvmint::Function llvm_func_decl = this->llvm_module.createFunction(func_decl.name, func_type, linkage);
 		llvm_func_decl.setNoThrow();
+		llvm_func_decl.setUWTableKind();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func_decl.callingConvention));
 		if(func_decl.isNoReturn){
 			llvm_func_decl.setNoReturn();
@@ -378,6 +379,7 @@ namespace pcit::pir{
 
 		llvmint::Function llvm_func_decl = this->llvm_module.createFunction(func.getName(), func_type, linkage);
 		llvm_func_decl.setNoThrow();
+		llvm_func_decl.setUWTableKind();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
 		if(func.getIsNoReturn()){
 			llvm_func_decl.setNoReturn();
@@ -433,6 +435,7 @@ namespace pcit::pir{
 
 		llvmint::Function llvm_func = this->llvm_module.createFunction(func.getName(), func_type, linkage);
 		llvm_func.setNoThrow();
+		llvm_func.setUWTableKind();
 		llvm_func.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
 
 

@@ -96,6 +96,10 @@ namespace pcit::llvmint{
 		this->native()->setDoesNotThrow();
 	}
 
+	auto Function::setUWTableKind(UWTableKind kind) -> void {
+		this->native()->setUWTableKind(static_cast<llvm::UWTableKind>(kind));
+	}
+
 	auto Function::setNoReturn() -> void {
 		this->native()->setDoesNotReturn();
 	}

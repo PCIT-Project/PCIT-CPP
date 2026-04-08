@@ -52,6 +52,16 @@ namespace pcit::llvmint{
 
 	class Function{
 		public:
+			// llvm/Support/CodeGen.h
+			enum class UWTableKind{
+				NONE    = 0,
+				SYNC    = 1,
+				ASYNC   = 2,
+				DEFAULT = ASYNC,
+			};
+
+
+		public:
 			Function(llvm::Function* native_func) : _native(native_func) {};
 			~Function() = default;
 
@@ -63,6 +73,7 @@ namespace pcit::llvmint{
 			EVO_NODISCARD auto getArg(unsigned index) const -> Argument;
 
 			auto setNoThrow() -> void;
+			auto setUWTableKind(UWTableKind kind = UWTableKind::DEFAULT) -> void;
 			auto setNoReturn() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;
 
