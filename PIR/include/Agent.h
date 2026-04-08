@@ -297,15 +297,18 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// branch instructions
 
-			auto createJump(BasicBlock::ID basic_block_id) const -> Expr;
-			EVO_NODISCARD static auto getJump(Expr expr) -> Jump;
+			auto createJump(
+				BasicBlock::ID basic_block_id, std::optional<meta::SourceLocation> source_location = std::nullopt
+			) const -> Expr;
+
+			EVO_NODISCARD auto getJump(Expr expr) const -> const Jump&;
 
 
 			///////////////////////////////////
 			// condiitonal branch instructions
 
 			auto createBranch(Expr cond, BasicBlock::ID then_block, BasicBlock::ID else_block) const -> Expr;
-			EVO_NODISCARD auto getBranch(Expr expr) const -> Branch;
+			EVO_NODISCARD auto getBranch(Expr expr) const -> const Branch&;
 
 
 			///////////////////////////////////
@@ -318,7 +321,7 @@ namespace pcit::pir{
 			// phi instructions
 
 			auto createPhi(evo::SmallVector<Phi::Predecessor>&& predecessors, std::string&& name = "") const -> Expr;
-			EVO_NODISCARD auto getPhi(Expr expr) const -> Phi;
+			EVO_NODISCARD auto getPhi(Expr expr) const -> const Phi&;
 
 
 			///////////////////////////////////
@@ -326,7 +329,7 @@ namespace pcit::pir{
 
 			auto createSwitch(Expr cond, evo::SmallVector<Switch::Case>&& cases, BasicBlock::ID default_block) const
 				-> Expr;
-			EVO_NODISCARD auto getSwitch(Expr expr) const -> Switch;
+			EVO_NODISCARD auto getSwitch(Expr expr) const -> const Switch&;
 
 
 			///////////////////////////////////

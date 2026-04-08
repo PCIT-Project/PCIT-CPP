@@ -59,7 +59,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getAbort(Expr expr) const -> const Abort&;
 			EVO_NODISCARD auto getBreakpoint(Expr expr) const -> const Breakpoint&;
 			EVO_NODISCARD auto getRet(Expr expr) const -> const Ret&;
-			EVO_NODISCARD static auto getJump(Expr expr) -> Jump;
+			EVO_NODISCARD auto getJump(Expr expr) const -> const Jump&;
 			EVO_NODISCARD auto getBranch(Expr expr) const -> const Branch&;
 			EVO_NODISCARD auto getPhi(Expr expr) const -> const Phi&;
 			EVO_NODISCARD auto getSwitch(Expr expr) const -> const Switch&;

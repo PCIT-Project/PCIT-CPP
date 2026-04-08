@@ -897,7 +897,18 @@ namespace pcit::pir{
 
 					case Expr::Kind::JUMP: {
 						const Jump& jump = this->reader.getJump(stmt);
-						this->builder.createBranch(basic_block_map.at(jump.target));
+
+						llvmint::BranchInst br_inst = this->builder.createBranch(basic_block_map.at(jump.target));
+
+						if(this->add_debug_info && jump.sourceLocation.has_value()){
+							br_inst.setLocation(
+								this->di_builder.createSourceLocation(
+									this->get_meta_local_scope(jump.sourceLocation->scope),
+									jump.sourceLocation->line,
+									jump.sourceLocation->collumn
+								)
+							);
+						}
 					} break;
 
 					case Expr::Kind::BRANCH: {

@@ -34,6 +34,10 @@ namespace pcit::llvmint{
 	auto ReturnInst::setLocation(DIBuilder::Location location) -> void {
 		this->native()->setDebugLoc(llvm::DebugLoc(location.location));
 	}
+
+	auto BranchInst::setLocation(DIBuilder::Location location) -> void {
+		this->native()->setDebugLoc(llvm::DebugLoc(location.location));
+	}
 	
 
 	auto CallInst::setCallingConv(CallingConv calling_conv) -> void {

@@ -52,6 +52,7 @@ namespace llvm{
 	class Constant;
 	class ConstantInt;
 	class ReturnInst;
+	class BranchInst;
 	class CallInst;
 	class LoadInst;
 	class GlobalVariable;

@@ -1414,16 +1414,17 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// jump instructions
 
-	auto Agent::createJump(BasicBlock::ID basic_block_id) const -> Expr {
+	auto Agent::createJump(BasicBlock::ID basic_block_id, std::optional<meta::SourceLocation> source_location) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
-		const auto new_expr = Expr(Expr::Kind::JUMP, basic_block_id.get());
+		const auto new_expr = Expr(Expr::Kind::JUMP, this->module.jumps.emplace_back(basic_block_id, source_location));
 		this->insert_stmt(new_expr);
 		return new_expr;
 	}
 
-	auto Agent::getJump(Expr expr) -> Jump {
-		return ReaderAgent::getJump(expr);
+	auto Agent::getJump(Expr expr) const -> const Jump& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getJump(expr);
 	}
 
 
@@ -1441,7 +1442,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getBranch(Expr expr) const -> Branch {
+	auto Agent::getBranch(Expr expr) const -> const Branch& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getBranch(expr);
 	}
 
@@ -1482,7 +1483,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getPhi(Expr expr) const -> Phi {
+	auto Agent::getPhi(Expr expr) const -> const Phi& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getPhi(expr);
 	}
 
@@ -1515,7 +1516,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto Agent::getSwitch(Expr expr) const -> Switch {
+	auto Agent::getSwitch(Expr expr) const -> const Switch& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSwitch(expr);
 	}
 

@@ -1832,6 +1832,15 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::RETURN: {
 				const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
 
+				auto source_location = std::optional<pir::meta::SourceLocation>();
+				if(this->data.config.includeDebugInfo){
+					if(return_stmt.line != 0){
+						source_location = pir::meta::SourceLocation(
+							this->get_current_meta_local_scope(), return_stmt.line, return_stmt.collumn
+						);
+					}
+				}
+
 				if(return_stmt.targetLabel.has_value()) [[unlikely]] {
 					const std::string_view label =
 						this->current_source->getTokenBuffer()[*return_stmt.targetLabel].getString();
@@ -1856,20 +1865,11 @@ namespace pcit::panther{
 
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(scope_level);
 
-						this->agent.createJump(*scope_level.end_block);
+						this->agent.createJump(*scope_level.end_block, source_location);
 						break;
 					}
 
 				}else{
-					auto source_location = std::optional<pir::meta::SourceLocation>();
-					if(this->data.config.includeDebugInfo){
-						if(return_stmt.line != 0){
-							source_location = pir::meta::SourceLocation(
-								this->get_current_meta_local_scope(), return_stmt.line, return_stmt.collumn
-							);
-						}
-					}
-
 					if(this->current_func_type->hasErrorReturn()){
 						if(return_stmt.value.has_value()){
 							const pir::Expr ret_value = this->get_expr_register(*return_stmt.value);

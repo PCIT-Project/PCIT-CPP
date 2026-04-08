@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.272.0"></a>
+## v0.0.272.0
+
+### Panther
+- Added debug source information for labeled return
+
+### PIR
+- Added source location to `@jump`
+
+
+<!---------------------------------->
 <a name="v0.0.271.1"></a>
 ## v0.0.271.1
 
@@ -14,6 +25,9 @@
 
 ### Panther
 - Added debug source information for non-labeled return and error statements
+
+### PIR
+- Added source location to `@ret`
 
 
 <!---------------------------------->

@@ -244,10 +244,11 @@ namespace pcit::pir{
 
 
 
-	auto ReaderAgent::getJump(Expr expr) -> Jump {
+	auto ReaderAgent::getJump(Expr expr) const -> const Jump& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.kind() == Expr::Kind::JUMP, "Not a jump");
 
-		return Jump(BasicBlock::ID(expr.index));
+		return this->module.jumps[expr.index];
 	}
 
 

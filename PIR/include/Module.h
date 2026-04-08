@@ -711,6 +711,7 @@ namespace pcit::pir{
 			core::StepAlloc<Abort, uint32_t> aborts{};
 			core::StepAlloc<Breakpoint, uint32_t> breakpoints{};
 			core::StepAlloc<Ret, uint32_t> rets{};
+			core::StepAlloc<Jump, uint32_t> jumps{};
 			core::StepAlloc<Branch, uint32_t> branches{};
 			core::StepAlloc<Phi, uint32_t> phis{};
 			core::StepAlloc<Switch, uint32_t> switches{};

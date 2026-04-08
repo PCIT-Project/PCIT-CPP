@@ -99,6 +99,20 @@ namespace pcit::llvmint{
 			llvm::ReturnInst* _native;
 	};
 
+	class BranchInst{
+		public:
+			BranchInst(llvm::BranchInst* native_type) : _native(native_type) {};
+			~BranchInst() = default;
+
+			auto setLocation(DIBuilder::Location location) -> void;
+
+
+			EVO_NODISCARD auto native() const -> llvm::BranchInst* { return this->_native; }
+	
+		private:
+			llvm::BranchInst* _native;
+	};
+
 
 	class CallInst{
 		public:

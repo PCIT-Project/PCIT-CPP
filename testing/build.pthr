@@ -5,8 +5,8 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.Build{
-		output       = std.build.Output.PIR,
-		addDebugInfo = false, // in development feature - if crashing occurs, set to false
+		output       = std.build.Output.CONSOLE_EXECUTABLE,
+		addDebugInfo = true, // in development feature - if crashing occurs, set to false
 		numThreads   = 12,
 	};
 

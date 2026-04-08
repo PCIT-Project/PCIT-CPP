@@ -1075,9 +1075,14 @@ namespace pcit::pir{
 
 
 			case Expr::Kind::JUMP: {
+				const Jump& jump_inst = this->reader.getJump(stmt);
+
 				this->printer.printRed("{}@jump ", tabs(2));
-				const BasicBlock::ID basic_block_id = reader.getJump(stmt).target;
-				this->printer.println("${}", reader.getBasicBlock(basic_block_id).getName());
+				this->printer.print("${}", reader.getBasicBlock(jump_inst.target).getName());
+
+				this->print_source_location(jump_inst.sourceLocation);
+
+				this->printer.println();
 			} break;
 
 			case Expr::Kind::BRANCH: {

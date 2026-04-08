@@ -409,6 +409,7 @@ namespace pcit::pir{
 
 	struct Jump{
 		BasicBlockID target;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct Branch{
