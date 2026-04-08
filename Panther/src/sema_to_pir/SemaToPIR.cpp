@@ -410,16 +410,11 @@ namespace pcit::panther{
 		if(func_type.hasErrorReturn()){
 			error_return_param = this->agent.createParamExpr(uint32_t(params.size()));
 
-			auto debug_info = std::optional<pir::StructType::DebugInfo>();
-			if(this->data.config.includeDebugInfo){
-				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
 
-				debug_info = pir::StructType::DebugInfo{
-					.fileID            = location.meta_file_id,
-					.scopeWhereDefined = location.meta_file_id, // TODO(FUTURE): get proper scope
-					.lineNumber        = location.line_number,
-					.members           = evo::SmallVector<pir::StructType::DebugInfo::Member>{}
-				};
+
+			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
+			if(this->data.config.includeDebugInfo){
+				debug_members.reserve(func_type.errorTypes.size());
 			}
 
 
@@ -445,16 +440,18 @@ namespace pcit::panther{
 								this->current_source->getTokenBuffer()[func.returnParamIdents[i]].getString()
 							);	
 						}else{
-							return "_UNNAMED_";
+							return "__UNNAMED__";
 						}
 					}();
 
-					debug_info->members.emplace_back(*error_type.meta_type_id, std::move(member_name));
+					debug_members.emplace_back(*error_type.meta_type_id, std::move(member_name));
 				}
 			}
 
+
+
 			error_return_type = this->module.createStructType(
-				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true, debug_info
+				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true
 			);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
@@ -474,7 +471,20 @@ namespace pcit::panther{
 				);
 			}
 
-			meta_params.emplace_back(&this->module.getStructType(*error_return_type));
+			if(this->data.config.includeDebugInfo){
+				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+				const pir::meta::ItemID item_id = this->module.createMetaStructType(
+					*error_return_type,
+					this->mangle_name(func_id) + ".ERR",
+					location.meta_file_id,
+					location.meta_file_id, // TODO(FUTURE): get proper scope
+					location.line_number,
+					std::move(debug_members)
+				);
+
+				meta_params.emplace_back(this->module.getMetaItem(item_id).as<pir::meta::StructType::ID>());
+			}
 		}
 
 		auto return_meta_type = std::optional<pir::meta::Type>();
@@ -1251,33 +1261,36 @@ namespace pcit::panther{
 		}
 
 
-		auto debug_info = std::optional<pir::StructType::DebugInfo>();
+
+		const pir::Type new_type = this->module.createStructType(
+			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked
+		);
+
+		this->data.create_struct(struct_id, new_type);
+
+
 		if(this->data.config.includeDebugInfo && this->current_source != nullptr){
 			const Location location = this->get_location(Diagnostic::Location::get(struct_type, this->context));
 
-			auto member_debug_infos = evo::SmallVector<pir::StructType::DebugInfo::Member>();
-			member_debug_infos.reserve(struct_type.memberVarsABI.size());
+			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
+			debug_members.reserve(struct_type.memberVarsABI.size());
 			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
-				member_debug_infos.emplace_back(
+				debug_members.emplace_back(
 					*this->get_type<MAY_LOWER_DEPENDENCY, true>(member_var->typeID).meta_type_id,
 					std::string(struct_type.getMemberName(*member_var, this->context.getSourceManager()))
 				);
 			}
 
-			debug_info.emplace(
+			std::ignore = this->module.createMetaStructType(
+				new_type,
+				this->get_unmangled_struct_name(struct_id),
 				location.meta_file_id,
 				this->get_current_meta_scope(),
 				location.line_number,
-				std::move(member_debug_infos)
+				std::move(debug_members)
 			);
 		}
 
-
-		const pir::Type new_type = this->module.createStructType(
-			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked, debug_info
-		);
-
-		this->data.create_struct(struct_id, new_type);
 
 		return new_type;
 	}
@@ -11827,7 +11840,7 @@ namespace pcit::panther{
 				const pir::Type pir_type = this->data.get_struct(base_type_id.structID());
 
 				if constexpr(GET_META){
-					return PIRType(pir_type, &this->module.getStructType(pir_type));
+					return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
 
 				}else{
 					return PIRType(pir_type, std::nullopt);
@@ -11964,7 +11977,7 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// unmangled func name
+	// unmangled name
 
 	auto SemaToPIR::get_unmangled_func_name(const sema::Func& func) const -> std::string {
 		if(func.isClangFunc()){
@@ -12125,6 +12138,13 @@ namespace pcit::panther{
 				} break;
 			}
 		}
+	}
+
+
+
+
+	auto SemaToPIR::get_unmangled_struct_name(BaseType::Struct::ID struct_id) const -> std::string {
+		return this->context.getTypeManager().printType(BaseType::ID(struct_id), this->context);
 	}
 
 

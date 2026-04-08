@@ -33,6 +33,9 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
 						this->lower_meta_qualified_type(item_id);
+
+					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
+						this->lower_meta_struct_type(item_id);
 						
 					}else{
 						static_assert(false, "Unknown meta ID");
@@ -190,6 +193,61 @@ namespace pcit::pir{
 	}
 
 
+	auto PIRToLLVMIR::lower_meta_struct_type(meta::StructType::ID meta_struct_type_id) -> void {
+		const meta::StructType& meta_struct_type = this->module.getMetaStructType(meta_struct_type_id);
+		const StructType& struct_type = this->module.getStructType(meta_struct_type.structType);
+
+
+		auto debug_members = evo::SmallVector<llvmint::DIBuilder::DerivedType>();
+		debug_members.reserve(meta_struct_type.members.size());
+
+		llvmint::DIBuilder::Scope scope_where_defined = 
+			this->get_meta_scope(meta_struct_type.scopeWhereDefined);
+		llvmint::DIBuilder::File file = this->meta_files.at(meta_struct_type.fileID);
+
+		uint64_t member_offset_bits = 0;
+		uint32_t struct_align_bits = 8;
+
+		for(size_t i = 0; const Type& member_type : struct_type.members){
+			EVO_DEFER([&](){ i += 1; });
+
+			// TODO(FUTURE): properly deal with packed structs
+			const uint64_t member_size_bits = this->module.numBytes(member_type) * 8;
+			const uint32_t member_align_bits = uint32_t(this->module.getAlignment(member_type)) * 8;
+
+			const meta::StructType::Member& debug_member = meta_struct_type.members[i];
+
+			debug_members.emplace_back(
+				this->di_builder.createMemberType(
+					scope_where_defined,
+					debug_member.name,
+					file,
+					meta_struct_type.lineNumber,
+					member_size_bits,
+					member_align_bits,
+					member_offset_bits,
+					this->get_meta_type(debug_member.type)
+				)
+			);
+
+			member_offset_bits += member_size_bits;
+			struct_align_bits = std::max(struct_align_bits, member_align_bits);
+		}
+
+		const llvmint::DIBuilder::CompositeType composite_type = this->di_builder.createClassType(
+			scope_where_defined,
+			meta_struct_type.name,
+			file,
+			meta_struct_type.lineNumber,
+			member_offset_bits,
+			struct_align_bits,
+			debug_members
+		);
+
+		this->meta_struct_types.emplace(meta_struct_type_id, composite_type);
+	}
+
+
 
 
 	template<bool ADD_WEAK_DEPS>
@@ -246,56 +304,6 @@ namespace pcit::pir{
 		);
 
 		this->struct_types.emplace(&struct_type, llvm_struct_type);
-
-		if(this->add_debug_info && struct_type.debugInfo.has_value()){
-			auto debug_members = evo::SmallVector<llvmint::DIBuilder::DerivedType>();
-			debug_members.reserve(struct_type.members.size());
-
-			llvmint::DIBuilder::Scope scope_where_defined = 
-				this->get_meta_scope(struct_type.debugInfo->scopeWhereDefined);
-			llvmint::DIBuilder::File file = this->meta_files.at(struct_type.debugInfo->fileID);
-
-			uint64_t member_offset_bits = 0;
-			uint32_t struct_align_bits = 8;
-
-			for(size_t i = 0; const Type& member_type : struct_type.members){
-				EVO_DEFER([&](){ i += 1; });
-
-				// TODO(FUTURE): properly deal with packed structs
-				const uint64_t member_size_bits = this->module.numBytes(member_type) * 8;
-				const uint32_t member_align_bits = uint32_t(this->module.getAlignment(member_type)) * 8;
-
-				const StructType::DebugInfo::Member& debug_member = struct_type.debugInfo->members[i];
-
-				debug_members.emplace_back(
-					this->di_builder.createMemberType(
-						scope_where_defined,
-						debug_member.name,
-						file,
-						struct_type.debugInfo->lineNumber,
-						member_size_bits,
-						member_align_bits,
-						member_offset_bits,
-						this->get_meta_type(debug_member.type)
-					)
-				);
-
-				member_offset_bits += member_size_bits;
-				struct_align_bits = std::max(struct_align_bits, member_align_bits);
-			}
-
-			const llvmint::DIBuilder::CompositeType composite_type = this->di_builder.createClassType(
-				scope_where_defined,
-				struct_type.name,
-				file,
-				struct_type.debugInfo->lineNumber,
-				member_offset_bits,
-				struct_align_bits,
-				debug_members
-			);
-
-			this->meta_structs.emplace(&struct_type, composite_type);
-		}
 	}
 
 
@@ -2511,8 +2519,8 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueType, meta::QualifiedType::ID>()){
 				return this->meta_qualified_types.at(meta_type).asType();
 
-			}else if constexpr(std::is_same<ValueType, const StructType*>()){
-				return this->meta_structs.at(meta_type).asType();
+			}else if constexpr(std::is_same<ValueType, meta::StructType::ID>()){
+				return this->meta_struct_types.at(meta_type).asType();
 		
 			}else{
 				static_assert(false, "Unknown meta type");

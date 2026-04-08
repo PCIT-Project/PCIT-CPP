@@ -126,20 +126,6 @@ namespace pcit::pir{
 		std::string name;
 		evo::SmallVector<Type> members;
 		bool isPacked;
-
-		struct DebugInfo{
-			struct Member{
-				meta::Type type;
-				std::string name;
-			};
-
-			meta::FileID fileID;
-			meta::Scope scopeWhereDefined;
-			uint32_t lineNumber;
-			evo::SmallVector<Member> members;
-		};
-
-		std::optional<DebugInfo> debugInfo;
 	};
 
 

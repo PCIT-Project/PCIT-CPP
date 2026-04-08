@@ -44,6 +44,7 @@ namespace pcit::pir{
 			auto print_meta_file(const meta::File& file) -> void;
 			auto print_meta_basic_type(const meta::BasicType& type) -> void;
 			auto print_meta_qualified_type(const meta::QualifiedType& qualified_type) -> void;
+			auto print_meta_struct_type(const meta::StructType& struct_type) -> void;
 			auto print_meta_type_id(meta::Type meta_type) -> void;
 			auto print_meta_file_id(meta::File::ID meta_file_id) -> void;
 			auto print_source_location(const std::optional<meta::SourceLocation>& source_location) -> void;

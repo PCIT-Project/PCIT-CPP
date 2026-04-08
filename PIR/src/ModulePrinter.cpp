@@ -88,6 +88,9 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
 						this->print_meta_qualified_type(this->get_module().getMetaQualifiedType(item_id));
+
+					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
+						this->print_meta_struct_type(this->get_module().getMetaStructType(item_id));
 						
 					}else{
 						static_assert(false, "Unknown meta ID");
@@ -282,30 +285,9 @@ namespace pcit::pir{
 			this->printer.printRed("#packed ");
 		}
 
-		if(struct_type.debugInfo.has_value()){
-			this->printer.printRed("#location");
-			this->printer.print("(");
-			this->print_meta_file_id(struct_type.debugInfo->fileID);
-			this->printer.print(", ");
-			this->print_meta_scope(struct_type.debugInfo->scopeWhereDefined);
-			this->printer.print(", ");
-			this->printer.printMagenta(std::to_string(struct_type.debugInfo->lineNumber));
-			this->printer.print(") ");
-		}
-
 		this->printer.print("{");
 		for(size_t i = 0; const Type& member : struct_type.members){
-			if(struct_type.debugInfo.has_value()){
-				this->printer.print(struct_type.debugInfo->members[i].name);
-				this->printer.printRed(": ");
-			}
-
 			this->printType(member);
-
-			if(struct_type.debugInfo.has_value()){
-				this->print_meta_type_id(struct_type.debugInfo->members[i].type);
-			}
-
 
 			if(i < struct_type.members.size() - 1){
 				this->printer.print(", ");
@@ -313,6 +295,7 @@ namespace pcit::pir{
 
 			i += 1;
 		}
+
 		this->printer.println("}");
 	}
 
@@ -2072,7 +2055,7 @@ namespace pcit::pir{
 		switch(file.language){
 			break; case meta::Language::PANTHER: this->printer.print(", Panther, ");
 			break; case meta::Language::C:       this->printer.print(", C, ");
-			break; case meta::Language::CPP:     this->printer.print(", C++, ");
+			break; case meta::Language::CPP:     this->printer.print(", CPP, ");
 		}
 
 		this->printer.printYellow("\"{}\"\n", file.producerName);
@@ -2083,7 +2066,7 @@ namespace pcit::pir{
 		this->printer.printCyan("meta ");
 		this->printer.printGreen("!{}", basic_type.itemID.get());
 		this->printer.printRed(" = ");
-		this->printer.printCyan("type ");
+		this->printer.printCyan("basicType ");
 		this->printer.printYellow("\"{}\"", basic_type.name);
 		this->printer.print(", ");
 		this->printType(basic_type.underlyingType);
@@ -2094,7 +2077,7 @@ namespace pcit::pir{
 		this->printer.printCyan("meta ");
 		this->printer.printGreen("!{}", qualified_type.itemID.get());
 		this->printer.printRed(" = ");
-		this->printer.printCyan("type ");
+		this->printer.printCyan("qualifiedType ");
 		this->printer.printYellow("\"{}\"", qualified_type.name);
 
 		switch(qualified_type.qualifier){
@@ -2115,6 +2098,58 @@ namespace pcit::pir{
 		this->printer.printGreen("!{}\n", qualee_item_id.get());
 	}
 
+	auto ModulePrinter::print_meta_struct_type(const meta::StructType& struct_type) -> void {
+		this->printer.printCyan("meta ");
+		this->printer.printGreen("!{}", struct_type.itemID.get());
+		this->printer.printRed(" = ");
+		this->printer.printCyan("struct ");
+
+		this->printer.print("{");
+
+		this->printer.print("type");
+		this->printer.printRed(": ");
+		this->printType(struct_type.structType);
+		this->printer.print(", ");
+
+		this->printer.print("name");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", struct_type.name);
+		this->printer.print(", ");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(struct_type.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(struct_type.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(struct_type.lineNumber));
+		this->printer.print(", ");
+
+		this->printer.print("members");
+		this->printer.printRed(": ");
+		this->printer.print("[");
+		for(size_t i = 0; const meta::StructType::Member& member : struct_type.members){
+			this->printer.printYellow("\"{}\"", member.name);
+			this->print_meta_type_id(member.type);
+
+			if(i + 1 < struct_type.members.size()){
+				this->printer.print(", ");
+			}
+			
+			i += 1;
+		}
+		this->printer.print("]");
+
+		this->printer.println("}");
+	}
+
+
 	auto ModulePrinter::print_meta_type_id(meta::Type meta_type) -> void {
 		meta_type.visit([&](auto id) -> void {
 			using MetaIDType = std::decay_t<decltype(id)>;
@@ -2125,13 +2160,8 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<MetaIDType, meta::QualifiedType::ID>()){
 				this->printer.print(" !{}", this->reader.getModule().getMetaQualifiedType(id).itemID.get());
 
-			}else if constexpr(std::is_same<MetaIDType, const StructType*>()){
-				if(isStandardName(id->name)){
-					printer.print(" &{}", id->name);
-				}else{
-					printer.print(" &", id->name);
-					this->print_non_standard_name(id->name, false);
-				}
+			}else if constexpr(std::is_same<MetaIDType, meta::StructType::ID>()){
+				this->printer.print(" !{}", this->reader.getModule().getMetaStructType(id).itemID.get());
 				
 			}else{
 				static_assert(false, "unknown meta type");

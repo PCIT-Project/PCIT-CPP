@@ -472,10 +472,7 @@ namespace pcit::pir{
 
 
 			EVO_NODISCARD auto createStructType(
-				std::string&& struct_name,
-				evo::SmallVector<Type>&& members,
-				bool is_packed,
-				std::optional<StructType::DebugInfo> debug_info = std::nullopt
+				std::string&& struct_name, evo::SmallVector<Type>&& members, bool is_packed
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_global_name_reuse(struct_name);
@@ -483,7 +480,7 @@ namespace pcit::pir{
 				evo::debugAssert(members.empty() == false, "Cannot create a struct type with no members");
 
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
-					std::move(struct_name), std::move(members), is_packed, debug_info
+					std::move(struct_name), std::move(members), is_packed
 				);
 				return Type(Type::Kind::STRUCT, struct_type_index);
 			}
@@ -673,6 +670,60 @@ namespace pcit::pir{
 			}
 
 
+			///////////////////////////////////
+			// meta struct types
+
+			EVO_NODISCARD auto createMetaStructType(
+				Type struct_type,
+				std::string&& struct_name,
+				meta::FileID file_id,
+				meta::Scope scope_where_defined,
+				uint32_t line_number,
+				evo::SmallVector<meta::StructType::Member>&& members
+			) -> meta::ItemID {
+				evo::debugAssert(struct_type.kind() == Type::Kind::STRUCT, "not struct type");
+				
+				const meta::StructType::ID created_type_id = this->meta_struct_types.emplace_back(
+					meta::ItemID::dummy(),
+					struct_type,
+					std::move(struct_name),
+					file_id,
+					scope_where_defined,
+					line_number,
+					std::move(members)
+				);
+
+				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
+				this->meta_struct_types[created_type_id].itemID = created_item_id;
+
+				{
+					const auto lock = std::scoped_lock(this->meta_struct_type_lookup_lock);
+					this->meta_struct_type_lookup.emplace(struct_type, created_type_id);
+				}
+
+				return created_item_id;
+			}
+
+			EVO_NODISCARD auto getMetaStructType(meta::StructType::ID id) const -> const meta::StructType& {
+				return this->meta_struct_types[id];
+			}
+
+			EVO_NODISCARD auto getMetaStructType(meta::ItemID id) const -> const meta::StructType& {
+				return this->getMetaStructType(this->getMetaItem(id).as<meta::StructType::ID>());
+			}
+
+
+			EVO_NODISCARD auto lookupMetaStructType(Type struct_type) const -> std::optional<meta::StructType::ID> {
+				evo::debugAssert(struct_type.kind() == Type::Kind::STRUCT, "not struct type");
+
+				const auto lock = std::scoped_lock(this->meta_struct_type_lookup_lock);
+
+				const auto find = this->meta_struct_type_lookup.find(struct_type);
+				if(find != this->meta_struct_type_lookup.end()){ return find->second; }
+				return std::nullopt;
+			}
+
+
 
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -808,6 +859,10 @@ namespace pcit::pir{
 			core::StepAlloc<meta::File, meta::File::ID> meta_files{};
 			core::StepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
 			core::StepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
+			core::StepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
+
+			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};
+			mutable evo::SpinLock meta_struct_type_lookup_lock{};
 
 
 			friend class ReaderAgent;

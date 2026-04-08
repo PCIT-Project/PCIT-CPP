@@ -61,6 +61,7 @@ namespace pcit::pir{
 			auto lower_meta_file(meta::File::ID meta_file_id) -> void;
 			auto lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void;
 			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void;
+			auto lower_meta_struct_type(meta::StructType::ID meta_struct_type_id) -> void;
 
 
 			template<bool ADD_WEAK_DEPS>
@@ -148,7 +149,7 @@ namespace pcit::pir{
 			std::unordered_map<meta::BasicType::ID, llvmint::DIBuilder::BasicType> meta_basic_types{};
 			std::unordered_map<meta::QualifiedType::ID, llvmint::DIBuilder::DerivedType> meta_qualified_types{};
 			std::unordered_map<const Function*, llvmint::DIBuilder::Subprogram> meta_functions{};
-			std::unordered_map<const StructType*, llvmint::DIBuilder::CompositeType> meta_structs{};
+			std::unordered_map<meta::StructType::ID, llvmint::DIBuilder::CompositeType> meta_struct_types{};
 	};
 
 }

@@ -1,12 +1,14 @@
+type Struct = struct {
+	var foo: UI8;
+	var bar: I8;
+}
+
+func get_struct = () -> Struct {
+	return new Struct{foo = 12, bar = 14};
+}
+
+
 
 func entry = () #entry -> UI8 {
-	const cond: Bool = true;
-
-	return {->expr:UI8
-		if(cond){
-			return->expr 12;
-		}else{
-			return->expr 14;
-		}
-	};
+	return get_struct().foo;
 }

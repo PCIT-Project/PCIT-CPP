@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.273.0"></a>
+## v0.0.273.0
+
+### PIR
+- Added struct metadata separate from struct type 
+	- moved metadata over from struct type to new struct metadata
+- Added name to struct metadata
+
+
+<!---------------------------------->
 <a name="v0.0.272.0"></a>
 ## v0.0.272.0
 
@@ -56,7 +66,8 @@
 - Removed type `BF16`
 
 ### PIR
-- Added type metadata
+- Added basic type metadata
+- Added qualified type metadata
 - Added function metadata
 - Added struct metadata
 - Added source location to `@call`

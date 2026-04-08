@@ -59,8 +59,26 @@ namespace pcit::pir::meta{
 
 		ItemID itemID;
 		std::string name;
-		Type qualeeType;
+		meta::Type qualeeType;
 		Qualifier qualifier;
+	};
+
+
+	struct StructType{
+		using ID = StructTypeID;
+
+		struct Member{
+			meta::Type type;
+			std::string name;
+		};
+
+		ItemID itemID;
+		pir::Type structType;
+		std::string name;
+		meta::FileID fileID;
+		meta::Scope scopeWhereDefined;
+		uint32_t lineNumber;
+		evo::SmallVector<Member> members;
 	};
 
 
