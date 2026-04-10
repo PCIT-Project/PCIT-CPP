@@ -3,12 +3,12 @@ type Struct = struct {
 	var bar: I8;
 }
 
-func get_struct = () -> Struct {
-	return new Struct{foo = 12, bar = 14};
+func get_struct = (foo: UI8, bar: I8) -> Struct {
+	return new Struct{foo = copy foo, bar = copy bar};
 }
 
 
 
 func entry = () #entry -> UI8 {
-	return get_struct().foo;
+	return get_struct(12, 14).foo;
 }

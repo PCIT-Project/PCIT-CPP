@@ -48,7 +48,7 @@ namespace pcit::pir{
 				Linkage linkage,
 				Type return_type,
 				bool is_no_return = false,
-				std::optional<FunctionDebugInfo>&& debug_info = std::nullopt
+				std::optional<meta::Function::ID> meta_id = std::nullopt
 			) -> Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
@@ -69,7 +69,7 @@ namespace pcit::pir{
 						linkage,
 						return_type,
 						is_no_return,
-						std::move(debug_info)
+						meta_id
 					)
 				);
 			}
@@ -112,7 +112,7 @@ namespace pcit::pir{
 				Linkage linkage,
 				Type return_type,
 				bool is_no_return = false,
-				std::optional<FunctionDebugInfo>&& debug_info = std::nullopt
+				std::optional<meta::Function::ID> meta_id = std::nullopt
 			) -> ExternalFunction::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_param_names(parameters);
@@ -131,7 +131,7 @@ namespace pcit::pir{
 					linkage,
 					return_type,
 					is_no_return,
-					std::move(debug_info)
+					meta_id
 				);
 			}
 
@@ -725,6 +725,42 @@ namespace pcit::pir{
 
 
 
+			///////////////////////////////////
+			// meta functions
+
+			EVO_NODISCARD auto createMetaFunction(
+				std::string&& unmangledName,
+				meta::File::ID fileID,
+				meta::Scope scopeWhereDefined,
+				uint32_t lineNumber,
+				std::optional<meta::Type> returnMetaType, // nullopt if `Void`
+				evo::SmallVector<meta::Type>&& paramMetaTypes
+			) -> meta::ItemID {
+				const meta::Function::ID created_type_id = this->meta_functions.emplace_back(
+					meta::ItemID::dummy(),
+					std::move(unmangledName),
+					fileID,
+					scopeWhereDefined,
+					lineNumber,
+					returnMetaType,
+					std::move(paramMetaTypes)
+				);
+
+				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
+				this->meta_functions[created_type_id].itemID = created_item_id;
+
+				return created_item_id;
+			}
+
+			EVO_NODISCARD auto getMetaFunction(meta::Function::ID id) const -> const meta::Function& {
+				return this->meta_functions[id];
+			}
+
+			EVO_NODISCARD auto getMetaFunction(meta::ItemID id) const -> const meta::Function& {
+				return this->getMetaFunction(this->getMetaItem(id).as<meta::Function::ID>());
+			}
+
+
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
@@ -860,6 +896,7 @@ namespace pcit::pir{
 			core::StepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
 			core::StepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 			core::StepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
+			core::StepAlloc<meta::Function, meta::Function::ID> meta_functions{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};
 			mutable evo::SpinLock meta_struct_type_lookup_lock{};

@@ -36,6 +36,9 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
 						this->lower_meta_struct_type(item_id);
+
+					}else if constexpr(std::is_same<ItemType, meta::Function::ID>()){
+						// lowered later
 						
 					}else{
 						static_assert(false, "Unknown meta ID");
@@ -248,6 +251,43 @@ namespace pcit::pir{
 	}
 
 
+	auto PIRToLLVMIR::lower_meta_function(std::string_view func_name, meta::Function::ID meta_function_id)
+	-> llvmint::DIBuilder::Subprogram {
+		const meta::Function& meta_function = this->module.getMetaFunction(meta_function_id);
+
+		const llvmint::DIBuilder::Type return_type = [&]() -> llvmint::DIBuilder::Type {
+			if(meta_function.returnMetaType.has_value()){
+				return this->get_meta_type(*meta_function.returnMetaType);
+
+			}else{
+				return this->di_builder.createVoidType();
+			}
+		}();
+
+		auto param_meta_types = evo::SmallVector<llvmint::DIBuilder::Type, 16>();
+		param_meta_types.reserve(meta_function.paramMetaTypes.size());
+		for(const meta::Type& param_meta_type : meta_function.paramMetaTypes){
+			param_meta_types.emplace_back(this->get_meta_type(param_meta_type));
+		}
+
+		llvmint::DIBuilder::SubroutineType subroutine_type =
+			this->di_builder.createSubroutineType(return_type, param_meta_types);
+
+		llvmint::DIBuilder::Subprogram subprogram = this->di_builder.createFunction(
+			this->get_meta_scope(meta_function.scopeWhereDefined),
+			meta_function.unmangledName,
+			func_name,
+			this->meta_files.at(meta_function.fileID),
+			meta_function.lineNumber,
+			subroutine_type
+		);
+
+		this->meta_functions.emplace(meta_function_id, subprogram);
+
+		return subprogram;
+	}
+
+
 
 
 	template<bool ADD_WEAK_DEPS>
@@ -387,35 +427,8 @@ namespace pcit::pir{
 
 		this->funcs.emplace(&func, llvm_func_decl);
 
-		if(func.getDebugInfo().has_value()){
-			const llvmint::DIBuilder::Type return_type = [&]() -> llvmint::DIBuilder::Type {
-				if(func.getDebugInfo()->returnMetaType.has_value()){
-					return this->get_meta_type(*func.getDebugInfo()->returnMetaType);
-
-				}else{
-					return this->di_builder.createVoidType();
-				}
-			}();
-
-			auto param_meta_types = evo::SmallVector<llvmint::DIBuilder::Type, 16>();
-			param_meta_types.reserve(func.getDebugInfo()->paramMetaTypes.size());
-			for(const meta::Type& param_meta_type : func.getDebugInfo()->paramMetaTypes){
-				param_meta_types.emplace_back(this->get_meta_type(param_meta_type));
-			}
-
-			llvmint::DIBuilder::SubroutineType subroutine_type =
-				this->di_builder.createSubroutineType(return_type, param_meta_types);
-
-			llvmint::DIBuilder::Subprogram subprogram = this->di_builder.createFunction(
-				this->get_meta_scope(func.getDebugInfo()->scopeWhereDefined),
-				func.getDebugInfo()->unmangledName,
-				func.getName(),
-				this->meta_files.at(func.getDebugInfo()->fileID),
-				func.getDebugInfo()->lineNumber,
-				subroutine_type
-			);
-
-			llvm_func_decl.setSubprogram(subprogram);
+		if(func.getMetaID().has_value()){
+			llvm_func_decl.setSubprogram(this->lower_meta_function(func.getName(), *func.getMetaID()));
 		}
 	}
 
@@ -485,38 +498,8 @@ namespace pcit::pir{
 
 		this->funcs.emplace(&func, llvm_func);
 
-		if(func.getDebugInfo().has_value()){
-			const llvmint::DIBuilder::Type return_type = [&]() -> llvmint::DIBuilder::Type {
-				if(func.getDebugInfo()->returnMetaType.has_value()){
-					return this->get_meta_type(*func.getDebugInfo()->returnMetaType);
-
-				}else{
-					return this->di_builder.createVoidType();
-				}
-			}();
-
-			auto param_meta_types = evo::SmallVector<llvmint::DIBuilder::Type, 16>();
-			param_meta_types.reserve(func.getDebugInfo()->paramMetaTypes.size());
-			for(const meta::Type& param_meta_type : func.getDebugInfo()->paramMetaTypes){
-				param_meta_types.emplace_back(this->get_meta_type(param_meta_type));
-			}
-
-			llvmint::DIBuilder::SubroutineType subroutine_type =
-				this->di_builder.createSubroutineType(return_type, param_meta_types);
-
-
-			llvmint::DIBuilder::Subprogram subprogram = this->di_builder.createFunction(
-				this->get_meta_scope(func.getDebugInfo()->scopeWhereDefined),
-				func.getDebugInfo()->unmangledName,
-				func.getName(),
-				this->meta_files.at(func.getDebugInfo()->fileID),
-				func.getDebugInfo()->lineNumber,
-				subroutine_type
-			);
-
-			llvm_func.setSubprogram(subprogram);
-
-			this->meta_functions.emplace(&func, subprogram);
+		if(func.getMetaID().has_value()){
+			llvm_func.setSubprogram(this->lower_meta_function(func.getName(), *func.getMetaID()));
 		}
 
 		return FuncLoweredSetup(func, llvm_func);
@@ -2483,8 +2466,8 @@ namespace pcit::pir{
 		return scope.visit([&](const auto& id) -> llvmint::DIBuilder::Scope {
 			using IDType = std::decay_t<decltype(id)>;
 		
-			if constexpr(std::is_same<IDType, Function::ID>()){
-				return this->meta_functions.at(&this->module.getFunction(id)).asScope();
+			if constexpr(std::is_same<IDType, meta::Function::ID>()){
+				return this->meta_functions.at(id).asScope();
 
 			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
 				return this->meta_files.at(id).asScope();
@@ -2499,8 +2482,8 @@ namespace pcit::pir{
 		return scope.visit([&](const auto& id) -> llvmint::DIBuilder::LocalScope {
 			using IDType = std::decay_t<decltype(id)>;
 		
-			if constexpr(std::is_same<IDType, Function::ID>()){
-				return this->meta_functions.at(&this->module.getFunction(id)).asLocalScope();
+			if constexpr(std::is_same<IDType, meta::Function::ID>()){
+				return this->meta_functions.at(id).asLocalScope();
 
 			// }else if constexpr(std::is_same<IDType, meta::File::ID>()){
 			// 	return this->meta_files.at(id).asLocalScope();

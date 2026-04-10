@@ -17,6 +17,7 @@
 
 #include "./meta_ids.h"
 #include "./Type.h"
+#include "./forward_decl_ids.h"
 
 
 
@@ -79,6 +80,19 @@ namespace pcit::pir::meta{
 		meta::Scope scopeWhereDefined;
 		uint32_t lineNumber;
 		evo::SmallVector<Member> members;
+	};
+
+
+	struct Function{
+		using ID = FunctionID;
+
+		ItemID itemID;
+		std::string unmangledName;
+		meta::File::ID fileID;
+		meta::Scope scopeWhereDefined;
+		uint32_t lineNumber;
+		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
+		evo::SmallVector<meta::Type> paramMetaTypes;
 	};
 
 

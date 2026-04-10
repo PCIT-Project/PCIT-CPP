@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.275.0"></a>
+## v0.0.275.0
+
+### PIR
+- Added function metadata
+	- replaces function dbeug info
+
+
+<!---------------------------------->
 <a name="v0.0.274.0"></a>
 ## v0.0.274.0
 

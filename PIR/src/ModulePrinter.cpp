@@ -91,6 +91,9 @@ namespace pcit::pir{
 
 					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
 						this->print_meta_struct_type(this->get_module().getMetaStructType(item_id));
+
+					}else if constexpr(std::is_same<ItemType, meta::Function::ID>()){
+						this->print_meta_function(this->get_module().getMetaFunction(item_id));
 						
 					}else{
 						static_assert(false, "Unknown meta ID");
@@ -109,7 +112,7 @@ namespace pcit::pir{
 		Linkage linkage;
 		Type returnType;
 		bool isNoReturn;
-		const std::optional<FunctionDebugInfo>& debugInfo;
+		std::optional<meta::Function::ID> meta_id;
 	};
 
 	auto ModulePrinter::print_function_decl_impl(const FuncDeclRef& func_decl) -> void {
@@ -134,10 +137,6 @@ namespace pcit::pir{
 			this->printer.print("${}", param.getName());
 			this->printer.printRed(": ");
 			this->printType(param.getType());
-
-			if(func_decl.debugInfo.has_value()){
-				this->print_meta_type_id(func_decl.debugInfo->paramMetaTypes[i]);
-			}
 
 			for(const pir::Parameter::Attribute& attribute_variant : param.attributes){
 				attribute_variant.visit([&](const auto& attribute) -> void {
@@ -191,26 +190,12 @@ namespace pcit::pir{
 			this->printer.printRed("#noReturn ");
 		}
 
-		if(func_decl.debugInfo.has_value()){
-			this->printer.printRed("#unmangledName");
-			this->printer.print("(");
-			this->printer.printYellow("\"{}\"", func_decl.debugInfo->unmangledName);
-			this->printer.print(") ");
-
-			this->printer.printRed("#location");
-			this->printer.print("(");
-			this->print_meta_scope(func_decl.debugInfo->scopeWhereDefined);
-			this->printer.print(", ");
-			this->printer.printMagenta(std::to_string(func_decl.debugInfo->lineNumber));
-			this->printer.print(") ");
+		if(func_decl.meta_id.has_value()){
+			this->printer.print("!{} ", this->reader.getModule().getMetaFunction(*func_decl.meta_id).itemID.get());
 		}
 
 		this->printer.printRed("-> ");
 		this->printType(func_decl.returnType);
-
-		if(func_decl.debugInfo.has_value() && func_decl.debugInfo->returnMetaType.has_value()){
-			this->print_meta_type_id(*func_decl.debugInfo->returnMetaType);
-		}
 	}
 
 
@@ -225,7 +210,7 @@ namespace pcit::pir{
 				function.getLinkage(),
 				function.getReturnType(),
 				function.getIsNoReturn(),
-				function.getDebugInfo()
+				function.getMetaID()
 			)
 		);
 		
@@ -263,7 +248,7 @@ namespace pcit::pir{
 				function_decl.linkage,
 				function_decl.returnType,
 				function_decl.isNoReturn,
-				function_decl.debugInfo
+				function_decl.metaID
 			)
 		);
 		this->printer.println();
@@ -2135,10 +2120,65 @@ namespace pcit::pir{
 		this->printer.printRed(": ");
 		this->printer.print("[");
 		for(size_t i = 0; const meta::StructType::Member& member : struct_type.members){
-			this->printer.printYellow("\"{}\"", member.name);
+			this->printer.printYellow("\"{}\" ", member.name);
 			this->print_meta_type_id(member.type);
 
 			if(i + 1 < struct_type.members.size()){
+				this->printer.print(", ");
+			}
+			
+			i += 1;
+		}
+		this->printer.print("]");
+
+		this->printer.println("}");
+	}
+
+
+	auto ModulePrinter::print_meta_function(const meta::Function& function) -> void {
+		this->printer.printCyan("meta ");
+		this->printer.printGreen("!{}", function.itemID.get());
+		this->printer.printRed(" = ");
+		this->printer.printCyan("func ");
+
+		this->printer.print("{");
+
+		this->printer.print("unmangledName");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", function.unmangledName);
+		this->printer.print(", ");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(function.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(function.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(function.lineNumber));
+		this->printer.print(", ");
+
+		this->printer.print("return");
+		this->printer.printRed(": ");
+		if(function.returnMetaType.has_value()){
+			this->print_meta_type_id(*function.returnMetaType);
+		}else{
+			this->printer.printCyan("Void");
+		}
+		this->printer.print(", ");
+
+		this->printer.print("params");
+		this->printer.printRed(": ");
+		this->printer.print("[");
+		for(size_t i = 0; const meta::Type& param_type : function.paramMetaTypes){
+			this->print_meta_type_id(param_type);
+
+			if(i + 1 < function.paramMetaTypes.size()){
 				this->printer.print(", ");
 			}
 			
@@ -2155,13 +2195,13 @@ namespace pcit::pir{
 			using MetaIDType = std::decay_t<decltype(id)>;
 
 			if constexpr(std::is_same<MetaIDType, meta::BasicType::ID>()){
-				this->printer.print(" !{}", this->reader.getModule().getMetaBasicType(id).itemID.get());
+				this->printer.print("!{}", this->reader.getModule().getMetaBasicType(id).itemID.get());
 
 			}else if constexpr(std::is_same<MetaIDType, meta::QualifiedType::ID>()){
-				this->printer.print(" !{}", this->reader.getModule().getMetaQualifiedType(id).itemID.get());
+				this->printer.print("!{}", this->reader.getModule().getMetaQualifiedType(id).itemID.get());
 
 			}else if constexpr(std::is_same<MetaIDType, meta::StructType::ID>()){
-				this->printer.print(" !{}", this->reader.getModule().getMetaStructType(id).itemID.get());
+				this->printer.print("!{}", this->reader.getModule().getMetaStructType(id).itemID.get());
 				
 			}else{
 				static_assert(false, "unknown meta type");
@@ -2182,15 +2222,8 @@ namespace pcit::pir{
 		source_location->scope.visit([&](const auto& id) -> void {
 			using IDType = std::decay_t<decltype(id)>;
 
-			if constexpr(std::is_same<IDType, Function::ID>()){
-				const std::string_view name = this->get_module().getFunction(id).getName();
-				if(isStandardName(name)){
-					this->printer.print("(&{}, ", name);
-				}else{
-					this->printer.print("(&");
-					this->print_non_standard_name(name, false);
-					this->printer.print(", ");
-				}
+			if constexpr(std::is_same<IDType, meta::Function::ID>()){
+				this->printer.print("(!{}, ", this->get_module().getMetaFunction(id).itemID.get());
 				
 			// }else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
 				// this->printer.print("(!{}, ", id.get());
@@ -2211,14 +2244,8 @@ namespace pcit::pir{
 		scope.visit([&](const auto& id) -> void {
 			using IDType = std::decay_t<decltype(id)>;
 		
-			if constexpr(std::is_same<IDType, Function::ID>()){
-				const std::string_view name = this->get_module().getFunction(id).getName();
-				if(isStandardName(name)){
-					this->printer.print("&{}", name);
-				}else{
-					this->printer.print("&");
-					this->print_non_standard_name(name, false);
-				}
+			if constexpr(std::is_same<IDType, meta::Function::ID>()){
+				this->printer.print("!{}", this->get_module().getMetaFunction(id).itemID.get());
 		
 			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
 				this->print_meta_file_id(id);

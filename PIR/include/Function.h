@@ -20,6 +20,7 @@
 #include "./Expr.h"
 #include "./meta.h"
 
+
 namespace pcit::pir{
 
 	class Parameter{
@@ -88,15 +89,6 @@ namespace pcit::pir{
 	};
 
 
-	struct FunctionDebugInfo{
-		std::string unmangledName;
-		meta::File::ID fileID;
-		meta::Scope scopeWhereDefined;
-		uint32_t lineNumber;
-		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
-		evo::SmallVector<meta::Type> paramMetaTypes;
-	};
-
 
 	// Create through Module
 	struct ExternalFunction{
@@ -106,8 +98,7 @@ namespace pcit::pir{
 		Linkage linkage;
 		Type returnType;
 		bool isNoReturn;
-		std::optional<FunctionDebugInfo> debugInfo;
-
+		std::optional<meta::Function::ID> metaID;
 
 		// for lookup in Module
 		using ID = ExternalFunctionID;
@@ -145,9 +136,7 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto getIsNoReturn() const -> bool { return this->func_decl.isNoReturn; }
 
-			EVO_NODISCARD auto getDebugInfo() const -> const std::optional<FunctionDebugInfo>& {
-				return this->func_decl.debugInfo;
-			}
+			EVO_NODISCARD auto getMetaID() const -> std::optional<meta::Function::ID> { return this->func_decl.metaID; }
 
 			EVO_NODISCARD auto getParentModule() const -> const Module& { return this->parent_module; }
 			EVO_NODISCARD auto getParentModule()       ->       Module& { return this->parent_module; }

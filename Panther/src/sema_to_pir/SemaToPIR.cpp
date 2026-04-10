@@ -524,22 +524,21 @@ namespace pcit::panther{
 
 
 
-		auto debug_info = std::optional<pir::FunctionDebugInfo>();
-		if(this->data.config.includeDebugInfo){
-			const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
-
-			debug_info = pir::FunctionDebugInfo{
-				.unmangledName     = this->get_unmangled_func_name(func),
-				.fileID            = location.meta_file_id,
-				.scopeWhereDefined = location.meta_file_id, // TODO(FUTURE): get proper scope
-				.lineNumber        = location.line_number,
-				.returnMetaType    = return_meta_type,
-				.paramMetaTypes    = std::move(meta_params),
-			};
-		}
-
-
 		if(func.hasInParam == false){
+			auto meta_id = std::optional<pir::meta::Function::ID>();
+			if(this->data.config.includeDebugInfo){
+				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+				meta_id = this->module.getMetaItem(this->module.createMetaFunction(
+					this->get_unmangled_func_name(func),
+					location.meta_file_id,
+					location.meta_file_id, // TODO(FUTURE): get proper scope
+					location.line_number,
+					return_meta_type,
+					std::move(meta_params)
+				)).as<pir::meta::Function::ID>();
+			}
+
 			if(func.isClangFunc()){
 				std::string mangled_name = this->mangle_name(func_id);
 
@@ -551,7 +550,7 @@ namespace pcit::panther{
 						linkage,
 						return_type,
 						func.attributes.isNoReturn,
-						std::move(debug_info)
+						meta_id
 					);
 
 					pir_funcs.emplace_back(created_external_func_id);
@@ -579,7 +578,7 @@ namespace pcit::panther{
 					linkage,
 					return_type,
 					func.attributes.isNoReturn,
-					std::move(debug_info)
+					meta_id
 				);
 
 				pir_funcs.emplace_back(new_func_id);
@@ -630,6 +629,20 @@ namespace pcit::panther{
 					name += std::to_string(i);
 				}
 
+				auto meta_id = std::optional<pir::meta::Function::ID>();
+				if(this->data.config.includeDebugInfo){
+					const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+					meta_id = this->module.getMetaItem(this->module.createMetaFunction(
+						this->get_unmangled_func_name(func),
+						location.meta_file_id,
+						location.meta_file_id, // TODO(FUTURE): get proper scope
+						location.line_number,
+						return_meta_type,
+						std::move(meta_params)
+					)).as<pir::meta::Function::ID>();
+				}
+
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(name),
 					evo::copy(params),
@@ -637,7 +650,7 @@ namespace pcit::panther{
 					linkage,
 					return_type,
 					func.attributes.isNoReturn,
-					std::move(debug_info)
+					meta_id
 				);
 
 				this->agent.setTargetFunction(new_func_id);
@@ -1019,8 +1032,33 @@ namespace pcit::panther{
 	auto SemaToPIR::createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
 		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
 
+		// auto debug_info = std::optional<pir::FunctionDebugInfo>();
+		// if(this->data.config.includeDebugInfo){
+		// 	const pir::Function& entry_func =
+		// 		this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
 
-		const pir::Function::ID entry_func_id = this->module.createFunction(
+		// 	debug_info = pir::FunctionDebugInfo{
+		// 		.unmangledName = "main",
+		// 		.fileID = entry_func.getDebugInfo()->fileID,
+		// 		.scopeWhereDefined = entry_func.getDebugInfo()->scopeWhereDefined,
+		// 		.lineNumber = 0,
+		// 		.returnMetaType = this->module.getMetaItem(this->module.createMetaBasicType("int", this->module.createSignedType(32))).as<pir::meta::BasicType::ID>(),
+		// 		.paramMetaTypes = evo::SmallVector<pir::meta::Type>{
+		// 			this->module.getMetaItem(this->module.createMetaBasicType("int", this->module.createSignedType(32))).as<pir::meta::BasicType::ID>(),
+		// 			this->module.getMetaItem(this->module.createMetaQualifiedType(
+		// 				"const char*[]",
+		// 				this->module.getMetaItem(this->module.createMetaQualifiedType(
+		// 					"const char*",
+		// 					this->module.getMetaItem(this->module.createMetaBasicType("char", this->module.createSignedType(8))).as<pir::meta::BasicType::ID>(),
+		// 					pir::meta::QualifiedType::Qualifier::POINTER
+		// 				)).as<pir::meta::QualifiedType::ID>(),
+		// 				pir::meta::QualifiedType::Qualifier::MUT_POINTER 
+		// 			)).as<pir::meta::QualifiedType::ID>()
+		// 		}
+		// 	};
+		// }
+
+		const pir::Function::ID main_func_id = this->module.createFunction(
 			"main",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("argc", this->module.createSignedType(32)),
@@ -1028,19 +1066,23 @@ namespace pcit::panther{
 			},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
-			this->module.createSignedType(32)
+			this->module.createSignedType(32),
+			false
 		);
 
-		pir::Function& entry_func = this->module.getFunction(entry_func_id);
+		pir::Function& main_func = this->module.getFunction(main_func_id);
 
-		this->agent.setTargetFunction(entry_func);
+		this->agent.setTargetFunction(main_func);
 
 		this->agent.createBasicBlock();
 		this->agent.setTargetBasicBlockAtEnd();
 
 
 		const pir::Expr entry_call = this->agent.createCall(
-			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {}
+			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(),
+			{}/*,
+			"",
+			pir::meta::SourceLocation(main_func_id, 0, 0)*/
 		);
 
 		const pir::Expr entry_call_conv = this->agent.createBitCast(entry_call, this->module.createSignedType(8));
@@ -1048,7 +1090,7 @@ namespace pcit::panther{
 
 		this->agent.createRet(sext);
 
-		return entry_func_id;
+		return main_func_id;
 	}
 
 
@@ -11173,8 +11215,7 @@ namespace pcit::panther{
 			const auto find = this->data.optional_types.find(&type_info);
 			if(find != this->data.optional_types.end()){
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of optional (not pointer)");
+					return PIRType(find->second, *this->module.lookupMetaStructType(find->second));
 
 				}else{
 					return PIRType(find->second, std::nullopt);
@@ -11971,7 +12012,9 @@ namespace pcit::panther{
 	}
 
 	auto SemaToPIR::get_current_meta_local_scope() const -> pir::meta::LocalScope {
-		return this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>();
+		return *this->module.getFunction(
+			this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>()
+		).getMetaID();
 	}
 
 
