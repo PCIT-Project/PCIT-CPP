@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.276.1"></a>
+## v0.0.276.1
+
+### Panther
+- Fixed lwering metadata of functions with `in` paramters
+- Fixed missing metadata on automatic returns
+
+
+<!---------------------------------->
 <a name="v0.0.276.0"></a>
 ## v0.0.276.0
 

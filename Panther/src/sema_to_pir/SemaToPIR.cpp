@@ -639,7 +639,7 @@ namespace pcit::panther{
 						location.meta_file_id, // TODO(FUTURE): get proper scope
 						location.line_number,
 						return_meta_type,
-						std::move(meta_params)
+						evo::copy(meta_params)
 					)).as<pir::meta::Function::ID>();
 				}
 
@@ -808,11 +808,21 @@ namespace pcit::panther{
 			if(stmt_block.isTerminated() == false){
 				if(this->current_func_type->returnsVoid()){
 					this->output_defers_for_scope_level<DeferTarget::RETURN>(this->scope_levels.back());
-					
+
+					auto source_location = std::optional<pir::meta::SourceLocation>();
+					if(this->data.config.includeDebugInfo){
+						const Location location =
+							this->get_location(Diagnostic::Location::get(sema_func, this->context));
+
+						source_location = pir::meta::SourceLocation(
+							this->get_current_meta_local_scope(), location.line_number, location.collumn_number
+						);
+					}
+
 					if(this->current_func_type->hasErrorReturn()){
-						this->agent.createRet(this->agent.createBoolean(false));
+						this->agent.createRet(this->agent.createBoolean(false), source_location);
 					}else{
-						this->agent.createRet();
+						this->agent.createRet(std::nullopt, source_location);
 					}
 					
 				}else{
