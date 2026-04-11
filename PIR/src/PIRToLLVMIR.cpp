@@ -1956,32 +1956,6 @@ namespace pcit::pir{
 
 						this->stmt_values.emplace(stmt, output_value);
 					} break;
-
-					case Expr::Kind::LIFETIME_START: {
-						const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
-
-						this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::LIFETIME_START,
-							this->builder.getTypeVoid(),
-							std::initializer_list<llvmint::Value>{
-								static_cast<llvmint::Value>(this->builder.getValueI64(lifetime_start.size)),
-								this->get_value<ADD_WEAK_DEPS>(lifetime_start.arg)
-							}
-						);
-					} break;
-
-					case Expr::Kind::LIFETIME_END: {
-						const LifetimeEnd& lifetime_end = this->reader.getLifetimeEnd(stmt);
-
-						this->builder.createIntrinsicCall(
-							llvmint::IRBuilder::IntrinsicID::LIFETIME_END,
-							this->builder.getTypeVoid(),
-							std::initializer_list<llvmint::Value>{
-								static_cast<llvmint::Value>(this->builder.getValueI64(lifetime_end.size)),
-								this->get_value<ADD_WEAK_DEPS>(lifetime_end.arg)
-							}
-						);
-					} break;
 				}
 			}
 		}
@@ -2318,18 +2292,14 @@ namespace pcit::pir{
 			case Expr::Kind::CTLZ:           return this->stmt_values.at(expr);
 			case Expr::Kind::CTTZ:           return this->stmt_values.at(expr);
 
-			case Expr::Kind::CMPXCHG: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::CMPXCHG:        evo::debugFatalBreak("Not a value");
 			case Expr::Kind::CMPXCHG_LOADED: {
 				return this->stmt_values.at(this->reader.extractCmpXchgLoaded(expr));
 			} break;
 			case Expr::Kind::CMPXCHG_SUCCEEDED: {
 				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
 			} break;
-
 			case Expr::Kind::ATOMIC_RMW:     return this->stmt_values.at(expr);
-
-			case Expr::Kind::LIFETIME_START: evo::debugFatalBreak("Not a value");
-			case Expr::Kind::LIFETIME_END:   evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

@@ -959,12 +959,6 @@ namespace pcit::pir{
 				const AtomicRMW& atomic_rmw = this->reader.getAtomicRMW(expr);
 				this->printer.print("${}", atomic_rmw.name);
 			} break;
-
-			case Expr::Kind::LIFETIME_START:
-				evo::debugFatalBreak("Expr::Kind::LIFETIME_START is not a valid expression");
-
-			case Expr::Kind::LIFETIME_END:
-				evo::debugFatalBreak("Expr::Kind::LIFETIME_END is not a valid expression");
 		}
 	}
 
@@ -2004,26 +1998,6 @@ namespace pcit::pir{
 				this->print_atomic_ordering(atomic_rmw.ordering);
 
 				this->printer.println();
-			} break;
-
-			case Expr::Kind::LIFETIME_START: {
-				const LifetimeStart& lifetime_start = this->reader.getLifetimeStart(stmt);
-
-				this->printer.print(tabs(2));
-				this->printer.printRed("@meta.lifetimeStart ");
-				this->print_expr(lifetime_start.arg);
-				this->printer.print(", ");
-				this->printer.printMagenta("{}\n", lifetime_start.size);
-			} break;
-
-			case Expr::Kind::LIFETIME_END: {
-				const LifetimeEnd& lifetime_end = this->reader.getLifetimeEnd(stmt);
-
-				this->printer.print(tabs(2));
-				this->printer.printRed("@meta.lifetimeEnd ");
-				this->print_expr(lifetime_end.arg);
-				this->printer.print(", ");
-				this->printer.printMagenta("{}\n", lifetime_end.size);
 			} break;
 		}
 	}

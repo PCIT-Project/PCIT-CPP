@@ -155,8 +155,6 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_LOADED:    return this->getExprType(this->getCmpXchg(expr).expected);
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return this->module.createBoolType();
 			case Expr::Kind::ATOMIC_RMW:        return this->getExprType(this->getAtomicRMW(expr).value);
-			case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Not a value");
-			case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported expr");
@@ -899,20 +897,6 @@ namespace pcit::pir{
 		return this->module.atomic_rmws[expr.index];
 	}
 
-
-	auto ReaderAgent::getLifetimeStart(Expr expr) const -> const LifetimeStart& {
-		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.kind() == Expr::Kind::LIFETIME_START, "Not a lifetime start");
-
-		return this->module.lifetime_starts[expr.index];
-	}
-
-	auto ReaderAgent::getLifetimeEnd(Expr expr) const -> const LifetimeEnd& {
-		evo::debugAssert(this->hasTargetFunction(), "No target function set");
-		evo::debugAssert(expr.kind() == Expr::Kind::LIFETIME_END, "Not a lifetime end");
-
-		return this->module.lifetime_ends[expr.index];
-	}
 
 
 }

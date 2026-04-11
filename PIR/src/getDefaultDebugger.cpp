@@ -869,9 +869,6 @@ namespace pcit::pir{
 				case Expr::Kind::CMPXCHG_LOADED:    return std::string_view(reader.getCmpXchg(expr).loadedName);
 				case Expr::Kind::CMPXCHG_SUCCEEDED: return std::string_view(reader.getCmpXchg(expr).succeededName);
 				case Expr::Kind::ATOMIC_RMW:        return std::string_view(reader.getAtomicRMW(expr).name);
-
-				case Expr::Kind::LIFETIME_START:    return evo::resultError;
-				case Expr::Kind::LIFETIME_END:      return evo::resultError;
 			}
 
 			evo::debugFatalBreak("Unknown expr kind");

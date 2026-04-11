@@ -742,18 +742,6 @@ namespace pcit::pir{
 						if(atomic_rmw.target == original){ atomic_rmw.target = replacement; }
 						if(atomic_rmw.value == original){ atomic_rmw.value = replacement; }
 					} break;
-
-					case Expr::Kind::LIFETIME_START: {
-						LifetimeStart& lifetime_start = this->module.lifetime_starts[stmt.index];
-
-						if(lifetime_start.arg == original){ lifetime_start.arg = replacement; }
-					} break;
-
-					case Expr::Kind::LIFETIME_END: {
-						LifetimeEnd& lifetime_end = this->module.lifetime_ends[stmt.index];
-
-						if(lifetime_end.arg == original){ lifetime_end.arg = replacement; }
-					} break;
 				}
 			}
 		}
@@ -3561,48 +3549,6 @@ namespace pcit::pir{
 
 
 
-	//////////////////////////////////////////////////////////////////////
-	// optimizations
-
-	auto Agent::createLifetimeStart(Expr expr, uint64_t size) const -> Expr {
-		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(
-			expr.kind() == Expr::Kind::ALLOCA
-				|| (expr.kind() == Expr::Kind::PARAM_EXPR && this->getExprType(expr).kind() == Type::Kind::PTR), 
-			"Expr must be an alloca or ptr param"
-		);
-
-		const auto new_expr = Expr(Expr::Kind::LIFETIME_START, this->module.lifetime_starts.emplace_back(expr, size));
-		this->insert_stmt(new_expr);
-		return new_expr;
-	}
-
-	auto Agent::getLifetimeStart(Expr expr) const -> const LifetimeStart& {
-		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeStart(expr);
-	}
-
-
-	auto Agent::createLifetimeEnd(Expr expr, uint64_t size) const -> Expr {
-		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(
-			expr.kind() == Expr::Kind::ALLOCA
-				|| (expr.kind() == Expr::Kind::PARAM_EXPR && this->getExprType(expr).kind() == Type::Kind::PTR), 
-			"Expr must be an alloca or ptr param"
-		);
-
-		const auto new_expr = Expr(Expr::Kind::LIFETIME_END, this->module.lifetime_ends.emplace_back(expr, size));
-		this->insert_stmt(new_expr);
-		return new_expr;
-	}
-
-	auto Agent::getLifetimeEnd(Expr expr) const -> const LifetimeEnd& {
-		return ReaderAgent(this->module, this->getTargetFunction()).getLifetimeEnd(expr);
-	}
-
-
-
-
-
 
 	//////////////////////////////////////////////////////////////////////
 	// internal
@@ -3728,8 +3674,6 @@ namespace pcit::pir{
 			break; case Expr::Kind::CMPXCHG_LOADED:    return;
 			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
 			break; case Expr::Kind::ATOMIC_RMW:        this->module.atomic_rmws.erase(expr.index);
-			break; case Expr::Kind::LIFETIME_START:    this->module.lifetime_starts.erase(expr.index);
-			break; case Expr::Kind::LIFETIME_END:      this->module.lifetime_ends.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -3895,8 +3839,6 @@ namespace pcit::pir{
 					case Expr::Kind::CMPXCHG_LOADED:    continue;
 					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
 					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){  return true; } continue;
-					case Expr::Kind::LIFETIME_START:    continue;
-					case Expr::Kind::LIFETIME_END:      continue;
 				}
 			}
 		}

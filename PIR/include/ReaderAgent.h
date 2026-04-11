@@ -157,9 +157,6 @@ namespace pcit::pir{
 			EVO_NODISCARD static auto extractCmpXchgSucceeded(Expr) -> Expr;
 			EVO_NODISCARD auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
-			EVO_NODISCARD auto getLifetimeStart(Expr expr) const -> const LifetimeStart&;
-			EVO_NODISCARD auto getLifetimeEnd(Expr expr) const -> const LifetimeEnd&;
-			
 
 		private:
 			const Module& module;

@@ -813,15 +813,6 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
 
-			//////////////////////////////////////////////////////////////////////
-			// optimizations
-
-			auto createLifetimeStart(Expr expr, uint64_t size) const -> Expr;
-			EVO_NODISCARD auto getLifetimeStart(Expr expr) const -> const LifetimeStart&;
-
-			auto createLifetimeEnd(Expr expr, uint64_t size) const -> Expr;
-			EVO_NODISCARD auto getLifetimeEnd(Expr expr) const -> const LifetimeEnd&;
-
 
 		private:
 			auto insert_stmt(Expr stmt) const -> void;

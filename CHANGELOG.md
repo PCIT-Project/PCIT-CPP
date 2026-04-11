@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.276.0"></a>
+## v0.0.276.0
+
+### PIR
+- Removed instructions `@meta.lifetimeStart` and `@meta.lifetimeEnd`
+
+
+<!---------------------------------->
 <a name="v0.0.275.0"></a>
 ## v0.0.275.0
 

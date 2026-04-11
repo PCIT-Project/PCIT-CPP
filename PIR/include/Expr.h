@@ -140,9 +140,6 @@ namespace pcit::pir{
 				CMPXCHG_LOADED,
 				CMPXCHG_SUCCEEDED,
 				ATOMIC_RMW,
-
-				LIFETIME_START,
-				LIFETIME_END,
 			};
 
 		public:
@@ -228,7 +225,7 @@ namespace pcit::pir{
 					case Kind::USHL_SAT:    case Kind::SSHR:           case Kind::USHR:
 					case Kind::BIT_REVERSE: case Kind::BYTE_SWAP:      case Kind::CTPOP:
 					case Kind::CTLZ:        case Kind::CTTZ:           case Kind::CMPXCHG:
-					case Kind::ATOMIC_RMW:  case Kind::LIFETIME_START: case Kind::LIFETIME_END: {
+					case Kind::ATOMIC_RMW:  {
 						return true;
 					} break;
 					default: return false;
@@ -964,19 +961,6 @@ namespace pcit::pir{
 		AtomicOrdering ordering;
 	};
 
-
-	//////////////////////////////////////////////////////////////////////
-	// optimizations
-
-	struct LifetimeStart{
-		Expr arg;
-		uint64_t size;
-	};
-
-	struct LifetimeEnd{
-		Expr arg;
-		uint64_t size;
-	};
 
 }
 

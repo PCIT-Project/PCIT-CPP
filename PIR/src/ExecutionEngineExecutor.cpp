@@ -2192,15 +2192,6 @@ namespace pcit::pir{
 					} break;
 				}
 			} break;
-
-			case Expr::Kind::LIFETIME_START: {
-				// do nothing...
-			} break;
-
-			case Expr::Kind::LIFETIME_END: {
-				// do nothing...
-			} break;
-
 		}
 
 		stack_frame.instruction_index += 1;

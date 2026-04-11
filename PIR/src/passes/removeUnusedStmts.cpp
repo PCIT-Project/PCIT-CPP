@@ -146,8 +146,6 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
 					break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
 					break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
-					break; case Expr::Kind::LIFETIME_START:    evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::LIFETIME_END:      evo::debugFatalBreak("Should never see this expr kind");
 				}
 			};
 
@@ -1037,9 +1035,6 @@ namespace pcit::pir::passes{
 
 					return false;
 				} break;
-
-				case Expr::Kind::LIFETIME_START:    return false;
-				case Expr::Kind::LIFETIME_END:      return false;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));

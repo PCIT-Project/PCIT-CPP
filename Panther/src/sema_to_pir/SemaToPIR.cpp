@@ -2703,9 +2703,6 @@ namespace pcit::panther{
 						default: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 
-							// this->agent.createLifetimeStart(
-							// 	pir_target_expr, this->context.getTypeManager().numBytes(lifetime_start.typeID)
-							// );
 							this->get_current_scope_level().value_states[pir_target_expr] = true;
 						} break;
 					}
@@ -2714,7 +2711,6 @@ namespace pcit::panther{
 						OpDeleteThisAccessor(lifetime_start.target.as<sema::OpDeleteThisAccessor>().abiIndex)
 					] = true;
 				}
-				
 			} break;
 
 			case sema::Stmt::Kind::LIFETIME_END: {
@@ -2743,9 +2739,6 @@ namespace pcit::panther{
 						default: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 
-							// this->agent.createLifetimeStart(
-							// 	pir_target_expr, this->context.getTypeManager().numBytes(lifetime_end.typeID)
-							// );
 							this->get_current_scope_level().value_states[pir_target_expr] = false;
 						} break;
 					}
@@ -13196,15 +13189,6 @@ namespace pcit::panther{
 
 								if constexpr(std::is_same<ExprType, pir::Expr>()){
 									this->delete_expr(expr, item.typeID);
-
-									// if(
-									// 	expr.kind() == pir::Expr::Kind::ALLOCA
-									// 	|| expr.kind() == pir::Expr::Kind::PARAM_EXPR
-									// ){
-									// 	this->agent.createLifetimeEnd(
-									// 		expr, this->context.getTypeManager().numBytes(item.typeID)
-									// 	);
-									// }
 
 								}else if constexpr(std::is_same<ExprType, ManagedLifetimeErrorParam>()){
 									if(this->context.getTypeManager().isTriviallyDeletable(item.typeID)){ return; }
