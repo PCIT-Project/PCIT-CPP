@@ -21,30 +21,23 @@ namespace pcit::pir{
 	
 	auto PIRToLLVMIR::lower() -> void {
 		if(this->add_debug_info){
-			for(const meta::Item& meta_item : this->module.getMetaItemIter()){
-				meta_item.visit([&](const auto& item_id) -> void {
-					using ItemType = std::decay_t<decltype(item_id)>;
-
-					if constexpr(std::is_same<ItemType, meta::File::ID>()){
-						this->lower_meta_file(item_id);
-
-					}else if constexpr(std::is_same<ItemType, meta::BasicType::ID>()){
-						this->lower_meta_basic_type(item_id);
-
-					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
-						this->lower_meta_qualified_type(item_id);
-
-					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
-						this->lower_meta_struct_type(item_id);
-
-					}else if constexpr(std::is_same<ItemType, meta::Function::ID>()){
-						// lowered later
-						
-					}else{
-						static_assert(false, "Unknown meta ID");
-					}
-				});
+			for(uint32_t i = 0; i < this->module.getMetaFileIter().size(); i += 1){
+				this->lower_meta_file(meta::File::ID(i));
 			}
+
+			for(uint32_t i = 0; i < this->module.getMetaBasicTypeIter().size(); i += 1){
+				this->lower_meta_basic_type(meta::BasicType::ID(i));
+			}
+
+			for(uint32_t i = 0; i < this->module.getMetaQualifiedTypeIter().size(); i += 1){
+				this->lower_meta_qualified_type(meta::QualifiedType::ID(i));
+			}
+
+			for(uint32_t i = 0; i < this->module.getMetaStructTypeIter().size(); i += 1){
+				this->lower_meta_struct_type(meta::StructType::ID(i));
+			}
+
+			// functions are done with the corresponding declaration
 		}
 
 		for(const StructType& struct_type : this->module.getStructTypeIter()){
@@ -126,7 +119,7 @@ namespace pcit::pir{
 
 				case Type::Kind::UNSIGNED: {
 					return this->di_builder.createBasicType(
-						meta_basic_type.name,
+						meta_basic_type.typeName,
 						meta_basic_type.underlyingType.getWidth(),
 						llvmint::DIBuilder::BasicTypeKind::UNSIGNED_INT
 					);
@@ -134,7 +127,7 @@ namespace pcit::pir{
 
 				case Type::Kind::SIGNED: {
 					return this->di_builder.createBasicType(
-						meta_basic_type.name,
+						meta_basic_type.typeName,
 						meta_basic_type.underlyingType.getWidth(),
 						llvmint::DIBuilder::BasicTypeKind::SIGNED_INT
 					);
@@ -142,13 +135,13 @@ namespace pcit::pir{
 
 				case Type::Kind::BOOL: {
 					return this->di_builder.createBasicType(
-						meta_basic_type.name, 8, llvmint::DIBuilder::BasicTypeKind::BOOL
+						meta_basic_type.typeName, 8, llvmint::DIBuilder::BasicTypeKind::BOOL
 					);
 				} break;
 
 				case Type::Kind::FLOAT: {
 					return this->di_builder.createBasicType(
-						meta_basic_type.name,
+						meta_basic_type.typeName,
 						meta_basic_type.underlyingType.getWidth(),
 						llvmint::DIBuilder::BasicTypeKind::FLOAT
 					);
@@ -180,12 +173,14 @@ namespace pcit::pir{
 					return this->di_builder.createPointerType(
 						this->di_builder.createConstType(qualee_type).asType(),
 						pointer_num_bits,
-						meta_qualified_type.name
+						meta_qualified_type.typeName
 					);
 				} break;
 
 				case meta::QualifiedType::Qualifier::MUT_POINTER: {
-					return this->di_builder.createPointerType(qualee_type, pointer_num_bits, meta_qualified_type.name);
+					return this->di_builder.createPointerType(
+						qualee_type, pointer_num_bits, meta_qualified_type.typeName
+					);
 				} break;
 			}
 
@@ -239,7 +234,7 @@ namespace pcit::pir{
 
 		const llvmint::DIBuilder::CompositeType composite_type = this->di_builder.createClassType(
 			scope_where_defined,
-			meta_struct_type.name,
+			meta_struct_type.typeName,
 			file,
 			meta_struct_type.lineNumber,
 			member_offset_bits,

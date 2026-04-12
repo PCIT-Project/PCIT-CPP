@@ -34,7 +34,7 @@ namespace pcit::pir::meta{
 	struct File{
 		using ID = FileID;
 
-		ItemID itemID;
+		std::string metaName;
 		std::string path;
 		Language language;
 		std::string producerName;
@@ -44,8 +44,8 @@ namespace pcit::pir::meta{
 	struct BasicType{
 		using ID = BasicTypeID;
 
-		ItemID itemID;
-		std::string name;
+		std::string metaName;
+		std::string typeName;
 		pir::Type underlyingType;
 	};
 
@@ -58,8 +58,8 @@ namespace pcit::pir::meta{
 			MUT_POINTER,
 		};
 
-		ItemID itemID;
-		std::string name;
+		std::string metaName;
+		std::string typeName;
 		meta::Type qualeeType;
 		Qualifier qualifier;
 	};
@@ -73,9 +73,9 @@ namespace pcit::pir::meta{
 			std::string name;
 		};
 
-		ItemID itemID;
 		pir::Type structType;
-		std::string name;
+		std::string metaName;
+		std::string typeName;
 		meta::FileID fileID;
 		meta::Scope scopeWhereDefined;
 		uint32_t lineNumber;
@@ -86,7 +86,7 @@ namespace pcit::pir::meta{
 	struct Function{
 		using ID = FunctionID;
 
-		ItemID itemID;
+		std::string metaName;
 		std::string unmangledName;
 		meta::File::ID fileID;
 		meta::Scope scopeWhereDefined;

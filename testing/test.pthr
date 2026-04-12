@@ -1,4 +1,9 @@
-func discard = (val: $$ in) -> Void {
+type Struct = struct {
+	var foo: Int;
+	var bar: Int;
+}
+
+func discard = (val: $$ read) -> Void {
 	
 }
 
@@ -7,7 +12,8 @@ func entry = () #entry -> UI8 {
 	var foo: Int = 12;
 
 	discard(copy foo);
-	discard(move foo);
+	discard(&foo);
+	discard(new Struct{foo = 12, bar = 14});
 
 	
 	return 0;

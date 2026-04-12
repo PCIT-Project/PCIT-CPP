@@ -474,8 +474,9 @@ namespace pcit::panther{
 			if(this->data.config.includeDebugInfo){
 				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
 
-				const pir::meta::ItemID item_id = this->module.createMetaStructType(
+				const pir::meta::StructType::ID struct_type_id = this->module.createMetaStructType(
 					*error_return_type,
+					this->mangle_name(func_id) + ".ERR",
 					this->mangle_name(func_id) + ".ERR",
 					location.meta_file_id,
 					location.meta_file_id, // TODO(FUTURE): get proper scope
@@ -483,7 +484,7 @@ namespace pcit::panther{
 					std::move(debug_members)
 				);
 
-				meta_params.emplace_back(this->module.getMetaItem(item_id).as<pir::meta::StructType::ID>());
+				meta_params.emplace_back(struct_type_id);
 			}
 		}
 
@@ -524,24 +525,25 @@ namespace pcit::panther{
 
 
 
+		std::string mangled_name = this->mangle_name(func_id);
+
 		if(func.hasInParam == false){
 			auto meta_id = std::optional<pir::meta::Function::ID>();
 			if(this->data.config.includeDebugInfo){
 				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
 
-				meta_id = this->module.getMetaItem(this->module.createMetaFunction(
+				meta_id = this->module.createMetaFunction(
+					evo::copy(mangled_name),
 					this->get_unmangled_func_name(func),
 					location.meta_file_id,
 					location.meta_file_id, // TODO(FUTURE): get proper scope
 					location.line_number,
 					return_meta_type,
 					std::move(meta_params)
-				)).as<pir::meta::Function::ID>();
+				);
 			}
 
 			if(func.isClangFunc()){
-				std::string mangled_name = this->mangle_name(func_id);
-
 				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
 					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
 						std::move(mangled_name),
@@ -572,7 +574,7 @@ namespace pcit::panther{
 				
 			}else{
 				const pir::Function::ID new_func_id = this->module.createFunction(
-					this->mangle_name(func_id),
+					std::move(mangled_name),
 					std::move(params),
 					calling_conv,
 					linkage,
@@ -617,7 +619,7 @@ namespace pcit::panther{
 					continue;
 				}
 
-				std::string name = this->mangle_name(func_id);
+				std::string name = mangled_name;
 
 				if(this->data.getConfig().useReadableNames){
 					name += ".in_";
@@ -633,14 +635,15 @@ namespace pcit::panther{
 				if(this->data.config.includeDebugInfo){
 					const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
 
-					meta_id = this->module.getMetaItem(this->module.createMetaFunction(
+					meta_id = this->module.createMetaFunction(
+						evo::copy(name),
 						this->get_unmangled_func_name(func),
 						location.meta_file_id,
 						location.meta_file_id, // TODO(FUTURE): get proper scope
 						location.line_number,
 						return_meta_type,
 						evo::copy(meta_params)
-					)).as<pir::meta::Function::ID>();
+					);
 				}
 
 				const pir::Function::ID new_func_id = this->module.createFunction(
@@ -1052,18 +1055,18 @@ namespace pcit::panther{
 		// 		.fileID = entry_func.getDebugInfo()->fileID,
 		// 		.scopeWhereDefined = entry_func.getDebugInfo()->scopeWhereDefined,
 		// 		.lineNumber = 0,
-		// 		.returnMetaType = this->module.getMetaItem(this->module.createMetaBasicType("int", this->module.createSignedType(32))).as<pir::meta::BasicType::ID>(),
+		// 		.returnMetaType = this->module.createMetaBasicType("int", this->module.createSignedType(32)),
 		// 		.paramMetaTypes = evo::SmallVector<pir::meta::Type>{
-		// 			this->module.getMetaItem(this->module.createMetaBasicType("int", this->module.createSignedType(32))).as<pir::meta::BasicType::ID>(),
-		// 			this->module.getMetaItem(this->module.createMetaQualifiedType(
+		// 			this->module.createMetaBasicType("int", this->module.createSignedType(32)),
+		// 			this->module.createMetaQualifiedType(
 		// 				"const char*[]",
-		// 				this->module.getMetaItem(this->module.createMetaQualifiedType(
+		// 				this->module.createMetaQualifiedType(
 		// 					"const char*",
-		// 					this->module.getMetaItem(this->module.createMetaBasicType("char", this->module.createSignedType(8))).as<pir::meta::BasicType::ID>(),
+		// 					this->module.createMetaBasicType("char", this->module.createSignedType(8)),
 		// 					pir::meta::QualifiedType::Qualifier::POINTER
-		// 				)).as<pir::meta::QualifiedType::ID>(),
+		// 				),
 		// 				pir::meta::QualifiedType::Qualifier::MUT_POINTER 
-		// 			)).as<pir::meta::QualifiedType::ID>()
+		// 			)
 		// 		}
 		// 	};
 		// }
@@ -1335,6 +1338,7 @@ namespace pcit::panther{
 
 			std::ignore = this->module.createMetaStructType(
 				new_type,
+				this->get_unmangled_struct_name(struct_id),
 				this->get_unmangled_struct_name(struct_id),
 				location.meta_file_id,
 				this->get_current_meta_scope(),

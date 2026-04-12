@@ -23,9 +23,6 @@ namespace pcit::pir{
 
 namespace pcit::pir::meta{
 
-	struct ItemID : public core::UniqueID<uint32_t, struct ItemID> {
-		using core::UniqueID<uint32_t, ItemID>::UniqueID;
-	};
 
 	struct FileID : public core::UniqueID<uint32_t, struct FileID> {
 		using core::UniqueID<uint32_t, FileID>::UniqueID;
@@ -51,7 +48,6 @@ namespace pcit::pir::meta{
 
 	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID>;
 
-	using Item = evo::Variant<FileID, BasicTypeID, QualifiedTypeID, StructTypeID, FunctionID>;
 
 	using Scope = evo::Variant<FunctionID, FileID>;
 	using LocalScope = evo::Variant<FunctionID>;

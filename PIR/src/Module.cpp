@@ -214,6 +214,30 @@ namespace pcit::pir{
 			}
 		}
 
+
+		auto Module::check_meta_name_reuse(std::string_view meta_name) const -> void {
+			for(const meta::BasicType& meta_basic_type : this->meta_basic_types){
+				evo::debugAssert(meta_basic_type.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+
+			for(const meta::QualifiedType& meta_qualified_type : this->meta_qualified_types){
+				evo::debugAssert(meta_qualified_type.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+
+			for(const meta::StructType& meta_struct_type : this->meta_struct_types){
+				evo::debugAssert(meta_struct_type.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+
+			for(const meta::Function& meta_function : this->meta_functions){
+				evo::debugAssert(meta_function.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+
+			for(const meta::File& meta_file : this->meta_files){
+				evo::debugAssert(meta_file.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+		}
+
+
 		auto Module::check_expr_type_match(Type type, const Expr& expr) const -> void {
 			evo::debugAssert(type == ReaderAgent(*this).getExprType(expr), "Type and value must match");
 		}

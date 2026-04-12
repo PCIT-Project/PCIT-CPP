@@ -87,18 +87,18 @@ namespace pcit::pir{
 
 
 			using FunctionIter = core::StepAlloc<Function, Function::ID>::Iter;
-			using FunctionsConstIter = core::StepAlloc<Function, Function::ID>::ConstIter;
+			using FunctionConstIter = core::StepAlloc<Function, Function::ID>::ConstIter;
 
 			EVO_NODISCARD auto getFunctionIter() -> evo::IterRange<FunctionIter> {
 				return evo::IterRange<FunctionIter>(this->functions.begin(), this->functions.end());
 			}
 
-			EVO_NODISCARD auto getFunctionIter() const -> evo::IterRange<FunctionsConstIter> {
-				return evo::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
+			EVO_NODISCARD auto getFunctionIter() const -> evo::IterRange<FunctionConstIter> {
+				return evo::IterRange<FunctionConstIter>(this->functions.cbegin(), this->functions.cend());
 			}
 
-			EVO_NODISCARD auto getFunctionsConstIter() const -> evo::IterRange<FunctionsConstIter> {
-				return evo::IterRange<FunctionsConstIter>(this->functions.cbegin(), this->functions.cend());
+			EVO_NODISCARD auto getFunctionConstIter() const -> evo::IterRange<FunctionConstIter> {
+				return evo::IterRange<FunctionConstIter>(this->functions.cbegin(), this->functions.cend());
 			}
 
 
@@ -145,7 +145,7 @@ namespace pcit::pir{
 
 
 			using ExternalFunctionIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::Iter;
-			using ExternalFunctionsConstIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::ConstIter;
+			using ExternalFunctionConstIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::ConstIter;
 
 			EVO_NODISCARD auto getExternalFunctionIter() -> evo::IterRange<ExternalFunctionIter> {
 				return evo::IterRange<ExternalFunctionIter>(
@@ -153,14 +153,14 @@ namespace pcit::pir{
 				);
 			}
 
-			EVO_NODISCARD auto getExternalFunctionIter() const -> evo::IterRange<ExternalFunctionsConstIter> {
-				return evo::IterRange<ExternalFunctionsConstIter>(
+			EVO_NODISCARD auto getExternalFunctionIter() const -> evo::IterRange<ExternalFunctionConstIter> {
+				return evo::IterRange<ExternalFunctionConstIter>(
 					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
 
-			EVO_NODISCARD auto getExternalFunctionsConstIter() const -> evo::IterRange<ExternalFunctionsConstIter> {
-				return evo::IterRange<ExternalFunctionsConstIter>(
+			EVO_NODISCARD auto getExternalFunctionConstIter() const -> evo::IterRange<ExternalFunctionConstIter> {
+				return evo::IterRange<ExternalFunctionConstIter>(
 					this->external_funcs.cbegin(), this->external_funcs.cend()
 				);
 			}
@@ -401,18 +401,18 @@ namespace pcit::pir{
 
 
 			using GlobalVarIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::Iter;
-			using GlobalVarsConstIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::ConstIter;
+			using GlobalVarConstIter = core::StepAlloc<GlobalVar, GlobalVar::ID>::ConstIter;
 
 			EVO_NODISCARD auto getGlobalVarIter() -> evo::IterRange<GlobalVarIter> {
 				return evo::IterRange<GlobalVarIter>(this->global_vars.begin(), this->global_vars.end());
 			}
 
-			EVO_NODISCARD auto getGlobalVarIter() const -> evo::IterRange<GlobalVarsConstIter> {
-				return evo::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
+			EVO_NODISCARD auto getGlobalVarIter() const -> evo::IterRange<GlobalVarConstIter> {
+				return evo::IterRange<GlobalVarConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
-			EVO_NODISCARD auto getGlobalVarsConstIter() const -> evo::IterRange<GlobalVarsConstIter> {
-				return evo::IterRange<GlobalVarsConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
+			EVO_NODISCARD auto getGlobalVarConstIter() const -> evo::IterRange<GlobalVarConstIter> {
+				return evo::IterRange<GlobalVarConstIter>(this->global_vars.cbegin(), this->global_vars.cend());
 			}
 
 
@@ -564,58 +564,54 @@ namespace pcit::pir{
 			// meta
 
 			///////////////////////////////////
-			// items
-
-			EVO_NODISCARD auto getMetaItem(meta::ItemID id) const -> const meta::Item& {
-				return this->meta_items[id];
-			}
-
-
-			using MetaItemIter = core::StepAlloc<meta::Item, meta::ItemID>::Iter;
-			using MetaItemsConstIter = core::StepAlloc<meta::Item, meta::ItemID>::ConstIter;
-
-			EVO_NODISCARD auto getMetaItemIter() -> evo::IterRange<MetaItemIter> {
-				return evo::IterRange<MetaItemIter>(this->meta_items.begin(), this->meta_items.end());
-			}
-
-			EVO_NODISCARD auto getMetaItemIter() const -> evo::IterRange<MetaItemsConstIter> {
-				return evo::IterRange<MetaItemsConstIter>(this->meta_items.cbegin(), this->meta_items.cend());
-			}
-
-			EVO_NODISCARD auto getMetaItemsConstIter() const -> evo::IterRange<MetaItemsConstIter> {
-				return evo::IterRange<MetaItemsConstIter>(this->meta_items.cbegin(), this->meta_items.cend());
-			}
-
-
-			///////////////////////////////////
 			// meta files
 
 			EVO_NODISCARD auto createMetaFile(
-				std::string&& file_path, meta::Language language, std::string&& producer_name
-			) -> meta::ItemID {
-				const meta::File::ID created_file_id = this->meta_files.emplace_back(
-					meta::ItemID::dummy(), std::move(file_path), language, std::move(producer_name)
+				std::string&& meta_name,
+				std::string&& file_path,
+				meta::Language language,
+				std::string&& producer_name
+			) -> meta::File::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_files.emplace_back(
+					std::move(meta_name), std::move(file_path), language, std::move(producer_name)
 				);
-
-				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_file_id);
-				this->meta_files[created_file_id].itemID = created_item_id;
-
-				return created_item_id;
 			}
 
 			EVO_NODISCARD auto getMetaFile(meta::File::ID id) const -> const meta::File& {
 				return this->meta_files[id];
 			}
 
-			EVO_NODISCARD auto getMetaFile(meta::ItemID id) const -> const meta::File& {
-				return this->getMetaFile(this->getMetaItem(id).as<meta::File::ID>());
+
+			using MetaFileIter = core::SyncLinearStepAlloc<meta::File, meta::FileID>::Iter;
+			using MetaFileConstIter = core::SyncLinearStepAlloc<meta::File, meta::FileID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaFileIter() -> evo::IterRange<MetaFileIter> {
+				return evo::IterRange<MetaFileIter>(this->meta_files.begin(), this->meta_files.end());
+			}
+
+			EVO_NODISCARD auto getMetaFileIter() const -> evo::IterRange<MetaFileConstIter> {
+				return evo::IterRange<MetaFileConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
+			}
+
+			EVO_NODISCARD auto getMetaFileConstIter() const -> evo::IterRange<MetaFileConstIter> {
+				return evo::IterRange<MetaFileConstIter>(this->meta_files.cbegin(), this->meta_files.cend());
 			}
 
 
 			///////////////////////////////////
 			// meta types
 
-			EVO_NODISCARD auto createMetaBasicType(std::string&& type_name, Type underlying_type) -> meta::ItemID {
+			EVO_NODISCARD auto createMetaBasicType(
+				std::string&& meta_name, std::string&& type_name, Type underlying_type
+			) -> meta::BasicType::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
 				evo::debugAssert(
 					underlying_type.kind() == Type::Kind::UNSIGNED
 						|| underlying_type.kind() == Type::Kind::SIGNED
@@ -624,22 +620,31 @@ namespace pcit::pir{
 					"Invalid underlying type"
 				);
 
-				const meta::BasicType::ID created_type_id = this->meta_basic_types.emplace_back(
-					meta::ItemID::dummy(), std::move(type_name), underlying_type
-				);
-
-				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
-				this->meta_basic_types[created_type_id].itemID = created_item_id;
-
-				return created_item_id;
+				return this->meta_basic_types.emplace_back(std::move(meta_name), std::move(type_name), underlying_type);
 			}
 
 			EVO_NODISCARD auto getMetaBasicType(meta::BasicType::ID id) const -> const meta::BasicType& {
 				return this->meta_basic_types[id];
 			}
 
-			EVO_NODISCARD auto getMetaBasicType(meta::ItemID id) const -> const meta::BasicType& {
-				return this->getMetaBasicType(this->getMetaItem(id).as<meta::BasicType::ID>());
+
+			using MetaBasicTypeIter = core::SyncLinearStepAlloc<meta::BasicType, meta::BasicTypeID>::Iter;
+			using MetaBasicTypeConstIter = core::SyncLinearStepAlloc<meta::BasicType, meta::BasicTypeID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaBasicTypeIter() -> evo::IterRange<MetaBasicTypeIter> {
+				return evo::IterRange<MetaBasicTypeIter>(this->meta_basic_types.begin(), this->meta_basic_types.end());
+			}
+
+			EVO_NODISCARD auto getMetaBasicTypeIter() const -> evo::IterRange<MetaBasicTypeConstIter> {
+				return evo::IterRange<MetaBasicTypeConstIter>(
+					this->meta_basic_types.cbegin(), this->meta_basic_types.cend()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaBasicTypeConstIter() const -> evo::IterRange<MetaBasicTypeConstIter> {
+				return evo::IterRange<MetaBasicTypeConstIter>(
+					this->meta_basic_types.cbegin(), this->meta_basic_types.cend()
+				);
 			}
 
 
@@ -647,26 +652,44 @@ namespace pcit::pir{
 			// meta qualified types
 
 			EVO_NODISCARD auto createMetaQualifiedType(
+				std::string&& meta_name,
 				std::string&& type_name,
 				meta::Type qualee_type,
 				meta::QualifiedType::Qualifier qualifier
-			) -> meta::ItemID {
-				const meta::QualifiedType::ID created_type_id = this->meta_qualified_types.emplace_back(
-					meta::ItemID::dummy(), std::move(type_name), qualee_type, qualifier
+			) -> meta::QualifiedType::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_qualified_types.emplace_back(
+					std::move(meta_name), std::move(type_name), qualee_type, qualifier
 				);
-
-				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
-				this->meta_qualified_types[created_type_id].itemID = created_item_id;
-
-				return created_item_id;
 			}
 
 			EVO_NODISCARD auto getMetaQualifiedType(meta::QualifiedType::ID id) const -> const meta::QualifiedType& {
 				return this->meta_qualified_types[id];
 			}
 
-			EVO_NODISCARD auto getMetaQualifiedType(meta::ItemID id) const -> const meta::QualifiedType& {
-				return this->getMetaQualifiedType(this->getMetaItem(id).as<meta::QualifiedType::ID>());
+
+			using MetaQualifiedTypeIter = core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedTypeID>::Iter;
+			using MetaQualifiedTypeConstIter = core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedTypeID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaQualifiedTypeIter() -> evo::IterRange<MetaQualifiedTypeIter> {
+				return evo::IterRange<MetaQualifiedTypeIter>(
+					this->meta_qualified_types.begin(), this->meta_qualified_types.end()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaQualifiedTypeIter() const -> evo::IterRange<MetaQualifiedTypeConstIter> {
+				return evo::IterRange<MetaQualifiedTypeConstIter>(
+					this->meta_qualified_types.cbegin(), this->meta_qualified_types.cend()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaQualifiedTypeConstIter() const -> evo::IterRange<MetaQualifiedTypeConstIter> {
+				return evo::IterRange<MetaQualifiedTypeConstIter>(
+					this->meta_qualified_types.cbegin(), this->meta_qualified_types.cend()
+				);
 			}
 
 
@@ -675,17 +698,21 @@ namespace pcit::pir{
 
 			EVO_NODISCARD auto createMetaStructType(
 				Type struct_type,
+				std::string&& meta_name,
 				std::string&& struct_name,
 				meta::FileID file_id,
 				meta::Scope scope_where_defined,
 				uint32_t line_number,
 				evo::SmallVector<meta::StructType::Member>&& members
-			) -> meta::ItemID {
+			) -> meta::StructType::ID {
 				evo::debugAssert(struct_type.kind() == Type::Kind::STRUCT, "not struct type");
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
 				
 				const meta::StructType::ID created_type_id = this->meta_struct_types.emplace_back(
-					meta::ItemID::dummy(),
 					struct_type,
+					std::move(meta_name),
 					std::move(struct_name),
 					file_id,
 					scope_where_defined,
@@ -693,23 +720,17 @@ namespace pcit::pir{
 					std::move(members)
 				);
 
-				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
-				this->meta_struct_types[created_type_id].itemID = created_item_id;
 
 				{
 					const auto lock = std::scoped_lock(this->meta_struct_type_lookup_lock);
 					this->meta_struct_type_lookup.emplace(struct_type, created_type_id);
 				}
 
-				return created_item_id;
+				return created_type_id;
 			}
 
 			EVO_NODISCARD auto getMetaStructType(meta::StructType::ID id) const -> const meta::StructType& {
 				return this->meta_struct_types[id];
-			}
-
-			EVO_NODISCARD auto getMetaStructType(meta::ItemID id) const -> const meta::StructType& {
-				return this->getMetaStructType(this->getMetaItem(id).as<meta::StructType::ID>());
 			}
 
 
@@ -725,39 +746,78 @@ namespace pcit::pir{
 
 
 
+			using MetaStructTypeIter = core::SyncLinearStepAlloc<meta::StructType, meta::StructTypeID>::Iter;
+			using MetaStructTypeConstIter = core::SyncLinearStepAlloc<meta::StructType, meta::StructTypeID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaStructTypeIter() -> evo::IterRange<MetaStructTypeIter> {
+				return evo::IterRange<MetaStructTypeIter>(
+					this->meta_struct_types.begin(), this->meta_struct_types.end()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaStructTypeIter() const -> evo::IterRange<MetaStructTypeConstIter> {
+				return evo::IterRange<MetaStructTypeConstIter>(
+					this->meta_struct_types.cbegin(), this->meta_struct_types.cend()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaStructTypeConstIter() const -> evo::IterRange<MetaStructTypeConstIter> {
+				return evo::IterRange<MetaStructTypeConstIter>(
+					this->meta_struct_types.cbegin(), this->meta_struct_types.cend()
+				);
+			}
+
+
+
 			///////////////////////////////////
 			// meta functions
 
 			EVO_NODISCARD auto createMetaFunction(
-				std::string&& unmangledName,
-				meta::File::ID fileID,
-				meta::Scope scopeWhereDefined,
-				uint32_t lineNumber,
-				std::optional<meta::Type> returnMetaType, // nullopt if `Void`
-				evo::SmallVector<meta::Type>&& paramMetaTypes
-			) -> meta::ItemID {
-				const meta::Function::ID created_type_id = this->meta_functions.emplace_back(
-					meta::ItemID::dummy(),
-					std::move(unmangledName),
-					fileID,
-					scopeWhereDefined,
-					lineNumber,
-					returnMetaType,
-					std::move(paramMetaTypes)
+				std::string&& meta_name,
+				std::string&& unmangled_name,
+				meta::File::ID file_id,
+				meta::Scope scope_where_defined,
+				uint32_t line_number,
+				std::optional<meta::Type> return_meta_type, // nullopt if `Void`
+				evo::SmallVector<meta::Type>&& param_meta_types
+			) -> meta::Function::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_functions.emplace_back(
+					std::move(meta_name),
+					std::move(unmangled_name),
+					file_id,
+					scope_where_defined,
+					line_number,
+					return_meta_type,
+					std::move(param_meta_types)
 				);
-
-				const meta::ItemID created_item_id = this->meta_items.emplace_back(created_type_id);
-				this->meta_functions[created_type_id].itemID = created_item_id;
-
-				return created_item_id;
 			}
 
 			EVO_NODISCARD auto getMetaFunction(meta::Function::ID id) const -> const meta::Function& {
 				return this->meta_functions[id];
 			}
 
-			EVO_NODISCARD auto getMetaFunction(meta::ItemID id) const -> const meta::Function& {
-				return this->getMetaFunction(this->getMetaItem(id).as<meta::Function::ID>());
+
+			using MetaFunctionIter = core::SyncLinearStepAlloc<meta::Function, meta::FunctionID>::Iter;
+			using MetaFunctionConstIter = core::SyncLinearStepAlloc<meta::Function, meta::FunctionID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaFunctionIter() -> evo::IterRange<MetaFunctionIter> {
+				return evo::IterRange<MetaFunctionIter>(this->meta_functions.begin(), this->meta_functions.end());
+			}
+
+			EVO_NODISCARD auto getMetaFunctionIter() const -> evo::IterRange<MetaFunctionConstIter> {
+				return evo::IterRange<MetaFunctionConstIter>(
+					this->meta_functions.cbegin(), this->meta_functions.cend()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaFunctionConstIter() const -> evo::IterRange<MetaFunctionConstIter> {
+				return evo::IterRange<MetaFunctionConstIter>(
+					this->meta_functions.cbegin(), this->meta_functions.cend()
+				);
 			}
 
 
@@ -766,6 +826,7 @@ namespace pcit::pir{
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
 
 				auto check_global_name_reuse(std::string_view global_name) const -> void;
+				auto check_meta_name_reuse(std::string_view meta_name) const -> void;
 
 				auto check_expr_type_match(Type type, const Expr& expr) const -> void;
 			#endif
@@ -888,12 +949,11 @@ namespace pcit::pir{
 
 
 			// meta
-			core::StepAlloc<meta::Item, meta::ItemID> meta_items{};
-			core::StepAlloc<meta::File, meta::File::ID> meta_files{};
-			core::StepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
-			core::StepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
-			core::StepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
-			core::StepAlloc<meta::Function, meta::Function::ID> meta_functions{};
+			core::SyncLinearStepAlloc<meta::File, meta::File::ID> meta_files{};
+			core::SyncLinearStepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
+			core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
+			core::SyncLinearStepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
+			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};
 			mutable evo::SpinLock meta_struct_type_lookup_lock{};

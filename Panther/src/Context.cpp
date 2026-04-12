@@ -433,11 +433,12 @@ namespace pcit::panther{
 			source.is_ready_for_sema = true;
 
 			if(this->_config.includeDebugInfo){
-				source.pir_file_id = this->pir_module.getMetaItem(
-					this->pir_module.createMetaFile(
-						source.getPath().string(), pir::meta::Language::PANTHER, evo::copy(producer_name)
-					)
-				).as<pir::meta::File::ID>();
+				source.pir_file_id =  this->pir_module.createMetaFile(
+					std::format("PTHR.file-{}", source_id.get()),
+					source.getPath().string(),
+					pir::meta::Language::PANTHER,
+					evo::copy(producer_name)
+				);
 			}
 		}
 
@@ -1869,11 +1870,12 @@ namespace pcit::panther{
 			.pushLevel(this->sema_buffer.scope_manager.createLevel());
 
 		if(this->_config.includeDebugInfo){
-			source.pir_file_id = this->pir_module.getMetaItem(
-				this->pir_module.createMetaFile(
-					source.getPath().string(), pir::meta::Language::PANTHER, std::format("PCIT-CPP v{}", core::VERSION)
-				)
-			).as<pir::meta::File::ID>();
+			source.pir_file_id = this->pir_module.createMetaFile(
+				std::format("PTHR.file-{}", dep_analysis_res.value().get()),
+				source.getPath().string(),
+				pir::meta::Language::PANTHER,
+				std::format("PCIT-CPP v{}", core::VERSION)
+			);
 		}
 
 		this->work_manager.visit([&](auto& work_manager_inst) -> void {

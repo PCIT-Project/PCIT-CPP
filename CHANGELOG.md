@@ -1,11 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.277.0"></a>
+## v0.0.277.0
+
+### PIR
+- Added explicit names to meta
+
+
+<!---------------------------------->
 <a name="v0.0.276.1"></a>
 ## v0.0.276.1
 
 ### Panther
-- Fixed lwering metadata of functions with `in` paramters
+- Fixed lowering metadata of functions with `in` parameters
 - Fixed missing metadata on automatic returns
 
 

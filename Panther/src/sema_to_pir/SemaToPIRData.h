@@ -299,10 +299,7 @@ namespace pcit::panther{
 
 					this->meta_types_lock.unlock();
 
-					const pir::meta::ItemID item_id =
-						module.createMetaBasicType(std::string(type_name), pir_type);
-					meta_type.id = module.getMetaItem(item_id).as<pir::meta::BasicType::ID>();
-
+					meta_type.id = module.createMetaBasicType(std::string(type_name), std::string(type_name), pir_type);
 					meta_type.has_value = true;
 
 					return meta_type.id;
@@ -335,10 +332,9 @@ namespace pcit::panther{
 
 					this->meta_qualified_types_lock.unlock();
 
-					const pir::meta::ItemID item_id =
-						module.createMetaQualifiedType(std::string(type_name), qualee_type, qualifier);
-					meta_type.id = module.getMetaItem(item_id).as<pir::meta::QualifiedType::ID>();
-
+					meta_type.id = module.createMetaQualifiedType(
+						std::string(type_name), std::string(type_name), qualee_type, qualifier
+					);
 					meta_type.has_value = true;
 
 					return meta_type.id;

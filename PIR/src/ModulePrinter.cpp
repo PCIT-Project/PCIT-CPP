@@ -73,32 +73,58 @@ namespace pcit::pir{
 			}
 		}
 
-		if(this->get_module().getMetaItemIter().empty() == false){
+
+
+
+		const bool meta_struct_type_not_empty = this->get_module().getMetaStructTypeIter().empty() == false;
+		const bool meta_function_not_empty = this->get_module().getMetaFunctionIter().empty() == false;
+		const bool meta_qualified_type_not_empty = this->get_module().getMetaQualifiedTypeIter().empty() == false;
+		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
+		const bool meta_file_not_empty = this->get_module().getMetaFileIter().empty() == false;
+
+
+		if(
+			meta_struct_type_not_empty
+			& meta_function_not_empty
+			& meta_qualified_type_not_empty
+			& meta_basic_type_not_empty
+			& meta_file_not_empty
+		){
 			this->printer.println();
-			
-			for(const meta::Item& meta_item : this->get_module().getMetaItemIter()){
-				meta_item.visit([&](const auto& item_id) -> void {
-					using ItemType = std::decay_t<decltype(item_id)>;
 
-					if constexpr(std::is_same<ItemType, meta::File::ID>()){
-						this->print_meta_file(this->get_module().getMetaFile(item_id));
+			if(meta_struct_type_not_empty){
+				this->printer.println();
+				for(const meta::StructType& meta_struct_type : this->get_module().getMetaStructTypeIter()){
+					this->print_meta_struct_type(meta_struct_type);
+				}
+			}
 
-					}else if constexpr(std::is_same<ItemType, meta::BasicType::ID>()){
-						this->print_meta_basic_type(this->get_module().getMetaBasicType(item_id));
+			if(meta_function_not_empty){
+				this->printer.println();
+				for(const meta::Function& meta_function : this->get_module().getMetaFunctionIter()){
+					this->print_meta_function(meta_function);
+				}
+			}
 
-					}else if constexpr(std::is_same<ItemType, meta::QualifiedType::ID>()){
-						this->print_meta_qualified_type(this->get_module().getMetaQualifiedType(item_id));
+			if(meta_qualified_type_not_empty){
+				this->printer.println();
+				for(const meta::QualifiedType& meta_qualified_type : this->get_module().getMetaQualifiedTypeIter()){
+					this->print_meta_qualified_type(meta_qualified_type);
+				}
+			}
 
-					}else if constexpr(std::is_same<ItemType, meta::StructType::ID>()){
-						this->print_meta_struct_type(this->get_module().getMetaStructType(item_id));
+			if(meta_basic_type_not_empty){
+				this->printer.println();
+				for(const meta::BasicType& meta_basic_type : this->get_module().getMetaBasicTypeIter()){
+					this->print_meta_basic_type(meta_basic_type);
+				}
+			}
 
-					}else if constexpr(std::is_same<ItemType, meta::Function::ID>()){
-						this->print_meta_function(this->get_module().getMetaFunction(item_id));
-						
-					}else{
-						static_assert(false, "Unknown meta ID");
-					}
-				});
+			if(meta_file_not_empty){
+				this->printer.println();
+				for(const meta::File& meta_file : this->get_module().getMetaFileIter()){
+					this->print_meta_file(meta_file);
+				}
 			}
 		}
 	}
@@ -191,7 +217,15 @@ namespace pcit::pir{
 		}
 
 		if(func_decl.meta_id.has_value()){
-			this->printer.print("!{} ", this->reader.getModule().getMetaFunction(*func_decl.meta_id).itemID.get());
+			std::string_view meta_name = this->reader.getModule().getMetaFunction(*func_decl.meta_id).metaName;
+
+			if(isStandardName(meta_name)){
+				this->printer.print("!{} ", meta_name);
+			}else{
+				this->printer.print("!");
+				this->print_non_standard_name(meta_name, false);
+				this->printer.print(" ");
+			}
 		}
 
 		this->printer.printRed("-> ");
@@ -295,6 +329,7 @@ namespace pcit::pir{
 		if(isStandardName(global_var.name)){
 			this->printer.print("&{}", global_var.name);
 		}else{
+			this->printer.printGreen("&");
 			this->print_non_standard_name(global_var.name, true);
 		}	
 		this->printer.printRed(": ");
@@ -2006,7 +2041,14 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_file(const meta::File& file) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", file.itemID.get());
+
+		if(isStandardName(file.metaName)){
+			this->printer.printGreen("!{}", file.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(file.metaName, true);
+		}
+
 		this->printer.printRed(" = ");
 		this->printer.printCyan("file ");
 		this->printer.printYellow("\"{}\"", file.path);
@@ -2023,10 +2065,17 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_basic_type(const meta::BasicType& basic_type) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", basic_type.itemID.get());
+
+		if(isStandardName(basic_type.metaName)){
+			this->printer.printGreen("!{}", basic_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(basic_type.metaName, true);
+		}
+
 		this->printer.printRed(" = ");
 		this->printer.printCyan("basicType ");
-		this->printer.printYellow("\"{}\"", basic_type.name);
+		this->printer.printYellow("\"{}\"", basic_type.typeName);
 		this->printer.print(", ");
 		this->printType(basic_type.underlyingType);
 		this->printer.println();
@@ -2034,32 +2083,56 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_qualified_type(const meta::QualifiedType& qualified_type) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", qualified_type.itemID.get());
+
+		if(isStandardName(qualified_type.metaName)){
+			this->printer.printGreen("!{}", qualified_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(qualified_type.metaName, true);
+		}
+
 		this->printer.printRed(" = ");
 		this->printer.printCyan("qualifiedType ");
-		this->printer.printYellow("\"{}\"", qualified_type.name);
+		this->printer.printYellow("\"{}\"", qualified_type.typeName);
 
 		switch(qualified_type.qualifier){
 			break; case meta::QualifiedType::Qualifier::POINTER:     this->printer.print(", POINTER, ");
 			break; case meta::QualifiedType::Qualifier::MUT_POINTER: this->printer.print(", MUT_POINTER, ");
 		}
 
-		const meta::ItemID qualee_item_id = [&]() -> meta::ItemID {
+		const std::string_view name = [&]() -> std::string_view {
 			if(qualified_type.qualeeType.is<meta::BasicType::ID>()){
-				return this->get_module().getMetaBasicType(qualified_type.qualeeType.as<meta::BasicType::ID>()).itemID;
+				return this->get_module().getMetaBasicType(
+					qualified_type.qualeeType.as<meta::BasicType::ID>()
+				).metaName;
+
 			}else{
 				return this->get_module().getMetaQualifiedType(
 					qualified_type.qualeeType.as<meta::QualifiedType::ID>()
-				).itemID;
+				).metaName;
 			}
 		}();
 
-		this->printer.printGreen("!{}\n", qualee_item_id.get());
+		if(isStandardName(name)){
+			this->printer.print("!{}\n", name);
+		}else{
+			this->printer.print("!");
+			this->print_non_standard_name(name, false);
+			this->printer.print("\n");
+		}
 	}
+
 
 	auto ModulePrinter::print_meta_struct_type(const meta::StructType& struct_type) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", struct_type.itemID.get());
+
+		if(isStandardName(struct_type.metaName)){
+			this->printer.printGreen("!{}", struct_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(struct_type.metaName, true);
+		}
+
 		this->printer.printRed(" = ");
 		this->printer.printCyan("struct ");
 
@@ -2072,7 +2145,7 @@ namespace pcit::pir{
 
 		this->printer.print("name");
 		this->printer.printRed(": ");
-		this->printer.printYellow("\"{}\"", struct_type.name);
+		this->printer.printYellow("\"{}\"", struct_type.typeName);
 		this->printer.print(", ");
 
 		this->printer.print("file");
@@ -2111,7 +2184,14 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_function(const meta::Function& function) -> void {
 		this->printer.printCyan("meta ");
-		this->printer.printGreen("!{}", function.itemID.get());
+
+		if(isStandardName(function.metaName)){
+			this->printer.printGreen("!{}", function.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(function.metaName, true);
+		}
+
 		this->printer.printRed(" = ");
 		this->printer.printCyan("func ");
 
@@ -2165,26 +2245,40 @@ namespace pcit::pir{
 
 
 	auto ModulePrinter::print_meta_type_id(meta::Type meta_type) -> void {
-		meta_type.visit([&](auto id) -> void {
+		const std::string_view name = meta_type.visit([&](auto id) -> std::string_view {
 			using MetaIDType = std::decay_t<decltype(id)>;
 
 			if constexpr(std::is_same<MetaIDType, meta::BasicType::ID>()){
-				this->printer.print("!{}", this->reader.getModule().getMetaBasicType(id).itemID.get());
+				return this->reader.getModule().getMetaBasicType(id).metaName;
 
 			}else if constexpr(std::is_same<MetaIDType, meta::QualifiedType::ID>()){
-				this->printer.print("!{}", this->reader.getModule().getMetaQualifiedType(id).itemID.get());
+				return this->reader.getModule().getMetaQualifiedType(id).metaName;
 
 			}else if constexpr(std::is_same<MetaIDType, meta::StructType::ID>()){
-				this->printer.print("!{}", this->reader.getModule().getMetaStructType(id).itemID.get());
-				
+				return this->reader.getModule().getMetaStructType(id).metaName;
+
 			}else{
 				static_assert(false, "unknown meta type");
 			}
 		});
+
+		if(isStandardName(name)){
+			this->printer.print("!{}", name);
+		}else{
+			this->printer.print("!");
+			this->print_non_standard_name(name, false);
+		}
 	}
 
 	auto ModulePrinter::print_meta_file_id(meta::File::ID meta_file_id) -> void {
-		this->printer.print("!{}", this->reader.getModule().getMetaFile(meta_file_id).itemID.get());
+		const std::string_view name = this->reader.getModule().getMetaFile(meta_file_id).metaName;
+
+		if(isStandardName(name)){
+			this->printer.print("!{}", name);
+		}else{
+			this->printer.print("!");
+			this->print_non_standard_name(name, false);
+		}
 	}
 
 
@@ -2197,7 +2291,15 @@ namespace pcit::pir{
 			using IDType = std::decay_t<decltype(id)>;
 
 			if constexpr(std::is_same<IDType, meta::Function::ID>()){
-				this->printer.print("(!{}, ", this->get_module().getMetaFunction(id).itemID.get());
+				const std::string_view name = this->get_module().getMetaFunction(id).metaName;
+
+				if(isStandardName(name)){
+					this->printer.print("(!{}, ", name);
+				}else{
+					this->printer.print("(!");
+					this->print_non_standard_name(name, false);
+					this->printer.print(", ");
+				}
 				
 			// }else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
 				// this->printer.print("(!{}, ", id.get());
@@ -2219,7 +2321,14 @@ namespace pcit::pir{
 			using IDType = std::decay_t<decltype(id)>;
 		
 			if constexpr(std::is_same<IDType, meta::Function::ID>()){
-				this->printer.print("!{}", this->get_module().getMetaFunction(id).itemID.get());
+				const std::string_view name = this->get_module().getMetaFunction(id).metaName;
+
+				if(isStandardName(name)){
+					this->printer.print("!{}", name);
+				}else{
+					this->printer.print("!");
+					this->print_non_standard_name(name, false);
+				}
 		
 			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
 				this->print_meta_file_id(id);

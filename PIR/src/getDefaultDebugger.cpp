@@ -658,9 +658,9 @@ namespace pcit::pir{
 		auto setup_func_lookup_if_needed() -> void {
 			if(this->func_lookup_created){ return; }
 
-			this->func_lookup.reserve(this->module.getFunctionsConstIter().size());
+			this->func_lookup.reserve(this->module.getFunctionConstIter().size());
 
-			for(const Function& func : this->module.getFunctionsConstIter()){
+			for(const Function& func : this->module.getFunctionConstIter()){
 				this->func_lookup.emplace(func.getName(), func);
 			}
 
