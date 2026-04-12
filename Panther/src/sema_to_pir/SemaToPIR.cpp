@@ -11294,20 +11294,37 @@ namespace pcit::panther{
 				TypeInfo(type_info.baseTypeID(), std::move(target_qualifiers))
 			);
 
+			const PIRType target_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(target_type_id);
+
 			const pir::Type created_struct = this->module.createStructType(
 				std::format("PTHR.optional_{}", type_id.get()),
-				evo::SmallVector<pir::Type>{
-					this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(target_type_id).type,
-					this->module.createBoolType()
-				},
+				evo::SmallVector<pir::Type>{target_pir_type.type, this->module.createBoolType()},
 				true
 			);
 
 			this->data.optional_types.emplace(&type_info, created_struct);
 
 			if constexpr(GET_META){
-				// TODO(FUTURE): 
-				evo::unimplemented("Getting debug info of optional (not pointer)");
+				std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
+
+				const pir::meta::BasicType::ID bool_meta_type = this->data.get_or_create_meta_basic_type(
+					TypeManager::getTypeBool(), this->module, "Bool", this->module.createBoolType()
+				);
+
+				const pir::meta::StructType::ID created_meta_struct = this->module.createMetaStructType(
+					created_struct,
+					evo::copy(type_name),
+					std::move(type_name),
+					*this->current_source->getPIRMetaFileID(),
+					*this->current_source->getPIRMetaFileID(),
+					0,
+					evo::SmallVector<pir::meta::StructType::Member>{
+						pir::meta::StructType::Member(*target_pir_type.meta_type_id, "data"),
+						pir::meta::StructType::Member(bool_meta_type, "flag"),
+					}
+				);
+
+				return PIRType(created_struct, created_meta_struct);
 
 			}else{
 				return PIRType(created_struct, std::nullopt);

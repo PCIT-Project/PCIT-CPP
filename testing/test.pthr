@@ -3,17 +3,17 @@ type Struct = struct {
 	var bar: Int;
 }
 
-func discard = (val: $$ read) -> Void {
-	
+func discard = (val: $T read) -> T? {
+	return null;
 }
 
 
 func entry = () #entry -> UI8 {
 	var foo: Int = 12;
 
-	discard(copy foo);
-	discard(&foo);
-	discard(new Struct{foo = 12, bar = 14});
+	_ = discard(copy foo);
+	_ = discard(&foo);
+	_ = discard(new Struct{foo = 12, bar = 14});
 
 	
 	return 0;

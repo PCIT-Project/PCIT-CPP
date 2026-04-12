@@ -326,20 +326,7 @@ namespace pcit::panther{
 
 		std::string type_str = this->printType(type_info.baseTypeID(), context);
 
-		bool is_first_qualifier = type_str.back() != '*'
-			&& type_str.ends_with("*mut")
-			&& type_str.ends_with("*uninit")
-			&& type_str.back() != '?';
-
 		for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers()){
-			if(type_info.qualifiers().size() > 1){
-				if(is_first_qualifier){
-					is_first_qualifier = false;
-				}else{
-					type_str += ' ';
-				}
-			}
-
 			if(qualifier.isPtr){ type_str += '*'; }
 			if(qualifier.isMut){ type_str += "mut"; }
 			if(qualifier.isUninit){ type_str += "uninit"; }
