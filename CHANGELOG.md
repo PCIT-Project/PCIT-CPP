@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.278.0"></a>
+## v0.0.278.0
+
+### Panther
+- Added debug info to generated `main` and `WinMain`
+
+
+<!---------------------------------->
 <a name="v0.0.277.0"></a>
 ## v0.0.277.0
 

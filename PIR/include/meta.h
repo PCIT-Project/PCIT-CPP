@@ -60,7 +60,7 @@ namespace pcit::pir::meta{
 
 		std::string metaName;
 		std::string typeName;
-		meta::Type qualeeType;
+		std::optional<meta::Type> qualeeType; // nullptr if RawPtr or void*
 		Qualifier qualifier;
 	};
 

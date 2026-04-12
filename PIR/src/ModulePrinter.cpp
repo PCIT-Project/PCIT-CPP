@@ -2100,25 +2100,11 @@ namespace pcit::pir{
 			break; case meta::QualifiedType::Qualifier::MUT_POINTER: this->printer.print(", MUT_POINTER, ");
 		}
 
-		const std::string_view name = [&]() -> std::string_view {
-			if(qualified_type.qualeeType.is<meta::BasicType::ID>()){
-				return this->get_module().getMetaBasicType(
-					qualified_type.qualeeType.as<meta::BasicType::ID>()
-				).metaName;
-
-			}else{
-				return this->get_module().getMetaQualifiedType(
-					qualified_type.qualeeType.as<meta::QualifiedType::ID>()
-				).metaName;
-			}
-		}();
-
-		if(isStandardName(name)){
-			this->printer.print("!{}\n", name);
+		if(qualified_type.qualeeType.has_value()){
+			this->print_meta_type_id(*qualified_type.qualeeType);
+			this->printer.println();
 		}else{
-			this->printer.print("!");
-			this->print_non_standard_name(name, false);
-			this->printer.print("\n");
+			this->printer.printlnCyan("Void");
 		}
 	}
 

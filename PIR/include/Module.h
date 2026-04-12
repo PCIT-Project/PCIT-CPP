@@ -654,7 +654,7 @@ namespace pcit::pir{
 			EVO_NODISCARD auto createMetaQualifiedType(
 				std::string&& meta_name,
 				std::string&& type_name,
-				meta::Type qualee_type,
+				std::optional<meta::Type> qualee_type, // nullptr if should be RawPtr or void*
 				meta::QualifiedType::Qualifier qualifier
 			) -> meta::QualifiedType::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -672,7 +672,8 @@ namespace pcit::pir{
 
 
 			using MetaQualifiedTypeIter = core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedTypeID>::Iter;
-			using MetaQualifiedTypeConstIter = core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedTypeID>::ConstIter;
+			using MetaQualifiedTypeConstIter =
+				core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedTypeID>::ConstIter;
 
 			EVO_NODISCARD auto getMetaQualifiedTypeIter() -> evo::IterRange<MetaQualifiedTypeIter> {
 				return evo::IterRange<MetaQualifiedTypeIter>(

@@ -163,7 +163,13 @@ namespace pcit::pir{
 	auto PIRToLLVMIR::lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void {
 		const meta::QualifiedType& meta_qualified_type =  this->module.getMetaQualifiedType(meta_qualified_type_id);
 
-		const llvmint::DIBuilder::Type qualee_type = this->get_meta_type(meta_qualified_type.qualeeType);
+		const llvmint::DIBuilder::Type qualee_type = [&]() -> llvmint::DIBuilder::Type {
+			if(meta_qualified_type.qualeeType.has_value()){
+				return this->get_meta_type(*meta_qualified_type.qualeeType);
+			}else{
+				return llvmint::DIBuilder::Type(nullptr);
+			}
+		}();
 
 		const uint64_t pointer_num_bits = this->module.sizeOfPtr() * 8;
 

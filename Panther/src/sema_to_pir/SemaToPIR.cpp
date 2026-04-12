@@ -1045,31 +1045,39 @@ namespace pcit::panther{
 	auto SemaToPIR::createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
 		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
 
-		// auto debug_info = std::optional<pir::FunctionDebugInfo>();
-		// if(this->data.config.includeDebugInfo){
-		// 	const pir::Function& entry_func =
-		// 		this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
+		auto meta_id = std::optional<pir::meta::Function::ID>();
+		if(this->data.config.includeDebugInfo){
+			const pir::Function& entry_func =
+				this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
 
-		// 	debug_info = pir::FunctionDebugInfo{
-		// 		.unmangledName = "main",
-		// 		.fileID = entry_func.getDebugInfo()->fileID,
-		// 		.scopeWhereDefined = entry_func.getDebugInfo()->scopeWhereDefined,
-		// 		.lineNumber = 0,
-		// 		.returnMetaType = this->module.createMetaBasicType("int", this->module.createSignedType(32)),
-		// 		.paramMetaTypes = evo::SmallVector<pir::meta::Type>{
-		// 			this->module.createMetaBasicType("int", this->module.createSignedType(32)),
-		// 			this->module.createMetaQualifiedType(
-		// 				"const char*[]",
-		// 				this->module.createMetaQualifiedType(
-		// 					"const char*",
-		// 					this->module.createMetaBasicType("char", this->module.createSignedType(8)),
-		// 					pir::meta::QualifiedType::Qualifier::POINTER
-		// 				),
-		// 				pir::meta::QualifiedType::Qualifier::MUT_POINTER 
-		// 			)
-		// 		}
-		// 	};
-		// }
+			const pir::meta::Function& entry_meta_func = this->module.getMetaFunction(*entry_func.getMetaID());
+
+			const pir::meta::BasicType::ID int_meta_type = 
+				this->module.createMetaBasicType("int", "int", this->module.createSignedType(32));
+
+			meta_id = this->module.createMetaFunction(
+				"main",
+				"main",
+				entry_meta_func.fileID,
+				entry_meta_func.scopeWhereDefined,
+				0,
+				int_meta_type,
+				evo::SmallVector<pir::meta::Type>{
+					int_meta_type,
+					this->module.createMetaQualifiedType(
+						"const char*[]",
+						"const char*[]",
+						this->module.createMetaQualifiedType(
+							"const char*",
+							"const char*",
+							this->module.createMetaBasicType("char", "char", this->module.createSignedType(8)),
+							pir::meta::QualifiedType::Qualifier::POINTER
+						),
+						pir::meta::QualifiedType::Qualifier::MUT_POINTER 
+					)
+				}
+			);
+		}
 
 		const pir::Function::ID main_func_id = this->module.createFunction(
 			"main",
@@ -1080,7 +1088,8 @@ namespace pcit::panther{
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
 			this->module.createSignedType(32),
-			false
+			false,
+			meta_id
 		);
 
 		pir::Function& main_func = this->module.getFunction(main_func_id);
@@ -1093,9 +1102,9 @@ namespace pcit::panther{
 
 		const pir::Expr entry_call = this->agent.createCall(
 			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(),
-			{}/*,
+			{},
 			"",
-			pir::meta::SourceLocation(main_func_id, 0, 0)*/
+			pir::meta::SourceLocation(*meta_id, 0, 0)
 		);
 
 		const pir::Expr entry_call_conv = this->agent.createBitCast(entry_call, this->module.createSignedType(8));
@@ -1112,7 +1121,45 @@ namespace pcit::panther{
 			case core::Target::Platform::WINDOWS: {
 				const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
 
-				const pir::Function::ID entry_func_id = this->module.createFunction(
+				auto meta_id = std::optional<pir::meta::Function::ID>();
+				if(this->data.config.includeDebugInfo){
+					const pir::Function& entry_func =
+						this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
+
+					const pir::meta::Function& entry_meta_func = this->module.getMetaFunction(*entry_func.getMetaID());
+
+					const pir::meta::BasicType::ID int_meta_type = 
+						this->module.createMetaBasicType("int", "int", this->module.createSignedType(32));
+
+					const pir::meta::QualifiedType::ID h_instance_meta_type = this->module.createMetaQualifiedType(
+						"HINSTANCE", "HINSTANCE", std::nullopt, pir::meta::QualifiedType::Qualifier::MUT_POINTER
+					);
+
+					const pir::meta::QualifiedType::ID lpstr_type = this->module.createMetaQualifiedType(
+						"LPSTR",
+						"LPSTR",
+						this->module.createMetaBasicType("char", "char", this->module.createSignedType(8)),
+						pir::meta::QualifiedType::Qualifier::MUT_POINTER
+					);
+
+					meta_id = this->module.createMetaFunction(
+						"WinMain",
+						"WinMain",
+						entry_meta_func.fileID,
+						entry_meta_func.scopeWhereDefined,
+						0,
+						int_meta_type,
+						evo::SmallVector<pir::meta::Type>{
+							h_instance_meta_type,
+							h_instance_meta_type,
+							lpstr_type,
+							int_meta_type,
+						}
+					);
+				}
+
+
+				const pir::Function::ID win_main_func_id = this->module.createFunction(
 					"WinMain",
 					{
 						pir::Parameter("hInstance", this->module.createPtrType()),
@@ -1122,23 +1169,30 @@ namespace pcit::panther{
 					},
 					pir::CallingConvention::C,
 					pir::Linkage::EXTERNAL,
-					this->module.createSignedType(32)
+					this->module.createSignedType(32),
+					false,
+					meta_id
 				);
 
-				pir::Function& entry_func = this->module.getFunction(entry_func_id);
+				pir::Function& win_main_entry_func = this->module.getFunction(win_main_func_id);
 
-				this->agent.setTargetFunction(entry_func);
+				this->agent.setTargetFunction(win_main_entry_func);
 
 				this->agent.createBasicBlock();
 				this->agent.setTargetBasicBlockAtEnd();
 
-				std::ignore = this->agent.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
+				std::ignore = this->agent.createCall(
+					target_entry_func_info.pir_ids[0].as<pir::Function::ID>(),
+					{},
+					"",
+					pir::meta::SourceLocation(*meta_id, 0, 0)
+				);
 
 				this->agent.createRet(
 					this->agent.createNumber(this->module.createSignedType(32), core::GenericInt::create<int32_t>(0))
 				);
 
-				return entry_func_id;
+				return win_main_func_id;
 			} break;
 
 			case core::Target::Platform::LINUX: case core::Target::Platform::UNKNOWN: {
