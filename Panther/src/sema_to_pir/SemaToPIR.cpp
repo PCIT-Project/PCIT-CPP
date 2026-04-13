@@ -11667,7 +11667,13 @@ namespace pcit::panther{
 							if(this->data.config.includeDebugInfo){
 								return PIRType(
 									pir_type,
-									this->data.get_or_create_meta_basic_type(type_id, this->module, "RawPtr", pir_type)
+									this->data.get_or_create_meta_qualified_type(
+										type_id,
+										this->module,
+										"RawPtr",
+										std::nullopt,
+										pir::meta::QualifiedType::Qualifier::MUT_POINTER
+									)
 								);
 							}else{
 								return PIRType(pir_type, std::nullopt);

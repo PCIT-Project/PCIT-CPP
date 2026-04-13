@@ -16,7 +16,9 @@ func entry = () #entry -> UI8 {
 	// _ = discard(&foo);
 	// _ = discard(new Struct{foo = 12, bar = 14});
 
-	_ = discard(arr as [Int:*mut]);
+	unsafe{
+		_ = discard(@bitCast<{[Int:3]*, RawPtr}>(&arr));
+	}
 	
 	return 0;
 }
