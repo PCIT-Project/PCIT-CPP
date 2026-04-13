@@ -20756,9 +20756,32 @@ namespace pcit::panther{
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
 			base_type.qualifiers().begin(), base_type.qualifiers().end()
 		);
-		qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
-		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
-			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+
+		if(instr.ast_type.qualifiers.empty() == false){
+			if(qualifiers.empty()){
+				qualifiers.reserve(instr.ast_type.qualifiers.size());
+				for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
+					qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+				}
+
+			}else{
+				qualifiers.reserve(qualifiers.size() + instr.ast_type.qualifiers.size());
+
+				const bool requires_combining_of_qualifiers = qualifiers.back().isPtr
+					&& qualifiers.back().isOptional == false
+					&& instr.ast_type.qualifiers.front().isPtr == false
+					&& instr.ast_type.qualifiers.front().isOptional;
+
+				if(requires_combining_of_qualifiers){
+					qualifiers.back().isOptional = true;
+				}
+
+				for(size_t i = size_t(requires_combining_of_qualifiers); i < instr.ast_type.qualifiers.size(); i+=1){
+					const AST::Type::Qualifier& qualifier = instr.ast_type.qualifiers[i];
+
+					qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+				}
+			}
 		}
 
 		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }

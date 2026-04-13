@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.279.1"></a>
+## v0.0.279.1
+
+### Panther
+- Fixed optional and pointer qualifiers not being combined properly in some cases
+
+
+<!---------------------------------->
 <a name="v0.0.279.0"></a>
 ## v0.0.279.0
 
