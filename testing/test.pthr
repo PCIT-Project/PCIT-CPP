@@ -9,12 +9,14 @@ func discard = (val: $T read) -> T? {
 
 
 func entry = () #entry -> UI8 {
-	var foo: Int = 12;
+	// var foo: Int = 12;
+	var arr = new [Int:3][1, 2, 3];
 
-	_ = discard(copy foo);
-	_ = discard(&foo);
-	_ = discard(new Struct{foo = 12, bar = 14});
+	// _ = discard(copy foo);
+	// _ = discard(&foo);
+	// _ = discard(new Struct{foo = 12, bar = 14});
 
+	_ = discard(arr as [Int:*mut]);
 	
 	return 0;
 }

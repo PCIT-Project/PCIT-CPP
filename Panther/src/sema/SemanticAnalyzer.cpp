@@ -9491,7 +9491,9 @@ namespace pcit::panther{
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						sema::Expr(this->context.sema_buffer.createInitArrayRef(
-							this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
+							this->get_term_info(instr.args[0]).getExpr(),
+							decayed_target_type_info.baseTypeID().arrayRefID(),
+							std::move(dimensions)
 						))
 					)
 				);
@@ -15401,7 +15403,9 @@ namespace pcit::panther{
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createInitArrayRef(
-							this->get_term_info(instr.args[0]).getExpr(), std::move(dimensions)
+							this->get_term_info(instr.args[0]).getExpr(),
+							decayed_target_type_info.baseTypeID().arrayRefID(),
+							std::move(dimensions)
 						))
 					);
 					return Result::SUCCESS;
@@ -17939,7 +17943,9 @@ namespace pcit::panther{
 
 			const sema::Expr created_array_to_array_ref = sema::Expr(
 				this->context.sema_buffer.createInitArrayRef(
-					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())), std::move(dimensions)
+					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())),
+					to_underlying_type.baseTypeID().arrayRefID(),
+					std::move(dimensions)
 				)
 			);
 
@@ -27562,7 +27568,9 @@ namespace pcit::panther{
 				}
 
 				return sema::Expr(
-					this->context.sema_buffer.createInitArrayRef(ptr_expr.value(), std::move(dimensions))
+					this->context.sema_buffer.createInitArrayRef(
+						ptr_expr.value(), target_type.baseTypeID().arrayRefID(), std::move(dimensions)
+					)
 				);
 			} break;
 
@@ -31872,7 +31880,9 @@ namespace pcit::panther{
 
 								got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 								got_expr.getExpr() = sema::Expr(
-									this->context.sema_buffer.createInitArrayRef(data_ptr, std::move(dimensions))
+									this->context.sema_buffer.createInitArrayRef(
+										data_ptr, expected_type.baseTypeID().arrayRefID(), std::move(dimensions)
+									)
 								);
 							}
 

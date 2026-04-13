@@ -4444,8 +4444,11 @@ namespace pcit::panther{
 					const uint64_t num_bits_ptr = this->context.getTypeManager().numBitsOfPtr();
 
 					const pir::Type array_ref_type = this->data.getArrayRefType(
-						this->module, unsigned(init_array_ref.dimensions.size())
-					);
+						this->module,
+						this->context,
+						init_array_ref.targetTypeID,
+						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					).pir_type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Expr array_ref_alloca =
@@ -4586,9 +4589,12 @@ namespace pcit::panther{
 					this->context.getTypeManager().getArrayRef(array_ref_indexer.targetTypeID);
 
 
-				const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
-
-				const pir::Type pir_array_ref_type = this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
+				const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+					this->module,
+					this->context,
+					array_ref_indexer.targetTypeID,
+					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+				).pir_type;
 
 				const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_indexer.target);
 
@@ -4606,7 +4612,7 @@ namespace pcit::panther{
 				const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
 
 
-				uint32_t ref_length_index = uint32_t(num_ref_ptrs);
+				uint32_t ref_length_index = uint32_t(array_ref_type.getNumRefPtrs());
 
 				pir::Expr index = this->get_expr_register(array_ref_indexer.indices.back());
 				auto sub_array_width = std::optional<pir::Expr>();
@@ -4712,8 +4718,12 @@ namespace pcit::panther{
 						this->context.getTypeManager().getArrayRef(array_ref_size.targetTypeID);
 
 
-					const pir::Type pir_array_ref_type =
-						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+						this->module,
+						this->context,
+						array_ref_size.targetTypeID,
+						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					).pir_type;
 
 
 					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_size.target);
@@ -4785,8 +4795,12 @@ namespace pcit::panther{
 					const BaseType::ArrayRef& array_ref_type =
 						this->context.getTypeManager().getArrayRef(array_ref_dimensions.targetTypeID);
 
-					const pir::Type pir_array_ref_type =
-						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+						this->module,
+						this->context,
+						array_ref_dimensions.targetTypeID,
+						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					).pir_type;
 
 
 					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_dimensions.target);
@@ -4865,16 +4879,16 @@ namespace pcit::panther{
 					const sema::ArrayRefData& array_ref_data =
 						this->context.getSemaBuffer().getArrayRefData(expr.arrayRefDataID());
 
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(array_ref_data.targetTypeID);
 
-
-					const pir::Type pir_array_ref_type =
-						this->data.getArrayRefType(this->module, unsigned(array_ref_type.getNumRefPtrs()));
+					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+						this->module,
+						this->context,
+						array_ref_data.targetTypeID,
+						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					).pir_type;
 
 
 					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_data.target);
-
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Expr data_value = this->agent.createCalcPtr(
@@ -6410,14 +6424,12 @@ namespace pcit::panther{
 					return std::nullopt;
 
 				}else{
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(expr_type.baseTypeID().arrayRefID());
-
-					const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
-
-					const pir::Type pir_array_ref_type =
-						this->data.getArrayRefType(this->module, unsigned(num_ref_ptrs));
-
+					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+						this->module,
+						this->context,
+						expr_type.baseTypeID().arrayRefID(),
+						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					).pir_type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Expr output_alloca = this->agent.createAlloca(
@@ -10821,7 +10833,12 @@ namespace pcit::panther{
 			true
 		);
 
-		const pir::Type array_ref_type = this->data.getArrayRefType(this->module, 1);
+		const pir::Type array_ref_type = this->data.getArrayRefType(
+			this->module,
+			this->context,
+			TypeManager::getTypeStringRef(),
+			[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+		).pir_type;
 
 		const pir::Expr string_ref_alloca = this->agent.createAlloca(array_ref_type, this->name(".PANIC_STRING"));
 
@@ -11104,8 +11121,11 @@ namespace pcit::panther{
 				const pir::GlobalVar::Value array_target = this->get_global_var_value(init_array_ref.expr);
 
 				const pir::Type array_ref_type = this->data.getArrayRefType(
-					this->module, unsigned(init_array_ref.dimensions.size())
-				);
+					this->module,
+					this->context,
+					init_array_ref.targetTypeID,
+					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+				).pir_type;
 
 				const uint64_t num_bits_of_ptr = this->context.getTypeManager().numBitsOfPtr();
 
@@ -11918,23 +11938,18 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				const BaseType::ArrayRef& array_ref = 
-					this->context.getTypeManager().getArrayRef(base_type_id.arrayRefID());
-
-				unsigned num_ptr_dimensions = 0;
-
-				for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
-					if(dimension.isPtr()){ num_ptr_dimensions += 1; }
-				}
-
-				const pir::Type pir_type = this->data.getArrayRefType(this->module, num_ptr_dimensions);
+				const Data::ArrayRefTypeInfo pir_type_info = this->data.getArrayRefType(
+					this->module,
+					this->context,
+					base_type_id.arrayRefID(),
+					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+				);
 
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of array reference");
+					return PIRType(pir_type_info.pir_type, pir_type_info.meta_type_id);
 
 				}else{
-					return PIRType(pir_type, std::nullopt);
+					return PIRType(pir_type_info.pir_type, std::nullopt);
 				}
 			} break;
 			

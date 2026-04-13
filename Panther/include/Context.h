@@ -190,6 +190,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto getSourceManager()       ->       SourceManager& { return this->source_manager; }
 
 			EVO_NODISCARD auto getTypeManager() const -> const TypeManager& { return this->type_manager; }
+			EVO_NODISCARD auto getTypeManager()       ->       TypeManager& { return this->type_manager; }
 
 			EVO_NODISCARD auto getSemaBuffer() const -> const SemaBuffer& { return this->sema_buffer; }
 

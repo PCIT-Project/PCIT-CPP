@@ -304,6 +304,7 @@ namespace pcit::panther::sema{
 		using ID = InitArrayRefID;	
 
 		Expr expr;
+		BaseType::ArrayRef::ID targetTypeID;
 		evo::SmallVector<evo::Variant<uint64_t, Expr>> dimensions;
 	};
 

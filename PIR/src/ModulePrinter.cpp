@@ -2153,7 +2153,8 @@ namespace pcit::pir{
 		this->printer.printRed(": ");
 		this->printer.print("[");
 		for(size_t i = 0; const meta::StructType::Member& member : struct_type.members){
-			this->printer.printYellow("\"{}\" ", member.name);
+			this->printer.printYellow("\"{}\"", member.name);
+			this->printer.printRed(": ");
 			this->print_meta_type_id(member.type);
 
 			if(i + 1 < struct_type.members.size()){

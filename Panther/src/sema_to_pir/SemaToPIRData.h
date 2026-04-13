@@ -17,6 +17,7 @@
 #include <PIR.h>
 
 #include "../../include/sema/sema.h"
+#include "../../include/TypeManager.h"
 
 
 
@@ -106,14 +107,31 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<pir::Type>> error_return_types;
 			};
 
+			struct ArrayRefTypeInfo{
+				pir::Type pir_type;
+				std::optional<pir::meta::StructType::ID> meta_type_id;
+			};
+
 		public:
 			SemaToPIRData(Config&& _config) : config(_config) {}
 			~SemaToPIRData() = default;
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
-			auto getInterfacePtrType(pir::Module& module) -> pir::Type;
-			auto getArrayRefType(pir::Module& module, unsigned num_dimensions) -> pir::Type;
+			EVO_NODISCARD auto getInterfacePtrType(pir::Module& module) -> pir::Type;
+
+			EVO_NODISCARD auto getArrayRefType(
+				pir::Module& module,
+				class Context& context,
+				BaseType::ArrayRef::ID array_ref_id,
+				const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
+			) -> const ArrayRefTypeInfo&;
+			EVO_NODISCARD auto getArrayRefType(
+				pir::Module& module,
+				class Context& context,
+				TypeInfo::ID array_ref_id, 
+				const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
+			) -> const ArrayRefTypeInfo&;
 
 
 			EVO_NODISCARD auto lookupGlobalVar(pir::GlobalVar::ID id) const -> std::optional<sema::GlobalVar::ID>;
@@ -136,7 +154,6 @@ namespace pcit::panther{
 
 
 		private:
-
 			auto create_struct(BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
 				const auto lock = std::scoped_lock(this->structs_lock);
 				const auto emplace_result = this->structs.emplace(struct_id, pir_id);
@@ -320,7 +337,7 @@ namespace pcit::panther{
 				TypeInfo::ID id,
 				pir::Module& module,
 				std::string&& type_name,
-				pir::meta::Type qualee_type,
+				std::optional<pir::meta::Type> qualee_type,
 				pir::meta::QualifiedType::Qualifier qualifier
 			) -> pir::meta::QualifiedType::ID {
 				this->meta_qualified_types_lock.lock(); // not using scoped_lock for performance
@@ -370,9 +387,7 @@ namespace pcit::panther{
 			std::optional<pir::Type> interface_ptr_type = std::nullopt;
 			mutable evo::SpinLock interface_ptr_type_lock{};	
 
-			evo::SmallVector<std::optional<pir::Type>> array_ref_types{};
-			mutable evo::SpinLock array_ref_types_lock{};	
-
+			core::MapAlloc<BaseType::ArrayRef::ID, ArrayRefTypeInfo> array_ref_type_infos{};
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
 			mutable evo::SpinLock structs_lock{};

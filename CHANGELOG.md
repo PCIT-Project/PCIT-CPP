@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.280.0"></a>
+## v0.0.280.0
+
+### Panther
+- Added debug info for array reference types
+
+### PCIT_core
+- Added `MapAlloc`
+
+
+<!---------------------------------->
 <a name="v0.0.279.1"></a>
 ## v0.0.279.1
 

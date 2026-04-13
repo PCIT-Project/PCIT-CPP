@@ -10,6 +10,9 @@
 #include "./SemaToPIRData.h"
 
 
+#include "../../include/Context.h"
+
+
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
 #endif
@@ -33,34 +36,93 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(PERF): 
-	auto SemaToPIRData::getArrayRefType(pir::Module& module, unsigned num_dimensions) -> pir::Type {
-		const auto lock = std::scoped_lock(this->array_ref_types_lock);
+	auto SemaToPIRData::getArrayRefType(
+		pir::Module& module,
+		Context& context,
+		BaseType::ArrayRef::ID array_ref_id,
+		const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
+	) -> const ArrayRefTypeInfo& {
+		auto value_handler = this->array_ref_type_infos.get(array_ref_id);
 
-		if(
-			this->array_ref_types.size() < num_dimensions + 1
-			|| this->array_ref_types[num_dimensions].has_value() == false
-		){
-			if(this->array_ref_types.size() < num_dimensions + 1){
-				this->array_ref_types.resize(std::bit_ceil(num_dimensions + 1));
+		if(value_handler.needsToBeSet() == false){
+			return value_handler.getValue();
+		}
+
+		const BaseType::ArrayRef& array_ref_type = context.getTypeManager().getArrayRef(array_ref_id); 
+
+		const size_t num_ref_ptrs = array_ref_type.getNumRefPtrs();
+
+		auto member_types = evo::SmallVector<pir::Type>();
+		member_types.reserve(num_ref_ptrs + 1);
+
+		member_types.emplace_back(module.createPtrType());
+		const pir::Type usize_type = module.createUnsignedType(uint32_t(module.sizeOfPtr() * 8));
+		for(size_t i = 0; i < num_ref_ptrs; i+=1){
+			member_types.emplace_back(usize_type);
+		}
+
+		const pir::Type struct_type = module.createStructType(
+			std::format("PTHR.array_ref_{}", array_ref_id.get()), std::move(member_types), false
+		);
+
+		std::string meta_name = context.getTypeManager().printType(BaseType::ID(array_ref_id), context);
+
+		auto meta_type_id = std::optional<pir::meta::StructType::ID>();
+		if(this->getConfig().includeDebugInfo){
+			auto meta_members = evo::SmallVector<pir::meta::StructType::Member>();
+			meta_members.reserve(num_ref_ptrs + 1);
+
+			const TypeInfo& element_type_info = context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
+			const TypeInfo::ID data_ptr_type_id = context.getTypeManager().getOrCreateTypeInfo(
+				element_type_info.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, false))
+			);
+
+			meta_members.emplace_back(get_data_ptr_meta_type(data_ptr_type_id), "data");
+
+			const pir::meta::BasicType::ID usize_meta_id =
+				this->get_or_create_meta_basic_type(TypeManager::getTypeUSize(), module, "USize", usize_type);
+
+			for(size_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+				EVO_DEFER([&](){ i += 1; });
+				
+				if(dimension.isLength()){ continue; }
+				
+				meta_members.emplace_back(usize_meta_id, std::format("size{}", i));
 			}
 
-			auto member_types = evo::SmallVector<pir::Type>();
-			member_types.reserve(num_dimensions + 1);
+			// pick any panther source, doesn't really matter since array references don't exactly have a decl site
+			const Source& first_source = context.getSourceManager()[Source::ID(0)];
 
-			member_types.emplace_back(module.createPtrType());
-			const pir::Type usize_type = module.createUnsignedType(uint32_t(module.sizeOfPtr() * 8));
-			for(size_t i = 0; i < num_dimensions; i+=1){
-				member_types.emplace_back(usize_type);
-			}
-
-			this->array_ref_types[num_dimensions] = module.createStructType(
-				std::format("PTHR.array_ref.d{}", num_dimensions), std::move(member_types), false
+			meta_type_id = module.createMetaStructType(
+				struct_type,
+				evo::copy(meta_name),
+				std::move(meta_name),
+				*first_source.getPIRMetaFileID(),
+				*first_source.getPIRMetaFileID(),
+				0,
+				std::move(meta_members)
 			);
 		}
 
-		return *this->array_ref_types[num_dimensions];
+		return value_handler.emplaceValue(struct_type, meta_type_id);
 	}
+
+	auto SemaToPIRData::getArrayRefType(
+		pir::Module& module,
+		Context& context,
+		TypeInfo::ID array_ref_id,
+		const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
+	) -> const ArrayRefTypeInfo& {
+		return this->getArrayRefType(
+			module,
+			context,
+			context.getTypeManager().getTypeInfo(array_ref_id).baseTypeID().arrayRefID(),
+			get_data_ptr_meta_type
+		);
+	}
+
+
+
 
 
 
