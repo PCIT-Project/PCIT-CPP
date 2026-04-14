@@ -166,6 +166,12 @@ namespace pcit::llvmint{
 			) -> DerivedType;
 
 
+			EVO_NODISCARD auto createArrayType(
+				Type element_type, uint64_t number_of_elements, uint64_t size_in_bits, uint32_t align_in_bits
+			) -> CompositeType;
+			
+
+
 			EVO_NODISCARD auto createSourceLocation(LocalScope local_scope, uint32_t line, uint32_t collumn) 
 				-> Location;
 

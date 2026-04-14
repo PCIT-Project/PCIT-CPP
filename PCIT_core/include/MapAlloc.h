@@ -33,7 +33,7 @@ namespace pcit::core{
 			struct ValueHandle{
 				EVO_NODISCARD auto needsToBeSet() const -> bool { return this->needs_to_be_set; }
 
-				auto getValue() -> VALUE& {
+				auto getValue() const -> VALUE& {
 					evo::debugAssert(this->needsToBeSet() == false, "Cannot get value if it doesn't need to be set");
 
 					while(this->internal_value.flag.load() == false){
@@ -43,7 +43,7 @@ namespace pcit::core{
 					return *this->internal_value.value;
 				}
 
-				auto emplaceValue(auto&&... args) -> VALUE& {
+				auto emplaceValue(auto&&... args) const -> VALUE& {
 					evo::debugAssert(this->needsToBeSet(), "Cannot emplace value if it needs to be set");
 
 					this->internal_value.value.emplace(std::forward<decltype(args)>(args)...);

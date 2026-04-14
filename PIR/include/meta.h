@@ -73,13 +73,23 @@ namespace pcit::pir::meta{
 			std::string name;
 		};
 
-		pir::Type structType;
 		std::string metaName;
+		pir::Type structType;
 		std::string typeName;
 		meta::FileID fileID;
 		meta::Scope scopeWhereDefined;
 		uint32_t lineNumber;
 		evo::SmallVector<Member> members;
+	};
+
+
+	struct ArrayType{
+		using ID = ArrayTypeID;
+
+		std::string metaName;
+		pir::Type arrayType;
+		meta::Type elementType;
+		evo::SmallVector<uint64_t> dimensions;
 	};
 
 

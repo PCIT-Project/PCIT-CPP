@@ -62,6 +62,7 @@ namespace pcit::pir{
 			auto lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void;
 			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void;
 			auto lower_meta_struct_type(meta::StructType::ID meta_struct_type_id) -> void;
+			auto lower_meta_array_type(meta::ArrayType::ID meta_array_type_id) -> void;
 			auto lower_meta_function(std::string_view func_name, meta::Function::ID meta_function_id)
 				-> llvmint::DIBuilder::Subprogram;
 
@@ -152,6 +153,7 @@ namespace pcit::pir{
 			std::unordered_map<meta::QualifiedType::ID, llvmint::DIBuilder::DerivedType> meta_qualified_types{};
 			std::unordered_map<meta::Function::ID, llvmint::DIBuilder::Subprogram> meta_functions{};
 			std::unordered_map<meta::StructType::ID, llvmint::DIBuilder::CompositeType> meta_struct_types{};
+			std::unordered_map<meta::ArrayType::ID, llvmint::DIBuilder::CompositeType> meta_array_types{};
 	};
 
 }

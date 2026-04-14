@@ -37,6 +37,10 @@ namespace pcit::pir{
 				this->lower_meta_struct_type(meta::StructType::ID(i));
 			}
 
+			for(uint32_t i = 0; i < this->module.getMetaArrayTypeIter().size(); i += 1){
+				this->lower_meta_array_type(meta::ArrayType::ID(i));
+			}
+
 			// functions are done with the corresponding declaration
 		}
 
@@ -249,6 +253,46 @@ namespace pcit::pir{
 		);
 
 		this->meta_struct_types.emplace(meta_struct_type_id, composite_type);
+	}
+
+
+	auto PIRToLLVMIR::lower_meta_array_type(meta::ArrayType::ID meta_array_type_id) -> void {
+		const meta::ArrayType& meta_array_type = this->module.getMetaArrayType(meta_array_type_id);
+
+		const llvmint::DIBuilder::Type element_llvm_type = this->get_meta_type(meta_array_type.elementType);
+
+		const Type element_type = this->module.getArrayType(meta_array_type.arrayType).elemType;
+		const uint64_t element_type_num_bits = uint64_t(this->module.numBytes(element_type) * 8);
+		const uint32_t alignment_num_bits = uint32_t(this->module.getAlignment(element_type) * 8);
+
+
+		if(meta_array_type.dimensions.size() == 1){
+			const llvmint::DIBuilder::CompositeType llvm_array_type = this->di_builder.createArrayType(
+				element_llvm_type,
+				meta_array_type.dimensions.back(),
+				element_type_num_bits * meta_array_type.dimensions.back(),
+				alignment_num_bits
+			);
+
+			this->meta_array_types.emplace(meta_array_type_id, llvm_array_type);
+			
+		}else{
+			uint64_t array_num_bits = element_type_num_bits * meta_array_type.dimensions.back();
+
+			llvmint::DIBuilder::CompositeType llvm_array_type = this->di_builder.createArrayType(
+				element_llvm_type, meta_array_type.dimensions.back(), array_num_bits, alignment_num_bits
+			);
+
+			for(ptrdiff_t i = meta_array_type.dimensions.size() - 2; i >= 0; i-=1){
+				array_num_bits *= meta_array_type.dimensions[i];
+
+				llvm_array_type = this->di_builder.createArrayType(
+					llvm_array_type.asType(), meta_array_type.dimensions[i], array_num_bits, alignment_num_bits
+				);
+			}
+
+			this->meta_array_types.emplace(meta_array_type_id, llvm_array_type);
+		}
 	}
 
 
@@ -2478,6 +2522,9 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueType, meta::StructType::ID>()){
 				return this->meta_struct_types.at(meta_type).asType();
+
+			}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){
+				return this->meta_array_types.at(meta_type).asType();
 		
 			}else{
 				static_assert(false, "Unknown meta type");

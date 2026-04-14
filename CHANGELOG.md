@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.282.0"></a>
+## v0.0.282.0
+
+### Panther
+- Added debug info for arrays
+
+### PIR
+- Added array metadata
+- Fixed printing of module not including metadata if not module doesn't include all types of metadata
+
+
+<!---------------------------------->
 <a name="v0.0.281.0"></a>
 ## v0.0.281.0
 

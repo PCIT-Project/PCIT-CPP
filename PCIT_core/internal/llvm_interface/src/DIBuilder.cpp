@@ -207,6 +207,20 @@ namespace pcit::llvmint{
 	}
 
 
+	auto DIBuilder::createArrayType(
+		Type element_type, uint64_t number_of_elements, uint64_t size_in_bits, uint32_t align_in_bits
+	) -> CompositeType {
+		auto subranges = std::array<llvm::Metadata*, 1>{this->builder->getOrCreateSubrange(0, number_of_elements)};
+
+		llvm::DINodeArray subscripts = this->builder->getOrCreateArray(
+			llvm::ArrayRef<llvm::Metadata*>(subranges.data(), subranges.size())
+		);
+
+		return CompositeType(
+			this->builder->createArrayType(size_in_bits, align_in_bits, element_type.type, subscripts)
+		);
+	}
+
 
 	auto DIBuilder::createSourceLocation(LocalScope local_scope, uint32_t line, uint32_t collumn) -> Location {
 		return Location(llvm::DILocation::get(this->module.native()->getContext(), line, collumn, local_scope.scope));

@@ -712,8 +712,8 @@ namespace pcit::pir{
 				#endif
 				
 				const meta::StructType::ID created_type_id = this->meta_struct_types.emplace_back(
-					struct_type,
 					std::move(meta_name),
+					struct_type,
 					std::move(struct_name),
 					file_id,
 					scope_where_defined,
@@ -765,6 +765,53 @@ namespace pcit::pir{
 			EVO_NODISCARD auto getMetaStructTypeConstIter() const -> evo::IterRange<MetaStructTypeConstIter> {
 				return evo::IterRange<MetaStructTypeConstIter>(
 					this->meta_struct_types.cbegin(), this->meta_struct_types.cend()
+				);
+			}
+
+
+
+			///////////////////////////////////
+			// meta array types
+
+			EVO_NODISCARD auto createMetaArrayType(
+				std::string meta_name,
+				pir::Type array_type,
+				meta::Type element_type,
+				evo::SmallVector<uint64_t>&& dimensions
+			) -> meta::ArrayType::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+				
+				return this->meta_array_types.emplace_back(
+					std::move(meta_name), array_type, element_type, std::move(dimensions)
+				);
+			}
+
+			EVO_NODISCARD auto getMetaArrayType(meta::ArrayType::ID id) const -> const meta::ArrayType& {
+				return this->meta_array_types[id];
+			}
+
+
+
+			using MetaArrayTypeIter = core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayTypeID>::Iter;
+			using MetaArrayTypeConstIter = core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayTypeID>::ConstIter;
+
+			EVO_NODISCARD auto getMetaArrayTypeIter() -> evo::IterRange<MetaArrayTypeIter> {
+				return evo::IterRange<MetaArrayTypeIter>(
+					this->meta_array_types.begin(), this->meta_array_types.end()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaArrayTypeIter() const -> evo::IterRange<MetaArrayTypeConstIter> {
+				return evo::IterRange<MetaArrayTypeConstIter>(
+					this->meta_array_types.cbegin(), this->meta_array_types.cend()
+				);
+			}
+
+			EVO_NODISCARD auto getMetaArrayTypeConstIter() const -> evo::IterRange<MetaArrayTypeConstIter> {
+				return evo::IterRange<MetaArrayTypeConstIter>(
+					this->meta_array_types.cbegin(), this->meta_array_types.cend()
 				);
 			}
 
@@ -954,6 +1001,7 @@ namespace pcit::pir{
 			core::SyncLinearStepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
 			core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 			core::SyncLinearStepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
+			core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayType::ID> meta_array_types{};
 			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};

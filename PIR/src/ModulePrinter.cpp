@@ -77,6 +77,7 @@ namespace pcit::pir{
 
 
 		const bool meta_struct_type_not_empty = this->get_module().getMetaStructTypeIter().empty() == false;
+		const bool meta_array_type_not_empty = this->get_module().getMetaArrayTypeIter().empty() == false;
 		const bool meta_function_not_empty = this->get_module().getMetaFunctionIter().empty() == false;
 		const bool meta_qualified_type_not_empty = this->get_module().getMetaQualifiedTypeIter().empty() == false;
 		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
@@ -85,10 +86,11 @@ namespace pcit::pir{
 
 		if(
 			meta_struct_type_not_empty
-			& meta_function_not_empty
-			& meta_qualified_type_not_empty
-			& meta_basic_type_not_empty
-			& meta_file_not_empty
+			| meta_array_type_not_empty
+			| meta_function_not_empty
+			| meta_qualified_type_not_empty
+			| meta_basic_type_not_empty
+			| meta_file_not_empty
 		){
 			this->printer.println();
 
@@ -96,6 +98,13 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::StructType& meta_struct_type : this->get_module().getMetaStructTypeIter()){
 					this->print_meta_struct_type(meta_struct_type);
+				}
+			}
+
+			if(meta_array_type_not_empty){
+				this->printer.println();
+				for(const meta::ArrayType& meta_array_type : this->get_module().getMetaArrayTypeIter()){
+					this->print_meta_array_type(meta_array_type);
 				}
 			}
 
@@ -2169,6 +2178,53 @@ namespace pcit::pir{
 	}
 
 
+	auto ModulePrinter::print_meta_array_type(const meta::ArrayType& array_type) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(array_type.metaName)){
+			this->printer.printGreen("!{}", array_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(array_type.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("arrayType ");
+
+		this->printer.print("{");
+
+		this->printer.print("type");
+		this->printer.printRed(": ");
+		this->printType(array_type.arrayType);
+		this->printer.print(", ");
+
+		this->printer.print("element");
+		this->printer.printRed(": ");
+		this->print_meta_type_id(array_type.elementType);
+		this->printer.print(", ");
+
+
+		this->printer.print("dimensions");
+		this->printer.printRed(": ");
+		this->printer.print("[");
+		for(size_t i = 0; uint64_t dimension : array_type.dimensions){
+			this->printer.printMagenta(std::to_string(dimension));
+
+			if(i + 1 < array_type.dimensions.size()){
+				this->printer.print(", ");
+			}
+			
+			i += 1;
+		}
+		this->printer.print("]");
+
+
+		this->printer.println("}");
+	}
+
+
+
+
 	auto ModulePrinter::print_meta_function(const meta::Function& function) -> void {
 		this->printer.printCyan("meta ");
 
@@ -2243,6 +2299,9 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<MetaIDType, meta::StructType::ID>()){
 				return this->reader.getModule().getMetaStructType(id).metaName;
+
+			}else if constexpr(std::is_same<MetaIDType, meta::ArrayType::ID>()){
+				return this->reader.getModule().getMetaArrayType(id).metaName;
 
 			}else{
 				static_assert(false, "unknown meta type");

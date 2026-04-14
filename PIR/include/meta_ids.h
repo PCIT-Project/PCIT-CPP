@@ -17,9 +17,6 @@
 #include "./forward_decl_ids.h"
 
 
-namespace pcit::pir{
-	struct StructType;
-}
 
 namespace pcit::pir::meta{
 
@@ -40,13 +37,17 @@ namespace pcit::pir::meta{
 		using core::UniqueID<uint32_t, StructTypeID>::UniqueID;
 	};
 
+	struct ArrayTypeID : public core::UniqueID<uint32_t, struct ArrayTypeID> {
+		using core::UniqueID<uint32_t, ArrayTypeID>::UniqueID;
+	};
+
 	struct FunctionID : public core::UniqueID<uint32_t, struct FunctionID> {
 		using core::UniqueID<uint32_t, FunctionID>::UniqueID;
 	};
 
 
 
-	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID>;
+	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID, ArrayTypeID>;
 
 
 	using Scope = evo::Variant<FunctionID, FileID>;
@@ -82,6 +83,13 @@ namespace std{
 	template<>
 	struct hash<pcit::pir::meta::StructTypeID>{
 		auto operator()(pcit::pir::meta::StructTypeID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::meta::ArrayTypeID>{
+		auto operator()(pcit::pir::meta::ArrayTypeID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};

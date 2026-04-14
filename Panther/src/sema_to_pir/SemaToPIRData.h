@@ -308,29 +308,12 @@ namespace pcit::panther{
 			auto get_or_create_meta_basic_type(
 				TypeInfo::ID id, pir::Module& module, std::string&& type_name, pir::Type pir_type
 			) -> pir::meta::BasicType::ID {
-				this->meta_types_lock.lock(); // not using scoped_lock for performance
+				const auto value_handle = this->meta_basic_types.get(id);
+				if(value_handle.needsToBeSet() == false){ return value_handle.getValue(); }
 
-				auto find = this->meta_types_map.find(id);
-				if(find == this->meta_types_map.end()){
-					MetaBasicType& meta_type = this->meta_types.emplace_back();
-					this->meta_types_map.emplace(id, meta_type);
-
-					this->meta_types_lock.unlock();
-
-					meta_type.id = module.createMetaBasicType(std::string(type_name), std::string(type_name), pir_type);
-					meta_type.has_value = true;
-
-					return meta_type.id;
-
-				}else{
-					this->meta_types_lock.unlock();
-
-					while(find->second.has_value.load() == false){
-						std::this_thread::yield();
-					}
-
-					return find->second.id;
-				}
+				return value_handle.emplaceValue(
+					module.createMetaBasicType(std::string(type_name), std::string(type_name), pir_type)
+				);
 			}
 
 
@@ -341,33 +324,35 @@ namespace pcit::panther{
 				std::optional<pir::meta::Type> qualee_type,
 				pir::meta::QualifiedType::Qualifier qualifier
 			) -> pir::meta::QualifiedType::ID {
-				this->meta_qualified_types_lock.lock(); // not using scoped_lock for performance
+				const auto value_handle = this->meta_qualified_types.get(id);
+				if(value_handle.needsToBeSet() == false){ return value_handle.getValue(); }
 
-				auto find = this->meta_qualified_types_map.find(id);
-				if(find == this->meta_qualified_types_map.end()){
-					MetaQualifiedType& meta_type = this->meta_qualified_types.emplace_back();
-					this->meta_qualified_types_map.emplace(id, meta_type);
-
-					this->meta_qualified_types_lock.unlock();
-
-					meta_type.id = module.createMetaQualifiedType(
+				return value_handle.emplaceValue(
+					module.createMetaQualifiedType(
 						std::string(type_name), std::string(type_name), qualee_type, qualifier
-					);
-					meta_type.has_value = true;
-
-					return meta_type.id;
-
-				}else{
-					this->meta_qualified_types_lock.unlock();
-
-					while(find->second.has_value.load() == false){
-						std::this_thread::yield();
-					}
-
-					return find->second.id;
-				}
+					)
+				);
 			}
 
+
+			auto get_or_create_meta_array_type(
+				TypeInfo::ID id,
+				pir::Module& module,
+				const TypeManager& type_manager,
+				const Context& context,
+				pir::Type array_type,
+				pir::meta::Type element_type,
+				evo::SmallVector<uint64_t>&& dimensions
+			) -> pir::meta::ArrayType::ID {
+				const auto value_handle = this->meta_array_types.get(id);
+				if(value_handle.needsToBeSet() == false){ return value_handle.getValue(); }
+
+				return value_handle.emplaceValue(
+					module.createMetaArrayType(
+						type_manager.printType(id, context), array_type, element_type, std::move(dimensions)
+					)
+				);
+			}
 
 
 
@@ -432,28 +417,9 @@ namespace pcit::panther{
 			std::atomic<uint64_t> num_byte_arrays = 0;
 
 
-			struct MetaBasicType{
-				std::atomic<bool> has_value = false;
-				pir::meta::BasicType::ID id = pir::meta::BasicType::ID::dummy();
-			};
-
-			evo::StepVector<MetaBasicType> meta_types{};
-			std::unordered_map<TypeInfo::ID, MetaBasicType&> meta_types_map{};
-
-			mutable evo::SpinLock meta_types_lock{};
-
-
-			struct MetaQualifiedType{
-				std::atomic<bool> has_value = false;
-				pir::meta::QualifiedType::ID id = pir::meta::QualifiedType::ID::dummy();
-			};
-
-			evo::StepVector<MetaQualifiedType> meta_qualified_types{};
-			std::unordered_map<TypeInfo::ID, MetaQualifiedType&> meta_qualified_types_map{};
-
-			mutable evo::SpinLock meta_qualified_types_lock{};
-
-
+			core::MapAlloc<TypeInfo::ID, pir::meta::BasicType::ID> meta_basic_types{};
+			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_qualified_types{};
+			core::MapAlloc<TypeInfo::ID, pir::meta::ArrayType::ID> meta_array_types{};
 
 			friend class SemaToPIR;
 	};

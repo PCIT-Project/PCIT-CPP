@@ -1,20 +1,4 @@
-interface Interface = #polymorphic {
-	func foo = () -> Void;
-	func bar = () -> Void;
-}
 
-type Struct = struct {
-	impl Interface{
-		foo = () -> Void {},
-		bar = () -> Void {},
-	}
-}
-
-
-func entry = () #entry -> UI8 {
-	var s = new Struct();
-
-	var inter: impl(*:Interface) = s as impl(*:Interface);
-	
-	return 0;
+func function = () -> [Int:3,2] <Int> {
+	error 12;
 }

@@ -11936,16 +11936,17 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::ARRAY: {
 				const BaseType::Array& array = this->context.getTypeManager().getArray(base_type_id.arrayID());
-				const pir::Type elem_type = this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(array.elementTypeID).type;
+				const PIRType elem_type = this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(array.elementTypeID);
 
 				const pir::Type pir_type = [&]() -> pir::Type {
 					if(array.dimensions.size() == 1){
 						return this->module.getOrCreateArrayType(
-							elem_type, array.dimensions.back() + uint64_t(array.terminator.has_value())
+							elem_type.type, array.dimensions.back() + uint64_t(array.terminator.has_value())
 						);
 						
 					}else{
-						pir::Type array_type = this->module.getOrCreateArrayType(elem_type, array.dimensions.back());
+						pir::Type array_type =
+							this->module.getOrCreateArrayType(elem_type.type, array.dimensions.back());
 
 						if(array.dimensions.size() > 1){
 							for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
@@ -11958,8 +11959,17 @@ namespace pcit::panther{
 				}();
 
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of array");
+					const pir::meta::ArrayType::ID meta_type = this->data.get_or_create_meta_array_type(
+						type_id,
+						this->module,
+						this->context.getTypeManager(),
+						this->context,
+						pir_type,
+						*elem_type.meta_type_id,
+						evo::copy(array.dimensions)
+					);
+
+					return PIRType(pir_type, meta_type);
 
 				}else{
 					return PIRType(pir_type, std::nullopt);
