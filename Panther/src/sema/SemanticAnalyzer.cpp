@@ -6812,7 +6812,7 @@ namespace pcit::panther{
 
 		auto error_value = std::optional<sema::Expr>();
 		if(instr.error_stmt.value.is<std::monostate>()){ // error;
-			if(current_func_type.hasErrorReturnParams()){
+			if(current_func_type.hasErrorReturnValue()){
 				this->emit_error(
 					"Incorrect error return statement kind for a function named error return parameters",
 					instr.error_stmt,

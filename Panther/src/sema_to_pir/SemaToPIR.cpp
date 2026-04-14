@@ -407,9 +407,8 @@ namespace pcit::panther{
 
 		auto error_return_param = std::optional<pir::Expr>();
 		auto error_return_type = std::optional<pir::Type>();
-		if(func_type.hasErrorReturn()){
+		if(func_type.hasErrorReturnValue()){
 			error_return_param = this->agent.createParamExpr(uint32_t(params.size()));
-
 
 
 			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
@@ -5274,7 +5273,7 @@ namespace pcit::panther{
 				for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
 					param_types.emplace_back(this->module.createPtrType());
 				}
-				if(target_func_type.hasErrorReturnParams()){
+				if(target_func_type.hasErrorReturnValue()){
 					param_types.emplace_back(this->module.createPtrType());
 				}
 

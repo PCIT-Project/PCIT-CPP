@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.282.1"></a>
+## v0.0.282.1
+
+### Panther
+- Fixed lowering of functions that errors without an error value
+
+
+<!---------------------------------->
 <a name="v0.0.282.0"></a>
 ## v0.0.282.0
 

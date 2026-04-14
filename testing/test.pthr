@@ -1,4 +1,4 @@
 
-func function = () -> [Int:3,2] <Int> {
-	error 12;
+func function = () -> [Int:3,2] <Void> {
+	error;
 }

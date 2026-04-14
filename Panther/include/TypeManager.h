@@ -331,8 +331,8 @@ namespace pcit::panther{
 					"Type `Void` cannot be named"
 				);
 				evo::debugAssert(
-					this->hasNamedErrorReturns == false || this->hasErrorReturnParams(),
-					"Cannot have named error returns without error returns"
+					this->hasNamedErrorReturns == false || this->hasErrorReturnValue(),
+					"Cannot have named error returns without error return values"
 				);
 			}
 
@@ -340,7 +340,7 @@ namespace pcit::panther{
 			EVO_NODISCARD auto returnsVoid() const -> bool { return this->returnTypes[0].isVoid(); }
 
 			EVO_NODISCARD auto hasErrorReturn() const -> bool { return !this->errorTypes.empty(); }
-			EVO_NODISCARD auto hasErrorReturnParams() const -> bool {
+			EVO_NODISCARD auto hasErrorReturnValue() const -> bool {
 				return this->hasErrorReturn() && this->errorTypes[0].isVoid() == false;
 			}
 
