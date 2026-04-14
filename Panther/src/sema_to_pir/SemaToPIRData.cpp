@@ -11,6 +11,7 @@
 
 
 #include "../../include/Context.h"
+#include "../../include/source/SourceManager.h"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -21,15 +22,44 @@
 namespace pcit::panther{
 
 
-	auto SemaToPIRData::getInterfacePtrType(pir::Module& module) -> pir::Type {
+	auto SemaToPIRData::getInterfacePtrType(pir::Module& module, SourceManager& source_manager) -> const PIRType& {
 		const auto lock = std::scoped_lock(this->interface_ptr_type_lock);
 
 		if(this->interface_ptr_type.has_value() == false){
-			this->interface_ptr_type = module.createStructType(
+			const pir::Type struct_type = module.createStructType(
 				"PTHR.interface_ptr",
 				evo::SmallVector<pir::Type>{module.createPtrType(), module.createPtrType()},
 				false
 			);
+
+			auto meta_type_id = std::optional<pir::meta::StructType::ID>();
+			if(this->getConfig().includeDebugInfo){
+				// pick any panther source, doesn't really matter since array references don't exactly have a decl site
+				const Source& first_source = source_manager[Source::ID(0)];
+
+				const pir::meta::QualifiedType::ID rawptr_meta_type = this->get_or_create_meta_qualified_type(
+					TypeManager::getTypeRawPtr(),
+					module,
+					"RawPtr",
+					std::nullopt,
+					pir::meta::QualifiedType::Qualifier::MUT_POINTER
+				);
+
+				meta_type_id = module.createMetaStructType(
+					struct_type,
+					"PTHR.interface_ptr",
+					"PTHR.interface_ptr",
+					*first_source.getPIRMetaFileID(),
+					*first_source.getPIRMetaFileID(),
+					0,
+					evo::SmallVector<pir::meta::StructType::Member>{
+						pir::meta::StructType::Member(rawptr_meta_type, "data"),
+						pir::meta::StructType::Member(rawptr_meta_type, "methods"),
+					}
+				);
+			}
+
+			this->interface_ptr_type.emplace(struct_type, meta_type_id);
 		}
 
 		return *this->interface_ptr_type;
@@ -41,7 +71,7 @@ namespace pcit::panther{
 		Context& context,
 		BaseType::ArrayRef::ID array_ref_id,
 		const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
-	) -> const ArrayRefTypeInfo& {
+	) -> const PIRType& {
 		auto value_handler = this->array_ref_type_infos.get(array_ref_id);
 
 		if(value_handler.needsToBeSet() == false){
@@ -112,7 +142,7 @@ namespace pcit::panther{
 		Context& context,
 		TypeInfo::ID array_ref_id,
 		const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
-	) -> const ArrayRefTypeInfo& {
+	) -> const PIRType& {
 		return this->getArrayRefType(
 			module,
 			context,

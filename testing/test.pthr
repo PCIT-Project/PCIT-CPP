@@ -1,25 +1,20 @@
-type Struct = struct {
-	var foo: Int;
-	var bar: Int;
+interface Interface = #polymorphic {
+	func foo = () -> Void;
+	func bar = () -> Void;
 }
 
-func discard = (val: $T read) -> T? {
-	return null;
+type Struct = struct {
+	impl Interface{
+		foo = () -> Void {},
+		bar = () -> Void {},
+	}
 }
 
 
 func entry = () #entry -> UI8 {
-	// var foo: Int = 12;
-	var arr = new [Int:3][1, 2, 3];
+	var s = new Struct();
 
-	// _ = discard(copy foo);
-	// _ = discard(&foo);
-	// _ = discard(new Struct{foo = 12, bar = 14});
-
-	unsafe{
-		_ = discard(@bitCast<{[Int:3]*, RawPtr}>(&arr));
-	}
+	var inter: impl(*:Interface) = s as impl(*:Interface);
 	
 	return 0;
 }
-

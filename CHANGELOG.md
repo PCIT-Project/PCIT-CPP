@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.281.0"></a>
+## v0.0.281.0
+
+### Panther
+- Added debug info of interface maps
+- Fixed adding metadata of structs with no member variables
+
+
+<!---------------------------------->
+<a name="v0.0.280.2"></a>
+## v0.0.280.2
+
+### Panther
+- Fixed lowering of names of members
+
+
+<!---------------------------------->
 <a name="v0.0.280.1"></a>
 ## v0.0.280.1
 

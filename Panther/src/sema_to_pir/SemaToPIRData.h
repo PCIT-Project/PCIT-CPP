@@ -107,7 +107,7 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<pir::Type>> error_return_types;
 			};
 
-			struct ArrayRefTypeInfo{
+			struct PIRType{
 				pir::Type pir_type;
 				std::optional<pir::meta::StructType::ID> meta_type_id;
 			};
@@ -118,20 +118,21 @@ namespace pcit::panther{
 
 			EVO_NODISCARD auto getConfig() const -> const Config& { return this->config; }
 
-			EVO_NODISCARD auto getInterfacePtrType(pir::Module& module) -> pir::Type;
+			EVO_NODISCARD auto getInterfacePtrType(pir::Module& module, class SourceManager& source_manager)
+				-> const PIRType&;
 
 			EVO_NODISCARD auto getArrayRefType(
 				pir::Module& module,
 				class Context& context,
 				BaseType::ArrayRef::ID array_ref_id,
 				const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
-			) -> const ArrayRefTypeInfo&;
+			) -> const PIRType&;
 			EVO_NODISCARD auto getArrayRefType(
 				pir::Module& module,
 				class Context& context,
 				TypeInfo::ID array_ref_id, 
 				const std::function<pir::meta::Type(TypeInfo::ID)>& get_data_ptr_meta_type
-			) -> const ArrayRefTypeInfo&;
+			) -> const PIRType&;
 
 
 			EVO_NODISCARD auto lookupGlobalVar(pir::GlobalVar::ID id) const -> std::optional<sema::GlobalVar::ID>;
@@ -384,10 +385,10 @@ namespace pcit::panther{
 			Config config;
 
 
-			std::optional<pir::Type> interface_ptr_type = std::nullopt;
+			std::optional<PIRType> interface_ptr_type = std::nullopt;
 			mutable evo::SpinLock interface_ptr_type_lock{};	
 
-			core::MapAlloc<BaseType::ArrayRef::ID, ArrayRefTypeInfo> array_ref_type_infos{};
+			core::MapAlloc<BaseType::ArrayRef::ID, PIRType> array_ref_type_infos{};
 
 			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
 			mutable evo::SpinLock structs_lock{};

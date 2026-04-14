@@ -524,7 +524,6 @@ namespace pcit::panther{
 
 
 
-
 		std::string mangled_name = this->mangle_name(func_id);
 
 		if(func.hasInParam == false){
@@ -1382,13 +1381,33 @@ namespace pcit::panther{
 			const Location location = this->get_location(Diagnostic::Location::get(struct_type, this->context));
 
 			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
-			debug_members.reserve(struct_type.memberVarsABI.size());
-			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+
+			if(struct_type.memberVarsABI.empty() == false){
+				debug_members.reserve(struct_type.memberVarsABI.size());
+				for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+					debug_members.emplace_back(
+						*this->get_type<MAY_LOWER_DEPENDENCY, true>(member_var->typeID).meta_type_id,
+						std::string(struct_type.getMemberName(*member_var, this->context.getSourceManager()))
+					);
+				}
+			}else{
+				const pir::Type nothing_type = [&]() -> pir::Type {
+					if(struct_type.isClangType()){
+						return this->module.createSignedType(8);
+					}else{
+						return this->module.createUnsignedType(1);
+					}
+				}();
+
+				debug_members.reserve(1);
 				debug_members.emplace_back(
-					*this->get_type<MAY_LOWER_DEPENDENCY, true>(member_var->typeID).meta_type_id,
-					std::string(struct_type.getMemberName(*member_var, this->context.getSourceManager()))
+					this->data.get_or_create_meta_basic_type(
+						TypeManager::getTypeUI1(), this->module, "UI1", nothing_type
+					),
+					"__UNNAMED__"
 				);
 			}
+
 
 			std::ignore = this->module.createMetaStructType(
 				new_type,
@@ -1721,7 +1740,8 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(try_else_interface.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+				const pir::Type interface_ptr_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
 					target_interface_ptr,
@@ -1875,7 +1895,8 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+				const pir::Type interface_ptr_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
 					target_interface_ptr,
@@ -3647,7 +3668,8 @@ namespace pcit::panther{
 
 				}else{
 					EVO_DEFER([&](){
-						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+						const pir::Type interface_ptr_type =
+							this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 						const pir::Expr calc_ptr = this->agent.createCalcPtr(
 							this->get_expr_pointer(optional_extract.expr),
 							interface_ptr_type,
@@ -4076,7 +4098,8 @@ namespace pcit::panther{
 					const sema::MakeInterfacePtr& make_interface_ptr =
 						this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
 
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+					const pir::Type interface_ptr_type =
+						this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 
 					const pir::Expr vtable_value = [&]() -> pir::Expr {
@@ -4146,7 +4169,8 @@ namespace pcit::panther{
 					const sema::InterfacePtrExtractThis& interface_ptr_extract_this =
 						this->context.getSemaBuffer().getInterfacePtrExtractThis(expr.interfacePtrExtractThisID());
 
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+					const pir::Type interface_ptr_type =
+						this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Expr ptr = this->agent.createCalcPtr(
@@ -4223,7 +4247,8 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+				const pir::Type interface_ptr_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
 					target_interface_ptr,
@@ -5263,7 +5288,8 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(attempt_func_interface_call.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+				const pir::Type interface_ptr_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 				const pir::Expr vtable_ptr = this->agent.createCalcPtr(
 					target_interface_ptr,
@@ -11038,7 +11064,8 @@ namespace pcit::panther{
 					}
 				}();
 
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module);
+				const pir::Type interface_ptr_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
 
 				return this->module.createGlobalStruct(
 					interface_ptr_type,
@@ -11944,7 +11971,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				const Data::ArrayRefTypeInfo pir_type_info = this->data.getArrayRefType(
+				const Data::PIRType& pir_type_info = this->data.getArrayRefType(
 					this->module,
 					this->context,
 					base_type_id.arrayRefID(),
@@ -12037,14 +12064,14 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				const pir::Type pir_type = this->data.getInterfacePtrType(this->module);
+				const Data::PIRType pir_type =
+					this->data.getInterfacePtrType(this->module, this->context.getSourceManager());
 
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of poly interface ref");
+					return PIRType(pir_type.pir_type, pir_type.meta_type_id);
 					
 				}else{
-					return PIRType(pir_type, std::nullopt);
+					return PIRType(pir_type.pir_type, std::nullopt);
 				}
 			} break;
 
@@ -12052,19 +12079,11 @@ namespace pcit::panther{
 				const BaseType::InterfaceMap& interface_map =
 					this->context.getTypeManager().getInterfaceMap(base_type_id.interfaceMapID());
 
-				const pir::Type pir_type = this->get_type<MAY_LOWER_DEPENDENCY, false>(
+				return this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(
 					this->context.getTypeManager().getTypeInfo(
 						interface_map.underlyingTypeID
 					).baseTypeID()
-				).type;
-
-				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of interface map");
-					
-				}else{
-					return PIRType(pir_type, std::nullopt);
-				}
+				);
 			} break;
 		}
 
@@ -13090,7 +13109,10 @@ namespace pcit::panther{
 							std::string(struct_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name =
+							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						type_name += '.';
+						return type_name;
 					}
 					
 				}else if constexpr(std::is_same<ParentIDType, BaseType::UnionID>()){
@@ -13103,7 +13125,10 @@ namespace pcit::panther{
 							std::string(union_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name =
+							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						type_name += '.';
+						return type_name;
 					}
 
 				}else if constexpr(std::is_same<ParentIDType, BaseType::EnumID>()){
@@ -13116,7 +13141,10 @@ namespace pcit::panther{
 							std::string(enum_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name =
+							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						type_name += '.';
+						return type_name;
 					}
 
 				}else if constexpr(std::is_same<ParentIDType, BaseType::InterfaceID>()){
@@ -13130,7 +13158,10 @@ namespace pcit::panther{
 							std::string(interface_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						return this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name =
+							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						type_name += '.';
+						return type_name;
 					}
 
 				}else if constexpr(std::is_same<ParentIDType, sema::FuncID>()){
