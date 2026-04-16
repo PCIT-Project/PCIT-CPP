@@ -1,0 +1,50 @@
+////////////////////////////////////////////////////////////////////////////////////
+//                                                                                //
+// Part of PCIT-CPP, under the Apache License v2.0 with LLVM and PCIT exceptions. //
+// You may not use this file except in compliance with the License.               //
+// See `https://github.com/PCIT-Project/PCIT-CPP/blob/main/LICENSE`for info.      //
+//                                                                                //
+////////////////////////////////////////////////////////////////////////////////////
+
+
+#pragma once
+
+#include <Evo.hpp>
+
+#include "./class_impls/native_ptr_decls.hpp"
+
+namespace pcit::llvmint{
+
+	class LLVMContext{
+		public:
+			LLVMContext() = default;
+			~LLVMContext() { evo::debugAssert(!this->isInitialized(), "must be uninitialized before destructor"); };
+
+			LLVMContext(LLVMContext&& rhs){
+				this->_native = rhs._native;
+				rhs._native = nullptr;
+			}
+
+			auto init() -> void;
+			auto init(llvm::LLVMContext* context) -> void; // passing nullptr is equivalent to passing nothing
+
+			auto deinit() -> void;
+
+			// uninitiailizes
+			auto steal() -> llvm::LLVMContext* {
+				llvm::LLVMContext* holder = this->_native;
+				this->_native = nullptr;
+				return holder;
+			}
+
+
+			[[nodiscard]] auto isInitialized() const -> bool { return this->_native != nullptr; };
+
+			[[nodiscard]] auto native() const -> const llvm::LLVMContext* { return this->_native; };
+			[[nodiscard]] auto native()       ->       llvm::LLVMContext* { return this->_native; };
+	
+		private:
+			llvm::LLVMContext* _native = nullptr;
+	};
+	
+}

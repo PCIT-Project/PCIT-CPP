@@ -17,7 +17,7 @@
 //                   Modified for use in PCIT-CPP                   //
 //                                                                  //
 // Modifications made:                                              //
-// 		- are code style change in some places                      //
+// 		- code style change in some places                          //
 // 		- make it compile in the PCIT-CPP codebase                  //
 //      - change in namespace                                       //
 //		- commenting out / removing some unused code                //
@@ -25,7 +25,7 @@
 //////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/AP_numbers/APInt.h"
+#include "../../include/AP_numbers/APInt.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(push, 0)

@@ -7,11 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./SymbolProc.h"
+#include "./SymbolProc.hpp"
 
 #include <queue>
 
-#include "../../include/Context.h"
+#include "../../include/Context.hpp"
 
 
 

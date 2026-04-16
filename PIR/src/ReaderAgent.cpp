@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/ReaderAgent.h"
+#include "../include/ReaderAgent.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)

@@ -7,10 +7,10 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Agent.h"
+#include "../include/Agent.hpp"
 
-#include "../include/misc.h"
-#include "../include/ReaderAgent.h"
+#include "../include/misc.hpp"
+#include "../include/ReaderAgent.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -1628,7 +1628,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// calc ptr
 
-	EVO_NODISCARD auto Agent::createCalcPtr(
+	[[nodiscard]] auto Agent::createCalcPtr(
 		Expr base_ptr, Type ptr_type, evo::SmallVector<CalcPtr::Index>&& indices, std::string&& name
 	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
@@ -1697,7 +1697,7 @@ namespace pcit::pir{
 		return new_stmt;
 	}
 
-	EVO_NODISCARD auto Agent::getCalcPtr(Expr expr) const -> const CalcPtr& {
+	[[nodiscard]] auto Agent::getCalcPtr(Expr expr) const -> const CalcPtr& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getCalcPtr(expr);
 	}
 
@@ -1758,7 +1758,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// BitCast
 	
-	EVO_NODISCARD auto Agent::createBitCast(Expr fromValue, Type toType, std::string&& name) const
+	[[nodiscard]] auto Agent::createBitCast(Expr fromValue, Type toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 
@@ -1785,7 +1785,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getBitCast(Expr expr) const -> const BitCast& {
+	[[nodiscard]] auto Agent::getBitCast(Expr expr) const -> const BitCast& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getBitCast(expr);
 	}
 
@@ -1793,7 +1793,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// Trunc
 	
-	EVO_NODISCARD auto Agent::createTrunc(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createTrunc(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) >= this->module.numBytes(toType),
@@ -1810,7 +1810,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getTrunc(Expr expr) const -> const Trunc& {
+	[[nodiscard]] auto Agent::getTrunc(Expr expr) const -> const Trunc& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getTrunc(expr);
 	}
 
@@ -1818,7 +1818,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FTrunc
 	
-	EVO_NODISCARD auto Agent::createFTrunc(Expr fromValue, Type toType, std::string&& name) const
+	[[nodiscard]] auto Agent::createFTrunc(Expr fromValue, Type toType, std::string&& name) const
 	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
@@ -1836,7 +1836,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFTrunc(Expr expr) const -> const FTrunc& {
+	[[nodiscard]] auto Agent::getFTrunc(Expr expr) const -> const FTrunc& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFTrunc(expr);
 	}
 
@@ -1844,7 +1844,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// SExt
 	
-	EVO_NODISCARD auto Agent::createSExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createSExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
@@ -1861,7 +1861,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getSExt(Expr expr) const -> const SExt& {
+	[[nodiscard]] auto Agent::getSExt(Expr expr) const -> const SExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getSExt(expr);
 	}
 
@@ -1869,7 +1869,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// ZExt
 	
-	EVO_NODISCARD auto Agent::createZExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createZExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
@@ -1890,7 +1890,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getZExt(Expr expr) const -> const ZExt& {
+	[[nodiscard]] auto Agent::getZExt(Expr expr) const -> const ZExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getZExt(expr);
 	}
 
@@ -1898,7 +1898,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FExt
 	
-	EVO_NODISCARD auto Agent::createFExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createFExt(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.numBytes(this->getExprType(fromValue)) <= this->module.numBytes(toType),
@@ -1915,7 +1915,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFExt(Expr expr) const -> const FExt& {
+	[[nodiscard]] auto Agent::getFExt(Expr expr) const -> const FExt& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFExt(expr);
 	}
 
@@ -1923,7 +1923,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// IToF
 	
-	EVO_NODISCARD auto Agent::createIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isIntegral(), "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
@@ -1936,7 +1936,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getIToF(Expr expr) const -> const IToF& {
+	[[nodiscard]] auto Agent::getIToF(Expr expr) const -> const IToF& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getIToF(expr);
 	}
 
@@ -1944,7 +1944,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// UIToF
 	
-	EVO_NODISCARD auto Agent::createUIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createUIToF(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isIntegral(), "can only convert integers");
 		evo::debugAssert(toType.isFloat(), "can only convert to floats");
@@ -1957,7 +1957,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getUIToF(Expr expr) const -> const UIToF& {
+	[[nodiscard]] auto Agent::getUIToF(Expr expr) const -> const UIToF& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getUIToF(expr);
 	}
 
@@ -1965,7 +1965,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToI
 	
-	EVO_NODISCARD auto Agent::createFToI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createFToI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(toType.isIntegral(), "can only convert to integers");
@@ -1978,7 +1978,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFToI(Expr expr) const -> const FToI& {
+	[[nodiscard]] auto Agent::getFToI(Expr expr) const -> const FToI& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFToI(expr);
 	}
 
@@ -1986,7 +1986,7 @@ namespace pcit::pir{
 	//////////////////////////////////////////////////////////////////////
 	// FToUI
 	
-	EVO_NODISCARD auto Agent::createFToUI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
+	[[nodiscard]] auto Agent::createFToUI(Expr fromValue, Type toType, std::string&& name) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(this->getExprType(fromValue).isFloat(), "can only convert floats");
 		evo::debugAssert(
@@ -2002,7 +2002,7 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	EVO_NODISCARD auto Agent::getFToUI(Expr expr) const -> const FToUI& {
+	[[nodiscard]] auto Agent::getFToUI(Expr expr) const -> const FToUI& {
 		return ReaderAgent(this->module, this->getTargetFunction()).getFToUI(expr);
 	}
 

@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/getDefaultDebugger.h"
+#include "../include/getDefaultDebugger.hpp"
 
-#include "../include/ExecutionEngine.h"
-#include "../include/ExecutionEngineDebuggerInterface.h"
-#include "../include/ModulePrinter.h"
-#include "../include/ReaderAgent.h"
+#include "../include/ExecutionEngine.hpp"
+#include "../include/ExecutionEngineDebuggerInterface.hpp"
+#include "../include/ModulePrinter.hpp"
+#include "../include/ReaderAgent.hpp"
 
 #include <ranges>
 #include <iostream>
@@ -46,7 +46,7 @@ namespace pcit::pir{
 
 
 
-		EVO_NODISCARD auto run() -> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code> {
+		[[nodiscard]] auto run() -> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code> {
 			// evo::print("\033[?1049h"); // switch to alternate buffer
 			// EVO_DEFER([&](){ evo::print("\033[?1049l"); }); // switch back to normal buffer
 

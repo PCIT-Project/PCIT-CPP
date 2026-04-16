@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./SymbolProcBuilder.h"
+#include "./SymbolProcBuilder.hpp"
 
-#include "./SymbolProcManager.h"
+#include "./SymbolProcManager.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/passes/removeUnusedStmts.h"
+#include "../../include/passes/removeUnusedStmts.hpp"
 
-// #include "../../include/Type.h"
-#include "../../include/Expr.h"
-// #include "../../include/BasicBlock.h"
-#include "../../include/Function.h"
-// #include "../../include/Module.h"
-#include "../../include/Agent.h"
+// #include "../../include/Type.hpp"
+#include "../../include/Expr.hpp"
+// #include "../../include/BasicBlock.hpp"
+#include "../../include/Function.hpp"
+// #include "../../include/Module.hpp"
+#include "../../include/Agent.hpp"
 
 #include <unordered_set>
 

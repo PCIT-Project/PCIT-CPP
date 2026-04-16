@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Function.h"
+#include "../include/Function.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
 
 namespace pcit::llvmint{

@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Function.h"
+#include "../include/Function.hpp"
 
-#include "../include/Module.h"
+#include "../include/Module.hpp"
 
-#include "../include/Agent.h"
-#include "../include/ReaderAgent.h"
+#include "../include/Agent.hpp"
+#include "../include/ReaderAgent.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

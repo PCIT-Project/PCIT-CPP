@@ -7,10 +7,10 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/tokens/TokenBuffer.h"
+#include "../../include/tokens/TokenBuffer.hpp"
 
 
-#include "../source/Source.h"
+#include "../source/Source.hpp"
 
 namespace pcit::panther{
 

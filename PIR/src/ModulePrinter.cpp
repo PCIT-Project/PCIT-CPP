@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/ModulePrinter.h"
+#include "../include/ModulePrinter.hpp"
 
-#include "../include/GlobalVar.h"
-#include "../include/BasicBlock.h"
-#include "../include/Function.h"
-#include "../include/Module.h"
+#include "../include/GlobalVar.hpp"
+#include "../include/BasicBlock.hpp"
+#include "../include/Function.hpp"
+#include "../include/Module.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)

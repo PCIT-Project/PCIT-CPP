@@ -7,22 +7,22 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Context.h"
+#include "../include/Context.hpp"
 
 #include <filesystem>
 namespace fs = std::filesystem;
 
-#include "./tokens/Tokenizer.h"
-#include "./AST/Parser.h"
-#include "./symbol_proc/SymbolProcBuilder.h"
-#include "./sema/SemanticAnalyzer.h"
-#include "../src/sema_to_pir/SemaToPIR.h"
-#include "../../PIR/include/getDefaultDebugger.h"
+#include "./tokens/Tokenizer.hpp"
+#include "./AST/Parser.hpp"
+#include "./symbol_proc/SymbolProcBuilder.hpp"
+#include "./sema/SemanticAnalyzer.hpp"
+#include "../src/sema_to_pir/SemaToPIR.hpp"
+#include "../../PIR/include/getDefaultDebugger.hpp"
 
-#include <PIR.h>
+#include <PIR.hpp>
 
-#include <clang_interface.h>
-#include <llvm_interface.h>
+#include <clang_interface.hpp>
+#include <llvm_interface.hpp>
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -37,16 +37,16 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// path helpers
 
-	EVO_NODISCARD static auto path_exitsts(const fs::path& path) -> bool {
+	[[nodiscard]] static auto path_exitsts(const fs::path& path) -> bool {
 		auto ec = std::error_code();
 		return std::filesystem::exists(path, ec) && (ec.value() == 0);
 	}
 
-	EVO_NODISCARD static auto path_is_pthr_file(const fs::path& path) -> bool {
+	[[nodiscard]] static auto path_is_pthr_file(const fs::path& path) -> bool {
 		return path_exitsts(path) && path.extension() == ".pthr";
 	}
 
-	EVO_NODISCARD static auto normalize_path(const fs::path& path, const fs::path& base_path) -> fs::path {
+	[[nodiscard]] static auto normalize_path(const fs::path& path, const fs::path& base_path) -> fs::path {
 		return (base_path / path).lexically_normal();
 	}
 
@@ -184,7 +184,7 @@ namespace pcit::panther{
 	}
 
 
-	EVO_NODISCARD static auto clang_type_to_panther_type(
+	[[nodiscard]] static auto clang_type_to_panther_type(
 		clangint::Type clang_type,
 		TypeManager& type_manager,
 		const std::unordered_map<std::string, BaseType::ID>& type_map
@@ -729,7 +729,7 @@ namespace pcit::panther{
 
 
 
-	EVO_NODISCARD static auto analyze_and_print_clang_diagnostics(
+	[[nodiscard]] static auto analyze_and_print_clang_diagnostics(
 		const pcit::clangint::DiagnosticList& diagnostic_list,
 		Context& context,
 		SourceManager& source_manager,
@@ -1173,7 +1173,7 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// task 
 
-	EVO_NODISCARD auto Context::load_source(
+	[[nodiscard]] auto Context::load_source(
 		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){

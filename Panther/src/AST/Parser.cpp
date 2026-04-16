@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./Parser.h"
+#include "./Parser.hpp"
 
 
 
@@ -2311,7 +2311,7 @@ namespace pcit::panther{
 
 
 
-	EVO_NODISCARD static constexpr auto get_infix_op_precedence(Token::Kind kind) -> int {
+	[[nodiscard]] static constexpr auto get_infix_op_precedence(Token::Kind kind) -> int {
 		switch(kind){
 			case Token::lookupKind("||"):  return 1;
 

@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/llvmir.h"
+#include "../include/llvmir.hpp"
 
 
-#include "../include/Module.h"
-#include "../include/ReaderAgent.h"
-#include "./PIRToLLVMIR.h"
+#include "../include/Module.hpp"
+#include "../include/ReaderAgent.hpp"
+#include "./PIRToLLVMIR.hpp"
 
-#include <llvm_interface.h>
+#include <llvm_interface.hpp>
 
 
 #if defined(EVO_COMPILER_MSVC)

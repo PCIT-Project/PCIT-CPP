@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/sema/sema.h"
+#include "../../include/sema/sema.hpp"
 
-#include "../../include/Context.h"
+#include "../../include/Context.hpp"
 
 
 namespace pcit::panther::sema{

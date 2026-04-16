@@ -7,11 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/LLVMContext.h"
+#include "../include/LLVMContext.hpp"
 
-#include "../include/init.h"
+#include "../include/init.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
 
 namespace pcit::llvmint{

@@ -7,15 +7,15 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./SemanticAnalyzer.h"
+#include "./SemanticAnalyzer.hpp"
 
 #include <queue>
 #include <ranges>
 
-#include "../symbol_proc/SymbolProcBuilder.h"
-#include "./attributes.h"
-#include "./ComptimeIntrinsicEvaluator.h"
-#include "../../include/sema/conversion.h"
+#include "../symbol_proc/SymbolProcBuilder.hpp"
+#include "./attributes.hpp"
+#include "./ComptimeIntrinsicEvaluator.hpp"
+#include "../../include/sema/conversion.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

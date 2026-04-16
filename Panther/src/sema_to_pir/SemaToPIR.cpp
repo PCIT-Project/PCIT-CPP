@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./SemaToPIR.h"
+#include "./SemaToPIR.hpp"
 
 #include <ranges>
 
-#include "../../include/Context.h"
-#include "../../include/sema/conversion.h"
+#include "../../include/Context.hpp"
+#include "../../include/sema/conversion.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -22,12 +22,12 @@
 
 namespace pcit::panther{
 
-	EVO_NODISCARD static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
 		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 
 
-	EVO_NODISCARD static auto remove_alloca_from_name(std::string_view str) -> std::string {
+	[[nodiscard]] static auto remove_alloca_from_name(std::string_view str) -> std::string {
 		const size_t alloca_loc = str.find(".ALLOCA");
 
 		if(alloca_loc == std::string_view::npos){ return std::string(str); }

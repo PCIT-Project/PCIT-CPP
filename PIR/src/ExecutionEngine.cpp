@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/ExecutionEngine.h"
+#include "../include/ExecutionEngine.hpp"
 
 #include <csignal>
 
-#include "../include/getDefaultDebugger.h"
-#include "../include/ExecutionEngineDebuggerInterface.h"
+#include "../include/getDefaultDebugger.hpp"
+#include "../include/ExecutionEngineDebuggerInterface.hpp"
 
 
 namespace pcit::pir{

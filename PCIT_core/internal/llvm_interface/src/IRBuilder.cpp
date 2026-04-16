@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/IRBuilder.h"
+#include "../include/IRBuilder.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
-#include "../include/LLVMContext.h"
+#include "../include/LLVMContext.hpp"
 
-#include "../../../include/generic_values/GenericInt.h"
-#include "../../../include/generic_values/GenericFloat.h"
+#include "../../../include/generic_values/GenericInt.hpp"
+#include "../../../include/generic_values/GenericFloat.hpp"
 
 
 
@@ -30,12 +30,12 @@ namespace pcit::llvmint{
 
 
 	template<class LLVM_TYPE, class LLVMINT_TYPE>
-	EVO_NODISCARD static auto create_array_ref(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
+	[[nodiscard]] static auto create_array_ref(evo::ArrayProxy<LLVMINT_TYPE> arr_proxy) -> llvm::ArrayRef<LLVM_TYPE*> {
 		return llvm::ArrayRef((LLVM_TYPE**)arr_proxy.data(), arr_proxy.size());
 	}
 
 
-	EVO_NODISCARD static auto convertGenericFloatToAPFloat(const core::GenericFloat& value) -> llvm::APFloat {
+	[[nodiscard]] static auto convertGenericFloatToAPFloat(const core::GenericFloat& value) -> llvm::APFloat {
 		return evo::bitCast<llvm::APFloat>(value.copyToLLVMNative());
 	}
 

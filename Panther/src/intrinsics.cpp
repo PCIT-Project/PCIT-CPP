@@ -7,13 +7,13 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/intrinsics.h"
+#include "../include/intrinsics.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
 #endif
 
-#include "../include/TypeManager.h"
+#include "../include/TypeManager.hpp"
 
 
 namespace pcit::panther{

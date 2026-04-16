@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./MacroParser.h"
+#include "./MacroParser.hpp"
 
-#include "../include/API.h"
+#include "../include/API.hpp"
 
 namespace pcit::clangint{
 

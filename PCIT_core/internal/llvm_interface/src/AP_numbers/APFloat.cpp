@@ -17,14 +17,14 @@
 //                   Modified for use in PCIT-CPP                   //
 //                                                                  //
 // Modifications made:                                              //
-// 		- are code style change in some places                      //
+// 		- code style change in some places                          //
 // 		- make it compile in the PCIT-CPP codebase                  //
 //      - change in namespace                                       //
 //		- commenting out / removing some unused code                //
 //                                                                  //
 //////////////////////////////////////////////////////////////////////
 
-#include "../../include/AP_numbers/APFloat.h"
+#include "../../include/AP_numbers/APFloat.hpp"
 
 #undef LLVM_READONLY
 #undef LLVM_READNONE
@@ -377,17 +377,17 @@ namespace pcit::llvmint{
 
 
 
-EVO_NODISCARD static constexpr auto exponentZero(const pcit::llvmint::fltSemantics &semantics)
+[[nodiscard]] static constexpr auto exponentZero(const pcit::llvmint::fltSemantics &semantics)
 -> pcit::llvmint::APFloatBase::ExponentType {
 	return semantics.minExponent - 1;
 }
 
-EVO_NODISCARD static constexpr auto exponentInf(const pcit::llvmint::fltSemantics &semantics)
+[[nodiscard]] static constexpr auto exponentInf(const pcit::llvmint::fltSemantics &semantics)
 -> pcit::llvmint::APFloatBase::ExponentType {
 	return semantics.maxExponent + 1;
 }
 
-EVO_NODISCARD static constexpr auto exponentNaN(const pcit::llvmint::fltSemantics &semantics)
+[[nodiscard]] static constexpr auto exponentNaN(const pcit::llvmint::fltSemantics &semantics)
 -> pcit::llvmint::APFloatBase::ExponentType {
 	if (semantics.nonFiniteBehavior == pcit::llvmint::fltNonfiniteBehavior::NanOnly) {
 		if (semantics.nanEncoding == pcit::llvmint::fltNanEncoding::NegativeZero)

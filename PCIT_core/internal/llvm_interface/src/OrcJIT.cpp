@@ -7,13 +7,13 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/OrcJIT.h"
+#include "../include/OrcJIT.hpp"
 
-#include "../include/LLVMContext.h"
-#include "../include/Module.h"
-#include "../include/init.h"
+#include "../include/LLVMContext.hpp"
+#include "../include/Module.hpp"
+#include "../include/init.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)

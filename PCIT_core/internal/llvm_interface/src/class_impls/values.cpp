@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/class_impls/values.h"
+#include "../../include/class_impls/values.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
 
 namespace pcit::llvmint{

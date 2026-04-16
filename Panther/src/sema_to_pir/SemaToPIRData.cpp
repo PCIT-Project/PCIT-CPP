@@ -7,11 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./SemaToPIRData.h"
+#include "./SemaToPIRData.hpp"
 
 
-#include "../../include/Context.h"
-#include "../../include/source/SourceManager.h"
+#include "../../include/Context.hpp"
+#include "../../include/source/SourceManager.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/link.h"
+#include "../include/link.hpp"
 
-#include "./args/get_windows_args.h"
-#include "./args/get_unix_args.h"
-#include "./args/get_darwin_args.h"
-#include "./args/get_wasm_args.h"
+#include "./args/get_windows_args.hpp"
+#include "./args/get_unix_args.hpp"
+#include "./args/get_darwin_args.hpp"
+#include "./args/get_wasm_args.hpp"
 
-#include <LLD.h>
+#include <LLD.hpp>
 
 
 #if defined(EVO_COMPILER_MSVC)

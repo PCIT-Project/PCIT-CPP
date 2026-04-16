@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.282.2"></a>
+## v0.0.282.2
+- Minor code changes
+	- Renamed all `.h` files to `.hpp`
+	- Replaced all `EVO_NODISCARD` with `[[NODISCARD]]` (https://github.com/sublimehq/Packages/pull/4523)
+
+
+<!---------------------------------->
 <a name="v0.0.282.1"></a>
 ## v0.0.282.1
 

@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/default_diagnostic_callback.h"
+#include "../include/default_diagnostic_callback.hpp"
 
 namespace pcit::panther{
 
@@ -21,7 +21,7 @@ namespace pcit::panther{
 
 
 
-	EVO_NODISCARD static auto get_diagnostic_level(Diagnostic::Level level) -> DiagnosticLevel {
+	[[nodiscard]] static auto get_diagnostic_level(Diagnostic::Level level) -> DiagnosticLevel {
 		switch(level){
 			case Diagnostic::Level::FATAL:   return DiagnosticLevel::FATAL;
 			case Diagnostic::Level::ERROR:   return DiagnosticLevel::ERROR;

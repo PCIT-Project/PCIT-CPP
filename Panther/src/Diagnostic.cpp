@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Diagnostic.h"
+#include "../include/Diagnostic.hpp"
 
-#include "../include/Context.h"
+#include "../include/Context.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

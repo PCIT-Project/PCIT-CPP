@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./Tokenizer.h"
+#include "./Tokenizer.hpp"
 
 
 namespace pcit::panther{
@@ -19,7 +19,7 @@ namespace pcit::panther{
 	};
 
 	template<class NumericType>
-	EVO_NODISCARD auto str_to_num(std::string_view str, int base) 
+	[[nodiscard]] auto str_to_num(std::string_view str, int base) 
 	-> evo::Expected<NumericType, StrToNumError> requires(std::is_integral_v<NumericType>) {
 		NumericType result;
 		auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result, base);
@@ -33,7 +33,7 @@ namespace pcit::panther{
 	}
 
 	template<class NumericType>
-	EVO_NODISCARD auto str_to_num(std::string_view str, int base) 
+	[[nodiscard]] auto str_to_num(std::string_view str, int base) 
 	-> evo::Expected<NumericType, StrToNumError> requires(std::is_floating_point_v<NumericType>) {
 		const std::chars_format fmt = [&]() {
 			switch(base){
@@ -1374,7 +1374,7 @@ namespace pcit::panther{
 
 
 
-	EVO_NODISCARD static constexpr auto hex_from_4_bits(char num) -> char {
+	[[nodiscard]] static constexpr auto hex_from_4_bits(char num) -> char {
 		switch(num){
 			case 0: return '0';
 			case 1: return '1';

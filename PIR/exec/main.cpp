@@ -6,9 +6,9 @@
 //                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////
 
-#include <Evo.h>
+#include <Evo.hpp>
 
-#include <PCIT_core.h>
+#include <PCIT_core.hpp>
 
 #include <iostream>
 
@@ -30,7 +30,7 @@
 #endif
 
 
-#include <PIR.h>
+#include <PIR.hpp>
 
 
 struct Config{

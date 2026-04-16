@@ -7,11 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Module.h"
+#include "../include/Module.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
-#include "../include/LLVMContext.h"
+#include "../include/LLVMContext.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)

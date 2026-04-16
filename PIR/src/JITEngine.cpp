@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/JITEngine.h"
+#include "../include/JITEngine.hpp"
 
-#include "../include/Module.h"
-#include "./PIRToLLVMIR.h"
+#include "../include/Module.hpp"
+#include "./PIRToLLVMIR.hpp"
 
-#include <llvm_interface.h>
+#include <llvm_interface.hpp>
 
 
 #if defined(EVO_COMPILER_MSVC)

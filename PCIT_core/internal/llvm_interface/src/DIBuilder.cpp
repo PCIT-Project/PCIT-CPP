@@ -7,11 +7,11 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/DIBuilder.h"
+#include "../include/DIBuilder.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
-#include "../include/Module.h"
+#include "../include/Module.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/sema/conversion.h"
+#include "../../include/sema/conversion.hpp"
 
-#include "../../include/Context.h"
+#include "../../include/Context.hpp"
 
 
 namespace pcit::panther::sema{

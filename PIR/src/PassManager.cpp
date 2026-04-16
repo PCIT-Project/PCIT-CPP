@@ -7,12 +7,12 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/PassManager.h"
+#include "../include/PassManager.hpp"
 
-#include "../include/Expr.h"
-#include "../include/BasicBlock.h"
-#include "../include/Module.h"
-#include "../include/Agent.h"
+#include "../include/Expr.hpp"
+#include "../include/BasicBlock.hpp"
+#include "../include/Module.hpp"
+#include "../include/Agent.hpp"
 
 #include <ranges>
 

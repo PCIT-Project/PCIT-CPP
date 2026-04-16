@@ -7,10 +7,10 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/Module.h"
+#include "../include/Module.hpp"
 
-#include "../include/ReaderAgent.h"
-#include "../include/Agent.h"
+#include "../include/ReaderAgent.hpp"
+#include "../include/Agent.hpp"
 
 #include <unordered_set>
 

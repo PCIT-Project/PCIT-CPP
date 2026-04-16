@@ -9,15 +9,15 @@
 
 #include <iostream>
 
-#include <Evo.h>
-#include <Panther.h>
+#include <Evo.hpp>
+#include <Panther.hpp>
 namespace core = pcit::core;
 namespace panther = pcit::panther;
 namespace pir = pcit::pir;
-#include <PLNK.h>
+#include <PLNK.hpp>
 namespace plnk = pcit::plnk;
 
-#include "./printing.h"
+#include "./printing.hpp"
 
 
 namespace pthr{
@@ -201,7 +201,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 
 
 
-EVO_NODISCARD static auto run_compile(
+[[nodiscard]] static auto run_compile(
 	const pthr::CmdArgsConfig& cmd_args_config,
 	panther::Context::BuildSystemConfig& config,
 	core::Printer& printer

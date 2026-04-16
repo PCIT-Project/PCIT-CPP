@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/clang_run.h"
+#include "../include/clang_run.hpp"
 
 
-#include <Clang.h>
+#include <Clang.hpp>
 
-#include "../include/Type.h"
+#include "../include/Type.hpp"
 
-#include "./extract_macros.h"
+#include "./extract_macros.hpp"
 
 namespace pcit::clangint{
 
@@ -120,7 +120,7 @@ namespace pcit::clangint{
 
 
 
-	EVO_NODISCARD static auto make_type(clang::QualType qual_type, API& api) -> Type {
+	[[nodiscard]] static auto make_type(clang::QualType qual_type, API& api) -> Type {
 		auto qualifiers = evo::SmallVector<Type::Qualifier>();
 
 		bool is_const = false;
@@ -666,7 +666,7 @@ namespace pcit::clangint{
 
 
 
-	EVO_NODISCARD static auto get_compiler_args(
+	[[nodiscard]] static auto get_compiler_args(
 		const std::string& file_name, evo::Variant<COpts, CPPOpts> opts, core::Target target, bool include_debug_info
 	) -> evo::SmallVector<const char*> {
 		auto args = evo::SmallVector<const char*>{

@@ -7,14 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/passes/instCombine.h"
+#include "../../include/passes/instCombine.hpp"
 
-#include "../../include/Type.h"
-#include "../../include/Expr.h"
-#include "../../include/BasicBlock.h"
-#include "../../include/Function.h"
-#include "../../include/Module.h"
-#include "../../include/Agent.h"
+#include "../../include/Type.hpp"
+#include "../../include/Expr.hpp"
+#include "../../include/BasicBlock.hpp"
+#include "../../include/Function.hpp"
+#include "../../include/Module.hpp"
+#include "../../include/Agent.hpp"
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)

@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./ExecutionEngineExecutor.h"
+#include "./ExecutionEngineExecutor.hpp"
 
-#include "../include/ExecutionEngine.h"
+#include "../include/ExecutionEngine.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -19,7 +19,7 @@
 
 namespace pcit::pir{
 
-	static EVO_NODISCARD auto generic_value_to_float(const core::GenericValue& generic_value, Type type)
+	static [[nodiscard]] auto generic_value_to_float(const core::GenericValue& generic_value, Type type)
 	-> core::GenericFloat {
 		switch(type.getWidth()){
 			case 16:  return generic_value.getF16();

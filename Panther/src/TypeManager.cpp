@@ -7,7 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/TypeManager.h"
+#include "../include/TypeManager.hpp"
 
 #include <ranges>
 
@@ -15,9 +15,9 @@
 	#pragma warning(default : 4062)
 #endif
 
-#include "../include/source/SourceManager.h"
-#include "../include/Context.h"
-#include "../include/sema/SemaBuffer.h"
+#include "../include/source/SourceManager.hpp"
+#include "../include/Context.hpp"
+#include "../include/sema/SemaBuffer.hpp"
 
 
 namespace pcit::panther{
@@ -2082,12 +2082,12 @@ namespace pcit::panther{
 	// type traits
 
 	// https://stackoverflow.com/a/1766566
-	EVO_NODISCARD static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
 		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 
 
-	EVO_NODISCARD static constexpr auto add_padding_bytes_if_needed(size_t size, bool include_padding) -> size_t {
+	[[nodiscard]] static constexpr auto add_padding_bytes_if_needed(size_t size, bool include_padding) -> size_t {
 		if(include_padding == false){ return size; }
 
 		switch(size){
@@ -2306,7 +2306,7 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// numBits
 
-	EVO_NODISCARD static constexpr auto add_padding_bits_if_needed(size_t size, bool include_padding) -> size_t {
+	[[nodiscard]] static constexpr auto add_padding_bits_if_needed(size_t size, bool include_padding) -> size_t {
 		if(include_padding == false){ return size; }
 
 		if(size <= 8){ return 8; }

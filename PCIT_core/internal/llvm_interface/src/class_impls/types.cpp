@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../../include/class_impls/types.h"
+#include "../../include/class_impls/types.hpp"
 
-#include <LLVM.h>
+#include <LLVM.hpp>
 
 
 namespace pcit::llvmint{

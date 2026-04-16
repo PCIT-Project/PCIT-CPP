@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "../include/ExecutionEngineDebuggerInterface.h"
+#include "../include/ExecutionEngineDebuggerInterface.hpp"
 
-#include "./ExecutionEngineExecutor.h"
+#include "./ExecutionEngineExecutor.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)

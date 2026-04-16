@@ -7,20 +7,20 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./extract_macros.h"
+#include "./extract_macros.hpp"
 
 
-#include <Clang.h>
+#include <Clang.hpp>
 
-#include "./MacroToken.h"
-#include "./MacroParser.h"
+#include "./MacroToken.hpp"
+#include "./MacroParser.hpp"
 
 namespace pcit::clangint{
 
 
 
 
-	EVO_NODISCARD static auto tokenize_macro(const clang::MacroInfo& macro_info)
+	[[nodiscard]] static auto tokenize_macro(const clang::MacroInfo& macro_info)
 	-> evo::Result<evo::SmallVector<MacroToken>> {
 		if(macro_info.isFunctionLike()){ return evo::resultError; }
 

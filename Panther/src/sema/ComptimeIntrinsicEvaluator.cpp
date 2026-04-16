@@ -7,9 +7,9 @@
 ////////////////////////////////////////////////////////////////////////////////////
 
 
-#include "./ComptimeIntrinsicEvaluator.h"
+#include "./ComptimeIntrinsicEvaluator.hpp"
 
-#include "../../include/sema/SemaBuffer.h"
+#include "../../include/sema/SemaBuffer.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
