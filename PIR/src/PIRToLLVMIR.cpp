@@ -108,7 +108,10 @@ namespace pcit::pir{
 		const llvmint::DIBuilder::File di_file =
 			this->di_builder.createFile(path.filename().string(), path.parent_path().string());
 
-		this->di_builder.createCompileUnit(language, di_file, meta_file.producerName, false);
+		if(this->added_compile_unit == false){
+			this->added_compile_unit = true;
+			this->di_builder.createCompileUnit(language, di_file, meta_file.producerName, false);
+		}
 
 		this->meta_files.emplace(meta_file_id, di_file);
 	}
@@ -164,7 +167,8 @@ namespace pcit::pir{
 	}
 
 
-	auto PIRToLLVMIR::lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> void {
+	auto PIRToLLVMIR::lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id)
+	-> llvmint::DIBuilder::DerivedType {
 		const meta::QualifiedType& meta_qualified_type =  this->module.getMetaQualifiedType(meta_qualified_type_id);
 
 		const llvmint::DIBuilder::Type qualee_type = [&]() -> llvmint::DIBuilder::Type {
@@ -198,10 +202,13 @@ namespace pcit::pir{
  		}();
 		
 		this->meta_qualified_types.emplace(meta_qualified_type_id, derived_type);
+
+		return derived_type;
 	}
 
 
-	auto PIRToLLVMIR::lower_meta_struct_type(meta::StructType::ID meta_struct_type_id) -> void {
+	auto PIRToLLVMIR::lower_meta_struct_type(meta::StructType::ID meta_struct_type_id)
+	-> llvmint::DIBuilder::CompositeType {
 		const meta::StructType& meta_struct_type = this->module.getMetaStructType(meta_struct_type_id);
 		const StructType& struct_type = this->module.getStructType(meta_struct_type.structType);
 
@@ -253,10 +260,13 @@ namespace pcit::pir{
 		);
 
 		this->meta_struct_types.emplace(meta_struct_type_id, composite_type);
+
+		return composite_type;
 	}
 
 
-	auto PIRToLLVMIR::lower_meta_array_type(meta::ArrayType::ID meta_array_type_id) -> void {
+	auto PIRToLLVMIR::lower_meta_array_type(meta::ArrayType::ID meta_array_type_id)
+	-> llvmint::DIBuilder::CompositeType {
 		const meta::ArrayType& meta_array_type = this->module.getMetaArrayType(meta_array_type_id);
 
 		const llvmint::DIBuilder::Type element_llvm_type = this->get_meta_type(meta_array_type.elementType);
@@ -275,6 +285,7 @@ namespace pcit::pir{
 			);
 
 			this->meta_array_types.emplace(meta_array_type_id, llvm_array_type);
+			return llvm_array_type;
 			
 		}else{
 			uint64_t array_num_bits = element_type_num_bits * meta_array_type.dimensions.back();
@@ -292,6 +303,7 @@ namespace pcit::pir{
 			}
 
 			this->meta_array_types.emplace(meta_array_type_id, llvm_array_type);
+			return llvm_array_type;
 		}
 	}
 
@@ -2518,13 +2530,31 @@ namespace pcit::pir{
 				return this->meta_basic_types.at(meta_type).asType();
 		
 			}else if constexpr(std::is_same<ValueType, meta::QualifiedType::ID>()){
-				return this->meta_qualified_types.at(meta_type).asType();
+				const auto find = this->meta_qualified_types.find(meta_type);
+
+				if(find != this->meta_qualified_types.end()){
+					return find->second.asType();
+				}else{
+					return this->lower_meta_qualified_type(meta_type).asType();
+				}
 
 			}else if constexpr(std::is_same<ValueType, meta::StructType::ID>()){
-				return this->meta_struct_types.at(meta_type).asType();
+				const auto find = this->meta_struct_types.find(meta_type);
+
+				if(find != this->meta_struct_types.end()){
+					return find->second.asType();
+				}else{
+					return this->lower_meta_struct_type(meta_type).asType();
+				}
 
 			}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){
-				return this->meta_array_types.at(meta_type).asType();
+				const auto find = this->meta_array_types.find(meta_type);
+
+				if(find != this->meta_array_types.end()){
+					return find->second.asType();
+				}else{
+					return this->lower_meta_array_type(meta_type).asType();
+				}
 		
 			}else{
 				static_assert(false, "Unknown meta type");

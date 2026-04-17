@@ -26007,7 +26007,7 @@ namespace pcit::panther{
 						this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
 						term_info,
 						"",
-						Diagnostic::Location::NONE
+						this->get_location(call_node)
 					);
 
 				}else{
@@ -26015,7 +26015,7 @@ namespace pcit::panther{
 						this->context.type_manager.decayType<false, false>(selected_func.func_type.params[i].typeID),
 						term_info,
 						"",
-						Diagnostic::Location::NONE
+						this->get_location(call_node)
 					);
 				}
 			}();

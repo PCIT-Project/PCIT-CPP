@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.282.3"></a>
+## v0.0.282.3
+
+### Panther
+- Fixed calling a function when a parameter requires implicit conversion
+
+### PIR
+- Fixed lowering of multiple files
+- Fixed lowering of meta types with some dependency orders
+
+
+<!---------------------------------->
 <a name="v0.0.282.2"></a>
 ## v0.0.282.2
 - Minor code changes
