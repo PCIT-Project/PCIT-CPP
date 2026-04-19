@@ -222,6 +222,51 @@ namespace pcit::llvmint{
 	}
 
 
+
+	auto DIBuilder::createEnumType(
+		Scope scope,
+		std::string_view name,
+		File file,
+		uint32_t line_number,
+		uint64_t size_in_bits,
+		uint32_t align_in_bits,
+		evo::ArrayProxy<Enumerator> enumerators,
+		Type underlying_type
+	) -> CompositeType {
+
+		llvm::DINodeArray elements = this->builder->getOrCreateArray(
+			llvm::ArrayRef<llvm::Metadata*>((llvm::Metadata**)enumerators.data(), enumerators.size())
+		);
+		
+		return CompositeType(
+			this->builder->createEnumerationType(
+				scope.scope,
+				name, 
+				file.file,
+				line_number,
+				size_in_bits,
+				align_in_bits,
+				elements,
+				underlying_type.type
+			)
+		);
+	}
+
+
+	auto DIBuilder::createEnumerator(std::string_view name, const core::GenericInt& value, bool is_unsigned)
+	-> Enumerator {
+		return Enumerator(
+			this->builder->createEnumerator(
+				name,
+				llvm::APSInt(
+					llvm::APInt(value.getBitWidth(), llvm::ArrayRef(value.data(), value.numWords())), is_unsigned
+				)
+			)
+		);
+	}
+
+
+
 	auto DIBuilder::createSourceLocation(LocalScope local_scope, uint32_t line, uint32_t collumn) -> Location {
 		return Location(llvm::DILocation::get(this->module.native()->getContext(), line, collumn, local_scope.scope));
 	}

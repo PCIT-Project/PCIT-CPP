@@ -18,6 +18,9 @@
 
 #define _SILENCE_CXX20_CISO646_REMOVED_WARNING
 
+#include <llvm/ADT/APInt.h>
+#include <llvm/ADT/APSInt.h>
+
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/GenericValue.h>
 

@@ -3046,6 +3046,10 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_enum_def() -> Result {
 		SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
+
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		sema_to_pir.lowerEnum(enum_info.enum_id);
+
 		BaseType::Enum& enum_type = this->context.type_manager.getEnum(enum_info.enum_id);
 		enum_type.defCompleted = true;
 		this->propagate_finished_def();
@@ -21518,18 +21522,31 @@ namespace pcit::panther{
 			using SymbolType = std::decay_t<decltype(symbol)>;
 
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
-				if(symbol.kind() == BaseType::Kind::STRUCT){
-					auto sema_to_pir = SemaToPIR(
-						this->context, this->context.pir_module, this->context.sema_to_pir_data
-					);
-					sema_to_pir.lowerStructAndDependencies(symbol.structID());
+				switch(symbol.kind()){
+					case BaseType::Kind::STRUCT: {
+						auto sema_to_pir = SemaToPIR(
+							this->context, this->context.pir_module, this->context.sema_to_pir_data
+						);
+						sema_to_pir.lowerStructAndDepsIfNeeded(symbol.structID());
+					} break;
 
-				}else if(symbol.kind() == BaseType::Kind::UNION){
-					auto sema_to_pir = SemaToPIR(
-						this->context, this->context.pir_module, this->context.sema_to_pir_data
-					);
-					sema_to_pir.lowerUnionAndDependencies(symbol.unionID());
+					case BaseType::Kind::UNION: {
+						auto sema_to_pir = SemaToPIR(
+							this->context, this->context.pir_module, this->context.sema_to_pir_data
+						);
+						sema_to_pir.lowerUnionAndDepsIfNeeded(symbol.unionID());
+					} break;
+
+					case BaseType::Kind::ENUM: {
+						auto sema_to_pir = SemaToPIR(
+							this->context, this->context.pir_module, this->context.sema_to_pir_data
+						);
+						sema_to_pir.lowerEnumAndDepsIfNeeded(symbol.enumID());
+					} break;
+
+					default: break;
 				}
+
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::TYPE,

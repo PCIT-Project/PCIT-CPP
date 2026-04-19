@@ -17,7 +17,7 @@ workspace "PCIT-CPP"
 	defaultplatform "Windows"
 
 
-	multiprocessorcompile()
+	multiprocessorcompile("On")
 
 
 	startproject "pthr"

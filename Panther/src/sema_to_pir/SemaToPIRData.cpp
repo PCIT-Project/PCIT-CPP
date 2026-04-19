@@ -49,13 +49,13 @@ namespace pcit::panther{
 					struct_type,
 					"PTHR.interface_ptr",
 					"PTHR.interface_ptr",
-					*first_source.getPIRMetaFileID(),
-					*first_source.getPIRMetaFileID(),
-					0,
 					evo::SmallVector<pir::meta::StructType::Member>{
 						pir::meta::StructType::Member(rawptr_meta_type, "data"),
 						pir::meta::StructType::Member(rawptr_meta_type, "methods"),
-					}
+					},
+					*first_source.getPIRMetaFileID(),
+					*first_source.getPIRMetaFileID(),
+					0
 				);
 			}
 
@@ -127,10 +127,10 @@ namespace pcit::panther{
 				struct_type,
 				evo::copy(meta_name),
 				std::move(meta_name),
+				std::move(meta_members),
 				*first_source.getPIRMetaFileID(),
 				*first_source.getPIRMetaFileID(),
-				0,
-				std::move(meta_members)
+				0
 			);
 		}
 

@@ -332,6 +332,10 @@ namespace pcit::core{
 				return this->ap_int.getRawData();
 			}
 
+			[[nodiscard]] auto numWords() const -> size_t {
+				return size_t(this->ap_int.getNumWords());
+			}
+
 
 			[[nodiscard]] auto hash() const -> size_t {
 				size_t hash_value = std::hash<unsigned>{}(this->getBitWidth());

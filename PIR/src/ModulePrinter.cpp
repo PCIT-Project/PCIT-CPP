@@ -78,6 +78,7 @@ namespace pcit::pir{
 
 		const bool meta_struct_type_not_empty = this->get_module().getMetaStructTypeIter().empty() == false;
 		const bool meta_array_type_not_empty = this->get_module().getMetaArrayTypeIter().empty() == false;
+		const bool meta_enum_type_not_empty = this->get_module().getMetaEnumTypeIter().empty() == false;
 		const bool meta_function_not_empty = this->get_module().getMetaFunctionIter().empty() == false;
 		const bool meta_qualified_type_not_empty = this->get_module().getMetaQualifiedTypeIter().empty() == false;
 		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
@@ -87,6 +88,7 @@ namespace pcit::pir{
 		if(
 			meta_struct_type_not_empty
 			| meta_array_type_not_empty
+			| meta_enum_type_not_empty
 			| meta_function_not_empty
 			| meta_qualified_type_not_empty
 			| meta_basic_type_not_empty
@@ -105,6 +107,13 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::ArrayType& meta_array_type : this->get_module().getMetaArrayTypeIter()){
 					this->print_meta_array_type(meta_array_type);
+				}
+			}
+
+			if(meta_enum_type_not_empty){
+				this->printer.println();
+				for(const meta::EnumType& meta_enum_type : this->get_module().getMetaEnumTypeIter()){
+					this->print_meta_enum_type(meta_enum_type);
 				}
 			}
 
@@ -2060,15 +2069,25 @@ namespace pcit::pir{
 
 		this->printer.printRed(" = ");
 		this->printer.printCyan("file ");
-		this->printer.printYellow("\"{}\"", file.path);
+		this->printer.print("{");
 
+		this->printer.print("path");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", file.path);
+		this->printer.print(", ");
+
+		this->printer.print("language");
+		this->printer.printRed(": ");
 		switch(file.language){
-			break; case meta::Language::PANTHER: this->printer.print(", Panther, ");
-			break; case meta::Language::C:       this->printer.print(", C, ");
-			break; case meta::Language::CPP:     this->printer.print(", CPP, ");
+			break; case meta::Language::PANTHER: this->printer.print("Panther, ");
+			break; case meta::Language::C:       this->printer.print("C, ");
+			break; case meta::Language::CPP:     this->printer.print("CPP, ");
 		}
 
-		this->printer.printYellow("\"{}\"\n", file.producerName);
+		this->printer.print("producer");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", file.producerName);
+		this->printer.print("}\n");
 	}
 
 
@@ -2143,21 +2162,6 @@ namespace pcit::pir{
 		this->printer.printYellow("\"{}\"", struct_type.typeName);
 		this->printer.print(", ");
 
-		this->printer.print("file");
-		this->printer.printRed(": ");
-		this->print_meta_file_id(struct_type.fileID);
-		this->printer.print(", ");
-
-		this->printer.print("scope");
-		this->printer.printRed(": ");
-		this->print_meta_scope(struct_type.scopeWhereDefined);
-		this->printer.print(", ");
-
-		this->printer.print("line");
-		this->printer.printRed(": ");
-		this->printer.printMagenta(std::to_string(struct_type.lineNumber));
-		this->printer.print(", ");
-
 		this->printer.print("members");
 		this->printer.printRed(": ");
 		this->printer.print("[");
@@ -2172,7 +2176,21 @@ namespace pcit::pir{
 			
 			i += 1;
 		}
-		this->printer.print("]");
+		this->printer.print("],");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(struct_type.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(struct_type.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(struct_type.lineNumber));
 
 		this->printer.println("}");
 	}
@@ -2224,6 +2242,69 @@ namespace pcit::pir{
 
 
 
+	auto ModulePrinter::print_meta_enum_type(const meta::EnumType& enum_type) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(enum_type.metaName)){
+			this->printer.printGreen("!{}", enum_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(enum_type.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("enum ");
+
+		this->printer.print("{");
+		this->printer.print("name");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", enum_type.enumName);
+		this->printer.print(", ");
+
+		this->printer.print("underlyingType");
+		this->printer.printRed(": ");
+		this->print_meta_type_id(enum_type.underlyingType);
+		this->printer.print(", ");
+
+		this->printer.print("enumerators");
+		this->printer.printRed(": ");
+		this->printer.print("[");
+		const bool is_signed = [&]() -> bool {
+			const meta::BasicType::ID basic_type_id = enum_type.underlyingType.as<meta::BasicType::ID>();
+			const meta::BasicType& basic_type = this->get_module().getMetaBasicType(basic_type_id);
+			return basic_type.underlyingType.kind() == Type::Kind::SIGNED;
+		}();
+		for(size_t i = 0; const meta::EnumType::Enumerator& enumerator : enum_type.enumerators){
+			this->printer.printYellow("\"{}\"", enumerator.name);
+			this->printer.printRed(" = ");
+			this->printer.printMagenta(enumerator.value.toString(is_signed));
+
+			if(i + 1 < enum_type.enumerators.size()){
+				this->printer.print(", ");
+			}
+		
+			i += 1;
+		}
+		this->printer.print("],");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(enum_type.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(enum_type.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(enum_type.lineNumber));
+
+		this->printer.println("}");
+	}
+
+
 
 	auto ModulePrinter::print_meta_function(const meta::Function& function) -> void {
 		this->printer.printCyan("meta ");
@@ -2240,24 +2321,9 @@ namespace pcit::pir{
 
 		this->printer.print("{");
 
-		this->printer.print("unmangledName");
+		this->printer.print("name");
 		this->printer.printRed(": ");
 		this->printer.printYellow("\"{}\"", function.unmangledName);
-		this->printer.print(", ");
-
-		this->printer.print("file");
-		this->printer.printRed(": ");
-		this->print_meta_file_id(function.fileID);
-		this->printer.print(", ");
-
-		this->printer.print("scope");
-		this->printer.printRed(": ");
-		this->print_meta_scope(function.scopeWhereDefined);
-		this->printer.print(", ");
-
-		this->printer.print("line");
-		this->printer.printRed(": ");
-		this->printer.printMagenta(std::to_string(function.lineNumber));
 		this->printer.print(", ");
 
 		this->printer.print("return");
@@ -2281,7 +2347,21 @@ namespace pcit::pir{
 			
 			i += 1;
 		}
-		this->printer.print("]");
+		this->printer.print("],");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(function.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(function.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(function.lineNumber));
 
 		this->printer.println("}");
 	}
@@ -2302,6 +2382,9 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<MetaIDType, meta::ArrayType::ID>()){
 				return this->reader.getModule().getMetaArrayType(id).metaName;
+
+			}else if constexpr(std::is_same<MetaIDType, meta::EnumType::ID>()){
+				return this->reader.getModule().getMetaEnumType(id).metaName;
 
 			}else{
 				static_assert(false, "unknown meta type");

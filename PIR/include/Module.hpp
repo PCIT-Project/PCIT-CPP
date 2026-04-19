@@ -701,10 +701,10 @@ namespace pcit::pir{
 				Type struct_type,
 				std::string&& meta_name,
 				std::string&& struct_name,
+				evo::SmallVector<meta::StructType::Member>&& members,
 				meta::FileID file_id,
 				meta::Scope scope_where_defined,
-				uint32_t line_number,
-				evo::SmallVector<meta::StructType::Member>&& members
+				uint32_t line_number
 			) -> meta::StructType::ID {
 				evo::debugAssert(struct_type.kind() == Type::Kind::STRUCT, "not struct type");
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -715,10 +715,10 @@ namespace pcit::pir{
 					std::move(meta_name),
 					struct_type,
 					std::move(struct_name),
+					std::move(members),
 					file_id,
 					scope_where_defined,
-					line_number,
-					std::move(members)
+					line_number
 				);
 
 
@@ -774,7 +774,7 @@ namespace pcit::pir{
 			// meta array types
 
 			[[nodiscard]] auto createMetaArrayType(
-				std::string meta_name,
+				std::string&& meta_name,
 				pir::Type array_type,
 				meta::Type element_type,
 				evo::SmallVector<uint64_t>&& dimensions
@@ -817,17 +817,78 @@ namespace pcit::pir{
 
 
 
+			//////////////////////////////////
+			// meta enum types
+
+			[[nodiscard]] auto createMetaEnumType(
+				std::string&& meta_name,
+				std::string&& enum_name,
+				meta::Type underlying_type,
+				evo::SmallVector<meta::EnumType::Enumerator>&& enumerators,
+				meta::FileID file_id,
+				meta::Scope scope_where_defined,
+				uint32_t line_number
+			) -> meta::EnumType::ID {
+				evo::debugAssert(underlying_type.is<meta::BasicType::ID>(), "Enum underlying type must be integral");
+				evo::debugAssert(
+					this->getMetaBasicType(underlying_type.as<meta::BasicType::ID>()).underlyingType.isIntegral(),
+					"Enum underlying type must be integral"
+				);
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+				
+				return this->meta_enum_types.emplace_back(
+					std::move(meta_name),
+					std::move(enum_name),
+					underlying_type,
+					std::move(enumerators),
+					file_id,
+					scope_where_defined,
+					line_number
+				);
+			}
+
+			[[nodiscard]] auto getMetaEnumType(meta::EnumType::ID id) const -> const meta::EnumType& {
+				return this->meta_enum_types[id];
+			}
+
+
+
+			using MetaEnumTypeIter = core::SyncLinearStepAlloc<meta::EnumType, meta::EnumTypeID>::Iter;
+			using MetaEnumTypeConstIter = core::SyncLinearStepAlloc<meta::EnumType, meta::EnumTypeID>::ConstIter;
+
+			[[nodiscard]] auto getMetaEnumTypeIter() -> evo::IterRange<MetaEnumTypeIter> {
+				return evo::IterRange<MetaEnumTypeIter>(
+					this->meta_enum_types.begin(), this->meta_enum_types.end()
+				);
+			}
+
+			[[nodiscard]] auto getMetaEnumTypeIter() const -> evo::IterRange<MetaEnumTypeConstIter> {
+				return evo::IterRange<MetaEnumTypeConstIter>(
+					this->meta_enum_types.cbegin(), this->meta_enum_types.cend()
+				);
+			}
+
+			[[nodiscard]] auto getMetaEnumTypeConstIter() const -> evo::IterRange<MetaEnumTypeConstIter> {
+				return evo::IterRange<MetaEnumTypeConstIter>(
+					this->meta_enum_types.cbegin(), this->meta_enum_types.cend()
+				);
+			}
+
+
+
 			///////////////////////////////////
 			// meta functions
 
 			[[nodiscard]] auto createMetaFunction(
 				std::string&& meta_name,
 				std::string&& unmangled_name,
+				std::optional<meta::Type> return_meta_type, // nullopt if `Void`
+				evo::SmallVector<meta::Type>&& param_meta_types,
 				meta::File::ID file_id,
 				meta::Scope scope_where_defined,
-				uint32_t line_number,
-				std::optional<meta::Type> return_meta_type, // nullopt if `Void`
-				evo::SmallVector<meta::Type>&& param_meta_types
+				uint32_t line_number
 			) -> meta::Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_meta_name_reuse(meta_name);
@@ -836,11 +897,11 @@ namespace pcit::pir{
 				return this->meta_functions.emplace_back(
 					std::move(meta_name),
 					std::move(unmangled_name),
+					return_meta_type,
+					std::move(param_meta_types),
 					file_id,
 					scope_where_defined,
-					line_number,
-					return_meta_type,
-					std::move(param_meta_types)
+					line_number
 				);
 			}
 
@@ -1002,6 +1063,7 @@ namespace pcit::pir{
 			core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 			core::SyncLinearStepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
 			core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayType::ID> meta_array_types{};
+			core::SyncLinearStepAlloc<meta::EnumType, meta::EnumType::ID> meta_enum_types{};
 			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};

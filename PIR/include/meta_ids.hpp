@@ -41,13 +41,17 @@ namespace pcit::pir::meta{
 		using core::UniqueID<uint32_t, ArrayTypeID>::UniqueID;
 	};
 
+	struct EnumTypeID : public core::UniqueID<uint32_t, struct EnumTypeID> {
+		using core::UniqueID<uint32_t, EnumTypeID>::UniqueID;
+	};
+
 	struct FunctionID : public core::UniqueID<uint32_t, struct FunctionID> {
 		using core::UniqueID<uint32_t, FunctionID>::UniqueID;
 	};
 
 
 
-	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID, ArrayTypeID>;
+	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID, ArrayTypeID, EnumTypeID>;
 
 
 	using Scope = evo::Variant<FunctionID, FileID>;
@@ -90,6 +94,13 @@ namespace std{
 	template<>
 	struct hash<pcit::pir::meta::ArrayTypeID>{
 		auto operator()(pcit::pir::meta::ArrayTypeID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::meta::EnumTypeID>{
+		auto operator()(pcit::pir::meta::EnumTypeID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};

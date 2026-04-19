@@ -44,14 +44,14 @@ namespace pcit::panther{
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
 			if(struct_type.isClangType() == false){ continue; }
 
-			this->lowerStructAndDependencies(BaseType::Struct::ID(i));
+			this->lowerStructAndDepsIfNeeded(BaseType::Struct::ID(i));
 		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
 			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(BaseType::Union::ID(i));
 			if(union_type.isClangType() == false){ continue; }
 
-			this->lowerUnionAndDependencies(BaseType::Union::ID(i));
+			this->lowerUnionAndDepsIfNeeded(BaseType::Union::ID(i));
 		}
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
@@ -128,7 +128,7 @@ namespace pcit::panther{
 		return this->lower_struct<false>(struct_id);
 	}
 
-	auto SemaToPIR::lowerStructAndDependencies(BaseType::Struct::ID struct_id) -> pir::Type {
+	auto SemaToPIR::lowerStructAndDepsIfNeeded(BaseType::Struct::ID struct_id) -> pir::Type {
 		return this->lower_struct<true>(struct_id);
 	}
 
@@ -137,9 +137,21 @@ namespace pcit::panther{
 		return this->lower_union<false>(union_id);
 	}
 
-	auto SemaToPIR::lowerUnionAndDependencies(BaseType::Union::ID union_id) -> pir::Type {
+	auto SemaToPIR::lowerUnionAndDepsIfNeeded(BaseType::Union::ID union_id) -> pir::Type {
 		return this->lower_union<true>(union_id);
 	}
+
+
+	auto SemaToPIR::lowerEnum(BaseType::Enum::ID enum_id) -> void {
+		this->lower_enum<false>(enum_id);
+	}
+
+	auto SemaToPIR::lowerEnumAndDepsIfNeeded(BaseType::Enum::ID enum_id) -> void {
+		this->lower_enum<true>(enum_id);
+	}
+
+
+
 
 
 	auto SemaToPIR::lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID> {
@@ -477,10 +489,10 @@ namespace pcit::panther{
 					*error_return_type,
 					this->mangle_name(func_id) + ".ERR",
 					this->mangle_name(func_id) + ".ERR",
+					std::move(debug_members),
 					location.meta_file_id,
 					location.meta_file_id, // TODO(FUTURE): get proper scope
-					location.line_number,
-					std::move(debug_members)
+					location.line_number
 				);
 
 				meta_params.emplace_back(struct_type_id);
@@ -533,11 +545,11 @@ namespace pcit::panther{
 				meta_id = this->module.createMetaFunction(
 					evo::copy(mangled_name),
 					this->get_unmangled_func_name(func),
+					return_meta_type,
+					std::move(meta_params),
 					location.meta_file_id,
 					location.meta_file_id, // TODO(FUTURE): get proper scope
-					location.line_number,
-					return_meta_type,
-					std::move(meta_params)
+					location.line_number
 				);
 			}
 
@@ -636,11 +648,11 @@ namespace pcit::panther{
 					meta_id = this->module.createMetaFunction(
 						evo::copy(name),
 						this->get_unmangled_func_name(func),
+						return_meta_type,
+						evo::copy(meta_params),
 						location.meta_file_id,
 						location.meta_file_id, // TODO(FUTURE): get proper scope
-						location.line_number,
-						return_meta_type,
-						evo::copy(meta_params)
+						location.line_number
 					);
 				}
 
@@ -1056,9 +1068,6 @@ namespace pcit::panther{
 			meta_id = this->module.createMetaFunction(
 				"main",
 				"main",
-				entry_meta_func.fileID,
-				entry_meta_func.scopeWhereDefined,
-				0,
 				int_meta_type,
 				evo::SmallVector<pir::meta::Type>{
 					int_meta_type,
@@ -1073,7 +1082,10 @@ namespace pcit::panther{
 						),
 						pir::meta::QualifiedType::Qualifier::MUT_POINTER 
 					)
-				}
+				},
+				entry_meta_func.fileID,
+				entry_meta_func.scopeWhereDefined,
+				0
 			);
 		}
 
@@ -1143,16 +1155,16 @@ namespace pcit::panther{
 					meta_id = this->module.createMetaFunction(
 						"WinMain",
 						"WinMain",
-						entry_meta_func.fileID,
-						entry_meta_func.scopeWhereDefined,
-						0,
 						int_meta_type,
 						evo::SmallVector<pir::meta::Type>{
 							h_instance_meta_type,
 							h_instance_meta_type,
 							lpstr_type,
 							int_meta_type,
-						}
+						},
+						entry_meta_func.fileID,
+						entry_meta_func.scopeWhereDefined,
+						0
 					);
 				}
 
@@ -1324,6 +1336,12 @@ namespace pcit::panther{
 
 	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> pir::Type {
+		if constexpr(MAY_LOWER_DEPENDENCY){
+			if(this->data.has_struct(struct_id)){
+				return this->data.get_struct(struct_id);
+			}
+		}
+
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
 		this->current_source = struct_type.sourceID.visit([&](const auto& source) -> Source* {
@@ -1342,13 +1360,6 @@ namespace pcit::panther{
 				static_assert(false, "Unknown source type");
 			}
 		});
-
-
-		if constexpr(MAY_LOWER_DEPENDENCY){
-			if(this->data.has_struct(struct_id)){
-				return this->data.get_struct(struct_id);
-			}
-		}
 
 
 		auto member_var_types = evo::SmallVector<pir::Type>();
@@ -1412,10 +1423,10 @@ namespace pcit::panther{
 				new_type,
 				this->get_unmangled_struct_name(struct_id),
 				this->get_unmangled_struct_name(struct_id),
+				std::move(debug_members),
 				location.meta_file_id,
 				this->get_current_meta_scope(),
-				location.line_number,
-				std::move(debug_members)
+				location.line_number
 			);
 		}
 
@@ -1426,6 +1437,12 @@ namespace pcit::panther{
 
 	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::lower_union(BaseType::Union::ID union_id) -> pir::Type {
+		if constexpr(MAY_LOWER_DEPENDENCY){
+			if(this->data.has_union(union_id)){
+				return this->data.get_union(union_id);
+			}
+		}
+
 		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
 		const pir::Type new_type = [&](){
@@ -1453,6 +1470,60 @@ namespace pcit::panther{
 
 		return new_type;
 	}
+
+
+	template<bool MAY_LOWER_DEPENDENCY>
+	auto SemaToPIR::lower_enum(BaseType::Enum::ID enum_id) -> void {
+		if(this->data.config.includeDebugInfo == false){ return; }
+
+		if constexpr(MAY_LOWER_DEPENDENCY){
+			if(this->data.has_meta_enum(enum_id)){ return; }
+		}
+
+		const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(enum_id);
+
+		this->current_source = enum_type.sourceID.visit([&](const auto& source) -> Source* {
+			using SourceType = std::decay_t<decltype(source)>;
+		
+			if constexpr(std::is_same<SourceType, Source::ID>()){
+				return &this->context.getSourceManager()[source];
+		
+			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+				return nullptr;
+
+			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
+				return nullptr;
+		
+			}else{
+				static_assert(false, "Unknown source type");
+			}
+		});
+
+
+		auto enumerators = evo::SmallVector<pir::meta::EnumType::Enumerator>();
+		enumerators.reserve(enum_type.enumerators.size());
+		for(const BaseType::Enum::Enumerator& enumerator : enum_type.enumerators){
+			enumerators.emplace_back(
+				std::string(enum_type.getEnumeratorName(enumerator, this->context.getSourceManager())), enumerator.value
+			);
+		}
+
+		const Location location = this->get_location(Diagnostic::Location::get(enum_type, this->context));
+		
+		const pir::meta::EnumType::ID meta_enum_type_id = this->module.createMetaEnumType(
+			this->context.getTypeManager().printType(BaseType::ID(enum_id), this->context),
+			this->context.getTypeManager().printType(BaseType::ID(enum_id), this->context),
+			*this->get_type<false, true>(BaseType::ID(enum_type.underlyingTypeID)).meta_type_id,
+			std::move(enumerators),
+			location.meta_file_id,
+			this->get_current_meta_scope(),
+			location.line_number
+		);
+
+		this->data.create_meta_enum(enum_id, meta_enum_type_id);
+	}
+
+
 
 
 	template<bool IS_COMPTIME>
@@ -11361,13 +11432,13 @@ namespace pcit::panther{
 					created_struct,
 					evo::copy(type_name),
 					std::move(type_name),
-					*this->current_source->getPIRMetaFileID(),
-					*this->current_source->getPIRMetaFileID(),
-					0,
 					evo::SmallVector<pir::meta::StructType::Member>{
 						pir::meta::StructType::Member(*target_pir_type.meta_type_id, "data"),
 						pir::meta::StructType::Member(bool_meta_type, "flag"),
-					}
+					},
+					*this->current_source->getPIRMetaFileID(),
+					*this->current_source->getPIRMetaFileID(),
+					0
 				);
 
 				return PIRType(created_struct, created_meta_struct);
@@ -11959,7 +12030,7 @@ namespace pcit::panther{
 
 				if constexpr(GET_META){
 					const pir::meta::ArrayType::ID meta_type = this->data.get_or_create_meta_array_type(
-						type_id,
+						base_type_id.arrayID(),
 						this->module,
 						this->context.getTypeManager(),
 						this->context,
@@ -12009,7 +12080,7 @@ namespace pcit::panther{
 			case BaseType::Kind::STRUCT: {
 				if constexpr(MAY_LOWER_DEPENDENCY){
 					if(this->data.has_struct(base_type_id.structID()) == false){
-						this->lowerStructAndDependencies(base_type_id.structID());
+						this->lowerStructAndDepsIfNeeded(base_type_id.structID());
 					}
 				}
 
@@ -12027,7 +12098,7 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				if constexpr(MAY_LOWER_DEPENDENCY){
 					if(this->data.has_union(base_type_id.unionID()) == false){
-						this->lowerUnionAndDependencies(base_type_id.unionID());
+						this->lowerUnionAndDepsIfNeeded(base_type_id.unionID());
 					}
 				}
 
@@ -12048,8 +12119,7 @@ namespace pcit::panther{
 					this->get_type<MAY_LOWER_DEPENDENCY, false>(BaseType::ID(enum_type.underlyingTypeID)).type;
 
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of enum");
+					return PIRType(pir_type, this->data.get_meta_enum(base_type_id.enumID()));
 
 				}else{
 					return PIRType(pir_type, std::nullopt);

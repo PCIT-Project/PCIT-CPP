@@ -71,6 +71,7 @@ namespace pcit::llvmint{
 			// misc
 
 			struct Location { llvm::DILocation* location; };
+			struct Enumerator { llvm::DIEnumerator* enumerator; };
 
 
 		public:
@@ -169,6 +170,21 @@ namespace pcit::llvmint{
 			[[nodiscard]] auto createArrayType(
 				Type element_type, uint64_t number_of_elements, uint64_t size_in_bits, uint32_t align_in_bits
 			) -> CompositeType;
+
+
+			[[nodiscard]] auto createEnumType(
+				Scope scope,
+				std::string_view name,
+				File file,
+				uint32_t line_number,
+				uint64_t size_in_bits,
+				uint32_t align_in_bits,
+				evo::ArrayProxy<Enumerator> enumerators,
+				Type underlying_type
+			) -> CompositeType;
+
+			[[nodiscard]] auto createEnumerator(std::string_view name, const core::GenericInt& value, bool is_unsigned)
+				-> Enumerator;
 			
 
 

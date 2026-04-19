@@ -317,7 +317,7 @@ namespace pcit::panther{
 			}
 
 
-			auto get_or_create_meta_qualified_type(
+			[[nodiscard]] auto get_or_create_meta_qualified_type(
 				TypeInfo::ID id,
 				pir::Module& module,
 				std::string&& type_name,
@@ -335,8 +335,8 @@ namespace pcit::panther{
 			}
 
 
-			auto get_or_create_meta_array_type(
-				TypeInfo::ID id,
+			[[nodiscard]] auto get_or_create_meta_array_type(
+				BaseType::Array::ID id,
 				pir::Module& module,
 				const TypeManager& type_manager,
 				const Context& context,
@@ -349,10 +349,32 @@ namespace pcit::panther{
 
 				return value_handle.emplaceValue(
 					module.createMetaArrayType(
-						type_manager.printType(id, context), array_type, element_type, std::move(dimensions)
+						type_manager.printType(BaseType::ID(id), context),
+						array_type,
+						element_type,
+						std::move(dimensions)
 					)
 				);
 			}
+
+
+
+			auto create_meta_enum(BaseType::Enum::ID enum_id, pir::meta::EnumType::ID enum_type_id) -> void {
+				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
+				this->meta_enum_types.emplace(enum_id, enum_type_id);
+			}
+
+			[[nodiscard]] auto get_meta_enum(BaseType::Enum::ID enum_id) const -> pir::meta::EnumType::ID {
+				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
+				return this->meta_enum_types.at(enum_id);
+			}
+
+			[[nodiscard]] auto has_meta_enum(BaseType::Enum::ID enum_id) const -> bool {
+				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
+				return this->meta_enum_types.contains(enum_id);
+			}
+
+
 
 
 
@@ -419,7 +441,11 @@ namespace pcit::panther{
 
 			core::MapAlloc<TypeInfo::ID, pir::meta::BasicType::ID> meta_basic_types{};
 			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_qualified_types{};
-			core::MapAlloc<TypeInfo::ID, pir::meta::ArrayType::ID> meta_array_types{};
+			core::MapAlloc<BaseType::Array::ID, pir::meta::ArrayType::ID> meta_array_types{};
+
+			std::unordered_map<BaseType::Enum::ID, pir::meta::EnumType::ID> meta_enum_types{};
+			mutable evo::SpinLock meta_enum_types_lock{};
+
 
 			friend class SemaToPIR;
 	};

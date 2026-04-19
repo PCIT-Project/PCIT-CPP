@@ -76,10 +76,10 @@ namespace pcit::pir::meta{
 		std::string metaName;
 		pir::Type structType;
 		std::string typeName;
+		evo::SmallVector<Member> members;
 		meta::FileID fileID;
 		meta::Scope scopeWhereDefined;
 		uint32_t lineNumber;
-		evo::SmallVector<Member> members;
 	};
 
 
@@ -93,16 +93,34 @@ namespace pcit::pir::meta{
 	};
 
 
+	struct EnumType{
+		using ID = EnumTypeID;
+
+		struct Enumerator{
+			std::string name;
+			core::GenericInt value;
+		};
+
+		std::string metaName;
+		std::string enumName;
+		meta::Type underlyingType;
+		evo::SmallVector<Enumerator> enumerators;
+		meta::FileID fileID;
+		meta::Scope scopeWhereDefined;
+		uint32_t lineNumber;
+	};
+
+
 	struct Function{
 		using ID = FunctionID;
 
 		std::string metaName;
 		std::string unmangledName;
+		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
+		evo::SmallVector<meta::Type> paramMetaTypes;
 		meta::File::ID fileID;
 		meta::Scope scopeWhereDefined;
 		uint32_t lineNumber;
-		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
-		evo::SmallVector<meta::Type> paramMetaTypes;
 	};
 
 

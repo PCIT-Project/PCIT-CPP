@@ -22,9 +22,9 @@ func entry = () #entry -> UI8 {
 	};
 
 
-	build.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build.addStdLib("../../Panther-std/std");
-	add_std_exp(build, copy warns);
+	// add_std_exp(build, copy warns);
 
 
 	var test_package_uninit: build_exp.Package*uninit = build.createPackage();

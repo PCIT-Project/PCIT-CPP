@@ -41,6 +41,10 @@ namespace pcit::pir{
 				this->lower_meta_array_type(meta::ArrayType::ID(i));
 			}
 
+			for(uint32_t i = 0; i < this->module.getMetaEnumTypeIter().size(); i += 1){
+				this->lower_meta_enum_type(meta::EnumType::ID(i));
+			}
+
 			// functions are done with the corresponding declaration
 		}
 
@@ -305,6 +309,42 @@ namespace pcit::pir{
 			this->meta_array_types.emplace(meta_array_type_id, llvm_array_type);
 			return llvm_array_type;
 		}
+	}
+
+
+	auto PIRToLLVMIR::lower_meta_enum_type(meta::EnumType::ID meta_enum_type_id)
+	-> llvmint::DIBuilder::CompositeType {
+		const meta::EnumType& meta_enum_type = this->module.getMetaEnumType(meta_enum_type_id);
+
+		const Type underlying_type = [&]() -> Type {
+			const meta::BasicType::ID basic_type_id = meta_enum_type.underlyingType.as<meta::BasicType::ID>();
+			return this->module.getMetaBasicType(basic_type_id).underlyingType;
+		}();
+
+		const uint64_t size_in_bits = this->module.numBytes(underlying_type) * 8;
+		const uint32_t align_in_bits = uint32_t(this->module.getAlignment(underlying_type) * 8);
+
+		const bool is_unsigned = underlying_type.kind() == Type::Kind::UNSIGNED;
+
+		auto enumerators = evo::SmallVector<llvmint::DIBuilder::Enumerator, 16>();
+		enumerators.reserve(meta_enum_type.enumerators.size());
+		for(const meta::EnumType::Enumerator& enumerator : meta_enum_type.enumerators){
+			enumerators.emplace_back(this->di_builder.createEnumerator(enumerator.name, enumerator.value, is_unsigned));
+		}
+
+		const llvmint::DIBuilder::CompositeType di_enum_type = this->di_builder.createEnumType(
+			this->get_meta_scope(meta_enum_type.scopeWhereDefined),
+			meta_enum_type.enumName,
+			this->meta_files.at(meta_enum_type.fileID),
+			meta_enum_type.lineNumber,
+			size_in_bits,
+			align_in_bits,
+			enumerators,
+			this->get_meta_type(meta_enum_type.underlyingType)
+		);
+
+		this->meta_enum_types.emplace(meta_enum_type_id, di_enum_type);
+		return di_enum_type;
 	}
 
 
@@ -2554,6 +2594,15 @@ namespace pcit::pir{
 					return find->second.asType();
 				}else{
 					return this->lower_meta_array_type(meta_type).asType();
+				}
+
+			}else if constexpr(std::is_same<ValueType, meta::EnumType::ID>()){
+				const auto find = this->meta_enum_types.find(meta_type);
+
+				if(find != this->meta_enum_types.end()){
+					return find->second.asType();
+				}else{
+					return this->lower_meta_enum_type(meta_type).asType();
 				}
 		
 			}else{

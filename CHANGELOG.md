@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.284.0"></a>
+## v0.0.284.0
+- Fixed multi-processor compile in premake5 build system
+
+### Panther
+- Added debug information of enums
+
+### PIR
+- Added enum metadata
+
+
+<!---------------------------------->
 <a name="v0.0.283.0"></a>
 ## v0.0.283.0
 - Upgraded build system to premake 5.0.0-beta8

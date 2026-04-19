@@ -30,6 +30,7 @@ namespace llvm{
 	class DICompositeType;
 	class DISubprogram;
 	class DILocation;
+	class DIEnumerator;
 
 	
 	class Function;
