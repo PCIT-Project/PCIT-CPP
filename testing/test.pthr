@@ -1,5 +1,5 @@
 
-type Color = enum(I32) {
+type Color = enum {
 	RED,
 	GREEN = -12,
 	BLUE,

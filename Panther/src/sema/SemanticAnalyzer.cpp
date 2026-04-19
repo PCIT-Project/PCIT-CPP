@@ -21364,6 +21364,12 @@ namespace pcit::panther{
 		}
 
 
+		const SymbolProc::ID type_symbol_proc_id =
+			*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_lhs_type_id);
+		SymbolProc& type_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(type_symbol_proc_id);
+
+		const bool type_symbol_proc_def_done = type_symbol_proc.isDefDone();
+
 
 		SymbolProcNamespace const* namespaced_members = nullptr;
 		sema::ScopeLevel const* scope_level = nullptr;
@@ -21456,7 +21462,33 @@ namespace pcit::panther{
 
 
 		switch(wait_on_symbol_proc_result){
-			case WaitOnSymbolProcResult::NOT_FOUND: case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+			case WaitOnSymbolProcResult::NOT_FOUND: {
+				if(type_symbol_proc_def_done == false){
+					const SymbolProc::WaitOnResult wait_on_result =
+						type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+						
+					switch(wait_on_result){
+						// TODO(PERF): don't redo work
+						case SymbolProc::WaitOnResult::NOT_NEEDED: return Result::NEED_TO_WAIT;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(type_symbol_proc_id);
+							[[fallthrough]];
+						}
+						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
+						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+							evo::debugFatalBreak("Should be impossible");
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+					}
+				}
+
+				this->emit_error(std::format("Type has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
 				this->wait_on_symbol_proc_emit_error(
 					wait_on_symbol_proc_result,
 					instr.infix.rhs,

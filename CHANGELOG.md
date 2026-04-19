@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.284.1"></a>
+## v0.0.284.1
+
+### Panther
+- Fixed semantic analysis of type accessor of enums and unions not guaranteeing that name resolution is done when all names are known
+
+
+<!---------------------------------->
 <a name="v0.0.284.0"></a>
 ## v0.0.284.0
 - Fixed multi-processor compile in premake5 build system
