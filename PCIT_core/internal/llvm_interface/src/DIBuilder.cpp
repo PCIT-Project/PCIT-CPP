@@ -12,6 +12,7 @@
 #include <LLVM.hpp>
 
 #include "../include/Module.hpp"
+#include "../include/class_impls/values.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -262,6 +263,29 @@ namespace pcit::llvmint{
 					llvm::APInt(value.getBitWidth(), llvm::ArrayRef(value.data(), value.numWords())), is_unsigned
 				)
 			)
+		);
+	}
+
+
+
+	auto DIBuilder::addLocalVariable(
+		LocalScope scope,
+		std::string_view name,
+		uint32_t line_number,
+		uint32_t collumn_number,
+		Type type,
+		BasicBlock basic_block,
+		const Value& value
+	) -> void {
+		llvm::DILocalVariable* local_var =
+			this->builder->createAutoVariable(scope.scope, name, scope.scope->getFile(), line_number, type.type);
+
+		this->builder->insertDeclare(
+			value.native(),
+			local_var,
+			this->builder->createExpression(llvm::ArrayRef<uint64_t>()),
+			this->createSourceLocation(scope, line_number, collumn_number).location,
+			basic_block.native()
 		);
 	}
 

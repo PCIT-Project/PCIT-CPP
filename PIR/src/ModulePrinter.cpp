@@ -1012,6 +1012,9 @@ namespace pcit::pir{
 				const AtomicRMW& atomic_rmw = this->reader.getAtomicRMW(expr);
 				this->printer.print("${}", atomic_rmw.name);
 			} break;
+
+			case Expr::Kind::META_LOCAL_VAR:
+				evo::debugFatalBreak("Expr::Kind::META_LOCAL_VAR is not a valid expression");
 		}
 	}
 
@@ -2052,6 +2055,19 @@ namespace pcit::pir{
 
 				this->printer.println();
 			} break;
+
+			case Expr::Kind::META_LOCAL_VAR: {
+				const MetaLocalVar& meta_local_var = this->reader.getMetaLocalVar(stmt);
+
+				this->printer.printRed("{}@meta.localVar ", tabs(2));
+				this->print_expr(meta_local_var.value);
+				this->printer.print(", ");
+				this->print_meta_type_id(meta_local_var.type);
+				this->printer.print(", ");
+				this->printer.printYellow("\"{}\"", meta_local_var.name);
+				this->print_source_location(meta_local_var.sourceLocation);
+				this->printer.println();
+			} break;
 		}
 	}
 
@@ -2347,7 +2363,7 @@ namespace pcit::pir{
 			
 			i += 1;
 		}
-		this->printer.print("],");
+		this->printer.print("], ");
 
 		this->printer.print("file");
 		this->printer.printRed(": ");

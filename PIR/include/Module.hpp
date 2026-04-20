@@ -1049,6 +1049,8 @@ namespace pcit::pir{
 			core::StepAlloc<CmpXchg, uint32_t> cmpxchgs{};
 			core::StepAlloc<AtomicRMW, uint32_t> atomic_rmws{};
 
+			core::StepAlloc<MetaLocalVar, uint32_t> meta_local_vars{};
+
 
 			// global values
 			core::StepAlloc<GlobalVar::String, GlobalVar::String::ID> global_strings{};

@@ -140,6 +140,8 @@ namespace pcit::pir{
 				CMPXCHG_LOADED,
 				CMPXCHG_SUCCEEDED,
 				ATOMIC_RMW,
+
+				META_LOCAL_VAR,
 			};
 
 		public:
@@ -225,7 +227,7 @@ namespace pcit::pir{
 					case Kind::USHL_SAT:    case Kind::SSHR:           case Kind::USHR:
 					case Kind::BIT_REVERSE: case Kind::BYTE_SWAP:      case Kind::CTPOP:
 					case Kind::CTLZ:        case Kind::CTTZ:           case Kind::CMPXCHG:
-					case Kind::ATOMIC_RMW:  {
+					case Kind::ATOMIC_RMW:  case Kind::META_LOCAL_VAR: {
 						return true;
 					} break;
 					default: return false;
@@ -959,6 +961,17 @@ namespace pcit::pir{
 		Expr target;
 		Expr value;
 		AtomicOrdering ordering;
+	};
+
+
+	//////////////////////////////////////////////////////////////////////
+	// meta
+
+	struct MetaLocalVar{
+		std::string name;
+		Expr value;
+		meta::Type type;
+		meta::SourceLocation sourceLocation;
 	};
 
 

@@ -742,6 +742,12 @@ namespace pcit::pir{
 						if(atomic_rmw.target == original){ atomic_rmw.target = replacement; }
 						if(atomic_rmw.value == original){ atomic_rmw.value = replacement; }
 					} break;
+
+					case Expr::Kind::META_LOCAL_VAR: {
+						MetaLocalVar& meta_local_var = this->module.meta_local_vars[stmt.index];
+
+						if(meta_local_var.value == original){ meta_local_var.value = replacement; }
+					} break;
 				}
 			}
 		}
@@ -3551,6 +3557,32 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// meta
+
+	auto Agent::createMetaLocalVar(
+		std::string&& name, Expr value, meta::Type type, meta::SourceLocation source_location
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			value.kind() == Expr::Kind::ALLOCA, "The @meta.localVar instruction only supports allocas"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::META_LOCAL_VAR,
+			this->module.meta_local_vars.emplace_back(std::move(name), value, type, source_location)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto Agent::getMetaLocalVar(Expr expr) const -> const MetaLocalVar& {
+		return ReaderAgent(this->module, this->getTargetFunction()).getMetaLocalVar(expr);
+	}
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// internal
 
 
@@ -3674,6 +3706,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::CMPXCHG_LOADED:    return;
 			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
 			break; case Expr::Kind::ATOMIC_RMW:        this->module.atomic_rmws.erase(expr.index);
+			break; case Expr::Kind::META_LOCAL_VAR:    this->module.meta_local_vars.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -3839,6 +3872,8 @@ namespace pcit::pir{
 					case Expr::Kind::CMPXCHG_LOADED:    continue;
 					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
 					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){  return true; } continue;
+					case Expr::Kind::META_LOCAL_VAR: 
+						if(this->getMetaLocalVar(stmt).name == name){ return true; } continue;
 				}
 			}
 		}

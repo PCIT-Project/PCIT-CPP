@@ -1,15 +1,8 @@
 
-type Color = enum {
-	RED,
-	GREEN = -12,
-	BLUE,
-}
-
-func get_color = () -> Color {
-	return Color.BLUE;
-}
-
 
 func entry = () #entry -> UI8 {
-	return (get_color() == Color.BLUE) as UI8;
+	var foo: UI8 = 12;
+	var bar: UI8 = 14;
+	
+	return move foo;
 }

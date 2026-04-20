@@ -157,6 +157,8 @@ namespace pcit::pir{
 			[[nodiscard]] static auto extractCmpXchgSucceeded(Expr) -> Expr;
 			[[nodiscard]] auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
+			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
+
 
 		private:
 			const Module& module;

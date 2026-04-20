@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.285.0"></a>
+## v0.0.285.0
+
+### Panther
+- Added debug info for local variables
+
+### PIR
+- Added `@meta.localVar`
+
+
+<!---------------------------------->
 <a name="v0.0.284.1"></a>
 ## v0.0.284.1
 

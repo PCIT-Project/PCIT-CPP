@@ -813,6 +813,14 @@ namespace pcit::pir{
 			[[nodiscard]] auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
 
+			//////////////////////////////////////////////////////////////////////
+			// meta
+
+			auto createMetaLocalVar(
+				std::string&& name, Expr value, meta::Type type, meta::SourceLocation source_location
+			) const -> Expr;
+			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
+
 
 		private:
 			auto insert_stmt(Expr stmt) const -> void;

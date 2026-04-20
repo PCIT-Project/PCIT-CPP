@@ -6375,8 +6375,15 @@ namespace pcit::panther{
 			return std::optional<TypeInfo::ID>();
 		}();
 
+		const Diagnostic::Location location = this->get_location(instr.var_def);
+
 		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
-			instr.var_def.kind, instr.var_def.ident, value_term_info.getExpr(), type_id
+			instr.var_def.kind,
+			instr.var_def.ident,
+			value_term_info.getExpr(),
+			type_id,
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
 
@@ -11586,7 +11593,7 @@ namespace pcit::panther{
 
 			case Context::LookupSourceIDError::NOT_ONE_OF_SOURCES: {
 				this->emit_error(
-					std::format("File \"{}\" is not one of the files being compiled", lookup_path),
+					std::format("File \"{}\" exists but is not one of the files being compiled", lookup_path),
 					instr.func_call.args[0].value
 				);
 				return Result::ERROR;

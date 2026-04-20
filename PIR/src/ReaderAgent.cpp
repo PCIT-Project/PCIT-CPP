@@ -155,6 +155,7 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_LOADED:    return this->getExprType(this->getCmpXchg(expr).expected);
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return this->module.createBoolType();
 			case Expr::Kind::ATOMIC_RMW:        return this->getExprType(this->getAtomicRMW(expr).value);
+			case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported expr");
@@ -895,6 +896,13 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::ATOMIC_RMW, "Not an atomic rmw");
 
 		return this->module.atomic_rmws[expr.index];
+	}
+
+	auto ReaderAgent::getMetaLocalVar(Expr expr) const -> const MetaLocalVar& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::META_LOCAL_VAR, "Not a meta local var");
+
+		return this->module.meta_local_vars[expr.index];
 	}
 
 

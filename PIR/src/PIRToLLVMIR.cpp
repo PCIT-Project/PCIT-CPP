@@ -2053,6 +2053,22 @@ namespace pcit::pir{
 
 						this->stmt_values.emplace(stmt, output_value);
 					} break;
+
+					case Expr::Kind::META_LOCAL_VAR: {
+						if(this->add_debug_info == false){ continue; }
+
+						const MetaLocalVar& meta_local_var = this->reader.getMetaLocalVar(stmt);
+
+						this->di_builder.addLocalVariable(
+							this->get_meta_local_scope(meta_local_var.sourceLocation.scope),
+							meta_local_var.name,
+							meta_local_var.sourceLocation.line,
+							meta_local_var.sourceLocation.collumn,
+							this->get_meta_type(meta_local_var.type),
+							this->builder.getInsertionPoint(),
+							this->allocas.at(&this->reader.getAlloca(meta_local_var.value)).asValue()
+						);
+					} break;
 				}
 			}
 		}
@@ -2397,6 +2413,7 @@ namespace pcit::pir{
 				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
 			} break;
 			case Expr::Kind::ATOMIC_RMW:     return this->stmt_values.at(expr);
+			case Expr::Kind::META_LOCAL_VAR: evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

@@ -60,7 +60,8 @@ namespace pcit::pir{
 		private:
 			auto lower_meta_file(meta::File::ID meta_file_id) -> void;
 			auto lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void;
-			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id) -> llvmint::DIBuilder::DerivedType;
+			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id)
+				-> llvmint::DIBuilder::DerivedType;
 			auto lower_meta_struct_type(meta::StructType::ID meta_struct_type_id) -> llvmint::DIBuilder::CompositeType;
 			auto lower_meta_array_type(meta::ArrayType::ID meta_array_type_id) -> llvmint::DIBuilder::CompositeType;
 			auto lower_meta_enum_type(meta::EnumType::ID meta_enum_type_id) -> llvmint::DIBuilder::CompositeType;

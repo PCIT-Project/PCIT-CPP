@@ -15,6 +15,7 @@
 
 
 #include "./class_impls/native_ptr_decls.hpp"
+#include "./class_impls/stmts.hpp"
 
 
 namespace pcit::llvmint{
@@ -186,6 +187,16 @@ namespace pcit::llvmint{
 			[[nodiscard]] auto createEnumerator(std::string_view name, const core::GenericInt& value, bool is_unsigned)
 				-> Enumerator;
 			
+
+			auto addLocalVariable(
+				LocalScope scope,
+				std::string_view name,
+				uint32_t line_number,
+				uint32_t collumn_number,
+				Type type,
+				BasicBlock basic_block,
+				const class Value& value
+			) -> void;
 
 
 			[[nodiscard]] auto createSourceLocation(LocalScope local_scope, uint32_t line, uint32_t collumn) 

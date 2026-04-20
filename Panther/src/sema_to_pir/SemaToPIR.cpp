@@ -1574,10 +1574,30 @@ namespace pcit::panther{
 
 				if(var.kind == AST::VarDef::Kind::DEF){ break; }
 
+				const std::string_view var_ident = this->current_source->getTokenBuffer()[var.ident].getString();
+
+				const PIRType alloca_type = [&]() -> PIRType {
+					if(this->data.config.includeDebugInfo){
+						return this->get_type<false, true>(*var.typeID);
+					}else{
+						return this->get_type<false, false>(*var.typeID);
+					}
+				}();
+
 				const pir::Expr var_alloca = this->agent.createAlloca(
-					this->get_type<false, false>(*var.typeID).type,
-					this->name("{}.ALLOCA", this->current_source->getTokenBuffer()[var.ident].getString())
+					alloca_type.type, this->name("{}.ALLOCA", var_ident)
 				);
+
+				if(this->data.config.includeDebugInfo){
+					this->agent.createMetaLocalVar(
+						std::string(var_ident),
+						var_alloca,
+						*alloca_type.meta_type_id,
+						pir::meta::SourceLocation(
+							this->get_current_meta_local_scope(), var.line, var.collumn
+						)
+					);
+				}
 
 				this->local_func_exprs.emplace(sema::Expr(stmt.varID()), var_alloca);
 
