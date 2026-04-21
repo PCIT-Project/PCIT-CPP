@@ -272,8 +272,8 @@ namespace pcit::pir{
 			uint32_t index;
 
 			friend struct core::OptionalInterface<Expr>;
-			friend class ReaderAgent;
-			friend class Agent;
+			friend class InstrReader;
+			friend class InstrHandler;
 			friend class PassManager;
 	};
 

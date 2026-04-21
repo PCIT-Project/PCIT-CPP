@@ -104,13 +104,13 @@ auto main(int argc, const char* argv[]) -> int {
 	// begin test
 
 	auto module = pcit::pir::Module("PIR testing", pcit::core::Platform::getNative());
-	auto agent = pcit::pir::Agent(module);
+	auto handler = pcit::pir::InstrHandler(module);
 
 	const pcit::pir::GlobalVar::ID global = module.createGlobalVar(
 		"global",
 		module.createSignedType(17),
 		pcit::pir::Linkage::INTERNAL,
-		agent.createNumber(module.createSignedType(17), pcit::core::GenericInt::create<uint64_t>(18)),
+		handler.createNumber(module.createSignedType(17), pcit::core::GenericInt::create<uint64_t>(18)),
 		true
 	);
 
@@ -135,8 +135,8 @@ auto main(int argc, const char* argv[]) -> int {
 
 	const pcit::pir::GlobalVar::ID vec2_value = module.createGlobalVar(
 		"vec2", vec2, pcit::pir::Linkage::PRIVATE, module.createGlobalStruct(vec2, {
-			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(12)),
-			agent.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(19)),
+			handler.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(12)),
+			handler.createNumber(module.createFloatType(32), pcit::core::GenericFloat::createF32(19)),
 		}), true
 	);
 
@@ -151,58 +151,58 @@ auto main(int argc, const char* argv[]) -> int {
 		pcit::pir::Linkage::EXTERNAL,
 		module.createSignedType(64)
 	);
-	agent.setTargetFunction(entry_func_id);
+	handler.setTargetFunction(entry_func_id);
 
 
-	const pcit::pir::BasicBlock::ID entry_block_id = agent.createBasicBlock();
-	agent.setTargetBasicBlock(entry_block_id);
+	const pcit::pir::BasicBlock::ID entry_block_id = handler.createBasicBlock();
+	handler.setTargetBasicBlock(entry_block_id);
 
 
-	const pcit::pir::Expr add = agent.createUAddWrap(
-		agent.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(9)),
-		agent.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(3)),
+	const pcit::pir::Expr add = handler.createUAddWrap(
+		handler.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(9)),
+		handler.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(3)),
 		"ADD_WRAP.RESULT",
 		"ADD_WRAP.WRAPPED"
 	);
 
-	// const pcit::pir::Expr add2 = agent.createAdd(add, agent.createParamExpr(1), false, "ADD");
-	const pcit::pir::Expr val_alloca = agent.createAlloca(module.createSignedType(64), "VAL");
+	// const pcit::pir::Expr add2 = handler.createAdd(add, handler.createParamExpr(1), false, "ADD");
+	const pcit::pir::Expr val_alloca = handler.createAlloca(module.createSignedType(64), "VAL");
 
-	const pcit::pir::Expr add3 = agent.createUAddWrap(
-		agent.extractUAddWrapResult(add),
-		agent.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(0)),
+	const pcit::pir::Expr add3 = handler.createUAddWrap(
+		handler.extractUAddWrapResult(add),
+		handler.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(0)),
 		"ADD_WRAP.RESULT",
 		"ADD_WRAP.WRAPPED"
 	);
 
-	std::ignore = agent.createUAddWrap(
-		agent.extractUAddWrapResult(add),
-		agent.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(2))
+	std::ignore = handler.createUAddWrap(
+		handler.extractUAddWrapResult(add),
+		handler.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(2))
 	);
 
-	// agent.createStore(
+	// handler.createStore(
 	// 	val_alloca,
-	// 	agent.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(2)),
+	// 	handler.createNumber(module.createSignedType(64), pcit::core::GenericInt::create<uint64_t>(2)),
 	// 	false,
 	// 	pcit::pir::AtomicOrdering::RELEASE
 	// );
-	// std::ignore = agent.createLoad(val_alloca, module.createSignedType(64), true, pcit::pir::AtomicOrdering::ACQUIRE);
+	// std::ignore = handler.createLoad(val_alloca, module.createSignedType(64), true, pcit::pir::AtomicOrdering::ACQUIRE);
 
-	// std::ignore = agent.createAdd(add, agent.createParamExpr(1), true, "UNUSED");
+	// std::ignore = handler.createAdd(add, handler.createParamExpr(1), true, "UNUSED");
 
-	const pcit::pir::BasicBlock::ID second_block_id = agent.createBasicBlock();
-	agent.createBranch(agent.createBoolean(true), second_block_id, entry_block_id);
-	agent.setTargetBasicBlock(second_block_id);
+	const pcit::pir::BasicBlock::ID second_block_id = handler.createBasicBlock();
+	handler.createBranch(handler.createBoolean(true), second_block_id, entry_block_id);
+	handler.setTargetBasicBlock(second_block_id);
 
 
-	pcit::pir::Expr str_ptr = agent.createCalcPtr(
-		agent.createGlobalValue(global_str), module.getGlobalString(global_str_value).type, {0, 14}
+	pcit::pir::Expr str_ptr = handler.createCalcPtr(
+		handler.createGlobalValue(global_str), module.getGlobalString(global_str_value).type, {0, 14}
 	);
 
-	agent.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
-	// agent.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
+	handler.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{str_ptr});
+	// handler.createCallVoid(print_message_decl, evo::SmallVector<pcit::pir::Expr>{val_alloca});
 
-	agent.createRet(agent.extractUAddWrapResult(add3));
+	handler.createRet(handler.extractUAddWrapResult(add3));
 
 
 	printer.printlnGray("--------------------------------");

@@ -208,8 +208,8 @@ namespace pcit::pir{
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};
 			core::StepAlloc<Alloca, uint32_t> allocas{};
 
-			friend class ReaderAgent;
-			friend class Agent;
+			friend class InstrReader;
+			friend class InstrHandler;
 	};
 
 

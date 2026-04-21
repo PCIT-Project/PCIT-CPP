@@ -15,7 +15,7 @@
 
 
 #include "../include/Module.hpp"
-#include "../include/ReaderAgent.hpp"
+#include "../include/InstrReader.hpp"
 
 #include <llvm_interface.hpp>
 
@@ -67,6 +67,8 @@ namespace pcit::pir{
 			auto lower_meta_enum_type(meta::EnumType::ID meta_enum_type_id) -> llvmint::DIBuilder::CompositeType;
 			auto lower_meta_function(std::string_view func_name, meta::Function::ID meta_function_id)
 				-> llvmint::DIBuilder::Subprogram;
+
+			auto lower_meta_source_location(meta::SourceLocation source_location) -> llvmint::DIBuilder::Location;
 
 
 			template<bool ADD_WEAK_DEPS>
@@ -140,7 +142,7 @@ namespace pcit::pir{
 			llvmint::IRBuilder builder;
 			llvmint::DIBuilder di_builder;
 
-			ReaderAgent reader;
+			InstrReader reader;
 			bool add_debug_info;
 
 			std::unordered_map<const StructType*, llvmint::StructType> struct_types{};

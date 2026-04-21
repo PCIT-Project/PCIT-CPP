@@ -25,7 +25,7 @@ namespace pcit::pir{
 			using MadeTransformation = bool;
 
 			struct StmtPass{
-				using Func = std::function<MadeTransformation(Expr, const class Agent&)>;
+				using Func = std::function<MadeTransformation(Expr, const class InstrHandler&)>;
 				Func func;
 			};
 
@@ -40,7 +40,7 @@ namespace pcit::pir{
 
 
 			struct ReverseStmtPass{
-				using Func = std::function<MadeTransformation(Expr, const class Agent&)>;
+				using Func = std::function<MadeTransformation(Expr, const class InstrHandler&)>;
 				Func func;
 			};
 

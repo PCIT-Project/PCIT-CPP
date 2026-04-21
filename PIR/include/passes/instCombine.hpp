@@ -19,7 +19,8 @@
 namespace pcit::pir::passes{
 
 	// 1 + 2 --> 3
-	[[nodiscard]] auto constant_folding_impl(Expr stmt, const class Agent& agent) -> PassManager::MadeTransformation;
+	[[nodiscard]] auto constant_folding_impl(Expr stmt, const class InstrHandler& handler)
+		-> PassManager::MadeTransformation;
 
 	[[nodiscard]] inline auto constantFolding() -> PassManager::StmtPass {
 		return PassManager::StmtPass(constant_folding_impl);
@@ -28,7 +29,8 @@ namespace pcit::pir::passes{
 
 	// x + 0 --> x
 	// x - x --> 0
-	[[nodiscard]] auto inst_simplify_impl(Expr stmt, const class Agent& agent) -> PassManager::MadeTransformation;
+	[[nodiscard]] auto inst_simplify_impl(Expr stmt, const class InstrHandler& handler)
+		-> PassManager::MadeTransformation;
 
 	[[nodiscard]] inline auto instSimplify() -> PassManager::StmtPass {
 		return PassManager::StmtPass(inst_simplify_impl);
@@ -36,7 +38,8 @@ namespace pcit::pir::passes{
 
 
 	// x * 4 --> x << 2
-	[[nodiscard]] auto inst_combine_impl(Expr stmt, const class Agent& agent) -> PassManager::MadeTransformation;
+	[[nodiscard]] auto inst_combine_impl(Expr stmt, const class InstrHandler& handler)
+		-> PassManager::MadeTransformation;
 
 	[[nodiscard]] inline auto instCombine() -> PassManager::StmtPassGroup {
 		return PassManager::StmtPassGroup({

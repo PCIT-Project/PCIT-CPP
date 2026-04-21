@@ -14,7 +14,7 @@
 // #include "../../include/BasicBlock.hpp"
 #include "../../include/Function.hpp"
 // #include "../../include/Module.hpp"
-#include "../../include/Agent.hpp"
+#include "../../include/InstrHandler.hpp"
 
 #include <unordered_set>
 
@@ -29,12 +29,12 @@ namespace pcit::pir::passes{
 		using FuncMetadata = std::unordered_set<Expr>;
 		auto metadata = std::unordered_map<Function*, FuncMetadata>();
 
-		auto impl = [metadata](Expr stmt, const Agent& agent) mutable -> PassManager::MadeTransformation {
+		auto impl = [metadata](Expr stmt, const InstrHandler& handler) mutable -> PassManager::MadeTransformation {
 			FuncMetadata& func_metadata = [&]() -> FuncMetadata& {
-				auto func_metadata_iter = metadata.find(&agent.getTargetFunction());
+				auto func_metadata_iter = metadata.find(&handler.getTargetFunction());
 
 				if(func_metadata_iter == metadata.end()){
-					return metadata.emplace(&agent.getTargetFunction(), FuncMetadata()).first->second;
+					return metadata.emplace(&handler.getTargetFunction(), FuncMetadata()).first->second;
 				}else{
 					return func_metadata_iter->second;
 				}
@@ -152,7 +152,7 @@ namespace pcit::pir::passes{
 
 			const auto remove_unused_stmt = [&]() -> bool {
 				if(func_metadata.contains(stmt) == false){
-					agent.removeStmt(stmt);
+					handler.removeStmt(stmt);
 					return true;
 				}
 
@@ -172,7 +172,7 @@ namespace pcit::pir::passes{
 					// TODO(FUTURE): remove if func has no side-effects
 					// if(remove_unused_stmt(stmt)){ return true; }
 
-					const Call& call_inst = agent.getCall(stmt);
+					const Call& call_inst = handler.getCall(stmt);
 
 					if(call_inst.target.is<PtrCall>()){
 						see_expr(call_inst.target.as<PtrCall>().location);
@@ -186,7 +186,7 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::CALL_VOID: {
-					const CallVoid& call_void_inst = agent.getCallVoid(stmt);
+					const CallVoid& call_void_inst = handler.getCallVoid(stmt);
 
 					if(call_void_inst.target.is<PtrCall>()){
 						see_expr(call_void_inst.target.as<PtrCall>().location);
@@ -200,7 +200,7 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::CALL_NO_RETURN: {
-					const CallNoReturn& call_no_return_inst = agent.getCallNoReturn(stmt);
+					const CallNoReturn& call_no_return_inst = handler.getCallNoReturn(stmt);
 
 					if(call_no_return_inst.target.is<PtrCall>()){
 						see_expr(call_no_return_inst.target.as<PtrCall>().location);
@@ -217,7 +217,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::BREAKPOINT: return false;
 
 				case Expr::Kind::RET: {
-					const Ret& ret_inst = agent.getRet(stmt);
+					const Ret& ret_inst = handler.getRet(stmt);
 
 					if(ret_inst.value.has_value()){
 						see_expr(*ret_inst.value);
@@ -234,17 +234,17 @@ namespace pcit::pir::passes{
 
 				case Expr::Kind::ALLOCA: {
 					if(func_metadata.contains(stmt) == false){
-						for(BasicBlock::ID current_func_basic_block_id : agent.getTargetFunction()){
-							for(Expr current_func_expr : agent.getBasicBlock(current_func_basic_block_id)){
+						for(BasicBlock::ID current_func_basic_block_id : handler.getTargetFunction()){
+							for(Expr current_func_expr : handler.getBasicBlock(current_func_basic_block_id)){
 								if(current_func_expr.kind() != Expr::Kind::META_LOCAL_VAR){ continue; }
 
-								if(agent.getMetaLocalVar(current_func_expr).value == stmt){
-									agent.removeStmt(current_func_expr);
+								if(handler.getMetaLocalVar(current_func_expr).value == stmt){
+									handler.removeStmt(current_func_expr);
 								}
 							}
 						}
 
-						agent.removeStmt(stmt);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
@@ -253,7 +253,7 @@ namespace pcit::pir::passes{
 
 
 				case Expr::Kind::LOAD: {
-					const Load& load = agent.getLoad(stmt);
+					const Load& load = handler.getLoad(stmt);
 
 					if(load.atomicOrdering == AtomicOrdering::NONE || load.atomicOrdering == AtomicOrdering::MONOTONIC){
 						if(remove_unused_stmt()){ return true; }
@@ -265,7 +265,7 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::STORE: {
-					const Store& store = agent.getStore(stmt);
+					const Store& store = handler.getStore(stmt);
 					see_expr(store.destination);
 					see_expr(store.value);
 
@@ -275,7 +275,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::CALC_PTR: {
 					if(remove_unused_stmt()){ return true; }
 
-					const CalcPtr& calc_ptr = agent.getCalcPtr(stmt);
+					const CalcPtr& calc_ptr = handler.getCalcPtr(stmt);
 					see_expr(calc_ptr.basePtr);
 
 					for(const CalcPtr::Index& index : calc_ptr.indices){
@@ -287,14 +287,14 @@ namespace pcit::pir::passes{
 
 
 				case Expr::Kind::MEMCPY: {
-					const Memcpy& memcpy = agent.getMemcpy(stmt);
+					const Memcpy& memcpy = handler.getMemcpy(stmt);
 					see_expr(memcpy.dst);
 					see_expr(memcpy.src);
 					see_expr(memcpy.numBytes);
 				} break;
 
 				case Expr::Kind::MEMSET: {
-					const Memset& memset = agent.getMemset(stmt);
+					const Memset& memset = handler.getMemset(stmt);
 					see_expr(memset.dst);
 					see_expr(memset.value);
 					see_expr(memset.numBytes);
@@ -304,70 +304,70 @@ namespace pcit::pir::passes{
 				case Expr::Kind::BIT_CAST: {
 					if(remove_unused_stmt()){ return true; }
 
-					const BitCast& bitcast = agent.getBitCast(stmt);
+					const BitCast& bitcast = handler.getBitCast(stmt);
 					see_expr(bitcast.fromValue);
 				} break;
 
 				case Expr::Kind::TRUNC: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Trunc& trunc = agent.getTrunc(stmt);
+					const Trunc& trunc = handler.getTrunc(stmt);
 					see_expr(trunc.fromValue);
 				} break;
 
 				case Expr::Kind::FTRUNC: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FTrunc& ftrunc = agent.getFTrunc(stmt);
+					const FTrunc& ftrunc = handler.getFTrunc(stmt);
 					see_expr(ftrunc.fromValue);
 				} break;
 
 				case Expr::Kind::SEXT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SExt& sext = agent.getSExt(stmt);
+					const SExt& sext = handler.getSExt(stmt);
 					see_expr(sext.fromValue);
 				} break;
 
 				case Expr::Kind::ZEXT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const ZExt& zext = agent.getZExt(stmt);
+					const ZExt& zext = handler.getZExt(stmt);
 					see_expr(zext.fromValue);
 				} break;
 
 				case Expr::Kind::FEXT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FExt& fext = agent.getFExt(stmt);
+					const FExt& fext = handler.getFExt(stmt);
 					see_expr(fext.fromValue);
 				} break;
 
 				case Expr::Kind::ITOF: {
 					if(remove_unused_stmt()){ return true; }
 
-					const IToF& itof = agent.getIToF(stmt);
+					const IToF& itof = handler.getIToF(stmt);
 					see_expr(itof.fromValue);
 				} break;
 
 				case Expr::Kind::UITOF: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UIToF& uitof = agent.getUIToF(stmt);
+					const UIToF& uitof = handler.getUIToF(stmt);
 					see_expr(uitof.fromValue);
 				} break;
 
 				case Expr::Kind::FTOI: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FToI& ftoi = agent.getFToI(stmt);
+					const FToI& ftoi = handler.getFToI(stmt);
 					see_expr(ftoi.fromValue);
 				} break;
 
 				case Expr::Kind::FTOUI: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FToUI& ftoui = agent.getFToUI(stmt);
+					const FToUI& ftoui = handler.getFToUI(stmt);
 					see_expr(ftoui.fromValue);
 				} break;
 
@@ -375,7 +375,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::ADD: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Add& add = agent.getAdd(stmt);
+					const Add& add = handler.getAdd(stmt);
 					see_expr(add.lhs);
 					see_expr(add.rhs);
 
@@ -383,26 +383,26 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::SADD_WRAP: {
-					if(func_metadata.contains(agent.extractSAddWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractSAddWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractSAddWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractSAddWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;
 						}
 
 						// if wrapped value is never used, replace addWrap with just an add
-						const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+						const SAddWrap& sadd_wrap = handler.getSAddWrap(stmt);
 						see_expr(sadd_wrap.lhs);
 						see_expr(sadd_wrap.rhs);
 
-						const Expr new_add = agent.createAdd(
+						const Expr new_add = handler.createAdd(
 							sadd_wrap.lhs, sadd_wrap.rhs, false, false, std::string(sadd_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractSAddWrapResult(stmt), new_add);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractSAddWrapResult(stmt), new_add);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const SAddWrap& sadd_wrap = agent.getSAddWrap(stmt);
+					const SAddWrap& sadd_wrap = handler.getSAddWrap(stmt);
 					see_expr(sadd_wrap.lhs);
 					see_expr(sadd_wrap.rhs);
 
@@ -413,26 +413,26 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SADD_WRAP_WRAPPED: return false;
 
 				case Expr::Kind::UADD_WRAP: {
-					if(func_metadata.contains(agent.extractUAddWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractUAddWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractUAddWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractUAddWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace addWrap with just an add
-						const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+						const UAddWrap& uadd_wrap = handler.getUAddWrap(stmt);
 						see_expr(uadd_wrap.lhs);
 						see_expr(uadd_wrap.rhs);
 
-						const Expr new_add = agent.createAdd(
+						const Expr new_add = handler.createAdd(
 							uadd_wrap.lhs, uadd_wrap.rhs, false, false, std::string(uadd_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractUAddWrapResult(stmt), new_add);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractUAddWrapResult(stmt), new_add);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const UAddWrap& uadd_wrap = agent.getUAddWrap(stmt);
+					const UAddWrap& uadd_wrap = handler.getUAddWrap(stmt);
 					see_expr(uadd_wrap.lhs);
 					see_expr(uadd_wrap.rhs);
 
@@ -445,7 +445,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SADD_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SAddSat& sadd_sat = agent.getSAddSat(stmt);
+					const SAddSat& sadd_sat = handler.getSAddSat(stmt);
 					see_expr(sadd_sat.lhs);
 					see_expr(sadd_sat.rhs);
 
@@ -455,7 +455,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UADD_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UAddSat& uadd_sat = agent.getUAddSat(stmt);
+					const UAddSat& uadd_sat = handler.getUAddSat(stmt);
 					see_expr(uadd_sat.lhs);
 					see_expr(uadd_sat.rhs);
 
@@ -465,7 +465,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FADD: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FAdd& fadd = agent.getFAdd(stmt);
+					const FAdd& fadd = handler.getFAdd(stmt);
 					see_expr(fadd.lhs);
 					see_expr(fadd.rhs);
 
@@ -476,7 +476,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SUB: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Sub& sub = agent.getSub(stmt);
+					const Sub& sub = handler.getSub(stmt);
 					see_expr(sub.lhs);
 					see_expr(sub.rhs);
 
@@ -484,26 +484,26 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::SSUB_WRAP: {
-					if(func_metadata.contains(agent.extractSSubWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractSSubWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractSSubWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractSSubWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace subWrap with just an sub
-						const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
+						const SSubWrap& ssub_wrap = handler.getSSubWrap(stmt);
 						see_expr(ssub_wrap.lhs);
 						see_expr(ssub_wrap.rhs);
 
-						const Expr new_sub = agent.createSub(
+						const Expr new_sub = handler.createSub(
 							ssub_wrap.lhs, ssub_wrap.rhs, false, false, std::string(ssub_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractSSubWrapResult(stmt), new_sub);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractSSubWrapResult(stmt), new_sub);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const SSubWrap& ssub_wrap = agent.getSSubWrap(stmt);
+					const SSubWrap& ssub_wrap = handler.getSSubWrap(stmt);
 					see_expr(ssub_wrap.lhs);
 					see_expr(ssub_wrap.rhs);
 
@@ -514,26 +514,26 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
 
 				case Expr::Kind::USUB_WRAP: {
-					if(func_metadata.contains(agent.extractUSubWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractUSubWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractUSubWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractUSubWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace subWrap with just an sub
-						const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
+						const USubWrap& usub_wrap = handler.getUSubWrap(stmt);
 						see_expr(usub_wrap.lhs);
 						see_expr(usub_wrap.rhs);
 
-						const Expr new_sub = agent.createSub(
+						const Expr new_sub = handler.createSub(
 							usub_wrap.lhs, usub_wrap.rhs, false, false, std::string(usub_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractUSubWrapResult(stmt), new_sub);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractUSubWrapResult(stmt), new_sub);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const USubWrap& usub_wrap = agent.getUSubWrap(stmt);
+					const USubWrap& usub_wrap = handler.getUSubWrap(stmt);
 					see_expr(usub_wrap.lhs);
 					see_expr(usub_wrap.rhs);
 
@@ -546,7 +546,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SSUB_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SSubSat& ssub_sat = agent.getSSubSat(stmt);
+					const SSubSat& ssub_sat = handler.getSSubSat(stmt);
 					see_expr(ssub_sat.lhs);
 					see_expr(ssub_sat.rhs);
 
@@ -556,7 +556,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::USUB_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const USubSat& usub_sat = agent.getUSubSat(stmt);
+					const USubSat& usub_sat = handler.getUSubSat(stmt);
 					see_expr(usub_sat.lhs);
 					see_expr(usub_sat.rhs);
 
@@ -566,7 +566,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FSUB: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FSub& fsub = agent.getFSub(stmt);
+					const FSub& fsub = handler.getFSub(stmt);
 					see_expr(fsub.lhs);
 					see_expr(fsub.rhs);
 
@@ -577,7 +577,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::MUL: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Mul& mul = agent.getMul(stmt);
+					const Mul& mul = handler.getMul(stmt);
 					see_expr(mul.lhs);
 					see_expr(mul.rhs);
 
@@ -585,26 +585,26 @@ namespace pcit::pir::passes{
 				} break;
 
 				case Expr::Kind::SMUL_WRAP: {
-					if(func_metadata.contains(agent.extractSMulWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractSMulWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractSMulWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractSMulWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace mulWrap with just an mul
-						const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
+						const SMulWrap& smul_wrap = handler.getSMulWrap(stmt);
 						see_expr(smul_wrap.lhs);
 						see_expr(smul_wrap.rhs);
 
-						const Expr new_mul = agent.createMul(
+						const Expr new_mul = handler.createMul(
 							smul_wrap.lhs, smul_wrap.rhs, false, false, std::string(smul_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractSMulWrapResult(stmt), new_mul);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractSMulWrapResult(stmt), new_mul);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const SMulWrap& smul_wrap = agent.getSMulWrap(stmt);
+					const SMulWrap& smul_wrap = handler.getSMulWrap(stmt);
 					see_expr(smul_wrap.lhs);
 					see_expr(smul_wrap.rhs);
 
@@ -615,26 +615,26 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
 
 				case Expr::Kind::UMUL_WRAP: {
-					if(func_metadata.contains(agent.extractUMulWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(agent.extractUMulWrapResult(stmt)) == false){
-							agent.removeStmt(stmt);
+					if(func_metadata.contains(handler.extractUMulWrapWrapped(stmt)) == false){
+						if(func_metadata.contains(handler.extractUMulWrapResult(stmt)) == false){
+							handler.removeStmt(stmt);
 							return true;		
 						}
 
 						// if wrapped value is never used, replace mulWrap with just an mul
-						const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
+						const UMulWrap& umul_wrap = handler.getUMulWrap(stmt);
 						see_expr(umul_wrap.lhs);
 						see_expr(umul_wrap.rhs);
 
-						const Expr new_mul = agent.createMul(
+						const Expr new_mul = handler.createMul(
 							umul_wrap.lhs, umul_wrap.rhs, false, false, std::string(umul_wrap.resultName)
 						);
-						agent.replaceExpr(agent.extractUMulWrapResult(stmt), new_mul);
-						agent.removeStmt(stmt);
+						handler.replaceExpr(handler.extractUMulWrapResult(stmt), new_mul);
+						handler.removeStmt(stmt);
 						return true;
 					}
 
-					const UMulWrap& umul_wrap = agent.getUMulWrap(stmt);
+					const UMulWrap& umul_wrap = handler.getUMulWrap(stmt);
 					see_expr(umul_wrap.lhs);
 					see_expr(umul_wrap.rhs);
 
@@ -647,7 +647,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SMUL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SMulSat& smul_sat = agent.getSMulSat(stmt);
+					const SMulSat& smul_sat = handler.getSMulSat(stmt);
 					see_expr(smul_sat.lhs);
 					see_expr(smul_sat.rhs);
 
@@ -657,7 +657,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UMUL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UMulSat& umul_sat = agent.getUMulSat(stmt);
+					const UMulSat& umul_sat = handler.getUMulSat(stmt);
 					see_expr(umul_sat.lhs);
 					see_expr(umul_sat.rhs);
 
@@ -667,7 +667,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FMUL: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FMul& fmul = agent.getFMul(stmt);
+					const FMul& fmul = handler.getFMul(stmt);
 					see_expr(fmul.lhs);
 					see_expr(fmul.rhs);
 
@@ -677,7 +677,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SDIV: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SDiv& sdiv = agent.getSDiv(stmt);
+					const SDiv& sdiv = handler.getSDiv(stmt);
 					see_expr(sdiv.lhs);
 					see_expr(sdiv.rhs);
 
@@ -687,7 +687,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UDIV: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UDiv udiv = agent.getUDiv(stmt);
+					const UDiv udiv = handler.getUDiv(stmt);
 					see_expr(udiv.lhs);
 					see_expr(udiv.rhs);
 
@@ -697,7 +697,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FDIV: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FDiv& fdiv = agent.getFDiv(stmt);
+					const FDiv& fdiv = handler.getFDiv(stmt);
 					see_expr(fdiv.lhs);
 					see_expr(fdiv.rhs);
 
@@ -708,7 +708,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SREM: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SRem& srem = agent.getSRem(stmt);
+					const SRem& srem = handler.getSRem(stmt);
 					see_expr(srem.lhs);
 					see_expr(srem.rhs);
 
@@ -718,7 +718,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UREM: {
 					if(remove_unused_stmt()){ return true; }
 
-					const URem urem = agent.getURem(stmt);
+					const URem urem = handler.getURem(stmt);
 					see_expr(urem.lhs);
 					see_expr(urem.rhs);
 
@@ -728,7 +728,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FREM: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FRem& frem = agent.getFRem(stmt);
+					const FRem& frem = handler.getFRem(stmt);
 					see_expr(frem.lhs);
 					see_expr(frem.rhs);
 
@@ -738,7 +738,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FNEG: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FNeg& fneg = agent.getFNeg(stmt);
+					const FNeg& fneg = handler.getFNeg(stmt);
 					see_expr(fneg.rhs);
 
 					return false;
@@ -747,7 +747,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::IEQ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const IEq& ieq = agent.getIEq(stmt);
+					const IEq& ieq = handler.getIEq(stmt);
 					see_expr(ieq.lhs);
 					see_expr(ieq.rhs);
 
@@ -757,7 +757,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FEQ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FEq& feq = agent.getFEq(stmt);
+					const FEq& feq = handler.getFEq(stmt);
 					see_expr(feq.lhs);
 					see_expr(feq.rhs);
 
@@ -767,7 +767,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::INEQ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const INeq& ineq = agent.getINeq(stmt);
+					const INeq& ineq = handler.getINeq(stmt);
 					see_expr(ineq.lhs);
 					see_expr(ineq.rhs);
 
@@ -777,7 +777,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FNEQ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FNeq& fneq = agent.getFNeq(stmt);
+					const FNeq& fneq = handler.getFNeq(stmt);
 					see_expr(fneq.lhs);
 					see_expr(fneq.rhs);
 
@@ -787,7 +787,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SLT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SLT& slt = agent.getSLT(stmt);
+					const SLT& slt = handler.getSLT(stmt);
 					see_expr(slt.lhs);
 					see_expr(slt.rhs);
 
@@ -797,7 +797,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::ULT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const ULT& ult = agent.getULT(stmt);
+					const ULT& ult = handler.getULT(stmt);
 					see_expr(ult.lhs);
 					see_expr(ult.rhs);
 
@@ -807,7 +807,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FLT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FLT& flt = agent.getFLT(stmt);
+					const FLT& flt = handler.getFLT(stmt);
 					see_expr(flt.lhs);
 					see_expr(flt.rhs);
 
@@ -817,7 +817,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SLTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SLTE& slte = agent.getSLTE(stmt);
+					const SLTE& slte = handler.getSLTE(stmt);
 					see_expr(slte.lhs);
 					see_expr(slte.rhs);
 
@@ -827,7 +827,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::ULTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const ULTE& ulte = agent.getULTE(stmt);
+					const ULTE& ulte = handler.getULTE(stmt);
 					see_expr(ulte.lhs);
 					see_expr(ulte.rhs);
 
@@ -837,7 +837,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FLTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FLTE& flte = agent.getFLTE(stmt);
+					const FLTE& flte = handler.getFLTE(stmt);
 					see_expr(flte.lhs);
 					see_expr(flte.rhs);
 
@@ -847,7 +847,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SGT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SGT& sgt = agent.getSGT(stmt);
+					const SGT& sgt = handler.getSGT(stmt);
 					see_expr(sgt.lhs);
 					see_expr(sgt.rhs);
 
@@ -857,7 +857,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UGT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UGT& ugt = agent.getUGT(stmt);
+					const UGT& ugt = handler.getUGT(stmt);
 					see_expr(ugt.lhs);
 					see_expr(ugt.rhs);
 
@@ -867,7 +867,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FGT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FGT& fgt = agent.getFGT(stmt);
+					const FGT& fgt = handler.getFGT(stmt);
 					see_expr(fgt.lhs);
 					see_expr(fgt.rhs);
 
@@ -877,7 +877,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SGTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SGTE& sgte = agent.getSGTE(stmt);
+					const SGTE& sgte = handler.getSGTE(stmt);
 					see_expr(sgte.lhs);
 					see_expr(sgte.rhs);
 
@@ -887,7 +887,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::UGTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const UGTE& ugte = agent.getUGTE(stmt);
+					const UGTE& ugte = handler.getUGTE(stmt);
 					see_expr(ugte.lhs);
 					see_expr(ugte.rhs);
 
@@ -897,7 +897,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::FGTE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const FGTE& fgte = agent.getFGTE(stmt);
+					const FGTE& fgte = handler.getFGTE(stmt);
 					see_expr(fgte.lhs);
 					see_expr(fgte.rhs);
 
@@ -907,7 +907,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::AND: {
 					if(remove_unused_stmt()){ return true; }
 
-					const And& and_stmt = agent.getAnd(stmt);
+					const And& and_stmt = handler.getAnd(stmt);
 					see_expr(and_stmt.lhs);
 					see_expr(and_stmt.rhs);
 
@@ -917,7 +917,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::OR: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Or& or_stmt = agent.getOr(stmt);
+					const Or& or_stmt = handler.getOr(stmt);
 					see_expr(or_stmt.lhs);
 					see_expr(or_stmt.rhs);
 
@@ -927,7 +927,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::XOR: {
 					if(remove_unused_stmt()){ return true; }
 
-					const Xor& xor_stmt = agent.getXor(stmt);
+					const Xor& xor_stmt = handler.getXor(stmt);
 					see_expr(xor_stmt.lhs);
 					see_expr(xor_stmt.rhs);
 
@@ -937,7 +937,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SHL: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SHL& shl = agent.getSHL(stmt);
+					const SHL& shl = handler.getSHL(stmt);
 					see_expr(shl.lhs);
 					see_expr(shl.rhs);
 
@@ -947,7 +947,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SSHL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SSHLSat& sshlsat = agent.getSSHLSat(stmt);
+					const SSHLSat& sshlsat = handler.getSSHLSat(stmt);
 					see_expr(sshlsat.lhs);
 					see_expr(sshlsat.rhs);
 
@@ -957,7 +957,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::USHL_SAT: {
 					if(remove_unused_stmt()){ return true; }
 
-					const USHLSat& ushlsat = agent.getUSHLSat(stmt);
+					const USHLSat& ushlsat = handler.getUSHLSat(stmt);
 					see_expr(ushlsat.lhs);
 					see_expr(ushlsat.rhs);
 
@@ -967,7 +967,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::SSHR: {
 					if(remove_unused_stmt()){ return true; }
 
-					const SSHR& sshr = agent.getSSHR(stmt);
+					const SSHR& sshr = handler.getSSHR(stmt);
 					see_expr(sshr.lhs);
 					see_expr(sshr.rhs);
 
@@ -977,7 +977,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::USHR: {
 					if(remove_unused_stmt()){ return true; }
 
-					const USHR& ushr = agent.getUSHR(stmt);
+					const USHR& ushr = handler.getUSHR(stmt);
 					see_expr(ushr.lhs);
 					see_expr(ushr.rhs);
 
@@ -987,7 +987,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::BIT_REVERSE: {
 					if(remove_unused_stmt()){ return true; }
 
-					const BitReverse& bit_reverse = agent.getBitReverse(stmt);
+					const BitReverse& bit_reverse = handler.getBitReverse(stmt);
 					see_expr(bit_reverse.arg);
 
 					return false;
@@ -996,7 +996,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::BYTE_SWAP: {
 					if(remove_unused_stmt()){ return true; }
 
-					const ByteSwap& byte_swap = agent.getByteSwap(stmt);
+					const ByteSwap& byte_swap = handler.getByteSwap(stmt);
 					see_expr(byte_swap.arg);
 
 					return false;
@@ -1005,7 +1005,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::CTPOP: {
 					if(remove_unused_stmt()){ return true; }
 
-					const CtPop& ctpop = agent.getCtPop(stmt);
+					const CtPop& ctpop = handler.getCtPop(stmt);
 					see_expr(ctpop.arg);
 
 					return false;
@@ -1015,7 +1015,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::CTLZ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const CTLZ& ctlz = agent.getCTLZ(stmt);
+					const CTLZ& ctlz = handler.getCTLZ(stmt);
 					see_expr(ctlz.arg);
 
 					return false;
@@ -1024,14 +1024,14 @@ namespace pcit::pir::passes{
 				case Expr::Kind::CTTZ: {
 					if(remove_unused_stmt()){ return true; }
 
-					const CTTZ& cttz = agent.getCTTZ(stmt);
+					const CTTZ& cttz = handler.getCTTZ(stmt);
 					see_expr(cttz.arg);
 
 					return false;
 				} break;
 
 				case Expr::Kind::CMPXCHG: {
-					const CmpXchg& cmpxchg = agent.getCmpXchg(stmt);
+					const CmpXchg& cmpxchg = handler.getCmpXchg(stmt);
 					see_expr(cmpxchg.target);
 					see_expr(cmpxchg.expected);
 					see_expr(cmpxchg.desired);
@@ -1043,7 +1043,7 @@ namespace pcit::pir::passes{
 				case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
 
 				case Expr::Kind::ATOMIC_RMW: {
-					const AtomicRMW& atomic_rmw = agent.getAtomicRMW(stmt);
+					const AtomicRMW& atomic_rmw = handler.getAtomicRMW(stmt);
 					see_expr(atomic_rmw.target);
 					see_expr(atomic_rmw.value);
 

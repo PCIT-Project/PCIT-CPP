@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.286.0"></a>
+## v0.0.286.0
+
+### PIR
+- Renamed `Agent` to `InstrHandler`
+- Renamed `ReaderAgent` to `InstrReader`
+- Added automatic source locations to`InstrHandler` 
+
+
+<!---------------------------------->
 <a name="v0.0.285.0"></a>
 ## v0.0.285.0
 

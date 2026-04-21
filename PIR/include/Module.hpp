@@ -1072,8 +1072,8 @@ namespace pcit::pir{
 			mutable evo::SpinLock meta_struct_type_lookup_lock{};
 
 
-			friend class ReaderAgent;
-			friend class Agent;
+			friend class InstrReader;
+			friend class InstrHandler;
 	};
 
 

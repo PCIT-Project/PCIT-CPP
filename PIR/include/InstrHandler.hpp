@@ -24,22 +24,17 @@
 namespace pcit::pir{
 
 
-	// A unified way to interact with things like exprs and basic blocks
-	// 	Called "Agent" as it's sort of a go-between and manages menial stuff for you
-	// 	I would have picked "Interface" but I didn't want to overload the term
-	// Note: a const Agent has all the power to get and create expressions / statements, but the insert target cannot be 
-	// 	modified. If you want an Agent that can only get but not create, use a ReaderAgent instead
-
-	class Agent{
+	class InstrHandler{
 		public:
-			Agent(Module& _module) : module(_module), target_func(nullptr), target_basic_block(nullptr) {}
-			Agent(Module& _module, Function& func) : module(_module), target_func(&func), target_basic_block(nullptr) {}
-			Agent(Module& _module, Function& func, BasicBlock& basic_block)
+			InstrHandler(Module& _module) : module(_module), target_func(nullptr), target_basic_block(nullptr) {}
+			InstrHandler(Module& _module, Function& func)
+				: module(_module), target_func(&func), target_basic_block(nullptr) {}
+			InstrHandler(Module& _module, Function& func, BasicBlock& basic_block)
 				: module(_module), target_func(&func), target_basic_block(&basic_block) {}
-			Agent(Module& _module, Function& func, BasicBlock& basic_block, size_t _insert_index)
+			InstrHandler(Module& _module, Function& func, BasicBlock& basic_block, size_t _insert_index)
 				: module(_module), target_func(&func), target_basic_block(&basic_block), insert_index(_insert_index) {}
 
-			~Agent() = default;
+			~InstrHandler() = default;
 
 
 			///////////////////////////////////
@@ -68,6 +63,28 @@ namespace pcit::pir{
 			auto setInsertIndex(size_t index) -> void;
 			auto setInsertIndexAtEnd() -> void;
 			auto getInsertIndexAtEnd() const -> bool {return this->insert_index == std::numeric_limits<size_t>::max();}
+
+
+			//////////////////
+			// source location
+
+			auto pushSourceLocation(meta::SourceLocation source_location) -> void;
+			auto popSourceLocation() -> void;
+
+
+			struct DeferPopSourceLocation{
+				DeferPopSourceLocation(InstrHandler& handler) : _handler(&handler) {}
+
+				~DeferPopSourceLocation(){ if(this->_handler != nullptr){ this->_handler->popSourceLocation(); } }
+
+				DeferPopSourceLocation(const DeferPopSourceLocation&) = delete;
+				DeferPopSourceLocation(DeferPopSourceLocation&& rhs) : _handler(std::exchange(rhs._handler, nullptr)) {}
+
+				private:
+					InstrHandler* _handler;
+			};
+
+			[[nodiscard]] auto scopedSourceLocation(meta::SourceLocation source_location) -> DeferPopSourceLocation;
 
 
 
@@ -148,44 +165,24 @@ namespace pcit::pir{
 			// calls
 
 			[[nodiscard]] auto createCall(
-				Function::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				Function::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			[[nodiscard]] auto createCall(
-				Function::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			[[nodiscard]] auto createCall(
-				ExternalFunction::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			[[nodiscard]] auto createCall(
-				ExternalFunction::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			[[nodiscard]] auto createCall(
-				Expr func,
-				Type func_type,
-				evo::SmallVector<Expr>&& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name = ""
 			) const -> Expr;
 			[[nodiscard]] auto createCall(
-				Expr func,
-				Type func_type,
-				const evo::SmallVector<Expr>& args,
-				std::string&& name = "",
-				std::optional<meta::SourceLocation> source_location = std::nullopt
+				Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name = ""
 			) const -> Expr;
 
 			[[nodiscard]] auto getCall(Expr expr) const -> const Call&;
@@ -194,40 +191,14 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// call voids
 
-			auto createCallVoid(
-				Function::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallVoid(
-				Function::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallVoid(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoid(
-				ExternalFunction::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallVoid(
-				ExternalFunction::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallVoid(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallVoid(
-				Expr func,
-				Type func_type,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallVoid(
-				Expr func,
-				Type func_type,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallVoid(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallVoid(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			[[nodiscard]] auto getCallVoid(Expr expr) const -> const CallVoid&;
 
@@ -235,40 +206,14 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// call no return
 
-			auto createCallNoReturn(
-				Function::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallNoReturn(
-				Function::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallNoReturn(Function::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(Function::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallNoReturn(
-				ExternalFunction::ID func,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallNoReturn(
-				ExternalFunction::ID func,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallNoReturn(ExternalFunction::ID func, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(ExternalFunction::ID func, const evo::SmallVector<Expr>& args) const -> Expr;
 
-			auto createCallNoReturn(
-				Expr func,
-				Type func_type,
-				evo::SmallVector<Expr>&& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
-			auto createCallNoReturn(
-				Expr func,
-				Type func_type,
-				const evo::SmallVector<Expr>& args,
-				std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createCallNoReturn(Expr func, Type func_type, evo::SmallVector<Expr>&& args) const -> Expr;
+			auto createCallNoReturn(Expr func, Type func_type, const evo::SmallVector<Expr>& args) const -> Expr;
 
 			[[nodiscard]] auto getCallNoReturn(Expr expr) const -> const CallNoReturn&;
 
@@ -276,30 +221,26 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// breakpoint / abort
 
-			auto createAbort(std::optional<meta::SourceLocation> source_location = std::nullopt) const -> Expr;
+			auto createAbort() const -> Expr;
 			[[nodiscard]] auto getAbort(Expr expr) const -> const Abort&;
 
-			auto createBreakpoint(std::optional<meta::SourceLocation> source_location = std::nullopt) const -> Expr;
+			auto createBreakpoint() const -> Expr;
 			[[nodiscard]] auto getBreakpoint(Expr expr) const -> const Breakpoint&;
 
 
 			///////////////////////////////////
 			// ret instructions
 
-			auto createRet(Expr expr, std::optional<meta::SourceLocation> source_location = std::nullopt) const
-				-> Expr;
-			auto createRet(std::nullopt_t, std::optional<meta::SourceLocation> source_location = std::nullopt) const
-				-> Expr;
+			auto createRet(Expr expr) const -> Expr;
 			auto createRet() const -> Expr;
+
 			[[nodiscard]] auto getRet(Expr expr) const -> const Ret&;
 
 
 			///////////////////////////////////
 			// branch instructions
 
-			auto createJump(
-				BasicBlock::ID basic_block_id, std::optional<meta::SourceLocation> source_location = std::nullopt
-			) const -> Expr;
+			auto createJump(BasicBlock::ID basic_block_id) const -> Expr;
 
 			[[nodiscard]] auto getJump(Expr expr) const -> const Jump&;
 
@@ -816,9 +757,7 @@ namespace pcit::pir{
 			//////////////////////////////////////////////////////////////////////
 			// meta
 
-			auto createMetaLocalVar(
-				std::string&& name, Expr value, meta::Type type, meta::SourceLocation source_location
-			) const -> Expr;
+			auto createMetaLocalVar(std::string&& name, Expr value, meta::Type type) const -> Expr;
 			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
 
 
@@ -835,13 +774,22 @@ namespace pcit::pir{
 			template<bool REPLACE_WITH_VALUE>
 			[[nodiscard]] auto replace_stmt_impl(Expr original, Expr replacement) const -> void;
 
+			[[nodiscard]] auto get_current_source_location() const -> std::optional<meta::SourceLocation>;
+
 	
 		private:
 			Module& module;
 			Function* target_func;
 			BasicBlock* target_basic_block;
+
+			std::stack<
+				std::optional<meta::SourceLocation>, evo::SmallVector<std::optional<meta::SourceLocation>, 16>
+			> source_locations{};
+
+			// `insert_index` is mutable to allow for it to change when inserting / deleting stmts
 			mutable size_t insert_index = std::numeric_limits<size_t>::max();
-			// `insert_index` is mutable to allow for it to move when inserting / deleting stmts
+
+
 	};
 
 

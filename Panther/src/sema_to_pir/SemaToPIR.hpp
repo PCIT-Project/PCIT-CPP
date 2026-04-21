@@ -69,7 +69,7 @@ namespace pcit::panther{
 
 		public:
 			SemaToPIR(class Context& _context, pir::Module& _module, Data& _data)
-				: context(_context), module(_module), agent(_module), data(_data) {}
+				: context(_context), module(_module), handler(_module), data(_data) {}
 			~SemaToPIR() = default;
 
 			// auto lower() -> void;
@@ -255,20 +255,17 @@ namespace pcit::panther{
 			[[nodiscard]] auto create_call(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
 				evo::SmallVector<pir::Expr>&& args,
-				std::optional<pir::meta::SourceLocation> source_location,
 				std::string&& name = ""
 			) -> pir::Expr;
 
 			auto create_call_void(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args,
-				std::optional<pir::meta::SourceLocation> source_location
+				evo::SmallVector<pir::Expr>&& args
 			) -> void;
 
 			auto create_call_no_return(
 				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args,
-				std::optional<pir::meta::SourceLocation> source_location
+				evo::SmallVector<pir::Expr>&& args
 			) -> void;
 
 
@@ -287,12 +284,8 @@ namespace pcit::panther{
 			auto template_intrinsic_func_call(const sema::FuncCall& func_call) -> void;
 
 
-			auto create_panic(
-				pir::Expr message, std::optional<pir::meta::SourceLocation> source_location = std::nullopt
-			) -> void;
-			auto create_panic(
-				std::string_view message, std::optional<pir::meta::SourceLocation> source_location = std::nullopt
-			) -> void;
+			auto create_panic(pir::Expr message) -> void;
+			auto create_panic(std::string_view message) -> void;
 
 
 			[[nodiscard]] auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
@@ -493,11 +486,22 @@ namespace pcit::panther{
 			[[nodiscard]] static auto get_atomic_ordering(const core::GenericValue& generic_value)
 				-> pir::AtomicOrdering;
 
+
+			[[nodiscard]] auto create_scoped_source_location(uint32_t line, uint32_t collumn)
+				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
+
+			[[nodiscard]] auto create_scoped_source_location(
+				pir::meta::LocalScope scope, uint32_t line, uint32_t collumn
+			) -> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
+
+			[[nodiscard]] auto create_scoped_source_location(auto& thing_to_get_location_of)
+				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
+
 	
 		private:
 			class Context& context;
 			pir::Module& module;
-			pir::Agent agent;
+			pir::InstrHandler handler;
 
 			class Source* current_source = nullptr;
 			const Data::FuncInfo* current_func_info = nullptr;

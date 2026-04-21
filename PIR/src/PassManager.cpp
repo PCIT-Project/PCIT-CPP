@@ -12,7 +12,7 @@
 #include "../include/Expr.hpp"
 #include "../include/BasicBlock.hpp"
 #include "../include/Module.hpp"
-#include "../include/Agent.hpp"
+#include "../include/InstrHandler.hpp"
 
 #include <ranges>
 
@@ -64,7 +64,7 @@ namespace pcit::pir{
 	// stmt pass
 
 	auto PassManager::run_single_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> void {
-		auto agent = Agent(this->module);
+		auto handler = InstrHandler(this->module);
 
 		for(Function& func : this->module.getFunctionIter()){
 			this->run_pass_group(stmt_pass_group, StmtPassGroupItem(func));
@@ -72,7 +72,7 @@ namespace pcit::pir{
 	}
 
 	auto PassManager::run_multi_threaded_pass_group(const StmtPassGroup& stmt_pass_group) -> evo::Result<> {
-		auto agent = Agent(this->module);
+		auto handler = InstrHandler(this->module);
 
 		auto items = evo::SmallVector<ThreadPoolItem>();
 		for(Function& func : this->module.getFunctionIter()){
@@ -89,28 +89,28 @@ namespace pcit::pir{
 
 
 	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> void {
-		auto agent = Agent(this->module, item.func);
+		auto handler = InstrHandler(this->module, item.func);
 
 		for(auto iter = item.func.getAllocasRange().begin(); iter != item.func.getAllocasRange().end(); ++iter){
 			for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-				if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), agent)){ break; }
+				if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
 			}
 		}
 
 
 		for(BasicBlock::ID basic_block_id : item.func){
-			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
-			agent.setTargetBasicBlock(basic_block);
+			BasicBlock& basic_block = handler.getBasicBlock(basic_block_id);
+			handler.setTargetBasicBlock(basic_block);
 
 			size_t i = 0;
 			auto iter = basic_block.begin();
 			size_t basic_block_saved_size = basic_block.size();
 			while(i < basic_block_saved_size){
-				agent.setInsertIndex(i);
+				handler.setInsertIndex(i);
 
 				bool made_transformation = false;
 				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(*iter, agent)){
+					if(stmt_pass.func(*iter, handler)){
 						made_transformation = true;
 						break;
 					}
@@ -147,7 +147,7 @@ namespace pcit::pir{
 	// reverse stmt pass
 
 	auto PassManager::run_single_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> void {
-		auto agent = Agent(this->module);
+		auto handler = InstrHandler(this->module);
 
 		for(Function& func : this->module.getFunctionIter()){
 			this->run_pass_group(stmt_pass_group, ReverseStmtPassGroupItem(func));
@@ -155,7 +155,7 @@ namespace pcit::pir{
 	}
 
 	auto PassManager::run_multi_threaded_pass_group(const ReverseStmtPassGroup& stmt_pass_group) -> evo::Result<> {
-		auto agent = Agent(this->module);
+		auto handler = InstrHandler(this->module);
 
 		auto items = evo::SmallVector<ThreadPoolItem>();
 		for(Function& func : this->module.getFunctionIter()){
@@ -174,17 +174,17 @@ namespace pcit::pir{
 	auto PassManager::run_pass_group(
 		const ReverseStmtPassGroup& stmt_pass_group, const ReverseStmtPassGroupItem& item
 	) -> void {
-		auto agent = Agent(this->module, item.func);
+		auto handler = InstrHandler(this->module, item.func);
 
 		for(BasicBlock::ID basic_block_id : item.func | std::views::reverse){
-			BasicBlock& basic_block = agent.getBasicBlock(basic_block_id);
-			agent.setTargetBasicBlock(basic_block);
+			BasicBlock& basic_block = handler.getBasicBlock(basic_block_id);
+			handler.setTargetBasicBlock(basic_block);
 
 			for(ptrdiff_t i = basic_block.size() - 1; i >= 0; i-=1){
-				agent.setInsertIndex(i);
+				handler.setInsertIndex(i);
 
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(basic_block[i], agent)){ break; }
+					if(stmt_pass.func(basic_block[i], handler)){ break; }
 				}
 			}
 		}
@@ -196,7 +196,7 @@ namespace pcit::pir{
 			auto iter = item.func.getAllocasRange().begin();
 			while(iter != item.func.getAllocasRange().end()){
 				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), agent)){ break; }
+					if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
 				}
 
 				if(item.func.getAllocasRange().size() != current_allocas_range_size){

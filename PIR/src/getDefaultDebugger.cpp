@@ -12,7 +12,7 @@
 #include "../include/ExecutionEngine.hpp"
 #include "../include/ExecutionEngineDebuggerInterface.hpp"
 #include "../include/ModulePrinter.hpp"
-#include "../include/ReaderAgent.hpp"
+#include "../include/InstrReader.hpp"
 
 #include <ranges>
 #include <iostream>
@@ -676,7 +676,7 @@ namespace pcit::pir{
 
 			Function& func = this->module.getFunction(func_id);
 
-			auto reader = ReaderAgent(this->module, func);
+			auto reader = InstrReader(this->module, func);
 
 			for(BasicBlock::ID basic_block_id : func){
 				const BasicBlock& basic_block = reader.getBasicBlock(basic_block_id);
@@ -740,7 +740,7 @@ namespace pcit::pir{
 
 
 
-		auto get_expr_name(Expr expr, const ReaderAgent& reader) -> evo::Result<std::string_view> {
+		auto get_expr_name(Expr expr, const InstrReader& reader) -> evo::Result<std::string_view> {
 			switch(expr.kind()){
 				case Expr::Kind::NONE: evo::debugFatalBreak("Not valid expr");
 

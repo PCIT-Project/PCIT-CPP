@@ -27,7 +27,7 @@ namespace pcit::pir{
 			using ID = BasicBlockID;
 
 		public:
-			// should only be used by Agent as it sets ID as well
+			// should only be used by InstrHandler as it sets ID as well
 			BasicBlock(std::string&& _name) : name(std::move(_name)){
 				evo::debugAssert(isStandardName(this->name), "Not valid name for basic block ({})", this->name);
 			}
@@ -77,7 +77,7 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto size() const -> size_t { return this->exprs.size(); }
 
-			// Not intended to be called directly, better to be called by Agent::deleteBodyOfTargetBasicBlock
+			// Not intended to be called directly, better to be called by InstrHandler::deleteBodyOfTargetBasicBlock
 			// 	as it will delete all exprs
 			auto clear() -> void { this->exprs.clear(); }
 
@@ -130,7 +130,7 @@ namespace pcit::pir{
 			ID id;
 			bool is_terminated;
 
-			friend class Agent;
+			friend class InstrHandler;
 	};
 
 

@@ -11,8 +11,7 @@
 
 #include "../include/Module.hpp"
 
-#include "../include/Agent.hpp"
-#include "../include/ReaderAgent.hpp"
+#include "../include/InstrReader.hpp"
 
 
 #if defined(EVO_COMPILER_MSVC)
@@ -44,7 +43,7 @@ namespace pcit::pir{
 	auto Function::insert_basic_block_before(BasicBlock::ID id, const BasicBlock& before) -> void {
 		evo::debugAssert(!this->basic_block_is_already_in(id), "Basic block is already in this funciton");
 
-		auto reader = ReaderAgent(this->getParentModule());
+		auto reader = InstrReader(this->getParentModule());
 
 		for(auto iter = this->basic_blocks.begin(); iter != this->basic_blocks.end(); ++iter){
 			if(&reader.getBasicBlock(*iter) == &before){
@@ -74,7 +73,7 @@ namespace pcit::pir{
 	auto Function::insert_basic_block_after(BasicBlock::ID id, const BasicBlock& after) -> void {
 		evo::debugAssert(!this->basic_block_is_already_in(id), "Basic block is already in this funciton");
 		
-		auto reader = ReaderAgent(this->getParentModule());
+		auto reader = InstrReader(this->getParentModule());
 
 		for(auto iter = this->basic_blocks.begin(); iter != this->basic_blocks.end(); ++iter){
 			if(&reader.getBasicBlock(*iter) == &after){
@@ -130,7 +129,7 @@ namespace pcit::pir{
 		if(param_types.size() != args.size()){ return false; }
 
 		for(size_t i = 0; i < param_types.size(); i+=1){
-			if(param_types[i] != ReaderAgent(this->getParentModule(), *this).getExprType(args[i])){ return false; }
+			if(param_types[i] != InstrReader(this->getParentModule(), *this).getExprType(args[i])){ return false; }
 		}
 
 		return true;

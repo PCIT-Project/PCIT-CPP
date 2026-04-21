@@ -385,6 +385,13 @@ namespace pcit::pir{
 	}
 
 
+	auto PIRToLLVMIR::lower_meta_source_location(meta::SourceLocation source_location) -> llvmint::DIBuilder::Location {
+		return this->di_builder.createSourceLocation(
+			this->get_meta_local_scope(source_location.scope), source_location.line, source_location.collumn
+		);
+	}
+
+
 
 
 	template<bool ADD_WEAK_DEPS>
@@ -679,13 +686,7 @@ namespace pcit::pir{
 									);
 
 									if(this->add_debug_info && call.sourceLocation.has_value()){
-										call_inst.setLocation(
-											this->di_builder.createSourceLocation(
-												this->get_meta_local_scope(call.sourceLocation->scope),
-												call.sourceLocation->line,
-												call.sourceLocation->collumn
-											)
-										);
+										call_inst.setLocation(this->lower_meta_source_location(*call.sourceLocation));
 									}
 
 									return call_inst.asValue();
@@ -701,13 +702,7 @@ namespace pcit::pir{
 									);
 
 									if(this->add_debug_info && call.sourceLocation.has_value()){
-										call_inst.setLocation(
-											this->di_builder.createSourceLocation(
-												this->get_meta_local_scope(call.sourceLocation->scope),
-												call.sourceLocation->line,
-												call.sourceLocation->collumn
-											)
-										);
+										call_inst.setLocation(this->lower_meta_source_location(*call.sourceLocation));
 									}
 
 									return call_inst.asValue();
@@ -726,13 +721,7 @@ namespace pcit::pir{
 									);
 
 									if(this->add_debug_info && call.sourceLocation.has_value()){
-										call_inst.setLocation(
-											this->di_builder.createSourceLocation(
-												this->get_meta_local_scope(call.sourceLocation->scope),
-												call.sourceLocation->line,
-												call.sourceLocation->collumn
-											)
-										);
+										call_inst.setLocation(this->lower_meta_source_location(*call.sourceLocation));
 									}
 
 									return call_inst.asValue();
@@ -764,13 +753,7 @@ namespace pcit::pir{
 								call_inst.setCallingConv(this->get_calling_conv(func_target.getCallingConvention()));
 
 								if(this->add_debug_info && call_void.sourceLocation.has_value()){
-									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_void.sourceLocation->scope),
-											call_void.sourceLocation->line,
-											call_void.sourceLocation->collumn
-										)
-									);
+									call_inst.setLocation(this->lower_meta_source_location(*call_void.sourceLocation));
 								}
 
 							}else if constexpr(std::is_same<TargetT, ExternalFunction::ID>()){
@@ -781,13 +764,7 @@ namespace pcit::pir{
 								call_inst.setCallingConv(this->get_calling_conv(func_target.callingConvention));
 
 								if(this->add_debug_info && call_void.sourceLocation.has_value()){
-									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_void.sourceLocation->scope),
-											call_void.sourceLocation->line,
-											call_void.sourceLocation->collumn
-										)
-									);
+									call_inst.setLocation(this->lower_meta_source_location(*call_void.sourceLocation));
 								}
 
 							}else if constexpr(std::is_same<TargetT, PtrCall>()){
@@ -804,13 +781,7 @@ namespace pcit::pir{
 								);
 
 								if(this->add_debug_info && call_void.sourceLocation.has_value()){
-									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_void.sourceLocation->scope),
-											call_void.sourceLocation->line,
-											call_void.sourceLocation->collumn
-										)
-									);
+									call_inst.setLocation(this->lower_meta_source_location(*call_void.sourceLocation));
 								}
 							}else{
 								static_assert(false, "Unknown func call target");
@@ -837,11 +808,7 @@ namespace pcit::pir{
 
 								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
 									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
-											call_no_return.sourceLocation->line,
-											call_no_return.sourceLocation->collumn
-										)
+										this->lower_meta_source_location(*call_no_return.sourceLocation)
 									);
 								}
 
@@ -854,11 +821,7 @@ namespace pcit::pir{
 
 								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
 									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
-											call_no_return.sourceLocation->line,
-											call_no_return.sourceLocation->collumn
-										)
+										this->lower_meta_source_location(*call_no_return.sourceLocation)
 									);
 								}
 
@@ -877,11 +840,7 @@ namespace pcit::pir{
 
 								if(this->add_debug_info && call_no_return.sourceLocation.has_value()){
 									call_inst.setLocation(
-										this->di_builder.createSourceLocation(
-											this->get_meta_local_scope(call_no_return.sourceLocation->scope),
-											call_no_return.sourceLocation->line,
-											call_no_return.sourceLocation->collumn
-										)
+										this->lower_meta_source_location(*call_no_return.sourceLocation)
 									);
 								}
 							}else{
@@ -903,13 +862,7 @@ namespace pcit::pir{
 							);
 
 							if(this->add_debug_info && abort_stmt.sourceLocation.has_value()){
-								call_inst.setLocation(
-									this->di_builder.createSourceLocation(
-										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
-										abort_stmt.sourceLocation->line,
-										abort_stmt.sourceLocation->collumn
-									)
-								);
+								call_inst.setLocation(this->lower_meta_source_location(*abort_stmt.sourceLocation));
 							}
 
 							this->builder.createRet();
@@ -924,21 +877,8 @@ namespace pcit::pir{
 							);
 
 							if(this->add_debug_info && abort_stmt.sourceLocation.has_value()){
-								call_inst_1.setLocation(
-									this->di_builder.createSourceLocation(
-										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
-										abort_stmt.sourceLocation->line,
-										abort_stmt.sourceLocation->collumn
-									)
-								);
-
-								call_inst_2.setLocation(
-									this->di_builder.createSourceLocation(
-										this->get_meta_local_scope(abort_stmt.sourceLocation->scope),
-										abort_stmt.sourceLocation->line,
-										abort_stmt.sourceLocation->collumn
-									)
-								);
+								call_inst_1.setLocation(this->lower_meta_source_location(*abort_stmt.sourceLocation));
+								call_inst_2.setLocation(this->lower_meta_source_location(*abort_stmt.sourceLocation));
 							}
 
 							this->builder.createUnreachable();
@@ -954,13 +894,7 @@ namespace pcit::pir{
 						);
 
 						if(this->add_debug_info && breakpoint_stmt.sourceLocation.has_value()){
-							call_inst.setLocation(
-								this->di_builder.createSourceLocation(
-									this->get_meta_local_scope(breakpoint_stmt.sourceLocation->scope),
-									breakpoint_stmt.sourceLocation->line,
-									breakpoint_stmt.sourceLocation->collumn
-								)
-							);
+							call_inst.setLocation(this->lower_meta_source_location(*breakpoint_stmt.sourceLocation));
 						}
 					} break;
 
@@ -976,13 +910,7 @@ namespace pcit::pir{
 						}();
 
 						if(this->add_debug_info && ret.sourceLocation.has_value()){
-							ret_inst.setLocation(
-								this->di_builder.createSourceLocation(
-									this->get_meta_local_scope(ret.sourceLocation->scope),
-									ret.sourceLocation->line,
-									ret.sourceLocation->collumn
-								)
-							);
+							ret_inst.setLocation(this->lower_meta_source_location(*ret.sourceLocation));
 						}
 					} break;
 
@@ -992,13 +920,7 @@ namespace pcit::pir{
 						llvmint::BranchInst br_inst = this->builder.createBranch(basic_block_map.at(jump.target));
 
 						if(this->add_debug_info && jump.sourceLocation.has_value()){
-							br_inst.setLocation(
-								this->di_builder.createSourceLocation(
-									this->get_meta_local_scope(jump.sourceLocation->scope),
-									jump.sourceLocation->line,
-									jump.sourceLocation->collumn
-								)
-							);
+							br_inst.setLocation(this->lower_meta_source_location(*jump.sourceLocation));
 						}
 					} break;
 

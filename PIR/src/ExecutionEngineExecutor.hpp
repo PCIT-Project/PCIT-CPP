@@ -15,7 +15,7 @@
 
 
 #include "../include/Module.hpp"
-#include "../include/ReaderAgent.hpp"
+#include "../include/InstrReader.hpp"
 
 
 #if !defined(EVO_PLATFORM_WINDOWS)
@@ -47,7 +47,7 @@ namespace pcit::pir{
 				Function::ID func_id;
 				BasicBlock::ID current_basic_block_id;
 
-				ReaderAgent reader_agent;
+				InstrReader reader_agent;
 				const BasicBlock* current_basic_block;
 
 				size_t instruction_index = 0;

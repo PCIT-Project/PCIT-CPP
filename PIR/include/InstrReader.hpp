@@ -27,18 +27,18 @@ namespace pcit::pir{
 
 	// A unified way to interact with things like exprs and basic blocks
 
-	class ReaderAgent{
+	class InstrReader{
 		public:
-			ReaderAgent(const Module& _module) : module(_module), target_func(nullptr) {}
-			ReaderAgent(const Module& _module, const Function& func) : module(_module), target_func(&func) {}
-			~ReaderAgent() = default;
+			InstrReader(const Module& _module) : module(_module), target_func(nullptr) {}
+			InstrReader(const Module& _module, const Function& func) : module(_module), target_func(&func) {}
+			~InstrReader() = default;
 
 			[[nodiscard]] auto getModule() const -> const Module& { return this->module; }
 			[[nodiscard]] auto hasTargetFunction() const -> bool { return this->target_func != nullptr; }
 			auto setTargetFunction(const Function& func) -> void { this->target_func = &func; }
 			auto clearTargetFunction() -> void { this->target_func = nullptr; }
 			[[nodiscard]] auto getTargetFunction() const -> const Function& {
-				evo::debugAssert(this->hasTargetFunction(), "ReaderAgent has no target function set");
+				evo::debugAssert(this->hasTargetFunction(), "InstrReader has no target function set");
 				return *this->target_func;
 			}
 

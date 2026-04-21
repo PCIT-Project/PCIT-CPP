@@ -11,7 +11,7 @@
 
 
 #include "../include/Module.hpp"
-#include "../include/ReaderAgent.hpp"
+#include "../include/InstrReader.hpp"
 #include "./PIRToLLVMIR.hpp"
 
 #include <llvm_interface.hpp>

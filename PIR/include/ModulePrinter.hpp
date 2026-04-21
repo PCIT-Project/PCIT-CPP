@@ -16,7 +16,7 @@
 #include "./forward_decl_ids.hpp"
 #include "./Expr.hpp"
 #include "./GlobalVar.hpp"
-#include "./ReaderAgent.hpp"
+#include "./InstrReader.hpp"
 #include "./meta.hpp"
 
 namespace pcit::pir{
@@ -73,7 +73,7 @@ namespace pcit::pir{
 			[[nodiscard]] auto get_current_func() const -> const Function& { return this->reader.getTargetFunction(); }
 	
 		private:
-			ReaderAgent reader;
+			InstrReader reader;
 			core::Printer& printer;
 	};
 

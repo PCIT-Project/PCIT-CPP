@@ -19,8 +19,8 @@
 #include "./Function.hpp"
 #include "./Module.hpp"
 
-#include "./ReaderAgent.hpp"
-#include "./Agent.hpp"
+#include "./InstrReader.hpp"
+#include "./InstrHandler.hpp"
 
 #include "./ModulePrinter.hpp"
 

@@ -9,8 +9,8 @@
 
 #include "../include/Module.hpp"
 
-#include "../include/ReaderAgent.hpp"
-#include "../include/Agent.hpp"
+#include "../include/InstrReader.hpp"
+#include "../include/InstrHandler.hpp"
 
 #include <unordered_set>
 
@@ -30,12 +30,12 @@ namespace pcit::pir{
 	auto Module::deleteBodyOfFunction(Function::ID id) -> void {
 		Function& func = this->getFunction(id);
 
-		auto agent = Agent(*this, func);
+		auto handler = InstrHandler(*this, func);
 
 		for(const BasicBlock::ID basic_block_id : func){
-			agent.setTargetBasicBlock(basic_block_id);
-			agent.deleteBodyOfTargetBasicBlock();
-			agent.removeTargetBasicBlock();
+			handler.setTargetBasicBlock(basic_block_id);
+			handler.deleteBodyOfTargetBasicBlock();
+			handler.removeTargetBasicBlock();
 
 			this->basic_blocks.erase(basic_block_id);
 		}
@@ -239,7 +239,7 @@ namespace pcit::pir{
 
 
 		auto Module::check_expr_type_match(Type type, const Expr& expr) const -> void {
-			evo::debugAssert(type == ReaderAgent(*this).getExprType(expr), "Type and value must match");
+			evo::debugAssert(type == InstrReader(*this).getExprType(expr), "Type and value must match");
 		}
 	#endif
 

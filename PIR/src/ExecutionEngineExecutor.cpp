@@ -91,7 +91,7 @@ namespace pcit::pir{
 		const Function& func = this->engine.module.getFunction(func_id);
 		const BasicBlock::ID basic_block_id = *func.begin();
 
-		auto reader_agent = ReaderAgent(this->engine.module, func);
+		auto reader_agent = InstrReader(this->engine.module, func);
 
 		StackFrame& stack_frame = this->stack_frames.emplace_back(
 			func_id, basic_block_id, reader_agent, &reader_agent.getBasicBlock(basic_block_id)
@@ -183,7 +183,7 @@ namespace pcit::pir{
 					const Function& func = this->engine.module.getFunction(func_id);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_inst.args){
@@ -234,7 +234,7 @@ namespace pcit::pir{
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_inst.args){
@@ -281,7 +281,7 @@ namespace pcit::pir{
 					const Function& func = this->engine.module.getFunction(func_id);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_void_inst.args){
@@ -331,7 +331,7 @@ namespace pcit::pir{
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_void_inst.args){
@@ -377,7 +377,7 @@ namespace pcit::pir{
 					const Function& func = this->engine.module.getFunction(func_id);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_no_return_inst.args){
@@ -427,7 +427,7 @@ namespace pcit::pir{
 					const Function& func = *std::bit_cast<Function*>(target_ptr);
 					const BasicBlock::ID basic_block_id = *func.begin();
 
-					auto reader_agent = ReaderAgent(this->engine.module, func);
+					auto reader_agent = InstrReader(this->engine.module, func);
 
 					auto params = evo::SmallVector<std::byte*>();
 					for(const Expr arg : call_no_return_inst.args){
@@ -1019,10 +1019,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.sadd(rhs);
 
-				stack_frame.registers[ReaderAgent::extractSAddWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractSAddWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractSAddWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractSAddWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1045,10 +1045,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.uadd(rhs);
 
-				stack_frame.registers[ReaderAgent::extractUAddWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractUAddWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractUAddWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractUAddWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1158,10 +1158,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.ssub(rhs);
 
-				stack_frame.registers[ReaderAgent::extractSSubWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractSSubWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractSSubWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractSSubWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1184,10 +1184,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.usub(rhs);
 
-				stack_frame.registers[ReaderAgent::extractUSubWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractUSubWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractUSubWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractUSubWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1296,10 +1296,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.smul(rhs);
 
-				stack_frame.registers[ReaderAgent::extractSMulWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractSMulWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractSMulWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractSMulWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1322,10 +1322,10 @@ namespace pcit::pir{
 
 				const core::GenericInt::WrapResult result = lhs.umul(rhs);
 
-				stack_frame.registers[ReaderAgent::extractUMulWrapResult(expr)] =
+				stack_frame.registers[InstrReader::extractUMulWrapResult(expr)] =
 					core::GenericValue(result.result);
 
-				stack_frame.registers[ReaderAgent::extractUMulWrapWrapped(expr)] =
+				stack_frame.registers[InstrReader::extractUMulWrapWrapped(expr)] =
 					core::GenericValue(result.wrapped);
 			} break;
 
@@ -1868,7 +1868,7 @@ namespace pcit::pir{
 				const core::GenericValue& generic_expected = this->get_expr(cmpxchg.expected, stack_frame);
 				const core::GenericValue& generic_desired = this->get_expr(cmpxchg.desired, stack_frame);
 
-				stack_frame.registers[ReaderAgent::extractCmpXchgLoaded(expr)] = generic_expected;
+				stack_frame.registers[InstrReader::extractCmpXchgLoaded(expr)] = generic_expected;
 
 				switch(num_bytes){
 					case 1: {
@@ -1879,7 +1879,7 @@ namespace pcit::pir{
 
 						const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
 
-						stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+						stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 							= core::GenericValue(succeeded);
 					} break;
 
@@ -1891,7 +1891,7 @@ namespace pcit::pir{
 
 						const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
 
-						stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+						stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 							= core::GenericValue(succeeded);
 					} break;
 
@@ -1903,7 +1903,7 @@ namespace pcit::pir{
 
 						const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
 
-						stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+						stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 							= core::GenericValue(succeeded);
 					} break;
 
@@ -1915,7 +1915,7 @@ namespace pcit::pir{
 
 						const bool succeeded = atomic_ref.compare_exchange_strong(expected, desired);
 
-						stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+						stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 							= core::GenericValue(succeeded);
 					} break;
 
@@ -1925,11 +1925,11 @@ namespace pcit::pir{
 						if(std::memcmp(target_ptr, generic_expected.dataRange().data(), num_bytes) == 0){
 							std::memcpy(target_ptr, generic_desired.dataRange().data(), num_bytes);
 
-							stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+							stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 								= core::GenericValue(true);
 
 						}else{
-							stack_frame.registers[ReaderAgent::extractCmpXchgSucceeded(expr)]
+							stack_frame.registers[InstrReader::extractCmpXchgSucceeded(expr)]
 								= core::GenericValue(false);
 						}
 					} break;
@@ -2225,7 +2225,7 @@ namespace pcit::pir{
 			} break;
 
 			case Expr::Kind::FUNCTION_POINTER: {
-				const Function::ID function_id = ReaderAgent::getFunctionPointer(expr);
+				const Function::ID function_id = InstrReader::getFunctionPointer(expr);
 				const Function& function = this->engine.module.getFunction(function_id);
 				
 				this->engine.add_function_to_ptr_lookup_map(&function, function_id);
@@ -2361,13 +2361,13 @@ namespace pcit::pir{
 						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
 
 						*std::bit_cast<std::byte**>(dst.data()) =
-							this->get_or_create_lowered_global_ptr(ReaderAgent::getGlobalValue(decayed_value));
+							this->get_or_create_lowered_global_ptr(InstrReader::getGlobalValue(decayed_value));
 					} break;
 
 					case Expr::Kind::FUNCTION_POINTER: {
 						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
 
-						const Function::ID function_id = ReaderAgent::getFunctionPointer(decayed_value);
+						const Function::ID function_id = InstrReader::getFunctionPointer(decayed_value);
 						const Function& function = this->engine.module.getFunction(function_id);
 						
 						this->engine.add_function_to_ptr_lookup_map(&function, function_id);
@@ -2376,7 +2376,7 @@ namespace pcit::pir{
 					} break;
 
 					case Expr::Kind::NUMBER: {
-						const Number& number = ReaderAgent(this->engine.module).getNumber(decayed_value);
+						const Number& number = InstrReader(this->engine.module).getNumber(decayed_value);
 						const core::GenericValue number_value = number.asGenericValue();
 						std::memcpy(dst.data(), number_value.dataRange().data(), dst.size());
 					} break;
@@ -2384,7 +2384,7 @@ namespace pcit::pir{
 					case Expr::Kind::BOOLEAN: {
 						evo::debugAssert(dst.size() == sizeof(bool), "Not Bool dst");
 
-						*std::bit_cast<bool*>(dst.data()) = ReaderAgent::getBoolean(decayed_value);
+						*std::bit_cast<bool*>(dst.data()) = InstrReader::getBoolean(decayed_value);
 					} break;
 
 					case Expr::Kind::NULLPTR: {
