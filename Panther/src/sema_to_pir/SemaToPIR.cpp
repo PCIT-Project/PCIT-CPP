@@ -1577,6 +1577,10 @@ namespace pcit::panther{
 					alloca_type.type, this->name("{}.ALLOCA", var_ident)
 				);
 
+				if(this->data.config.includeDebugInfo){
+					this->handler.createMetaLocalVar(std::string(var_ident), var_alloca, *alloca_type.meta_type_id);
+				}
+
 				this->local_func_exprs.emplace(sema::Expr(stmt.varID()), var_alloca);
 
 				this->get_expr_store(var.expr, var_alloca);
@@ -1991,6 +1995,8 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::ASSIGN: {
 				const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
 
+				const auto ssl = this->create_scoped_source_location(assignment.line, assignment.collumn);
+
 				if(assignment.lhs.has_value()){
 					this->get_expr_store(assignment.rhs, this->get_expr_pointer(*assignment.lhs));
 				}else{
@@ -2001,6 +2007,8 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::MULTI_ASSIGN: {
 				const sema::MultiAssign& multi_assign = 
 					this->context.getSemaBuffer().getMultiAssign(stmt.multiAssignID());
+
+				const auto ssl = this->create_scoped_source_location(multi_assign.line, multi_assign.collumn);
 
 				auto targets = evo::SmallVector<pir::Expr>();
 				targets.reserve(multi_assign.targets.size());

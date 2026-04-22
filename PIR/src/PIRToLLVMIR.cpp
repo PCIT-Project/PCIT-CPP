@@ -991,18 +991,22 @@ namespace pcit::pir{
 							load.name
 						);
 
-						this->stmt_values.emplace(stmt, load_inst);
+						this->stmt_values.emplace(stmt, load_inst.asValue());
 					} break;
 
 					case Expr::Kind::STORE: {
 						const Store& store = this->reader.getStore(stmt);
 
-						this->builder.createStore(
+						llvmint::StoreInst store_inst = this->builder.createStore(
 							this->get_value<ADD_WEAK_DEPS>(store.destination),
 							this->get_value<ADD_WEAK_DEPS>(store.value),
 							store.isVolatile,
 							this->get_atomic_ordering(store.atomicOrdering)
 						);
+
+						if(store.sourceLocation.has_value()){
+							store_inst.setLocation(this->lower_meta_source_location(*store.sourceLocation));
+						}
 					} break;
 
 					case Expr::Kind::CALC_PTR: {

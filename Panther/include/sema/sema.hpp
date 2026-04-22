@@ -414,6 +414,8 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> lhs; // nullopt if is a discard
 		Expr rhs;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
 	struct MultiAssign{
@@ -421,6 +423,8 @@ namespace pcit::panther::sema{
 
 		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>> targets; // TypeInfo::ID if is a discard
 		Expr value;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct Return{

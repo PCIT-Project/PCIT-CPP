@@ -52,6 +52,10 @@ namespace pcit::llvmint{
 	LoadInst::operator Value() const { return Value(static_cast<llvm::Value*>(this->native()));	}
 
 
+	auto StoreInst::setLocation(DIBuilder::Location location) -> void {
+		this->native()->setDebugLoc(llvm::DebugLoc(location.location));
+	}
+
 
 	auto GlobalVariable::setAlignment(unsigned alignment) -> void {
 		this->native()->setAlignment(llvm::Align(alignment));

@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.287.0"></a>
+## v0.0.287.0
+
+### Panther
+- Added source location to store of variable definition
+- Added source location to assignment
+- Fixed lowering of local variables not including debug info
+
+### PIR
+- Added meta source location to `@store`
+
+
+<!---------------------------------->
 <a name="v0.0.286.0"></a>
 ## v0.0.286.0
 

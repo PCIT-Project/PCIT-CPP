@@ -149,6 +149,20 @@ namespace pcit::llvmint{
 	};
 
 
+	class StoreInst{
+		public:
+			StoreInst(llvm::StoreInst* native_stmt) : _native(native_stmt) {};
+			~StoreInst() = default;
+
+			auto setLocation(DIBuilder::Location location) -> void;
+
+			[[nodiscard]] auto native() const -> llvm::StoreInst* { return this->_native; }
+	
+		private:
+			llvm::StoreInst* _native;
+	};
+
+
 
 
 	class GlobalVariable{

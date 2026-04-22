@@ -2,7 +2,10 @@
 
 func entry = () #entry -> UI8 {
 	var foo: UI8 = 12;
+
 	var bar: UI8 = 14;
+
+	foo = 16;
 	
 	return move foo;
 }

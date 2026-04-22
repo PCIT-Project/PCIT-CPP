@@ -143,14 +143,14 @@ namespace pcit::llvmint{
 				const Value& source,
 				bool is_volatile,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic
-			) -> void;
+			) -> StoreInst;
 
 			auto createStore(
 				const Value& dst,
 				const Value& source,
 				bool is_volatile,
 				AtomicOrdering atomic_ordering = AtomicOrdering::NotAtomic
-			) -> void;
+			) -> StoreInst;
 
 
 			///////////////////////////////////

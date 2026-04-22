@@ -1189,6 +1189,7 @@ namespace pcit::pir{
 				this->print_expr(store.value);
 				this->print_atomic_ordering(store.atomicOrdering);
 				if(store.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->print_source_location(store.sourceLocation);
 				this->printer.println();
 			} break;
 

@@ -1597,7 +1597,10 @@ namespace pcit::pir{
 		#endif
 
 		const auto new_stmt = Expr(
-			Expr::Kind::STORE, this->module.stores.emplace_back(destination, value, is_volatile, atomic_ordering)
+			Expr::Kind::STORE,
+			this->module.stores.emplace_back(
+				destination, value, is_volatile, atomic_ordering, this->get_current_source_location()
+			)
 		);
 		this->insert_stmt(new_stmt);
 	}

@@ -225,16 +225,18 @@ namespace pcit::llvmint{
 
 	auto IRBuilder::createStore(
 		const Alloca& dst, const Value& source, bool is_volatile, AtomicOrdering atomic_ordering
-	) -> void {
+	) -> StoreInst {
 		llvm::StoreInst* store_inst = this->builder->CreateStore(source.native(), dst.native(), is_volatile);
 		store_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
+		return store_inst;
 	}
 
 	auto IRBuilder::createStore(
 		const Value& dst, const Value& source, bool is_volatile, AtomicOrdering atomic_ordering
-	) -> void {
+	) -> StoreInst {
 		llvm::StoreInst* store_inst = this->builder->CreateStore(source.native(), dst.native(), is_volatile);
 		store_inst->setAtomic(static_cast<llvm::AtomicOrdering>(atomic_ordering));
+		return store_inst;
 	}
 
 

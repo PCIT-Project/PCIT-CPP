@@ -8967,8 +8967,15 @@ namespace pcit::panther{
 			}
 
 
+			const auto location = this->get_location(instr.infix);
+
 			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(lhs.getExpr(), rhs.getExpr())
+				this->context.sema_buffer.createAssign(
+					lhs.getExpr(),
+					rhs.getExpr(),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
+				)
 			);
 
 			return Result::SUCCESS;
@@ -9040,9 +9047,14 @@ namespace pcit::panther{
 					} break;
 				}
 
+				const auto location = this->get_location(instr.infix);
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
-						lhs.getExpr(), this->get_term_info(instr.builtin_composite_expr_term_info_id).getExpr()
+						lhs.getExpr(),
+						this->get_term_info(instr.builtin_composite_expr_term_info_id).getExpr(),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 
@@ -9140,8 +9152,15 @@ namespace pcit::panther{
 							}
 						}
 
+						const auto location = this->get_location(instr.infix);
+
 						this->get_current_scope_level().stmtBlock().emplace_back(
-							this->context.sema_buffer.createAssign(lhs.getExpr(), arg.getExpr())
+							this->context.sema_buffer.createAssign(
+								lhs.getExpr(),
+								arg.getExpr(),
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
+							)
 						);
 
 						return Result::SUCCESS;
@@ -9164,6 +9183,8 @@ namespace pcit::panther{
 						}
 					}
 
+					const auto location = this->get_location(instr.infix);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
@@ -9171,7 +9192,9 @@ namespace pcit::panther{
 								this->context.sema_buffer.createDefaultNew(
 									target_type_id.asTypeID(), lhs.isUninitialized()
 								)
-							)
+							),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						)
 					);
 
@@ -9198,6 +9221,9 @@ namespace pcit::panther{
 						}
 					}
 
+
+					const auto location = this->get_location(instr.infix);
+
 					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
 						this->get_current_scope_level().stmtBlock().emplace_back(
 							this->context.sema_buffer.createAssign(
@@ -9206,7 +9232,9 @@ namespace pcit::panther{
 									this->context.sema_buffer.createDefaultNew(
 										target_type_id.asTypeID(), lhs.isUninitialized()
 									)
-								)
+								),
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
 							)
 						);
 
@@ -9238,8 +9266,6 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-
-
 						this->get_current_scope_level().stmtBlock().emplace_back(
 							this->context.sema_buffer.createAssign(
 								lhs.getExpr(),
@@ -9247,7 +9273,9 @@ namespace pcit::panther{
 									this->context.sema_buffer.createConversionToOptional(
 										arg.getExpr(), target_type_id.asTypeID()
 									)
-								)
+								),
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
 							)
 						);
 					}
@@ -9290,10 +9318,15 @@ namespace pcit::panther{
 						}
 					}
 
+
+					const auto location = this->get_location(instr.infix);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
-							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
+							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						)
 					);
 
@@ -9326,8 +9359,16 @@ namespace pcit::panther{
 						}
 					}
 
+
+					const auto location = this->get_location(instr.infix);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
-						this->context.sema_buffer.createAssign(lhs.getExpr(), arg.getExpr())
+						this->context.sema_buffer.createAssign(
+							lhs.getExpr(),
+							arg.getExpr(),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
+						)
 					);
 
 					return Result::SUCCESS;
@@ -9374,10 +9415,15 @@ namespace pcit::panther{
 					}
 				}
 
+
+				const auto location = this->get_location(instr.infix);
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 
@@ -9394,10 +9440,15 @@ namespace pcit::panther{
 						}
 					}
 
+
+					const auto location = this->get_location(instr.infix);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
-							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
+							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
 						)
 					);
 
@@ -9498,6 +9549,9 @@ namespace pcit::panther{
 					}
 				}
 
+
+				const auto location = this->get_location(instr.infix);
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
@@ -9505,7 +9559,9 @@ namespace pcit::panther{
 							this->get_term_info(instr.args[0]).getExpr(),
 							decayed_target_type_info.baseTypeID().arrayRefID(),
 							std::move(dimensions)
-						))
+						)),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 
@@ -9621,13 +9677,13 @@ namespace pcit::panther{
 					}
 				}
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix.rhs, this->source);
+				const Diagnostic::Location call_location = Diagnostic::Location::get(instr.infix.rhs, this->source);
 
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 					selected_func_id,
 					std::move(output_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					call_location.as<SourceLocation>().lineStart,
+					call_location.as<SourceLocation>().collumnStart
 				);
 
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
@@ -9651,8 +9707,16 @@ namespace pcit::panther{
 						);
 					}
 
+
+					const auto assign_location = this->get_location(instr.infix);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
-						this->context.sema_buffer.createAssign(lhs.getExpr(), sema::Expr(created_func_call_id))
+						this->context.sema_buffer.createAssign(
+							lhs.getExpr(),
+							sema::Expr(created_func_call_id),
+							assign_location.as<SourceLocation>().lineStart,
+							assign_location.as<SourceLocation>().collumnStart
+						)
 					);
 
 				}else{
@@ -9687,10 +9751,15 @@ namespace pcit::panther{
 					}
 				}
 
+
+				const auto location = this->get_location(instr.infix);
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 
@@ -9723,10 +9792,15 @@ namespace pcit::panther{
 					}
 				}
 
+
+				const auto location = this->get_location(instr.infix);
+
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
-						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false))
+						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 
@@ -9897,8 +9971,15 @@ namespace pcit::panther{
 			}
 		}
 
+		const auto location = this->get_location(instr.infix);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createAssign(lhs.getExpr(), target_copy.getExpr())
+			this->context.sema_buffer.createAssign(
+				lhs.getExpr(),
+				target_copy.getExpr(),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		return Result::SUCCESS;
@@ -10093,8 +10174,16 @@ namespace pcit::panther{
 			}
 		}
 
+
+		const auto location = this->get_location(instr.infix);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createAssign(lhs.getExpr(), target_move.getExpr())
+			this->context.sema_buffer.createAssign(
+				lhs.getExpr(),
+				target_move.getExpr(),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		if(target.value_state == TermInfo::ValueState::INIT){
@@ -10287,8 +10376,15 @@ namespace pcit::panther{
 		}
 
 
+		const auto location = this->get_location(instr.infix);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createAssign(lhs.getExpr(), target_forward.getExpr())
+			this->context.sema_buffer.createAssign(
+				lhs.getExpr(),
+				target_forward.getExpr(),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		return Result::SUCCESS;
@@ -10387,8 +10483,16 @@ namespace pcit::panther{
 			}
 		}
 
+
+		const auto location = this->get_location(instr.multi_assign);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createMultiAssign(std::move(targets), value.getExpr())
+			this->context.sema_buffer.createMultiAssign(
+				std::move(targets),
+				value.getExpr(),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		return Result::SUCCESS;
@@ -10401,6 +10505,8 @@ namespace pcit::panther{
 
 		const TermInfo& rhs = this->get_term_info(instr.rhs);
 
+		const auto location = this->get_location(instr.infix);
+
 		if(rhs.isMultiValue()){
 			auto targets = evo::SmallVector<evo::Variant<sema::Expr, TypeInfo::ID>>();
 			targets.reserve(rhs.type_id.as<evo::SmallVector<TypeInfo::ID>>().size());
@@ -10410,12 +10516,22 @@ namespace pcit::panther{
 			}
 
 			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createMultiAssign(std::move(targets), rhs.getExpr())
+				this->context.sema_buffer.createMultiAssign(
+					std::move(targets),
+					rhs.getExpr(),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
+				)
 			);
 
 		}else{
 			this->get_current_scope_level().stmtBlock().emplace_back(
-				this->context.sema_buffer.createAssign(std::nullopt, rhs.getExpr())
+				this->context.sema_buffer.createAssign(
+					std::nullopt,
+					rhs.getExpr(),
+					location.as<SourceLocation>().lineStart,
+					location.as<SourceLocation>().collumnStart
+				)
 			);
 		}
 

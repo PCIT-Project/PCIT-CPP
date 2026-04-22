@@ -56,6 +56,7 @@ namespace llvm{
 	class BranchInst;
 	class CallInst;
 	class LoadInst;
+	class StoreInst;
 	class GlobalVariable;
 
 }

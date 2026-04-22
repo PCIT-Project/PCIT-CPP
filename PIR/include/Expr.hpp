@@ -461,6 +461,7 @@ namespace pcit::pir{
 		Expr value;
 		bool isVolatile;
 		AtomicOrdering atomicOrdering;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct CalcPtr{
