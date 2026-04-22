@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.287.1"></a>
+## v0.0.287.1
+
+### Panther
+- Fixed calculating size of non-packed structs
+
+### PIR
+- Fixed lowering of metadata of the offsets of struct members
+- Fixed calculating size of non-packed structs
+
+
+<!---------------------------------->
 <a name="v0.0.287.0"></a>
 ## v0.0.287.0
 

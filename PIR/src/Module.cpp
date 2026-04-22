@@ -108,8 +108,8 @@ namespace pcit::pir{
 					if(struct_type.isPacked){
 						size += this->numBytes(member, false);
 					}else{
-						size += this->numBytes(member, true);
 						size = round_up_to_nearest_multiple(size, this->getAlignment(member));
+						size += this->numBytes(member, true);
 					}
 				}
 

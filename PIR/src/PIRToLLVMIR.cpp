@@ -18,6 +18,10 @@
 
 
 namespace pcit::pir{
+
+	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
+		return (num + (multiple - 1)) & ~(multiple - 1);
+	}
 	
 	auto PIRToLLVMIR::lower() -> void {
 		if(this->add_debug_info){
@@ -230,9 +234,12 @@ namespace pcit::pir{
 		for(size_t i = 0; const Type& member_type : struct_type.members){
 			EVO_DEFER([&](){ i += 1; });
 
-			// TODO(FUTURE): properly deal with packed structs
-			const uint64_t member_size_bits = this->module.numBytes(member_type) * 8;
+			const uint64_t member_size_bits = this->module.numBytes(member_type, !struct_type.isPacked) * 8;
 			const uint32_t member_align_bits = uint32_t(this->module.getAlignment(member_type)) * 8;
+
+			if(struct_type.isPacked == false){
+				member_offset_bits = ceil_to_multiple(member_offset_bits, member_align_bits);
+			}
 
 			const meta::StructType::Member& debug_member = meta_struct_type.members[i];
 
@@ -250,6 +257,7 @@ namespace pcit::pir{
 			);
 
 			member_offset_bits += member_size_bits;
+
 			struct_align_bits = std::max(struct_align_bits, member_align_bits);
 		}
 

@@ -1,11 +1,13 @@
-
+type Struct = struct {
+	var num16: UI16 = 16;
+	var num32: UI32 = 32;
+}
 
 func entry = () #entry -> UI8 {
-	var foo: UI8 = 12;
+	var foo: UI8? = 12;
 
-	var bar: UI8 = 14;
-
-	foo = 16;
+	var s = new Struct();
 	
-	return move foo;
+	@breakpoint();
+	return 0;
 }

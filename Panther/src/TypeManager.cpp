@@ -2233,8 +2233,8 @@ namespace pcit::panther{
 				size_t total = 0;
 
 				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
-					total += this->numBytes(member_var.typeID, struct_info.isPacked);
 					total = ceil_to_multiple(total, this->alignmentOf(member_var.typeID));
+					total += this->numBytes(member_var.typeID, struct_info.isPacked);
 				}
 
 				return add_padding_bytes_if_needed(std::max(total, size_t(1)), include_padding);
