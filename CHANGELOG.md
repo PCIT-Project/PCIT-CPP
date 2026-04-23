@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.288.0"></a>
+## v0.0.288.0
+
+### Panther
+- Added debug info parameters
+
+### PIR
+- Added `@meta.param`
+- Added `REFERENCE` and `MUT_REFERENCE` qualifiers to meta qualified types
+
+
+<!---------------------------------->
 <a name="v0.0.287.1"></a>
 ## v0.0.287.1
 
@@ -17,8 +29,8 @@
 ## v0.0.287.0
 
 ### Panther
-- Added source location to store of variable definition
-- Added source location to assignment
+- Added debug info to store of variable definition
+- Added debug info to assignment
 - Fixed lowering of local variables not including debug info
 
 ### PIR

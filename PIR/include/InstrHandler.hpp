@@ -760,6 +760,9 @@ namespace pcit::pir{
 			auto createMetaLocalVar(std::string&& name, Expr value, meta::Type type) const -> Expr;
 			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
 
+			auto createMetaParam(std::string&& name, Expr value, uint32_t param_index, meta::Type type) const -> Expr;
+			[[nodiscard]] auto getMetaParam(Expr expr) const -> const MetaParam&;
+
 
 		private:
 			auto insert_stmt(Expr stmt) const -> void;

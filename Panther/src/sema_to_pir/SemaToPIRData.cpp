@@ -37,7 +37,7 @@ namespace pcit::panther{
 				// pick any panther source, doesn't really matter since array references don't exactly have a decl site
 				const Source& first_source = source_manager[Source::ID(0)];
 
-				const pir::meta::QualifiedType::ID rawptr_meta_type = this->get_or_create_meta_qualified_type(
+				const pir::meta::QualifiedType::ID rawptr_meta_type = this->get_or_create_meta_pointer_qualified_type(
 					TypeManager::getTypeRawPtr(),
 					module,
 					"RawPtr",

@@ -2196,6 +2196,10 @@ namespace pcit::pir{
 			case Expr::Kind::META_LOCAL_VAR: {
 				// do nothing
 			} break;
+
+			case Expr::Kind::META_PARAM: {
+				// do nothing
+			} break;
 		}
 
 		stack_frame.instruction_index += 1;

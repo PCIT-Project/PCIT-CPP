@@ -147,6 +147,7 @@ namespace pcit::pir::passes{
 					break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
 					break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
 					break; case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Should never see this expr kind");
+					break; case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Should never see this expr kind");
 				}
 			};
 
@@ -236,10 +237,20 @@ namespace pcit::pir::passes{
 					if(func_metadata.contains(stmt) == false){
 						for(BasicBlock::ID current_func_basic_block_id : handler.getTargetFunction()){
 							for(Expr current_func_expr : handler.getBasicBlock(current_func_basic_block_id)){
-								if(current_func_expr.kind() != Expr::Kind::META_LOCAL_VAR){ continue; }
+								switch(current_func_expr.kind()){
+									case Expr::Kind::META_LOCAL_VAR: {
+										if(handler.getMetaLocalVar(current_func_expr).value == stmt){
+											handler.removeStmt(current_func_expr);
+										}
+									} break;
 
-								if(handler.getMetaLocalVar(current_func_expr).value == stmt){
-									handler.removeStmt(current_func_expr);
+									case Expr::Kind::META_PARAM: {
+										if(handler.getMetaParam(current_func_expr).value == stmt){
+											handler.removeStmt(current_func_expr);
+										}
+									} break;
+
+									default: break;
 								}
 							}
 						}
@@ -1050,9 +1061,8 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::META_LOCAL_VAR: {
-					return false;
-				} break;
+				case Expr::Kind::META_LOCAL_VAR: return false;
+				case Expr::Kind::META_PARAM:     return false;
 			}
 
 			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));

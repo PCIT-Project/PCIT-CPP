@@ -707,7 +707,9 @@ namespace pcit::panther{
 	auto SemaToPIR::lower_func_def_detail(sema::Func::ID func_id, bool lower_comptime) -> void {
 		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
 		evo::debugAssert(sema_func.status == sema::Func::Status::DEF_DONE, "Incorrect status for lowering func def");
-		evo::debugAssert(sema_func.isClangFunc() == false, "cannot lower def of clang func");
+		evo::debugAssert(sema_func.isSrcFunc(), "cannot lower def of non src func");
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
 		this->current_source = &this->context.getSourceManager()[sema_func.sourceID.as<Source::ID>()];
 		EVO_DEFER([&](){ this->current_source = nullptr; });
@@ -804,6 +806,56 @@ namespace pcit::panther{
 			}
 
 
+			this->param_allocas.reserve(func.getParameters().size());
+			for(size_t i = 0; const sema::Func::Param& param : sema_func.params){
+				const pir::Parameter& pir_param = func.getParameters()[i];
+
+				const std::string_view param_name = sema_func.getParamName(param, this->context.getSourceManager());
+
+				const pir::Expr param_alloca = this->handler.createAlloca(
+					pir_param.getType(), this->name("{}.ALLOCA", param_name)
+				);
+
+				this->handler.createStore(param_alloca, this->handler.createParamExpr(uint32_t(i)));
+
+				this->param_allocas.emplace_back(param_alloca);
+
+				if(this->data.config.includeDebugInfo){
+					const Source::Location param_location = 
+						Diagnostic::Location::get(param.ident.as<Token::ID>(), *this->current_source)
+							.as<Source::Location>();
+
+					const auto ssl =
+						this->create_scoped_source_location(param_location.lineStart, param_location.lineEnd);
+
+					const pir::meta::Type param_semantic_meta_type =
+						*this->get_type<false, true>(func_type.params[i].typeID).meta_type_id;
+
+					const pir::meta::Type param_meta_type = [&]() -> pir::meta::Type {
+						if(this->current_func_info->params[i].is_copy()){
+							return param_semantic_meta_type;
+
+						}else{
+							return this->data.get_or_create_meta_reference_qualified_type(
+								func_type.params[i].typeID,
+								module,
+								std::format(
+									"{}&",
+									this->context.getTypeManager().printType(func_type.params[i].typeID, this->context)
+								),
+								param_semantic_meta_type,
+								pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
+							);
+						}
+					}();
+
+					this->handler.createMetaParam(std::string(param_name), param_alloca, uint32_t(i), param_meta_type);
+				}
+
+				i += 1;
+			}
+
+
 			const sema::StmtBlock& stmt_block = [&]() -> const sema::StmtBlock& {
 				if(lower_comptime == false && sema_func.attributes.isRTDiff){
 					return sema_func.stmtBlockRT;
@@ -811,7 +863,6 @@ namespace pcit::panther{
 					return sema_func.stmtBlock;
 				}
 			}();
-
 
 			for(const sema::Stmt& stmt : stmt_block){
 				this->lower_stmt(stmt);
@@ -838,6 +889,7 @@ namespace pcit::panther{
 			this->pop_scope_level();
 
 			this->local_func_exprs.clear();
+			this->param_allocas.clear();
 		}
 
 		this->current_func_type = nullptr;
@@ -2963,7 +3015,9 @@ namespace pcit::panther{
 						this->module.createUnsignedType(8), core::GenericInt::create<evo::byte>(0)
 					);
 
-					this->handler.createMemset(store_locations[0], zero, this->handler.getAlloca(store_locations[0]).type);
+					this->handler.createMemset(
+						store_locations[0], zero, this->handler.getAlloca(store_locations[0]).type
+					);
 					return std::nullopt;
 
 				}else{
@@ -5200,7 +5254,9 @@ namespace pcit::panther{
 						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 						return store_locations[0];
 					}else{
-						return this->handler.createAlloca(this->get_type<false, false>(target_type.returnTypes[0]).type);
+						return this->handler.createAlloca(
+							this->get_type<false, false>(target_type.returnTypes[0]).type
+						);
 					}
 				}();
 
@@ -5370,7 +5426,8 @@ namespace pcit::panther{
 					const pir::Type error_return_type =
 						*interface_info.error_return_types[attempt_func_interface_call.vtableFuncIndex];
 
-					const pir::Expr error_value = this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+					const pir::Expr error_value =
+						this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
 
 					for(const sema::ExceptParam::ID except_param_id : try_else_interface_expr.exceptParams){
 						const sema::ExceptParam& except_param =
@@ -5430,28 +5487,21 @@ namespace pcit::panther{
 			case sema::Expr::Kind::PARAM: {
 				const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
 
+				const pir::Expr param_alloca = this->param_allocas[sema_param.abiIndex];
+
 				if(this->current_func_info->params[sema_param.abiIndex].is_copy()){
-					const pir::Expr output = this->handler.createParamExpr(sema_param.abiIndex);
-
 					if constexpr(MODE == GetExprMode::REGISTER){
-						return output;
-
+						return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
+						
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Function& current_func =
-							this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
-
-						const pir::Expr alloca = this->handler.createAlloca(
-							current_func.getParameters()[sema_param.index].getType(),
-							this->name("PARAM_MAKE_ADDRESS")
-						);
-						this->handler.createStore(alloca, output);
-						return alloca;
+						return param_alloca;
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						this->handler.createStore(store_locations.front(), output);
+						this->handler.createMemcpy(
+							store_locations[0], param_alloca, this->handler.getAlloca(param_alloca).type
+						);
 						return std::nullopt;
-
+						
 					}else{
 						return std::nullopt;
 					}
@@ -5459,25 +5509,21 @@ namespace pcit::panther{
 				}else{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->handler.createLoad(
-							this->handler.createParamExpr(sema_param.abiIndex),
+							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
 							*this->current_func_info->params[sema_param.index].reference_type
 						);
-
+						
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->handler.createParamExpr(sema_param.abiIndex);
+						return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
 						
 					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const size_t num_bytes = this->context.getTypeManager().numBytes(
-							this->current_func_type->params[sema_param.index].typeID
-						);
-
 						this->handler.createMemcpy(
-							store_locations[0], this->handler.createParamExpr(sema_param.abiIndex), num_bytes	
+							store_locations[0],
+							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
+							*this->current_func_info->params[sema_param.index].reference_type
 						);
 						return std::nullopt;
-
+						
 					}else{
 						return std::nullopt;
 					}
@@ -5718,7 +5764,9 @@ namespace pcit::panther{
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 
 					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
-					this->handler.createMemcpy(store_locations[0], var_alloca, this->handler.getAlloca(var_alloca).type);
+					this->handler.createMemcpy(
+						store_locations[0], var_alloca, this->handler.getAlloca(var_alloca).type
+					);
 					return std::nullopt;
 
 				}else{
@@ -5949,7 +5997,8 @@ namespace pcit::panther{
 								return this->handler.createBoolean(generic_value.getBool());
 
 							}else if constexpr(MODE == GetExprMode::POINTER){
-								const pir::Expr output_alloca = this->handler.createAlloca(this->module.createBoolType());
+								const pir::Expr output_alloca =
+									this->handler.createAlloca(this->module.createBoolType());
 
 								this->handler.createStore(
 									output_alloca, this->handler.createBoolean(generic_value.getBool())
@@ -7023,8 +7072,9 @@ namespace pcit::panther{
 					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
 					this->name(".COPY_OPT_INIT.flag_ptr")
 				);
-				const pir::Expr flag =
-					this->handler.createLoad(flag_ptr, this->module.createBoolType(), this->name(".COPY_OPT_INIT.flag"));
+				const pir::Expr flag = this->handler.createLoad(
+					flag_ptr, this->module.createBoolType(), this->name(".COPY_OPT_INIT.flag")
+				);
 
 				const pir::Expr flag_is_true = this->handler.createIEq(
 					flag, this->handler.createBoolean(true), this->name(".COPY_OPT_INIT.flag_true")
@@ -7131,7 +7181,8 @@ namespace pcit::panther{
 
 
 				const pir::BasicBlock::ID flags_eq_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_EQ");
-				const pir::BasicBlock::ID flags_true_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_TRUE");
+				const pir::BasicBlock::ID flags_true_block =
+					this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_TRUE");
 				const pir::BasicBlock::ID flags_neq_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_NEQ");
 				const pir::BasicBlock::ID src_flag_true_block =
 					this->handler.createBasicBlock("COPY_OPT_ASSIGN.SRC_FLAG_TRUE");
@@ -7506,7 +7557,8 @@ namespace pcit::panther{
 				const pir::Expr flag_is_true = this->handler.createIEq(flag, this->handler.createBoolean(true));
 
 				const pir::BasicBlock::ID true_move_block = this->handler.createBasicBlock(this->name("MOVE_OPT.HAS"));
-				const pir::BasicBlock::ID false_move_block = this->handler.createBasicBlock(this->name("MOVE_OPT.NULL"));
+				const pir::BasicBlock::ID false_move_block =
+					this->handler.createBasicBlock(this->name("MOVE_OPT.NULL"));
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("MOVE_OPT.END"));
 
 				this->handler.createBranch(flag_is_true, true_move_block, false_move_block);
@@ -7603,7 +7655,8 @@ namespace pcit::panther{
 
 
 				const pir::BasicBlock::ID flags_eq_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_EQ");
-				const pir::BasicBlock::ID flags_true_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_TRUE");
+				const pir::BasicBlock::ID flags_true_block =
+					this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_TRUE");
 				const pir::BasicBlock::ID flags_neq_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_NEQ");
 				const pir::BasicBlock::ID src_flag_true_block =
 					this->handler.createBasicBlock("MOVE_OPT_ASSIGN.SRC_FLAG_TRUE");
@@ -7926,7 +7979,8 @@ namespace pcit::panther{
 				}
 				
 			}else if constexpr(MODE == GetExprMode::POINTER){
-				const pir::Expr output_alloca = this->handler.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
+				const pir::Expr output_alloca =
+					this->handler.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
 
 				const pir::Expr output_value = [&](){
 					if(is_equal){
@@ -7992,7 +8046,8 @@ namespace pcit::panther{
 				}
 				
 			}else if constexpr(MODE == GetExprMode::POINTER){
-				const pir::Expr output_alloca = this->handler.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
+				const pir::Expr output_alloca =
+					this->handler.createAlloca(pir_type, this->name(is_equal ? "EQ" : "NEQ"));
 
 				const pir::Expr output_value = [&](){
 					if(is_equal){
@@ -9114,7 +9169,9 @@ namespace pcit::panther{
 					args.emplace_back(get_context_ptr());
 					get_args(args);
 
-					return this->handler.createCall(this->data.getJITBuildFuncs().build_create_package, std::move(args));
+					return this->handler.createCall(
+						this->data.getJITBuildFuncs().build_create_package, std::move(args)
+					);
 				} break;
 
 				default: evo::debugFatalBreak("Unknown intrinsic expr");
@@ -10468,7 +10525,8 @@ namespace pcit::panther{
 						const uint32_t target_width = std::bit_ceil(value_pir_type.getWidth());
 						
 						if(value_pir_type.kind() == pir::Type::Kind::UNSIGNED){
-							expected = this->handler.createZExt(expected, this->module.createUnsignedType(target_width));
+							expected =
+								this->handler.createZExt(expected, this->module.createUnsignedType(target_width));
 							desired = this->handler.createZExt(desired, this->module.createUnsignedType(target_width));
 						}else{
 							expected = this->handler.createSExt(expected, this->module.createSignedType(target_width));
@@ -11299,7 +11357,7 @@ namespace pcit::panther{
 
 				return PIRType(
 					this->module.createPtrType(),
-					this->data.get_or_create_meta_qualified_type(
+					this->data.get_or_create_meta_pointer_qualified_type(
 						type_id, this->module, std::move(type_name), *pointee_pir_type.meta_type_id, qualifier
 					)
 				);
@@ -11685,7 +11743,7 @@ namespace pcit::panther{
 							if(this->data.config.includeDebugInfo){
 								return PIRType(
 									pir_type,
-									this->data.get_or_create_meta_qualified_type(
+									this->data.get_or_create_meta_pointer_qualified_type(
 										type_id,
 										this->module,
 										"RawPtr",

@@ -508,7 +508,8 @@ namespace pcit::panther{
 			const BaseType::Function* current_func_type = nullptr;
 
 			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};
-			evo::SmallVector<ScopeLevel> scope_levels{};
+			evo::SmallVector<ScopeLevel, 16> scope_levels{};
+			evo::SmallVector<pir::Expr, 16> param_allocas{};
 
 			uint32_t in_param_bitmap = 0; // 0 bit means move, 1 bit means copy
 

@@ -766,6 +766,12 @@ namespace pcit::pir{
 
 						if(meta_local_var.value == original){ meta_local_var.value = replacement; }
 					} break;
+
+					case Expr::Kind::META_PARAM: {
+						MetaParam& meta_param = this->module.meta_params[stmt.index];
+
+						if(meta_param.value == original){ meta_param.value = replacement; }
+					} break;
 				}
 			}
 		}
@@ -3561,6 +3567,31 @@ namespace pcit::pir{
 
 
 
+	auto InstrHandler::createMetaParam(std::string&& name, Expr value, uint32_t param_index, meta::Type type) const
+	-> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			value.kind() == Expr::Kind::ALLOCA || value.kind() == Expr::Kind::PARAM_EXPR,
+			"The @meta.param instruction only supports allocas and params"
+		);
+		evo::debugAssert(this->source_locations.empty() == false, "@meta.param must have a source location");
+
+		const auto new_expr = Expr(
+			Expr::Kind::META_PARAM,
+			this->module.meta_params.emplace_back(
+				std::move(name), value, param_index, type, *this->get_current_source_location()
+			)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto InstrHandler::getMetaParam(Expr expr) const -> const MetaParam& {
+		return InstrReader(this->module, this->getTargetFunction()).getMetaParam(expr);
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// internal
@@ -3687,6 +3718,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
 			break; case Expr::Kind::ATOMIC_RMW:        this->module.atomic_rmws.erase(expr.index);
 			break; case Expr::Kind::META_LOCAL_VAR:    this->module.meta_local_vars.erase(expr.index);
+			break; case Expr::Kind::META_PARAM:        this->module.meta_params.erase(expr.index);
 		}
 
 		if(this->getInsertIndexAtEnd() == false){
@@ -3854,6 +3886,7 @@ namespace pcit::pir{
 					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){  return true; } continue;
 					case Expr::Kind::META_LOCAL_VAR: 
 						if(this->getMetaLocalVar(stmt).name == name){ return true; } continue;
+					case Expr::Kind::META_PARAM:  if(this->getMetaParam(stmt).name == name){ return true; } continue;
 				}
 			}
 		}

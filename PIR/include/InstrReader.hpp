@@ -158,6 +158,7 @@ namespace pcit::pir{
 			[[nodiscard]] auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
 			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
+			[[nodiscard]] auto getMetaParam(Expr expr) const -> const MetaParam&;
 
 
 		private:

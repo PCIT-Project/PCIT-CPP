@@ -204,6 +204,16 @@ namespace pcit::pir{
 						qualee_type, pointer_num_bits, meta_qualified_type.typeName
 					);
 				} break;
+
+				case meta::QualifiedType::Qualifier::REFERENCE: {
+					return this->di_builder.createReferenceType(
+						this->di_builder.createConstType(qualee_type).asType(), pointer_num_bits
+					);
+				} break;
+
+				case meta::QualifiedType::Qualifier::MUT_REFERENCE: {
+					return this->di_builder.createReferenceType(qualee_type, pointer_num_bits);
+				} break;
 			}
 
 			evo::debugFatalBreak("Unknown qualifier");
@@ -2001,6 +2011,23 @@ namespace pcit::pir{
 							this->get_meta_type(meta_local_var.type),
 							this->builder.getInsertionPoint(),
 							this->allocas.at(&this->reader.getAlloca(meta_local_var.value)).asValue()
+						);
+					} break;
+
+					case Expr::Kind::META_PARAM: {
+						if(this->add_debug_info == false){ continue; }
+
+						const MetaParam& meta_param = this->reader.getMetaParam(stmt);
+
+						this->di_builder.addParam(
+							this->get_meta_local_scope(meta_param.sourceLocation.scope),
+							meta_param.name,
+							meta_param.paramIndex + 1,
+							meta_param.sourceLocation.line,
+							meta_param.sourceLocation.collumn,
+							this->get_meta_type(meta_param.type),
+							this->builder.getInsertionPoint(),
+							this->allocas.at(&this->reader.getAlloca(meta_param.value)).asValue()
 						);
 					} break;
 				}

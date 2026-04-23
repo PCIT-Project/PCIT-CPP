@@ -99,6 +99,12 @@ namespace pcit::llvmint{
 		return DerivedType(this->builder->createPointerType(pointee_type.type, size_in_bits, 0, std::nullopt, name));
 	}
 
+	auto DIBuilder::createReferenceType(Type pointee_type, uint64_t size_in_bits) -> DerivedType {
+		return DerivedType(
+			this->builder->createReferenceType(llvm::dwarf::Tag::DW_TAG_reference_type, pointee_type.type, size_in_bits)
+		);
+	}
+
 	auto DIBuilder::createConstType(Type target_type) -> DerivedType {
 		return DerivedType(this->builder->createQualifiedType(llvm::dwarf::Tag::DW_TAG_const_type, target_type.type));
 	}
@@ -283,6 +289,31 @@ namespace pcit::llvmint{
 		this->builder->insertDeclare(
 			value.native(),
 			local_var,
+			this->builder->createExpression(llvm::ArrayRef<uint64_t>()),
+			this->createSourceLocation(scope, line_number, collumn_number).location,
+			basic_block.native()
+		);
+	}
+
+
+
+	auto DIBuilder::addParam(
+		LocalScope scope,
+		std::string_view name,
+		uint32_t arg_number,
+		uint32_t line_number,
+		uint32_t collumn_number,
+		Type type,
+		BasicBlock basic_block,
+		const class Value& value
+	) -> void {
+		llvm::DILocalVariable* param = this->builder->createParameterVariable(
+			scope.scope, name, arg_number, scope.scope->getFile(), line_number, type.type
+		);
+
+		this->builder->insertDeclare(
+			value.native(),
+			param,
 			this->builder->createExpression(llvm::ArrayRef<uint64_t>()),
 			this->createSourceLocation(scope, line_number, collumn_number).location,
 			basic_block.native()

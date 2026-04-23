@@ -720,8 +720,9 @@ namespace pcit::panther::sema{
 
 		std::optional<pir::Function::ID> comptimeJITFunc{};
 
+		[[nodiscard]] auto isSrcFunc() const -> bool { return this->sourceID.is<SourceID>(); }
 		[[nodiscard]] auto isClangFunc() const -> bool { return this->sourceID.is<ClangSourceID>(); }
-		[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
+		[[nodiscard]] auto isBuiltinFunc() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 		
 		[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 		[[nodiscard]] auto getParamName(

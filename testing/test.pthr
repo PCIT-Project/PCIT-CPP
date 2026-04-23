@@ -1,13 +1,13 @@
-type Struct = struct {
-	var num16: UI16 = 16;
-	var num32: UI32 = 32;
+
+func copy_num = (num: UI8 mut) -> UI8 {
+	@breakpoint();
+	return copy num;
 }
 
-func entry = () #entry -> UI8 {
-	var foo: UI8? = 12;
 
-	var s = new Struct();
-	
-	@breakpoint();
-	return 0;
+
+func entry = () #entry -> UI8 {
+	var num: UI8 = 12;
+	defer{ @breakpoint(); }
+	return copy_num(num);
 }

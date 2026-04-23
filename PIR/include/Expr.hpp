@@ -142,6 +142,7 @@ namespace pcit::pir{
 				ATOMIC_RMW,
 
 				META_LOCAL_VAR,
+				META_PARAM,
 			};
 
 		public:
@@ -227,7 +228,7 @@ namespace pcit::pir{
 					case Kind::USHL_SAT:    case Kind::SSHR:           case Kind::USHR:
 					case Kind::BIT_REVERSE: case Kind::BYTE_SWAP:      case Kind::CTPOP:
 					case Kind::CTLZ:        case Kind::CTTZ:           case Kind::CMPXCHG:
-					case Kind::ATOMIC_RMW:  case Kind::META_LOCAL_VAR: {
+					case Kind::ATOMIC_RMW:  case Kind::META_LOCAL_VAR: case Kind::META_PARAM: {
 						return true;
 					} break;
 					default: return false;
@@ -971,6 +972,14 @@ namespace pcit::pir{
 	struct MetaLocalVar{
 		std::string name;
 		Expr value;
+		meta::Type type;
+		meta::SourceLocation sourceLocation;
+	};
+
+	struct MetaParam{
+		std::string name;
+		Expr value;
+		uint32_t paramIndex;
 		meta::Type type;
 		meta::SourceLocation sourceLocation;
 	};

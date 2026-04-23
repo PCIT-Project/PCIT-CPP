@@ -132,6 +132,8 @@ namespace pcit::llvmint{
 			[[nodiscard]] auto createPointerType(Type pointee_type, uint64_t size_in_bits, std::string_view name)
 				-> DerivedType;
 
+			[[nodiscard]] auto createReferenceType(Type pointee_type, uint64_t size_in_bits) -> DerivedType;
+
 			[[nodiscard]] auto createConstType(Type target_type) -> DerivedType;
 
 
@@ -191,6 +193,17 @@ namespace pcit::llvmint{
 			auto addLocalVariable(
 				LocalScope scope,
 				std::string_view name,
+				uint32_t line_number,
+				uint32_t collumn_number,
+				Type type,
+				BasicBlock basic_block,
+				const class Value& value
+			) -> void;
+
+			auto addParam(
+				LocalScope scope,
+				std::string_view name,
+				uint32_t arg_number,
 				uint32_t line_number,
 				uint32_t collumn_number,
 				Type type,

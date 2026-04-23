@@ -20,7 +20,7 @@ namespace pcit::panther::sema{
 			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
 			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
 
-		}else if(this->isBuiltinType()){
+		}else if(this->isBuiltinFunc()){
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
 			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 
@@ -36,13 +36,19 @@ namespace pcit::panther::sema{
 			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
 			return clang_source.getDeclInfo(param.ident.as<ClangSource::DeclInfoID>()).name;
 
-		}else if(this->isBuiltinType()){
+		}else if(this->isBuiltinFunc()){
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
 			return builtin_module.getString(param.ident.as<BuiltinModule::StringID>());
 
 		}else{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[param.ident.as<Token::ID>()].getString();
+			const Token& token = source.getTokenBuffer()[param.ident.as<Token::ID>()];
+
+			if(token.kind() == Token::Kind::KEYWORD_THIS){
+				return "this";
+			}else{
+				return token.getString();
+			}
 		}
 	}
 
@@ -78,7 +84,7 @@ namespace pcit::panther::sema{
 		if(this->isClangFunc()){
 			return false;
 
-		}else if(this->isBuiltinType()){
+		}else if(this->isBuiltinFunc()){
 			const BuiltinModule& builtin_module = context.getSourceManager()[this->sourceID.as<BuiltinModule::ID>()];
 			return builtin_module.getString(this->params[0].ident.as<BuiltinModule::StringID>()) == "this";
 

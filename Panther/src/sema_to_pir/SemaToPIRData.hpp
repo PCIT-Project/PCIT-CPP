@@ -317,14 +317,20 @@ namespace pcit::panther{
 			}
 
 
-			[[nodiscard]] auto get_or_create_meta_qualified_type(
+			[[nodiscard]] auto get_or_create_meta_pointer_qualified_type(
 				TypeInfo::ID id,
 				pir::Module& module,
 				std::string&& type_name,
 				std::optional<pir::meta::Type> qualee_type,
 				pir::meta::QualifiedType::Qualifier qualifier
 			) -> pir::meta::QualifiedType::ID {
-				const auto value_handle = this->meta_qualified_types.get(id);
+				evo::debugAssert(
+					qualifier == pir::meta::QualifiedType::Qualifier::POINTER
+						|| qualifier == pir::meta::QualifiedType::Qualifier::MUT_POINTER,
+					"Must be a pointer qualifier"
+				);
+
+				const auto value_handle = this->meta_pointer_qualified_types.get(id);
 				if(value_handle.needsToBeSet() == false){ return value_handle.getValue(); }
 
 				return value_handle.emplaceValue(
@@ -333,6 +339,32 @@ namespace pcit::panther{
 					)
 				);
 			}
+
+
+			[[nodiscard]] auto get_or_create_meta_reference_qualified_type(
+				TypeInfo::ID id,
+				pir::Module& module,
+				std::string&& type_name,
+				pir::meta::Type qualee_type,
+				pir::meta::QualifiedType::Qualifier qualifier
+			) -> pir::meta::QualifiedType::ID {
+				evo::debugAssert(
+					qualifier == pir::meta::QualifiedType::Qualifier::REFERENCE
+						|| qualifier == pir::meta::QualifiedType::Qualifier::MUT_REFERENCE,
+					"Must be a reference qualifier"
+				);
+
+				const auto value_handle = this->meta_reference_qualified_types.get(id);
+				if(value_handle.needsToBeSet() == false){ return value_handle.getValue(); }
+
+				return value_handle.emplaceValue(
+					module.createMetaQualifiedType(
+						std::string(type_name), std::string(type_name), qualee_type, qualifier
+					)
+				);
+			}
+
+
 
 
 			[[nodiscard]] auto get_or_create_meta_array_type(
@@ -440,7 +472,8 @@ namespace pcit::panther{
 
 
 			core::MapAlloc<TypeInfo::ID, pir::meta::BasicType::ID> meta_basic_types{};
-			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_qualified_types{};
+			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_pointer_qualified_types{};
+			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_reference_qualified_types{};
 			core::MapAlloc<BaseType::Array::ID, pir::meta::ArrayType::ID> meta_array_types{};
 
 			std::unordered_map<BaseType::Enum::ID, pir::meta::EnumType::ID> meta_enum_types{};

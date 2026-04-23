@@ -1015,6 +1015,8 @@ namespace pcit::pir{
 
 			case Expr::Kind::META_LOCAL_VAR:
 				evo::debugFatalBreak("Expr::Kind::META_LOCAL_VAR is not a valid expression");
+
+			case Expr::Kind::META_PARAM: evo::debugFatalBreak("Expr::Kind::META_PARAM is not a valid expression");
 		}
 	}
 
@@ -2069,6 +2071,21 @@ namespace pcit::pir{
 				this->print_source_location(meta_local_var.sourceLocation);
 				this->printer.println();
 			} break;
+
+			case Expr::Kind::META_PARAM: {
+				const MetaParam& meta_param = this->reader.getMetaParam(stmt);
+
+				this->printer.printRed("{}@meta.param ", tabs(2));
+				this->print_expr(meta_param.value);
+				this->printer.print(", ");
+				this->printer.printMagenta("{}", meta_param.paramIndex);
+				this->printer.print(", ");
+				this->print_meta_type_id(meta_param.type);
+				this->printer.print(", ");
+				this->printer.printYellow("\"{}\"", meta_param.name);
+				this->print_source_location(meta_param.sourceLocation);
+				this->printer.println();
+			} break;
 		}
 	}
 
@@ -2141,8 +2158,10 @@ namespace pcit::pir{
 		this->printer.printYellow("\"{}\"", qualified_type.typeName);
 
 		switch(qualified_type.qualifier){
-			break; case meta::QualifiedType::Qualifier::POINTER:     this->printer.print(", POINTER, ");
-			break; case meta::QualifiedType::Qualifier::MUT_POINTER: this->printer.print(", MUT_POINTER, ");
+			break; case meta::QualifiedType::Qualifier::POINTER:       this->printer.print(", POINTER, ");
+			break; case meta::QualifiedType::Qualifier::MUT_POINTER:   this->printer.print(", MUT_POINTER, ");
+			break; case meta::QualifiedType::Qualifier::REFERENCE:     this->printer.print(", REFERENCE, ");
+			break; case meta::QualifiedType::Qualifier::MUT_REFERENCE: this->printer.print(", MUT_REFERENCE, ");
 		}
 
 		if(qualified_type.qualeeType.has_value()){

@@ -871,6 +871,7 @@ namespace pcit::pir{
 				case Expr::Kind::ATOMIC_RMW:        return std::string_view(reader.getAtomicRMW(expr).name);
 
 				case Expr::Kind::META_LOCAL_VAR:    return evo::resultError;
+				case Expr::Kind::META_PARAM:        return evo::resultError;
 			}
 
 			evo::debugFatalBreak("Unknown expr kind");

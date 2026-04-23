@@ -56,6 +56,8 @@ namespace pcit::pir::meta{
 		enum class Qualifier{
 			POINTER,
 			MUT_POINTER,
+			REFERENCE,
+			MUT_REFERENCE,
 		};
 
 		std::string metaName;
