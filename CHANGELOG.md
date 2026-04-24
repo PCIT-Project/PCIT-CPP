@@ -1,11 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.289.0"></a>
+## v0.0.289.0
+
+### Panther
+- Added debug info for return parameters
+- Added debug info for error parameters (`__ERR`)
+- Fixed adding debug info of a function with named error returns
+- Fixed lowering copying of return parameter
+
+### PIR
+- Fixed lowering when not including debug info
+
+
+<!---------------------------------->
 <a name="v0.0.288.0"></a>
 ## v0.0.288.0
 
 ### Panther
-- Added debug info parameters
+- Added debug info for parameters
 
 ### PIR
 - Added `@meta.param`

@@ -162,10 +162,10 @@ namespace pcit::pir{
 					);
 				} break;
 
-				case Type::Kind::PTR:      evo::debugFatalBreak("Invalid meta type");
-				case Type::Kind::ARRAY:    evo::debugFatalBreak("Invalid meta type");
-				case Type::Kind::STRUCT:   evo::debugFatalBreak("Invalid meta type");
-				case Type::Kind::FUNCTION: evo::debugFatalBreak("Invalid meta type");
+				case Type::Kind::PTR:      evo::debugFatalBreak("Invalid meta basic type");
+				case Type::Kind::ARRAY:    evo::debugFatalBreak("Invalid meta basic type");
+				case Type::Kind::STRUCT:   evo::debugFatalBreak("Invalid meta basic type");
+				case Type::Kind::FUNCTION: evo::debugFatalBreak("Invalid meta basic type");
 			}
 
 			evo::debugFatalBreak("Unknown pir type kind");
@@ -620,7 +620,7 @@ namespace pcit::pir{
 
 		this->funcs.emplace(&func, llvm_func);
 
-		if(func.getMetaID().has_value()){
+		if(this->add_debug_info & func.getMetaID().has_value()){
 			llvm_func.setSubprogram(this->lower_meta_function(func.getName(), *func.getMetaID()));
 		}
 
@@ -1022,7 +1022,7 @@ namespace pcit::pir{
 							this->get_atomic_ordering(store.atomicOrdering)
 						);
 
-						if(store.sourceLocation.has_value()){
+						if(this->add_debug_info && store.sourceLocation.has_value()){
 							store_inst.setLocation(this->lower_meta_source_location(*store.sourceLocation));
 						}
 					} break;

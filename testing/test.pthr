@@ -1,13 +1,15 @@
 
-func copy_num = (num: UI8 mut) -> UI8 {
+func copy_num = (num: UI8) -> (output: UI8) <a: Int, b: Int> {
+	a = 12;
+	b = 14;
+
 	@breakpoint();
-	return copy num;
+
+	error...;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	var num: UI8 = 12;
-	defer{ @breakpoint(); }
-	return copy_num(num);
+	return try copy_num(17) else <a, b> (b as UI8);
 }

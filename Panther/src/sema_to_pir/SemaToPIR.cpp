@@ -417,12 +417,8 @@ namespace pcit::panther{
 			}
 		}
 
-		auto error_return_param = std::optional<pir::Expr>();
 		auto error_return_type = std::optional<pir::Type>();
 		if(func_type.hasErrorReturnValue()){
-			error_return_param = this->handler.createParamExpr(uint32_t(params.size()));
-
-
 			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
 			if(this->data.config.includeDebugInfo){
 				debug_members.reserve(func_type.errorTypes.size());
@@ -448,7 +444,7 @@ namespace pcit::panther{
 					std::string member_name = [&]() -> std::string {
 						if(func_type.hasNamedErrorReturns){
 							return std::string(
-								this->current_source->getTokenBuffer()[func.returnParamIdents[i]].getString()
+								this->current_source->getTokenBuffer()[func.errorParamIdents[i]].getString()
 							);	
 						}else{
 							return "__UNNAMED__";
@@ -575,7 +571,6 @@ namespace pcit::panther{
 						func.attributes.isNoReturn,
 						std::move(param_infos),
 						std::move(return_params),
-						error_return_param,
 						error_return_type
 					);
 				}
@@ -691,7 +686,6 @@ namespace pcit::panther{
 			func.attributes.isNoReturn,
 			std::move(param_infos),
 			std::move(return_params),
-			error_return_param,
 			error_return_type
 		);
 
@@ -717,6 +711,19 @@ namespace pcit::panther{
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
 		const Data::FuncInfo& func_info = this->data.get_func(func_id);
+
+		auto error_ret_debug_meta_type = std::optional<pir::meta::Type>();
+		if(this->data.config.includeDebugInfo && sema_func.hasNamedErrors()){
+			const pir::StructType& err_ret_struct_type = this->module.getStructType(*func_info.error_return_type);
+
+			error_ret_debug_meta_type = this->module.createMetaQualifiedType(
+				std::format("{}&", err_ret_struct_type.name),
+				std::format("{}&", err_ret_struct_type.name),
+				*this->module.lookupMetaStructType(*func_info.error_return_type),
+				pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
+			);
+		}
+
 
 		this->in_param_bitmap = 0;
 		using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
@@ -826,7 +833,7 @@ namespace pcit::panther{
 							.as<Source::Location>();
 
 					const auto ssl =
-						this->create_scoped_source_location(param_location.lineStart, param_location.lineEnd);
+						this->create_scoped_source_location(param_location.lineStart, param_location.collumnStart);
 
 					const pir::meta::Type param_semantic_meta_type =
 						*this->get_type<false, true>(func_type.params[i].typeID).meta_type_id;
@@ -853,6 +860,79 @@ namespace pcit::panther{
 				}
 
 				i += 1;
+			}
+
+			for(size_t i = 0; Token::ID ret_param_token_id : sema_func.returnParamIdents){
+				const size_t abi_index = i + sema_func.params.size();
+				const pir::Parameter& pir_param = func.getParameters()[abi_index];
+
+				const std::string_view param_name =
+					this->current_source->getTokenBuffer()[ret_param_token_id].getString();
+
+				const pir::Expr param_alloca = this->handler.createAlloca(
+					pir_param.getType(), this->name("{}.ALLOCA", param_name)
+				);
+
+				this->handler.createStore(param_alloca, this->handler.createParamExpr(uint32_t(abi_index)));
+
+				this->param_allocas.emplace_back(param_alloca);
+
+				if(this->data.config.includeDebugInfo){
+					const Source::Location param_location = 
+						Diagnostic::Location::get(ret_param_token_id, *this->current_source).as<Source::Location>();
+
+					const auto ssl =
+						this->create_scoped_source_location(param_location.lineStart, param_location.collumnStart);
+
+					const pir::meta::Type param_semantic_meta_type =
+						*this->get_type<false, true>(func_type.returnTypes[i].asTypeID()).meta_type_id;
+
+					const pir::meta::Type param_meta_type = this->data.get_or_create_meta_reference_qualified_type(
+						func_type.returnTypes[i].asTypeID(),
+						module,
+						std::format(
+							"{}&",
+							this->context.getTypeManager().printType(func_type.returnTypes[i].asTypeID(), this->context)
+						),
+						param_semantic_meta_type,
+						pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
+					);
+
+					this->handler.createMetaParam(
+						std::string(param_name), param_alloca, uint32_t(abi_index), param_meta_type
+					);
+				}
+			
+				i += 1;
+			}
+
+
+			if(sema_func.hasNamedErrors()){
+				const size_t abi_index = func.getParameters().size() - 1;
+				const pir::Parameter& pir_param = func.getParameters()[abi_index];
+
+				const std::string_view param_name = "__ERR";
+
+				const pir::Expr param_alloca = this->handler.createAlloca(
+					pir_param.getType(), this->name("__ERR.ALLOCA")
+				);
+
+				this->handler.createStore(param_alloca, this->handler.createParamExpr(uint32_t(abi_index)));
+
+				this->param_allocas.emplace_back(param_alloca);
+
+				if(this->data.config.includeDebugInfo){
+					const Source::Location param_location = Diagnostic::Location::get(
+						sema_func.errorParamIdents.front(), *this->current_source
+					).as<Source::Location>();
+
+					const auto ssl =
+						this->create_scoped_source_location(param_location.lineStart, param_location.collumnStart);
+
+					this->handler.createMetaParam(
+						std::string(param_name), param_alloca, uint32_t(abi_index + 1), *error_ret_debug_meta_type
+					);
+				}
 			}
 
 
@@ -2173,7 +2253,10 @@ namespace pcit::panther{
 
 				if(error_stmt.value.has_value()){
 					this->handler.createStore(
-						*this->current_func_info->error_return_param, this->get_expr_register(*error_stmt.value)
+						this->handler.createLoad(
+							this->param_allocas.back(), this->module.createPtrType()
+						),
+						this->get_expr_register(*error_stmt.value)
 					);
 					for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
 						this->output_defers_for_scope_level<DeferTarget::ERROR>(scope_level);
@@ -5534,14 +5617,18 @@ namespace pcit::panther{
 				const sema::ReturnParam& sema_return_param =
 					this->context.getSemaBuffer().getReturnParam(expr.returnParamID());
 
+				const pir::Expr return_param_alloca = this->param_allocas[sema_return_param.abiIndex];
+				const pir::Expr return_param_ptr =
+					this->handler.createLoad(return_param_alloca, this->module.createPtrType());
+
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->handler.createLoad(
-						this->handler.createParamExpr(sema_return_param.abiIndex),
+						return_param_ptr,
 						this->current_func_info->return_params[sema_return_param.index].reference_type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->handler.createParamExpr(sema_return_param.abiIndex);
+					return return_param_ptr;
 					
 				}else if constexpr(MODE == GetExprMode::STORE){
 					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
@@ -5551,8 +5638,8 @@ namespace pcit::panther{
 
 					this->handler.createMemcpy(
 						store_locations[0],
-						this->handler.createParamExpr(sema_return_param.abiIndex),
-						this->module.createPtrType()
+						return_param_ptr,
+						this->current_func_info->return_params[sema_return_param.index].reference_type
 					);
 					return std::nullopt;
 
@@ -5567,7 +5654,9 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getErrorReturnParam(expr.errorReturnParamID());
 
 				const pir::Expr calc_ptr = this->handler.createCalcPtr(
-					this->handler.createParamExpr(sema_error_param.abiIndex),
+					this->handler.createLoad(
+						this->param_allocas[sema_error_param.abiIndex], this->module.createPtrType()
+					),
 					*this->current_func_info->error_return_type,
 					evo::SmallVector<pir::CalcPtr::Index>{
 						pir::CalcPtr::Index(0),
@@ -13389,7 +13478,9 @@ namespace pcit::panther{
 									if(this->context.getTypeManager().isTriviallyDeletable(item.typeID)){ return; }
 
 									const pir::Expr pir_expr = this->handler.createCalcPtr(
-										*this->current_func_info->error_return_param,
+										this->handler.createLoad(
+											this->param_allocas.back(), this->module.createPtrType()
+										),
 										*this->current_func_info->error_return_type,
 										evo::SmallVector<pir::CalcPtr::Index>{0, expr.index},
 										this->name(".ERR_PARAM.{}", expr.index)
