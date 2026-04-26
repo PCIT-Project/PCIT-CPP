@@ -1,5 +1,5 @@
 
-func copy_num = (num: UI8) -> (output: UI8) <a: Int, b: Int> {
+func test = () -> UI8 <a: Int, b: Int> {
 	a = 12;
 	b = 14;
 
@@ -11,5 +11,5 @@ func copy_num = (num: UI8) -> (output: UI8) <a: Int, b: Int> {
 
 
 func entry = () #entry -> UI8 {
-	return try copy_num(17) else <a, b> (b as UI8);
+	return try test() else <a, b> (b as UI8);
 }

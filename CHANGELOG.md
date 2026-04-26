@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.289.1"></a>
+## v0.0.289.1
+
+### Panther
+- Fixed lowering of function that errors and has an unnamed return value
+
+
+<!---------------------------------->
 <a name="v0.0.289.0"></a>
 ## v0.0.289.0
 

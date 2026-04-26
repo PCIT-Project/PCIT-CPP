@@ -906,6 +906,19 @@ namespace pcit::panther{
 				i += 1;
 			}
 
+			// RET param
+			if(func_type.hasErrorReturn() && func_type.returnsVoid() == false && func_type.hasNamedReturns == false){
+				const pir::Expr ret_alloca = this->handler.createAlloca(
+					this->module.createPtrType(), this->name("RET.ALLOCA")
+				);
+
+				this->handler.createStore(
+					ret_alloca, this->handler.createParamExpr(uint32_t(func.getParameters().size() - 2))
+				);
+
+				this->param_allocas.emplace_back(ret_alloca);
+			}
+
 
 			if(sema_func.hasNamedErrors()){
 				const size_t abi_index = func.getParameters().size() - 1;
@@ -930,7 +943,7 @@ namespace pcit::panther{
 						this->create_scoped_source_location(param_location.lineStart, param_location.collumnStart);
 
 					this->handler.createMetaParam(
-						std::string(param_name), param_alloca, uint32_t(abi_index + 1), *error_ret_debug_meta_type
+						std::string(param_name), param_alloca, uint32_t(abi_index), *error_ret_debug_meta_type
 					);
 				}
 			}

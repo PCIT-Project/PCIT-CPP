@@ -313,14 +313,14 @@ namespace pcit::panther{
 
 			Function(
 				evo::SmallVector<Param>&& _params,
-				evo::SmallVector<TypeInfoVoidableID>&& returns_types,
+				evo::SmallVector<TypeInfoVoidableID>&& return_types,
 				evo::SmallVector<TypeInfoVoidableID>&& error_types,
 				bool is_unsafe,
 				bool has_named_returns,
 				bool has_named_error_returns
 			) : 
 				params(std::move(_params)),
-				returnTypes(std::move(returns_types)),
+				returnTypes(std::move(return_types)),
 				errorTypes(std::move(error_types)),
 				isUnsafe(is_unsafe),
 				hasNamedReturns(has_named_returns),
