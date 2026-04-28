@@ -1551,10 +1551,12 @@ namespace pcit::panther{
 			}
 
 
+			std::string unmangled_struct_name = this->get_unmangled_struct_name(struct_id);
+
 			std::ignore = this->module.createMetaStructType(
 				new_type,
-				this->get_unmangled_struct_name(struct_id),
-				this->get_unmangled_struct_name(struct_id),
+				evo::copy(unmangled_struct_name),
+				std::move(unmangled_struct_name),
 				std::move(debug_members),
 				location.meta_file_id,
 				this->get_current_meta_scope(),
@@ -1575,32 +1577,158 @@ namespace pcit::panther{
 			}
 		}
 
-		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
+		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
 
-		const pir::Type new_type = [&](){
-			const pir::Type data_type = this->module.getOrCreateArrayType(
-				this->module.createUnsignedType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
-			);
+		this->current_source = union_type.sourceID.visit([&](const auto& source) -> Source* {
+			using SourceType = std::decay_t<decltype(source)>;
+		
+			if constexpr(std::is_same<SourceType, Source::ID>()){
+				return &this->context.getSourceManager()[source];
+		
+			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+				return nullptr;
+
+			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
+				return nullptr;
+		
+			}else{
+				static_assert(false, "Unknown source type");
+			}
+		});
 
 
-			if(union_info.isUntagged){
-				return data_type;
+		const pir::Type underlying_data_type = this->module.getOrCreateArrayType(
+			this->module.createUnsignedType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
+		);
+
+		const pir::Type union_pir_type = [&](){
+			if(union_type.isUntagged){
+				return underlying_data_type;
 
 			}else{
 				return this->module.createStructType(
 					this->mangle_name(union_id),
 					evo::SmallVector<pir::Type>{
-						data_type,
-						this->module.createUnsignedType(unsigned(std::bit_ceil(union_info.fields.size() - 1)))
+						underlying_data_type,
+						this->module.createUnsignedType(
+							unsigned(ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8))
+						)
 					},
-					true
+					false
 				);
 			}
 		}();
 
-		this->data.create_union(union_id, new_type);
 
-		return new_type;
+		if(this->data.config.includeDebugInfo){
+			const Location location = this->get_location(Diagnostic::Location::get(union_type, this->context));
+
+			auto fields = evo::SmallVector<pir::meta::UnionType::Field>();
+			for(const BaseType::Union::Field& field : union_type.fields){
+				if(field.typeID.isVoid()){ continue; }
+
+				const PIRType field_type = this->get_type<false, true>(field.typeID.asTypeID());
+
+				fields.emplace_back(
+					field_type.type,
+					*field_type.meta_type_id,
+					std::string(union_type.getFieldName(field, this->context.getSourceManager()))
+				);
+			}
+
+			std::string unmangled_union_name = this->get_unmangled_union_name(union_id);
+
+			if(union_type.isUntagged){
+				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
+					underlying_data_type,
+					evo::copy(unmangled_union_name),
+					std::move(unmangled_union_name),
+					std::move(fields),
+					location.meta_file_id,
+					this->get_current_meta_scope(),
+					location.line_number
+				);
+
+				this->data.create_meta_union(union_id, meta_union_id);
+
+			}else{
+				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
+					underlying_data_type,
+					unmangled_union_name + "-data",
+					unmangled_union_name + "-data",
+					std::move(fields),
+					location.meta_file_id,
+					this->get_current_meta_scope(),
+					location.line_number
+				);
+
+
+				//////////////////
+				// tag enum
+
+				auto enumerators = evo::SmallVector<pir::meta::EnumType::Enumerator>();
+
+				for(size_t i = 0; const BaseType::Union::Field& field : union_type.fields){
+					EVO_DEFER([&](){ i += 1; });
+					if(field.typeID.isVoid()){ continue; }
+
+					enumerators.emplace_back(
+						std::string(union_type.getFieldName(field, this->context.getSourceManager())),
+						core::GenericInt::create<size_t>(i)
+					);
+				}
+
+				const uint32_t tag_bit_width =
+					uint32_t(ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8));
+				const BaseType::ID tag_base_type_id =
+					this->context.getTypeManager().getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, tag_bit_width);
+				const TypeInfo::ID tag_type_info_id =
+					this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(tag_base_type_id));
+
+				const pir::meta::BasicType::ID tag_meta_type = this->data.get_or_create_meta_basic_type(
+					tag_type_info_id,
+					this->module,
+					std::format("UI{}", tag_bit_width),
+					this->module.getStructType(union_pir_type).members[1]
+				);
+
+				const pir::meta::EnumType::ID tag_enum_id = this->module.createMetaEnumType(
+					unmangled_union_name + "-tag",
+					unmangled_union_name + "-tag",
+					tag_meta_type,
+					std::move(enumerators),
+					location.meta_file_id,
+					this->get_current_meta_scope(),
+					location.line_number
+				);
+
+
+				//////////////////
+				// actual type
+
+				auto debug_members = evo::SmallVector<pir::meta::StructType::Member>{
+					pir::meta::StructType::Member(meta_union_id, "data"),
+					pir::meta::StructType::Member(tag_enum_id, "tag"),
+				};
+
+				const pir::meta::StructType::ID meta_tagged_union_id = this->module.createMetaStructType(
+					union_pir_type,
+					evo::copy(unmangled_union_name),
+					std::move(unmangled_union_name),
+					std::move(debug_members),
+					location.meta_file_id,
+					this->get_current_meta_scope(),
+					location.line_number
+				);
+
+				this->data.create_meta_union(union_id, meta_tagged_union_id);
+			}
+		}
+
+
+		this->data.create_union(union_id, union_pir_type);
+
+		return union_pir_type;
 	}
 
 
@@ -12186,8 +12314,7 @@ namespace pcit::panther{
 				const pir::Type pir_type = this->data.get_union(base_type_id.unionID());
 
 				if constexpr(GET_META){
-					// TODO(FUTURE): 
-					evo::unimplemented("Getting debug info of union");
+					return PIRType(pir_type, this->data.get_meta_union(base_type_id.unionID()));
 
 				}else{
 					return PIRType(pir_type, std::nullopt);
@@ -12467,6 +12594,12 @@ namespace pcit::panther{
 	auto SemaToPIR::get_unmangled_struct_name(BaseType::Struct::ID struct_id) const -> std::string {
 		return this->context.getTypeManager().printType(BaseType::ID(struct_id), this->context);
 	}
+
+
+	auto SemaToPIR::get_unmangled_union_name(BaseType::Union::ID union_id) const -> std::string {
+		return this->context.getTypeManager().printType(BaseType::ID(union_id), this->context);
+	}
+
 
 
 

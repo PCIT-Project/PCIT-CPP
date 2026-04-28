@@ -408,6 +408,24 @@ namespace pcit::panther{
 
 
 
+			auto create_meta_union(BaseType::Union::ID union_id, pir::meta::Type union_type_id) -> void {
+				const auto lock = std::scoped_lock(this->meta_union_types_lock);
+				this->meta_union_types.emplace(union_id, union_type_id);
+			}
+
+			[[nodiscard]] auto get_meta_union(BaseType::Union::ID union_id) const -> pir::meta::Type {
+				const auto lock = std::scoped_lock(this->meta_union_types_lock);
+				return this->meta_union_types.at(union_id);
+			}
+
+			[[nodiscard]] auto has_meta_union(BaseType::Union::ID union_id) const -> bool {
+				const auto lock = std::scoped_lock(this->meta_union_types_lock);
+				return this->meta_union_types.contains(union_id);
+			}
+
+
+
+
 
 
 			[[nodiscard]] auto get_string_literal_id() -> uint64_t {
@@ -477,6 +495,9 @@ namespace pcit::panther{
 
 			std::unordered_map<BaseType::Enum::ID, pir::meta::EnumType::ID> meta_enum_types{};
 			mutable evo::SpinLock meta_enum_types_lock{};
+
+			std::unordered_map<BaseType::Union::ID, pir::meta::Type> meta_union_types{};
+			mutable evo::SpinLock meta_union_types_lock{};
 
 
 			friend class SemaToPIR;

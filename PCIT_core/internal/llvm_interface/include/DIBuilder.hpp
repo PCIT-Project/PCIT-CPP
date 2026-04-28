@@ -148,7 +148,18 @@ namespace pcit::llvmint{
 				SubroutineType subroutine_type
 			) -> Subprogram;
 
+
 			[[nodiscard]] auto createClassType(
+				Scope scope,
+				std::string_view name,
+				File file,
+				uint32_t line_number,
+				uint64_t size_in_bits,
+				uint32_t align_in_bits,
+				evo::ArrayProxy<DerivedType> members
+			) -> CompositeType;
+
+			[[nodiscard]] auto createUnionType(
 				Scope scope,
 				std::string_view name,
 				File file,
@@ -188,7 +199,8 @@ namespace pcit::llvmint{
 
 			[[nodiscard]] auto createEnumerator(std::string_view name, const core::GenericInt& value, bool is_unsigned)
 				-> Enumerator;
-			
+
+
 
 			auto addLocalVariable(
 				LocalScope scope,

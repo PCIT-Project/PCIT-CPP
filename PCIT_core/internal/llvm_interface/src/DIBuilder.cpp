@@ -188,6 +188,39 @@ namespace pcit::llvmint{
 	}
 
 
+	auto DIBuilder::createUnionType(
+		Scope scope,
+		std::string_view name,
+		File file,
+		uint32_t line_number,
+		uint64_t size_in_bits,
+		uint32_t align_in_bits,
+		evo::ArrayProxy<DerivedType> members
+	) -> CompositeType {
+		auto metadatas = evo::SmallVector<llvm::Metadata*, 64>();
+		for(const DerivedType& member : members){
+			metadatas.emplace_back(member.type);
+		}
+
+		llvm::DINodeArray elements_array = this->builder->getOrCreateArray(
+			llvm::ArrayRef<llvm::Metadata*>(metadatas.data(), metadatas.size())
+		);
+
+		return CompositeType(
+			this->builder->createUnionType(
+				scope.scope,
+				name,
+				file.file,
+				line_number,
+				size_in_bits,
+				align_in_bits,
+				llvm::DINode::FlagZero,
+				elements_array
+			)
+		);
+	}
+
+
 	auto DIBuilder::createMemberType(
 		Scope scope,
 		std::string_view name,
@@ -271,6 +304,7 @@ namespace pcit::llvmint{
 			)
 		);
 	}
+
 
 
 

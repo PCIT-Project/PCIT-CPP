@@ -45,6 +45,7 @@ namespace pcit::pir{
 			auto print_meta_basic_type(const meta::BasicType& type) -> void;
 			auto print_meta_qualified_type(const meta::QualifiedType& qualified_type) -> void;
 			auto print_meta_struct_type(const meta::StructType& struct_type) -> void;
+			auto print_meta_union_type(const meta::UnionType& union_type) -> void;
 			auto print_meta_array_type(const meta::ArrayType& array_type) -> void;
 			auto print_meta_enum_type(const meta::EnumType& enum_type) -> void;
 			auto print_meta_function(const meta::Function& function) -> void;

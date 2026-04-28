@@ -77,6 +77,7 @@ namespace pcit::pir{
 
 
 		const bool meta_struct_type_not_empty = this->get_module().getMetaStructTypeIter().empty() == false;
+		const bool meta_union_type_not_empty = this->get_module().getMetaUnionTypeIter().empty() == false;
 		const bool meta_array_type_not_empty = this->get_module().getMetaArrayTypeIter().empty() == false;
 		const bool meta_enum_type_not_empty = this->get_module().getMetaEnumTypeIter().empty() == false;
 		const bool meta_function_not_empty = this->get_module().getMetaFunctionIter().empty() == false;
@@ -87,6 +88,7 @@ namespace pcit::pir{
 
 		if(
 			meta_struct_type_not_empty
+			| meta_union_type_not_empty
 			| meta_array_type_not_empty
 			| meta_enum_type_not_empty
 			| meta_function_not_empty
@@ -100,6 +102,13 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::StructType& meta_struct_type : this->get_module().getMetaStructTypeIter()){
 					this->print_meta_struct_type(meta_struct_type);
+				}
+			}
+
+			if(meta_union_type_not_empty){
+				this->printer.println();
+				for(const meta::UnionType& meta_union_type : this->get_module().getMetaUnionTypeIter()){
+					this->print_meta_union_type(meta_union_type);
 				}
 			}
 
@@ -2212,7 +2221,7 @@ namespace pcit::pir{
 			
 			i += 1;
 		}
-		this->printer.print("],");
+		this->printer.print("], ");
 
 		this->printer.print("file");
 		this->printer.printRed(": ");
@@ -2227,6 +2236,68 @@ namespace pcit::pir{
 		this->printer.print("line");
 		this->printer.printRed(": ");
 		this->printer.printMagenta(std::to_string(struct_type.lineNumber));
+
+		this->printer.println("}");
+	}
+
+
+
+	auto ModulePrinter::print_meta_union_type(const meta::UnionType& union_type) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(union_type.metaName)){
+			this->printer.printGreen("!{}", union_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(union_type.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("union ");
+
+		this->printer.print("{");
+
+		this->printer.print("underlyingType");
+		this->printer.printRed(": ");
+		this->printType(union_type.underlyingType);
+		this->printer.print(", ");
+
+		this->printer.print("name");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", union_type.typeName);
+		this->printer.print(", ");
+
+		this->printer.print("fields");
+		this->printer.printRed(": ");
+		this->printer.print("[");
+		for(size_t i = 0; const meta::UnionType::Field& field : union_type.fields){
+			this->printer.printYellow("\"{}\"", field.name);
+			this->printer.printRed(": ");
+			this->printType(field.type);
+			this->printer.print(" ");
+			this->print_meta_type_id(field.metaType);
+
+			if(i + 1 < union_type.fields.size()){
+				this->printer.print(", ");
+			}
+			
+			i += 1;
+		}
+		this->printer.print("], ");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(union_type.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(union_type.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(union_type.lineNumber));
 
 		this->printer.println("}");
 	}
@@ -2321,7 +2392,7 @@ namespace pcit::pir{
 		
 			i += 1;
 		}
-		this->printer.print("],");
+		this->printer.print("], ");
 
 		this->printer.print("file");
 		this->printer.printRed(": ");
@@ -2415,6 +2486,9 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<MetaIDType, meta::StructType::ID>()){
 				return this->reader.getModule().getMetaStructType(id).metaName;
+
+			}else if constexpr(std::is_same<MetaIDType, meta::UnionType::ID>()){
+				return this->reader.getModule().getMetaUnionType(id).metaName;
 
 			}else if constexpr(std::is_same<MetaIDType, meta::ArrayType::ID>()){
 				return this->reader.getModule().getMetaArrayType(id).metaName;

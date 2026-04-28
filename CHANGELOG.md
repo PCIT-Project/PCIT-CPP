@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.290.0"></a>
+## v0.0.290.0
+
+### Panther
+- Added debug info for unions
+
+### PIR
+- Added union metadata 
+
+
+<!---------------------------------->
 <a name="v0.0.289.1"></a>
 ## v0.0.289.1
 

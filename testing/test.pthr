@@ -1,15 +1,16 @@
-
-func test = () -> UI8 <a: Int, b: Int> {
-	a = 12;
-	b = 14;
-
-	@breakpoint();
-
-	error...;
+type Variant = union {
+	num: Int,
+	bool: Bool,
+	// num2: UInt,
+	// num3: UI3,
+	// num4: UI4,
 }
 
 
 
 func entry = () #entry -> UI8 {
-	return try test() else <a, b> (b as UI8);
+	var v = new Variant{num = 12};
+
+	@breakpoint();
+	return 0;
 }

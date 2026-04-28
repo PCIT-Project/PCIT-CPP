@@ -84,6 +84,24 @@ namespace pcit::pir::meta{
 		uint32_t lineNumber;
 	};
 
+	struct UnionType{
+		using ID = UnionTypeID;
+
+		struct Field{
+			pir::Type type;
+			meta::Type metaType;
+			std::string name;
+		};
+
+		std::string metaName;
+		pir::Type underlyingType;
+		std::string typeName;
+		evo::SmallVector<Field> fields;
+		meta::FileID fileID;
+		meta::Scope scopeWhereDefined;
+		uint32_t lineNumber;
+	};
+
 
 	struct ArrayType{
 		using ID = ArrayTypeID;

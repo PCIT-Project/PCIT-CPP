@@ -228,6 +228,10 @@ namespace pcit::pir{
 				evo::debugAssert(meta_struct_type.metaName != meta_name, "meta \"{}\" already used", meta_name);
 			}
 
+			for(const meta::UnionType& meta_union_type : this->meta_union_types){
+				evo::debugAssert(meta_union_type.metaName != meta_name, "meta \"{}\" already used", meta_name);
+			}
+
 			for(const meta::Function& meta_function : this->meta_functions){
 				evo::debugAssert(meta_function.metaName != meta_name, "meta \"{}\" already used", meta_name);
 			}

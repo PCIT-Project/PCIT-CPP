@@ -41,6 +41,10 @@ namespace pcit::pir{
 				this->lower_meta_struct_type(meta::StructType::ID(i));
 			}
 
+			for(uint32_t i = 0; i < this->module.getMetaUnionTypeIter().size(); i += 1){
+				this->lower_meta_union_type(meta::UnionType::ID(i));
+			}
+
 			for(uint32_t i = 0; i < this->module.getMetaArrayTypeIter().size(); i += 1){
 				this->lower_meta_array_type(meta::ArrayType::ID(i));
 			}
@@ -285,6 +289,53 @@ namespace pcit::pir{
 
 		return composite_type;
 	}
+
+
+
+	auto PIRToLLVMIR::lower_meta_union_type(meta::UnionType::ID meta_union_type_id)
+	-> llvmint::DIBuilder::CompositeType {
+		const meta::UnionType& meta_union_type = this->module.getMetaUnionType(meta_union_type_id);
+
+		// const StructType& union_type = this->module.getUnionType(meta_union_type.unionType);
+
+		llvmint::DIBuilder::Scope scope_where_defined = 
+			this->get_meta_scope(meta_union_type.scopeWhereDefined);
+		llvmint::DIBuilder::File file = this->meta_files.at(meta_union_type.fileID);
+
+		auto fields = evo::SmallVector<llvmint::DIBuilder::DerivedType>();
+		fields.reserve(meta_union_type.fields.size());
+		for(const meta::UnionType::Field& field : meta_union_type.fields){
+			fields.emplace_back(
+				this->di_builder.createMemberType(
+					scope_where_defined,
+					field.name,
+					file,
+					meta_union_type.lineNumber,
+					this->module.numBytes(field.type) * 8,
+					uint32_t(this->module.getAlignment(field.type) * 8),
+					0,
+					this->get_meta_type(field.metaType)
+				)
+			);
+		}
+
+
+		const llvmint::DIBuilder::CompositeType composite_type = this->di_builder.createUnionType(
+			scope_where_defined,
+			meta_union_type.typeName,
+			file,
+			meta_union_type.lineNumber,
+			this->module.numBytes(meta_union_type.underlyingType) * 8,
+			uint32_t(this->module.getAlignment(meta_union_type.underlyingType) * 8),
+			fields
+		);
+
+		this->meta_union_types.emplace(meta_union_type_id, composite_type);
+
+		return composite_type;
+	}
+
+
 
 
 	auto PIRToLLVMIR::lower_meta_array_type(meta::ArrayType::ID meta_array_type_id)
@@ -2563,6 +2614,15 @@ namespace pcit::pir{
 					return find->second.asType();
 				}else{
 					return this->lower_meta_struct_type(meta_type).asType();
+				}
+
+			}else if constexpr(std::is_same<ValueType, meta::UnionType::ID>()){
+				const auto find = this->meta_union_types.find(meta_type);
+
+				if(find != this->meta_union_types.end()){
+					return find->second.asType();
+				}else{
+					return this->lower_meta_union_type(meta_type).asType();
 				}
 
 			}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){

@@ -771,6 +771,61 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// meta union types
+
+			[[nodiscard]] auto createMetaUnionType(
+				pir::Type underlying_type,
+				std::string&& meta_name,
+				std::string&& union_name,
+				evo::SmallVector<meta::UnionType::Field>&& fields,
+				meta::FileID file_id,
+				meta::Scope scope_where_defined,
+				uint32_t line_number
+			) -> meta::UnionType::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+				
+				return this->meta_union_types.emplace_back(
+					std::move(meta_name),
+					underlying_type,
+					std::move(union_name),
+					std::move(fields),
+					file_id,
+					scope_where_defined,
+					line_number
+				);
+			}
+
+			[[nodiscard]] auto getMetaUnionType(meta::UnionType::ID id) const -> const meta::UnionType& {
+				return this->meta_union_types[id];
+			}
+
+
+
+			using MetaUnionTypeIter = core::SyncLinearStepAlloc<meta::UnionType, meta::UnionTypeID>::Iter;
+			using MetaUnionTypeConstIter = core::SyncLinearStepAlloc<meta::UnionType, meta::UnionTypeID>::ConstIter;
+
+			[[nodiscard]] auto getMetaUnionTypeIter() -> evo::IterRange<MetaUnionTypeIter> {
+				return evo::IterRange<MetaUnionTypeIter>(
+					this->meta_union_types.begin(), this->meta_union_types.end()
+				);
+			}
+
+			[[nodiscard]] auto getMetaUnionTypeIter() const -> evo::IterRange<MetaUnionTypeConstIter> {
+				return evo::IterRange<MetaUnionTypeConstIter>(
+					this->meta_union_types.cbegin(), this->meta_union_types.cend()
+				);
+			}
+
+			[[nodiscard]] auto getMetaUnionTypeConstIter() const -> evo::IterRange<MetaUnionTypeConstIter> {
+				return evo::IterRange<MetaUnionTypeConstIter>(
+					this->meta_union_types.cbegin(), this->meta_union_types.cend()
+				);
+			}
+
+
+			///////////////////////////////////
 			// meta array types
 
 			[[nodiscard]] auto createMetaArrayType(
@@ -1065,6 +1120,7 @@ namespace pcit::pir{
 			core::SyncLinearStepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
 			core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 			core::SyncLinearStepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};
+			core::SyncLinearStepAlloc<meta::UnionType, meta::UnionType::ID> meta_union_types{};
 			core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayType::ID> meta_array_types{};
 			core::SyncLinearStepAlloc<meta::EnumType, meta::EnumType::ID> meta_enum_types{};
 			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
