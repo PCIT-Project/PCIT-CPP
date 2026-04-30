@@ -59,6 +59,7 @@ namespace pcit::pir{
 
 		private:
 			auto lower_meta_file(meta::File::ID meta_file_id) -> void;
+			auto lower_meta_subscope(meta::Subscope::ID meta_subscope_id) -> void;
 			auto lower_meta_basic_type(meta::BasicType::ID meta_basic_type_id) -> void;
 			auto lower_meta_qualified_type(meta::QualifiedType::ID meta_qualified_type_id)
 				-> llvmint::DIBuilder::DerivedType;
@@ -154,6 +155,7 @@ namespace pcit::pir{
 			evo::SmallVector<llvmint::Argument, 8> args{};
 
 			std::unordered_map<meta::File::ID, llvmint::DIBuilder::File> meta_files{};
+			std::unordered_map<meta::Subscope::ID, llvmint::DIBuilder::LocalScope> meta_subscopes{};
 			std::unordered_map<meta::BasicType::ID, llvmint::DIBuilder::BasicType> meta_basic_types{};
 			std::unordered_map<meta::QualifiedType::ID, llvmint::DIBuilder::DerivedType> meta_qualified_types{};
 			std::unordered_map<meta::Function::ID, llvmint::DIBuilder::Subprogram> meta_functions{};

@@ -512,6 +512,8 @@ namespace pcit::panther{
 			evo::SmallVector<ScopeLevel, 16> scope_levels{};
 			evo::SmallVector<pir::Expr, 16> param_allocas{};
 
+			std::stack<pir::meta::LocalScope, evo::SmallVector<pir::meta::LocalScope, 16>> local_scopes{};
+
 			uint32_t in_param_bitmap = 0; // 0 bit means move, 1 bit means copy
 
 			evo::SmallVector<AutoDeleteTarget> end_of_stmt_deletes{};

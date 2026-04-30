@@ -69,6 +69,12 @@ namespace pcit::pir{
 			func_setups.emplace_back(this->lower_function_setup<false>(function));
 		}
 
+		if(this->add_debug_info){
+			for(uint32_t i = 0; i < this->module.getMetaSubscopeIter().size(); i += 1){
+				this->lower_meta_subscope(meta::Subscope::ID(i));
+			}
+		}
+
 		for(const GlobalVar& global_var : this->module.getGlobalVarIter()){
 			this->lower_global_var_decl<false>(global_var);
 		}
@@ -126,6 +132,20 @@ namespace pcit::pir{
 		}
 
 		this->meta_files.emplace(meta_file_id, di_file);
+	}
+
+
+	auto PIRToLLVMIR::lower_meta_subscope(meta::Subscope::ID meta_subscope_id) -> void {
+		const meta::Subscope& meta_subscope = this->module.getMetaSubscope(meta_subscope_id);
+
+		const llvmint::DIBuilder::LocalScope di_subscope = this->di_builder.createLexicalBlock(
+			this->get_meta_local_scope(meta_subscope.parentScope),
+			this->meta_files.at(meta_subscope.file),
+			meta_subscope.line,
+			meta_subscope.collumn
+		);
+
+		this->meta_subscopes.emplace(meta_subscope_id, di_subscope);
 	}
 
 
@@ -995,11 +1015,16 @@ namespace pcit::pir{
 
 					case Expr::Kind::BRANCH: {
 						const Branch& branch = this->reader.getBranch(stmt);
-						this->builder.createCondBranch(
+						
+						llvmint::BranchInst br_inst = this->builder.createCondBranch(
 							this->get_value<ADD_WEAK_DEPS>(branch.cond),
 							basic_block_map.at(branch.thenBlock),
 							basic_block_map.at(branch.elseBlock)
 						);
+
+						if(this->add_debug_info && branch.sourceLocation.has_value()){
+							br_inst.setLocation(this->lower_meta_source_location(*branch.sourceLocation));
+						}
 					} break;
 
 					case Expr::Kind::UNREACHABLE: {
@@ -2568,6 +2593,9 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
 				return this->meta_files.at(id).asScope();
 
+			}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				return this->meta_subscopes.at(id).asScope();
+
 			}else{
 				static_assert(false, "Unknown scope id");
 			}
@@ -2581,8 +2609,8 @@ namespace pcit::pir{
 			if constexpr(std::is_same<IDType, meta::Function::ID>()){
 				return this->meta_functions.at(id).asLocalScope();
 
-			// }else if constexpr(std::is_same<IDType, meta::File::ID>()){
-			// 	return this->meta_files.at(id).asLocalScope();
+			}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				return this->meta_subscopes.at(id);
 
 			}else{
 				static_assert(false, "Unknown scope id");

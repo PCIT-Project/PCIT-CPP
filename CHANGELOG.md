@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.291.0"></a>
+## v0.0.291.0
+
+### Panther
+- Added debug info for if conditionals
+
+### PIR
+- Added meta subscope
+- Added source location to `@branch`
+
+
+<!---------------------------------->
 <a name="v0.0.290.0"></a>
 ## v0.0.290.0
 

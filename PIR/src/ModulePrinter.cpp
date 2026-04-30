@@ -84,6 +84,7 @@ namespace pcit::pir{
 		const bool meta_qualified_type_not_empty = this->get_module().getMetaQualifiedTypeIter().empty() == false;
 		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
 		const bool meta_file_not_empty = this->get_module().getMetaFileIter().empty() == false;
+		const bool meta_subscope_not_empty = this->get_module().getMetaSubscopeIter().empty() == false;
 
 
 		if(
@@ -95,6 +96,7 @@ namespace pcit::pir{
 			| meta_qualified_type_not_empty
 			| meta_basic_type_not_empty
 			| meta_file_not_empty
+			| meta_subscope_not_empty
 		){
 			this->printer.println();
 
@@ -151,6 +153,13 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::File& meta_file : this->get_module().getMetaFileIter()){
 					this->print_meta_file(meta_file);
+				}
+			}
+
+			if(meta_subscope_not_empty){
+				this->printer.println();
+				for(const meta::Subscope& meta_subscope : this->get_module().getMetaSubscopeIter()){
+					this->print_meta_subscope(meta_subscope);
 				}
 			}
 		}
@@ -1119,11 +1128,15 @@ namespace pcit::pir{
 
 				this->printer.printRed("{}@branch ", tabs(2));
 				this->print_expr(branch.cond);
-				this->printer.println(
+				this->printer.print(
 					", ${}, ${}", 
 					reader.getBasicBlock(branch.thenBlock).getName(),
 					reader.getBasicBlock(branch.elseBlock).getName()
 				);
+
+				this->print_source_location(branch.sourceLocation);
+
+				this->printer.println();
 			} break;
 
 			case Expr::Kind::UNREACHABLE: {
@@ -2134,6 +2147,43 @@ namespace pcit::pir{
 	}
 
 
+	auto ModulePrinter::print_meta_subscope(const meta::Subscope& subscope) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(subscope.metaName)){
+			this->printer.printGreen("!{}", subscope.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(subscope.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("subscope ");
+		this->printer.print("{");
+
+		this->printer.print("parent");
+		this->printer.printRed(": ");
+		this->print_meta_local_scope(subscope.parentScope);
+		this->printer.print(", ");
+
+		this->printer.print("file");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(subscope.file);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta("{}", subscope.line);
+		this->printer.print(", ");
+
+		this->printer.print("collumn");
+		this->printer.printRed(": ");
+		this->printer.printMagenta("{}", subscope.collumn);
+
+		this->printer.print("}\n");
+	}
+
+
 	auto ModulePrinter::print_meta_basic_type(const meta::BasicType& basic_type) -> void {
 		this->printer.printCyan("meta ");
 
@@ -2526,27 +2576,27 @@ namespace pcit::pir{
 
 		this->printer.printRed(" #location");
 
-		source_location->scope.visit([&](const auto& id) -> void {
+		const std::string_view name = source_location->scope.visit([&](const auto& id) -> std::string_view {
 			using IDType = std::decay_t<decltype(id)>;
 
 			if constexpr(std::is_same<IDType, meta::Function::ID>()){
-				const std::string_view name = this->get_module().getMetaFunction(id).metaName;
-
-				if(isStandardName(name)){
-					this->printer.print("(!{}, ", name);
-				}else{
-					this->printer.print("(!");
-					this->print_non_standard_name(name, false);
-					this->printer.print(", ");
-				}
+				return this->get_module().getMetaFunction(id).metaName;
 				
-			// }else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
-				// this->printer.print("(!{}, ", id.get());
+			}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				return this->get_module().getMetaSubscope(id).metaName;
 
 			}else{
 				static_assert(false, "Unknown scope id");
 			}
 		});
+
+		if(isStandardName(name)){
+			this->printer.print("(!{}, ", name);
+		}else{
+			this->printer.print("(!");
+			this->print_non_standard_name(name, false);
+			this->printer.print(", ");
+		}
 
 		this->printer.printMagenta(std::to_string(source_location->line));
 		this->printer.print(", ");
@@ -2568,10 +2618,51 @@ namespace pcit::pir{
 					this->printer.print("!");
 					this->print_non_standard_name(name, false);
 				}
+
+			}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				const std::string_view name = this->get_module().getMetaSubscope(id).metaName;
+
+				if(isStandardName(name)){
+					this->printer.print("!{}", name);
+				}else{
+					this->printer.print("!");
+					this->print_non_standard_name(name, false);
+				}
 		
 			}else if constexpr(std::is_same<IDType, meta::File::ID>()){
 				this->print_meta_file_id(id);
 		
+			}else{
+				static_assert(false, "Unknown scope id");
+			}
+		});
+	}
+
+
+	auto ModulePrinter::print_meta_local_scope(const meta::LocalScope& local_scope) -> void {
+		local_scope.visit([&](const auto& id) -> void {
+			using IDType = std::decay_t<decltype(id)>;
+		
+			if constexpr(std::is_same<IDType, meta::Function::ID>()){
+				const std::string_view name = this->get_module().getMetaFunction(id).metaName;
+
+				if(isStandardName(name)){
+					this->printer.print("!{}", name);
+				}else{
+					this->printer.print("!");
+					this->print_non_standard_name(name, false);
+				}
+
+			}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+				const std::string_view name = this->get_module().getMetaSubscope(id).metaName;
+
+				if(isStandardName(name)){
+					this->printer.print("!{}", name);
+				}else{
+					this->printer.print("!");
+					this->print_non_standard_name(name, false);
+				}
+				
 			}else{
 				static_assert(false, "Unknown scope id");
 			}

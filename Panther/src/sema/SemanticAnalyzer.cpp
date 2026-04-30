@@ -7162,15 +7162,16 @@ namespace pcit::panther{
 
 		if(this->get_package().warn.comptimeIfCond && cond.isComptime){
 			this->emit_warning(
-				"Condition in [if] condition is comptime",
+				"Condition in [if] conditional is comptime",
 				instr.conditional.cond,
-				Diagnostic::Info("Consider converting it to a [when] condition")
+				Diagnostic::Info("Consider converting it to a [when] conditional")
 			);
 		}
 
 
-		const sema::Conditional::ID new_sema_conditional_id = 
-			this->context.sema_buffer.createConditional(cond.getExpr());
+		const sema::Conditional::ID new_sema_conditional_id = this->context.sema_buffer.createConditional(
+			cond.getExpr(), instr.conditional.ifToken, instr.conditional.elseToken, instr.conditional.closeBraceToken
+		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_conditional_id);
 

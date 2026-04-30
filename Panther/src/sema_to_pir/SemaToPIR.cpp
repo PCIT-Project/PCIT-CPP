@@ -737,6 +737,16 @@ namespace pcit::panther{
 			this->current_func_info = &this->data.get_func(func_id);
 			EVO_DEFER([&](){ this->current_func_info = nullptr; });
 
+			if(this->data.config.includeDebugInfo){
+				this->local_scopes.emplace(*func.getMetaID());
+			}
+
+			EVO_DEFER([&](){
+				if(this->data.config.includeDebugInfo){
+					this->local_scopes.pop();
+				}
+			});
+
 			this->handler.setTargetFunction(func);
 			this->handler.setTargetBasicBlockAtEnd();
 
@@ -2553,12 +2563,42 @@ namespace pcit::panther{
 				const pir::BasicBlock::ID then_block = this->handler.createBasicBlock("IF.THEN");
 				auto end_block = std::optional<pir::BasicBlock::ID>();
 
+
+				if(this->data.getConfig().includeDebugInfo){
+					const Location location =
+						this->get_location(Diagnostic::Location::get(conditional_stmt.ifToken, *this->current_source));
+
+					this->handler.pushSourceLocation(
+						pir::meta::SourceLocation(
+							this->get_current_meta_local_scope(), location.line_number, location.collumn_number
+						)
+					);
+				}
+
 				const pir::Expr cond_value = this->get_expr_register(conditional_stmt.cond);
 
 				if(conditional_stmt.elseStmts.empty()){
 					end_block = this->handler.createBasicBlock("IF.END");
 
 					this->handler.createBranch(cond_value, then_block, *end_block);
+
+					if(this->data.getConfig().includeDebugInfo){
+						this->handler.popSourceLocation();
+
+						const Location location = this->get_location(
+							Diagnostic::Location::get(conditional_stmt.ifToken, *this->current_source)
+						);
+
+						const pir::meta::Subscope::ID created_meta_subscope = this->module.createMetaSubscope(
+							std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+							this->get_current_meta_local_scope(),
+							*this->current_source->getPIRMetaFileID(),
+							location.line_number,
+							location.collumn_number
+						);
+
+						this->local_scopes.emplace(created_meta_subscope);
+					}
 
 					this->handler.setTargetBasicBlock(then_block);
 					this->push_scope_level();
@@ -2567,10 +2607,31 @@ namespace pcit::panther{
 					}
 					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
 					if(then_terminated == false){
+						if(this->data.getConfig().includeDebugInfo){
+							const Location location = this->get_location(
+								Diagnostic::Location::get(conditional_stmt.closeBraceToken, *this->current_source)
+							);
+
+							this->handler.pushSourceLocation(
+								pir::meta::SourceLocation(
+									this->get_current_meta_local_scope(), location.line_number, location.collumn_number
+								)
+							);
+						}
+
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 						this->handler.createJump(*end_block);
+
+						if(this->data.getConfig().includeDebugInfo){
+							this->handler.popSourceLocation();
+						}
 					}
 					this->pop_scope_level();
+
+					if(this->data.getConfig().includeDebugInfo){
+						this->local_scopes.pop();
+					}
+
 				}else{
 					const pir::BasicBlock::ID else_block = this->handler.createBasicBlock("IF.ELSE");
 
@@ -2580,6 +2641,24 @@ namespace pcit::panther{
 					this->handler.createBranch(cond_value, then_block, else_block);
 
 					// then block
+					auto then_meta_subscope = std::optional<pir::meta::Subscope::ID>();
+					if(this->data.getConfig().includeDebugInfo){
+						this->handler.popSourceLocation();
+
+						const Location location = this->get_location(
+							Diagnostic::Location::get(conditional_stmt.ifToken, *this->current_source)
+						);
+
+						then_meta_subscope = this->module.createMetaSubscope(
+							std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+							this->get_current_meta_local_scope(),
+							*this->current_source->getPIRMetaFileID(),
+							location.line_number,
+							location.collumn_number
+						);
+
+						this->local_scopes.emplace(*then_meta_subscope);
+					}
 					this->handler.setTargetBasicBlock(then_block);
 					this->push_scope_level();
 					for(const sema::Stmt& block_stmt : conditional_stmt.thenStmts){
@@ -2589,11 +2668,30 @@ namespace pcit::panther{
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					}
 					this->pop_scope_level();
+					if(this->data.getConfig().includeDebugInfo){
+						this->local_scopes.pop();
+					}
 
 					// required because stuff in the then block might add basic blocks
 					pir::BasicBlock& then_block_end = this->handler.getTargetBasicBlock();
 
 					// else block
+					auto else_meta_subscope = std::optional<pir::meta::Subscope::ID>();
+					if(this->data.getConfig().includeDebugInfo){
+						const Location location = this->get_location(
+							Diagnostic::Location::get(*conditional_stmt.elseToken, *this->current_source)
+						);
+
+						else_meta_subscope = this->module.createMetaSubscope(
+							std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+							this->get_current_meta_local_scope(),
+							*this->current_source->getPIRMetaFileID(),
+							location.line_number,
+							location.collumn_number
+						);
+
+						this->local_scopes.emplace(*else_meta_subscope);
+					}
 					this->push_scope_level();
 					this->handler.setTargetBasicBlock(else_block);
 					for(const sema::Stmt& block_stmt : conditional_stmt.elseStmts){
@@ -2603,6 +2701,9 @@ namespace pcit::panther{
 						this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
 					}
 					this->pop_scope_level();
+					if(this->data.getConfig().includeDebugInfo){
+						this->local_scopes.pop();
+					}
 
 					// end block
 
@@ -2611,12 +2712,44 @@ namespace pcit::panther{
 					end_block = this->handler.createBasicBlock("IF.END");
 
 					if(else_terminated == false){
+						if(this->data.getConfig().includeDebugInfo){
+							const Location location = this->get_location(
+								Diagnostic::Location::get(conditional_stmt.closeBraceToken, *this->current_source)
+							);
+
+							this->handler.pushSourceLocation(
+								pir::meta::SourceLocation(
+									*else_meta_subscope, location.line_number, location.collumn_number
+								)
+							);
+						}
+
 						this->handler.createJump(*end_block);
+
+						if(this->data.getConfig().includeDebugInfo){
+							this->handler.popSourceLocation();
+						}
 					}
 
 					if(then_terminated == false){
+						if(this->data.getConfig().includeDebugInfo){
+							const Location location = this->get_location(
+								Diagnostic::Location::get(*conditional_stmt.elseToken, *this->current_source)
+							);
+
+							this->handler.pushSourceLocation(
+								pir::meta::SourceLocation(
+									*then_meta_subscope, location.line_number, location.collumn_number
+								)
+							);
+						}
+
 						this->handler.setTargetBasicBlock(then_block_end);
 						this->handler.createJump(*end_block);
+
+						if(this->data.getConfig().includeDebugInfo){
+							this->handler.popSourceLocation();
+						}
 					}
 				}
 
@@ -12417,9 +12550,11 @@ namespace pcit::panther{
 	}
 
 	auto SemaToPIR::get_current_meta_local_scope() const -> pir::meta::LocalScope {
-		return *this->module.getFunction(
-			this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>()
-		).getMetaID();
+		// return *this->module.getFunction(
+		// 	this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>()
+		// ).getMetaID();
+
+		return this->local_scopes.top();
 	}
 
 

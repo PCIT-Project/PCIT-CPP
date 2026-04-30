@@ -1412,7 +1412,8 @@ namespace pcit::pir{
 		evo::debugAssert(this->getExprType(cond).kind() == Type::Kind::BOOL, "Cond must be of type Bool");
 
 		const auto new_expr = Expr(
-			Expr::Kind::BRANCH, this->module.branches.emplace_back(cond, then_block, else_block)
+			Expr::Kind::BRANCH,
+			this->module.branches.emplace_back(cond, then_block, else_block, this->get_current_source_location())
 		);
 		this->insert_stmt(new_expr);
 		return new_expr;

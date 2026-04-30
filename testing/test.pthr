@@ -1,16 +1,17 @@
-type Variant = union {
-	num: Int,
-	bool: Bool,
-	// num2: UInt,
-	// num3: UI3,
-	// num4: UI4,
-}
-
 
 
 func entry = () #entry -> UI8 {
-	var v = new Variant{num = 12};
 
-	@breakpoint();
+	if(true){
+		const v1: Int = 12;
+		const v2: Int = 12;
+	}else{
+		const v3: Int = 12;
+		const v4: Int = 12;
+	}
+
+
+	const v5: Int = 12;
+
 	return 0;
 }

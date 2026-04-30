@@ -25,7 +25,6 @@ namespace pcit::llvmint{
 		public:
 			struct Type { llvm::DIType* type; };
 			struct Scope { llvm::DIScope* scope; };
-			struct LocalScope { llvm::DILocalScope* scope; };
 
 
 			//////////////////
@@ -54,6 +53,11 @@ namespace pcit::llvmint{
 
 			//////////////////
 			// scope
+
+			struct LocalScope {
+				llvm::DILocalScope* localScope;
+				[[nodiscard]] auto asScope() -> Scope;
+			};
 
 			struct Subprogram {
 				llvm::DISubprogram* subprogram;
@@ -121,6 +125,10 @@ namespace pcit::llvmint{
 			auto createCompileUnit(Language language, File file, std::string_view producer, bool is_optimized) -> void;
 
 			[[nodiscard]] auto createFile(std::string_view file_name, std::string_view directory) -> File;
+
+			[[nodiscard]] auto createLexicalBlock(LocalScope parent_scope, File file, uint32_t line, uint32_t collumn)
+				-> LocalScope;
+
 
 			[[nodiscard]] auto createVoidType() -> Type;
 

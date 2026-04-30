@@ -473,6 +473,9 @@ namespace pcit::panther::sema{
 		using ID = ConditionalID;
 
 		Expr cond;
+		Token::ID ifToken;
+		std::optional<Token::ID> elseToken;
+		Token::ID closeBraceToken;
 		StmtBlock thenStmts{};
 		StmtBlock elseStmts{};
 	};

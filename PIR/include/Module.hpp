@@ -602,6 +602,50 @@ namespace pcit::pir{
 			}
 
 
+
+			///////////////////////////////////
+			// meta files
+
+			[[nodiscard]] auto createMetaSubscope(
+				std::string&& meta_name,
+				meta::LocalScope parent_scope,
+				meta::File::ID file,
+				uint32_t line,
+				uint32_t collumn
+			) -> meta::Subscope::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_subscopes.emplace_back(std::move(meta_name), parent_scope, file, line, collumn);
+			}
+
+			[[nodiscard]] auto getMetaSubscope(meta::Subscope::ID id) const -> const meta::Subscope& {
+				return this->meta_subscopes[id];
+			}
+
+
+			using MetaSubscopeIter = core::SyncLinearStepAlloc<meta::Subscope, meta::SubscopeID>::Iter;
+			using MetaSubscopeConstIter = core::SyncLinearStepAlloc<meta::Subscope, meta::SubscopeID>::ConstIter;
+
+			[[nodiscard]] auto getMetaSubscopeIter() -> evo::IterRange<MetaSubscopeIter> {
+				return evo::IterRange<MetaSubscopeIter>(this->meta_subscopes.begin(), this->meta_subscopes.end());
+			}
+
+			[[nodiscard]] auto getMetaSubscopeIter() const -> evo::IterRange<MetaSubscopeConstIter> {
+				return evo::IterRange<MetaSubscopeConstIter>(
+					this->meta_subscopes.cbegin(), this->meta_subscopes.cend()
+				);
+			}
+
+			[[nodiscard]] auto getMetaSubscopeConstIter() const -> evo::IterRange<MetaSubscopeConstIter> {
+				return evo::IterRange<MetaSubscopeConstIter>(
+					this->meta_subscopes.cbegin(), this->meta_subscopes.cend()
+				);
+			}
+
+
+
 			///////////////////////////////////
 			// meta types
 
@@ -1117,6 +1161,7 @@ namespace pcit::pir{
 
 			// meta
 			core::SyncLinearStepAlloc<meta::File, meta::File::ID> meta_files{};
+			core::SyncLinearStepAlloc<meta::Subscope, meta::Subscope::ID> meta_subscopes{};
 			core::SyncLinearStepAlloc<meta::BasicType, meta::BasicType::ID> meta_basic_types{};
 			core::SyncLinearStepAlloc<meta::QualifiedType, meta::QualifiedType::ID> meta_qualified_types{};
 			core::SyncLinearStepAlloc<meta::StructType, meta::StructType::ID> meta_struct_types{};

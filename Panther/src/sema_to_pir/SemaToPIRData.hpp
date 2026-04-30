@@ -436,6 +436,10 @@ namespace pcit::panther{
 				return this->num_byte_arrays.fetch_add(1);
 			}
 
+			[[nodiscard]] auto get_meta_subscope_id() -> uint64_t {
+				return this->num_meta_subscopes.fetch_add(1);
+			}
+
 	
 		private:
 			Config config;
@@ -486,6 +490,7 @@ namespace pcit::panther{
 
 			std::atomic<uint64_t> num_string_literals = 0;
 			std::atomic<uint64_t> num_byte_arrays = 0;
+			std::atomic<uint64_t> num_meta_subscopes = 0;
 
 
 			core::MapAlloc<TypeInfo::ID, pir::meta::BasicType::ID> meta_basic_types{};

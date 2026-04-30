@@ -303,7 +303,9 @@ namespace pcit::panther::AST{
 	};
 
 	struct Conditional{
-		Token::ID keyword;
+		Token::ID ifToken;
+		std::optional<Token::ID> elseToken;
+		Token::ID closeBraceToken;
 		Node cond;
 		Node thenBlock;
 		std::optional<Node> elseBlock;  // either `Block` or `Conditional`

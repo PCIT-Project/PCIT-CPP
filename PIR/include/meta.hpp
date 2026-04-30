@@ -41,6 +41,17 @@ namespace pcit::pir::meta{
 	};
 
 
+	struct Subscope{
+		using ID = SubscopeID;
+
+		std::string metaName;
+		LocalScope parentScope;
+		File::ID file;
+		uint32_t line;
+		uint32_t collumn;
+	};
+
+
 	struct BasicType{
 		using ID = BasicTypeID;
 
@@ -79,8 +90,8 @@ namespace pcit::pir::meta{
 		pir::Type structType;
 		std::string typeName;
 		evo::SmallVector<Member> members;
-		meta::FileID fileID;
-		meta::Scope scopeWhereDefined;
+		File::ID fileID;
+		Scope scopeWhereDefined;
 		uint32_t lineNumber;
 	};
 
@@ -97,8 +108,8 @@ namespace pcit::pir::meta{
 		pir::Type underlyingType;
 		std::string typeName;
 		evo::SmallVector<Field> fields;
-		meta::FileID fileID;
-		meta::Scope scopeWhereDefined;
+		File::ID fileID;
+		Scope scopeWhereDefined;
 		uint32_t lineNumber;
 	};
 
@@ -125,8 +136,8 @@ namespace pcit::pir::meta{
 		std::string enumName;
 		meta::Type underlyingType;
 		evo::SmallVector<Enumerator> enumerators;
-		meta::FileID fileID;
-		meta::Scope scopeWhereDefined;
+		File::ID fileID;
+		Scope scopeWhereDefined;
 		uint32_t lineNumber;
 	};
 
@@ -138,8 +149,8 @@ namespace pcit::pir::meta{
 		std::string unmangledName;
 		std::optional<meta::Type> returnMetaType; // nullopt if `Void`
 		evo::SmallVector<meta::Type> paramMetaTypes;
-		meta::File::ID fileID;
-		meta::Scope scopeWhereDefined;
+		File::ID fileID;
+		Scope scopeWhereDefined;
 		uint32_t lineNumber;
 	};
 

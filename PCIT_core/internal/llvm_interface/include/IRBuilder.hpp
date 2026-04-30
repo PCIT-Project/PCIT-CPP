@@ -79,7 +79,7 @@ namespace pcit::llvmint{
 			auto createBranch(const BasicBlock& block) -> BranchInst;
 
 			auto createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
-				-> void;
+				-> BranchInst;
 
 			struct Incoming{
 				Value value;

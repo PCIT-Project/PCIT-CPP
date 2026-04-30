@@ -169,7 +169,7 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const AST::Conditional& conditional_stmt, const Source& src) -> Location {
-		return Location::get(conditional_stmt.keyword, src);
+		return Location::get(conditional_stmt.ifToken, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::WhenConditional& when_cond, const Source& src) -> Location {

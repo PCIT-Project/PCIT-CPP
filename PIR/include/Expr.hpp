@@ -416,6 +416,7 @@ namespace pcit::pir{
 		Expr cond;
 		BasicBlockID thenBlock;
 		BasicBlockID elseBlock;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct Phi{

@@ -59,6 +59,9 @@ namespace pcit::llvmint{
 		return Scope(static_cast<llvm::DIScope*>(this->file));
 	}
 
+	auto DIBuilder::LocalScope::asScope() -> Scope {
+		return Scope(static_cast<llvm::DIScope*>(this->localScope));
+	}
 
 
 	auto DIBuilder::addModuleLevelDebugInfo(core::Target target) -> void {
@@ -81,6 +84,16 @@ namespace pcit::llvmint{
 
 	auto DIBuilder::createFile(std::string_view file_name, std::string_view directory) -> File {
 		return File(this->builder->createFile(file_name, directory));
+	}
+
+
+	auto DIBuilder::createLexicalBlock(LocalScope parent_scope, File file, uint32_t line, uint32_t collumn)
+	-> LocalScope {
+		return LocalScope(
+			static_cast<llvm::DILocalScope*>(
+				this->builder->createLexicalBlock(parent_scope.localScope, file.file, line, collumn)
+			)
+		);
 	}
 
 
@@ -317,8 +330,9 @@ namespace pcit::llvmint{
 		BasicBlock basic_block,
 		const Value& value
 	) -> void {
-		llvm::DILocalVariable* local_var =
-			this->builder->createAutoVariable(scope.scope, name, scope.scope->getFile(), line_number, type.type);
+		llvm::DILocalVariable* local_var = this->builder->createAutoVariable(
+			scope.localScope, name, scope.localScope->getFile(), line_number, type.type
+		);
 
 		this->builder->insertDeclare(
 			value.native(),
@@ -342,7 +356,7 @@ namespace pcit::llvmint{
 		const class Value& value
 	) -> void {
 		llvm::DILocalVariable* param = this->builder->createParameterVariable(
-			scope.scope, name, arg_number, scope.scope->getFile(), line_number, type.type
+			scope.localScope, name, arg_number, scope.localScope->getFile(), line_number, type.type
 		);
 
 		this->builder->insertDeclare(
@@ -357,7 +371,9 @@ namespace pcit::llvmint{
 
 
 	auto DIBuilder::createSourceLocation(LocalScope local_scope, uint32_t line, uint32_t collumn) -> Location {
-		return Location(llvm::DILocation::get(this->module.native()->getContext(), line, collumn, local_scope.scope));
+		return Location(
+			llvm::DILocation::get(this->module.native()->getContext(), line, collumn, local_scope.localScope)
+		);
 	}
 
 

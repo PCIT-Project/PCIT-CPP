@@ -963,9 +963,10 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
+		auto else_token = std::optional<Token::ID>();
 		auto else_block = std::optional<AST::Node>();
 		if(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
-			if(this->assert_token(Token::Kind::KEYWORD_ELSE).isError()){ return Result::Code::ERROR; }
+			else_token = this->reader.next();
 
 			const Token::Kind else_if_kind = this->reader[this->reader.peek()].kind();
 
@@ -1015,6 +1016,8 @@ namespace pcit::panther{
 			}
 		}
 
+		const Token::ID close_brace_token = this->reader.peek(-1);
+
 
 		if constexpr(IS_WHEN){
 			return this->source.ast_buffer.createWhenConditional(
@@ -1022,7 +1025,7 @@ namespace pcit::panther{
 			);
 		}else{
 			return this->source.ast_buffer.createConditional(
-				keyword_token_id, cond.value(), then_block.value(), else_block
+				keyword_token_id, else_token, close_brace_token, cond.value(), then_block.value(), else_block
 			);
 		}
 	}

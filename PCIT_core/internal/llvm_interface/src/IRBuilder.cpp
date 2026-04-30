@@ -93,8 +93,8 @@ namespace pcit::llvmint{
 	}
 
 	auto IRBuilder::createCondBranch(const Value& cond, const BasicBlock& then_block, const BasicBlock& else_block)
-	-> void {
-		this->builder->CreateCondBr(cond.native(), then_block.native(), else_block.native());
+	-> BranchInst {
+		return this->builder->CreateCondBr(cond.native(), then_block.native(), else_block.native());
 	}
 
 
