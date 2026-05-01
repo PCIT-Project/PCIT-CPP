@@ -177,15 +177,18 @@ namespace pcit::llvmint{
 	};
 
 
-	auto IRBuilder::createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile)-> void {
-		this->builder->CreateMemCpyInline(
+	auto IRBuilder::createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile)
+	-> CallInst {
+		return this->builder->CreateMemCpyInline(
 			dst.native(), llvm::MaybeAlign(), src.native(), llvm::MaybeAlign(), size.native(), is_volatile
 		);
 	}
 
 	auto IRBuilder::createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)
-	-> void {
-		this->builder->CreateMemSetInline(dst.native(), llvm::MaybeAlign(), value.native(), size.native(), is_volatile);
+	-> CallInst {
+		return this->builder->CreateMemSetInline(
+			dst.native(), llvm::MaybeAlign(), value.native(), size.native(), is_volatile
+		);
 	}
 
 

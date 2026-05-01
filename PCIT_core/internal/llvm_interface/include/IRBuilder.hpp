@@ -103,8 +103,10 @@ namespace pcit::llvmint{
 				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, std::string_view name = {}
 			) -> CallInst;
 
-			auto createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile) -> void;
-			auto createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile) -> void;
+			auto createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile)
+				-> CallInst;
+			auto createMemSetInline(const Value& dst, const Value& value, const Value& size, bool is_volatile)
+				-> CallInst;
 
 
 			///////////////////////////////////

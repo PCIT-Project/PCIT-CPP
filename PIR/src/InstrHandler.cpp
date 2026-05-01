@@ -1707,7 +1707,8 @@ namespace pcit::pir{
 
 
 		const auto new_stmt = Expr(
-			Expr::Kind::MEMCPY, this->module.memcpys.emplace_back(dst, src, num_bytes, is_volatile)
+			Expr::Kind::MEMCPY,
+			this->module.memcpys.emplace_back(dst, src, num_bytes, is_volatile, this->get_current_source_location())
 		);
 		this->insert_stmt(new_stmt);
 		return new_stmt;
@@ -1736,7 +1737,8 @@ namespace pcit::pir{
 
 
 		const auto new_stmt = Expr(
-			Expr::Kind::MEMSET, this->module.memsets.emplace_back(dst, value, num_bytes, is_volatile)
+			Expr::Kind::MEMSET,
+			this->module.memsets.emplace_back(dst, value, num_bytes, is_volatile, this->get_current_source_location())
 		);
 		this->insert_stmt(new_stmt);
 		return new_stmt;

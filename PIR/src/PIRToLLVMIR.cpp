@@ -1128,23 +1128,31 @@ namespace pcit::pir{
 					case Expr::Kind::MEMCPY: {
 						const Memcpy& memcpy = this->reader.getMemcpy(stmt);
 
-						this->builder.createMemCpyInline(
+						llvmint::CallInst call_inst = this->builder.createMemCpyInline(
 							this->get_value<ADD_WEAK_DEPS>(memcpy.dst),
 							this->get_value<ADD_WEAK_DEPS>(memcpy.src),
 							this->get_value<ADD_WEAK_DEPS>(memcpy.numBytes),
 							memcpy.isVolatile
 						);
+
+						if(this->add_debug_info && memcpy.sourceLocation.has_value()){
+							call_inst.setLocation(this->lower_meta_source_location(*memcpy.sourceLocation));
+						}
 					} break;
 
 					case Expr::Kind::MEMSET: {
 						const Memset& memset = this->reader.getMemset(stmt);
 
-						this->builder.createMemSetInline(
+						llvmint::CallInst call_inst = this->builder.createMemSetInline(
 							this->get_value<ADD_WEAK_DEPS>(memset.dst),
 							this->get_value<ADD_WEAK_DEPS>(memset.value),
 							this->get_value<ADD_WEAK_DEPS>(memset.numBytes),
 							memset.isVolatile
 						);
+
+						if(this->add_debug_info && memset.sourceLocation.has_value()){
+							call_inst.setLocation(this->lower_meta_source_location(*memset.sourceLocation));
+						}
 					} break;
 
 					case Expr::Kind::BIT_CAST: {

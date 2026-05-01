@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.292.0"></a>
+## v0.0.292.0
+
+### Panther
+- Added debug info for:
+	- statement blocks
+	- unsafe blocks
+	- `while` loops
+	- `for` loops
+	- `for` loop (not `#unroll`) parameters
+- Fixed lowering (to LLVMIR or lower) of for loops
+
+### PIR
+- Added source location to `@memcpy`
+- Added source location to `@memset`
+
+
+<!---------------------------------->
 <a name="v0.0.291.0"></a>
 ## v0.0.291.0
 

@@ -1254,6 +1254,7 @@ namespace pcit::pir{
 				this->printer.print(", ");
 				this->print_expr(memcpy.numBytes);
 				if(memcpy.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->print_source_location(memcpy.sourceLocation);
 				this->printer.println();
 			} break;
 
@@ -1267,6 +1268,7 @@ namespace pcit::pir{
 				this->printer.print(", ");
 				this->print_expr(memset.numBytes);
 				if(memset.isVolatile){ this->printer.printRed(" #volatile"); }
+				this->print_source_location(memset.sourceLocation);
 				this->printer.println();
 			} break;
 
@@ -2166,7 +2168,7 @@ namespace pcit::pir{
 		this->print_meta_local_scope(subscope.parentScope);
 		this->printer.print(", ");
 
-		this->printer.print("file");
+		this->printer.print("sourceFile");
 		this->printer.printRed(": ");
 		this->print_meta_file_id(subscope.file);
 		this->printer.print(", ");
@@ -2273,7 +2275,7 @@ namespace pcit::pir{
 		}
 		this->printer.print("], ");
 
-		this->printer.print("file");
+		this->printer.print("sourceFile");
 		this->printer.printRed(": ");
 		this->print_meta_file_id(struct_type.fileID);
 		this->printer.print(", ");
@@ -2335,7 +2337,7 @@ namespace pcit::pir{
 		}
 		this->printer.print("], ");
 
-		this->printer.print("file");
+		this->printer.print("sourceFile");
 		this->printer.printRed(": ");
 		this->print_meta_file_id(union_type.fileID);
 		this->printer.print(", ");
@@ -2444,7 +2446,7 @@ namespace pcit::pir{
 		}
 		this->printer.print("], ");
 
-		this->printer.print("file");
+		this->printer.print("sourceFile");
 		this->printer.printRed(": ");
 		this->print_meta_file_id(enum_type.fileID);
 		this->printer.print(", ");
@@ -2506,7 +2508,7 @@ namespace pcit::pir{
 		}
 		this->printer.print("], ");
 
-		this->printer.print("file");
+		this->printer.print("sourceFile");
 		this->printer.printRed(": ");
 		this->print_meta_file_id(function.fileID);
 		this->printer.print(", ");

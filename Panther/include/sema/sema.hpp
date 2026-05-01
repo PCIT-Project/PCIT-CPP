@@ -466,6 +466,8 @@ namespace pcit::panther::sema{
 	struct BlockScope{
 		using ID = BlockScopeID;
 		
+		Token::ID openBrace;
+		Token::ID closeBrace;
 		StmtBlock block{};
 	};
 
@@ -484,6 +486,7 @@ namespace pcit::panther::sema{
 		using ID = WhileID;
 
 		Expr cond;
+		Token::ID whileToken;
 		std::optional<Token::ID> label;
 		StmtBlock block{};
 	};
@@ -504,6 +507,7 @@ namespace pcit::panther::sema{
 		};
 		
 		evo::SmallVector<Iterable> iterables;
+		Token::ID forToken;
 		std::optional<Token::ID> label;
 		bool hasIndex;
 		evo::SmallVector<Param> params{};
@@ -513,6 +517,7 @@ namespace pcit::panther::sema{
 	struct ForUnroll{
 		using ID = ForUnrollID;
 
+		Token::ID forToken;
 		std::optional<Token::ID> label;
 		evo::SmallVector<StmtBlock> stmtBlocks{};
 	};

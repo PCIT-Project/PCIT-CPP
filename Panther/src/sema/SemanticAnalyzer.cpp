@@ -7271,7 +7271,7 @@ namespace pcit::panther{
 		const AST::Block& while_block = this->source.getASTBuffer().getBlock(instr.while_stmt.block);
 
 		const sema::While::ID sema_while_id = this->context.sema_buffer.createWhile(
-			cond_term_info.getExpr(), while_block.label
+			cond_term_info.getExpr(), instr.while_stmt.keyword, while_block.label
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_while_id);
 
@@ -7729,7 +7729,7 @@ namespace pcit::panther{
 
 
 		const sema::For::ID sema_for_id = this->context.sema_buffer.createFor(
-			std::move(iterables), for_block.label, index_type_id.has_value()
+			std::move(iterables), instr.for_stmt.keyword, for_block.label, index_type_id.has_value()
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_id);
 
@@ -7840,7 +7840,7 @@ namespace pcit::panther{
 		const AST::Block& for_block = this->source.getASTBuffer().getBlock(instr.for_stmt.block);
 
 		const sema::ForUnroll::ID sema_for_unroll_id = this->context.sema_buffer.createForUnroll(
-			for_block.label, evo::SmallVector<sema::StmtBlock>(*iterables_size)
+			instr.for_stmt.keyword, for_block.label, evo::SmallVector<sema::StmtBlock>(*iterables_size)
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_unroll_id);
 
@@ -8597,7 +8597,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.stmt_block).isError()){ return Result::ERROR; }
 
-		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope();
+		const sema::BlockScope::ID block_scope_id =
+			this->context.sema_buffer.createBlockScope(instr.stmt_block.openBrace, instr.stmt_block.closeBrace);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
 
 		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];
@@ -10753,7 +10754,9 @@ namespace pcit::panther{
 		}
 
 
-		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope();
+		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope(
+			instr.unsafe_stmt.keyword, this->source.getASTBuffer().getBlock(instr.unsafe_stmt.block).closeBrace
+		);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
 
 		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];

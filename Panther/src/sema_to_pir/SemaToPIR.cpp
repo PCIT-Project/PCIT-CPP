@@ -2543,6 +2543,21 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::BLOCK_SCOPE: {
 				const sema::BlockScope& block_scope = this->context.getSemaBuffer().getBlockScope(stmt.blockScopeID());
 
+				if(this->data.getConfig().includeDebugInfo){
+					const Location location =
+						this->get_location(Diagnostic::Location::get(block_scope.openBrace, *this->current_source));
+
+					const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						location.line_number,
+						location.collumn_number
+					);
+
+					this->local_scopes.emplace(block_meta_subscope);
+				}
+
 				this->push_scope_level();
 
 				for(const sema::Stmt& block_stmt : block_scope.block){
@@ -2554,6 +2569,10 @@ namespace pcit::panther{
 				}
 
 				this->pop_scope_level();
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->local_scopes.pop();
+				}
 			} break;
 
 			case sema::Stmt::Kind::CONDITIONAL: {
@@ -2765,11 +2784,37 @@ namespace pcit::panther{
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("WHILE.END"));
 
 
+				if(this->data.getConfig().includeDebugInfo){
+					const Location location =
+						this->get_location(Diagnostic::Location::get(while_stmt.whileToken, *this->current_source));
+
+					const pir::meta::Subscope::ID while_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						location.line_number,
+						location.collumn_number
+					);
+
+					this->local_scopes.emplace(while_meta_subscope);
+
+					this->handler.pushSourceLocation(
+						pir::meta::SourceLocation(
+							while_meta_subscope, location.line_number, location.collumn_number
+						)
+					);
+				}
+
+
 				this->handler.createJump(cond_block);
 
 				this->handler.setTargetBasicBlock(cond_block);
 				const pir::Expr cond_value = this->get_expr_register(while_stmt.cond);
 				this->handler.createBranch(cond_value, body_block, end_block);
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->handler.popSourceLocation();
+				}
 
 				this->handler.setTargetBasicBlock(body_block);
 
@@ -2792,10 +2837,36 @@ namespace pcit::panther{
 
 				this->pop_scope_level();
 				this->handler.setTargetBasicBlock(end_block);
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->local_scopes.pop();
+				}
 			} break;
 
 			case sema::Stmt::Kind::FOR: {
 				const sema::For& for_stmt = this->context.getSemaBuffer().getFor(stmt.forID());
+
+				if(this->data.getConfig().includeDebugInfo){
+					const Location location =
+						this->get_location(Diagnostic::Location::get(for_stmt.forToken, *this->current_source));
+
+					const pir::meta::Subscope::ID for_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						location.line_number,
+						location.collumn_number
+					);
+
+					this->local_scopes.emplace(for_meta_subscope);
+
+					this->handler.pushSourceLocation(
+						pir::meta::SourceLocation(
+							for_meta_subscope, location.line_number, location.collumn_number
+						)
+					);
+				}
+
 
 				auto index = std::optional<pir::Expr>();
 				auto index_type = std::optional<pir::Type>();
@@ -2951,10 +3022,39 @@ namespace pcit::panther{
 							.on_break     = false,
 						}
 					);
+
+
+					if(this->data.getConfig().includeDebugInfo){
+						const sema::For::Param& param = for_stmt.params[0];
+
+						this->handler.createMetaLocalVar(
+							std::string(this->current_source->getTokenBuffer()[param.ident].getString()),
+							*index,
+							*this->get_type<false, true>(param.typeID).meta_type_id
+						);
+					}
 				}
 
 				for(size_t i = 0; const sema::For::Iterable& iterable : for_stmt.iterables){
 					EVO_DEFER([&](){ i += 1; });
+
+
+					if(this->data.getConfig().includeDebugInfo){
+						const sema::For::Param& param = for_stmt.params[i + size_t(for_stmt.hasIndex)];
+
+						this->handler.createMetaLocalVar(
+							std::string(this->current_source->getTokenBuffer()[param.ident].getString()),
+							value_params[i],
+							this->data.get_or_create_meta_reference_qualified_type(
+								param.typeID,
+								this->module,
+								this->context.getTypeManager().printType(param.typeID, this->context) + "&",
+								*this->get_type<false, true>(param.typeID).meta_type_id,
+								pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
+							)
+						);
+					}
+
 
 					//////////////////
 					// get
@@ -3006,6 +3106,12 @@ namespace pcit::panther{
 				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
 					this->delete_expr(iterator_alloca, iterator_type_ids[i]);
 				}
+
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->handler.popSourceLocation();
+					this->local_scopes.pop();
+				}
 			} break;
 
 			case sema::Stmt::Kind::FOR_UNROLL: {
@@ -3029,8 +3135,30 @@ namespace pcit::panther{
 				}();
 
 
+				const std::optional<Location> location = [&]() -> std::optional<Location> {
+					if(this->data.getConfig().includeDebugInfo){
+						return this->get_location(
+							Diagnostic::Location::get(for_unroll_stmt.forToken, *this->current_source)
+						);
+					}else{
+						return std::nullopt;
+					}
+				}();
+
 				for(size_t i = 0; const sema::StmtBlock& stmt_block : for_unroll_stmt.stmtBlocks){
 					EVO_DEFER([&](){ i += 1; });
+
+					if(this->data.getConfig().includeDebugInfo){
+						const pir::meta::Subscope::ID for_meta_subscope = this->module.createMetaSubscope(
+							std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+							this->get_current_meta_local_scope(),
+							*this->current_source->getPIRMetaFileID(),
+							location->line_number,
+							location->collumn_number
+						);
+
+						this->local_scopes.emplace(for_meta_subscope);
+					}
 
 
 					this->push_scope_level(
@@ -3049,6 +3177,10 @@ namespace pcit::panther{
 					this->pop_scope_level();
 
 					this->handler.setTargetBasicBlock(basic_blocks[i]);
+
+					if(this->data.getConfig().includeDebugInfo){
+						this->local_scopes.pop();
+					}
 				}
 			} break;
 
@@ -3150,7 +3282,8 @@ namespace pcit::panther{
 							this->handler.setTargetBasicBlock(invalid_block);
 							this->create_panic("Invalid switch value");
 
-							this->handler.setTargetBasicBlock(start_basic_block); // probably not needed, but just in case
+							// probably not needed, but just in case
+							this->handler.setTargetBasicBlock(start_basic_block);
 
 							return invalid_block;
 							

@@ -480,6 +480,7 @@ namespace pcit::pir{
 		Expr src;
 		Expr numBytes;
 		bool isVolatile;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 	struct Memset{
@@ -487,6 +488,7 @@ namespace pcit::pir{
 		Expr value;
 		Expr numBytes;
 		bool isVolatile;
+		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
 
