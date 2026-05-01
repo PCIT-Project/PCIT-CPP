@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.292.1"></a>
+## v0.0.292.1
+
+### Panther
+- Fixed semantic analysis of calling of variadic functions
+- Fixed semantic analysis of `for` loop with `#unroll` without an index
+
+
+<!---------------------------------->
 <a name="v0.0.292.0"></a>
 ## v0.0.292.0
 

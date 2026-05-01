@@ -111,8 +111,6 @@ namespace pcit::panther::sema{
 
 
 	auto TemplatedFunc::createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
-		evo::debugAssert(args.empty() == false, "Cannot have empty args");
-
 		const auto lock = std::scoped_lock(this->instantiation_lock);
 
 		auto find = this->instantiation_map.find(args);

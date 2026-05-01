@@ -334,9 +334,6 @@ namespace pcit::panther{
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable()),
 				};
 
-				if(func_type.returnTypes.size() == 1 && func_type.hasErrorReturn() == false){
-					attributes.emplace_back(pir::Parameter::Attribute::PtrRVO(reference_type));
-				}
 
 				if(this->data.getConfig().useReadableNames){
 					const Token::ID param_ident = func.returnParamIdents[return_params.size() - 1];

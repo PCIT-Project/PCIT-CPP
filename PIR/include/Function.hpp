@@ -32,7 +32,6 @@ namespace pcit::pir{
 			struct AttributePtrDereferencable{ uint64_t size; };
 			struct AttributePtrReadOnly{};
 			struct AttributePtrWritable{};
-			struct AttributePtrRVO{ Type type; }; // only 1 may be used
 
 		public:
 			struct Attribute : public evo::Variant<
@@ -40,15 +39,13 @@ namespace pcit::pir{
 				AttributePtrNonNull,
 				AttributePtrDereferencable,
 				AttributePtrReadOnly,
-				AttributePtrWritable,
-				AttributePtrRVO
+				AttributePtrWritable
 			>{
 				using PtrNoAlias        = AttributePtrNoAlias;
 				using PtrNonNull        = AttributePtrNonNull;
 				using PtrDereferencable = AttributePtrDereferencable;
 				using PtrReadOnly       = AttributePtrReadOnly;
 				using PtrWritable       = AttributePtrWritable;
-				using PtrRVO            = AttributePtrRVO;
 			};
 
 		public:

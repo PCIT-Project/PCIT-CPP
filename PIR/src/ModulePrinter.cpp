@@ -222,11 +222,6 @@ namespace pcit::pir{
 					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrWritable>()){
 						this->printer.printRed(" #ptrWritable");
 
-					}else if constexpr(std::is_same<Attribute, pir::Parameter::Attribute::PtrRVO>()){
-						this->printer.printRed(" #ptrRVO");
-						this->printer.print("(");
-						this->printType(attribute.type);
-						this->printer.print(")");
 					}
 				});
 			}

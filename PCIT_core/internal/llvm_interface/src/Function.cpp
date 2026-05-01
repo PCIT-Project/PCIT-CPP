@@ -54,10 +54,6 @@ namespace pcit::llvmint{
 		this->native()->addAttr(llvm::Attribute::AttrKind::Writable);
 	}
 
-	auto Argument::setStructRet(const Type& type) -> void {
-		this->native()->addAttr(llvm::Attribute::getWithStructRetType(this->native()->getContext(), type.native()));
-	}
-
 
 
 

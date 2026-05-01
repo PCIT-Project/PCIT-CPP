@@ -36,7 +36,6 @@ namespace pcit::llvmint{
 			auto setReadOnly() -> void;
 			auto setWriteOnly() -> void;
 			auto setWritable() -> void;
-			auto setStructRet(const Type& type) -> void;
 
 
 			[[nodiscard]] explicit operator Value() const;

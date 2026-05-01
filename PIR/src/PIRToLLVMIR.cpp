@@ -679,8 +679,6 @@ namespace pcit::pir{
 					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrWritable>()){
 						arg.setWritable();
 
-					}else if constexpr(std::is_same<Attribute, Parameter::Attribute::PtrRVO>()){
-						arg.setStructRet(this->get_type<ADD_WEAK_DEPS>(attribute.type));
 					}
 				});
 			}

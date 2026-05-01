@@ -1,19 +1,18 @@
 
 
-func iter = (arr: [UInt:*]) -> Void {
-	for(arr) [i: USize; value: UInt] {
-		const v1: UInt = 12;
-		const v2: UInt = 12;
+func sum = (nums: UI8...) -> (output: UI8) {
+	output = 0;
+
+	for(nums) [_; value: UI8] #unroll {
+		output += value;
 	}
+
+	return...;
 }
 
 
 
 func entry = () #entry -> UI8 {
-	var arr = new [UInt:3][1, 2, 3];
-
-	iter(arr);
-
-	return 0;
+	return sum(1, 2, 3);
 }
 

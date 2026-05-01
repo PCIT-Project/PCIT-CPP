@@ -7806,10 +7806,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(instr.index_type_id.has_value()){
-			if(this->context.getTypeManager().isIntegral(this->get_type(*instr.index_type_id)) == false){
-				this->emit_error("Index of [for] loop must be integral", instr.for_stmt.index->type);
-			}
+		if(
+			instr.index_type_id.has_value()
+			&& this->context.getTypeManager().isIntegral(this->get_type(*instr.index_type_id)) == false
+		){
+			this->emit_error("Index of [for] loop must be integral", instr.for_stmt.index->type);
 			return Result::ERROR;
 		}
 
@@ -27275,7 +27276,7 @@ namespace pcit::panther{
 				);
 			}
 
-			if(got_num_args > max_num_args){
+			if(templated_func.isVariadic == false && got_num_args > max_num_args){
 				return evo::Unexpected<TemplateOverloadMatchFail>(
 					TemplateOverloadMatchFail(
 						TemplateOverloadMatchFail::TooManyArgs(max_num_args, got_num_args, min_num_args != max_num_args)
