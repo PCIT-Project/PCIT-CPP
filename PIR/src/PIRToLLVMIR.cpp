@@ -475,8 +475,11 @@ namespace pcit::pir{
 
 
 	auto PIRToLLVMIR::lower_meta_source_location(meta::SourceLocation source_location) -> llvmint::DIBuilder::Location {
+		// column is not included because it seems to break RADDbg
+		// 		(ex: if the func has the return on the same line as the ident, stepping through causes execution stops)
+		// In addition, clang doesn't seem to include collumn information either
 		return this->di_builder.createSourceLocation(
-			this->get_meta_local_scope(source_location.scope), source_location.line, source_location.collumn
+			this->get_meta_local_scope(source_location.scope), source_location.line, 0
 		);
 	}
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.293.1"></a>
+## v0.0.293.1
+
+### PIR
+- Removed lowering of column in source location meta info to improve compatibility
+
+
+<!---------------------------------->
 <a name="v0.0.293.0"></a>
 ## v0.0.293.0
 
