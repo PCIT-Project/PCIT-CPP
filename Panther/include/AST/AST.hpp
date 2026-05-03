@@ -344,6 +344,7 @@ namespace pcit::panther::AST{
 
 	struct Switch{
 		struct Case{
+			Token::ID token;
 			evo::SmallVector<Node> values; // empty if `else`
 			Node block;
 		};

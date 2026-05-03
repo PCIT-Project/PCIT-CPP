@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.293.0"></a>
+## v0.0.293.0
+
+### Panther
+- Added debug info for switch statements
+- Fixed deferred execution within a defer block
+
+
+<!---------------------------------->
 <a name="v0.0.292.1"></a>
 ## v0.0.292.1
 

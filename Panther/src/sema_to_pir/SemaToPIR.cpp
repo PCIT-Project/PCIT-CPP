@@ -3301,6 +3301,22 @@ namespace pcit::panther{
 
 						this->handler.setTargetBasicBlock(basic_blocks[i]);
 
+						if(this->data.getConfig().includeDebugInfo){
+							const Location location = this->get_location(
+								Diagnostic::Location::get(switch_case.token, *this->current_source)
+							);
+
+							const pir::meta::Subscope::ID for_meta_subscope = this->module.createMetaSubscope(
+								std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+								this->get_current_meta_local_scope(),
+								*this->current_source->getPIRMetaFileID(),
+								location.line_number,
+								location.collumn_number
+							);
+
+							this->local_scopes.emplace(for_meta_subscope);
+						}
+
 						this->push_scope_level();
 
 						for(const sema::Stmt& block_stmt : switch_case.stmtBlock){
@@ -3313,6 +3329,10 @@ namespace pcit::panther{
 						}
 
 						this->pop_scope_level();
+
+						if(this->data.getConfig().includeDebugInfo){
+							this->local_scopes.pop();
+						}
 
 						i += 1;
 					}
@@ -13863,8 +13883,34 @@ namespace pcit::panther{
 				if constexpr(std::is_same<ItemType, sema::Defer::ID>()){
 					const sema::Defer& sema_defer = this->context.getSemaBuffer().getDefer(item);
 
+					if(this->data.getConfig().includeDebugInfo){
+						const Location location =
+							this->get_location(Diagnostic::Location::get(sema_defer.deferToken, *this->current_source));
+
+						const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+							std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+							this->get_current_meta_local_scope(),
+							*this->current_source->getPIRMetaFileID(),
+							location.line_number,
+							location.collumn_number
+						);
+
+						this->local_scopes.emplace(block_meta_subscope);
+					}
+
+
+					this->push_scope_level();
+
 					for(const sema::Stmt& stmt : sema_defer.block){
 						this->lower_stmt(stmt);
+					}
+
+					this->output_defers_for_scope_level<DeferTarget::SCOPE_END>(this->scope_levels.back());
+
+					this->pop_scope_level();
+
+					if(this->data.getConfig().includeDebugInfo){
+						this->local_scopes.pop();
 					}
 
 				}else if constexpr(std::is_same<ItemType, std::function<void()>>()){

@@ -1,18 +1,51 @@
-
-
-func sum = (nums: UI8...) -> (output: UI8) {
-	output = 0;
-
-	for(nums) [_; value: UI8] #unroll {
-		output += value;
+type NonTrivial = struct {
+	func new = () -> (output: NonTrivial) {
+		return...;
 	}
-
-	return...;
+	func delete = (this mut) -> Void {
+		return;
+	}
 }
 
 
 
+
+
 func entry = () #entry -> UI8 {
-	return sum(1, 2, 3);
+	@breakpoint();
+
+	defer{
+		var nt1 = new NonTrivial();
+		var nt2 = new NonTrivial();
+	}
+
+
+	const switch_cond: UInt = 2;
+
+	switch(switch_cond){
+		case(0){
+			var v1: UInt = 1;
+			var v2: UInt = 2;
+		}
+
+		case(1){
+			var v3: UInt = 3;
+			var v4: UInt = 4;
+		}
+
+		case(2){
+			var v5: UInt = 5;
+			var v6: UInt = 6;
+		}
+
+		else{
+			var v7: UInt = 7;
+			var v8: UInt = 8;
+		}
+	}
+
+	var v9: UInt = 9;
+
+	return 0;
 }
 

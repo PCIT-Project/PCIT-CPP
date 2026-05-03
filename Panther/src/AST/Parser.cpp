@@ -1288,7 +1288,7 @@ namespace pcit::panther{
 		while(not_at_end_of_switch){
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_CASE: {
-					this->reader.skip();
+					const Token::ID case_token = this->reader.next();
 
 					if(this->expect_token(Token::lookupKind("("), "before value(s) in switch case").isError()){
 						return Result::Code::ERROR;
@@ -1329,26 +1329,26 @@ namespace pcit::panther{
 						return Result::Code::ERROR;
 					}
 
-					cases.emplace_back(std::move(values), block.value());
+					cases.emplace_back(case_token, std::move(values), block.value());
 				} break;
 
 				case Token::Kind::KEYWORD_ELSE: {
+					const Token::ID else_token = this->reader.next();
+
 					if(has_else_case){
 						this->context.emitError(
 							"Else block was already defined in this [switch] statement",
-							Diagnostic::Location::get(this->reader.peek(), this->source)
+							Diagnostic::Location::get(this->reader.peek(-1), this->source)
 						);
 						return Result::Code::ERROR;
 					}
-
-					this->reader.skip();
 
 					const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 					if(this->check_result(block, "else condition statement block in switch statement").isError()){
 						return Result::Code::ERROR;
 					}
 
-					cases.emplace_back(evo::SmallVector<AST::Node>(), block.value());
+					cases.emplace_back(else_token, evo::SmallVector<AST::Node>(), block.value());
 					has_else_case = true;
 				} break;
 

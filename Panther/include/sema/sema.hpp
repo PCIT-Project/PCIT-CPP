@@ -527,7 +527,8 @@ namespace pcit::panther::sema{
 		using ID = SwitchID;
 
 		struct Case{
-			evo::SmallVector<Expr> values; // empty if `else`
+			Token::ID token;
+			evo::SmallVector<Expr> values{}; // empty if `else`
 			StmtBlock stmtBlock{};
 		};
 
@@ -548,6 +549,7 @@ namespace pcit::panther::sema{
 	struct Defer{
 		using ID = DeferID;
 
+		Token::ID deferToken;
 		bool isErrorDefer;
 		StmtBlock block{};
 	};

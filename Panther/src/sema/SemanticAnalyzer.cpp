@@ -8193,10 +8193,17 @@ namespace pcit::panther{
 			}
 		}();
 
+
+		auto cases = evo::SmallVector<sema::Switch::Case>();
+		cases.reserve(instr.switch_stmt.cases.size());
+		for(const AST::Switch::Case& switch_case : instr.switch_stmt.cases){
+			cases.emplace_back(switch_case.token);
+		}
+
 		const sema::Switch::ID created_switch_id = this->context.sema_buffer.createSwitch(
 			cond_type_id,
 			cond.getExpr(),
-			evo::SmallVector<sema::Switch::Case>(instr.switch_stmt.cases.size()),
+			std::move(cases),
 			switch_kind
 		);
 
@@ -8576,7 +8583,8 @@ namespace pcit::panther{
 		}
 
 
-		const sema::Defer::ID sema_defer_id = this->context.sema_buffer.createDefer(is_error_defer);
+		const sema::Defer::ID sema_defer_id =
+			this->context.sema_buffer.createDefer(instr.defer_stmt.keyword, is_error_defer);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_defer_id);
 
 		sema::Defer& sema_defer = this->context.sema_buffer.defers[sema_defer_id];
