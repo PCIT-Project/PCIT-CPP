@@ -1526,7 +1526,7 @@ namespace pcit::panther{
 		this->data.create_struct(struct_id, new_type);
 
 
-		if(this->data.config.includeDebugInfo && this->current_source != nullptr){
+		if(this->data.config.includeDebugInfo){
 			const Location location = this->get_location(Diagnostic::Location::get(struct_type, this->context));
 
 			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
@@ -4600,6 +4600,22 @@ namespace pcit::panther{
 
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("BLOCK_EXPR.END");
 
+
+				if(this->data.getConfig().includeDebugInfo){
+					const Location location =
+						this->get_location(Diagnostic::Location::get(block_expr.label, *this->current_source));
+
+					const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						location.line_number,
+						location.collumn_number
+					);
+
+					this->local_scopes.emplace(block_meta_subscope);
+				}
+
 				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
 					auto label_output_locations = evo::SmallVector<pir::Expr>();
 					const pir::Type output_type = this->get_type<false, false>(block_expr.outputs[0].typeID).type;
@@ -4651,6 +4667,11 @@ namespace pcit::panther{
 				}
 
 				this->handler.setTargetBasicBlock(end_block);
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->local_scopes.pop();
+				}
+
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
@@ -12696,14 +12717,15 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::get_current_meta_scope() const -> pir::meta::Scope {
-		return *this->current_source->getPIRMetaFileID();
+		if(this->local_scopes.empty() == false){
+			return this->local_scopes.top().visit([&](const auto& ls){ return pir::meta::Scope(ls); });
+		}
+		if(this->current_source != nullptr){ return *this->current_source->getPIRMetaFileID(); }
+
+		return this->data.get_builtin_meta_file(this->module);
 	}
 
 	auto SemaToPIR::get_current_meta_local_scope() const -> pir::meta::LocalScope {
-		// return *this->module.getFunction(
-		// 	this->current_func_info->pir_ids[this->in_param_bitmap].as<pir::Function::ID>()
-		// ).getMetaID();
-
 		return this->local_scopes.top();
 	}
 

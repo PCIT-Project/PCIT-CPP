@@ -123,7 +123,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
 
-		.includeDebugInfo = false, // TODO(FUTURE): set to true
+		.includeDebugInfo = true,
 
 		.numThreads = cmd_args_config.numBuildThreads,
 	};
@@ -228,7 +228,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.workingDirectory = cmd_args_config.workingDirectory,
 
 		.includeDebugInfo = config.addDebugInfo,
-		.numThreads = config.numThreads,
+		.numThreads       = config.numThreads,
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){

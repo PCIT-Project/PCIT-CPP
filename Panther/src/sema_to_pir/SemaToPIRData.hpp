@@ -440,6 +440,23 @@ namespace pcit::panther{
 				return this->num_meta_subscopes.fetch_add(1);
 			}
 
+
+				
+			[[nodiscard]] auto get_builtin_meta_file(pir::Module& module) -> pir::meta::File::ID {
+				const auto lock = std::scoped_lock(this->builtin_meta_file_lock);
+
+				if(this->builtin_meta_file.has_value() == false){
+					this->builtin_meta_file = module.createMetaFile(
+						"PTHR.file-builtin",
+						"",
+						pir::meta::Language::PANTHER,
+						std::format("PCIT-CPP v{}", core::VERSION)
+					);
+				}
+				
+				return *this->builtin_meta_file;
+			}
+
 	
 		private:
 			Config config;
@@ -503,6 +520,9 @@ namespace pcit::panther{
 
 			std::unordered_map<BaseType::Union::ID, pir::meta::Type> meta_union_types{};
 			mutable evo::SpinLock meta_union_types_lock{};
+
+			std::optional<pir::meta::File::ID> builtin_meta_file{};
+			mutable evo::SpinLock builtin_meta_file_lock{};
 
 
 			friend class SemaToPIR;
