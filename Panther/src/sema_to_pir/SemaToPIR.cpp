@@ -950,7 +950,7 @@ namespace pcit::panther{
 			}
 
 
-			if(sema_func.hasNamedErrors()){
+			if(func_type.errorTypes.empty() == false){
 				const size_t abi_index = func.getParameters().size() - 1;
 				const pir::Parameter& pir_param = func.getParameters()[abi_index];
 
@@ -964,7 +964,7 @@ namespace pcit::panther{
 
 				this->param_allocas.emplace_back(param_alloca);
 
-				if(this->data.config.includeDebugInfo){
+				if(this->data.config.includeDebugInfo && func_type.hasNamedErrorReturns){
 					const Source::Location param_location = Diagnostic::Location::get(
 						sema_func.errorParamIdents.front(), *this->current_source
 					).as<Source::Location>();

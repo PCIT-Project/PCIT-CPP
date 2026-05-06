@@ -1,13 +1,14 @@
 
-func errors = () -> Void <Void> {
-	error;
+func errors = () -> Void <UInt> {
+	error 12;
 }
 
 
 func entry = () #entry -> UI8 {
 	var v1: UInt = 1;
 
-	try errors() else {
+	try errors() else<val> {
+		var val_copy: UInt = copy val;
 		var v2: UInt = 2;
 		var v3: UInt = 3;
 	};
