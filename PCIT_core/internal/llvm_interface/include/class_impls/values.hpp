@@ -172,6 +172,7 @@ namespace pcit::llvmint{
 
 			auto setAlignment(unsigned alignment) -> void;
 			auto setInitializer(Constant value) -> void;
+			auto addDebugInfo(DIBuilder::GlobalVariableExpression global_var_expr) -> void;
 
 			[[nodiscard]] auto getType() const -> Type;
 

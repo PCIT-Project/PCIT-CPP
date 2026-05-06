@@ -37,6 +37,7 @@ namespace pcit::pir{
 			auto printBasicBlock(const class BasicBlock& basic_block) -> void;
 			auto printType(const class Type& type) -> void;
 
+
 		private:
 			auto print_expr(Expr expr) -> void;
 			auto print_expr_stmt(Expr expr) -> void;
@@ -50,8 +51,10 @@ namespace pcit::pir{
 			auto print_meta_array_type(const meta::ArrayType& array_type) -> void;
 			auto print_meta_enum_type(const meta::EnumType& enum_type) -> void;
 			auto print_meta_function(const meta::Function& function) -> void;
+			auto print_meta_global_variable(const meta::GlobalVariable& global_variable) -> void;
 			auto print_meta_type_id(meta::Type meta_type) -> void;
 			auto print_meta_file_id(meta::File::ID meta_file_id) -> void;
+			auto print_meta_global_variable_id(meta::GlobalVariable::ID meta_global_variable_id) -> void;
 			auto print_source_location(const std::optional<meta::SourceLocation>& source_location) -> void;
 			auto print_meta_scope(const meta::Scope& scope) -> void;
 			auto print_meta_local_scope(const meta::LocalScope& scope) -> void;

@@ -26,6 +26,8 @@ namespace pcit::llvmint{
 			struct Type { llvm::DIType* type; };
 			struct Scope { llvm::DIScope* scope; };
 
+			struct GlobalVariableExpression { llvm::DIGlobalVariableExpression* globalVariableExpression; };
+
 
 			//////////////////
 			// type
@@ -208,6 +210,16 @@ namespace pcit::llvmint{
 			[[nodiscard]] auto createEnumerator(std::string_view name, const core::GenericInt& value, bool is_unsigned)
 				-> Enumerator;
 
+
+			auto createGlobalVariableExpression(
+				Scope scope,
+				std::string_view name,
+				std::string_view linkage_name,
+				File file,
+				uint32_t line_number,
+				Type type,
+				bool is_local_to_unit
+			) -> GlobalVariableExpression;
 
 
 			auto addLocalVariable(

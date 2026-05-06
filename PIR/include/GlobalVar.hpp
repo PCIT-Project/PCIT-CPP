@@ -17,6 +17,8 @@
 #include "./enums.hpp"
 #include "./Type.hpp"
 #include "./Expr.hpp"
+#include "./meta.hpp"
+
 
 namespace pcit::pir{
 
@@ -81,6 +83,8 @@ namespace pcit::pir{
 		const Linkage linkage;
 		Value value;
 		const bool isConstant;
+		std::optional<meta::GlobalVariable::ID> metaID;
+		
 
 		// For lookup in Module
 		struct ID : public core::UniqueID<uint32_t, struct ID> {

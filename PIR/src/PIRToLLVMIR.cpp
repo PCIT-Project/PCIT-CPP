@@ -53,7 +53,7 @@ namespace pcit::pir{
 				this->lower_meta_enum_type(meta::EnumType::ID(i));
 			}
 
-			// functions are done with the corresponding declaration
+			// functions and globals are done with the corresponding declaration
 		}
 
 		for(const StructType& struct_type : this->module.getStructTypeIter()){
@@ -549,6 +549,23 @@ namespace pcit::pir{
 			if(this->global_vars.contains(&global)){ return; }
 		}
 
+
+		auto llvm_meta_global_var = std::optional<llvmint::DIBuilder::GlobalVariableExpression>();
+		if(this->add_debug_info && global.metaID.has_value()){
+			const meta::GlobalVariable& meta_global_variable = this->module.getMetaGlobalVariable(*global.metaID);
+
+			llvm_meta_global_var = this->di_builder.createGlobalVariableExpression(
+				this->get_meta_scope(meta_global_variable.scopeWhereDefined),
+				global.name,
+				meta_global_variable.unmangledName,
+				this->meta_files.at(meta_global_variable.fileID),
+				meta_global_variable.lineNumber,
+				this->get_meta_type(meta_global_variable.type),
+				meta_global_variable.isLocalToUnit
+			);
+		}
+
+
 		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
@@ -556,6 +573,10 @@ namespace pcit::pir{
 		);
 
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));
+
+		if(llvm_meta_global_var.has_value()){
+			llvm_global_var.addDebugInfo(*llvm_meta_global_var);
+		}
 
 		this->global_vars.emplace(&global, llvm_global_var);
 	}

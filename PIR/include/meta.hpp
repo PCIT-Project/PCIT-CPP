@@ -155,6 +155,19 @@ namespace pcit::pir::meta{
 	};
 
 
+	struct GlobalVariable{
+		using ID = GlobalVariableID;
+
+		std::string metaName;
+		std::string unmangledName;
+		meta::Type type;
+		bool isLocalToUnit;
+		File::ID fileID;
+		Scope scopeWhereDefined;
+		uint32_t lineNumber;
+	};
+
+
 	struct SourceLocation{
 		LocalScope scope;
 		uint32_t line;

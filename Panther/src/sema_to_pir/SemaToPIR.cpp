@@ -159,14 +159,37 @@ namespace pcit::panther{
 
 		if(sema_global_var.kind == AST::VarDef::Kind::DEF){ return std::nullopt; }
 
-		const PIRType pir_type = this->get_type<false, false>(*sema_global_var.typeID);
+		const PIRType pir_type = [&]() -> PIRType {
+			if(this->data.getConfig().includeDebugInfo){
+				return this->get_type<false, true>(*sema_global_var.typeID);
+			}else{
+				return this->get_type<false, false>(*sema_global_var.typeID);
+			}
+		}();
+
+
+		auto meta_global_var = std::optional<pir::meta::GlobalVariable::ID>();
+		if(this->data.getConfig().includeDebugInfo){
+			const Location location = this->get_location(Diagnostic::Location::get(sema_global_var, this->context));
+
+			meta_global_var = this->module.createMetaGlobalVariable(
+				this->mangle_name(global_var_id),
+				this->get_unmangled_global_name(sema_global_var),
+				*pir_type.meta_type_id,
+				true,
+				location.meta_file_id,
+				location.meta_file_id,
+				location.line_number
+			);
+		}
 
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			pir_type.type,
 			pir::Linkage::INTERNAL,
 			pir::GlobalVar::NoValue{},
-			sema_global_var.kind == AST::VarDef::Kind::CONST
+			sema_global_var.kind == AST::VarDef::Kind::CONST,
+			meta_global_var
 		);
 
 		this->data.create_global_var(global_var_id, new_global_var);
@@ -2020,6 +2043,19 @@ namespace pcit::panther{
 
 				this->handler.setTargetBasicBlock(if_error_block);
 
+
+				if(this->data.getConfig().includeDebugInfo){
+					const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						try_else.line,
+						try_else.collumn
+					);
+
+					this->local_scopes.emplace(block_meta_subscope);
+				}
+
 				this->push_scope_level();
 
 				for(const sema::Stmt& else_block_stmt : try_else.elseBlock){
@@ -2027,6 +2063,10 @@ namespace pcit::panther{
 				}
 
 				this->pop_scope_level();
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->local_scopes.pop();
+				}
 
 				const pir::BasicBlock::ID if_error_block_end = this->handler.getTargetBasicBlock().getID();
 
@@ -2164,6 +2204,19 @@ namespace pcit::panther{
 
 				this->handler.setTargetBasicBlock(if_error_block);
 
+
+				if(this->data.getConfig().includeDebugInfo){
+					const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+						this->get_current_meta_local_scope(),
+						*this->current_source->getPIRMetaFileID(),
+						try_else_interface.line,
+						try_else_interface.collumn
+					);
+
+					this->local_scopes.emplace(block_meta_subscope);
+				}
+
 				this->push_scope_level();
 
 				for(const sema::Stmt& else_block_stmt : try_else_interface.elseBlock){
@@ -2171,6 +2224,11 @@ namespace pcit::panther{
 				}
 
 				this->pop_scope_level();
+
+				if(this->data.getConfig().includeDebugInfo){
+					this->local_scopes.pop();
+				}
+
 
 				const pir::BasicBlock::ID if_error_block_end = this->handler.getTargetBasicBlock().getID();
 
@@ -12895,6 +12953,15 @@ namespace pcit::panther{
 		}
 	}
 
+
+	auto SemaToPIR::get_unmangled_global_name(const sema::GlobalVar& global_var) const -> std::string {
+		const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
+
+		std::string output = this->get_parent_name<false>(std::nullopt, global_var.sourceID);
+		output += source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString();
+
+		return output;
+	}
 
 
 

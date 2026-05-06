@@ -321,6 +321,7 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto get_unmangled_func_name(const sema::Func& func) const -> std::string;
+			[[nodiscard]] auto get_unmangled_global_name(const sema::GlobalVar& global_var) const -> std::string;
 			[[nodiscard]] auto get_unmangled_struct_name(BaseType::Struct::ID struct_id) const -> std::string;
 			[[nodiscard]] auto get_unmangled_union_name(BaseType::Union::ID union_id) const -> std::string;
 

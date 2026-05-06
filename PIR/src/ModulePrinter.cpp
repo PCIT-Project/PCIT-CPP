@@ -81,6 +81,7 @@ namespace pcit::pir{
 		const bool meta_array_type_not_empty = this->get_module().getMetaArrayTypeIter().empty() == false;
 		const bool meta_enum_type_not_empty = this->get_module().getMetaEnumTypeIter().empty() == false;
 		const bool meta_function_not_empty = this->get_module().getMetaFunctionIter().empty() == false;
+		const bool meta_global_variable_not_empty = this->get_module().getMetaGlobalVariableIter().empty() == false;
 		const bool meta_qualified_type_not_empty = this->get_module().getMetaQualifiedTypeIter().empty() == false;
 		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
 		const bool meta_file_not_empty = this->get_module().getMetaFileIter().empty() == false;
@@ -93,6 +94,7 @@ namespace pcit::pir{
 			| meta_array_type_not_empty
 			| meta_enum_type_not_empty
 			| meta_function_not_empty
+			| meta_global_variable_not_empty
 			| meta_qualified_type_not_empty
 			| meta_basic_type_not_empty
 			| meta_file_not_empty
@@ -132,6 +134,13 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::Function& meta_function : this->get_module().getMetaFunctionIter()){
 					this->print_meta_function(meta_function);
+				}
+			}
+
+			if(meta_global_variable_not_empty){
+				this->printer.println();
+				for(const meta::GlobalVariable& meta_global_variable : this->get_module().getMetaGlobalVariableIter()){
+					this->print_meta_global_variable(meta_global_variable);
 				}
 			}
 
@@ -373,6 +382,11 @@ namespace pcit::pir{
 		if(global_var.value.is<GlobalVar::NoValue>() == false){
 			this->printer.printRed("= ");
 			this->printGlobalVarValue(global_var.value);
+		}
+
+		if(global_var.metaID.has_value()){
+			this->printer.print(" ");
+			this->print_meta_global_variable_id(*global_var.metaID);
 		}
 
 		this->printer.println();
@@ -2521,6 +2535,55 @@ namespace pcit::pir{
 	}
 
 
+
+	auto ModulePrinter::print_meta_global_variable(const meta::GlobalVariable& global_variable) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(global_variable.metaName)){
+			this->printer.printGreen("!{}", global_variable.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(global_variable.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("globalVar ");
+
+		this->printer.print("name");
+		this->printer.printRed(": ");
+		this->printer.printYellow("\"{}\"", global_variable.unmangledName);
+		this->printer.print(", ");
+
+		this->printer.print("type");
+		this->printer.printRed(": ");
+		this->print_meta_type_id(global_variable.type);
+		this->printer.print(", ");
+
+		this->printer.print("isLocal");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(evo::boolStr(global_variable.isLocalToUnit));
+		this->printer.print(", ");
+
+		this->printer.print("sourceFile");
+		this->printer.printRed(": ");
+		this->print_meta_file_id(global_variable.fileID);
+		this->printer.print(", ");
+
+		this->printer.print("scope");
+		this->printer.printRed(": ");
+		this->print_meta_scope(global_variable.scopeWhereDefined);
+		this->printer.print(", ");
+
+		this->printer.print("line");
+		this->printer.printRed(": ");
+		this->printer.printMagenta(std::to_string(global_variable.lineNumber));
+
+		this->printer.println("}");
+	}
+
+
+
+
 	auto ModulePrinter::print_meta_type_id(meta::Type meta_type) -> void {
 		const std::string_view name = meta_type.visit([&](auto id) -> std::string_view {
 			using MetaIDType = std::decay_t<decltype(id)>;
@@ -2558,6 +2621,17 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_meta_file_id(meta::File::ID meta_file_id) -> void {
 		const std::string_view name = this->reader.getModule().getMetaFile(meta_file_id).metaName;
+
+		if(isStandardName(name)){
+			this->printer.print("!{}", name);
+		}else{
+			this->printer.print("!");
+			this->print_non_standard_name(name, false);
+		}
+	}
+
+	auto ModulePrinter::print_meta_global_variable_id(meta::GlobalVariable::ID meta_global_variable_id) -> void {
+		const std::string_view name = this->reader.getModule().getMetaGlobalVariable(meta_global_variable_id).metaName;
 
 		if(isStandardName(name)){
 			this->printer.print("!{}", name);

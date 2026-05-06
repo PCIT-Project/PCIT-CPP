@@ -1,13 +1,18 @@
 
+func errors = () -> Void <Void> {
+	error;
+}
+
+
 func entry = () #entry -> UI8 {
-	const output: UI8 = {->expr:UI8
-		const v1: Int = 1;
-		const v2: Int = 2;
-		return->expr 12;
+	var v1: UInt = 1;
+
+	try errors() else {
+		var v2: UInt = 2;
+		var v3: UInt = 3;
 	};
 
+	var v4: UInt = 4;
 
-	const v3: Int = 3;
-
-	return copy output;
+	return 0;
 }

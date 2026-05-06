@@ -31,6 +31,7 @@ namespace llvm{
 	class DISubprogram;
 	class DILocation;
 	class DIEnumerator;
+	class DIGlobalVariableExpression;
 
 	
 	class Function;

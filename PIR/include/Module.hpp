@@ -336,7 +336,8 @@ namespace pcit::pir{
 				Type type,
 				Linkage linkage,
 				GlobalVar::Value value,
-				bool isConstant
+				bool is_constant,
+				std::optional<meta::GlobalVariable::ID> meta_id = std::nullopt
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
 					value.visit([&](const auto& member_value) -> void {
@@ -387,7 +388,9 @@ namespace pcit::pir{
 					this->check_global_name_reuse(global_name);
 				#endif
 
-				return this->global_vars.emplace_back(std::move(global_name), type, linkage, value, isConstant);
+				return this->global_vars.emplace_back(
+					std::move(global_name), type, linkage, value, is_constant, meta_id
+				);
 			}
 
 
@@ -1029,6 +1032,63 @@ namespace pcit::pir{
 			}
 
 
+
+			///////////////////////////////////
+			// meta global variables
+
+			[[nodiscard]] auto createMetaGlobalVariable(
+				std::string&& meta_name,
+				std::string&& unmangled_name,
+				meta::Type type,
+				bool is_local_to_unit,
+				meta::File::ID file_id,
+				meta::Scope scope_where_defined,
+				uint32_t line_number
+			) -> meta::GlobalVariable::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_global_variables.emplace_back(
+					std::move(meta_name),
+					std::move(unmangled_name),
+					type,
+					is_local_to_unit,
+					file_id,
+					scope_where_defined,
+					line_number
+				);
+			}
+
+			[[nodiscard]] auto getMetaGlobalVariable(meta::GlobalVariable::ID id) const -> const meta::GlobalVariable& {
+				return this->meta_global_variables[id];
+			}
+
+
+			using MetaGlobalVariableIter =
+				core::SyncLinearStepAlloc<meta::GlobalVariable, meta::GlobalVariableID>::Iter;
+			using MetaGlobalVariableConstIter =
+				core::SyncLinearStepAlloc<meta::GlobalVariable, meta::GlobalVariableID>::ConstIter;
+
+			[[nodiscard]] auto getMetaGlobalVariableIter() -> evo::IterRange<MetaGlobalVariableIter> {
+				return evo::IterRange<MetaGlobalVariableIter>(
+					this->meta_global_variables.begin(), this->meta_global_variables.end()
+				);
+			}
+
+			[[nodiscard]] auto getMetaGlobalVariableIter() const -> evo::IterRange<MetaGlobalVariableConstIter> {
+				return evo::IterRange<MetaGlobalVariableConstIter>(
+					this->meta_global_variables.cbegin(), this->meta_global_variables.cend()
+				);
+			}
+
+			[[nodiscard]] auto getMetaGlobalVariableConstIter() const -> evo::IterRange<MetaGlobalVariableConstIter> {
+				return evo::IterRange<MetaGlobalVariableConstIter>(
+					this->meta_global_variables.cbegin(), this->meta_global_variables.cend()
+				);
+			}
+
+
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
@@ -1169,6 +1229,7 @@ namespace pcit::pir{
 			core::SyncLinearStepAlloc<meta::ArrayType, meta::ArrayType::ID> meta_array_types{};
 			core::SyncLinearStepAlloc<meta::EnumType, meta::EnumType::ID> meta_enum_types{};
 			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
+			core::SyncLinearStepAlloc<meta::GlobalVariable, meta::GlobalVariable::ID> meta_global_variables{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};
 			mutable evo::SpinLock meta_struct_type_lookup_lock{};

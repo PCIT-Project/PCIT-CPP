@@ -65,6 +65,10 @@ namespace pcit::llvmint{
 		this->native()->setInitializer(value.native());
 	}
 
+	auto GlobalVariable::addDebugInfo(DIBuilder::GlobalVariableExpression global_var_expr) -> void {
+		this->native()->addDebugInfo(global_var_expr.globalVariableExpression);
+	}
+
 	auto GlobalVariable::getType() const -> Type {
 		return Type(this->native()->getValueType());
 	}

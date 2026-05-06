@@ -320,6 +320,24 @@ namespace pcit::llvmint{
 
 
 
+	auto DIBuilder::createGlobalVariableExpression(
+		Scope scope,
+		std::string_view name,
+		std::string_view linkage_name,
+		File file,
+		uint32_t line_number,
+		Type type,
+		bool is_local_to_unit
+	) -> GlobalVariableExpression {
+		return GlobalVariableExpression(
+			this->builder->createGlobalVariableExpression(
+				scope.scope, name, linkage_name, file.file, line_number, type.type, is_local_to_unit, true
+			)
+		);
+	}
+
+
+
 
 	auto DIBuilder::addLocalVariable(
 		LocalScope scope,

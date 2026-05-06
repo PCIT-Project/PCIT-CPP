@@ -57,6 +57,10 @@ namespace pcit::pir::meta{
 		using core::UniqueID<uint32_t, FunctionID>::UniqueID;
 	};
 
+	struct GlobalVariableID : public core::UniqueID<uint32_t, struct GlobalVariableID> {
+		using core::UniqueID<uint32_t, GlobalVariableID>::UniqueID;
+	};
+
 
 
 	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID, UnionTypeID, ArrayTypeID, EnumTypeID>;
@@ -130,6 +134,13 @@ namespace std{
 	template<>
 	struct hash<pcit::pir::meta::FunctionID>{
 		auto operator()(pcit::pir::meta::FunctionID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::meta::GlobalVariableID>{
+		auto operator()(pcit::pir::meta::GlobalVariableID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};

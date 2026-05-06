@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.295.0"></a>
+## v0.0.295.0
+
+### Panther
+- Added debug info for globals
+- Added debug info for try/else statement blocks
+
+### PIR
+- Added meta `globalVar`
+
+
+<!---------------------------------->
 <a name="v0.0.294.0"></a>
 ## v0.0.294.0
 
