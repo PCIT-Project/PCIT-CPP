@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.295.4"></a>
+## v0.0.295.4
+
+### Panther
+- Fixed race condition in semantic analysis of single identifier name resolution within the scope of a union or enum, or within the main scope of a struct
+
+
+<!---------------------------------->
 <a name="v0.0.295.3"></a>
 ## v0.0.295.3
 

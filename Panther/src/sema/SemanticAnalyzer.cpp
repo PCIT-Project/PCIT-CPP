@@ -23901,15 +23901,23 @@ namespace pcit::panther{
 
 		auto symbol_proc_namespaces = evo::SmallVector<const SymbolProc::Namespace*>();
 
-		SymbolProc* parent_symbol = this->symbol_proc.parent;
-		while(parent_symbol != nullptr){
-			if(parent_symbol->extra_info.is<SymbolProc::StructInfo>()){
-				symbol_proc_namespaces.emplace_back(
-					&parent_symbol->extra_info.as<SymbolProc::StructInfo>().member_symbols
-				);
+		{
+			SymbolProc* target_symbol_proc = &this->symbol_proc;
+			while(target_symbol_proc != nullptr){
+				target_symbol_proc->extra_info.visit([&](const auto& extra_info) -> void {
+					using ExtraInfoType = std::decay_t<decltype(extra_info)>;
+
+					if constexpr(
+						std::is_same<ExtraInfoType, SymbolProc::StructInfo>()
+						|| std::is_same<ExtraInfoType, SymbolProc::UnionInfo>()
+						|| std::is_same<ExtraInfoType, SymbolProc::EnumInfo>()
+					){
+						symbol_proc_namespaces.emplace_back(&extra_info.member_symbols);
+					}
+				});
+				
+				target_symbol_proc = target_symbol_proc->parent;
 			}
-			
-			parent_symbol = parent_symbol->parent;
 		}
 		symbol_proc_namespaces.emplace_back(&this->source.global_symbol_procs);
 
@@ -23999,7 +24007,7 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// didn't find identifier
-
+		
 		this->wait_on_symbol_proc_emit_error(
 			wait_on_symbol_proc_result, ident, std::format("Identifier \"{}\" was not defined in this scope", ident_str)
 		);

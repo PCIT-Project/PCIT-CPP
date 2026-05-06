@@ -5,15 +5,16 @@ def std_exp = @import("./std_exp.pthr");
 type PantherBuild = struct {
 
 	type Output = union {
-		exectuable : Output.Executable,
+		exectuable : Executable,
 		run        : Void,
-		object     : Output.Object,
-		assembly   : Output.Assembly,
-		llvmir     : Output.LLVMIR,
-		pir        : Output.PIR,
+		object     : Object,
+		assembly   : Assembly,
+		llvmir     : LLVMIR,
+		pir        : PIR,
 		sema       : Void,
-		ast        : Output.AST,
-		tokens     : Output.Tokens,
+		ast        : AST,
+		tokens     : Tokens,
+		
 
 		type Executable = struct {
 			var path: [Char:*];
