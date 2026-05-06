@@ -27299,9 +27299,11 @@ namespace pcit::panther{
 			size_t param_i = size_t(is_method);
 			size_t arg_i = 0;
 			for(const SymbolProc::TermInfoID arg_id : args){
+				const bool param_is_variadic = param_i + 1 >= templated_func.paramIsDeducer.size();
+
 				const TermInfo& arg = this->get_term_info(arg_id);
 				if(arg.type_id.is<TypeInfo::ID>()){
-					if(templated_func.paramIsDeducer[param_i]){
+					if(param_is_variadic || templated_func.paramIsDeducer[param_i]){
 						instantiation_lookup_args.emplace_back(arg.type_id.as<TypeInfo::ID>());
 					}
 					arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
@@ -27312,10 +27314,15 @@ namespace pcit::panther{
 							TemplateOverloadMatchFail(TemplateOverloadMatchFail::CantDeduceArgType(arg_i))
 						);
 					}
+
+					if(param_is_variadic){
+						instantiation_lookup_args.emplace_back(sema::TemplatedFunc::NonDeducerVariadicArg{});
+					}
+
 					arg_types.emplace_back(std::nullopt);
 				}
 
-				if(param_i + 1 < templated_func.paramIsDeducer.size()){ param_i += 1; }
+				if(!param_is_variadic){ param_i += 1; }
 				arg_i += 1;
 			}
 

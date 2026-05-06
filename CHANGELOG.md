@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.295.2"></a>
+## v0.0.295.2
+
+### Panther
+- Fixed semantic analysis of instantiation of variadic functions where the variadic param is not a deducer
+
+
+<!---------------------------------->
 <a name="v0.0.295.1"></a>
 ## v0.0.295.1
 

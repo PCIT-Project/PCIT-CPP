@@ -1,19 +1,18 @@
 
-func errors = () -> Void <UInt> {
-	error 12;
+func sum_nums = (nums: UI8...) -> UI8 {
+	var sum: UI8 = 0;
+
+	for(nums) [_; num: UI8] #unroll {
+		sum += num;
+	}
+
+	return copy sum;
 }
 
 
 func entry = () #entry -> UI8 {
-	var v1: UInt = 1;
-
-	try errors() else<val> {
-		var val_copy: UInt = copy val;
-		var v2: UInt = 2;
-		var v3: UInt = 3;
-	};
-
-	var v4: UInt = 4;
+	const s2: UI8 = sum_nums(1, 2);
+	const s3: UI8 = sum_nums(1, 2, 3);
 
 	return 0;
 }

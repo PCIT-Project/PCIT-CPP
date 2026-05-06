@@ -765,7 +765,8 @@ namespace pcit::panther::sema{
 
 	struct TemplatedFunc{
 		using ID = TemplatedFuncID;
-		using Arg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
+		using NonDeducerVariadicArg = std::monostate;
+		using Arg = evo::Variant<TypeInfo::VoidableID, core::GenericValue, NonDeducerVariadicArg>;
 
 		struct Instantiation{
 			struct ErroredReasonParamDeductionFailed{
