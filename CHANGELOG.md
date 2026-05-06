@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.295.3"></a>
+## v0.0.295.3
+
+### Panther
+- Fixed semantic analysis of structs when including debug info
+
+
+<!---------------------------------->
 <a name="v0.0.295.2"></a>
 ## v0.0.295.2
 

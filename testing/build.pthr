@@ -2,6 +2,8 @@ def std = @import("std");
 def std_exp = @import("std_exp/std_exp.pthr");
 def build_exp = @import("std_exp/building.pthr");
 
+def build_exp_new = @import("std_exp/new_building.pthr");
+
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.Build{

@@ -1536,7 +1536,15 @@ namespace pcit::panther{
 		}else{
 			member_var_types.reserve(struct_type.memberVarsABI.size());
 			for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
-				member_var_types.emplace_back(this->get_type<MAY_LOWER_DEPENDENCY, false>(member_var->typeID).type);
+				const pir::Type member_pir_type = [&]() -> pir::Type {
+					if(this->data.getConfig().includeDebugInfo){
+						return this->get_type<MAY_LOWER_DEPENDENCY, true>(member_var->typeID).type;
+					}else{
+						return this->get_type<MAY_LOWER_DEPENDENCY, false>(member_var->typeID).type;
+					}
+				}();
+
+				member_var_types.emplace_back(member_pir_type);
 			}
 		}
 

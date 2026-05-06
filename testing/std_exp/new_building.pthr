@@ -1,0 +1,50 @@
+def std = @import("std");
+def std_exp = @import("./std_exp.pthr");
+
+
+type PantherBuild = struct {
+
+	type Output = union {
+		exectuable : Output.Executable,
+		run        : Void,
+		object     : Output.Object,
+		assembly   : Output.Assembly,
+		llvmir     : Output.LLVMIR,
+		pir        : Output.PIR,
+		sema       : Void,
+		ast        : Output.AST,
+		tokens     : Output.Tokens,
+
+		type Executable = struct {
+			var path: [Char:*];
+			var windowedMode: Bool = false;
+		}
+
+		type Object = struct {
+			var path: [Char:*];
+		}
+
+		type Assembly = struct {
+			var path: [Char:*];
+		}
+
+		type LLVMIR = struct {
+			var path: [Char:*]?; // null if out to console
+		}
+
+		type PIR = struct {
+			var path: [Char:*]?; // null if out to console
+		}
+
+		type AST = struct {
+			var path: [Char:*]?; // null if out to console
+		}
+
+		type Tokens = struct {
+			var path: [Char:*]?; // null if out to console
+		}
+
+	}
+
+	
+}
