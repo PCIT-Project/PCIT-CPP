@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.295.5"></a>
+## v0.0.295.5
+
+### Panther
+- Fixed checking of comptime and runtime of intrinsic function calls
+
+
+<!---------------------------------->
 <a name="v0.0.295.4"></a>
 ## v0.0.295.4
 

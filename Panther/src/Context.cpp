@@ -3604,14 +3604,14 @@ namespace pcit::panther{
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript   = false, .allowedInBuild = true,
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
 			.typeID = no_params_return_void,
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript   = false, .allowedInBuild = true,
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
 		};
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::PANIC))] = IntrinsicFuncInfo{
@@ -3624,7 +3624,7 @@ namespace pcit::panther{
 				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 				evo::SmallVector<TypeInfo::VoidableID>{}
 			),
-			.allowedInComptime = false, .allowedInRuntime = true,
+			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript = false, .allowedInBuild = true,
 		};
 
@@ -3635,7 +3635,7 @@ namespace pcit::panther{
 				evo::SmallVector<TypeInfo::VoidableID>{}
 			),
 			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript   = false, .allowedInBuild = true,
+			.allowedInCompile  = true,  .allowedInScript  = false, .allowedInBuild = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 
@@ -3739,7 +3739,7 @@ namespace pcit::panther{
 			IntrinsicFuncInfo{
 				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
 				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript   = false, .allowedInBuild = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
 

@@ -3,6 +3,40 @@ def std_exp = @import("./std_exp.pthr");
 
 
 type PantherBuild = struct {
+	var output: Output;
+	var packages: [Package:*];
+
+	var target: Target;
+	var optimization: Optimiziation;
+
+	var numThreads: UI32 = 0;
+	var addDebugInfo: Bool = false;
+
+
+	///////////////////////////////////
+	// methods
+
+	func build = (this) -> Void <Void> {
+		for(this.packages) [_; package: Package] {
+			const package_id: @build.PackageID = @buildCreatePackage(package.path, package.name, copy package.warnings);
+
+			for(package.sourceFilePaths) [_; src_file_path: [Char:*]] {
+				@buildAddSourceFile(src_file_path, package_id);
+			}
+
+			for(package.sourceDirectories) [_; src_dir: Package.SourceDirectory] {
+				@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
+			}
+
+			if(package.name == ("std".* as [Char:*])){
+				@buildSetStdLibPackage(package_id);
+			}
+		}
+	}
+
+
+	///////////////////////////////////
+	// types
 
 	type Output = union {
 		exectuable : Executable,
@@ -44,8 +78,44 @@ type PantherBuild = struct {
 		type Tokens = struct {
 			var path: [Char:*]?; // null if out to console
 		}
-
 	}
 
+
+	type Package = struct {
+		var path: [Char:*];
+		var name: [Char:*];
+		var warnings: @build.PackageWarningSettings;
+		var sourceFilePaths: [[Char:*]:*];
+		var sourceDirectories: [SourceDirectory:*];
+
+		type SourceDirectory = struct {
+			var path: [Char:*];
+			var isRecursive: Bool;
+		}
+	}
+
+	type Target = struct {
+		var os: OS;
+		var arch: Arch;
+
+		type OS = enum(UI32) {
+			WINDOWS = 0,
+		}
+
+		type Arch = enum(UI32) {
+			X86_64 = 0,
+		}
+	}
+
+	type Optimiziation = struct {
+		
+	}
+
+
+
+	///////////////////////////////////
+	// private
+
+	var was_built_already: Bool #priv = false;
 	
 }

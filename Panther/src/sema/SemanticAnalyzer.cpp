@@ -8737,14 +8737,20 @@ namespace pcit::panther{
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
+			const sema::Func& current_func = this->get_current_func();
 
-			if(this->get_current_func().attributes.isComptime == false){
-				if(intrinsic_func_info.allowedInRuntime == false){
-					this->emit_error(
-						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
-					);
-					return Result::ERROR;
-				}
+			if(current_func.attributes.isComptime && intrinsic_func_info.allowedInComptime == false){
+				this->emit_error(
+					"Cannot call a non-comptime function within a comptime function", instr.func_call.target
+				);
+				return Result::ERROR;
+			}
+
+			if(current_func.attributes.isRuntime && intrinsic_func_info.allowedInRuntime == false){
+				this->emit_error(
+					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
+				);
+				return Result::ERROR;
 			}
 
 			switch(this->context.getConfig().mode){
@@ -11066,8 +11072,17 @@ namespace pcit::panther{
 
 			const Context::IntrinsicFuncInfo& intrinsic_func_info = this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-			if(this->currently_in_func() && this->get_current_func().attributes.isComptime == false){
-				if(intrinsic_func_info.allowedInRuntime == false){
+			if(this->currently_in_func()){
+				const sema::Func& current_func = this->get_current_func();
+
+				if(current_func.attributes.isComptime && intrinsic_func_info.allowedInComptime == false){
+					this->emit_error(
+						"Cannot call a non-comptime function within a comptime function", instr.func_call.target
+					);
+					return Result::ERROR;
+				}
+
+				if(current_func.attributes.isRuntime && intrinsic_func_info.allowedInRuntime == false){
 					this->emit_error(
 						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 					);
@@ -11946,13 +11961,17 @@ namespace pcit::panther{
 		const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
-		if(this->get_current_func().attributes.isComptime == false){
-			if(template_intrinsic_func_info.allowedInRuntime == false){
-				this->emit_error(
-					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
-				);
-				return Result::ERROR;
-			}
+
+		const sema::Func& current_func = this->get_current_func();
+
+		if(current_func.attributes.isComptime && template_intrinsic_func_info.allowedInComptime == false){
+			this->emit_error("Cannot call a non-comptime function within a comptime function", instr.func_call.target);
+			return Result::ERROR;
+		}
+
+		if(current_func.attributes.isRuntime && template_intrinsic_func_info.allowedInRuntime == false){
+			this->emit_error("Cannot call a non-runtime function within a runtime function", instr.func_call.target);
+			return Result::ERROR;
 		}
 
 
@@ -12267,13 +12286,21 @@ namespace pcit::panther{
 			}
 
 		}else{
-			if(this->get_current_func().attributes.isComptime == false){
-				if(template_intrinsic_func_info.allowedInRuntime == false){
-					this->emit_error(
-						"Cannot call a non-runtime function within a runtime function", instr.func_call.target
-					);
-					return Result::ERROR;
-				}
+			if(
+				this->get_current_func().attributes.isComptime
+				&& template_intrinsic_func_info.allowedInComptime == false
+			){
+				this->emit_error(
+					"Cannot call a non-comptime function within a comptime function", instr.func_call.target
+				);
+				return Result::ERROR;
+			}
+
+			if(this->get_current_func().attributes.isRuntime && template_intrinsic_func_info.allowedInRuntime == false){
+				this->emit_error(
+					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
+				);
+				return Result::ERROR;
 			}
 		}
 
