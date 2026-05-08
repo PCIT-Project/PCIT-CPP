@@ -52,6 +52,7 @@ namespace pcit::pir{
 			auto print_meta_enum_type(const meta::EnumType& enum_type) -> void;
 			auto print_meta_function(const meta::Function& function) -> void;
 			auto print_meta_global_variable(const meta::GlobalVariable& global_variable) -> void;
+			auto print_meta_forward_decl_type(const meta::ForwardDeclType& forward_decl_type) -> void;
 			auto print_meta_type_id(meta::Type meta_type) -> void;
 			auto print_meta_file_id(meta::File::ID meta_file_id) -> void;
 			auto print_meta_global_variable_id(meta::GlobalVariable::ID meta_global_variable_id) -> void;

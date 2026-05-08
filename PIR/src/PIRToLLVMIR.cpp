@@ -2700,6 +2700,9 @@ namespace pcit::pir{
 				}else{
 					return this->lower_meta_enum_type(meta_type).asType();
 				}
+
+			}else if constexpr(std::is_same<ValueType, meta::ForwardDeclType::ID>()){
+				return this->get_meta_type(*this->module.getMetaForwardDeclType(meta_type).resolvedType);
 		
 			}else{
 				static_assert(false, "Unknown meta type");

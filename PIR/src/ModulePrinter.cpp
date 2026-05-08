@@ -86,6 +86,7 @@ namespace pcit::pir{
 		const bool meta_basic_type_not_empty = this->get_module().getMetaBasicTypeIter().empty() == false;
 		const bool meta_file_not_empty = this->get_module().getMetaFileIter().empty() == false;
 		const bool meta_subscope_not_empty = this->get_module().getMetaSubscopeIter().empty() == false;
+		const bool meta_forward_decl_type_not_empty = this->get_module().getMetaForwardDeclTypeIter().empty() == false;
 
 
 		if(
@@ -99,6 +100,7 @@ namespace pcit::pir{
 			| meta_basic_type_not_empty
 			| meta_file_not_empty
 			| meta_subscope_not_empty
+			| meta_forward_decl_type_not_empty
 		){
 			this->printer.println();
 
@@ -169,6 +171,16 @@ namespace pcit::pir{
 				this->printer.println();
 				for(const meta::Subscope& meta_subscope : this->get_module().getMetaSubscopeIter()){
 					this->print_meta_subscope(meta_subscope);
+				}
+			}
+
+			if(meta_forward_decl_type_not_empty){
+				this->printer.println();
+				for(
+					const meta::ForwardDeclType& meta_forward_decl_type
+					: this->get_module().getMetaForwardDeclTypeIter()
+				){
+					this->print_meta_forward_decl_type(meta_forward_decl_type);
 				}
 			}
 		}
@@ -2582,6 +2594,27 @@ namespace pcit::pir{
 	}
 
 
+	auto ModulePrinter::print_meta_forward_decl_type(const meta::ForwardDeclType& forward_decl_type) -> void {
+		this->printer.printCyan("meta ");
+
+		if(isStandardName(forward_decl_type.metaName)){
+			this->printer.printGreen("!{}", forward_decl_type.metaName);
+		}else{
+			this->printer.printGreen("!");
+			this->print_non_standard_name(forward_decl_type.metaName, true);
+		}
+
+		this->printer.printRed(" = ");
+		this->printer.printCyan("forwardDeclType ");
+
+		if(forward_decl_type.resolvedType.has_value()){
+			this->print_meta_type_id(*forward_decl_type.resolvedType);
+			this->printer.println();
+		}else{
+			this->printer.printMagenta("null\n");
+		}
+	}
+
 
 
 	auto ModulePrinter::print_meta_type_id(meta::Type meta_type) -> void {
@@ -2605,6 +2638,9 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<MetaIDType, meta::EnumType::ID>()){
 				return this->reader.getModule().getMetaEnumType(id).metaName;
+
+			}else if constexpr(std::is_same<MetaIDType, meta::ForwardDeclType::ID>()){
+				return this->reader.getModule().getMetaForwardDeclType(id).metaName;
 
 			}else{
 				static_assert(false, "unknown meta type");

@@ -76,6 +76,7 @@ namespace pcit::panther{
 			auto lowerRuntime() -> void;
 
 
+			auto forwardDeclStruct(BaseType::Struct::ID struct_id) -> void;
 			auto lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type;
 			auto lowerStructAndDepsIfNeeded(BaseType::Struct::ID struct_id) -> pir::Type; // not thread-safe for same id
 

@@ -1537,6 +1537,9 @@ namespace pcit::panther{
 			}
 		);
 
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		sema_to_pir.forwardDeclStruct(created_struct.structID());
+
 		struct_info.struct_id = created_struct.structID();
 
 		if constexpr(IS_INSTANTIATION == false){

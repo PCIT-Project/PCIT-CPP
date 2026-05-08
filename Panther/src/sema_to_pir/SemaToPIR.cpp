@@ -124,6 +124,15 @@ namespace pcit::panther{
 
 
 	
+	auto SemaToPIR::forwardDeclStruct(BaseType::Struct::ID struct_id) -> void {
+		if(this->data.getConfig().includeDebugInfo == false){ return; }
+
+		const pir::meta::ForwardDeclType::ID meta_forward_decl_type_id =
+			this->module.createMetaForwardDeclType(this->get_unmangled_struct_name(struct_id) + "-forward_decl");
+
+		this->data.create_meta_forward_decl_struct(struct_id, pir::meta::Type(meta_forward_decl_type_id));
+	}
+
 	auto SemaToPIR::lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type {
 		return this->lower_struct<false>(struct_id);
 	}
@@ -529,9 +538,14 @@ namespace pcit::panther{
 				return this->module.createVoidType();
 
 			}else{
-				const PIRType pir_type = this->get_type<false, true>(func_type.returnTypes[0]);
-				return_meta_type = pir_type.meta_type_id;
-				return pir_type.type;
+				if(this->data.getConfig().includeDebugInfo){
+					const PIRType pir_type = this->get_type<false, true>(func_type.returnTypes[0]);
+					return_meta_type = pir_type.meta_type_id;
+					return pir_type.type;
+
+				}else{
+					return this->get_type<false, false>(func_type.returnTypes[0]).type;
+				}
 			}
 		}();
 
@@ -1591,7 +1605,7 @@ namespace pcit::panther{
 
 			std::string unmangled_struct_name = this->get_unmangled_struct_name(struct_id);
 
-			std::ignore = this->module.createMetaStructType(
+			const pir::meta::StructType::ID meta_struct_id = this->module.createMetaStructType(
 				new_type,
 				evo::copy(unmangled_struct_name),
 				std::move(unmangled_struct_name),
@@ -1600,6 +1614,13 @@ namespace pcit::panther{
 				this->get_current_meta_scope(),
 				location.line_number
 			);
+
+			if(this->data.has_meta_forwrd_decl_struct(struct_id)){
+				this->module.resolveForwardDeclType(
+					this->data.get_meta_forwrd_decl_struct(struct_id).as<pir::meta::ForwardDeclType::ID>(),
+					meta_struct_id
+				);
+			}
 		}
 
 
@@ -12663,13 +12684,27 @@ namespace pcit::panther{
 					}
 				}
 
-				const pir::Type pir_type = this->data.get_struct(base_type_id.structID());
 
 				if constexpr(GET_META){
-					return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
+					if(this->data.has_struct(base_type_id.structID())){
+						const pir::Type pir_type = this->data.get_struct(base_type_id.structID());
+
+						return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
+
+					}else{
+						evo::debugAssert(
+							this->data.getConfig().includeDebugInfo,
+							"Can only get forward decl if getting meta and including debug info"
+						);
+
+						return PIRType(
+							this->module.createVoidType(),
+							this->data.get_meta_forwrd_decl_struct(base_type_id.structID())
+						);
+					}
 
 				}else{
-					return PIRType(pir_type, std::nullopt);
+					return PIRType(this->data.get_struct(base_type_id.structID()), std::nullopt);
 				}
 			} break;
 

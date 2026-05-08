@@ -425,6 +425,22 @@ namespace pcit::panther{
 
 
 
+			auto create_meta_forward_decl_struct(BaseType::Struct::ID struct_id, pir::meta::Type forward_decl_struct)
+			-> void {
+				const auto lock = std::scoped_lock(this->meta_forward_decl_structs_lock);
+				this->meta_forward_decl_structs.emplace(struct_id, forward_decl_struct);
+			}
+
+			[[nodiscard]] auto get_meta_forwrd_decl_struct(BaseType::Struct::ID struct_id) const -> pir::meta::Type {
+				const auto lock = std::scoped_lock(this->meta_forward_decl_structs_lock);
+				return this->meta_forward_decl_structs.at(struct_id);
+			}
+
+			[[nodiscard]] auto has_meta_forwrd_decl_struct(BaseType::Struct::ID struct_id) const -> bool {
+				const auto lock = std::scoped_lock(this->meta_forward_decl_structs_lock);
+				return this->meta_forward_decl_structs.contains(struct_id);
+			}
+
 
 
 
@@ -521,8 +537,12 @@ namespace pcit::panther{
 			std::unordered_map<BaseType::Union::ID, pir::meta::Type> meta_union_types{};
 			mutable evo::SpinLock meta_union_types_lock{};
 
+			std::unordered_map<BaseType::Struct::ID, pir::meta::Type> meta_forward_decl_structs{};
+			mutable evo::SpinLock meta_forward_decl_structs_lock{};
+
 			std::optional<pir::meta::File::ID> builtin_meta_file{};
 			mutable evo::SpinLock builtin_meta_file_lock{};
+
 
 
 			friend class SemaToPIR;

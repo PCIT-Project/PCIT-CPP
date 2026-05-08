@@ -61,9 +61,15 @@ namespace pcit::pir::meta{
 		using core::UniqueID<uint32_t, GlobalVariableID>::UniqueID;
 	};
 
+	struct ForwardDeclTypeID : public core::UniqueID<uint32_t, struct ForwardDeclTypeID> {
+		using core::UniqueID<uint32_t, ForwardDeclTypeID>::UniqueID;
+	};
 
 
-	using Type = evo::Variant<BasicTypeID, QualifiedTypeID, StructTypeID, UnionTypeID, ArrayTypeID, EnumTypeID>;
+
+	using Type = evo::Variant<
+		BasicTypeID, QualifiedTypeID, StructTypeID, UnionTypeID, ArrayTypeID, EnumTypeID, ForwardDeclTypeID
+	>;
 
 
 	using Scope = evo::Variant<FunctionID, FileID, SubscopeID>;
@@ -141,6 +147,13 @@ namespace std{
 	template<>
 	struct hash<pcit::pir::meta::GlobalVariableID>{
 		auto operator()(pcit::pir::meta::GlobalVariableID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+
+	template<>
+	struct hash<pcit::pir::meta::ForwardDeclTypeID>{
+		auto operator()(pcit::pir::meta::ForwardDeclTypeID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.get());
 		};
 	};

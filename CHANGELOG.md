@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.296.0"></a>
+## v0.0.296.0
+
+### Panther
+- Fixed race condition in semantic analysis of pointers to structs
+
+### PIR
+- Added meta `ForwardDeclType`
+
+
+<!---------------------------------->
 <a name="v0.0.295.5"></a>
 ## v0.0.295.5
 

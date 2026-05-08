@@ -19,10 +19,50 @@ type Package = struct #pub {
 }
 
 
+type Target = struct #pub {
+	var os: OS;
+	var arch: Arch;
 
-type Build = struct #pub {
+	type OS = enum(UI32) {
+		WINDOWS = 0,
+	}
+
+	type Arch = enum(UI32) {
+		X86_64 = 0,
+	}
+}
+
+
+type PantherLibraryBuild = struct #pub {
+	func new = (panther_build: PantherBuild*mut) -> (output: PantherLibraryBuild) {
+		output.panther_build = copy panther_build;
+		return...;
+	}
+
+
+	func createPackage = (this mut) -> Package*uninit {
+		return this.panther_build.createPackage();
+	}
+	
+
+	var panther_build: PantherBuild*mut #priv;
+}
+
+
+
+type PantherBuild = struct #pub {
+	var output: std.build.Output;
+
+	var target: Target;
+	var optimization: Optimiziation;
+
+	var addDebugInfo: Bool = false;
+	var numThreads: UI32 = 0;
+
+
+
 	func delete = (this) -> Void {
-		std.debug.assert(this.built, "Didn't call Build.build()");
+		std.debug.assert(this.built, "Didn't call PantherBuild.build()");
 	}
 
 
@@ -42,6 +82,11 @@ type Build = struct #pub {
 
 	func createPackage = (this mut) -> Package*uninit {
 		return this.packages.append();
+	}
+
+
+	func getLibraryBuild = (this mut) -> PantherLibraryBuild {
+		return new PantherLibraryBuild(&this);
 	}
 
 
@@ -147,10 +192,9 @@ type Build = struct #pub {
 
 
 
-	var output: std.build.Output;
-	var addDebugInfo: Bool = false;
-	var numThreads: UI32 = 0;
-
+	type Optimiziation = struct {
+		
+	}
 
 
 	///////////////////////////////////

@@ -1,3 +1,7 @@
+type Struct = struct {
+	
+}
+
 
 func sum_nums = (nums: UI8...) -> UI8 {
 	var sum: UI8 = 0;

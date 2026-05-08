@@ -1089,6 +1089,52 @@ namespace pcit::pir{
 			}
 
 
+
+			///////////////////////////////////
+			// meta forward decl types
+
+			[[nodiscard]] auto createMetaForwardDeclType(std::string&& meta_name) -> meta::ForwardDeclType::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_meta_name_reuse(meta_name);
+				#endif
+
+				return this->meta_forward_decl_types.emplace_back(std::move(meta_name), std::nullopt);
+			}
+
+			[[nodiscard]] auto getMetaForwardDeclType(meta::ForwardDeclType::ID id) const
+			-> const meta::ForwardDeclType& {
+				return this->meta_forward_decl_types[id];
+			}
+
+			[[nodiscard]] auto resolveForwardDeclType(meta::ForwardDeclType::ID id, meta::Type resoloved_type) -> void {
+				this->meta_forward_decl_types[id].resolvedType = resoloved_type;
+			}
+
+
+			using MetaForwardDeclTypeIter =
+				core::SyncLinearStepAlloc<meta::ForwardDeclType, meta::ForwardDeclTypeID>::Iter;
+			using MetaForwardDeclTypeConstIter =
+				core::SyncLinearStepAlloc<meta::ForwardDeclType, meta::ForwardDeclTypeID>::ConstIter;
+
+			[[nodiscard]] auto getMetaForwardDeclTypeIter() -> evo::IterRange<MetaForwardDeclTypeIter> {
+				return evo::IterRange<MetaForwardDeclTypeIter>(
+					this->meta_forward_decl_types.begin(), this->meta_forward_decl_types.end()
+				);
+			}
+
+			[[nodiscard]] auto getMetaForwardDeclTypeIter() const -> evo::IterRange<MetaForwardDeclTypeConstIter> {
+				return evo::IterRange<MetaForwardDeclTypeConstIter>(
+					this->meta_forward_decl_types.cbegin(), this->meta_forward_decl_types.cend()
+				);
+			}
+
+			[[nodiscard]] auto getMetaForwardDeclTypeConstIter() const -> evo::IterRange<MetaForwardDeclTypeConstIter> {
+				return evo::IterRange<MetaForwardDeclTypeConstIter>(
+					this->meta_forward_decl_types.cbegin(), this->meta_forward_decl_types.cend()
+				);
+			}
+
+
 		private:
 			#if defined(PCIT_CONFIG_DEBUG)
 				auto check_param_names(evo::ArrayProxy<Parameter> params) const -> void;
@@ -1230,6 +1276,7 @@ namespace pcit::pir{
 			core::SyncLinearStepAlloc<meta::EnumType, meta::EnumType::ID> meta_enum_types{};
 			core::SyncLinearStepAlloc<meta::Function, meta::Function::ID> meta_functions{};
 			core::SyncLinearStepAlloc<meta::GlobalVariable, meta::GlobalVariable::ID> meta_global_variables{};
+			core::SyncLinearStepAlloc<meta::ForwardDeclType, meta::ForwardDeclType::ID> meta_forward_decl_types{};
 
 			std::unordered_map<Type, meta::StructType::ID> meta_struct_type_lookup{};
 			mutable evo::SpinLock meta_struct_type_lookup_lock{};

@@ -168,6 +168,14 @@ namespace pcit::pir::meta{
 	};
 
 
+	struct ForwardDeclType{
+		using ID = ForwardDeclTypeID;
+
+		std::string metaName;
+		std::optional<meta::Type> resolvedType;
+	};
+
+
 	struct SourceLocation{
 		LocalScope scope;
 		uint32_t line;
