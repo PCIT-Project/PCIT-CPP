@@ -50,7 +50,7 @@ func entry = () #entry -> UI8 {
 
 
 
-func add_std_exp = (build: build_exp.PantherLibraryBuild mut, warns: @build.PackageWarningSettings in) #rt -> Void {
+func add_std_exp = (build: build_exp.PantherBuild mut, warns: @build.PackageWarningSettings in) #rt -> Void {
 	build.createPackage().* = new build_exp.Package{
 		path        = "./std_exp",
 		name        = "std_exp",

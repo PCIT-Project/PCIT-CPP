@@ -11390,28 +11390,12 @@ namespace pcit::panther{
 				this->create_panic(this->get_expr_pointer(func_call.args[0]));
 			} break;
 
-			case IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS: {
+			case IntrinsicFunc::Kind::CREATE_PANTHER_BUILD: {
 				auto args = evo::SmallVector<pir::Expr>();
 				args.emplace_back(get_context_ptr());
 				get_args(args);
 
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_set_num_threads, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_SET_OUTPUT: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_set_output, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_SET_ADD_DEBUG_INFO: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_set_add_debug_info, std::move(args));
+				this->handler.createCallVoid(this->data.getJITBuildFuncs().create_panther_build, std::move(args));
 			} break;
 
 			case IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE: {

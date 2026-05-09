@@ -33,20 +33,6 @@ type Target = struct #pub {
 }
 
 
-type PantherLibraryBuild = struct #pub {
-	func new = (panther_build: PantherBuild*mut) -> (output: PantherLibraryBuild) {
-		output.panther_build = copy panther_build;
-		return...;
-	}
-
-
-	func createPackage = (this mut) -> Package*uninit {
-		return this.panther_build.createPackage();
-	}
-	
-
-	var panther_build: PantherBuild*mut #priv;
-}
 
 
 
@@ -69,9 +55,13 @@ type PantherBuild = struct #pub {
 	func build = (this mut) #rt -> Void {
 		std.debug.assert(this.built == false, "Already built");
 
-		@buildSetOutput(this.output as UI32);
-		@buildSetNumThreads(this.numThreads);
-		@buildSetAddDebugInfo(this.addDebugInfo);
+		@createPantherBuild(
+			new @build.PantherBuildConfig{
+				output       = this.output as UI32,
+				numThreads   = copy this.numThreads,
+				addDebugInfo = copy this.addDebugInfo,
+			}
+		);
 
 		for(this.packages) [i: USize; package: Package] {
 			this.add_package(package);
@@ -82,11 +72,6 @@ type PantherBuild = struct #pub {
 
 	func createPackage = (this mut) -> Package*uninit {
 		return this.packages.append();
-	}
-
-
-	func getLibraryBuild = (this mut) -> PantherLibraryBuild {
-		return new PantherLibraryBuild(&this);
 	}
 
 

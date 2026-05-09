@@ -45,9 +45,9 @@ namespace pcit::panther{
 			{"breakpoint",              Kind::BREAKPOINT},
 			{"panic"     ,              Kind::PANIC},
 			{"isComptime",              Kind::IS_COMPTIME},
-			{"buildSetNumThreads",      Kind::BUILD_SET_NUM_THREADS},
-			{"buildSetOutput",          Kind::BUILD_SET_OUTPUT},
-			{"buildSetAddDebugInfo",    Kind::BUILD_SET_ADD_DEBUG_INFO},
+
+			// build system
+			{"createPantherBuild",      Kind::CREATE_PANTHER_BUILD},
 			{"buildSetStdLibPackage",   Kind::BUILD_SET_STD_LIB_PACKAGE},
 			{"buildCreatePackage",      Kind::BUILD_CREATE_PACKAGE},
 			{"buildAddSourceFile",      Kind::BUILD_ADD_SOURCE_FILE},

@@ -2009,31 +2009,27 @@ namespace pcit::panther{
 			const char* data;
 			size_t size;
 
-			operator std::string_view(){ return std::string_view(this->data, this->size); }
-			operator std::string(){ return std::string(this->data, this->size); }
+			[[nodiscard]] operator std::string_view(){ return std::string_view(this->data, this->size); }
+			[[nodiscard]] operator std::string(){ return std::string(this->data, this->size); }
 		};
 
 		using PackageID = uint32_t;
 
 
+		struct PantherBuildConfig{
+			uint32_t output;
+			uint32_t num_threads;
+			bool add_debug_info;
+		};
+
 		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
 			jit_engine.registerFuncs({
 				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildSetNumThreads",
-					[](Context* context, uint32_t num_threads){
-						context->build_system_config.numThreads = NumThreads(num_threads);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildSetOutput",
-					[](Context* context, uint32_t output){
-						context->build_system_config.output = BuildSystemConfig::Output(output);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildSetAddDebugInfo",
-					[](Context* context, bool add_debug_info){
-						context->build_system_config.addDebugInfo = add_debug_info;
+					"PTHR.BUILD.createPantherBuild",
+					[](Context* context, PantherBuildConfig* config){
+						context->build_system_config.output       = BuildSystemConfig::Output(config->output);
+						context->build_system_config.numThreads   = NumThreads(config->num_threads);
+						context->build_system_config.addDebugInfo = config->add_debug_info;
 					}
 				),
 				pir::JITEngine::FuncRegisterInfo(
@@ -2140,43 +2136,50 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("methodCallOnNonMethod"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("memberTypeByValueAccessor"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("deleteMovedFromExpr"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("deleteTriviallyDeletableType"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("comptimeIfCond"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("alreadyUnsafe"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("experimentalF80"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)), true)
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
 				),
 			};
 
@@ -2199,7 +2202,7 @@ namespace pcit::panther{
 					.namespacedMembers = nullptr,
 					.scopeLevel        = nullptr,
 					.isPub             = false,
-					.isPriv            = true,
+					.isPriv            = false,
 					.isOrdered         = false,
 					.isPacked          = false,
 				}
@@ -2214,6 +2217,70 @@ namespace pcit::panther{
 
 			package_warning_settings.mayDesignatedInitNew = true;
 		}
+
+
+		//////////////////
+		// PantherBuildConfig
+
+		{
+			auto panther_build_config_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("output"),
+					TypeManager::getTypeUI32(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("numThreads"),
+					TypeManager::getTypeUI32(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("addDebugInfo"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+			};
+
+
+			auto panther_build_config_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+			panther_build_config_member_vars_abi.reserve(panther_build_config_members.size());
+			for(BaseType::Struct::MemberVar& member : panther_build_config_members){
+				panther_build_config_member_vars_abi.emplace_back(&member);
+			}
+
+			const BaseType::ID panther_build_config_type = this->type_manager.createStruct(
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfig"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(panther_build_config_members),
+					.memberVarsABI     = std::move(panther_build_config_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isOrdered         = true,
+					.isPacked          = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfig", panther_build_config_type);
+
+
+			BaseType::Struct& panther_build_config = this->type_manager.getStruct(panther_build_config_type.structID());
+
+			panther_build_config.mayDesignatedInitNew = true;
+		}
+
 
 
 		//////////////////
@@ -3637,35 +3704,29 @@ namespace pcit::panther{
 			.allowedInComptime = false, .allowedInRuntime = true,
 			.allowedInCompile  = true,  .allowedInScript  = false, .allowedInBuild = true,
 		};
-			
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_NUM_THREADS))] = 
-		IntrinsicFuncInfo{
-			.typeID = ui32_arg_return_void,
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-		};
-			
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_OUTPUT))] = IntrinsicFuncInfo{
-			.typeID = ui32_arg_return_void,
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-		};
 
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_ADD_DEBUG_INFO))] =
-		IntrinsicFuncInfo{
-			.typeID = create_func_type(
-				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(
-						TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, false
-					)
-				},
-				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-				evo::SmallVector<TypeInfo::VoidableID>{}
-			),
-			.allowedInComptime = false, .allowedInRuntime = true,
-			.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-		};
+		{
+			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
 
+			const TypeInfo::ID panther_build_config = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_build.getSymbol("PantherBuildConfig")->as<BaseType::ID>())
+			);
+
+			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CREATE_PANTHER_BUILD))] = 
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(panther_build_config, BaseType::Function::Param::Kind::READ, false)
+					},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>{}
+				),
+				.allowedInComptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
+			};
+		}
+		
+			
 
 		{
 			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
@@ -3686,7 +3747,7 @@ namespace pcit::panther{
 			IntrinsicFuncInfo{
 				.typeID = created_func_type,
 				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript   = false, .allowedInBuild = true,
+				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
 

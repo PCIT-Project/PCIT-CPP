@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.297.0"></a>
+## v0.0.297.0
+
+### Panther
+- Added `@build.PantherBuildConfig`
+- Added `@createPantherBuild`
+- Removed `@buildSetNumThreads`
+- Removed `@buildSetAddDebugInfo`
+- Removed `@buildSetOutput`
+
+
+<!---------------------------------->
 <a name="v0.0.296.0"></a>
 ## v0.0.296.0
 

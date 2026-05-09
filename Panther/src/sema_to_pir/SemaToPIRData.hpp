@@ -88,9 +88,7 @@ namespace pcit::panther{
 
 
 			struct JITBuildFuncs{
-				pir::ExternalFunction::ID build_set_num_threads      = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_set_output           = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID build_set_add_debug_info   = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID create_panther_build       = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_set_std_lib_package  = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_create_package       = pir::ExternalFunction::ID::dummy();
 				pir::ExternalFunction::ID build_add_source_file      = pir::ExternalFunction::ID::dummy();

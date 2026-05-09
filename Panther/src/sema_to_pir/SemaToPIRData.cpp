@@ -208,30 +208,11 @@ namespace pcit::panther{
 		};
 
 
-
-		this->jit_build_funcs.build_set_num_threads = create_func_decl(
-			"PTHR.BUILD.buildSetNumThreads",
+		this->jit_build_funcs.create_panther_build = create_func_decl(
+			"PTHR.BUILD.createPantherBuild",
 			{
 				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("num_threads", module.createUnsignedType(32))
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_set_output = create_func_decl(
-			"PTHR.BUILD.buildSetOutput",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("output", module.createUnsignedType(32))
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_set_add_debug_info = create_func_decl(
-			"PTHR.BUILD.buildSetAddDebugInfo",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("add_debug_info", module.createBoolType())
+				pir::Parameter("config", module.createPtrType()),
 			},
 			module.createVoidType()
 		);
