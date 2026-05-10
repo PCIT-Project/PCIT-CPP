@@ -656,11 +656,11 @@ namespace pcit::panther::sema{
 		using ID = GlobalVarID;
 
 		AST::VarDef::Kind kind;
-		evo::Variant<SourceID, ClangSourceID> sourceID;
-		evo::Variant<Token::ID, ClangSourceDeclInfoID> ident;
-		std::string clangMangledName; // empty if not clang type
+		evo::Variant<SourceID, CFamilySourceID> sourceID;
+		evo::Variant<Token::ID, CFamilySourceDeclInfoID> ident;
+		std::string cFamilyMangledName; // empty if not c-family type
 		std::optional<EncapsulatingSymbolID> parent;
-		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if clang type
+		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if c-family type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
 		bool isPriv;
@@ -668,7 +668,7 @@ namespace pcit::panther::sema{
 
 		std::optional<pir::GlobalVar::ID> comptimeJITGlobal{};
 
-		[[nodiscard]] auto isClangVar() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+		[[nodiscard]] auto isCFamilyVar() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 		[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 	};
 
@@ -682,7 +682,7 @@ namespace pcit::panther::sema{
 		};
 
 		struct Param{
-			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> ident;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> ident;
 			std::optional<Expr> defaultValue;
 			bool mustLabel;
 		};
@@ -696,7 +696,7 @@ namespace pcit::panther::sema{
 
 		template<class ForceInit>
 		struct AttributesImpl{
-			bool isPub      = ForceInit(); // meaningless if is Clang or builtin
+			bool isPub      = ForceInit(); // meaningless if is CFamily or builtin
 			bool isPriv     = ForceInit(); // meaningless if not member
 			bool isComptime = ForceInit();
 			bool isRuntime  = ForceInit();
@@ -707,9 +707,9 @@ namespace pcit::panther::sema{
 		};
 		using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
 
-		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
-		evo::Variant<Token::ID, ClangSourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
-		std::string clangMangledName; // empty if not clang
+		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+		evo::Variant<Token::ID, CFamilySourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
+		std::string cFamilyMangledName; // empty if not c-family
 		std::optional<EncapsulatingSymbolID> parent;
 		BaseType::Function::ID typeID;
 		evo::SmallVector<Param> params;
@@ -731,7 +731,7 @@ namespace pcit::panther::sema{
 		std::optional<pir::Function::ID> comptimeJITFunc{};
 
 		[[nodiscard]] auto isSrcFunc() const -> bool { return this->sourceID.is<SourceID>(); }
-		[[nodiscard]] auto isClangFunc() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+		[[nodiscard]] auto isCFamilyFunc() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 		[[nodiscard]] auto isBuiltinFunc() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 		
 		[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;

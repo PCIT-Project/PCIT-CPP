@@ -42,6 +42,8 @@ namespace pcit::pir{
 			[[nodiscard]] auto init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>>;
 			[[nodiscard]] auto isInitialized() const -> bool { return this->jit_engine.isInitialized(); }
 
+			auto deinit() -> void;
+
 			auto setDefaultDebugger() -> void;
 			auto setDebugger(DebuggerFunc&& _debugger_func) -> void { this->debugger_func = std::move(_debugger_func); }
 

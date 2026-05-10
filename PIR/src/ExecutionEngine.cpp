@@ -17,13 +17,21 @@
 
 namespace pcit::pir{
 
+	ExecutionEngine::ExecutionEngine(Module& _module, uint32_t _max_call_depth)
+		: module(_module), max_call_depth(_max_call_depth) {}
+
+	ExecutionEngine::~ExecutionEngine(){
+		if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }
+	}
+
+
 	#if defined(EVO_PLATFORM_WINDOWS)
+		auto ExecutionEngine::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
+			return this->jit_engine.init(config);
+		}
 
-		ExecutionEngine::ExecutionEngine(Module& _module, uint32_t _max_call_depth)
-			: module(_module), max_call_depth(_max_call_depth) {}
-
-		ExecutionEngine::~ExecutionEngine(){
-			if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }
+		auto ExecutionEngine::deinit() -> void {
+			this->jit_engine.deinit();
 		}
 
 	#else
@@ -51,8 +59,7 @@ namespace pcit::pir{
 			std::longjmp(engine->executors.at(std::this_thread::get_id()).set_signal_error(func_run_error), true);
 		}
 
-
-		ExecutionEngine::ExecutionEngine(Module& _module) : module(_module)	{
+		auto ExecutionEngine::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
 			ExecutionEngine* expected = nullptr;
 			if(execution_engine_signal_ptr.compare_exchange_strong(expected, this) == false){
 				evo::debugFatalBreak("Execution engine with signal handler already exists");
@@ -67,22 +74,15 @@ namespace pcit::pir{
 				std::signal(SIGABRT, _internal_signal_handler);
 				std::signal(SIGFPE, _internal_signal_handler);
 			}
+
+			return this->jit_engine.init(config);
 		}
 
-
-		ExecutionEngine::~ExecutionEngine(){
+		auto ExecutionEngine::deinit() -> void {
 			execution_engine_signal_ptr = nullptr;
-
-			if(this->jit_engine.isInitialized()){ this->jit_engine.deinit(); }
+			this->jit_engine.deinit();
 		}
-
 	#endif
-
-
-
-	auto ExecutionEngine::init(const InitConfig& config) -> evo::Expected<void, evo::SmallVector<std::string>> {
-		return this->jit_engine.init(config);
-	}
 
 
 	auto ExecutionEngine::setDefaultDebugger() -> void {

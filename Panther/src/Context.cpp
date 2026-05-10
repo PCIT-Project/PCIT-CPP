@@ -633,10 +633,10 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Should never hit this task");
 
 				}else if constexpr(std::is_same<TaskType, CHeaderToLoad>()){
-					this->analyze_clang_header_impl(std::move(task.path), task.add_includes_to_pub_api, false);
+					this->analyze_c_family_header_impl(std::move(task.path), task.add_includes_to_pub_api, false);
 
 				}else if constexpr(std::is_same<TaskType, CPPHeaderToLoad>()){
-					this->analyze_clang_header_impl(std::move(task.path), task.add_includes_to_pub_api, true);
+					this->analyze_c_family_header_impl(std::move(task.path), task.add_includes_to_pub_api, true);
 
 				}else if constexpr(std::is_same<TaskType, SymbolProc::ID>()){
 					evo::debugFatalBreak("Should never hit this task");
@@ -741,12 +741,12 @@ namespace pcit::panther{
 			const auto get_location = [&]() -> Diagnostic::Location {
 				if(diagnostic_list.diagnostics[i].location.has_value()){
 					return Diagnostic::Location(
-						ClangSource::Location(
-							source_manager.getOrCreateClangSourceID(
-								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp, true
+						CFamilySource::Location(
+							source_manager.getOrCreateCFamilySourceID(
+								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp
 							).id,
 							diagnostic_list.diagnostics[i].location->line,
-							diagnostic_list.diagnostics[i].location->collumn	
+							diagnostic_list.diagnostics[i].location->collumn
 						)	
 					);
 				}else{
@@ -812,7 +812,7 @@ namespace pcit::panther{
 
 
 	static auto get_clang_module(
-		const ClangSource& clang_source,
+		const CFamilySource& c_family_source,
 		llvmint::LLVMContext& llvm_context,
 		clangint::DiagnosticList& diagnostic_list,
 		core::Target target,
@@ -821,63 +821,64 @@ namespace pcit::panther{
 		SourceManager& source_manager
 	) -> evo::Result<llvm::Module*> {
 		const auto opts = [&]() -> evo::Variant<clangint::COpts, clangint::CPPOpts> {
-			if(clang_source.isCPP()){
+			if(c_family_source.isCPP()){
 				return clangint::CPPOpts();
 			}else{
 				return clangint::COpts();
 			}
 		}();
 
-		if(clang_source.isHeader()){
-			auto header_interface_str = std::format("#include \"{}\"\n", clang_source.getPath().string());
 
-			if(clang_source.isCPP()){
-				for(const std::string& func_name : clang_source.getInlinedFuncNames()){
-					header_interface_str +=
-						std::format("auto __PTHR_inline_saver_{} = {};\n", func_name, func_name);
-				}
+		auto header_interface_str = std::format("#include \"{}\"\n", c_family_source.getPath().string());
 
-			}else{
-				for(const std::string& func_name : clang_source.getInlinedFuncNames()){
-					header_interface_str +=
-						std::format("__auto_type __PTHR_inline_saver_{} = {};\n", func_name, func_name);
-				}
+		if(c_family_source.isCPP()){
+			for(const std::string& func_name : c_family_source.getInlinedFuncNames()){
+				header_interface_str +=
+					std::format("auto __PTHR_inline_saver_{} = {};\n", func_name, func_name);
 			}
-
-
-			evo::Result<llvm::Module*> clang_module = clangint::getSourceLLVM(
-				"PTHR_CLANG_INLINE_INTERFACE",
-				header_interface_str,
-				opts,
-				target,
-				include_debug_info,
-				llvm_context.native(),
-				diagnostic_list
-			);
-
-			if(clang_module.isError()){
-				std::ignore = analyze_and_print_clang_diagnostics(
-					diagnostic_list, context, source_manager, clang_source.isCPP()
-				);
-				return evo::resultError;
-			}
-
-			if(analyze_and_print_clang_diagnostics(
-				diagnostic_list, context, source_manager, clang_source.isCPP()
-			).isError()){
-				return evo::resultError;
-			}
-
-			diagnostic_list.diagnostics.clear();
-			return clang_module.value();
 
 		}else{
-			evo::unimplemented("Clang Source file");
+			for(const std::string& func_name : c_family_source.getInlinedFuncNames()){
+				header_interface_str +=
+					std::format("__auto_type __PTHR_inline_saver_{} = {};\n", func_name, func_name);
+			}
 		}
+
+
+		evo::Result<llvm::Module*> clang_module = clangint::getSourceLLVM(
+			"PTHR_CLANG_INLINE_INTERFACE",
+			header_interface_str,
+			opts,
+			target,
+			include_debug_info,
+			llvm_context.native(),
+			diagnostic_list
+		);
+
+		if(clang_module.isError()){
+			std::ignore = analyze_and_print_clang_diagnostics(
+				diagnostic_list, context, source_manager, c_family_source.isCPP()
+			);
+			return evo::resultError;
+		}
+
+		if(analyze_and_print_clang_diagnostics(
+			diagnostic_list, context, source_manager, c_family_source.isCPP()
+		).isError()){
+			return evo::resultError;
+		}
+
+		diagnostic_list.diagnostics.clear();
+		return clang_module.value();
 	}
 
 
 	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
+		evo::debugAssert(
+			this->_config.mode == Config::Mode::COMPILE || this->_config.mode == Config::Mode::SCRIPTING,
+			"Must be in compile or scripting mode"
+		);
+
 		if(this->entry.has_value() == false){
 			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
@@ -888,10 +889,6 @@ namespace pcit::panther{
 			this->pir_module.getTarget() == core::Target::getNative(), "Can only run entry if target is native"
 		);
 
-
-		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
-		}
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
@@ -906,12 +903,6 @@ namespace pcit::panther{
 			.allowDefaultSymbolLinking = allow_default_symbol_linking,
 		});
 		EVO_DEFER([&](){ jit_engine.deinit(); });
-
-		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
-			if(this->register_build_system_jit_funcs(jit_engine).isError()){
-				return evo::resultError;
-			}
-		}
 
 
 		{
@@ -928,19 +919,19 @@ namespace pcit::panther{
 		// clang 
 
 		auto clang_modules = evo::SmallVector<std::pair<llvmint::LLVMContext, llvm::Module*>>();
-		clang_modules.reserve(source_manager.getClangSourceIDRange().size());
+		clang_modules.reserve(source_manager.getCFamilySourceIDRange().size());
 
 		auto diagnostic_list = clangint::DiagnosticList();
 
-		for(ClangSource::ID clang_source_id : source_manager.getClangSourceIDRange()){
-			const ClangSource& clang_source = source_manager[clang_source_id];
+		for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
+			const CFamilySource& c_family_source = source_manager[c_family_source_id];
 
 			auto llvm_context = llvmint::LLVMContext();
 			llvm_context.init();
 
 
 			const evo::Result<llvm::Module*> clang_module = get_clang_module(
-				clang_source,
+				c_family_source,
 				llvm_context,
 				diagnostic_list,
 				this->_config.target,
@@ -975,6 +966,77 @@ namespace pcit::panther{
 
 
 
+	auto Context::runBuildSystem(
+		const CreatePantherBuildCallback& create_panther_build_callback, bool allow_default_symbol_linking
+	) -> evo::Result<uint8_t> {
+		evo::debugAssert(this->_config.mode == Config::Mode::BUILD_SYSTEM, "Must be in build system mode");
+
+		if(this->entry.has_value() == false){
+			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
+
+		evo::debugAssert(
+			this->pir_module.getTarget() == core::Target::getNative(), "Can only run entry if target is native"
+		);
+
+
+		sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
+
+
+		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
+		sema_to_pir.lowerRuntime();
+		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry);
+
+
+		this->comptime_execution_engine.deinit();
+
+
+		///////////////////////////////////
+		// setup jit engine
+
+		auto jit_engine = pir::JITEngine();
+		jit_engine.init(pir::JITEngine::InitConfig{
+			.allowDefaultSymbolLinking = allow_default_symbol_linking,
+		});
+		EVO_DEFER([&](){ jit_engine.deinit(); });
+
+
+
+		this->_create_panther_build_callback = &create_panther_build_callback;
+
+		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
+			jit_engine.registerFuncs({
+				pir::JITEngine::FuncRegisterInfo(
+					"PTHR.BUILD.createPantherBuild",
+					[](Context* context, PantherBuildConfig* config) -> bool {
+						return context->_create_panther_build_callback->operator()(*config).isSuccess();
+					}
+				),
+			});
+
+		if(register_result.has_value() == false){
+			this->jit_engine_result_emit_diagnositc(register_result.error());
+			return evo::resultError;
+		}
+
+		const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+			jit_engine.addModule(this->pir_module);
+		if(add_module_result.has_value() == false){
+			this->jit_engine_result_emit_diagnositc(add_module_result.error());
+			return evo::resultError;
+		}
+
+
+		///////////////////////////////////
+		// run
+
+		return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
+	}
+
+
+
 
 
 
@@ -986,15 +1048,15 @@ namespace pcit::panther{
 		Context& context
 	) -> evo::Result<evo::SmallVector<llvm::Module*>> {
 		auto clang_modules = evo::SmallVector<llvm::Module*>();
-		clang_modules.reserve(source_manager.getClangSourceIDRange().size());
+		clang_modules.reserve(source_manager.getCFamilySourceIDRange().size());
 
 		auto diagnostic_list = clangint::DiagnosticList();
 
-		for(ClangSource::ID clang_source_id : source_manager.getClangSourceIDRange()){
-			const ClangSource& clang_source = source_manager[clang_source_id];
+		for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
+			const CFamilySource& c_family_source = source_manager[c_family_source_id];
 
 			const evo::Result<llvm::Module*> clang_module = get_clang_module(
-				clang_source, llvm_context, diagnostic_list, target, include_debug_info, context, source_manager
+				c_family_source, llvm_context, diagnostic_list, target, include_debug_info, context, source_manager
 			);
 
 			if(clang_module.isError()){ return evo::resultError; }
@@ -1224,7 +1286,7 @@ namespace pcit::panther{
 
 
 
-	auto Context::analyze_clang_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
+	auto Context::analyze_c_family_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
 	-> void {
 		const std::string filepath_str = path.string();
 
@@ -1235,8 +1297,8 @@ namespace pcit::panther{
 		}
 
 
-		ClangSource::ID created_clang_source_id = this->source_manager.create_clang_source(
-			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp, true
+		CFamilySource::ID created_c_family_source_id = this->source_manager.create_c_family_source(
+			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
 		);
 
 
@@ -1268,7 +1330,7 @@ namespace pcit::panther{
 		if(get_clang_header_api_res.isError() || errored){ return; }
 
 
-		ClangSource& created_clang_source = this->source_manager[created_clang_source_id];
+		CFamilySource& created_c_family_source = this->source_manager[created_c_family_source_id];
 
 
 		auto type_map = std::unordered_map<std::string, BaseType::ID>();
@@ -1279,10 +1341,10 @@ namespace pcit::panther{
 			decl.visit([&](const auto& decl_ptr) -> void {
 				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
 				
-				const ClangSource::ID source_clang_source_id =
-					this->source_manager.getOrCreateClangSourceID(evo::copy(decl_ptr->declFilePath), is_cpp, true).id;
+				const CFamilySource::ID source_c_family_source_id =
+					this->source_manager.getOrCreateCFamilySourceID(evo::copy(decl_ptr->declFilePath), is_cpp).id;
 
-				ClangSource& source_clang_source = this->source_manager[source_clang_source_id];
+				CFamilySource& source_c_family_source = this->source_manager[source_c_family_source_id];
 
 				if constexpr(std::is_same<DeclPtr, clangint::API::Alias*>()){
 					const clangint::API::Alias& alias_decl = *decl_ptr;
@@ -1295,13 +1357,13 @@ namespace pcit::panther{
 					if(panther_type->isVoid()){ return; }
 
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						alias_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							return this->type_manager.createAlias(
 								BaseType::Alias(
-									source_clang_source_id,
-									source_clang_source.createDeclInfo(
+									source_c_family_source_id,
+									source_c_family_source.createDeclInfo(
 										alias_decl.name, alias_decl.declLine, alias_decl.declCollumn
 									),
 									std::nullopt,
@@ -1314,8 +1376,10 @@ namespace pcit::panther{
 
 					type_map.emplace(alias_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(alias_decl.name, created_symbol, source_clang_source_id);
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							alias_decl.name, created_symbol, source_c_family_source_id
+						);
 					}
 
 				}else if constexpr(std::is_same<DeclPtr, clangint::API::Struct*>()){
@@ -1331,7 +1395,7 @@ namespace pcit::panther{
 
 						member_vars.emplace_back(
 							AST::VarDef::Kind::VAR,
-							source_clang_source.createDeclInfo(
+							source_c_family_source.createDeclInfo(
 								member_var.name, member_var.declLine, member_var.declCollumn
 							),
 							panther_type->asTypeID(),
@@ -1345,13 +1409,13 @@ namespace pcit::panther{
 						member_vars_abi.emplace_back(&value);
 					}
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						struct_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							const BaseType::ID created_struct_id = this->type_manager.createStruct(
 								BaseType::Struct{
-									.sourceID          =  source_clang_source_id,
-									.name              =  source_clang_source.createDeclInfo(
+									.sourceID          =  source_c_family_source_id,
+									.name              =  source_c_family_source.createDeclInfo(
 										struct_decl.name, struct_decl.declLine, struct_decl.declCollumn
 									),
 									.parent            =  std::nullopt,
@@ -1368,15 +1432,15 @@ namespace pcit::panther{
 								}
 							);
 
-							return ClangSource::Symbol(std::in_place_type<BaseType::ID>, created_struct_id);
+							return CFamilySource::Symbol(std::in_place_type<BaseType::ID>, created_struct_id);
 						}
 					);
 
 					type_map.emplace(struct_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(
-							struct_decl.name, created_symbol, source_clang_source_id
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							struct_decl.name, created_symbol, source_c_family_source_id
 						);
 					}
 
@@ -1391,18 +1455,18 @@ namespace pcit::panther{
 						if(panther_type.has_value() == false){ return; }
 
 						fields.emplace_back(
-							source_clang_source.createDeclInfo(field.name, field.declLine, field.declCollumn),
+							source_c_family_source.createDeclInfo(field.name, field.declLine, field.declCollumn),
 							panther_type->asTypeID()
 						);
 					}
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						union_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							return this->type_manager.createUnion(
 								BaseType::Union(
-									source_clang_source_id,
-									source_clang_source.createDeclInfo(
+									source_c_family_source_id,
+									source_c_family_source.createDeclInfo(
 										union_decl.name, union_decl.declLine, union_decl.declCollumn
 									),
 									std::nullopt,
@@ -1419,9 +1483,9 @@ namespace pcit::panther{
 
 					type_map.emplace(union_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(
-							union_decl.name, created_symbol, source_clang_source_id
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							union_decl.name, created_symbol, source_c_family_source_id
 						);
 					}
 
@@ -1442,20 +1506,20 @@ namespace pcit::panther{
 					enumerators.reserve(enum_decl.enumerators.size());
 					for(const clangint::API::Enum::Enumerator& enumerator : enum_decl.enumerators){
 						enumerators.emplace_back(
-							source_clang_source.createDeclInfo(
+							source_c_family_source.createDeclInfo(
 								enumerator.name, enumerator.declLine, enumerator.declCollumn
 							),
 							core::GenericInt(unsigned(bit_width), std::bit_cast<uint64_t>(enumerator.value), is_signed)
 						);
 					}
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						enum_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							return this->type_manager.createEnum(
 								BaseType::Enum(
-									source_clang_source_id,
-									source_clang_source.createDeclInfo(
+									source_c_family_source_id,
+									source_c_family_source.createDeclInfo(
 										enum_decl.name, enum_decl.declLine, enum_decl.declCollumn
 									),
 									std::nullopt,
@@ -1472,9 +1536,9 @@ namespace pcit::panther{
 
 					type_map.emplace(enum_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(
-							enum_decl.name, created_symbol, source_clang_source_id
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							enum_decl.name, created_symbol, source_c_family_source_id
 						);
 					}
 
@@ -1489,21 +1553,21 @@ namespace pcit::panther{
 					if(panther_func_type.has_value() == false){ return; }
 
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						function_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							auto params = evo::SmallVector<sema::Func::Param>();
 							params.reserve(function_decl.params.size());
 							for(const clangint::API::Function::Param& param : function_decl.params){
 								params.emplace_back(
-									source_clang_source.createDeclInfo(param.name, param.declLine, param.declCollumn),
+									source_c_family_source.createDeclInfo(param.name, param.declLine, param.declCollumn),
 									std::nullopt
 								);
 							}
 
 							return this->sema_buffer.createFunc(
-								source_clang_source_id,
-								source_clang_source.createDeclInfo(
+								source_c_family_source_id,
+								source_c_family_source.createDeclInfo(
 									function_decl.name, function_decl.declLine, function_decl.declCollumn
 								),
 								function_decl.mangled_name,
@@ -1529,13 +1593,13 @@ namespace pcit::panther{
 						}
 					);
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(
-							function_decl.name, created_symbol, source_clang_source_id
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							function_decl.name, created_symbol, source_c_family_source_id
 						);
 
 						if(function_decl.isInlined){
-							created_clang_source.addInlinedFuncName(function_decl.name);
+							created_c_family_source.addInlinedFuncName(function_decl.name);
 						}
 					}
 
@@ -1550,13 +1614,13 @@ namespace pcit::panther{
 					if(panther_var_type->isVoid()){ return; }
 
 
-					const ClangSource::Symbol created_symbol = source_clang_source.getOrCreateSourceSymbol(
+					const CFamilySource::Symbol created_symbol = source_c_family_source.getOrCreateSourceSymbol(
 						global_var_decl.name,
-						[&]() -> ClangSource::Symbol {
+						[&]() -> CFamilySource::Symbol {
 							return this->sema_buffer.createGlobalVar(
 								global_var_decl.isConst ? AST::VarDef::Kind::CONST : AST::VarDef::Kind::VAR,
-								source_clang_source_id,
-								source_clang_source.createDeclInfo(
+								source_c_family_source_id,
+								source_c_family_source.createDeclInfo(
 									global_var_decl.name, global_var_decl.declLine, global_var_decl.declCollumn
 								),
 								global_var_decl.mangled_name,
@@ -1570,9 +1634,9 @@ namespace pcit::panther{
 						}
 					);
 
-					if(add_includes_to_pub_api || source_clang_source_id == created_clang_source_id){
-						created_clang_source.addImportedSymbol(
-							global_var_decl.name, created_symbol, source_clang_source_id
+					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+						created_c_family_source.addImportedSymbol(
+							global_var_decl.name, created_symbol, source_c_family_source_id
 						);
 					}
 
@@ -1584,15 +1648,15 @@ namespace pcit::panther{
 
 
 		for(const clangint::API::Macro& macro : clang_api.getMacros()){
-			const auto decl_info_id = [&]() -> std::optional<ClangSource::DeclInfoID> {
+			const auto decl_info_id = [&]() -> std::optional<CFamilySource::DeclInfoID> {
 				if(macro.declFilePath.empty()){
 					return std::nullopt;
 				}else{
-					return created_clang_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn);
+					return created_c_family_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn);
 				}
 			}();
 
-			created_clang_source.addDefine(macro.name, decl_info_id);
+			created_c_family_source.addDefine(macro.name, decl_info_id);
 
 			switch(macro.value.kind()){
 				case clangint::MacroExpr::Kind::NONE: {
@@ -1600,12 +1664,12 @@ namespace pcit::panther{
 				} break;
 
 				case clangint::MacroExpr::Kind::BOOL: {
-					created_clang_source.addImportedSymbol(
+					created_c_family_source.addImportedSymbol(
 						macro.name,
 						this->sema_buffer.createGlobalVar(
 							AST::VarDef::Kind::DEF,
-							created_clang_source_id,
-							created_clang_source.createDeclInfo(
+							created_c_family_source_id,
+							created_c_family_source.createDeclInfo(
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
@@ -1618,7 +1682,7 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_clang_source_id
+						created_c_family_source_id
 					);
 				} break;
 
@@ -1651,12 +1715,12 @@ namespace pcit::panther{
 						}
 					}();
 
-					created_clang_source.addImportedSymbol(
+					created_c_family_source.addImportedSymbol(
 						macro.name,
 						this->sema_buffer.createGlobalVar(
 							AST::VarDef::Kind::DEF,
-							created_clang_source_id,
-							created_clang_source.createDeclInfo(
+							created_c_family_source_id,
+							created_c_family_source.createDeclInfo(
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
@@ -1667,7 +1731,7 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_clang_source_id
+						created_c_family_source_id
 					);
 				} break;
 
@@ -1700,12 +1764,12 @@ namespace pcit::panther{
 						}
 					}();
 
-					created_clang_source.addImportedSymbol(
+					created_c_family_source.addImportedSymbol(
 						macro.name,
 						this->sema_buffer.createGlobalVar(
 							AST::VarDef::Kind::DEF,
-							created_clang_source_id,
-							created_clang_source.createDeclInfo(
+							created_c_family_source_id,
+							created_c_family_source.createDeclInfo(
 								macro.name, macro.declLine, macro.declCollumn
 							),
 							macro.name,
@@ -1716,19 +1780,19 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_clang_source_id
+						created_c_family_source_id
 					);
 				} break;
 
 				case clangint::MacroExpr::Kind::IDENT: {
 					const std::string& ident_value = clang_api.macroExprBuffer.getIdent(macro.value);
 
-					const std::optional<ClangSource::SymbolInfo> imported_symbol =
-						created_clang_source.getImportedSymbol(ident_value);
+					const std::optional<CFamilySource::SymbolInfo> imported_symbol =
+						created_c_family_source.getImportedSymbol(ident_value);
 
 					if(imported_symbol.has_value()){
-						created_clang_source.addImportedSymbol(
-							macro.name, imported_symbol.value().symbol, created_clang_source_id
+						created_c_family_source.addImportedSymbol(
+							macro.name, imported_symbol.value().symbol, created_c_family_source_id
 						);
 					}
 				} break;
@@ -1736,7 +1800,7 @@ namespace pcit::panther{
 		}
 
 
-		created_clang_source.setSymbolImportComplete();
+		created_c_family_source.setSymbolImportComplete();
 	}
 
 
@@ -1901,8 +1965,8 @@ namespace pcit::panther{
 
 
 
-	auto Context::lookupClangSourceID(std::string_view lookup_path, const Source& calling_source, bool is_cpp)
-	-> evo::Expected<ClangSource::ID, LookupSourceIDError> {
+	auto Context::lookupCFamilySourceID(std::string_view lookup_path, const Source& calling_source, bool is_cpp)
+	-> evo::Expected<CFamilySource::ID, LookupSourceIDError> {
 		if(lookup_path.empty()){
 			return evo::Unexpected(LookupSourceIDError::EMPTY_PATH);
 		}
@@ -1936,7 +2000,8 @@ namespace pcit::panther{
 			return evo::Unexpected(LookupSourceIDError::SAME_AS_CALLER);
 		}
 
-		std::optional<ClangSource::ID> lookup_source_id = this->source_manager.lookupClangSourceID(file_path.string());
+		std::optional<CFamilySource::ID> lookup_source_id =
+			this->source_manager.lookupCFamilySourceID(file_path.string());
 		if(lookup_source_id.has_value()){
 			if(is_cpp != this->source_manager[*lookup_source_id].isCPP()){
 				return evo::Unexpected(LookupSourceIDError::WRONG_LANGUAGE);
@@ -1953,10 +2018,10 @@ namespace pcit::panther{
 			// TODO(PERF): better waiting
 			while(lookup_source_id.has_value() == false){
 				std::this_thread::yield();
-				lookup_source_id = this->source_manager.lookupClangSourceID(file_path.string());
+				lookup_source_id = this->source_manager.lookupCFamilySourceID(file_path.string());
 			}
 
-			const ClangSource& lookup_source = this->source_manager[lookup_source_id.value()];
+			const CFamilySource& lookup_source = this->source_manager[lookup_source_id.value()];
 
 			while(lookup_source.isSymbolImportComplete() == false){
 				std::this_thread::yield();
@@ -1972,7 +2037,7 @@ namespace pcit::panther{
 				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
 			}
 
-			this->analyze_clang_header_impl(std::move(file_path), true, is_cpp);
+			this->analyze_c_family_header_impl(std::move(file_path), true, is_cpp);
 		}
 
 		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
@@ -2003,103 +2068,6 @@ namespace pcit::panther{
 	}
 
 
-
-	auto Context::register_build_system_jit_funcs(pir::JITEngine& jit_engine) -> evo::Result<> {
-		struct StringView{
-			const char* data;
-			size_t size;
-
-			[[nodiscard]] operator std::string_view(){ return std::string_view(this->data, this->size); }
-			[[nodiscard]] operator std::string(){ return std::string(this->data, this->size); }
-		};
-
-		using PackageID = uint32_t;
-
-
-		struct PantherBuildConfig{
-			uint32_t output;
-			uint32_t num_threads;
-			bool add_debug_info;
-		};
-
-		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
-			jit_engine.registerFuncs({
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.createPantherBuild",
-					[](Context* context, PantherBuildConfig* config){
-						context->build_system_config.output       = BuildSystemConfig::Output(config->output);
-						context->build_system_config.numThreads   = NumThreads(config->num_threads);
-						context->build_system_config.addDebugInfo = config->add_debug_info;
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildSetStdLibPackage",
-					[](Context* context, PackageID package_id){
-						context->build_system_config.stdLibPackageID = Source::Package::ID(package_id);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildCreatePackage",
-					[](Context* context, StringView* path, StringView* name, Source::Package::Warns* warnings)
-					-> PackageID {
-						const PackageID package_id = PackageID(context->build_system_config.packages.size());
-
-						context->build_system_config.packages.emplace_back(
-							normalize_path(
-								fs::path(static_cast<std::string_view>(*path)),
-								context->getConfig().workingDirectory
-							),
-							static_cast<std::string>(*name),
-							*warnings
-						);
-
-						return package_id;
-					}
-				),
-
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildAddSourceFile",
-					[](Context* context, StringView* file_path, PackageID package_id) -> void {
-						context->build_system_config.sourceFiles.emplace_back(
-							std::string(file_path->data, file_path->size), Source::Package::ID(package_id)
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildAddSourceDirectory",
-					[](Context* context, StringView* file_path, PackageID package_id, bool is_recursive) -> void {
-						context->build_system_config.sourceDirectories.emplace_back(
-							static_cast<std::string>(*file_path),
-							Source::Package::ID(package_id),
-							is_recursive
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildAddCHeaderFile",
-					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
-						context->build_system_config.cLangFiles.emplace_back(
-							static_cast<std::string>(*file_path), add_includes_to_pub_api, false, true
-						);
-					}
-				),
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.buildAddCPPHeaderFile",
-					[](Context* context, StringView* file_path, bool add_includes_to_pub_api) -> void {
-						context->build_system_config.cLangFiles.emplace_back(
-							static_cast<std::string>(*file_path), add_includes_to_pub_api, true, true
-						);
-					}
-				),
-			});
-
-		if(register_result.has_value() == false){
-			this->jit_engine_result_emit_diagnositc(register_result.error());
-			return evo::resultError;
-		}
-
-		return evo::Result<>();
-	}
 
 
 
@@ -2220,6 +2188,264 @@ namespace pcit::panther{
 
 
 		//////////////////
+		// PantherBuildConfigDirectory
+
+		{
+			auto panther_build_config_directory_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("isRecursive"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+			};
+
+
+			auto panther_build_config_directory_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+			panther_build_config_directory_member_vars_abi.reserve(panther_build_config_directory_members.size());
+			for(BaseType::Struct::MemberVar& member : panther_build_config_directory_members){
+				panther_build_config_directory_member_vars_abi.emplace_back(&member);
+			}
+
+			const BaseType::ID panther_build_config_directory_type = this->type_manager.createStruct(
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfigDirectory"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(panther_build_config_directory_members),
+					.memberVarsABI     = std::move(panther_build_config_directory_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isOrdered         = true,
+					.isPacked          = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfigDirectory", panther_build_config_directory_type);
+
+
+			BaseType::Struct& panther_build_config_directory =
+				this->type_manager.getStruct(panther_build_config_directory_type.structID());
+
+			panther_build_config_directory.mayDesignatedInitNew = true;
+		}
+
+
+		//////////////////
+		// PantherBuildConfigCFamilyHeader
+
+		{
+			auto panther_build_config_c_family_header_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("isCPP"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("addIncludesToPubApi"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+			};
+
+
+			auto panther_build_config_directory_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+			panther_build_config_directory_member_vars_abi.reserve(panther_build_config_c_family_header_members.size());
+			for(BaseType::Struct::MemberVar& member : panther_build_config_c_family_header_members){
+				panther_build_config_directory_member_vars_abi.emplace_back(&member);
+			}
+
+			const BaseType::ID panther_build_config_directory_type = this->type_manager.createStruct(
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfigCFamilyHeader"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(panther_build_config_c_family_header_members),
+					.memberVarsABI     = std::move(panther_build_config_directory_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isOrdered         = true,
+					.isPacked          = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfigCFamilyHeader", panther_build_config_directory_type);
+
+
+			BaseType::Struct& panther_build_config_directory =
+				this->type_manager.getStruct(panther_build_config_directory_type.structID());
+
+			panther_build_config_directory.mayDesignatedInitNew = true;
+		}
+
+
+		//////////////////
+		// PantherBuildConfigPackage
+
+		{
+			auto panther_build_config_package_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("name"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("warnings"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(build_module.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("sourceFiles"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									TypeManager::getTypeStringRef(),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("sourceDirectories"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->type_manager.getOrCreateTypeInfo(
+										TypeInfo(
+											build_module.getSymbol("PantherBuildConfigDirectory")->as<BaseType::ID>()
+										)
+									),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("cFamilyHeaders"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->type_manager.getOrCreateTypeInfo(
+										TypeInfo(
+											build_module.getSymbol("PantherBuildConfigCFamilyHeader")
+												->as<BaseType::ID>()
+										)
+									),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+			};
+
+
+			auto panther_build_config_package_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
+			panther_build_config_package_member_vars_abi.reserve(panther_build_config_package_members.size());
+			for(BaseType::Struct::MemberVar& member : panther_build_config_package_members){
+				panther_build_config_package_member_vars_abi.emplace_back(&member);
+			}
+
+			const BaseType::ID panther_build_config_package_type = this->type_manager.createStruct(
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfigPackage"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(panther_build_config_package_members),
+					.memberVarsABI     = std::move(panther_build_config_package_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isOrdered         = true,
+					.isPacked          = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfigPackage", panther_build_config_package_type);
+
+
+			BaseType::Struct& panther_build_config_package =
+				this->type_manager.getStruct(panther_build_config_package_type.structID());
+
+			panther_build_config_package.mayDesignatedInitNew = true;
+		}
+
+
+
+
+		//////////////////
 		// PantherBuildConfig
 
 		{
@@ -2242,6 +2468,30 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("addDebugInfo"),
 					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("packages"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->type_manager.getOrCreateTypeInfo(
+										TypeInfo(
+											build_module.getSymbol("PantherBuildConfigPackage")->as<BaseType::ID>()
+										)
+									),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
 					std::nullopt,
 					false
 				),
@@ -2282,19 +2532,6 @@ namespace pcit::panther{
 		}
 
 
-
-		//////////////////
-		// PackageID
-
-		build_module.createSymbol("PackageID", this->type_manager.createDistinctAlias(
-			BaseType::DistinctAlias(
-				BuiltinModule::ID::BUILD,
-				build_module.createString("PackageID"),
-				std::nullopt,
-				TypeManager::getTypeUI32(),
-				false
-			)
-		));
 
 
 		//////////////////
@@ -3718,187 +3955,15 @@ namespace pcit::panther{
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(panther_build_config, BaseType::Function::Param::Kind::READ, false)
 					},
-					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>{}
 				),
 				.allowedInComptime = false, .allowedInRuntime = true,
 				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
-		
-			
-
-		{
-			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
-
-			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
-			);
-
-			const TypeInfo::ID created_func_type = create_func_type(
-				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
-				},
-				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-				evo::SmallVector<TypeInfo::VoidableID>()
-			);
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE))] = 
-			IntrinsicFuncInfo{
-				.typeID = created_func_type,
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-		}
-
-			
-
-
-
-		const TypeInfo::ID string_type = this->type_manager.getOrCreateTypeInfo(
-			TypeInfo(
-				this->type_manager.getOrCreateArrayRef(
-					BaseType::ArrayRef(
-						TypeManager::getTypeChar(),
-						evo::SmallVector<BaseType::ArrayRef::Dimension>{BaseType::ArrayRef::Dimension::ptr()},
-						std::nullopt,
-						false
-					)
-				)
-			)
-		);
-
-
-		{
-			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
-
-			const TypeInfo::ID package_warning_settings = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_build.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
-			);
-
-			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
-			);
-
-
-			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(
-					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(package_warning_settings, BaseType::Function::Param::Kind::IN, false)
-					},
-					evo::SmallVector<TypeInfo::VoidableID>{package_id},
-					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
-					false,
-					false
-				)
-			);
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE))] = 
-			IntrinsicFuncInfo{
-				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-		}
-
-		{
-			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
-
-			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
-			);
-
-
-			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(
-					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true)
-					},
-					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
-					false,
-					false
-				)
-			);
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_FILE))] = 
-			IntrinsicFuncInfo{
-				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-		}
-
-		{
-			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
-
-			const TypeInfo::ID package_id = this->type_manager.getOrCreateTypeInfo(
-				TypeInfo(builtin_module_build.getSymbol("PackageID")->as<BaseType::ID>())
-			);
-
-
-			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(
-					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(package_id, BaseType::Function::Param::Kind::READ, true),
-						BaseType::Function::Param(
-							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
-						)
-					},
-					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
-					false,
-					false
-				)
-			);
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY))] = 
-			IntrinsicFuncInfo{
-				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-		}
-
-		{
-			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(
-					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(string_type, BaseType::Function::Param::Kind::READ, false),
-						BaseType::Function::Param(
-							TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true
-						)
-					},
-					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
-					false,
-					false
-				)
-			);
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE))] = 
-			IntrinsicFuncInfo{
-				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-
-			this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE))] = 
-			IntrinsicFuncInfo{
-				.typeID = type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type)),
-				.allowedInComptime = false, .allowedInRuntime = true,
-				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
-			};
-		}
-
+	
+	
 
 
 		//////////////////////////////////////////////////////////////////////

@@ -16,9 +16,9 @@ namespace pcit::panther::sema{
 
 
 	auto Func::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangFunc()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyFunc()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else if(this->isBuiltinFunc()){
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -32,9 +32,9 @@ namespace pcit::panther::sema{
 
 	auto Func::getParamName(const Param& param, const SourceManager& source_manager) const
 	-> std::string_view {
-		if(this->isClangFunc()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(param.ident.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyFunc()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(param.ident.as<CFamilySource::DeclInfoID>()).name;
 
 		}else if(this->isBuiltinFunc()){
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -81,7 +81,7 @@ namespace pcit::panther::sema{
 	auto Func::isMethod(const Context& context) const -> bool {
 		if(this->params.empty()){ return false; }
 
-		if(this->isClangFunc()){
+		if(this->isCFamilyFunc()){
 			return false;
 
 		}else if(this->isBuiltinFunc()){
@@ -98,9 +98,9 @@ namespace pcit::panther::sema{
 
 
 	auto GlobalVar::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangVar()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->ident.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyVar()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->ident.as<CFamilySource::DeclInfoID>()).name;
 		}else{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->ident.as<Token::ID>()].getString();

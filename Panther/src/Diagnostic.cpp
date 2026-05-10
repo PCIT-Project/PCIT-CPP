@@ -285,9 +285,10 @@ namespace pcit::panther{
 	}
 
 	auto Diagnostic::Location::get(const sema::GlobalVar& global_var, const Context& context) -> Location {
-		if(global_var.isClangVar()){
-			const ClangSource& clang_source = context.getSourceManager()[global_var.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(global_var.ident.as<ClangSource::DeclInfoID>()).location;
+		if(global_var.isCFamilyVar()){
+			const CFamilySource& c_family_source =
+				context.getSourceManager()[global_var.sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(global_var.ident.as<CFamilySource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::get(
@@ -309,9 +310,10 @@ namespace pcit::panther{
 			if constexpr(std::is_same<NameType, Token::ID>()){
 				return Location::get(name, context.getSourceManager()[func.sourceID.as<Source::ID>()]);
 
-			}else if constexpr(std::is_same<NameType, ClangSource::DeclInfoID>()){
-				const ClangSource& clang_source = context.getSourceManager()[func.sourceID.as<ClangSource::ID>()];
-				return clang_source.getDeclInfo(name).location;
+			}else if constexpr(std::is_same<NameType, CFamilySource::DeclInfoID>()){
+				const CFamilySource& c_family_source =
+					context.getSourceManager()[func.sourceID.as<CFamilySource::ID>()];
+				return c_family_source.getDeclInfo(name).location;
 
 			}else if constexpr(std::is_same<NameType, sema::Func::CompilerCreatedOpOverload>()){
 				return Location::get(name.parentName, context.getSourceManager()[func.sourceID.as<Source::ID>()]);
@@ -357,9 +359,10 @@ namespace pcit::panther{
 			return Location::get(
 				alias_type.name.as<Token::ID>(), context.getSourceManager()[alias_type.sourceID.as<Source::ID>()]
 			);
-		}else if(alias_type.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[alias_type.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(alias_type.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(alias_type.isCFamilyType()){
+			const CFamilySource& c_family_source =
+				context.getSourceManager()[alias_type.sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(alias_type.name.as<CFamilySource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
@@ -392,9 +395,10 @@ namespace pcit::panther{
 			return Location::get(
 				struct_type.name.as<Token::ID>(), context.getSourceManager()[struct_type.sourceID.as<Source::ID>()]
 			);
-		}else if(struct_type.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[struct_type.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(struct_type.name.as<ClangSource::DeclInfoID>()).location;
+		}else if(struct_type.isCFamilyType()){
+			const CFamilySource& c_family_source =
+				context.getSourceManager()[struct_type.sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(struct_type.name.as<CFamilySource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::BUILTIN;
@@ -406,9 +410,10 @@ namespace pcit::panther{
 		return Location::get(context.getTypeManager().getUnion(union_id), context);
 	}
 	auto Diagnostic::Location::get(const BaseType::Union& union_type, const Context& context) -> Location {
-		if(union_type.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[union_type.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(union_type.location.as<ClangSource::DeclInfoID>()).location;
+		if(union_type.isCFamilyType()){
+			const CFamilySource& c_family_source =
+				context.getSourceManager()[union_type.sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(union_type.location.as<CFamilySource::DeclInfoID>()).location;
 			
 		}else{
 			return Location::get(
@@ -422,9 +427,10 @@ namespace pcit::panther{
 		return Location::get(context.getTypeManager().getEnum(enum_id), context);
 	}
 	auto Diagnostic::Location::get(const BaseType::Enum& enum_type, const Context& context) -> Location {
-		if(enum_type.isClangType()){
-			const ClangSource& clang_source = context.getSourceManager()[enum_type.sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(enum_type.name.as<ClangSource::DeclInfoID>()).location;
+		if(enum_type.isCFamilyType()){
+			const CFamilySource& c_family_source =
+				context.getSourceManager()[enum_type.sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(enum_type.name.as<CFamilySource::DeclInfoID>()).location;
 			
 		}else if(enum_type.isPTHRSourceType()){
 			return Location::get(

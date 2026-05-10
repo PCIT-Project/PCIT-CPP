@@ -59,27 +59,27 @@ namespace pcit::panther{
 
 
 	//////////////////////////////////////////////////////////////////////
-	// clang source
+	// c family source
 
-	struct ClangSourceID : public core::UniqueID<uint32_t, struct ClangSourceID> { 
-		using core::UniqueID<uint32_t, ClangSourceID>::UniqueID;
-		using core::UniqueID<uint32_t, ClangSourceID>::operator==;
+	struct CFamilySourceID : public core::UniqueID<uint32_t, struct CFamilySourceID> { 
+		using core::UniqueID<uint32_t, CFamilySourceID>::UniqueID;
+		using core::UniqueID<uint32_t, CFamilySourceID>::operator==;
 	};
 
 
-	struct ClangSourceLocation{
-		ClangSourceID sourceID;
+	struct CFamilySourceLocation{
+		CFamilySourceID sourceID;
 		uint32_t lineStart;
 		uint32_t lineEnd;
 		uint32_t collumnStart;
 		uint32_t collumnEnd;
 
 
-		ClangSourceLocation(ClangSourceID source_id, uint32_t line, uint32_t collumn)
+		CFamilySourceLocation(CFamilySourceID source_id, uint32_t line, uint32_t collumn)
 			: sourceID(source_id), lineStart(line), lineEnd(line), collumnStart(collumn), collumnEnd(collumn) {}
 
-		ClangSourceLocation(
-			ClangSourceID source_id,
+		CFamilySourceLocation(
+			CFamilySourceID source_id,
 			uint32_t line_start,
 			uint32_t line_end,
 			uint32_t collumn_start,
@@ -94,14 +94,14 @@ namespace pcit::panther{
 	};
 
 
-	struct ClangSourceDeclInfoID : public core::UniqueID<uint32_t, struct ClangSourceDeclInfoID> { 
-		using core::UniqueID<uint32_t, ClangSourceDeclInfoID>::UniqueID;
-		using core::UniqueID<uint32_t, ClangSourceDeclInfoID>::operator==;
+	struct CFamilySourceDeclInfoID : public core::UniqueID<uint32_t, struct CFamilySourceDeclInfoID> { 
+		using core::UniqueID<uint32_t, CFamilySourceDeclInfoID>::UniqueID;
+		using core::UniqueID<uint32_t, CFamilySourceDeclInfoID>::operator==;
 	};
 
 
-	struct ClangSourceDeclInfo{
-		ClangSourceLocation location;
+	struct CFamilySourceDeclInfo{
+		CFamilySourceLocation location;
 		std::string_view name;
 	};
 

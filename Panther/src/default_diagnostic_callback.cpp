@@ -53,11 +53,11 @@ namespace pcit::panther{
 			collumnEnd(source_location.collumnEnd)
 		{}
 
-		explicit FileLocation(const ClangSource::Location& clang_location) : 
-			lineStart(clang_location.lineStart),
-			lineEnd(clang_location.lineEnd),
-			collumnStart(clang_location.collumnStart),
-			collumnEnd(clang_location.collumnEnd)
+		explicit FileLocation(const CFamilySource::Location& c_family_location) : 
+			lineStart(c_family_location.lineStart),
+			lineEnd(c_family_location.lineEnd),
+			collumnStart(c_family_location.collumnStart),
+			collumnEnd(c_family_location.collumnEnd)
 		{}
 	};
 
@@ -256,15 +256,15 @@ namespace pcit::panther{
 					depth + 1
 				);
 
-			}else if(info.location.is<ClangSource::Location>()){
-				const ClangSource::Location& location = info.location.as<ClangSource::Location>();
-				const ClangSource& clang_source = context->getSourceManager()[location.sourceID];
+			}else if(info.location.is<CFamilySource::Location>()){
+				const CFamilySource::Location& location = info.location.as<CFamilySource::Location>();
+				const CFamilySource& c_family_source = context->getSourceManager()[location.sourceID];
 
 				print_location(
 					printer,
 					*rel_dir,
-					clang_source.getPath(),
-					clang_source.getData(),
+					c_family_source.getPath(),
+					c_family_source.getData(),
 					DiagnosticLevel::INFO,
 					FileLocation(location),
 					depth + 1
@@ -311,15 +311,15 @@ namespace pcit::panther{
 					1
 				);
 
-			}else if(diagnostic.location.is<ClangSource::Location>()){
-				const ClangSource::Location& location = diagnostic.location.as<ClangSource::Location>();
-				const ClangSource& clang_source = context.getSourceManager()[location.sourceID];
+			}else if(diagnostic.location.is<CFamilySource::Location>()){
+				const CFamilySource::Location& location = diagnostic.location.as<CFamilySource::Location>();
+				const CFamilySource& c_family_source = context.getSourceManager()[location.sourceID];
 
 				print_location(
 					printer,
 					rel_dir,
-					clang_source.getPath(),
-					clang_source.getData(),
+					c_family_source.getPath(),
+					c_family_source.getData(),
 					get_diagnostic_level(diagnostic.level),
 					FileLocation(location),
 					1

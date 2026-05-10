@@ -298,7 +298,7 @@ namespace pcit::panther::sema{
 
 	auto ScopeLevel::addIdent(
 		std::string_view ident,
-		ClangSourceID id,
+		CFamilySourceID id,
 		Token::ID location,
 		std::optional<EncapsulatingSymbolID> parent,
 		bool is_pub,
@@ -309,7 +309,7 @@ namespace pcit::panther::sema{
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
 		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		return &this->ids.emplace(ident, ClangModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
+		return &this->ids.emplace(ident, CFamilyModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
 	}
 
 

@@ -5,17 +5,15 @@ def std_exp = @import("./std_exp.pthr");
 
 
 type Package = struct #pub {
-	type Directory = struct {
-		var path: [Char:*];
-		var isRecursive: Bool;
-	}
-
+	type Directory = alias @build.PantherBuildConfigDirectory;
+	type CFamilyHeader = alias @build.PantherBuildConfigCFamilyHeader;
 
 	var path: [Char:*];
 	var name: [Char:*];
 	var warnings: @build.PackageWarningSettings;
 	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>();
 	var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
+	var cFamilyHeaders = new std_exp.StaticArrayList<{CFamilyHeader, 4}>();
 }
 
 
@@ -52,22 +50,35 @@ type PantherBuild = struct #pub {
 	}
 
 
-	func build = (this mut) #rt -> Void {
+	func build = (this mut) #rt -> Void <Void> {
 		std.debug.assert(this.built == false, "Already built");
 
-		@createPantherBuild(
+
+		var packages = new std_exp.StaticArrayList<{@build.PantherBuildConfigPackage, 16}>();
+
+		for(this.packages) [_; package: Package] {
+			packages.append().* = new @build.PantherBuildConfigPackage{
+				path              = copy package.path,
+				name              = copy package.name,
+				warnings          = copy package.warnings,
+				sourceFiles       = package.sourceFiles as [[Char:*]:*],
+				sourceDirectories = package.sourceDirectories as [@build.PantherBuildConfigDirectory:*],
+				cFamilyHeaders    = package.cFamilyHeaders as [@build.PantherBuildConfigCFamilyHeader:*],
+			};
+		}
+
+		this.built = true;
+
+		const build_was_successful: Bool = @createPantherBuild(
 			new @build.PantherBuildConfig{
 				output       = this.output as UI32,
 				numThreads   = copy this.numThreads,
 				addDebugInfo = copy this.addDebugInfo,
+				packages     = packages as [@build.PantherBuildConfigPackage:*],
 			}
 		);
 
-		for(this.packages) [i: USize; package: Package] {
-			this.add_package(package);
-		}
-
-		this.built = true;
+		if(build_was_successful == false){ error; }
 	}
 
 	func createPackage = (this mut) -> Package*uninit {
@@ -99,7 +110,6 @@ type PantherBuild = struct #pub {
 				new [Package.Directory:1][new Package.Directory{path = "./containers", isRecursive = true}]
 			),
 		};
-		this.std_lib_package = @makeInitPtr(package_std_uninit);
 
 
 		this.createPackage().* = new Package{
@@ -185,24 +195,6 @@ type PantherBuild = struct #pub {
 	///////////////////////////////////
 	// private
 
-	func add_package = (this, package: Package) #rt #priv -> Void {
-		const package_id: @build.PackageID = @buildCreatePackage(package.path, package.name, copy package.warnings);
-
-		for(package.sourceFiles) [_; src_file: [Char:*]] {
-			@buildAddSourceFile(src_file, package_id);
-		}
-
-		for(package.sourceDirectories) [_; src_dir: Package.Directory] {
-			@buildAddSourceDirectory(src_dir.path, package_id, src_dir.isRecursive);
-		}
-
-
-		if(this.std_lib_package != null && &package == this.std_lib_package.?){
-			@buildSetStdLibPackage(package_id);
-		}
-	}
-
 	var packages #priv = new std_exp.StaticArrayList<{Package, 16}>();
 	var built: Bool #priv = false;
-	var std_lib_package: Package*? = null;
 }

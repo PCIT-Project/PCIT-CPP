@@ -738,7 +738,7 @@ namespace pcit::panther{
 
 		struct IsMacroDefined{
 			const AST::FuncCall& func_call;
-			SymbolProcTermInfoID clang_module;
+			SymbolProcTermInfoID c_family_module;
 			SymbolProcTermInfoID macro_name;
 			SymbolProcTermInfoID output;
 		};

@@ -94,8 +94,8 @@ namespace pcit::pir{
 			///////////////////////////////////
 			// link
 
-			for(llvm::Module* clang_module : modules){
-				this->module.merge(clang_module);
+			for(llvm::Module* llvm_module : modules){
+				this->module.merge(llvm_module);
 			}
 		}
 

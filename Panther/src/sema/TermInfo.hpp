@@ -34,7 +34,7 @@ namespace pcit::panther{
 			NULL_VALUE,
 			EXPR_DEDUCER,
 			MODULE,
-			CLANG_MODULE,
+			C_FAMILY_MODULE,
 			BUILTIN_MODULE,
 			FUNCTION, // function, not func pointer
 			FUNCTION_PUB_REQUIRED, // same as FUNCTION, but requires pub checking
@@ -107,7 +107,7 @@ namespace pcit::panther{
 											//     |INTERFACE_CALL|POLY_INTERFACE_CALL
 			evo::SmallVector<TypeInfo::ID>, // EPHEMERAL
 			SourceID,                       // MODULE
-			ClangSourceID,                  // CLANG_MODULE
+			CFamilySourceID,                // C_FAMILY_MODULE
 			BuiltinModuleID,                // BUILTIN_MODULE
 			TypeInfo::VoidableID,           // TYPE
 			sema::TemplatedStruct::ID,      // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
@@ -263,8 +263,8 @@ namespace pcit::panther{
 					break; case ValueCategory::MODULE:
 						evo::debugAssert(this->type_id.is<SourceID>(), "Incorrect TermInfo creation");
 
-					break; case ValueCategory::CLANG_MODULE:
-						evo::debugAssert(this->type_id.is<ClangSourceID>(), "Incorrect TermInfo creation");
+					break; case ValueCategory::C_FAMILY_MODULE:
+						evo::debugAssert(this->type_id.is<CFamilySourceID>(), "Incorrect TermInfo creation");
 
 					break; case ValueCategory::BUILTIN_MODULE:
 						evo::debugAssert(this->type_id.is<BuiltinModuleID>(), "Incorrect TermInfo creation");
@@ -334,7 +334,7 @@ namespace pcit::panther{
 				evo::debugAssert(
 					this->value_category == ValueCategory::EXPR_DEDUCER
 					|| this->value_category == ValueCategory::MODULE
-					|| this->value_category == ValueCategory::CLANG_MODULE
+					|| this->value_category == ValueCategory::C_FAMILY_MODULE
 					|| this->value_category == ValueCategory::BUILTIN_MODULE
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE
 					|| this->value_category == ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
@@ -440,7 +440,7 @@ namespace pcit::panther{
 
 		[[nodiscard]] constexpr auto is_module() const -> bool {
 			return this->value_category == ValueCategory::MODULE
-				|| this->value_category == ValueCategory::CLANG_MODULE
+				|| this->value_category == ValueCategory::C_FAMILY_MODULE
 				|| this->value_category == ValueCategory::BUILTIN_MODULE;
 		}
 

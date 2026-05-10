@@ -18,17 +18,18 @@
 #include "./source_data.hpp"
 #include "../TypeManager.hpp"
 #include "../sema/sema.hpp"
+#include "../../../PIR/include/meta.hpp"
 
 
 namespace pcit::panther{
 
 
-	class ClangSource{
+	class CFamilySource{
 		public:
-			using ID = ClangSourceID;
-			using Location = ClangSourceLocation;
-			using DeclInfoID = ClangSourceDeclInfoID;
-			using DeclInfo = ClangSourceDeclInfo;
+			using ID = CFamilySourceID;
+			using Location = CFamilySourceLocation;
+			using DeclInfoID = CFamilySourceDeclInfoID;
+			using DeclInfo = CFamilySourceDeclInfo;
 
 			using Symbol = evo::Variant<BaseType::ID, sema::Func::ID, sema::GlobalVar::ID>;
 
@@ -39,7 +40,7 @@ namespace pcit::panther{
 
 
 		public:
-			ClangSource(const ClangSource&) = delete;
+			CFamilySource(const CFamilySource&) = delete;
 
 
 			///////////////////////////////////
@@ -49,7 +50,10 @@ namespace pcit::panther{
 			[[nodiscard]] auto getPath() const -> const std::filesystem::path& { return this->path; }
 			[[nodiscard]] auto getData() const -> const std::string& { return this->data; }
 			[[nodiscard]] auto isCPP() const -> bool { return this->is_cpp; }
-			[[nodiscard]] auto isHeader() const -> bool { return this->is_header; }
+			
+			[[nodiscard]] auto getPIRMetaFileID() const -> std::optional<pir::meta::File::ID> {
+				return this->pir_file_id;
+			}
 
 
 			///////////////////////////////////
@@ -165,8 +169,18 @@ namespace pcit::panther{
 
 
 		private:
-			ClangSource(std::filesystem::path&& _path, std::string&& data_str, bool _is_cpp, bool _is_header)
-				: id(ID(0)), path(std::move(_path)), data(std::move(data_str)), is_cpp(_is_cpp), is_header(_is_header){}
+			CFamilySource(
+				std::filesystem::path&& _path,
+				std::string&& data_str,
+				bool _is_cpp,
+				std::optional<pir::meta::FileID> _pir_file_id
+			) :
+				id(ID(0)),
+				path(std::move(_path)),
+				data(std::move(data_str)),
+				is_cpp(_is_cpp),
+				pir_file_id(_pir_file_id)
+			{}
 
 
 			struct SavedDeclInfo{
@@ -183,7 +197,7 @@ namespace pcit::panther{
 			std::filesystem::path path;
 			std::string data;
 			bool is_cpp;
-			bool is_header;
+			std::optional<pir::meta::FileID> pir_file_id;
 
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};
 

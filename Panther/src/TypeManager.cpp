@@ -43,9 +43,9 @@ namespace pcit::panther{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
 
-		}else if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -71,9 +71,9 @@ namespace pcit::panther{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
 
-		}else if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -88,9 +88,9 @@ namespace pcit::panther{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[member.name.as<Token::ID>()].getString();
 
-		}else if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(member.name.as<ClangSource::DeclInfoID>()).name;
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(member.name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -136,9 +136,9 @@ namespace pcit::panther{
 
 
 	auto BaseType::Union::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->location.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->location.as<CFamilySource::DeclInfoID>()).name;
 		}else{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
@@ -148,9 +148,9 @@ namespace pcit::panther{
 
 	auto BaseType::Union::getFieldName(const Field& field, const SourceManager& source_manager) const
 	-> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(field.location.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(field.location.as<CFamilySource::DeclInfoID>()).name;
 		}else{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[field.location.as<Token::ID>()].getString();
@@ -160,9 +160,9 @@ namespace pcit::panther{
 
 
 	auto BaseType::Enum::getName(const SourceManager& source_manager) const -> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(this->name.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
@@ -177,9 +177,9 @@ namespace pcit::panther{
 
 	auto BaseType::Enum::getEnumeratorName(const Enumerator& enumerator, const SourceManager& source_manager) const
 	-> std::string_view {
-		if(this->isClangType()){
-			const ClangSource& clang_source = source_manager[this->sourceID.as<ClangSource::ID>()];
-			return clang_source.getDeclInfo(enumerator.name.as<ClangSource::DeclInfoID>()).name;
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(enumerator.name.as<CFamilySource::DeclInfoID>()).name;
 
 		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
@@ -1433,7 +1433,7 @@ namespace pcit::panther{
 
 	auto TypeManager::get_parent_name(
 		std::optional<EncapsulatingSymbolID> parent,
-		evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id,
+		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> source_id,
 		const Context& context
 	) const -> std::string {
 		auto output = std::string();
@@ -1480,11 +1480,11 @@ namespace pcit::panther{
 				}
 
 			}else{
-				evo::debugAssert(source_id.is<ClangSource::ID>(), "Unknown source ID");
+				evo::debugAssert(source_id.is<CFamilySource::ID>(), "Unknown source ID");
 
-				const ClangSource& clang_source = context.getSourceManager()[source_id.as<ClangSource::ID>()];
+				const CFamilySource& c_family_source = context.getSourceManager()[source_id.as<CFamilySource::ID>()];
 
-				if(clang_source.isCPP()){
+				if(c_family_source.isCPP()){
 					output += "{CPP}::";
 				}else{
 					output += "{C}::";

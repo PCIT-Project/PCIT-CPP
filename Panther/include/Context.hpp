@@ -68,7 +68,15 @@ namespace pcit::panther{
 				NumThreads numThreads = NumThreads::single();
 			};
 
-			struct BuildSystemConfig{
+			struct PantherBuildConfig{
+				struct StringRef{
+					const char* data;
+					size_t size;
+
+					[[nodiscard]] operator std::string_view() const { return std::string_view(this->data, this->size); }
+					[[nodiscard]] operator std::string() const { return std::string(this->data, this->size); }
+				};
+
 				enum class Output : uint32_t {
 					TOKENS              = 0,
 					AST                 = 1,
@@ -82,35 +90,36 @@ namespace pcit::panther{
 					WINDOWED_EXECUTABLE = 9,
 				};
 
-				struct PantherFile{
-					std::string path;
-					Source::Package::ID packageID; // is index into `Config.packages`
+
+				struct Package{
+					struct Directory{
+						StringRef path;
+						bool isRecursive;
+					};
+
+					struct CFamilyHeader{
+						StringRef path;
+						bool isCPP;
+						bool addIncludesToPubApi;
+					};
+
+					StringRef path;
+					StringRef name;
+					Source::Package::Warns warns;
+					evo::ArrayProxy<StringRef> sourceFiles;
+					evo::ArrayProxy<Directory> sourceDirectories;
+					evo::ArrayProxy<CFamilyHeader> cFamilyHeaders;
 				};
 
-				struct PantherDirectory{
-					std::string path;
-					Source::Package::ID packageID; // is index into `Config.packages`
-					bool isRecursive;
-				};
 
-				struct CLangFile{
-					std::string path;
-					bool addIncludesToPubApi;
-					bool isCPP;
-					bool isHeader;
-				};
+				Output output;
+				NumThreads numThreads;
+				bool addDebugInfo;
 
-
-				Output output         = Output::RUN;
-				bool addDebugInfo     = false;
-				NumThreads numThreads = NumThreads::single();
-				std::optional<Source::Package::ID> stdLibPackageID{};
-
-				evo::StepVector<Source::Package> packages{};
-				evo::StepVector<PantherFile> sourceFiles{};
-				evo::StepVector<PantherDirectory> sourceDirectories{};
-				evo::StepVector<CLangFile> cLangFiles{};
+				evo::ArrayProxy<Package> packages;
 			};
+
+
 
 			enum class AddSourceResult{
 				SUCCESS,
@@ -158,10 +167,6 @@ namespace pcit::panther{
 
 			~Context();
 
-			
-			[[nodiscard]] auto getBuildSystemConfig() const -> const BuildSystemConfig& {
-				return this->build_system_config;
-			}
 
 
 			[[nodiscard]] static auto optimalNumThreads() -> unsigned;
@@ -216,12 +221,19 @@ namespace pcit::panther{
 
 			// call analyzeSemantics before any of these
 			[[nodiscard]] auto lowerToPIR(EntryKind entry_kind) -> evo::Result<>;
-			[[nodiscard]] auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
 
 			[[nodiscard]] auto lowerToLLVMIR() -> evo::Result<std::string>;
 			[[nodiscard]] auto lowerToAssembly() -> evo::Result<std::string>;
 			[[nodiscard]] auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
 
+			[[nodiscard]] auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
+
+
+			using CreatePantherBuildCallback = std::function<evo::Result<void>(PantherBuildConfig&)>;
+			[[nodiscard]] auto runBuildSystem(
+				const CreatePantherBuildCallback& create_panther_build_callback,
+				bool allow_default_symbol_linking = false
+			) -> evo::Result<uint8_t>;
 
 
 
@@ -294,7 +306,7 @@ namespace pcit::panther{
 				std::filesystem::path&& path, Source::Package::ID package_id
 			) -> evo::Result<Source::ID>;
 
-			auto analyze_clang_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
+			auto analyze_c_family_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
 				-> void;
 
 
@@ -308,11 +320,11 @@ namespace pcit::panther{
 			};
 			[[nodiscard]] auto lookupSourceID(std::string_view lookup_path, const Source& calling_source)
 				-> evo::Expected<Source::ID, LookupSourceIDError>;
-			[[nodiscard]] auto lookupClangSourceID(
+			[[nodiscard]] auto lookupCFamilySourceID(
 				std::string_view lookup_path,
 				const Source& calling_source,
 				bool is_cpp
-			) -> evo::Expected<ClangSource::ID, LookupSourceIDError>;
+			) -> evo::Expected<CFamilySource::ID, LookupSourceIDError>;
 
 			auto emit_diagnostic_impl(const Diagnostic& diagnostic) -> void;
 
@@ -412,8 +424,6 @@ namespace pcit::panther{
 
 
 			auto jit_engine_result_emit_diagnositc(const evo::SmallVector<std::string>& messages) -> void;
-
-			[[nodiscard]] auto register_build_system_jit_funcs(pir::JITEngine& jit_engine) -> evo::Result<>;
 
 
 
@@ -530,7 +540,6 @@ namespace pcit::panther{
 	
 		private:
 			const Config& _config;
-			BuildSystemConfig build_system_config{};
 
 			DiagnosticCallback _diagnostic_callback;
 			mutable evo::SpinLock diagnostic_callback_mutex{};
@@ -573,6 +582,10 @@ namespace pcit::panther{
 			SemaToPIR::Data sema_to_pir_data;
 			// pir::JITEngine comptime_jit_engine{};
 			pir::ExecutionEngine comptime_execution_engine{pir_module};
+
+
+			const CreatePantherBuildCallback* _create_panther_build_callback = nullptr;
+
 
 			friend class SymbolProcBuilder;
 			friend class SemanticAnalyzer;

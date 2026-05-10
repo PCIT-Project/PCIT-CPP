@@ -214,68 +214,7 @@ namespace pcit::panther{
 				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
 				pir::Parameter("config", module.createPtrType()),
 			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_set_std_lib_package = create_func_decl(
-			"PTHR.BUILD.buildSetStdLibPackage",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("use_std_lib", module.createUnsignedType(32))
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_create_package = create_func_decl(
-			"PTHR.BUILD.buildCreatePackage",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("path", module.createPtrType()),
-				pir::Parameter("name", module.createPtrType()),
-				pir::Parameter("warns_settings", module.createPtrType())
-			},
-			module.createUnsignedType(32)
-		);
-
-		this->jit_build_funcs.build_add_source_file = create_func_decl(
-			"PTHR.BUILD.buildAddSourceFile",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("package_id", module.createUnsignedType(32))
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_add_source_directory = create_func_decl(
-			"PTHR.BUILD.buildAddSourceDirectory",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("package_id", module.createUnsignedType(32)),
-				pir::Parameter("is_recursive", module.createBoolType()),
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_add_c_header_file = create_func_decl(
-			"PTHR.BUILD.buildAddCHeaderFile",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("add_includes_to_pub_api", module.createBoolType())
-			},
-			module.createVoidType()
-		);
-
-		this->jit_build_funcs.build_add_cpp_header_file = create_func_decl(
-			"PTHR.BUILD.buildAddCPPHeaderFile",
-			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
-				pir::Parameter("file_path", module.createPtrType()),
-				pir::Parameter("add_includes_to_pub_api", module.createBoolType())
-			},
-			module.createVoidType()
+			module.createBoolType()
 		);
 	}
 

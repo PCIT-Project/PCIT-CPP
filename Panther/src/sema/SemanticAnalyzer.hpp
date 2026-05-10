@@ -332,7 +332,7 @@ namespace pcit::panther{
 			) -> Result;
 
 			template<bool IS_COMPTIME>
-			[[nodiscard]] auto clang_module_accessor(
+			[[nodiscard]] auto c_family_module_accessor(
 				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs
@@ -1268,7 +1268,7 @@ namespace pcit::panther{
 				return this->get_location(module_info.tokenID);
 			}
 
-			[[nodiscard]] auto get_location(const sema::ScopeLevel::ClangModuleInfo& module_info) const
+			[[nodiscard]] auto get_location(const sema::ScopeLevel::CFamilyModuleInfo& module_info) const
 			-> Diagnostic::Location {
 				return this->get_location(module_info.tokenID);
 			}

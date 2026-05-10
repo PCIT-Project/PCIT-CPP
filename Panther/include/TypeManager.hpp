@@ -572,15 +572,15 @@ namespace pcit::panther{
 		struct Alias{
 			using ID = AliasID;
 
-			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+			evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID aliasedType;
 			bool isPub; // meaningless if not pthr source type
 			bool isPriv;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
-			[[nodiscard]] auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 
@@ -622,7 +622,7 @@ namespace pcit::panther{
 				};
 
 				AST::VarDef::Kind kind;
-				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+				evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
 				std::optional<DefaultValue> defaultValue;
 				bool isPriv;
@@ -657,8 +657,8 @@ namespace pcit::panther{
 				}
 			};
 
-			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+			evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<StructTemplateID> templateID = std::nullopt; // nullopt if not instantiated
 			uint32_t instantiation = std::numeric_limits<uint32_t>::max(); // uint32_t max if not instantiation
@@ -710,7 +710,7 @@ namespace pcit::panther{
 			bool isTriviallyComparable = false;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
-			[[nodiscard]] auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 
@@ -823,17 +823,17 @@ namespace pcit::panther{
 			using ID = UnionID;
 
 			struct Field{
-				evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+				evo::Variant<Token::ID, CFamilySourceDeclInfoID> location;
 				TypeInfoVoidableID typeID;
 			};
 			
-			evo::Variant<SourceID, ClangSourceID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID> location;
+			evo::Variant<SourceID, CFamilySourceID> sourceID;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID> location;
 			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Field> fields;
-			SymbolProcNamespace* namespacedMembers; // nullptr if is clang type
-			sema::ScopeLevel* scopeLevel; // nullopt if is clang type (although temporarily nullopt during creation)
-			bool isPub; // meaningless if clang type
+			SymbolProcNamespace* namespacedMembers; // nullptr if is c family type
+			sema::ScopeLevel* scopeLevel; // nullopt if is c family type (although temporarily nullopt during creation)
+			bool isPub; // meaningless if c family type
 			bool isPriv;
 			bool isUntagged;
 
@@ -841,7 +841,7 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
-			[[nodiscard]] auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 
 			[[nodiscard]] auto getFieldName(
 				const Field& field, const class panther::SourceManager& source_manager
@@ -857,12 +857,12 @@ namespace pcit::panther{
 			using ID = EnumID;
 
 			struct Enumerator{
-				evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+				evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 				core::GenericInt value;
 			};
 			
-			evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> sourceID;
-			evo::Variant<Token::ID, ClangSourceDeclInfoID, BuiltinModuleStringID> name;
+			evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Enumerator> enumerators;
 			BaseType::Primitive::ID underlyingTypeID;
@@ -876,7 +876,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
-			[[nodiscard]] auto isClangType() const -> bool { return this->sourceID.is<ClangSourceID>(); }
+			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 
 			[[nodiscard]] auto getEnumeratorName(
@@ -1491,26 +1491,26 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent,
-				evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id,
+				evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> source_id,
 				const class Context& context
 			) const -> std::string;
 
 
 			[[nodiscard]] auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent,
-				evo::Variant<SourceID, ClangSourceID> source_id,
+				evo::Variant<SourceID, CFamilySourceID> source_id,
 				const class Context& context
 			) const -> std::string {
 				if(source_id.is<SourceID>()){
 					return this->get_parent_name(
 						parent,
-						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<SourceID>()),
+						evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id.as<SourceID>()),
 						context
 					);
 				}else{
 					return this->get_parent_name(
 						parent,
-						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<ClangSourceID>()),
+						evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id.as<CFamilySourceID>()),
 						context
 					);
 				}
@@ -1524,13 +1524,13 @@ namespace pcit::panther{
 				if(source_id.is<SourceID>()){
 					return this->get_parent_name(
 						parent,
-						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<SourceID>()),
+						evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id.as<SourceID>()),
 						context
 					);
 				}else{
 					return this->get_parent_name(
 						parent,
-						evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id.as<BuiltinModuleID>()),
+						evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id.as<BuiltinModuleID>()),
 						context
 					);
 				}
@@ -1540,15 +1540,15 @@ namespace pcit::panther{
 				std::optional<EncapsulatingSymbolID> parent, SourceID source_id, const class Context& context
 			) const -> std::string {
 				return this->get_parent_name(
-					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+					parent, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id), context
 				);
 			}
 
 			[[nodiscard]] auto get_parent_name(
-				std::optional<EncapsulatingSymbolID> parent, ClangSourceID source_id, const class Context& context
+				std::optional<EncapsulatingSymbolID> parent, CFamilySourceID source_id, const class Context& context
 			) const -> std::string {
 				return this->get_parent_name(
-					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+					parent, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id), context
 				);
 			}
 
@@ -1556,7 +1556,7 @@ namespace pcit::panther{
 				std::optional<EncapsulatingSymbolID> parent, BuiltinModuleID source_id, const class Context& context
 			) const -> std::string {
 				return this->get_parent_name(
-					parent, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id), context
+					parent, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id), context
 				);
 			}
 

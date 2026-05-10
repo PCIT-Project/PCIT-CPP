@@ -15,7 +15,7 @@
 #include <PCIT_core.hpp>
 
 #include "./Source.hpp"
-#include "./ClangSource.hpp"
+#include "./CFamilySource.hpp"
 #include "./BuiltinModule.hpp"
 
 
@@ -74,11 +74,11 @@ namespace pcit::panther{
 			[[nodiscard]] auto operator[](Source::ID id) const -> const Source& { return this->priv.sources[id]; }
 			[[nodiscard]] auto operator[](Source::ID id)       ->       Source& { return this->priv.sources[id]; }
 
-			[[nodiscard]] auto operator[](ClangSource::ID id) const -> const ClangSource& {
-				return this->priv.clang_sources[id];
+			[[nodiscard]] auto operator[](CFamilySource::ID id) const -> const CFamilySource& {
+				return this->priv.c_family_sources[id];
 			}
-			[[nodiscard]] auto operator[](ClangSource::ID id) -> ClangSource& {
-				return this->priv.clang_sources[id];
+			[[nodiscard]] auto operator[](CFamilySource::ID id) -> CFamilySource& {
+				return this->priv.c_family_sources[id];
 			}
 
 			[[nodiscard]] auto operator[](BuiltinModule::ID id) const -> const BuiltinModule& {
@@ -107,26 +107,25 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto lookupSpecialNameSourceID(std::string_view path) const -> std::optional<Source::ID>;
 			[[nodiscard]] auto lookupSourceID(std::string_view path) const -> std::optional<Source::ID>;
-			[[nodiscard]] auto lookupClangSourceID(std::string_view path) const -> std::optional<ClangSource::ID>;
+			[[nodiscard]] auto lookupCFamilySourceID(std::string_view path) const -> std::optional<CFamilySource::ID>;
 
-			struct GottenClangSourceID{
-				ClangSource::ID id;
+			struct GottenCFamilySourceID{
+				CFamilySource::ID id;
 				bool created;
 			};
-			[[nodiscard]] auto getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp, bool is_header)
-				-> GottenClangSourceID;
-			[[nodiscard]] auto getOrCreateClangSourceID(std::string_view path, bool is_cpp, bool is_header)
-			-> GottenClangSourceID {
-				return this->getOrCreateClangSourceID(std::filesystem::path(path), is_cpp, is_header);
+			[[nodiscard]] auto getOrCreateCFamilySourceID(std::filesystem::path&& path, bool is_cpp)
+				-> GottenCFamilySourceID;
+			[[nodiscard]] auto getOrCreateCFamilySourceID(std::string_view path, bool is_cpp) -> GottenCFamilySourceID {
+				return this->getOrCreateCFamilySourceID(std::filesystem::path(path), is_cpp);
 			}
 
 
 
-			[[nodiscard]] auto getClangSourceIDRange() const -> evo::IterRange<ClangSource::ID::Iterator> {
-				const auto lock = std::lock_guard(this->priv.clang_sources_lock);
-				return evo::IterRange<ClangSource::ID::Iterator>(
-					ClangSource::ID::Iterator(ClangSource::ID(0)),
-					ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
+			[[nodiscard]] auto getCFamilySourceIDRange() const -> evo::IterRange<CFamilySource::ID::Iterator> {
+				const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
+				return evo::IterRange<CFamilySource::ID::Iterator>(
+					CFamilySource::ID::Iterator(CFamilySource::ID(0)),
+					CFamilySource::ID::Iterator(CFamilySource::ID(uint32_t(this->priv.c_family_sources.size())))
 				);
 			}
 
@@ -147,12 +146,12 @@ namespace pcit::panther{
 				return new_source_id;
 			}
 
-			auto create_clang_source(std::filesystem::path&& path, std::string&& data_str, bool is_cpp, bool is_header)
-			-> ClangSource::ID {
-				const auto lock = std::lock_guard(this->priv.clang_sources_lock);
+			auto create_c_family_source(std::filesystem::path&& path, std::string&& data_str, bool is_cpp)
+			-> CFamilySource::ID {
+				const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
 
-				const ClangSource::ID new_source_id = this->priv.clang_sources.emplace_back(
-					std::move(path), std::move(data_str), is_cpp, is_header
+				const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
+					std::move(path), std::move(data_str), is_cpp, std::nullopt
 				);
 
 				this->operator[](new_source_id).id = new_source_id;
@@ -178,8 +177,8 @@ namespace pcit::panther{
 					core::LinearStepAlloc<Source, Source::ID, 0> sources{};
 					mutable evo::SpinLock sources_lock{};
 
-					core::LinearStepAlloc<ClangSource, ClangSource::ID, 0> clang_sources{};
-					mutable evo::SpinLock clang_sources_lock{};
+					core::LinearStepAlloc<CFamilySource, CFamilySource::ID, 0> c_family_sources{};
+					mutable evo::SpinLock c_family_sources_lock{};
 
 					std::array<BuiltinModule, 2> builtin_modules{};
 

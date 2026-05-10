@@ -1071,7 +1071,7 @@ namespace pcit::panther{
 			this->propagate_finished_decl_def();
 			return Result::SUCCESS;
 
-		}else if(value_term_info.value_category == TermInfo::ValueCategory::CLANG_MODULE){
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::C_FAMILY_MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
 				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);
 				return Result::ERROR;
@@ -1081,7 +1081,7 @@ namespace pcit::panther{
 				var_ident,
 				instr.var_def,
 				true,
-				value_term_info.type_id.as<ClangSource::ID>(),
+				value_term_info.type_id.as<CFamilySource::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				var_attrs.value().is_pub,
@@ -10570,6 +10570,8 @@ namespace pcit::panther{
 		);
 		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
+		evo::debugAssert(func_call_impl_res.value().is_src_func(), "intrinsics shouldn't error return");
+
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		switch(target_term_info.value_category){
@@ -11709,12 +11711,12 @@ namespace pcit::panther{
 			lookup_error = import_lookup.error();
 
 		}else if constexpr(LANGUAGE == Instruction::Language::C || LANGUAGE == Instruction::Language::CPP){
-			const evo::Expected<ClangSource::ID, Context::LookupSourceIDError> import_lookup = 
-				this->context.lookupClangSourceID(lookup_path, this->source, LANGUAGE == Instruction::Language::CPP);
+			const evo::Expected<CFamilySource::ID, Context::LookupSourceIDError> import_lookup = 
+				this->context.lookupCFamilySourceID(lookup_path, this->source, LANGUAGE == Instruction::Language::CPP);
 
 			if(import_lookup.has_value()){
 				this->return_term_info(instr.output, 
-					TermInfo(TermInfo::ValueCategory::CLANG_MODULE, import_lookup.value())
+					TermInfo(TermInfo::ValueCategory::C_FAMILY_MODULE, import_lookup.value())
 				);
 				return Result::SUCCESS;
 			}
@@ -11773,11 +11775,11 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_is_macro_defined(const Instruction::IsMacroDefined& instr) -> Result {
-		const TermInfo& clang_module_term_info = this->get_term_info(instr.clang_module);
+		const TermInfo& c_family_module_term_info = this->get_term_info(instr.c_family_module);
 		const TermInfo& macro_name_term_info = this->get_term_info(instr.macro_name);
 
 
-		if(clang_module_term_info.value_category != TermInfo::ValueCategory::CLANG_MODULE){
+		if(c_family_module_term_info.value_category != TermInfo::ValueCategory::C_FAMILY_MODULE){
 			this->emit_error(
 				"First arugment in `@isMacroDefined` must be a C or C++ module", instr.func_call.args[0].value
 			);
@@ -11793,13 +11795,13 @@ namespace pcit::panther{
 		}
 
 
-		const ClangSource& clang_module = 
-			this->context.source_manager[clang_module_term_info.type_id.as<ClangSourceID>()];
+		const CFamilySource& c_family_module = 
+			this->context.source_manager[c_family_module_term_info.type_id.as<CFamilySourceID>()];
 
 		const sema::StringValue macro_name = 
 			this->context.getSemaBuffer().getStringValue(macro_name_term_info.getExpr().stringValueID());
 
-		const bool is_macro_defined = clang_module.getDefine(macro_name.value).has_value();
+		const bool is_macro_defined = c_family_module.getDefine(macro_name.value).has_value();
 			
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -20144,8 +20146,8 @@ namespace pcit::panther{
 		if(lhs.type_id.is<Source::ID>()){
 			return this->module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 
-		}else if(lhs.type_id.is<ClangSource::ID>()){
-			return this->clang_module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
+		}else if(lhs.type_id.is<CFamilySource::ID>()){
+			return this->c_family_module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
 
 		}else if(lhs.type_id.is<TypeInfo::VoidableID>()){
 			return this->type_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
@@ -21447,19 +21449,19 @@ namespace pcit::panther{
 
 
 	template<bool IS_COMPTIME>
-	auto SemanticAnalyzer::clang_module_accessor(
+	auto SemanticAnalyzer::c_family_module_accessor(
 		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
-		const ClangSource& clang_source = this->context.getSourceManager()[lhs.type_id.as<ClangSource::ID>()];
+		const CFamilySource& c_family_source = this->context.getSourceManager()[lhs.type_id.as<CFamilySource::ID>()];
 
-		std::optional<ClangSource::SymbolInfo> clang_symbol = clang_source.getImportedSymbol(rhs_ident_str);
+		std::optional<CFamilySource::SymbolInfo> c_family_symbol = c_family_source.getImportedSymbol(rhs_ident_str);
 
-		if(clang_symbol.has_value() == false){
+		if(c_family_symbol.has_value() == false){
 			this->emit_error(std::format("Module has no symbol named \"{}\"", rhs_ident_str), instr.infix.rhs);
 			return Result::ERROR;
 		}
 
-		clang_symbol->symbol.visit([&](const auto& symbol) -> void {
+		c_family_symbol->symbol.visit([&](const auto& symbol) -> void {
 			using SymbolType = std::decay_t<decltype(symbol)>;
 
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
@@ -21550,7 +21552,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_struct.namespacedMembers;
 				scope_level = lhs_struct.scopeLevel;
 
-				if(lhs_struct.isClangType() == false){
+				if(lhs_struct.isCFamilyType() == false){
 					type_source = &this->context.getSourceManager()[lhs_struct.sourceID.as<Source::ID>()];
 				}
 			} break;
@@ -21580,7 +21582,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_union.namespacedMembers;
 				scope_level = lhs_union.scopeLevel;
 
-				if(lhs_union.isClangType() == false){
+				if(lhs_union.isCFamilyType() == false){
 					type_source = &this->context.getSourceManager()[lhs_union.sourceID.as<Source::ID>()];
 				}
 			} break;
@@ -21610,7 +21612,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_enum.namespacedMembers;
 				scope_level = lhs_enum.scopeLevel;
 
-				if(lhs_enum.isClangType() == false){
+				if(lhs_enum.isCFamilyType() == false){
 					type_source = &this->context.getSourceManager()[lhs_enum.sourceID.as<Source::ID>()];
 				}
 			} break;
@@ -22355,7 +22357,7 @@ namespace pcit::panther{
 		);
 
 		const Source* union_source = [&]() -> const Source* {
-			if(lhs_type_union.isClangType()){
+			if(lhs_type_union.isCFamilyType()){
 				return nullptr;
 			}else{
 				return &this->context.getSourceManager()[lhs_type_union.sourceID.as<Source::ID>()];
@@ -22583,7 +22585,7 @@ namespace pcit::panther{
 		);
 
 		const Source* enum_source = [&]() -> const Source* {
-			if(lhs_type_enum.isClangType()){
+			if(lhs_type_enum.isCFamilyType()){
 				return nullptr;
 			}else{
 				return &this->context.getSourceManager()[lhs_type_enum.sourceID.as<Source::ID>()];
@@ -24535,7 +24537,7 @@ namespace pcit::panther{
 					)
 				);
 
-			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ClangModuleInfo>()){
+			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::CFamilyModuleInfo>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
 					if(ident_id.isPub == false){
 						this->emit_error(
@@ -24567,10 +24569,10 @@ namespace pcit::panther{
 
 				return ReturnType(
 					TermInfo(
-						TermInfo::ValueCategory::CLANG_MODULE,
+						TermInfo::ValueCategory::C_FAMILY_MODULE,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						ident_id.clangSourceID,
+						ident_id.cFamilySourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
 					)
 				);
@@ -33157,9 +33159,9 @@ namespace pcit::panther{
 				// TODO(FEATURE): actual module name?
 				return "{MODULE}";
 
-			}else if constexpr(std::is_same<TypeID, ClangSource::ID>()){
+			}else if constexpr(std::is_same<TypeID, CFamilySource::ID>()){
 				// TODO(FEATURE): actual name?
-				return "{CLANG MODULE}";
+				return "{C FAMILY MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, BuiltinModule::ID>()){
 				// TODO(FEATURE): actual name?

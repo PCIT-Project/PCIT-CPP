@@ -3252,7 +3252,8 @@ namespace pcit::panther{
 					if(func_call.args.size() != 2){
 						if(func_call.args.empty()){
 							this->emit_error(
-								"Calls to @isMacroDefined a Clang Module and a macro name string", intrin_tok_id
+								"Calls to @isMacroDefined require a C-Family module and a macro name string",
+								intrin_tok_id
 							);
 
 						}else if(func_call.args.size() == 1){

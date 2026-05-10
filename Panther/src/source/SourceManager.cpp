@@ -53,21 +53,21 @@ namespace pcit::panther{
 
 
 	// TODO(PERF): improve lookup times with a map maybe?
-	auto SourceManager::lookupClangSourceID(std::string_view path) const -> std::optional<ClangSource::ID> {
+	auto SourceManager::lookupCFamilySourceID(std::string_view path) const -> std::optional<CFamilySource::ID> {
 		const auto file_path = std::filesystem::path(path);
 
-		const auto clang_source_id_range = [&](){
-			const auto lock = std::scoped_lock(this->priv.clang_sources_lock);
-			return evo::IterRange<ClangSource::ID::Iterator>(
-				ClangSource::ID::Iterator(ClangSource::ID(0)),
-				ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
+		const auto c_family_source_id_range = [&](){
+			const auto lock = std::scoped_lock(this->priv.c_family_sources_lock);
+			return evo::IterRange<CFamilySource::ID::Iterator>(
+				CFamilySource::ID::Iterator(CFamilySource::ID(0)),
+				CFamilySource::ID::Iterator(CFamilySource::ID(uint32_t(this->priv.c_family_sources.size())))
 			);
 		}();
 
 		// look for path
-		for(const ClangSource::ID clang_source_id : clang_source_id_range){
-			const ClangSource& clang_source = this->operator[](clang_source_id);
-			if(clang_source.getPath() == file_path){ return clang_source_id; }
+		for(const CFamilySource::ID c_family_source_id : c_family_source_id_range){
+			const CFamilySource& c_family_source = this->operator[](c_family_source_id);
+			if(c_family_source.getPath() == file_path){ return c_family_source_id; }
 		}
 
 		return std::nullopt;
@@ -76,18 +76,18 @@ namespace pcit::panther{
 
 
 	// TODO(PERF): improve lookup times with a map maybe?
-	auto SourceManager::getOrCreateClangSourceID(std::filesystem::path&& path, bool is_cpp, bool is_header)
-	-> GottenClangSourceID {
-		const auto lock = std::scoped_lock(this->priv.clang_sources_lock);
+	auto SourceManager::getOrCreateCFamilySourceID(std::filesystem::path&& path, bool is_cpp)
+	-> GottenCFamilySourceID {
+		const auto lock = std::scoped_lock(this->priv.c_family_sources_lock);
 
-		const auto clang_source_id_range = evo::IterRange<ClangSource::ID::Iterator>(
-			ClangSource::ID::Iterator(ClangSource::ID(0)),
-			ClangSource::ID::Iterator(ClangSource::ID(uint32_t(this->priv.clang_sources.size())))
+		const auto c_family_source_id_range = evo::IterRange<CFamilySource::ID::Iterator>(
+			CFamilySource::ID::Iterator(CFamilySource::ID(0)),
+			CFamilySource::ID::Iterator(CFamilySource::ID(uint32_t(this->priv.c_family_sources.size())))
 		);
 
-		for(const ClangSource::ID clang_source_id : clang_source_id_range){
-			const ClangSource& clang_source = this->operator[](clang_source_id);
-			if(clang_source.getPath() == path){ return GottenClangSourceID(clang_source_id, false); }
+		for(const CFamilySource::ID c_family_source_id : c_family_source_id_range){
+			const CFamilySource& c_family_source = this->operator[](c_family_source_id);
+			if(c_family_source.getPath() == path){ return GottenCFamilySourceID(c_family_source_id, false); }
 		}
 
 		
@@ -95,13 +95,13 @@ namespace pcit::panther{
 		evo::debugAssert(file_data.isSuccess(), "File doesn't exist");
 
 
-		const ClangSource::ID new_source_id = this->priv.clang_sources.emplace_back(
-			std::move(path), std::move(file_data.value()), is_cpp, is_header
+		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
+			std::move(path), std::move(file_data.value()), is_cpp, std::nullopt
 		);
 
 		this->operator[](new_source_id).id = new_source_id;
 
-		return GottenClangSourceID(new_source_id, true);
+		return GottenCFamilySourceID(new_source_id, true);
 	}
 
 

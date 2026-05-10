@@ -38,9 +38,9 @@
 
 // int asdf = 12;
 
-// uint8_t get_num(size_t foo){
-// 	return foo;
-// }
+uint8_t get_num(){
+	return 12;
+}
 
 
 // #define FOO true

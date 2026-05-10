@@ -42,21 +42,21 @@ namespace pcit::panther{
 	auto SemaToPIR::lowerRuntime() -> void {
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
-			if(struct_type.isClangType() == false){ continue; }
+			if(struct_type.isCFamilyType() == false){ continue; }
 
 			this->lowerStructAndDepsIfNeeded(BaseType::Struct::ID(i));
 		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumUnions(); i+=1){
 			const BaseType::Union& union_type = this->context.getTypeManager().getUnion(BaseType::Union::ID(i));
-			if(union_type.isClangType() == false){ continue; }
+			if(union_type.isCFamilyType() == false){ continue; }
 
 			this->lowerUnionAndDepsIfNeeded(BaseType::Union::ID(i));
 		}
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
-			if(global_var.isClangVar() == false && global_var.kind != AST::VarDef::Kind::VAR){ continue; }
+			if(global_var.isCFamilyVar() == false && global_var.kind != AST::VarDef::Kind::VAR){ continue; }
 
 			this->lowerGlobalDecl(global_var_id);
 
@@ -92,7 +92,7 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-			if(func.isClangFunc()){ continue; }
+			if(func.isCFamilyFunc()){ continue; }
 
 			if(func.attributes.isRuntime == false){
 				// TODO(FUTURE): delete function
@@ -230,7 +230,7 @@ namespace pcit::panther{
 
 	// This is a separete function as the return for a non-constexpr func decl may be not useful as functions
 	// 	 with in-params will have multiple funcs created, so the one returned is the one used for constexpr
-	// Returns nullopt if is a clang func
+	// Returns nullopt if is a c family func
 	auto SemaToPIR::lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID> {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
@@ -238,11 +238,11 @@ namespace pcit::panther{
 			func.status != sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT, "Incorrect status for lowering func decl"
 		);
 
-		if(func.isClangFunc() == false){
+		if(func.isCFamilyFunc() == false){
 			this->current_source = &this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
 		}
 		EVO_DEFER([&](){
-			if(func.isClangFunc() == false){
+			if(func.isCFamilyFunc() == false){
 				this->current_source = nullptr;
 			}
 		});
@@ -271,7 +271,7 @@ namespace pcit::panther{
 				if(this->data.getConfig().useReadableNames == false){
 					return std::format(".{}", params.size());
 				}else{
-					if(func.isClangFunc()){
+					if(func.isCFamilyFunc()){
 						const std::string_view param_name =
 							func.getParamName(func.params[i], this->context.getSourceManager());
 
@@ -413,7 +413,7 @@ namespace pcit::panther{
 				);
 			}
 
-		}else if(func.isClangFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
+		}else if(func.isCFamilyFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
 			is_implicit_rvo = true;
 
 			const pir::Type ret_type = [&]() -> pir::Type {
@@ -583,7 +583,7 @@ namespace pcit::panther{
 				);
 			}
 
-			if(func.isClangFunc()){
+			if(func.isCFamilyFunc()){
 				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
 					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
 						std::move(mangled_name),
@@ -1526,7 +1526,7 @@ namespace pcit::panther{
 			if constexpr(std::is_same<SourceType, Source::ID>()){
 				return &this->context.getSourceManager()[source];
 		
-			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+			}else if constexpr(std::is_same<SourceType, CFamilySource::ID>()){
 				return nullptr;
 
 			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
@@ -1541,7 +1541,7 @@ namespace pcit::panther{
 		auto member_var_types = evo::SmallVector<pir::Type>();
 
 		if(struct_type.memberVarsABI.empty()){
-			if(struct_type.isClangType()){
+			if(struct_type.isCFamilyType()){
 				member_var_types.emplace_back(this->module.createSignedType(8));
 			}else{
 				member_var_types.emplace_back(this->module.createUnsignedType(1));
@@ -1586,7 +1586,7 @@ namespace pcit::panther{
 				}
 			}else{
 				const pir::Type nothing_type = [&]() -> pir::Type {
-					if(struct_type.isClangType()){
+					if(struct_type.isCFamilyType()){
 						return this->module.createSignedType(8);
 					}else{
 						return this->module.createUnsignedType(1);
@@ -1644,7 +1644,7 @@ namespace pcit::panther{
 			if constexpr(std::is_same<SourceType, Source::ID>()){
 				return &this->context.getSourceManager()[source];
 		
-			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+			}else if constexpr(std::is_same<SourceType, CFamilySource::ID>()){
 				return nullptr;
 
 			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
@@ -1807,7 +1807,7 @@ namespace pcit::panther{
 			if constexpr(std::is_same<SourceType, Source::ID>()){
 				return &this->context.getSourceManager()[source];
 		
-			}else if constexpr(std::is_same<SourceType, ClangSource::ID>()){
+			}else if constexpr(std::is_same<SourceType, CFamilySource::ID>()){
 				return nullptr;
 
 			}else if constexpr(std::is_same<SourceType, BuiltinModule::ID>()){
@@ -9785,13 +9785,13 @@ namespace pcit::panther{
 
 		const pir::Expr value = [&](){
 			switch(intrinsic_func_kind){
-				case IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE: {
+				case IntrinsicFunc::Kind::CREATE_PANTHER_BUILD: {
 					auto args = evo::SmallVector<pir::Expr>();
 					args.emplace_back(get_context_ptr());
 					get_args(args);
 
 					return this->handler.createCall(
-						this->data.getJITBuildFuncs().build_create_package, std::move(args)
+						this->data.getJITBuildFuncs().create_panther_build, std::move(args)
 					);
 				} break;
 
@@ -11390,62 +11390,6 @@ namespace pcit::panther{
 				this->create_panic(this->get_expr_pointer(func_call.args[0]));
 			} break;
 
-			case IntrinsicFunc::Kind::CREATE_PANTHER_BUILD: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().create_panther_build, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_SET_STD_LIB_PACKAGE: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_set_std_lib_package, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_CREATE_PACKAGE: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_create_package, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_ADD_SOURCE_FILE: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_add_source_file, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_ADD_SOURCE_DIRECTORY: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_add_source_directory, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_ADD_C_HEADER_FILE: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_add_c_header_file, std::move(args));
-			} break;
-
-			case IntrinsicFunc::Kind::BUILD_ADD_CPP_HEADER_FILE: {
-				auto args = evo::SmallVector<pir::Expr>();
-				args.emplace_back(get_context_ptr());
-				get_args(args);
-
-				this->handler.createCallVoid(this->data.getJITBuildFuncs().build_add_cpp_header_file, std::move(args));
-			} break;
-
 			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
 	}
@@ -12639,7 +12583,7 @@ namespace pcit::panther{
 					this->module,
 					this->context,
 					base_type_id.arrayRefID(),
-					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+					[&](TypeInfo::ID id){ return *this->get_type<MAY_LOWER_DEPENDENCY, true>(id).meta_type_id; }
 				);
 
 				if constexpr(GET_META){
@@ -12788,9 +12732,9 @@ namespace pcit::panther{
 				line_number = location.lineStart;
 				collumn_number = location.collumnStart;
 
-			}else if constexpr(std::is_same<LocationType, ClangSourceLocation>()){
+			}else if constexpr(std::is_same<LocationType, CFamilySourceLocation>()){
 				// TODO(FUTURE): 
-				evo::unimplemented("Getting debug location of clang source file");
+				evo::unimplemented("Getting debug location of c family source file");
 
 			}else{
 				static_assert(false, "Unknown location");
@@ -12820,7 +12764,7 @@ namespace pcit::panther{
 	// unmangled name
 
 	auto SemaToPIR::get_unmangled_func_name(const sema::Func& func) const -> std::string {
-		if(func.isClangFunc()){
+		if(func.isCFamilyFunc()){
 			return std::string(func.getName(this->context.getSourceManager()));
 
 		}else if(func.attributes.isExport){
@@ -13017,7 +12961,7 @@ namespace pcit::panther{
 		if(this->data.getConfig().useReadableNames){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
-			if(struct_type.isClangType()){
+			if(struct_type.isCFamilyType()){
 				return std::format("struct.{}", struct_type.getName(this->context.getSourceManager()));
 
 			}else{
@@ -13047,7 +12991,7 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(BaseType::Union::ID union_id) const -> std::string {
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
 
-		if(union_type.isClangType()){
+		if(union_type.isCFamilyType()){
 			return std::format("union.{}", union_type.getName(this->context.getSourceManager()));
 			
 		}else if(this->data.getConfig().useReadableNames){
@@ -13105,11 +13049,11 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(sema::GlobalVar::ID global_var_id) const -> std::string {
 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 
-		if(global_var.isClangVar()){
+		if(global_var.isCFamilyVar()){
 			if constexpr(PIR_STMT_NAME_SAFE){
 				return std::string(global_var.getName(this->context.getSourceManager()));
 			}else{
-				return global_var.clangMangledName;
+				return global_var.cFamilyMangledName;
 			}
 
 		}else{
@@ -13143,11 +13087,11 @@ namespace pcit::panther{
 	auto SemaToPIR::mangle_name(sema::Func::ID func_id) const -> std::string {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
-		if(func.isClangFunc()){
+		if(func.isCFamilyFunc()){
 			if constexpr(PIR_STMT_NAME_SAFE){
 				return std::string(func.getName(this->context.getSourceManager()));
 			}else{
-				return func.clangMangledName;
+				return func.cFamilyMangledName;
 			}
 
 		}else if(func.attributes.isExport){
@@ -13790,7 +13734,7 @@ namespace pcit::panther{
 	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::get_parent_name(
 		std::optional<EncapsulatingSymbolID> parent,
-		evo::Variant<Source::ID, ClangSource::ID, BuiltinModule::ID> source_id
+		evo::Variant<Source::ID, CFamilySource::ID, BuiltinModule::ID> source_id
 	) const -> std::string {
 		evo::debugAssert(
 			this->data.getConfig().useReadableNames, "Should only get parent name if using readable names"
@@ -13918,7 +13862,7 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Unknown builtin module");
 
 			}else{
-				evo::debugFatalBreak("clang parent shouldn't be possible");
+				evo::debugFatalBreak("c family parent shouldn't be possible");
 			}
 		}
 	}

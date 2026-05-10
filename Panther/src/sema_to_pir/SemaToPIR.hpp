@@ -348,18 +348,18 @@ namespace pcit::panther{
 			template<bool PIR_STMT_NAME_SAFE>
 			[[nodiscard]] auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id,
-				evo::Variant<SourceID, ClangSourceID, BuiltinModuleID> source_id
+				evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> source_id
 			) const -> std::string;
 
 			template<bool PIR_STMT_NAME_SAFE>
 			[[nodiscard]] auto get_parent_name(
 				std::optional<EncapsulatingSymbolID> parent_id,
-				evo::Variant<SourceID, ClangSourceID> source_id
+				evo::Variant<SourceID, CFamilySourceID> source_id
 			) const -> std::string {
 				if(source_id.is<SourceID>()){
 					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<SourceID>());
 				}else{
-					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<ClangSourceID>());
+					return this->get_parent_name<PIR_STMT_NAME_SAFE>(parent_id, source_id.as<CFamilySourceID>());
 				}
 			}
 
@@ -380,16 +380,16 @@ namespace pcit::panther{
 				std::optional<EncapsulatingSymbolID> parent_id, SourceID source_id
 			) const -> std::string {
 				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
-					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+					parent_id, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id)
 				);
 			}
 
 			template<bool PIR_STMT_NAME_SAFE>
 			[[nodiscard]] auto get_parent_name(
-				std::optional<EncapsulatingSymbolID> parent_id, ClangSourceID source_id
+				std::optional<EncapsulatingSymbolID> parent_id, CFamilySourceID source_id
 			) const -> std::string {
 				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
-					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+					parent_id, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id)
 				);
 			}
 
@@ -398,7 +398,7 @@ namespace pcit::panther{
 				std::optional<EncapsulatingSymbolID> parent_id, BuiltinModuleID source_id
 			) const -> std::string {
 				return this->get_parent_name<PIR_STMT_NAME_SAFE>(
-					parent_id, evo::Variant<SourceID, ClangSourceID, BuiltinModuleID>(source_id)
+					parent_id, evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID>(source_id)
 				);
 			}
 

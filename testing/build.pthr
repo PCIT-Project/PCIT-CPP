@@ -24,7 +24,7 @@ func entry = () #entry -> UI8 {
 	};
 
 
-	// build.addStdLib("../extern/Panther-std/std/"); // shipped path
+	build.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build.addStdLib("../../Panther-std/std");
 	// add_std_exp(build, copy warns);
 
@@ -39,13 +39,15 @@ func entry = () #entry -> UI8 {
 	var test_package: build_exp.Package*mut = @makeInitPtr(test_package_uninit);
 	test_package.sourceFiles.append().* = "test.pthr";
 
+	// test_package.cFamilyHeaders.append().* = new build_exp.Package.CFamilyHeader{
+	// 	path = "test.h", isCPP = false, addIncludesToPubApi = false
+	// };
 
-	// @buildAddCPPHeaderFile("test.h", false);
 
+	var build_errored: Bool = false;
+	try build.build() else { build_errored = true; };
 
-	build.build();
-
-	return 0;
+	return build_errored as UI8;
 }
 
 

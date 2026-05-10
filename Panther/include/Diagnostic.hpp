@@ -47,7 +47,7 @@ namespace pcit::panther{
 				Location(None) : variant() {}
 				Location(Builtin builtin) : variant(builtin) {}
 				Location(SourceLocation src_location) : variant(src_location) {}
-				Location(ClangSourceLocation clang_location) : variant(clang_location) {}
+				Location(CFamilySourceLocation c_family_location) : variant(c_family_location) {}
 
 				~Location() = default;
 
@@ -182,7 +182,7 @@ namespace pcit::panther{
 					-> Location;
 		
 			private:
-				evo::Variant<None, Builtin, SourceLocation, ClangSourceLocation> variant;
+				evo::Variant<None, Builtin, SourceLocation, CFamilySourceLocation> variant;
 		};
 
 		

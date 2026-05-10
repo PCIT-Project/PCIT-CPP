@@ -92,8 +92,8 @@ namespace pcit::panther::sema{
 				bool isPriv;
 			};
 
-			struct ClangModuleInfo{
-				ClangSourceID clangSourceID;
+			struct CFamilyModuleInfo{
+				CFamilySourceID cFamilySourceID;
 				Token::ID tokenID;
 				std::optional<EncapsulatingSymbolID> parent;
 				bool isPub;
@@ -179,7 +179,7 @@ namespace pcit::panther::sema{
 				sema::ExceptParamID,
 				sema::ForParamID,
 				ModuleInfo,
-				ClangModuleInfo,
+				CFamilyModuleInfo,
 				BaseType::AliasID,
 				BaseType::DistinctAliasID,
 				BaseType::StructID,
@@ -326,7 +326,7 @@ namespace pcit::panther::sema{
 			) -> AddIdentResult;
 			[[nodiscard]] auto addIdent(
 				std::string_view ident,
-				ClangSourceID id,
+				CFamilySourceID id,
 				Token::ID location,
 				std::optional<EncapsulatingSymbolID> parent,
 				bool is_pub,

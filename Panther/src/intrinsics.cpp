@@ -48,12 +48,6 @@ namespace pcit::panther{
 
 			// build system
 			{"createPantherBuild",      Kind::CREATE_PANTHER_BUILD},
-			{"buildSetStdLibPackage",   Kind::BUILD_SET_STD_LIB_PACKAGE},
-			{"buildCreatePackage",      Kind::BUILD_CREATE_PACKAGE},
-			{"buildAddSourceFile",      Kind::BUILD_ADD_SOURCE_FILE},
-			{"buildAddSourceDirectory", Kind::BUILD_ADD_SOURCE_DIRECTORY},
-			{"buildAddCHeaderFile",     Kind::BUILD_ADD_C_HEADER_FILE},
-			{"buildAddCPPHeaderFile",   Kind::BUILD_ADD_CPP_HEADER_FILE},
 		};
 
 		intrinsic_kinds_end = intrinsic_kinds.end();

@@ -28,14 +28,8 @@ namespace pcit::panther{
 
 			// build system
 			CREATE_PANTHER_BUILD,
-			BUILD_SET_STD_LIB_PACKAGE,
-			BUILD_CREATE_PACKAGE,
-			BUILD_ADD_SOURCE_FILE,
-			BUILD_ADD_SOURCE_DIRECTORY,
-			BUILD_ADD_C_HEADER_FILE,
-			BUILD_ADD_CPP_HEADER_FILE,
 
-			_LAST_ = BUILD_ADD_CPP_HEADER_FILE,
+			_LAST_ = CREATE_PANTHER_BUILD,
 		};
 
 		[[nodiscard]] auto lookupKind(std::string_view name) -> std::optional<Kind>;

@@ -1,6 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.298.0"></a>
+## v0.0.298.0
+
+### Panther
+- Improved build system
+	- Now executes while building panther code
+	- Allows the build system to run multiple builds
+- Added `@build.PantherBuildConfigPackage`
+- Added `@build.PantherBuildConfigDirectory`
+- Added `@build.PantherBuildConfigCFamilyHeader`
+- `@createPantherBuild` now returns `Bool` - `true` if was successful
+- Removed `@build.PackageID`
+- Removed intrinsic functions:
+	- `@buildSetStdLibPackage`
+	- `@buildCreatePackage`
+	- `@buildAddSourceFile`
+	- `@buildAddSourceDirectory`
+	- `@buildAddCHeaderFile`
+	- `@buildAddCPPHeaderFile`
+
+
+<!---------------------------------->
 <a name="v0.0.297.0"></a>
 ## v0.0.297.0
 
