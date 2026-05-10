@@ -740,10 +740,15 @@ namespace pcit::panther{
 		for(size_t i = 0; i < diagnostic_list.diagnostics.size(); i+=1){
 			const auto get_location = [&]() -> Diagnostic::Location {
 				if(diagnostic_list.diagnostics[i].location.has_value()){
+					pir::Module* debug_pir_module = nullptr;
+					if(context.getConfig().includeDebugInfo){
+						debug_pir_module = &context.getPIRModule();
+					}
+
 					return Diagnostic::Location(
 						CFamilySource::Location(
 							source_manager.getOrCreateCFamilySourceID(
-								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp
+								evo::copy(diagnostic_list.diagnostics[i].location->filePath), is_cpp, debug_pir_module
 							).id,
 							diagnostic_list.diagnostics[i].location->line,
 							diagnostic_list.diagnostics[i].location->collumn
@@ -1297,9 +1302,19 @@ namespace pcit::panther{
 		}
 
 
-		CFamilySource::ID created_c_family_source_id = this->source_manager.create_c_family_source(
-			std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
-		);
+		CFamilySource::ID created_c_family_source_id = [&]() -> CFamilySource::ID {
+			if(this->_config.includeDebugInfo){
+				return this->source_manager.create_c_family_source_with_debug_info(
+					std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp, this->pir_module
+				);
+
+			}else{
+				return this->source_manager.create_c_family_source(
+					std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
+				);
+			}
+		}();
+
 
 
 		auto diagnostic_list = pcit::clangint::DiagnosticList();
@@ -1341,8 +1356,14 @@ namespace pcit::panther{
 			decl.visit([&](const auto& decl_ptr) -> void {
 				using DeclPtr = std::decay_t<decltype(decl_ptr)>;
 				
-				const CFamilySource::ID source_c_family_source_id =
-					this->source_manager.getOrCreateCFamilySourceID(evo::copy(decl_ptr->declFilePath), is_cpp).id;
+				pir::Module* debug_pir_module = nullptr;
+				if(this->getConfig().includeDebugInfo){
+					debug_pir_module = &this->pir_module;
+				}
+
+				const CFamilySource::ID source_c_family_source_id = this->source_manager.getOrCreateCFamilySourceID(
+					evo::copy(decl_ptr->declFilePath), is_cpp, debug_pir_module
+				).id;
 
 				CFamilySource& source_c_family_source = this->source_manager[source_c_family_source_id];
 
@@ -2379,32 +2400,7 @@ namespace pcit::panther{
 					),
 					std::nullopt,
 					false
-				),
-				BaseType::Struct::MemberVar(
-					AST::VarDef::Kind::VAR,
-					build_module.createString("cFamilyHeaders"),
-					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(
-							this->type_manager.getOrCreateArrayRef(
-								BaseType::ArrayRef(
-									this->type_manager.getOrCreateTypeInfo(
-										TypeInfo(
-											build_module.getSymbol("PantherBuildConfigCFamilyHeader")
-												->as<BaseType::ID>()
-										)
-									),
-									evo::SmallVector<BaseType::ArrayRef::Dimension>{
-										BaseType::ArrayRef::Dimension::ptr()
-									},
-									std::nullopt,
-									false
-								)
-							)
-						)
-					),
-					std::nullopt,
-					false
-				),
+				)
 			};
 
 
@@ -2481,6 +2477,31 @@ namespace pcit::panther{
 									this->type_manager.getOrCreateTypeInfo(
 										TypeInfo(
 											build_module.getSymbol("PantherBuildConfigPackage")->as<BaseType::ID>()
+										)
+									),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("cFamilyHeaders"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->type_manager.getOrCreateTypeInfo(
+										TypeInfo(
+											build_module.getSymbol("PantherBuildConfigCFamilyHeader")
+												->as<BaseType::ID>()
 										)
 									),
 									evo::SmallVector<BaseType::ArrayRef::Dimension>{

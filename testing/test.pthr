@@ -1,19 +1,8 @@
-
-
-func sum_nums = (nums: UI8...) -> UI8 {
-	var sum: UI8 = 0;
-
-	for(nums) [_; num: UI8] #unroll {
-		sum += num;
-	}
-
-	return copy sum;
-}
+def test = @importC("test.h");
 
 
 func entry = () #entry -> UI8 {
-	const s2: UI8 = sum_nums(1, 2);
-	const s3: UI8 = sum_nums(1, 2, 3);
-
-	return 0;
+	unsafe{
+		return test.get_num();
+	}
 }

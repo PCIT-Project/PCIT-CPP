@@ -4,16 +4,16 @@ def std_exp = @import("./std_exp.pthr");
 
 
 
+type CFamilyHeader = alias #pub @build.PantherBuildConfigCFamilyHeader;
+
 type Package = struct #pub {
 	type Directory = alias @build.PantherBuildConfigDirectory;
-	type CFamilyHeader = alias @build.PantherBuildConfigCFamilyHeader;
 
 	var path: [Char:*];
 	var name: [Char:*];
 	var warnings: @build.PackageWarningSettings;
 	var sourceFiles = new std_exp.StaticArrayList<{[Char:*], 4}>();
 	var sourceDirectories = new std_exp.StaticArrayList<{Directory, 4}>();
-	var cFamilyHeaders = new std_exp.StaticArrayList<{CFamilyHeader, 4}>();
 }
 
 
@@ -43,6 +43,8 @@ type PantherBuild = struct #pub {
 	var addDebugInfo: Bool = false;
 	var numThreads: UI32 = 0;
 
+	var packages = new std_exp.StaticArrayList<{Package, 16}>();
+	var cFamilyHeaders = new std_exp.StaticArrayList<{CFamilyHeader, 4}>();
 
 
 	func delete = (this) -> Void {
@@ -51,9 +53,6 @@ type PantherBuild = struct #pub {
 
 
 	func build = (this mut) #rt -> Void <Void> {
-		std.debug.assert(this.built == false, "Already built");
-
-
 		var packages = new std_exp.StaticArrayList<{@build.PantherBuildConfigPackage, 16}>();
 
 		for(this.packages) [_; package: Package] {
@@ -63,7 +62,6 @@ type PantherBuild = struct #pub {
 				warnings          = copy package.warnings,
 				sourceFiles       = package.sourceFiles as [[Char:*]:*],
 				sourceDirectories = package.sourceDirectories as [@build.PantherBuildConfigDirectory:*],
-				cFamilyHeaders    = package.cFamilyHeaders as [@build.PantherBuildConfigCFamilyHeader:*],
 			};
 		}
 
@@ -71,18 +69,15 @@ type PantherBuild = struct #pub {
 
 		const build_was_successful: Bool = @createPantherBuild(
 			new @build.PantherBuildConfig{
-				output       = this.output as UI32,
-				numThreads   = copy this.numThreads,
-				addDebugInfo = copy this.addDebugInfo,
-				packages     = packages as [@build.PantherBuildConfigPackage:*],
+				output         = this.output as UI32,
+				numThreads     = copy this.numThreads,
+				addDebugInfo   = copy this.addDebugInfo,
+				packages       = packages as [@build.PantherBuildConfigPackage:*],
+				cFamilyHeaders = this.cFamilyHeaders as [@build.PantherBuildConfigCFamilyHeader:*],
 			}
 		);
 
 		if(build_was_successful == false){ error; }
-	}
-
-	func createPackage = (this mut) -> Package*uninit {
-		return this.packages.append();
 	}
 
 
@@ -98,7 +93,7 @@ type PantherBuild = struct #pub {
 		};
 
 
-		const package_std_uninit: Package*uninit = this.createPackage();
+		const package_std_uninit: Package*uninit = this.packages.append();
 		package_std_uninit.* = new Package{
 			path              = copy path,
 			name              = "std",
@@ -112,7 +107,7 @@ type PantherBuild = struct #pub {
 		};
 
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path              = copy path,
 			name              = "std._compiler_rt",
 			warnings          = copy warns,
@@ -121,7 +116,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.bit",
 			warnings    = copy warns,
@@ -130,7 +125,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.build",
 			warnings    = copy warns,
@@ -139,7 +134,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.debug",
 			warnings    = copy warns,
@@ -148,7 +143,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.math",
 			warnings    = copy warns,
@@ -157,7 +152,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.mem",
 			warnings    = copy warns,
@@ -166,7 +161,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.ptrMath",
 			warnings    = copy warns,
@@ -175,7 +170,7 @@ type PantherBuild = struct #pub {
 			),
 		};
 
-		this.createPackage().* = new Package{
+		this.packages.append().* = new Package{
 			path        = copy path,
 			name        = "std.types",
 			warnings    = copy warns,
@@ -195,6 +190,5 @@ type PantherBuild = struct #pub {
 	///////////////////////////////////
 	// private
 
-	var packages #priv = new std_exp.StaticArrayList<{Package, 16}>();
 	var built: Bool #priv = false;
 }

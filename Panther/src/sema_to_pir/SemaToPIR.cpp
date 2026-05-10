@@ -516,7 +516,7 @@ namespace pcit::panther{
 					this->mangle_name(func_id) + ".ERR",
 					std::move(debug_members),
 					location.meta_file_id,
-					location.meta_file_id, // TODO(FUTURE): get proper scope
+					location.meta_file_id,
 					location.line_number
 				);
 
@@ -578,7 +578,7 @@ namespace pcit::panther{
 					return_meta_type,
 					std::move(meta_params),
 					location.meta_file_id,
-					location.meta_file_id, // TODO(FUTURE): get proper scope
+					location.meta_file_id,
 					location.line_number
 				);
 			}
@@ -680,7 +680,7 @@ namespace pcit::panther{
 						return_meta_type,
 						evo::copy(meta_params),
 						location.meta_file_id,
-						location.meta_file_id, // TODO(FUTURE): get proper scope
+						location.meta_file_id,
 						location.line_number
 					);
 				}
@@ -1611,7 +1611,7 @@ namespace pcit::panther{
 				std::move(unmangled_struct_name),
 				std::move(debug_members),
 				location.meta_file_id,
-				this->get_current_meta_scope(),
+				location.meta_file_id,
 				location.line_number
 			);
 
@@ -1776,7 +1776,7 @@ namespace pcit::panther{
 					std::move(unmangled_union_name),
 					std::move(debug_members),
 					location.meta_file_id,
-					this->get_current_meta_scope(),
+					location.meta_file_id,
 					location.line_number
 				);
 
@@ -12733,8 +12733,9 @@ namespace pcit::panther{
 				collumn_number = location.collumnStart;
 
 			}else if constexpr(std::is_same<LocationType, CFamilySourceLocation>()){
-				// TODO(FUTURE): 
-				evo::unimplemented("Getting debug location of c family source file");
+				meta_file_id = *this->context.getSourceManager()[location.sourceID].getPIRMetaFileID();
+				line_number = location.lineStart;
+				collumn_number = location.collumnStart;
 
 			}else{
 				static_assert(false, "Unknown location");

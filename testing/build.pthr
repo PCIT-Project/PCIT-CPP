@@ -5,7 +5,7 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.PantherBuild{
-		output       = std.build.Output.PIR,
+		output       = std.build.Output.WINDOWED_EXECUTABLE,
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),
 		addDebugInfo = true,
@@ -24,12 +24,12 @@ func entry = () #entry -> UI8 {
 	};
 
 
-	build.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build.addStdLib("../../Panther-std/std");
 	// add_std_exp(build, copy warns);
 
 
-	var test_package_uninit: build_exp.Package*uninit = build.createPackage();
+	var test_package_uninit: build_exp.Package*uninit = build.packages.append();
 	test_package_uninit.* = new build_exp.Package{
 		path     = "./",
 		name     = "test",
@@ -39,9 +39,10 @@ func entry = () #entry -> UI8 {
 	var test_package: build_exp.Package*mut = @makeInitPtr(test_package_uninit);
 	test_package.sourceFiles.append().* = "test.pthr";
 
-	// test_package.cFamilyHeaders.append().* = new build_exp.Package.CFamilyHeader{
-	// 	path = "test.h", isCPP = false, addIncludesToPubApi = false
-	// };
+
+	build.cFamilyHeaders.append().* = new build_exp.CFamilyHeader{
+		path = "test.h", isCPP = false, addIncludesToPubApi = false
+	};
 
 
 	var build_errored: Bool = false;
@@ -53,7 +54,7 @@ func entry = () #entry -> UI8 {
 
 
 func add_std_exp = (build: build_exp.PantherBuild mut, warns: @build.PackageWarningSettings in) #rt -> Void {
-	build.createPackage().* = new build_exp.Package{
+	build.packages.append().* = new build_exp.Package{
 		path        = "./std_exp",
 		name        = "std_exp",
 		warnings    = forward warns,

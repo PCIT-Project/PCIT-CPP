@@ -344,57 +344,56 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				} break;
 			}
 		}
+	}
 
-		using PackageCFamilyHeader = panther::Context::PantherBuildConfig::Package::CFamilyHeader;
-		for(const PackageCFamilyHeader& c_family_header : package.cFamilyHeaders){
-			const panther::Context::AddSourceResult result = [&](){
-				if(c_family_header.isCPP){
-					return context.addCPPHeaderFile(
-						static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
-					);
-				}else{
-					return context.addCHeaderFile(
-						static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
-					);
-				}
-			}();
-
-			switch(result){
-				case panther::Context::AddSourceResult::SUCCESS: break;
-
-				case panther::Context::AddSourceResult::DOESNT_EXIST: {
-					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-						panther::Diagnostic::Level::ERROR,
-						"File doesn't exist",
-						panther::Diagnostic::Location::NONE,
-						evo::SmallVector<panther::Diagnostic::Info>{
-							panther::Diagnostic::Info(
-								std::format("Path: \"{}\"", static_cast<std::string_view>(c_family_header.path))
-							)
-						}
-					));
-					num_errors += 1;
-				} break;
-
-				case panther::Context::AddSourceResult::NOT_FILE: {
-					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-						panther::Diagnostic::Level::ERROR,
-						"Path isn't a file",
-						panther::Diagnostic::Location::NONE,
-						evo::SmallVector<panther::Diagnostic::Info>{
-							panther::Diagnostic::Info(
-								std::format("Path: \"{}\"", static_cast<std::string_view>(c_family_header.path))
-							)
-						}
-					));
-
-					num_errors += 1;
-				} break;
-
-				case panther::Context::AddSourceResult::NOT_DIRECTORY: {
-					evo::debugFatalBreak("Shouldn't be possible to get this code");
-				} break;
+	for(const panther::Context::PantherBuildConfig::CFamilyHeader& c_family_header : config.cFamilyHeaders){
+		const panther::Context::AddSourceResult result = [&](){
+			if(c_family_header.isCPP){
+				return context.addCPPHeaderFile(
+					static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
+				);
+			}else{
+				return context.addCHeaderFile(
+					static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
+				);
 			}
+		}();
+
+		switch(result){
+			case panther::Context::AddSourceResult::SUCCESS: break;
+
+			case panther::Context::AddSourceResult::DOESNT_EXIST: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"File doesn't exist",
+					panther::Diagnostic::Location::NONE,
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(
+							std::format("Path: \"{}\"", static_cast<std::string_view>(c_family_header.path))
+						)
+					}
+				));
+				num_errors += 1;
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_FILE: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Path isn't a file",
+					panther::Diagnostic::Location::NONE,
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info(
+							std::format("Path: \"{}\"", static_cast<std::string_view>(c_family_header.path))
+						)
+					}
+				));
+
+				num_errors += 1;
+			} break;
+
+			case panther::Context::AddSourceResult::NOT_DIRECTORY: {
+				evo::debugFatalBreak("Shouldn't be possible to get this code");
+			} break;
 		}
 	}
 
@@ -618,7 +617,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			const plnk::LinkResult link_result = plnk::link({std::filesystem::path("build/output.o")}, plnk_options);
 
 			if(link_result.messages.empty() == false){
-				printer.printlnCyan("<Info:L> Linker messages");
+				printer.printlnCyan("<Info> Linker messages");
 				for(const std::string& message : link_result.messages){
 					printer.printCyan(message);
 				}
@@ -636,7 +635,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				// }
 
 				for(const std::string& err_message : link_result.errMessages){
-					printer.printRed("<Error:L> ");
+					printer.printRed("<Error> ");
 					auto output_buffer = std::string();
 
 					bool printed_error = false;
@@ -840,6 +839,10 @@ auto main(int argc, const char* argv[]) -> int {
 			panther::Diagnostic::Location::NONE
 		));
 		return EXIT_FAILURE;
+	}
+
+	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+		printer.printlnSuccess("Successfully completed");
 	}
 
 	return EXIT_SUCCESS;

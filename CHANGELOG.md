@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.299.0"></a>
+## v0.0.299.0
+
+### Panther
+- Moved cFamilyHeader member from `@build.PantherBuildConfigPackage` to `@build.PantherBuildConfig`
+- Fixed adding debug info of symbols from c-family headers
+
+
+<!---------------------------------->
 <a name="v0.0.298.0"></a>
 ## v0.0.298.0
 

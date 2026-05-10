@@ -10,6 +10,7 @@
 #include "../../include/source/SourceManager.hpp"
 
 
+#include <PIR.hpp>
 
 #if defined(EVO_COMPILER_MSVC)
 	#pragma warning(default : 4062)
@@ -76,7 +77,7 @@ namespace pcit::panther{
 
 
 	// TODO(PERF): improve lookup times with a map maybe?
-	auto SourceManager::getOrCreateCFamilySourceID(std::filesystem::path&& path, bool is_cpp)
+	auto SourceManager::getOrCreateCFamilySourceID(std::filesystem::path&& path, bool is_cpp, pir::Module* pir_module)
 	-> GottenCFamilySourceID {
 		const auto lock = std::scoped_lock(this->priv.c_family_sources_lock);
 
@@ -95,13 +96,50 @@ namespace pcit::panther{
 		evo::debugAssert(file_data.isSuccess(), "File doesn't exist");
 
 
+		auto meta_file_id = std::optional<pir::meta::File::ID>();
+		if(pir_module != nullptr){
+			meta_file_id = pir_module->createMetaFile(
+				std::format("PTHR.c-family-file.{}", this->priv.c_family_sources.size()),
+				path.string(),
+				is_cpp ? pir::meta::Language::CPP : pir::meta::Language::C,
+				std::format("PCIT-CPP v{} / Clang", core::VERSION)
+			);
+		}
+
+
 		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
-			std::move(path), std::move(file_data.value()), is_cpp, std::nullopt
+			std::move(path), std::move(file_data.value()), is_cpp, meta_file_id
 		);
 
 		this->operator[](new_source_id).id = new_source_id;
 
 		return GottenCFamilySourceID(new_source_id, true);
+	}
+
+
+
+	auto SourceManager::create_c_family_source_with_debug_info(
+		std::filesystem::path&& path, std::string&& data_str, bool is_cpp, pir::Module& pir_module
+	) -> CFamilySource::ID {
+		const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
+
+		std::string path_str = path.string();
+
+		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
+			std::move(path),
+			std::move(data_str),
+			is_cpp,
+			pir_module.createMetaFile(
+				std::format("PTHR.c-family-file.{}", this->priv.c_family_sources.size()),
+				std::move(path_str),
+				is_cpp ? pir::meta::Language::CPP : pir::meta::Language::C,
+				std::format("PCIT-CPP v{} / Clang", core::VERSION)
+			)
+		);
+
+		this->operator[](new_source_id).id = new_source_id;
+
+		return new_source_id;
 	}
 
 

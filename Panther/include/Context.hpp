@@ -90,17 +90,10 @@ namespace pcit::panther{
 					WINDOWED_EXECUTABLE = 9,
 				};
 
-
 				struct Package{
 					struct Directory{
 						StringRef path;
 						bool isRecursive;
-					};
-
-					struct CFamilyHeader{
-						StringRef path;
-						bool isCPP;
-						bool addIncludesToPubApi;
 					};
 
 					StringRef path;
@@ -108,7 +101,12 @@ namespace pcit::panther{
 					Source::Package::Warns warns;
 					evo::ArrayProxy<StringRef> sourceFiles;
 					evo::ArrayProxy<Directory> sourceDirectories;
-					evo::ArrayProxy<CFamilyHeader> cFamilyHeaders;
+				};
+
+				struct CFamilyHeader{
+					StringRef path;
+					bool isCPP;
+					bool addIncludesToPubApi;
 				};
 
 
@@ -117,6 +115,7 @@ namespace pcit::panther{
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;
+				evo::ArrayProxy<CFamilyHeader> cFamilyHeaders;
 			};
 
 

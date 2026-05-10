@@ -19,6 +19,12 @@
 #include "./BuiltinModule.hpp"
 
 
+
+namespace pcit::pir{
+	class Module;
+}
+
+
 namespace pcit::panther{
 
 
@@ -113,10 +119,13 @@ namespace pcit::panther{
 				CFamilySource::ID id;
 				bool created;
 			};
-			[[nodiscard]] auto getOrCreateCFamilySourceID(std::filesystem::path&& path, bool is_cpp)
-				-> GottenCFamilySourceID;
-			[[nodiscard]] auto getOrCreateCFamilySourceID(std::string_view path, bool is_cpp) -> GottenCFamilySourceID {
-				return this->getOrCreateCFamilySourceID(std::filesystem::path(path), is_cpp);
+			[[nodiscard]] auto getOrCreateCFamilySourceID(
+				std::filesystem::path&& path, bool is_cpp, pir::Module* pir_module // nullptr if not adding debug info
+			) -> GottenCFamilySourceID;
+			[[nodiscard]] auto getOrCreateCFamilySourceID(
+				std::string_view path, bool is_cpp, pir::Module* pir_module // nullptr if not adding debug info
+			) -> GottenCFamilySourceID {
+				return this->getOrCreateCFamilySourceID(std::filesystem::path(path), is_cpp, pir_module);
 			}
 
 
@@ -158,6 +167,12 @@ namespace pcit::panther{
 
 				return new_source_id;
 			}
+
+
+			auto create_c_family_source_with_debug_info(
+				std::filesystem::path&& path, std::string&& data_str, bool is_cpp, pir::Module& pir_module
+			) -> CFamilySource::ID;
+
 
 			auto add_special_name_path(std::string_view name, const std::filesystem::path& path) -> void {
 				this->priv.special_name_paths.emplace(name, path);
