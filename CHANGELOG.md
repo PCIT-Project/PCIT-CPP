@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.299.2"></a>
+## v0.0.299.2
+
+### Panther
+- Fixed lowering of functions returns not `Void`, and error returns `Void`
+
+
+<!---------------------------------->
 <a name="v0.0.299.1"></a>
 ## v0.0.299.1
 

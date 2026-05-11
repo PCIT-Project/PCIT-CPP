@@ -957,7 +957,10 @@ namespace pcit::panther{
 				);
 
 				this->handler.createStore(
-					ret_alloca, this->handler.createParamExpr(uint32_t(func.getParameters().size() - 2))
+					ret_alloca,
+					this->handler.createParamExpr(
+						uint32_t(func.getParameters().size() - 1 - uint64_t(func_type.hasErrorReturnValue()))
+					)
 				);
 
 				this->param_allocas.emplace_back(ret_alloca);
