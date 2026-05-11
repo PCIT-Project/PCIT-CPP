@@ -964,7 +964,7 @@ namespace pcit::panther{
 			}
 
 
-			if(func_type.errorTypes.empty() == false){
+			if(func_type.hasErrorReturnValue()){
 				const size_t abi_index = func.getParameters().size() - 1;
 				const pir::Parameter& pir_param = func.getParameters()[abi_index];
 

@@ -1,8 +1,13 @@
-def test = @importC("test.h");
+
+func err_stmt = () -> Void <Void> {}
+// func err_value = () -> Int <Void> { return 0; }
 
 
-func entry = () #entry -> UI8 {
-	unsafe{
-		return test.get_num();
-	}
-}
+// func entry = () #entry -> UI8 {
+// 	const foo: Int = try err_value() else {->expr:Int
+// 		return 1;
+// 	};
+
+
+// 	return 0;
+// }
