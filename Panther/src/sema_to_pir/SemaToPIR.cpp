@@ -2108,11 +2108,14 @@ namespace pcit::panther{
 				this->handler.setTargetBasicBlock(start_block);
 				this->handler.createBranch(err_occurred, if_error_block, end_block);
 
-				this->handler.setTargetBasicBlock(if_error_block_end);
-				this->handler.createJump(end_block);
+				if(try_else.elseBlock.isTerminated() == false){
+					this->handler.setTargetBasicBlock(if_error_block_end);
+					this->handler.createJump(end_block);
+				}
 
 				this->handler.setTargetBasicBlock(end_block);
 			} break;
+
 
 			case sema::Stmt::Kind::TRY_ELSE_INTERFACE: {
 				const sema::TryElseInterface& try_else_interface = 
@@ -2197,7 +2200,8 @@ namespace pcit::panther{
 					const pir::Type error_return_type =
 						*interface_info.error_return_types[try_else_interface.vtableFuncIndex];
 
-					const pir::Expr error_value = this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+					const pir::Expr error_value =
+						this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
 
 					for(const sema::ExceptParam::ID except_param_id : try_else_interface.exceptParams){
 						const sema::ExceptParam& except_param =

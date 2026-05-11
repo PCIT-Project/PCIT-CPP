@@ -1400,8 +1400,7 @@ namespace pcit::panther{
 				);
 			}
 
-			[[nodiscard]] auto getTryElseBegin(Instruction instr) const
-			-> const Instruction::TryElseBegin& {
+			[[nodiscard]] auto getTryElseBegin(Instruction instr) const -> const Instruction::TryElseBegin& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE_BEGIN, "Not a TryElseBegin");
 				return this->try_else_begins[instr._index];
 			}
@@ -1410,8 +1409,16 @@ namespace pcit::panther{
 			//////////////////
 			// TryElseEnd
 
-			[[nodiscard]] auto createTryElseEnd() -> Instruction {
-				return Instruction(Instruction::Kind::TRY_ELSE_END, 0);
+			[[nodiscard]] auto createTryElseEnd(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::TRY_ELSE_END,
+					this->try_else_ends.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getTryElseEnd(Instruction instr) const -> const Instruction::TryElseEnd& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE_END, "Not a TryElseEnd");
+				return this->try_else_ends[instr._index];
 			}
 
 
@@ -1426,8 +1433,7 @@ namespace pcit::panther{
 				);
 			}
 
-			[[nodiscard]] auto getBeginUnsafe(Instruction instr) const
-			-> const Instruction::BeginUnsafe& {
+			[[nodiscard]] auto getBeginUnsafe(Instruction instr) const -> const Instruction::BeginUnsafe& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_UNSAFE, "Not a BeginUnsafe");
 				return this->begin_unsafes[instr._index];
 			}
@@ -3270,6 +3276,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MultiAssign, uint32_t> multi_assigns{};
 			core::SyncLinearStepAlloc<Instruction::DiscardingAssignment, uint32_t> discarding_assignments{};
 			core::SyncLinearStepAlloc<Instruction::TryElseBegin, uint32_t> try_else_begins{};
+			core::SyncLinearStepAlloc<Instruction::TryElseEnd, uint32_t> try_else_ends{};
 			core::SyncLinearStepAlloc<Instruction::BeginUnsafe, uint32_t> begin_unsafes{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDecl, uint32_t> wait_on_sub_symbol_proc_decls{};

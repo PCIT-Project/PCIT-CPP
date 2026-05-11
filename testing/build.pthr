@@ -45,10 +45,9 @@ func entry = () #entry -> UI8 {
 	// };
 
 
-	var build_errored: Bool = false;
-	try build.build() else { build_errored = true; };
-
-	return build_errored as UI8;
+	try build.build() else { return 1; };
+	
+	return 0;
 }
 
 

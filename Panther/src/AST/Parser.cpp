@@ -1453,7 +1453,11 @@ namespace pcit::panther{
 
 
 			return this->source.ast_buffer.createTryElse(
-				attempt_expr.value(), except_block.value(), std::move(except_params), else_token_id
+				attempt_expr.value(),
+				except_block.value(),
+				std::move(except_params),
+				else_token_id,
+				this->reader.peek(-1)
 			);
 		}
 

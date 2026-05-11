@@ -2893,7 +2893,7 @@ namespace pcit::panther{
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
 
-		this->add_instruction(this->context.symbol_proc_manager.createTryElseEnd());
+		this->add_instruction(this->context.symbol_proc_manager.createTryElseEnd(try_else));
 
 		return evo::Result<>();
 	}

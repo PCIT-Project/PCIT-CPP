@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.299.3"></a>
+## v0.0.299.3
+
+### Panther
+- Fixed semantic analysis of termination in `try`/`else` expressions and statements
+- Fixed missing value state checks at end of `try`/`else` statements
+- Fixed value state tracking incorrectly erroring when an initialized variable is assigned to in a sub-scope
+
+
+<!---------------------------------->
 <a name="v0.0.299.2"></a>
 ## v0.0.299.2
 

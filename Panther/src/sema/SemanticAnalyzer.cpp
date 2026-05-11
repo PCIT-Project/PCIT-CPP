@@ -433,7 +433,7 @@ namespace pcit::panther{
 				return this->instr_try_else_begin(this->context.symbol_proc_manager.getTryElseBegin(instr));
 
 			case Instruction::Kind::TRY_ELSE_END:
-				return this->instr_try_else_end();
+				return this->instr_try_else_end(this->context.symbol_proc_manager.getTryElseEnd(instr));
 
 			case Instruction::Kind::BEGIN_UNSAFE:
 				return this->instr_begin_unsafe(this->context.symbol_proc_manager.getBeginUnsafe(instr));
@@ -8928,9 +8928,7 @@ namespace pcit::panther{
 
 			switch(lhs.getExpr().kind()){
 				case sema::Expr::Kind::VAR: {
-					this->set_ident_value_state(
-						sema::UninitPtrLocalVar(lhs.getExpr().varID()), sema::ScopeLevel::ValueState::UNINIT
-					);
+					// safe, do nothing
 				} break;
 
 				case sema::Expr::Kind::DEREF: {
@@ -8954,7 +8952,7 @@ namespace pcit::panther{
 						} break;
 
 						case sema::Expr::Kind::FUNC_CALL: {
-							// safe, do nothing...
+							// safe, do nothing
 						} break;
 
 						default: {
@@ -10692,6 +10690,8 @@ namespace pcit::panther{
 		}
 
 
+		this->get_current_scope_level().addSubScope(); // handle the success case
+
 
 		if(target_term_info.value_category == TermInfo::ValueCategory::POLY_INTERFACE_CALL){
 			const sema::FakeTermInfo& fake_term_info = this->context.getSemaBuffer().getFakeTermInfo(
@@ -10759,8 +10759,9 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
-	auto SemanticAnalyzer::instr_try_else_end() -> Result {
+	auto SemanticAnalyzer::instr_try_else_end(const Instruction::TryElseEnd& instr) -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.try_else.semicolonTokenID)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -16684,6 +16685,14 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
+		// handle scoping of success case
+
+		if(this->scope.inEncapsulatingSymbol()){
+			this->get_current_scope_level().addSubScope();
+		}
+
+
+		///////////////////////////////////
 		// build outputs
 
 		this->push_scope_level(sema_block_expr.block, instr.label, sema_block_expr_id);
@@ -16692,7 +16701,7 @@ namespace pcit::panther{
 		for(size_t i = 0; const SymbolProc::TypeID& output_type_id : instr.output_types){
 			const TypeInfo::VoidableID output_type = this->get_type(output_type_id);
 
-			if(output_type.isVoid()){\
+			if(output_type.isVoid()){
 				this->emit_error("Block expression output cannot be type `Void`", instr.block.outputs[i].typeID);
 				return Result::ERROR;
 			}
@@ -23102,7 +23111,6 @@ namespace pcit::panther{
 					&& this->scope.inEncapsulatingSymbol()
 					&& !this->scope.inObjectMainScope()
 					&& current_scope_is_label_terminated == false
-
 				){
 					this->get_current_scope_level().setSubScopeTerminated();
 				}

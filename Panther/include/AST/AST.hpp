@@ -455,6 +455,7 @@ namespace pcit::panther::AST{
 		Node exceptExpr;
 		evo::SmallVector<Token::ID> exceptParams;
 		Token::ID elseTokenID;
+		Token::ID semicolonTokenID;
 	};
 
 	struct Unsafe{

@@ -165,7 +165,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_multi_assign(const Instruction::MultiAssign& instr) -> Result;
 			[[nodiscard]] auto instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result;
 			[[nodiscard]] auto instr_try_else_begin(const Instruction::TryElseBegin& instr) -> Result;
-			[[nodiscard]] auto instr_try_else_end() -> Result;
+			[[nodiscard]] auto instr_try_else_end(const Instruction::TryElseEnd& instr) -> Result;
 			[[nodiscard]] auto instr_begin_unsafe(const Instruction::BeginUnsafe& instr) -> Result;
 			[[nodiscard]] auto instr_end_unsafe() -> Result;
 

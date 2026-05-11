@@ -685,6 +685,12 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> func_call_args;
 		};
 
+		struct TryElseEnd{
+			const AST::TryElse& try_else;
+		};
+
+
+
 		struct BeginUnsafe{
 			const AST::Unsafe& unsafe_stmt;
 		};
