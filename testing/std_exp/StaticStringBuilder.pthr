@@ -18,7 +18,7 @@ func get_capacity_type = (capacity: USize) -> TypeID {
 }
 
 
-type StaticString = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 0, "`CAPACITY` cannot be 0") {
+type StaticStringBuilder = struct <{CAPACITY: USize}> #pub #comptimeAssert(CAPACITY != 0, "`CAPACITY` cannot be 0") {
 	func new = () -> (output: This) {
 		output.data_block = new [Byte : CAPACITY + std.types.numBytes<{RemainingCapacityType}>()]();
 		output.remaining_capacity().* = CAPACITY as RemainingCapacityType;

@@ -403,6 +403,7 @@ namespace pcit::panther{
 
 		struct DeletedSpecialMethod{
 			const AST::DeletedSpecialMethod& deleted_special_method;
+			std::optional<SymbolProcTermInfoID> message;
 		};
 
 		struct FuncAliasDef{

@@ -1630,9 +1630,9 @@ namespace pcit::panther{
 		// copy
 
 		if(created_struct.copyAssignOverload.load(std::memory_order::relaxed).has_value()){
-			if(created_struct.copyInitOverload.load(std::memory_order::relaxed).funcID.has_value()){
+			if(created_struct.copyInitOverload.load(std::memory_order::relaxed).wasExplicitlyDeclared()){
 				const sema::Func& copy_init_sema_func = this->context.getSemaBuffer().getFunc(
-					*created_struct.copyInitOverload.load(std::memory_order::relaxed).funcID
+					created_struct.copyInitOverload.load(std::memory_order::relaxed).funcID()
 				);
 
 				const sema::Func& copy_assign_sema_func = this->context.getSemaBuffer().getFunc(
@@ -1690,10 +1690,11 @@ namespace pcit::panther{
 		//////////////////
 		// move
 
+
 		if(created_struct.moveAssignOverload.load(std::memory_order::relaxed).has_value()){
-			if(created_struct.moveInitOverload.load(std::memory_order::relaxed).funcID.has_value()){
+			if(created_struct.moveInitOverload.load(std::memory_order::relaxed).wasExplicitlyDeclared()){
 				const sema::Func& move_init_sema_func = this->context.getSemaBuffer().getFunc(
-					*created_struct.moveInitOverload.load(std::memory_order::relaxed).funcID
+					created_struct.moveInitOverload.load(std::memory_order::relaxed).funcID()
 				);
 
 				const sema::Func& move_assign_sema_func = this->context.getSemaBuffer().getFunc(
@@ -2112,14 +2113,24 @@ namespace pcit::panther{
 		const BaseType::Struct::DeletableOverload move_init_overload =
 			created_struct.moveInitOverload.load(std::memory_order::relaxed);
 
-		if(move_init_overload.wasDeleted() == false && move_init_overload.funcID.has_value() == false){
+		if(move_init_overload.wasDeleted() == false && move_init_overload.wasExplicitlyDeclared() == false){
 			if(copy_init_overload.wasDeleted()){
-				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(
-					BaseType::Struct::DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED
-				);
+				using DeletableOverloadState = BaseType::Struct::DeletableOverload::State;
 
-			}else if(copy_init_overload.funcID.has_value()){
-				created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(copy_init_overload.funcID);
+				if(copy_init_overload.state == DeletableOverloadState::EXPLICITLY_DELETED_WITH_MESSAGE){
+					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(
+						BaseType::Struct::DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE,
+						copy_init_overload.messageStringValueID()
+					);
+
+				}else{
+					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(
+						BaseType::Struct::DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED
+					);
+				}
+
+			}else if(copy_init_overload.wasExplicitlyDeclared()){
+				created_struct.moveInitOverload = copy_init_overload;
 
 			}else{
 				if(created_struct.moveAssignOverload.load(std::memory_order::relaxed).has_value()){
@@ -2289,7 +2300,7 @@ namespace pcit::panther{
 		// default copy
 		//		(assumes that this runs AFTER default move)
 
-		if(copy_init_overload.wasDeleted() == false && copy_init_overload.funcID.has_value() == false){
+		if(copy_init_overload.wasDeleted() == false && copy_init_overload.wasExplicitlyDeclared() == false){
 			if(move_init_overload.wasDeleted()){
 				using DeletableOverloadState = BaseType::Struct::DeletableOverload::State;
 
@@ -2304,13 +2315,21 @@ namespace pcit::panther{
 						);
 					} break;
 
+					case DeletableOverloadState::EXPLICITLY_DELETED_WITH_MESSAGE: {
+						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(
+							DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE,
+							created_struct.copyInitOverload.load(std::memory_order::relaxed).messageStringValueID()
+						);
+					} break;
+
 					case DeletableOverloadState::IMPLICIT_MEMBER_DELETED: {
 						created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(
 							DeletableOverloadState::IMPLICIT_MEMBER_DELETED
 						);
 					} break;
 
-					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED: {
+					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED:
+					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE: {
 						evo::debugFatalBreak("Already found that copy was deleted");
 					} break;
 				}
@@ -4029,7 +4048,8 @@ namespace pcit::panther{
 										Diagnostic::Info(
 											"First defined here:",
 											this->get_location(
-												*current_struct.copyInitOverload.load(std::memory_order::relaxed).funcID
+												current_struct.copyInitOverload
+													.load(std::memory_order::relaxed).funcID()
 											)
 										)
 									);
@@ -4209,7 +4229,8 @@ namespace pcit::panther{
 										Diagnostic::Info(
 											"First defined here:",
 											this->get_location(
-												*current_struct.moveInitOverload.load(std::memory_order::relaxed).funcID
+												current_struct.moveInitOverload
+													.load(std::memory_order::relaxed).funcID()
 											)
 										)
 									);
@@ -5654,6 +5675,29 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+
+		auto deletable_overload =
+			BaseType::Struct::DeletableOverload(BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED);
+
+		if(instr.message.has_value()){
+			TermInfo& message_term_info = this->get_term_info(*instr.message);
+
+			if(this->type_check<true, true, true>(
+				TypeManager::getTypeStringRef(),
+				message_term_info,
+				"Message in deleted special method",
+				this->get_location(instr.deleted_special_method)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			deletable_overload = BaseType::Struct::DeletableOverload(
+				BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED_WITH_MESSAGE,
+				sema::extractStringIDFromExpr(message_term_info.getExpr(), this->context)
+			);
+		}
+
+
 		BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 			this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 		);
@@ -5664,17 +5708,14 @@ namespace pcit::panther{
 		switch(deleted_kind){
 			case Token::Kind::KEYWORD_COPY: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
-				if(current_struct.copyInitOverload.compare_exchange_strong(
-					init_expected,
-					BaseType::Struct::DeletableOverload(BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED)
-				) == false){
+				if(current_struct.copyInitOverload.compare_exchange_strong(init_expected, deletable_overload) == false){
 					if(init_expected.wasDeleted()){
 						this->emit_error(
 							"Operator overload [copy] was already explicitly deleted", instr.deleted_special_method
 						);
 					}else{
 						this->emit_error(
-							"Operator overload [copy] was already explicitly deleted", *init_expected.funcID
+							"Operator overload [copy] was already explicitly deleted", init_expected.funcID()
 						);
 					}
 					return Result::ERROR;
@@ -5691,16 +5732,13 @@ namespace pcit::panther{
 
 			case Token::Kind::KEYWORD_MOVE: {
 				auto init_expected = BaseType::Struct::DeletableOverload();
-				if(current_struct.moveInitOverload.compare_exchange_strong(
-					init_expected,
-					BaseType::Struct::DeletableOverload(BaseType::Struct::DeletableOverload::State::EXPLICITLY_DELETED)
-				) == false){
+				if(current_struct.moveInitOverload.compare_exchange_strong(init_expected, deletable_overload) == false){
 					if(init_expected.wasDeleted()){
 						this->emit_error(
 							"Operator overload [move] was already explicitly deleted", instr.deleted_special_method
 						);
 					}else{
-						this->emit_error("Operator overload [move] was explicitly deleted", *init_expected.funcID);
+						this->emit_error("Operator overload [move] was explicitly deleted", init_expected.funcID());
 					}
 					return Result::ERROR;
 				}
@@ -23256,9 +23294,9 @@ namespace pcit::panther{
 						}
 					}
 
-					if(copy_overload.funcID.has_value()){
+					if(copy_overload.wasExplicitlyDeclared()){
 						if constexpr(CHECK_VALIDITY){
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*copy_overload.funcID);
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(copy_overload.funcID());
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
@@ -23283,14 +23321,14 @@ namespace pcit::panther{
 									location,
 									Diagnostic::Info(
 										"Called operator [copy] initialization was defined here:",
-										this->get_location(*copy_overload.funcID)
+										this->get_location(copy_overload.funcID())
 									)
 								);
 								return evo::resultError;
 							}
 						}
 
-						dependent_funcs.emplace(*copy_overload.funcID);
+						dependent_funcs.emplace(copy_overload.funcID());
 					}
 
 				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::COPY_ASSIGN){
@@ -23351,10 +23389,10 @@ namespace pcit::panther{
 					}
 
 
-					if(copy_init_overload.funcID.has_value()){
+					if(copy_init_overload.wasExplicitlyDeclared()){
 						if constexpr(CHECK_VALIDITY){
 							const sema::Func& sema_func =
-								this->context.getSemaBuffer().getFunc(*copy_init_overload.funcID);
+								this->context.getSemaBuffer().getFunc(copy_init_overload.funcID());
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
@@ -23399,7 +23437,7 @@ namespace pcit::panther{
 							}
 						}
 
-						dependent_funcs.emplace(*copy_init_overload.funcID);
+						dependent_funcs.emplace(copy_init_overload.funcID());
 
 
 						const std::optional<sema::FuncID> delete_overload =
@@ -23472,9 +23510,9 @@ namespace pcit::panther{
 						}
 					}
 
-					if(move_overload.funcID.has_value()){
+					if(move_overload.wasExplicitlyDeclared()){
 						if constexpr(CHECK_VALIDITY){
-							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(*move_overload.funcID);
+							const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(move_overload.funcID());
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
@@ -23511,7 +23549,7 @@ namespace pcit::panther{
 							}
 						}
 
-						dependent_funcs.emplace(*move_overload.funcID);
+						dependent_funcs.emplace(move_overload.funcID());
 					}
 
 				}else if constexpr(SPECIAL_MEMBER_KIND == SpecialMemberKind::MOVE_ASSIGN){
@@ -23577,10 +23615,10 @@ namespace pcit::panther{
 					}
 
 
-					if(move_init_overload.funcID.has_value()){
+					if(move_init_overload.wasExplicitlyDeclared()){
 						if constexpr(CHECK_VALIDITY){
 							const sema::Func& sema_func =
-								this->context.getSemaBuffer().getFunc(*move_init_overload.funcID);
+								this->context.getSemaBuffer().getFunc(move_init_overload.funcID());
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
@@ -23630,7 +23668,7 @@ namespace pcit::panther{
 							}
 						}
 
-						dependent_funcs.emplace(*move_init_overload.funcID);
+						dependent_funcs.emplace(move_init_overload.funcID());
 
 
 						const std::optional<sema::FuncID> delete_overload =
@@ -32806,22 +32844,22 @@ namespace pcit::panther{
 				const BaseType::Struct& struct_type =
 					this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
 
-				using DeletableOverloadState = BaseType::Struct::DeletableOverload::State;
+				using DeletableOverload = BaseType::Struct::DeletableOverload;
 
-				const DeletableOverloadState state = [&]() -> DeletableOverloadState {
+				const DeletableOverload deleted_overload = [&]() -> DeletableOverload {
 					if constexpr(MEMBER == SpecialMemberFailKind::COPY){
-						return struct_type.copyInitOverload.load().state;
+						return struct_type.copyInitOverload.load(std::memory_order::relaxed);
 					}else{
-						return struct_type.moveInitOverload.load().state;
+						return struct_type.moveInitOverload.load(std::memory_order::relaxed);
 					}
 				}();
 
-				switch(state){
-					case DeletableOverloadState::NOT_DELETED: {
+				switch(deleted_overload.state){
+					case DeletableOverload::State::NOT_DELETED: {
 						evo::debugFatalBreak("Struct sepcial member wasn't deleted");
 					} break;
 
-					case DeletableOverloadState::EXPLICITLY_DELETED: {
+					case DeletableOverload::State::EXPLICITLY_DELETED: {
 						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
 							infos.emplace_back("Operator [copy] was explicitly deleted");
 						}else{
@@ -32829,7 +32867,20 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case DeletableOverloadState::IMPLICIT_MEMBER_DELETED: {
+					case DeletableOverload::State::EXPLICITLY_DELETED_WITH_MESSAGE: {
+						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+							infos.emplace_back("Operator [copy] was explicitly deleted");
+						}else{
+							infos.emplace_back("Operator [move] was explicitly deleted");
+						}
+
+						const std::string_view message =
+							this->context.getSemaBuffer().getStringValue(deleted_overload.messageStringValueID()).value;
+
+						infos.emplace_back(std::format("Message: \"{}\"", message));
+					} break;
+
+					case DeletableOverload::State::IMPLICIT_MEMBER_DELETED: {
 						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
 							infos.emplace_back(
 								"Operator [copy] was not generated by the compiler due to one or more of the members "
@@ -32843,7 +32894,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case DeletableOverloadState::IMPLICIT_OTHER_EXPLICITLY_DELETED: {
+					case DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED: {
 						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
 							infos.emplace_back(
 								"Operator [copy] was not generated by the compiler due to operator [move] being "
@@ -32855,6 +32906,25 @@ namespace pcit::panther{
 									"explicitly deleted"
 							);
 						}
+					} break;
+
+					case DeletableOverload::State::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE: {
+						if constexpr(MEMBER == SpecialMemberFailKind::COPY){
+							infos.emplace_back(
+								"Operator [copy] was not generated by the compiler due to operator [move] being "
+									"explicitly deleted"
+							);
+						}else{
+							infos.emplace_back(
+								"Operator [move] was not generated by the compiler due to operator [copy] being "
+									"explicitly deleted"
+							);
+						}
+
+						const std::string_view message =
+							this->context.getSemaBuffer().getStringValue(deleted_overload.messageStringValueID()).value;
+
+						infos.emplace_back(std::format("Message: \"{}\"", message));
 					} break;
 				}
 

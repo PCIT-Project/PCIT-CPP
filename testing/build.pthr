@@ -9,7 +9,7 @@ func entry = () #entry -> UI8 {
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),
 		addDebugInfo = true,
-		// numThreads   = 12,
+		numThreads   = 12,
 	};
 
 

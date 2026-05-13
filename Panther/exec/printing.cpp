@@ -642,10 +642,22 @@ namespace pthr{
 				{
 					this->indenter.push();
 
-					this->indenter.print_end();
+					this->indenter.print_arrow();
+					this->print_minor_header("Special Member");
 					this->printer.printMagenta(
-						"{}\n", this->source.getTokenBuffer()[deleted_special_method.memberToken].kind()
+						" {}\n", this->source.getTokenBuffer()[deleted_special_method.memberToken].kind()
 					);
+
+					this->indenter.print_end();
+					this->print_minor_header("Message");
+					if(deleted_special_method.message.has_value()){
+						this->printer.println();
+						this->indenter.push();
+						this->print_expr(*deleted_special_method.message);
+						this->indenter.pop();
+					}else{
+						this->printer.printGray(" {NONE}\n");
+					}
 
 					this->indenter.pop();
 				}

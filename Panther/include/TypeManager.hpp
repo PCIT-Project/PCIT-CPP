@@ -632,29 +632,73 @@ namespace pcit::panther{
 				enum class State{
 					NOT_DELETED,
 					EXPLICITLY_DELETED,
+					EXPLICITLY_DELETED_WITH_MESSAGE,
 					IMPLICIT_MEMBER_DELETED, // for example, copy is implicit, but member has copy deleted
 					IMPLICIT_OTHER_EXPLICITLY_DELETED, // for example: copy is explicitly deleted and move is implicit
+					IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE,
 				};
 
-				std::optional<sema::FuncID> funcID;
+				
 				State state;
 
-				DeletableOverload() : funcID(std::nullopt), state(State::NOT_DELETED) {}
 
-				explicit DeletableOverload(std::optional<sema::FuncID> func_id)
-					: funcID(func_id), state(State::NOT_DELETED) {}
+				DeletableOverload() : value{.func_id = std::nullopt}, state(State::NOT_DELETED) {}
 
-				explicit DeletableOverload(State deleted_state) : funcID(std::nullopt), state(deleted_state){
+				explicit DeletableOverload(sema::FuncID _func_id)
+					: value{.func_id = _func_id}, state(State::NOT_DELETED) {}
+
+				explicit DeletableOverload(State deleted_state) : value{.func_id = std::nullopt}, state(deleted_state){
 					evo::debugAssert(
-						deleted_state != State::NOT_DELETED,
-						"Setting state to NOT_DELETED must be accompanied with a method"
+						deleted_state == State::EXPLICITLY_DELETED
+							|| deleted_state == State::IMPLICIT_MEMBER_DELETED
+							|| deleted_state == State::IMPLICIT_OTHER_EXPLICITLY_DELETED,
+						"Invalid value for this state"
 					);
 				}
+
+				explicit DeletableOverload(State deleted_state, sema::StringValueID string_value_id)
+					: value{.string_value_id = string_value_id}, state(deleted_state){
+					evo::debugAssert(
+						deleted_state == State::EXPLICITLY_DELETED_WITH_MESSAGE
+							|| deleted_state == State::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE,
+						"Invalid value for this state"
+					);
+				}
+
+				DeletableOverload(const DeletableOverload&) = default;
+
 
 
 				[[nodiscard]] auto wasDeleted() const -> bool {
 					return this->state != State::NOT_DELETED;
 				}
+
+				[[nodiscard]] auto deletedWithMessage() const -> bool {
+					return this->state == State::EXPLICITLY_DELETED_WITH_MESSAGE
+						|| this->state == State::IMPLICIT_OTHER_EXPLICITLY_DELETED_WITH_MESSAGE;
+				}
+
+				[[nodiscard]] auto wasExplicitlyDeclared() const -> bool {
+					evo::debugAssert(this->wasDeleted() == false, "overload was deleted");
+					return this->value.func_id.has_value();
+				}
+
+				[[nodiscard]] auto funcID() const -> sema::FuncID {
+					evo::debugAssert(this->wasDeleted() == false, "overload was deleted");
+					evo::debugAssert(this->wasExplicitlyDeclared(), "no explicit function");
+					return *this->value.func_id;
+				}
+
+				[[nodiscard]] auto messageStringValueID() const -> sema::StringValueID {
+					evo::debugAssert(this->deletedWithMessage(), "Not deleted with a message");
+					return this->value.string_value_id;
+				}
+
+				private:
+					union {
+						std::optional<sema::FuncID> func_id;
+						sema::StringValueID string_value_id;
+					} value;
 			};
 
 			evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;

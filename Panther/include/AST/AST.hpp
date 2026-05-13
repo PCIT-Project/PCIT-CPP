@@ -207,6 +207,7 @@ namespace pcit::panther::AST{
 
 	struct DeletedSpecialMethod{
 		Token::ID memberToken;
+		std::optional<Node> message;
 	};
 
 	struct FuncAliasDef{

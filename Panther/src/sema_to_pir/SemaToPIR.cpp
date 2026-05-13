@@ -7918,7 +7918,7 @@ namespace pcit::panther{
 
 					const sema::Func::ID target_func_id = [&](){
 						if(is_initialization){
-							return *struct_type.copyInitOverload.load().funcID;
+							return struct_type.copyInitOverload.load().funcID();
 						}else{
 							const std::optional<sema::Func::ID> copy_assign_overload = 
 								struct_type.copyAssignOverload.load();
@@ -7927,7 +7927,7 @@ namespace pcit::panther{
 								return *copy_assign_overload;
 							}else{
 								this->delete_expr(target, expr_type_id);
-								return *struct_type.copyInitOverload.load().funcID;
+								return struct_type.copyInitOverload.load().funcID();
 							}
 						}
 					}();	
@@ -8393,7 +8393,7 @@ namespace pcit::panther{
 
 					const sema::Func::ID target_func_id = [&](){
 						if(is_initialization){
-							return *struct_type.moveInitOverload.load().funcID;
+							return struct_type.moveInitOverload.load().funcID();
 						}else{
 							const std::optional<sema::Func::ID> move_assign_overload = 
 								struct_type.moveAssignOverload.load();
@@ -8401,7 +8401,7 @@ namespace pcit::panther{
 							if(move_assign_overload.has_value()){
 								return *move_assign_overload;
 							}else{
-								return *struct_type.moveInitOverload.load().funcID;
+								return struct_type.moveInitOverload.load().funcID();
 							}
 						}
 					}();	

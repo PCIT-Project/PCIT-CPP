@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.300.0"></a>
+## v0.0.300.0
+
+### Panther
+- Added optional messages to deleted special members
+
+
+<!---------------------------------->
 <a name="v0.0.299.3"></a>
 ## v0.0.299.3
 

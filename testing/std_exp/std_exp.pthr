@@ -19,4 +19,4 @@ type AtomicRef = alias #pub atomic.AtomicRef;
 // containers
 
 type StaticArrayList = alias #pub @import("./StaticArrayList.pthr").StaticArrayList;
-type StaticString = alias #pub @import("./StaticString.pthr").StaticString;
+type StaticStringBuilder = alias #pub @import("./StaticStringBuilder.pthr").StaticStringBuilder;

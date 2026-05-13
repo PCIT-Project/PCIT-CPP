@@ -244,11 +244,28 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+
+			auto message = std::optional<AST::Node>();
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+				this->reader.skip();
+
+				const Result message_res = this->parse_expr();
+				if(this->check_result(message_res, "message in deleted special method").isError()){
+					return Result::Code::ERROR;
+				}
+
+				message = message_res.value();
+
+				if(this->expect_token(Token::lookupKind(")"), "at end of deleted special method message").isError()){
+					return Result::Code::ERROR;
+				}
+			}
+
 			if(this->expect_token(Token::lookupKind(";"), "at end of deleted special method").isError()){
 				return Result::Code::ERROR;
 			}
 
-			return this->source.ast_buffer.createDeletedSpecialMethod(name);
+			return this->source.ast_buffer.createDeletedSpecialMethod(name, message);
 
 		}else if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ALIAS){
 			this->reader.skip();

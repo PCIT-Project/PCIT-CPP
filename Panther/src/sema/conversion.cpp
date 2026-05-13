@@ -110,29 +110,33 @@ namespace pcit::panther::sema{
 	}
 
 
-	auto extractStringFromExpr(Expr expr, const Context& context) -> std::string_view {
+	auto extractStringIDFromExpr(Expr expr, const Context& context) -> StringValueID {
 		switch(expr.kind()){
 			case sema::Expr::Kind::STRING_VALUE: {
-				return context.getSemaBuffer().getStringValue(expr.stringValueID()).value;
+				return expr.stringValueID();
 			} break;
 
 			case sema::Expr::Kind::INIT_ARRAY_REF: {
 				const sema::InitArrayRef& init_array_ref = 
 					context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
 
-				return extractStringFromExpr(init_array_ref.expr, context);
+				return extractStringIDFromExpr(init_array_ref.expr, context);
 			} break;
 
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const sema::GlobalVar& global_var = context.getSemaBuffer().getGlobalVar(expr.globalVarID());
 
-				return extractStringFromExpr(*global_var.expr.load(std::memory_order::relaxed), context);
+				return extractStringIDFromExpr(*global_var.expr.load(std::memory_order::relaxed), context);
 			} break;
 
 			default: {
 				evo::debugFatalBreak("Not a string value");
 			} break;
 		}
+	}
+
+	auto extractStringFromExpr(Expr expr, const Context& context) -> std::string_view {
+		return context.getSemaBuffer().getStringValue(extractStringIDFromExpr(expr, context)).value;
 	}
 
 

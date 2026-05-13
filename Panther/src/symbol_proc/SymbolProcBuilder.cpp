@@ -994,10 +994,20 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_deleted_special_method(const AST::Node& stmt) -> evo::Result<> {
+		const AST::DeletedSpecialMethod& deleted_special_method =
+			this->source.getASTBuffer().getDeletedSpecialMethod(stmt);
+
+		auto message = std::optional<SymbolProc::TermInfoID>();
+		if(deleted_special_method.message.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> message_res =
+				this->analyze_expr<true>(*deleted_special_method.message);
+			if(message_res.isError()){ return evo::resultError; }
+
+			message = message_res.value();
+		}
+
 		this->add_instruction(
-			this->context.symbol_proc_manager.createDeletedSpecialMethod(
-				this->source.getASTBuffer().getDeletedSpecialMethod(stmt)
-			)
+			this->context.symbol_proc_manager.createDeletedSpecialMethod(deleted_special_method, message)
 		);
 
 

@@ -47,7 +47,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 			return...;
 		}
 	}else{
-		func copy = delete;
+		func copy = delete("Type `T` is not no error copyable");
 	}
 
 
@@ -63,7 +63,7 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 			return...;
 		}
 	}else{
-		func move = delete;
+		func move = delete("Type `T` is not no error movable");
 	}
 
 

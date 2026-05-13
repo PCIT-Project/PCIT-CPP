@@ -1239,25 +1239,25 @@ namespace pcit::panther{
 						return copy_overload.wasDeleted() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						return copy_overload.wasDeleted() == false && copy_overload.funcID.has_value() == false;
+						return copy_overload.wasDeleted() == false && copy_overload.wasExplicitlyDeclared() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(copy_overload.wasDeleted()){ return false; }
-						if(copy_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*copy_overload.funcID).attributes.isComptime;
+						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
+						return sema_buffer->getFunc(copy_overload.funcID()).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(copy_overload.wasDeleted()){ return false; }
-						if(copy_overload.funcID.has_value() == false){ return true; }
+						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
 
-						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
+						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(copy_overload.funcID());
 						return this->getFunction(copy_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
 						if(copy_overload.wasDeleted()){ return false; }
-						if(copy_overload.funcID.has_value() == false){ return true; }
+						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
 
-						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(*copy_overload.funcID);
+						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(copy_overload.funcID());
 						return this->getFunction(copy_overload_sema_func.typeID).isUnsafe == false;
 					}
 
@@ -1268,25 +1268,25 @@ namespace pcit::panther{
 						return move_overload.wasDeleted() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
-						return move_overload.wasDeleted() == false && move_overload.funcID.has_value() == false;
+						return move_overload.wasDeleted() == false && move_overload.wasExplicitlyDeclared() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(move_overload.wasDeleted()){ return false; }
-						if(move_overload.funcID.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*move_overload.funcID).attributes.isComptime;
+						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
+						return sema_buffer->getFunc(move_overload.funcID()).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(move_overload.wasDeleted()){ return false; }
-						if(move_overload.funcID.has_value() == false){ return true; }
+						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
 
-						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
+						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(move_overload.funcID());
 						return this->getFunction(move_overload_sema_func.typeID).hasErrorReturn() == false;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE){
 						if(move_overload.wasDeleted()){ return false; }
-						if(move_overload.funcID.has_value() == false){ return true; }
+						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
 
-						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(*move_overload.funcID);
+						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(move_overload.funcID());
 						return this->getFunction(move_overload_sema_func.typeID).isUnsafe == false;
 					}
 

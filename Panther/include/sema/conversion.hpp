@@ -29,6 +29,7 @@ namespace pcit::panther::sema{
 
 	[[nodiscard]] auto exprToGenericValue(Expr expr, const class panther::Context& context) -> core::GenericValue;
 
+	[[nodiscard]] auto extractStringIDFromExpr(Expr expr, const class panther::Context& context) -> StringValueID;
 	[[nodiscard]] auto extractStringFromExpr(Expr expr, const class panther::Context& context) -> std::string_view;
 
 

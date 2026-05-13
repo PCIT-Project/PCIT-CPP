@@ -1,22 +1,12 @@
-
-func err_stmt = () -> Void <Void> {}
-func err_value = () -> Int <Void> { return 0; }
+type Struct = struct {
+	func copy = delete("not copyable");
+}
 
 
 func entry = () #entry -> UI8 {
-	const foo: Int = try err_value() else {->expr:Int
-		return 12;
-		// return->expr 12;
-	};
+	var s = new Struct();
 
-
-	var value_state_test: Int = uninit;
-
-	try err_stmt() else {
-		value_state_test = 12;
-		return 1;
-	};
-
-
+	var s_copy: Struct = copy s;
+	
 	return 0;
 }
