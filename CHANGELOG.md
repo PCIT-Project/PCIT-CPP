@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.300.1"></a>
+## v0.0.300.1
+
+### Panther
+- Fixed stall caused by a symbol depending on a `when` conditional chain (2 or more) that never enters
+
+
+<!---------------------------------->
 <a name="v0.0.300.0"></a>
 ## v0.0.300.0
 

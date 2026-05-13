@@ -1,12 +1,13 @@
+def std_exp = @import("std_exp/std_exp.pthr");
+
 type Struct = struct {
 	func copy = delete("not copyable");
 }
 
 
 func entry = () #entry -> UI8 {
-	var s = new Struct();
+	var arr_1 = new std_exp.StaticArrayList<{Struct, 4}>();
+	var arr_2: std_exp.StaticArrayList<{Struct, 4}> = copy arr_1;
 
-	var s_copy: Struct = copy s;
-	
 	return 0;
 }

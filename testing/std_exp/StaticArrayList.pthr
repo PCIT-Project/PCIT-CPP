@@ -46,8 +46,12 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 
 			return...;
 		}
+
+	}else when(std.types.isCopyable<{T}>() == false){
+		func copy = delete("Type `T` is not copyable");
+
 	}else{
-		func copy = delete("Type `T` is not no error copyable");
+		func copy = delete("Type `T` is not no-error copyable");
 	}
 
 
@@ -62,8 +66,12 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 			
 			return...;
 		}
+
+	}else when(std.types.isMovable<{T}>() == false){
+		func move = delete("Type `T` is not movable");
+
 	}else{
-		func move = delete("Type `T` is not no error movable");
+		func move = delete("Type `T` is not no-error movable");
 	}
 
 
