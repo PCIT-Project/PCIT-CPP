@@ -12729,10 +12729,10 @@ namespace pcit::panther{
 			using LocationType = std::decay_t<decltype(location)>;
 
 			if constexpr(std::is_same<LocationType, Diagnostic::Location::None>()){
-				// do nothing
+				evo::debugFatalBreak("Cannot get location of none");
 
 			}else if constexpr(std::is_same<LocationType, Diagnostic::Location::Builtin>()){
-				// do nothing
+				meta_file_id = this->data.get_builtin_meta_file(this->module);
 
 			}else if constexpr(std::is_same<LocationType, SourceLocation>()){
 				meta_file_id = *this->context.getSourceManager()[location.sourceID].getPIRMetaFileID();

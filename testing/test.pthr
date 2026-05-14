@@ -1,7 +1,7 @@
 def std_exp = @import("std_exp/std_exp.pthr");
 
 type Struct = struct {
-	func copy = delete("not copyable");
+	// func copy = delete("not copyable");
 }
 
 

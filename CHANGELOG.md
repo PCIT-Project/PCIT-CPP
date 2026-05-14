@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.300.2"></a>
+## v0.0.300.2
+
+### Panther
+- Fixed lowering of builtin symbols when including debug info
+
+
+<!---------------------------------->
 <a name="v0.0.300.1"></a>
 ## v0.0.300.1
 
