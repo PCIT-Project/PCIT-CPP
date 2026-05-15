@@ -241,6 +241,7 @@ namespace pthr{
 
 			auto print_globals() -> void {
 				for(const panther::AST::Node& global_stmt : ast_buffer.getGlobalStmts()){
+					this->printer.println();
 					this->print_stmt(global_stmt);
 				}
 			}
@@ -441,7 +442,12 @@ namespace pthr{
 
 			auto print_func_def(const panther::AST::FuncDef& func_def) -> void {
 				this->indenter.print();
-				this->print_major_header("Function Definition");
+
+				if(func_def.isDeleted){
+					this->print_major_header("Function Definition (Deleted Overload)");
+				}else{
+					this->print_major_header("Function Definition");
+				}
 
 				{
 					this->indenter.push();
@@ -621,12 +627,25 @@ namespace pthr{
 					}
 
 					this->indenter.print_end();
-					this->print_minor_header("Statement Block");
+					if(func_def.isDeleted){
+						this->print_minor_header("Deleted Message");
 
-					if(func_def.block.has_value()){
-						this->print_block(this->ast_buffer.getBlock(*func_def.block));
+						if(func_def.value.has_value()){
+							this->indenter.push();
+							this->print_expr(*func_def.value);
+							this->indenter.pop();
+						}else{
+							this->printer.printGray(" {NONE}\n");
+						}
+
 					}else{
-						this->printer.printGray("{NONE}\n");
+						this->print_minor_header("Statement Block");
+
+						if(func_def.value.has_value()){
+							this->print_block(this->ast_buffer.getBlock(*func_def.value));
+						}else{
+							this->printer.printGray(" {NONE}\n");
+						}
 					}
 
 					this->indenter.pop();

@@ -327,6 +327,56 @@ namespace pcit::panther{
 		evo::Result<evo::SmallVector<AST::FuncDef::Return>> error_returns = this->parse_func_error_returns();
 		if(error_returns.isError()){ return Result::Code::ERROR; }
 
+
+		// deleting overload
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
+			this->reader.skip();
+
+			if(this->reader[this->reader.next()].kind() != Token::Kind::KEYWORD_DELETE){
+				this->expected_but_got(
+					"keyword `delete` after `=` in deleted function overload definition",
+					this->reader.peek(-1),
+					evo::SmallVector<Diagnostic::Info>{
+						Diagnostic::Info("If defining a function body, remove the extranous `=`")
+					}
+				);
+				return Result::Code::ERROR;
+			}
+
+			auto message = std::optional<AST::Node>();
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+				this->reader.skip();
+
+				const Result message_res = this->parse_expr();
+				if(this->check_result(message_res, "message in deleted function overload").isError()){
+					return Result::Code::ERROR;
+				}
+
+				message = message_res.value();
+
+				if(this->expect_token(Token::lookupKind(")"), "at end of deleted function overload message").isError()){
+					return Result::Code::ERROR;
+				}
+			}
+
+			if(this->expect_token(Token::lookupKind(";"), "at end of deleted function overload").isError()){
+				return Result::Code::ERROR;
+			}
+
+			return this->source.ast_buffer.createFuncDef(
+				name,
+				template_pack_node,
+				std::move(params.value().params),
+				params.value().is_variadic,
+				true,
+				attributes.value(),
+				std::move(returns.value()),
+				std::move(error_returns.value()),
+				message
+			);
+		}
+
+
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 
 		if constexpr(MUST_HAVE_BODY){
@@ -340,6 +390,7 @@ namespace pcit::panther{
 				template_pack_node,
 				std::move(params.value().params),
 				params.value().is_variadic,
+				false,
 				attributes.value(),
 				std::move(returns.value()),
 				std::move(error_returns.value()),
@@ -354,6 +405,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
+						false,
 						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -373,6 +425,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
+						false,
 						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -778,6 +831,7 @@ namespace pcit::panther{
 						std::nullopt,
 						std::move(params.value().params),
 						params.value().is_variadic,
+						false,
 						attribute_block.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),

@@ -337,7 +337,7 @@ namespace pcit::panther{
 
 		this->symbol_scopes.emplace_back(nullptr);
 		this->symbol_namespaces.emplace_back(nullptr);
-		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.block).statements){
+		for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
 			if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 		}
 		this->symbol_namespaces.pop_back();
@@ -791,7 +791,18 @@ namespace pcit::panther{
 			}
 
 
-			if(func_def.block.has_value()){
+			if(func_def.isDeleted){
+				auto message = std::optional<SymbolProc::TermInfoID>();
+				if(func_def.value.has_value()){
+					const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*func_def.value);
+					if(message_res.isError()){ return evo::resultError; }
+
+					message = message_res.value();
+				}
+
+				this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload(func_def, message));
+
+			}else if(func_def.value.has_value()){
 				for(const AST::FuncDef::Return& return_param : func_def.returns){
 					if(this->is_deducer(return_param.type)){
 						this->emit_error(
@@ -811,7 +822,7 @@ namespace pcit::panther{
 
 				this->symbol_scopes.emplace_back(nullptr);
 				this->symbol_namespaces.emplace_back(nullptr);
-				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.block).statements){
+				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
 					if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
 				}
 				this->symbol_namespaces.pop_back();
@@ -834,7 +845,7 @@ namespace pcit::panther{
 			current_symbol = &this->get_current_symbol();
 
 		}else{
-			if(func_def.block.has_value() == false){
+			if(func_def.value.has_value() == false){
 				this->emit_error("Interface methods cannot be templates", func_def);
 				return evo::resultError;
 			}

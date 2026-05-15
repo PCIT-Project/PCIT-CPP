@@ -707,6 +707,10 @@ namespace pcit::panther::sema{
 		};
 		using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
 
+		struct DeletedInfo{
+			std::optional<sema::StringValueID> message;
+		};
+
 		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
 		evo::Variant<Token::ID, CFamilySourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
 		std::string cFamilyMangledName; // empty if not c-family
@@ -719,9 +723,11 @@ namespace pcit::panther::sema{
 		uint32_t minNumArgs;
 		bool hasInParam;
 		Attributes attributes;
-		
+
 		std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt;
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
+
+		std::optional<DeletedInfo> deletedInfo = std::nullopt;
 
 		sema::StmtBlock stmtBlock{};
 		sema::StmtBlock stmtBlockRT{};
@@ -745,6 +751,8 @@ namespace pcit::panther::sema{
 
 		[[nodiscard]] auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty() == false; }
 		[[nodiscard]] auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty() == false; }
+
+		[[nodiscard]] auto isDeleted() const -> bool { return this->deletedInfo.has_value(); }
 	};
 
 

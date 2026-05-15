@@ -360,6 +360,11 @@ namespace pcit::panther{
 				);
 		};
 
+		struct FuncDeleteOverload{
+			const AST::FuncDef& func_def;
+			std::optional<SymbolProcTermInfoID> message;
+		};
+
 
 		struct FuncPostDeclCheckingAndSetup{
 			const AST::FuncDef& func_def;
@@ -1116,6 +1121,7 @@ namespace pcit::panther{
 			FUNC_DECL_EXTRACT_DEDUCERS,
 			FUNC_DECL_INSTANTIATION,
 			FUNC_DECL,
+			FUNC_DELETE_OVERLOAD,
 			FUNC_POST_DECL_CHECKING_AND_SETUP,
 			FUNC_BODY_SETUP,
 			FUNC_DEF,

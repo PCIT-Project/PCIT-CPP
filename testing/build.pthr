@@ -9,7 +9,7 @@ func entry = () #entry -> UI8 {
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),
 		addDebugInfo = true,
-		// numThreads   = 12,
+		numThreads   = 12,
 	};
 
 
@@ -24,9 +24,9 @@ func entry = () #entry -> UI8 {
 	};
 
 
-	build.addStdLib("../extern/Panther-std/std/"); // shipped path
+	// build.addStdLib("../extern/Panther-std/std/"); // shipped path
 	// build.addStdLib("../../Panther-std/std");
-	add_std_exp(build, copy warns);
+	// add_std_exp(build, copy warns);
 
 
 	var test_package_uninit: build_exp.Package*uninit = build.packages.append();

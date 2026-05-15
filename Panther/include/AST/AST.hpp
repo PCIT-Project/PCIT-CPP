@@ -199,10 +199,12 @@ namespace pcit::panther::AST{
 		std::optional<Node> templatePack;
 		evo::SmallVector<Param> params;
 		bool isVariadic;
+		bool isDeleted;
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
 		evo::SmallVector<Return> errorReturns;
-		std::optional<Node> block; // only nullopt if is an interface method with no default implementation
+		std::optional<Node> value; // if not deleted, nullopt if is an interface method with no default implementation
+		                           // if deleted, delete message (if one was provided)
 	};
 
 	struct DeletedSpecialMethod{

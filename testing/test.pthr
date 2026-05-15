@@ -1,13 +1,16 @@
-def std_exp = @import("std_exp/std_exp.pthr");
 
-type Struct = struct {
-	// func copy = delete("not copyable");
+
+func get_num = (num: UInt) -> UInt {
+	return copy num;
 }
+
+func get_num = (num: Int) -> Int = delete("Only unsigned");
 
 
 func entry = () #entry -> UI8 {
-	var arr_1 = new std_exp.StaticArrayList<{Struct, 4}>();
-	var arr_2: std_exp.StaticArrayList<{Struct, 4}> = copy arr_1;
+	_ = get_num(12 as UInt);
+	_ = get_num(12 as Int);
 
+	
 	return 0;
 }

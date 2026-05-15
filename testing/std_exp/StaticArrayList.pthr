@@ -173,6 +173,15 @@ type StaticArrayList = struct <{T: Type, CAPACITY: USize}> #pub
 			this.pop();
 			return...;
 		}
+
+	}else{
+		when(std.types.isMovable<{T}>() || std.types.isCopyable<{T}>()){
+			func popExtract = (this mut) -> (output: T)
+				= delete("Type `T` isn't no-error movable or no-error copyable");
+
+		}else{
+			func popExtract = (this mut) -> (output: T) = delete("Type `T` isn't movable or copyable");
+		}
 	}
 
 
