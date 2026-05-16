@@ -1,15 +1,17 @@
+def std_exp = @import("std_exp/std_exp.pthr");
 
 
-func get_num = (num: UInt) -> UInt {
-	return copy num;
+type NoReloc = struct {
+	func copy = delete;
 }
 
-func get_num = (num: Int) -> Int = delete("Only unsigned");
 
 
 func entry = () #entry -> UI8 {
-	_ = get_num(12 as UInt);
-	_ = get_num(12 as Int);
+	var arr = new std_exp.StaticArrayList<{NoReloc, 4}>();
+	arr.append().* = new NoReloc{};
+
+	_ = arr.popExtract();
 
 	
 	return 0;

@@ -384,17 +384,8 @@ namespace pcit::panther{
 			//////////////////
 			// FuncDeleteOverload
 
-			[[nodiscard]] auto createFuncDeleteOverload(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::FUNC_DELETE_OVERLOAD,
-					this->func_delete_overload.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			[[nodiscard]] auto getFuncDeleteOverload(Instruction instr) const
-			-> const Instruction::FuncDeleteOverload& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_DELETE_OVERLOAD, "Not a FuncDeleteOverload");
-				return this->func_delete_overload[instr._index];
+			[[nodiscard]] auto createFuncDeleteOverload() -> Instruction {
+				return Instruction(Instruction::Kind::FUNC_DELETE_OVERLOAD, 0);
 			}
 
 
@@ -3233,7 +3224,6 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducers, uint32_t> func_decl_extract_deducerss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
-			core::SyncLinearStepAlloc<Instruction::FuncDeleteOverload, uint32_t> func_delete_overload{};
 			core::SyncLinearStepAlloc<Instruction::FuncBodySetup, uint32_t> func_body_setups{};
 			core::SyncLinearStepAlloc<Instruction::FuncPostDeclCheckingAndSetup, uint32_t>
 				func_post_decl_checking_and_setups{};

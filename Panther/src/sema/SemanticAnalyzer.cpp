@@ -221,9 +221,7 @@ namespace pcit::panther{
 				return this->instr_func_decl<false>(this->context.symbol_proc_manager.getFuncDecl(instr));
 
 			case Instruction::Kind::FUNC_DELETE_OVERLOAD:
-				return this->instr_func_delete_overload(
-					this->context.symbol_proc_manager.getFuncDeleteOverload(instr)
-				);
+				return this->instr_func_delete_overload();
 
 			case Instruction::Kind::FUNC_POST_DECL_CHECKING_AND_SETUP:
 				return this->instr_func_post_decl_checking_and_setup(
@@ -4763,9 +4761,48 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// done
+		// delete
 
-		this->push_scope_level(&created_func.stmtBlock, created_func_id);
+		if(instr.func_def.isDeleted){
+			if(
+				this->scope.getCurrentInterfaceSymbolIfExists().has_value()
+				&&  (
+						this->symbol_proc.parent == nullptr
+						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+					)
+			){
+				this->emit_error("Interface methods cannot be deleted", instr.func_def);
+				return Result::ERROR;
+			}
+
+
+			auto message_str_id = std::optional<sema::StringValue::ID>();
+
+			if(instr.delete_message.has_value()){
+				TermInfo& message_term_info = this->get_term_info(*instr.delete_message);
+
+				if(this->type_check<true, true, true>(
+					TypeManager::getTypeStringRef(),
+					message_term_info,
+					"Message in deleted function overload",
+					this->get_location(instr.func_def)
+				).ok == false){
+					return Result::ERROR;
+				}
+
+				message_str_id = sema::extractStringIDFromExpr(message_term_info.getExpr(), this->context);
+			}
+
+			created_func.deletedInfo = sema::Func::DeletedInfo{message_str_id};
+
+		}else{
+			this->push_scope_level(&created_func.stmtBlock, created_func_id);
+		}
+
+
+
+		///////////////////////////////////
+		// done
 
 		this->propagate_finished_decl();
 
@@ -4773,46 +4810,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_func_delete_overload(const Instruction::FuncDeleteOverload& instr) -> Result {
-		if(
-			this->scope.getCurrentInterfaceSymbolIfExists().has_value()
-			&&  (
-					this->symbol_proc.parent == nullptr
-					|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
-				)
-		){
-			this->emit_error("Interface methods cannot be deleted", instr.func_def);
-			return Result::ERROR;
-		}
-
-
-		auto message_str_id = std::optional<sema::StringValue::ID>();
-
-		if(instr.message.has_value()){
-			TermInfo& message_term_info = this->get_term_info(*instr.message);
-
-			if(this->type_check<true, true, true>(
-				TypeManager::getTypeStringRef(),
-				message_term_info,
-				"Message in deleted function overload",
-				this->get_location(instr.func_def)
-			).ok == false){
-				return Result::ERROR;
-			}
-
-			message_str_id = sema::extractStringIDFromExpr(message_term_info.getExpr(), this->context);
-		}
-
-
-
-		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
-
-		current_func.deletedInfo = sema::Func::DeletedInfo{message_str_id};
-
-
-		std::ignore = this->pop_scope_level();
-
+	auto SemanticAnalyzer::instr_func_delete_overload() -> Result {
 		this->propagate_finished_def();
 		return Result::SUCCESS;
 	}
@@ -26297,6 +26295,43 @@ namespace pcit::panther{
 
 		const SelectFuncOverloadFuncInfo& selected_func = func_infos[best_score_index];
 
+		if(selected_func.func_id.is<sema::Func::ID>()){
+			const sema::Func& selected_sema_func = 
+				this->context.getSemaBuffer().getFunc(selected_func.func_id.as<sema::Func::ID>());
+
+			if(selected_sema_func.isDeleted()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				if(selected_sema_func.deletedInfo->message.has_value()){
+					const sema::StringValue& string_value =
+						this->context.getSemaBuffer().getStringValue(*selected_sema_func.deletedInfo->message);
+
+					infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
+				}
+
+				this->emit_error("Call to deleted function", call_node, std::move(infos));
+				return evo::Unexpected(Result::ERROR);
+			}
+
+		}else if(selected_func.func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+			const sema::Func& selected_sema_func = this->context.getSemaBuffer().getFunc(
+				*selected_func.func_id.as<sema::TemplatedFunc::InstantiationInfo>().instantiation.funcID
+			);
+
+			if(selected_sema_func.isDeleted()){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				if(selected_sema_func.deletedInfo->message.has_value()){
+					const sema::StringValue& string_value =
+						this->context.getSemaBuffer().getStringValue(*selected_sema_func.deletedInfo->message);
+
+					infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
+				}
+
+				this->emit_error("Call to deleted function", call_node, std::move(infos));
+				return evo::Unexpected(Result::ERROR);
+			}
+		}
+
+
 		auto term_infos = evo::SmallVector<TermInfo>();
 		term_infos.reserve(arg_infos.size());
 		for(const SelectFuncOverloadArgInfo& arg_info : arg_infos){
@@ -27056,19 +27091,6 @@ namespace pcit::panther{
 					const sema::Func& selected_func =
 						this->context.getSemaBuffer().getFunc(selected_func_id.as<sema::Func::ID>());
 
-					if(selected_func.isDeleted()){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						if(selected_func.deletedInfo->message.has_value()){
-							const sema::StringValue& string_value =
-								this->context.getSemaBuffer().getStringValue(*selected_func.deletedInfo->message);
-
-							infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
-						}
-
-						this->emit_error("Call to deleted function", func_call, std::move(infos));
-						return evo::Unexpected(Result::ERROR);
-					}
-
 					return FuncCallImplData(
 						selected_func_id.as<sema::Func::ID>(),
 						&selected_func,
@@ -27128,19 +27150,6 @@ namespace pcit::panther{
 						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(selected_func.isDeleted()){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						if(selected_func.deletedInfo->message.has_value()){
-							const sema::StringValue& string_value =
-								this->context.getSemaBuffer().getStringValue(*selected_func.deletedInfo->message);
-
-							infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
-						}
-
-						this->emit_error("Call to deleted function", func_call, std::move(infos));
-						return evo::Unexpected(Result::ERROR);
-					}
-
 					return FuncCallImplData(
 						selected_func_id.as<sema::Func::ID>(),
 						&selected_func,
@@ -27172,19 +27181,6 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
 						);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					if(sema_func.isDeleted()){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						if(sema_func.deletedInfo->message.has_value()){
-							const sema::StringValue& string_value =
-								this->context.getSemaBuffer().getStringValue(*sema_func.deletedInfo->message);
-
-							infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
-						}
-
-						this->emit_error("Call to deleted function", func_call, std::move(infos));
 						return evo::Unexpected(Result::ERROR);
 					}
 
@@ -27223,19 +27219,6 @@ namespace pcit::panther{
 						return evo::Unexpected(Result::ERROR);
 					}
 
-					if(sema_func.isDeleted()){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						if(sema_func.deletedInfo->message.has_value()){
-							const sema::StringValue& string_value =
-								this->context.getSemaBuffer().getStringValue(*sema_func.deletedInfo->message);
-
-							infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
-						}
-
-						this->emit_error("Call to deleted function", func_call, std::move(infos));
-						return evo::Unexpected(Result::ERROR);
-					}
-
 					return FuncCallImplData(
 						selected_func_id.as<sema::Func::ID>(),
 						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
@@ -27266,19 +27249,6 @@ namespace pcit::panther{
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
 							)
 						);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					if(sema_func.isDeleted()){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						if(sema_func.deletedInfo->message.has_value()){
-							const sema::StringValue& string_value =
-								this->context.getSemaBuffer().getStringValue(*sema_func.deletedInfo->message);
-
-							infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
-						}
-
-						this->emit_error("Call to deleted function", func_call, std::move(infos));
 						return evo::Unexpected(Result::ERROR);
 					}
 

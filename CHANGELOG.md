@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.301.1"></a>
+## v0.0.301.1
+
+### Panther
+- Fixed race condition in deleting function overloads
+
+
+<!---------------------------------->
 <a name="v0.0.301.0"></a>
 ## v0.0.301.0
 

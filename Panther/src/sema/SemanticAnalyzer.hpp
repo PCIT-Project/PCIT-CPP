@@ -85,7 +85,7 @@ namespace pcit::panther{
 				-> Result;
 			template<bool IS_INSTANTIATION>
 			[[nodiscard]] auto instr_func_decl(const Instruction::FuncDecl<IS_INSTANTIATION>& instr) -> Result;
-			[[nodiscard]] auto instr_func_delete_overload(const Instruction::FuncDeleteOverload& instr) -> Result;
+			[[nodiscard]] auto instr_func_delete_overload() -> Result;
 			[[nodiscard]] auto instr_func_post_decl_checking_and_setup(
 				const Instruction::FuncPostDeclCheckingAndSetup& instr
 			) -> Result;

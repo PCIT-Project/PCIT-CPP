@@ -754,13 +754,23 @@ namespace pcit::panther{
 				types.emplace_back(param_type.value());
 			}
 
+
+			auto delete_message = std::optional<SymbolProc::TermInfoID>();
+			if(func_def.isDeleted && func_def.value.has_value()){
+				const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*func_def.value);
+				if(message_res.isError()){ return evo::resultError; }
+
+				delete_message = message_res.value();
+			}
+
 			this->add_instruction(
 				this->context.symbol_proc_manager.createFuncDecl(
 					func_def,
 					std::move(attribute_params_info.value()),
 					std::move(default_param_values),
 					std::move(param_attribute_params),
-					std::move(types)
+					std::move(types),
+					delete_message
 				)
 			);
 
@@ -792,15 +802,7 @@ namespace pcit::panther{
 
 
 			if(func_def.isDeleted){
-				auto message = std::optional<SymbolProc::TermInfoID>();
-				if(func_def.value.has_value()){
-					const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*func_def.value);
-					if(message_res.isError()){ return evo::resultError; }
-
-					message = message_res.value();
-				}
-
-				this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload(func_def, message));
+				this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload());
 
 			}else if(func_def.value.has_value()){
 				for(const AST::FuncDef::Return& return_param : func_def.returns){
