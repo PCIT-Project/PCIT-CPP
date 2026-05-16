@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.301.2"></a>
+## v0.0.301.2
+
+### Panther
+- Fixed semantic analysis of type accessors of builtin types
+
+
+<!---------------------------------->
 <a name="v0.0.301.1"></a>
 ## v0.0.301.1
 

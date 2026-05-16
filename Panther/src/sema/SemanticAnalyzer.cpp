@@ -21632,11 +21632,18 @@ namespace pcit::panther{
 		}
 
 
-		const SymbolProc::ID type_symbol_proc_id =
-			*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_lhs_type_id);
-		SymbolProc& type_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(type_symbol_proc_id);
+		const std::optional<SymbolProc::ID> type_symbol_proc_id =
+			this->context.symbol_proc_manager.getTypeSymbolProc(decayed_lhs_type_id);
 
-		const bool type_symbol_proc_def_done = type_symbol_proc.isDefDone();
+		SymbolProc* type_symbol_proc = [&]() -> SymbolProc* {
+			if(type_symbol_proc_id.has_value()){
+				return &this->context.symbol_proc_manager.getSymbolProc(*type_symbol_proc_id);
+			}else{
+				return nullptr;
+			}
+		}();
+
+		const bool type_symbol_proc_def_done = type_symbol_proc != nullptr ? type_symbol_proc->isDefDone() : true;
 
 
 		SymbolProcNamespace const* namespaced_members = nullptr;
@@ -21733,7 +21740,7 @@ namespace pcit::panther{
 			case WaitOnSymbolProcResult::NOT_FOUND: {
 				if(type_symbol_proc_def_done == false){
 					const SymbolProc::WaitOnResult wait_on_result =
-						type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+						type_symbol_proc->waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 						
 					switch(wait_on_result){
 						// TODO(PERF): don't redo work
@@ -21741,7 +21748,7 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 							this->context.symbol_proc_manager.symbol_proc_unsuspended();
-							this->context.add_task_to_work_manager(type_symbol_proc_id);
+							this->context.add_task_to_work_manager(*type_symbol_proc_id);
 							[[fallthrough]];
 						}
 						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
