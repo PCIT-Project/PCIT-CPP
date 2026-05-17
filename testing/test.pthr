@@ -10,11 +10,11 @@ type NoReloc = struct {
 func entry = () #entry -> UI8 {
 	var num: Int = 12;
 
-	var num_atomic = new std_exp.AtomicRef<{Int}>(&num);
+	// var num_atomic = new std_exp.AtomicRef<{Int}>(&num);
 
 	// _ = num_atomic.fetchAdd(2);
 
-	// _ = @atomicRMW<{Int*, Int, @pthr.AtomicRMWOp.ADD, @pthr.AtomicOrdering.SEQ_CST}>(&num, 2);
+	_ = @atomicRMW<{Int*, Int, @pthr.AtomicRMWOp.ADD, @pthr.AtomicOrdering.SEQ_CST}>(&num, 2);
 
 	
 	return num as UI8;

@@ -4684,7 +4684,7 @@ namespace pcit::panther{
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_RMW) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{
-				TemplateParam::createType(), TemplateParam::createType(), atomic_ordering_type_id, atomic_rmw_op_type_id
+				TemplateParam::createType(), TemplateParam::createType(), atomic_rmw_op_type_id, atomic_ordering_type_id
 			},
 			.params         = evo::SmallVector<Param>{
 				Param(BaseType::Function::Param::Kind::READ, 0ul),

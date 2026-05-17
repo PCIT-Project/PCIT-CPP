@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.301.3"></a>
+## v0.0.301.3
+
+### Panther
+- Fixed ordering template arguments of `@atomicRMW`
+
+
+<!---------------------------------->
 <a name="v0.0.301.2"></a>
 ## v0.0.301.2
 
