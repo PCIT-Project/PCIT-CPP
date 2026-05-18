@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.302.2"></a>
+## v0.0.302.2
+
+### Panther
+- Fixed race condition in semantic analysis of template functions
+- Fixed other race condition
+
+
+<!---------------------------------->
 <a name="v0.0.302.1"></a>
 ## v0.0.302.1
 

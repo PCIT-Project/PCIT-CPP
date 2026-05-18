@@ -131,6 +131,7 @@ namespace pcit::panther{
 
 					this->symbol_proc.nextInstruction();
 					
+					this->context.symbol_proc_manager.symbol_proc_suspended();
 					this->symbol_proc.setStatusSuspended();
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()){
@@ -141,7 +142,6 @@ namespace pcit::panther{
 						sema_func.status = sema::Func::Status::SUSPENDED;
 					}
 
-					this->context.symbol_proc_manager.symbol_proc_suspended();
 					return;
 				} break;
 			}

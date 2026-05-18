@@ -77,13 +77,21 @@ namespace pcit::panther{
 			}
 
 
-			[[nodiscard]] auto operator[](Source::ID id) const -> const Source& { return this->priv.sources[id]; }
-			[[nodiscard]] auto operator[](Source::ID id)       ->       Source& { return this->priv.sources[id]; }
+			[[nodiscard]] auto operator[](Source::ID id) const -> const Source& {
+				const auto lock = std::lock_guard(this->priv.sources_lock);
+				return this->priv.sources[id];
+			}
+			[[nodiscard]] auto operator[](Source::ID id) -> Source& {
+				const auto lock = std::lock_guard(this->priv.sources_lock);
+				return this->priv.sources[id];
+			}
 
 			[[nodiscard]] auto operator[](CFamilySource::ID id) const -> const CFamilySource& {
+				const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
 				return this->priv.c_family_sources[id];
 			}
 			[[nodiscard]] auto operator[](CFamilySource::ID id) -> CFamilySource& {
+				const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
 				return this->priv.c_family_sources[id];
 			}
 
@@ -150,7 +158,7 @@ namespace pcit::panther{
 					std::move(path), std::move(data_str), comp_config_id
 				);
 
-				this->operator[](new_source_id).id = new_source_id;
+				this->priv.sources[new_source_id].id = new_source_id;
 
 				return new_source_id;
 			}
@@ -163,7 +171,7 @@ namespace pcit::panther{
 					std::move(path), std::move(data_str), is_cpp, std::nullopt
 				);
 
-				this->operator[](new_source_id).id = new_source_id;
+				this->priv.c_family_sources[new_source_id].id = new_source_id;
 
 				return new_source_id;
 			}
