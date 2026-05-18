@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.302.1"></a>
+## v0.0.302.1
+
+### Panther
+- Fixed race condition in semantic analysis when using user-defined builtin symbol
+- Fixed potential memory corruption issue in tokenization
+
+
+<!---------------------------------->
 <a name="v0.0.302.0"></a>
 ## v0.0.302.0
 

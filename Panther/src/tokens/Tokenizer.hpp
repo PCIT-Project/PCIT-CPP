@@ -23,10 +23,10 @@ namespace pcit::panther{
 
 	class Tokenizer{
 		public:
-			Tokenizer(Context& _context, Source::ID source_id) :
+			Tokenizer(Context& _context, Source& _source) :
 				context(_context),
-				source(this->context.getSourceManager()[source_id]),
-				char_stream(this->source.getData())
+				source(_source),
+				char_stream(_source.getData())
 				{}
 
 			~Tokenizer() = default;
@@ -78,7 +78,8 @@ namespace pcit::panther{
 
 
 	[[nodiscard]] inline auto tokenize(Context& context, Source::ID source_id) -> evo::Result<> {
-		auto tokenizer = Tokenizer(context, source_id);
+		Source& source = context.getSourceManager()[source_id];
+		auto tokenizer = Tokenizer(context, source);
 		return tokenizer.tokenize();
 	}
 
