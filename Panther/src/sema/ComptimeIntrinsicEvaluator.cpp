@@ -405,6 +405,76 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::isIntegral(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isIntegral(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isSignedIntegral(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isSignedIntegral(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isUnsignedIntegral(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isUnsignedIntegral(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isFloatingPoint(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isFloatingPoint(type_id)
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isPointer(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isPointer(type_id)
+				)
+			)
+		);
+	}
+
 
 
 

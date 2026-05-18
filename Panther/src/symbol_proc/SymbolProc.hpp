@@ -331,6 +331,7 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<evo::SmallVector<AttributeParams>>&& _param_attribute_params,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
+				std::optional<SymbolProcTermInfoID> _delete_message,
 				sema::TemplatedFunc::ID _templated_func_id,
 				uint32_t _instantiation_id,
 				size_t _num_extra_variadics
@@ -339,6 +340,7 @@ namespace pcit::panther{
 				attribute_params_info(std::move(_attribute_params_info)),
 				default_param_values(std::move(_default_param_values)),
 				param_attribute_params(std::move(_param_attribute_params)),
+				delete_message(_delete_message),
 				types(std::move(_types)),
 				templated_func_id(_templated_func_id),
 				instantiation_id(_instantiation_id),

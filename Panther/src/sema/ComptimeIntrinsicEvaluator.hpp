@@ -64,6 +64,12 @@ namespace pcit::panther{
 			[[nodiscard]] auto isComptimeComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isNoErrorComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isSafeComparable(TypeInfo::ID type_id) -> TermInfo;
+			
+			[[nodiscard]] auto isIntegral(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isSignedIntegral(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isUnsignedIntegral(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isFloatingPoint(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isPointer(TypeInfo::ID type_id) -> TermInfo;
 
 
 			///////////////////////////////////

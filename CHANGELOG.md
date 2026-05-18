@@ -1,6 +1,31 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.302.0"></a>
+## v0.0.302.0
+
+### Panther
+- Added intrinsic functions:
+	- `@isIntegral`
+	- `@isUnsignedIntegral`
+	- `@isSignedIntegral`
+	- `@isFloatingPoint`
+	- `@isPointer`
+- Fixed deleted template function overloads
+
+### Misc
+- Updated to [Panther-std v0.0.24.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.24.0)
+
+
+<!---------------------------------->
+<a name="v0.0.301.4"></a>
+## v0.0.301.4
+
+### Panther
+- Fixed semantic analysis of template functions with a `this` parameter
+
+
+<!---------------------------------->
 <a name="v0.0.301.3"></a>
 ## v0.0.301.3
 

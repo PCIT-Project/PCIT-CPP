@@ -109,6 +109,11 @@ namespace pcit::panther{
 			{"isComptimeComparable",            Kind::IS_COMPTIME_COMPARABLE},
 			{"isNoErrorComparable",             Kind::IS_NO_ERROR_COMPARABLE},
 			{"isSafeComparable",                Kind::IS_SAFE_COMPARABLE},
+			{"isIntegral",                      Kind::IS_INTEGRAL},
+			{"isSignedIntegral",                Kind::IS_SIGNED_INTEGRAL},
+			{"isUnsignedIntegral",              Kind::IS_UNSIGNED_INTEGRAL},
+			{"isFloatingPoint",                 Kind::IS_FLOATING_POINT},
+			{"isPointer",                       Kind::IS_POINTER},
 
 			{"bitCast",                         Kind::BIT_CAST},
 			{"trunc",                           Kind::TRUNC},

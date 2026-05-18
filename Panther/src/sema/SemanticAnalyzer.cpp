@@ -12830,6 +12830,51 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::IS_INTEGRAL: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isIntegral(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_SIGNED_INTEGRAL: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isSignedIntegral(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_UNSIGNED_INTEGRAL: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isUnsignedIntegral(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_FLOATING_POINT: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isFloatingPoint(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_POINTER: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isPointer(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
 
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {

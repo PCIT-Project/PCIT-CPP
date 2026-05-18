@@ -4224,6 +4224,46 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_INTEGRAL) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_SIGNED_INTEGRAL) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_UNSIGNED_INTEGRAL) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_FLOATING_POINT) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_POINTER) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 
 
 
