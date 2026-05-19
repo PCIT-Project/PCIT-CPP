@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.303.0"></a>
+## v0.0.303.0
+
+### Panther
+- Added function attribute `#callConv`
+- Added `@pthr.CallingConvention`
+
+### PIR
+- Added `WIN_API` calling convention
+
+
+<!---------------------------------->
 <a name="v0.0.302.2"></a>
 ## v0.0.302.2
 

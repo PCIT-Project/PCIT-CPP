@@ -892,6 +892,7 @@ namespace pcit::panther{
 				bool is_commutative;
 				bool is_swapped;
 				bool is_implicit;
+				std::optional<uint32_t> call_conv; // pir::CallingConvention
 			};
 			[[nodiscard]] auto analyze_func_attrs(
 				const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info

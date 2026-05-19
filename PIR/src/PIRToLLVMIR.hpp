@@ -134,7 +134,7 @@ namespace pcit::pir{
 
 
 			[[nodiscard]] static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
-			[[nodiscard]] static auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
+			[[nodiscard]] auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
 			[[nodiscard]] static auto get_atomic_ordering(const AtomicOrdering& atomic_ordering)
 				-> llvmint::AtomicOrdering;
 	

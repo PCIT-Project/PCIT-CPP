@@ -1889,7 +1889,8 @@ namespace pcit::panther{
 						.isNoReturn = false,
 						.isExport   = false,
 						.isImplicit = false,
-					}
+					},
+					pir::CallingConvention::DEFAULT
 				);
 
 
@@ -2053,7 +2054,8 @@ namespace pcit::panther{
 						.isNoReturn = false,
 						.isExport   = false,
 						.isImplicit = false,
-					}
+					},
+					pir::CallingConvention::DEFAULT
 				);
 
 
@@ -2237,7 +2239,8 @@ namespace pcit::panther{
 							.isNoReturn = false,
 							.isExport   = false,
 							.isImplicit = false,
-						}
+						},
+						pir::CallingConvention::DEFAULT
 					);
 
 
@@ -2441,7 +2444,8 @@ namespace pcit::panther{
 							.isNoReturn = false,
 							.isExport   = false,
 							.isImplicit = false,
-						}
+						},
+						pir::CallingConvention::DEFAULT
 					);
 
 
@@ -3534,6 +3538,17 @@ namespace pcit::panther{
 		}
 
 
+		///////////////////////////////////
+		// calling convention
+
+		const pir::CallingConvention calling_conv = [&]() -> pir::CallingConvention {
+			if(func_attrs.value().call_conv.has_value()){
+				return static_cast<pir::CallingConvention>(*func_attrs.value().call_conv);
+			}else{
+				return pir::CallingConvention::DEFAULT;	
+			}
+		}();
+
 
 		///////////////////////////////////
 		// create func
@@ -3573,6 +3588,7 @@ namespace pcit::panther{
 				.isExport   = func_attrs.value().is_export,
 				.isImplicit = func_attrs.value().is_implicit,
 			},
+			calling_conv,
 			instr.templated_func_id,
 			instr.instantiation_id
 		);
@@ -4519,7 +4535,8 @@ namespace pcit::panther{
 										.isNoReturn = false,
 										.isExport   = false,
 										.isImplicit = false,
-									}
+									},
+									calling_conv
 								);
 
 								sema::Func& created_swapped_func =
@@ -12176,12 +12193,6 @@ namespace pcit::panther{
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::ATOMIC_STORE: {
-				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-				const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-				);
-
-
 				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
@@ -14184,13 +14195,6 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const BuiltinModule& builtin_module_pthr =
-						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-					);
-
-
 					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
@@ -14277,13 +14281,6 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const BuiltinModule& builtin_module_pthr =
-						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-					);
-
-
 					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
@@ -14398,18 +14395,6 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const BuiltinModule& builtin_module_pthr =
-						this->context.getSourceManager()[BuiltinModule::ID::PTHR];
-
-					const TypeInfo::ID atomic_ordering_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
-					);
-
-					const TypeInfo::ID atomic_rmw_op_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
-					);
-
-
 					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
@@ -30939,6 +30924,8 @@ namespace pcit::panther{
 		auto attr_swapped = Attribute(*this, "swapped");
 		auto attr_implicit = Attribute(*this, "implicit");
 
+		auto attr_call_conv = Attribute(*this, "callConv");
+		auto call_conv = std::optional<uint32_t>();
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -31207,6 +31194,42 @@ namespace pcit::panther{
 
 				if(attr_implicit.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "callConv"){
+				if(attribute_params_info[i].size() != 1){
+					if(attribute_params_info[i].size() == 0){
+						this->emit_error("Attribute #callConv requires a calling convention", attribute.args.front());
+					}else{
+						this->emit_error("Unknown argument in Attribute #callConv", attribute.args[1]);
+					}
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				TermInfo& calling_conv_term_info = this->get_term_info(attribute_params_info[i][0]);
+				if(this->check_term_isnt_type(calling_conv_term_info, attribute.args[0]).isError()){
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+				const TypeInfo::ID calling_conv_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(builtin_module_pthr.getSymbol("CallingConvention")->as<BaseType::ID>())
+				);
+
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					calling_conv_type_id,
+					calling_conv_term_info,
+					"Calling convention in #callConv",
+					this->get_location(attribute.args[0])
+				);
+				if(type_check_info.ok == false){
+					return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+				}
+
+				call_conv = static_cast<uint32_t>(
+					sema::exprToGenericValue(calling_conv_term_info.getExpr(), this->context).getInt(32)
+				);
+
+				if(attr_call_conv.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
 			}else{
 				this->emit_error(std::format("Unknown function attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -31225,6 +31248,7 @@ namespace pcit::panther{
 			.is_commutative = attr_commutative.is_set(),
 			.is_swapped     = attr_swapped.is_set(),
 			.is_implicit    = attr_implicit.is_set(),
+			.call_conv      = call_conv,
 		};
 	}
 

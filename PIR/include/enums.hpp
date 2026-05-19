@@ -21,6 +21,7 @@ namespace pcit::pir{
 		FAST,
 		COLD,
 		C,
+		WIN_API,
 
 		DEFAULT = FAST,
 	};

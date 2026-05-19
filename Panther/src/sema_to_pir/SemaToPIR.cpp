@@ -553,11 +553,6 @@ namespace pcit::panther{
 		auto pir_funcs = evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>>();
 
 
-		const pir::CallingConvention calling_conv = [&](){
-			if(func.attributes.isExport){ return pir::CallingConvention::C; }
-			return pir::CallingConvention::FAST;
-		}();
-
 		const pir::Linkage linkage = [&](){
 			if(func.attributes.isExport){ return pir::Linkage::EXTERNAL; }
 			return pir::Linkage::PRIVATE;
@@ -615,7 +610,7 @@ namespace pcit::panther{
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(mangled_name),
 					std::move(params),
-					calling_conv,
+					func.callingConvention,
 					linkage,
 					return_type,
 					func.attributes.isNoReturn,
@@ -688,7 +683,7 @@ namespace pcit::panther{
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(name),
 					evo::copy(params),
-					calling_conv,
+					func.callingConvention,
 					linkage,
 					return_type,
 					func.attributes.isNoReturn,

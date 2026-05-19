@@ -2906,7 +2906,7 @@ namespace pcit::pir{
 
 	auto ModulePrinter::print_calling_convention(CallingConvention convention) -> void {
 		switch(convention){
-			case CallingConvention::FAST:  {
+			case CallingConvention::FAST: {
 				this->printer.printRed("#callConv");
 				this->printer.print("(fast)");
 			} break;
@@ -2919,6 +2919,11 @@ namespace pcit::pir{
 			case CallingConvention::C: {
 				this->printer.printRed("#callConv");
 				this->printer.print("(c)");
+			} break;
+
+			case CallingConvention::WIN_API:  {
+				this->printer.printRed("#callConv");
+				this->printer.print("(win_api)");
 			} break;
 		}
 	}

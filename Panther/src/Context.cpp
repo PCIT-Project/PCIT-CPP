@@ -1609,7 +1609,8 @@ namespace pcit::panther{
 									.isNoReturn = false,
 									.isExport   = true,
 									.isImplicit = false,
-								}
+								},
+								pir::CallingConvention::C
 							);
 						}
 					);
@@ -2554,6 +2555,48 @@ namespace pcit::panther{
 
 
 
+		//////////////////
+		// CallingConvention
+
+		pthr_module.createSymbol("CallingConvention", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("CallingConvention"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("FAST"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(pir::CallingConvention::FAST)
+						)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("COLD"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(pir::CallingConvention::COLD)
+						)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("C"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(pir::CallingConvention::C)
+						)
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("WIN_API"),
+						core::GenericInt::create<uint32_t>(
+							evo::to_underlying(pir::CallingConvention::WIN_API)
+						)
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				true
+			)
+		));
+
 
 		//////////////////
 		// AtomicOrdering
@@ -2718,7 +2761,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2768,7 +2812,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2812,7 +2857,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2879,7 +2925,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2929,7 +2976,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2973,7 +3021,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3049,7 +3098,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3103,7 +3153,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -3181,7 +3232,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3262,7 +3314,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3328,7 +3381,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3378,7 +3432,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3422,7 +3477,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3490,7 +3546,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3540,7 +3597,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3584,7 +3642,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3660,7 +3719,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3714,7 +3774,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -3794,7 +3855,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3875,7 +3937,8 @@ namespace pcit::panther{
 					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				}
+				},
+				pir::CallingConvention::DEFAULT
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;

@@ -2731,6 +2731,12 @@ namespace pcit::pir{
 			case CallingConvention::C:       return llvmint::CallingConv::C;
 			case CallingConvention::FAST:    return llvmint::CallingConv::Tail;
 			case CallingConvention::COLD:    return llvmint::CallingConv::Cold;
+			case CallingConvention::WIN_API: {
+				switch(this->module.getTarget().architecture){
+					case core::Target::Architecture::X86_64:  return llvmint::CallingConv::Win64;
+					case core::Target::Architecture::UNKNOWN: return llvmint::CallingConv::C;
+				}
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported linkage kind");
@@ -2738,10 +2744,10 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_atomic_ordering(const AtomicOrdering& atomic_ordering) -> llvmint::AtomicOrdering {
 		switch(atomic_ordering){
-			case AtomicOrdering::NONE:                   return llvmint::AtomicOrdering::NotAtomic;
-			case AtomicOrdering::MONOTONIC:              return llvmint::AtomicOrdering::Monotonic;
-			case AtomicOrdering::ACQUIRE:                return llvmint::AtomicOrdering::Acquire;
-			case AtomicOrdering::RELEASE:                return llvmint::AtomicOrdering::Release;
+			case AtomicOrdering::NONE:                    return llvmint::AtomicOrdering::NotAtomic;
+			case AtomicOrdering::MONOTONIC:               return llvmint::AtomicOrdering::Monotonic;
+			case AtomicOrdering::ACQUIRE:                 return llvmint::AtomicOrdering::Acquire;
+			case AtomicOrdering::RELEASE:                 return llvmint::AtomicOrdering::Release;
 			case AtomicOrdering::ACQUIRE_RELEASE:         return llvmint::AtomicOrdering::AcquireRelease;
 			case AtomicOrdering::SEQUENTIALLY_CONSISTENT: return llvmint::AtomicOrdering::SequentiallyConsistent;
 		}

@@ -723,6 +723,7 @@ namespace pcit::panther::sema{
 		uint32_t minNumArgs;
 		bool hasInParam;
 		Attributes attributes;
+		pir::CallingConvention callingConvention;
 
 		std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt;
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation

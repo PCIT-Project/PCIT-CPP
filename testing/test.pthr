@@ -1,18 +1,13 @@
-def std_exp = @import("std_exp/std_exp.pthr");
-
-
-type NoReloc = struct {
-	func copy = delete;
-}
-
-
+func fast    = () #callConv(@pthr.CallingConvention.FAST)    -> Void {}
+func cold    = () #callConv(@pthr.CallingConvention.COLD)    -> Void {}
+func c       = () #callConv(@pthr.CallingConvention.C)       -> Void {}
+func win_api = () #callConv(@pthr.CallingConvention.WIN_API) -> Void {}
 
 func entry = () #entry -> UI8 {
-	var num: Int = 12;
-
-	var num_atomic_ref = new std_exp.AtomicRef<{Int}>(&num);
-
-	_ = num_atomic_ref.fetchAdd(2);
-
-	return num_atomic_ref.load() as UI8;
+	fast();
+	cold();
+	c();
+	win_api();
+	
+	return 0;
 }
