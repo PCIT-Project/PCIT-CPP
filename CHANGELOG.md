@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.303.1"></a>
+## v0.0.303.1
+
+### Panther
+- Fixed race condition in lowering of structs, enums, and unions
+
+
+<!---------------------------------->
 <a name="v0.0.303.0"></a>
 ## v0.0.303.0
 

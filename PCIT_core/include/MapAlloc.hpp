@@ -33,7 +33,7 @@ namespace pcit::core{
 			struct ValueHandle{
 				[[nodiscard]] auto needsToBeSet() const -> bool { return this->needs_to_be_set; }
 
-				auto getValue() const -> VALUE& {
+				[[nodiscard]] auto getValue() const -> VALUE& {
 					evo::debugAssert(this->needsToBeSet() == false, "Cannot get value if it doesn't need to be set");
 
 					while(this->internal_value.flag.load() == false){
@@ -65,7 +65,7 @@ namespace pcit::core{
 			MapAlloc() = default;
 			~MapAlloc() = default;
 
-			auto get(const KEY& key) -> ValueHandle {
+			[[nodiscard]] auto get(const KEY& key) -> ValueHandle {
 				const auto lock = std::scoped_lock(this->spin_lock);
 
 				const auto find = this->map.find(key);
@@ -78,7 +78,13 @@ namespace pcit::core{
 					return ValueHandle(new_internal_value, true);
 				}
 			}
-	
+		
+			
+			[[nodiscard]] auto hasValue(const KEY& key) const -> bool {
+				const auto lock = std::scoped_lock(this->spin_lock);
+				return this->map.contains(key);
+			}
+
 
 		private:
 			std::unordered_map<KEY, InternalValue*> map{};

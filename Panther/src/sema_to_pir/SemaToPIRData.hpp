@@ -146,44 +146,6 @@ namespace pcit::panther{
 
 
 		private:
-			auto create_struct(BaseType::Struct::ID struct_id, pir::Type pir_id) -> void {
-				const auto lock = std::scoped_lock(this->structs_lock);
-				const auto emplace_result = this->structs.emplace(struct_id, pir_id);
-				evo::debugAssert(emplace_result.second, "This struct id was already added to PIR lower");
-			}
-
-			[[nodiscard]] auto get_struct(BaseType::Struct::ID struct_id) -> pir::Type {
-				const auto lock = std::scoped_lock(this->structs_lock);
-				evo::debugAssert(this->structs.contains(struct_id), "Doesn't have this struct");
-				return this->structs.at(struct_id);
-			}
-
-			[[nodiscard]] auto has_struct(BaseType::Struct::ID struct_id) -> bool {
-				const auto lock = std::scoped_lock(this->structs_lock);
-				return this->structs.contains(struct_id);
-			}
-
-
-
-			auto create_union(BaseType::Union::ID union_id, pir::Type pir_id) -> void {
-				const auto lock = std::scoped_lock(this->unions_lock);
-				const auto emplace_result = this->unions.emplace(union_id, pir_id);
-				evo::debugAssert(emplace_result.second, "This union id was already added to PIR lower");
-			}
-
-			[[nodiscard]] auto get_union(BaseType::Union::ID union_id) -> pir::Type {
-				const auto lock = std::scoped_lock(this->unions_lock);
-				evo::debugAssert(this->unions.contains(union_id), "Doesn't have this union");
-				return this->unions.at(union_id);
-			}
-
-			[[nodiscard]] auto has_union(BaseType::Union::ID union_id) -> bool {
-				const auto lock = std::scoped_lock(this->unions_lock);
-				return this->unions.contains(union_id);
-			}
-
-
-
 			auto create_global_var(sema::GlobalVar::ID global_var_id, pir::GlobalVar::ID pir_id) -> void {
 				const auto lock = std::scoped_lock(this->global_vars_lock);
 				const auto emplace_result = this->global_vars.emplace(global_var_id, pir_id);
@@ -382,23 +344,6 @@ namespace pcit::panther{
 
 
 
-			auto create_meta_enum(BaseType::Enum::ID enum_id, pir::meta::EnumType::ID enum_type_id) -> void {
-				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
-				this->meta_enum_types.emplace(enum_id, enum_type_id);
-			}
-
-			[[nodiscard]] auto get_meta_enum(BaseType::Enum::ID enum_id) const -> pir::meta::EnumType::ID {
-				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
-				return this->meta_enum_types.at(enum_id);
-			}
-
-			[[nodiscard]] auto has_meta_enum(BaseType::Enum::ID enum_id) const -> bool {
-				const auto lock = std::scoped_lock(this->meta_enum_types_lock);
-				return this->meta_enum_types.contains(enum_id);
-			}
-
-
-
 
 			auto create_meta_union(BaseType::Union::ID union_id, pir::meta::Type union_type_id) -> void {
 				const auto lock = std::scoped_lock(this->meta_union_types_lock);
@@ -465,7 +410,8 @@ namespace pcit::panther{
 				return *this->builtin_meta_file;
 			}
 
-	
+
+
 		private:
 			Config config;
 
@@ -475,11 +421,8 @@ namespace pcit::panther{
 
 			core::MapAlloc<BaseType::ArrayRef::ID, PIRType> array_ref_type_infos{};
 
-			std::unordered_map<BaseType::Struct::ID, pir::Type> structs{};
-			mutable evo::SpinLock structs_lock{};
-
-			std::unordered_map<BaseType::Union::ID, pir::Type> unions{};
-			mutable evo::SpinLock unions_lock{};
+			core::MapAlloc<BaseType::Struct::ID, pir::Type> structs{}; // access directly from SemaToPIR
+			core::MapAlloc<BaseType::Union::ID, pir::Type> unions{}; // access directly from SemaToPIR
 
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
 			std::unordered_map<pir::GlobalVar::ID, sema::GlobalVar::ID> reverse_global_vars{};
@@ -523,8 +466,7 @@ namespace pcit::panther{
 			core::MapAlloc<TypeInfo::ID, pir::meta::QualifiedType::ID> meta_reference_qualified_types{};
 			core::MapAlloc<BaseType::Array::ID, pir::meta::ArrayType::ID> meta_array_types{};
 
-			std::unordered_map<BaseType::Enum::ID, pir::meta::EnumType::ID> meta_enum_types{};
-			mutable evo::SpinLock meta_enum_types_lock{};
+			core::MapAlloc<BaseType::Enum::ID, pir::meta::Type> meta_enum_types{}; // access directly from SemaToPIR
 
 			std::unordered_map<BaseType::Union::ID, pir::meta::Type> meta_union_types{};
 			mutable evo::SpinLock meta_union_types_lock{};

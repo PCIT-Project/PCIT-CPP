@@ -1510,11 +1510,17 @@ namespace pcit::panther{
 
 	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> pir::Type {
+		const auto value_handle = this->data.structs.get(struct_id);
+
 		if constexpr(MAY_LOWER_DEPENDENCY){
-			if(this->data.has_struct(struct_id)){
-				return this->data.get_struct(struct_id);
+			if(value_handle.needsToBeSet() == false){
+				return value_handle.getValue();
 			}
+			
+		}else{
+			evo::debugAssert(value_handle.needsToBeSet(), "Already has this struct");
 		}
+
 
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
@@ -1566,7 +1572,7 @@ namespace pcit::panther{
 			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked
 		);
 
-		this->data.create_struct(struct_id, new_type);
+		value_handle.emplaceValue(new_type);
 
 
 		if(this->data.config.includeDebugInfo){
@@ -1628,10 +1634,15 @@ namespace pcit::panther{
 
 	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::lower_union(BaseType::Union::ID union_id) -> pir::Type {
+		const auto value_handle = this->data.unions.get(union_id);
+
 		if constexpr(MAY_LOWER_DEPENDENCY){
-			if(this->data.has_union(union_id)){
-				return this->data.get_union(union_id);
+			if(value_handle.needsToBeSet() == false){
+				return value_handle.getValue();
 			}
+			
+		}else{
+			evo::debugAssert(value_handle.needsToBeSet(), "Already has this union");
 		}
 
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
@@ -1783,7 +1794,7 @@ namespace pcit::panther{
 		}
 
 
-		this->data.create_union(union_id, union_pir_type);
+		value_handle.emplaceValue(union_pir_type);
 
 		return union_pir_type;
 	}
@@ -1793,9 +1804,18 @@ namespace pcit::panther{
 	auto SemaToPIR::lower_enum(BaseType::Enum::ID enum_id) -> void {
 		if(this->data.config.includeDebugInfo == false){ return; }
 
+		const auto value_handle = this->data.meta_enum_types.get(enum_id);
+
 		if constexpr(MAY_LOWER_DEPENDENCY){
-			if(this->data.has_meta_enum(enum_id)){ return; }
+			if(value_handle.needsToBeSet() == false){
+				std::ignore = value_handle.getValue(); // make sure to wait for it to be completed
+				return;
+			}
+
+		}else{
+			evo::debugAssert(value_handle.needsToBeSet(), "Already has this enum");
 		}
+
 
 		const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(enum_id);
 
@@ -1837,7 +1857,7 @@ namespace pcit::panther{
 			location.line_number
 		);
 
-		this->data.create_meta_enum(enum_id, meta_enum_type_id);
+		value_handle.emplaceValue(meta_enum_type_id);
 	}
 
 
@@ -11782,7 +11802,8 @@ namespace pcit::panther{
 				const BaseType::Union& union_type =
 					this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
 
-				const pir::Type union_pir_type = this->data.get_union(union_designated_init_new.unionTypeID);
+				const pir::Type union_pir_type =
+					this->data.unions.get(union_designated_init_new.unionTypeID).getValue();
 
 				const core::GenericValue generic_value = [&]() -> core::GenericValue {
 					if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
@@ -12609,16 +12630,15 @@ namespace pcit::panther{
 			
 			case BaseType::Kind::STRUCT: {
 				if constexpr(MAY_LOWER_DEPENDENCY){
-					if(this->data.has_struct(base_type_id.structID()) == false){
+					if(this->data.structs.hasValue(base_type_id.structID()) == false){
 						this->lowerStructAndDepsIfNeeded(base_type_id.structID());
 					}
 				}
 
-
 				if constexpr(GET_META){
-					if(this->data.has_struct(base_type_id.structID())){
-						const pir::Type pir_type = this->data.get_struct(base_type_id.structID());
-
+					if(this->data.structs.hasValue(base_type_id.structID())){
+						const auto value_handle = this->data.structs.get(base_type_id.structID());
+						const pir::Type pir_type = value_handle.getValue();
 						return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
 
 					}else{
@@ -12634,19 +12654,20 @@ namespace pcit::panther{
 					}
 
 				}else{
-					return PIRType(this->data.get_struct(base_type_id.structID()), std::nullopt);
+					const auto value_handle = this->data.structs.get(base_type_id.structID());
+					return PIRType(value_handle.getValue(), std::nullopt);
 				}
 			} break;
 
 
 			case BaseType::Kind::UNION: {
 				if constexpr(MAY_LOWER_DEPENDENCY){
-					if(this->data.has_union(base_type_id.unionID()) == false){
+					if(this->data.unions.hasValue(base_type_id.unionID()) == false){
 						this->lowerUnionAndDepsIfNeeded(base_type_id.unionID());
 					}
 				}
 
-				const pir::Type pir_type = this->data.get_union(base_type_id.unionID());
+				const pir::Type pir_type = this->data.unions.get(base_type_id.unionID()).getValue();
 
 				if constexpr(GET_META){
 					return PIRType(pir_type, this->data.get_meta_union(base_type_id.unionID()));
@@ -12662,7 +12683,7 @@ namespace pcit::panther{
 					this->get_type<MAY_LOWER_DEPENDENCY, false>(BaseType::ID(enum_type.underlyingTypeID)).type;
 
 				if constexpr(GET_META){
-					return PIRType(pir_type, this->data.get_meta_enum(base_type_id.enumID()));
+					return PIRType(pir_type, this->data.meta_enum_types.get(base_type_id.enumID()).getValue());
 
 				}else{
 					return PIRType(pir_type, std::nullopt);
