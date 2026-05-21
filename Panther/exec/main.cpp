@@ -411,8 +411,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	}
 
 
-	switch(config.output){
-		case PantherBuildConfig::Output::TOKENS: {
+	switch(config.output.getTag()){
+		case PantherBuildConfig::Output::Tag::TOKENS: {
 			if(context.tokenize().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -425,7 +425,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::AST: {
+		case PantherBuildConfig::Output::Tag::AST: {
 			if(context.parse().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -440,7 +440,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::SEMANTIC_ANALYSIS: {
+		case PantherBuildConfig::Output::Tag::SEMANTIC_ANALYSIS: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -449,7 +449,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::PIR: {
+		case PantherBuildConfig::Output::Tag::PIR: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -466,7 +466,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::LLVMIR: {
+		case PantherBuildConfig::Output::Tag::LLVMIR: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -482,7 +482,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::ASSEMBLY: {
+		case PantherBuildConfig::Output::Tag::ASSEMBLY: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -505,7 +505,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::OBJECT: {
+		case PantherBuildConfig::Output::Tag::OBJECT: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -536,7 +536,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::RUN: {
+		case PantherBuildConfig::Output::Tag::RUN: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
@@ -548,17 +548,17 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			return evo::Result<>();
 		} break;
 
-		case PantherBuildConfig::Output::CONSOLE_EXECUTABLE: case PantherBuildConfig::Output::WINDOWED_EXECUTABLE: {
+		case PantherBuildConfig::Output::Tag::EXECUTABLE: {
 			if(context.analyzeSemantics().isError()){
 				print_num_context_errors(context, printer);
 				return evo::resultError;
 			}
 
 			const panther::Context::EntryKind entry_kind = [&](){
-				if(config.output == PantherBuildConfig::Output::CONSOLE_EXECUTABLE){
-					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
-				}else{
+				if(config.output.exectuableData().isWindowed){
 					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
+				}else{
+					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
 				}
 			}();
 
@@ -607,10 +607,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
 			plnk_options.outputFilePath = "build/output.exe";
 			plnk_options.getWindowsSpecific().subsystem = [&](){
-				if(config.output == PantherBuildConfig::Output::CONSOLE_EXECUTABLE){
-					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
-				}else{
+				if(config.output.exectuableData().isWindowed){
 					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
+				}else{
+					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
 				}
 			}();
 

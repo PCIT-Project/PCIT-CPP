@@ -413,12 +413,15 @@ namespace pcit::panther{
 		if(union_type.isCFamilyType()){
 			const CFamilySource& c_family_source =
 				context.getSourceManager()[union_type.sourceID.as<CFamilySource::ID>()];
-			return c_family_source.getDeclInfo(union_type.location.as<CFamilySource::DeclInfoID>()).location;
+			return c_family_source.getDeclInfo(union_type.name.as<CFamilySource::DeclInfoID>()).location;
 			
-		}else{
+		}else if(union_type.isPTHRSourceType()){
 			return Location::get(
-				union_type.location.as<Token::ID>(), context.getSourceManager()[union_type.sourceID.as<Source::ID>()]
+				union_type.name.as<Token::ID>(), context.getSourceManager()[union_type.sourceID.as<Source::ID>()]
 			);
+
+		}else{
+			return Location::BUILTIN;
 		}
 	}
 

@@ -16365,7 +16365,9 @@ namespace pcit::panther{
 
 
 		if(target_type_info.baseTypeID().kind() == BaseType::Kind::UNION){
-			return this->union_designated_init_new(instr, target_type_id.asTypeID());
+			return this->union_designated_init_new(
+				instr, target_type_id.asTypeID(), target_type_info.baseTypeID().unionID()
+			);
 
 		}else if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
 			this->emit_error(
@@ -29688,10 +29690,10 @@ namespace pcit::panther{
 
 	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::union_designated_init_new(
-		const Instruction::DesignatedInitNew<IS_COMPTIME>& instr, TypeInfo::ID target_type_info_id
+		const Instruction::DesignatedInitNew<IS_COMPTIME>& instr,
+		TypeInfo::ID target_type_info_id,
+		BaseType::Union::ID union_id
 	) -> Result {
-		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_info_id);
-
 		if(instr.designated_init_new.memberInits.size() != 1){
 			if(instr.designated_init_new.memberInits.size() == 0){
 				this->emit_error("Union designated operator [new] must have a field", instr.designated_init_new);
@@ -29710,8 +29712,7 @@ namespace pcit::panther{
 			this->source.getTokenBuffer()[instr.designated_init_new.memberInits[0].ident].getString();
 
 
-		const BaseType::Union& union_info =
-			this->context.getTypeManager().getUnion(target_type_info.baseTypeID().unionID());
+		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
 		for(size_t i = 0; const BaseType::Union::Field& field : union_info.fields){
 			EVO_DEFER([&](){ i += 1; });
@@ -29761,9 +29762,7 @@ namespace pcit::panther{
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_info_id,
 				sema::Expr(
-					this->context.sema_buffer.createUnionDesignatedInitNew(
-						init_value.getExpr(), target_type_info.baseTypeID().unionID(), uint32_t(i)
-					)
+					this->context.sema_buffer.createUnionDesignatedInitNew(init_value.getExpr(), union_id, uint32_t(i))
 				)
 			);
 

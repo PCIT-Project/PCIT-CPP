@@ -5,7 +5,11 @@ def build_exp = @import("std_exp/building.pthr");
 
 func entry = () #entry -> UI8 {
 	var build = new build_exp.PantherBuild{
-		output       = std.build.Output.PIR,
+		output       = new build_exp.PantherBuild.Output{
+			executable = new build_exp.PantherBuild.ExecutableOutput{
+				isWindowed = false,
+			}
+		},
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),
 		addDebugInfo = true,

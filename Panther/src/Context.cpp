@@ -2117,6 +2117,135 @@ namespace pcit::panther{
 		BuiltinModule& build_module = this->source_manager[BuiltinModule::ID::BUILD];
 
 
+
+		//////////////////
+		// PantherBuildConfigExecutableOutput
+
+		{
+			auto panther_build_config_executable_output_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("isWindowed"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+			};
+
+
+			auto panther_build_config_executable_output_member_vars_abi =
+				evo::SmallVector<BaseType::Struct::MemberVar*>();
+			panther_build_config_executable_output_member_vars_abi.reserve(
+				panther_build_config_executable_output_members.size()
+			);
+			for(BaseType::Struct::MemberVar& member : panther_build_config_executable_output_members){
+				panther_build_config_executable_output_member_vars_abi.emplace_back(&member);
+			}
+
+			const BaseType::ID panther_build_config_executable_output_type = this->type_manager.createStruct(
+				BaseType::Struct{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfigExecutableOutput"),
+					.parent            = std::nullopt,
+					.templateID        = std::nullopt,
+					.instantiation     = std::numeric_limits<uint32_t>::max(),
+					.memberVars        = std::move(panther_build_config_executable_output_members),
+					.memberVarsABI     = std::move(panther_build_config_executable_output_member_vars_abi),
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isOrdered         = true,
+					.isPacked          = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfigExecutableOutput", panther_build_config_executable_output_type);
+
+
+			BaseType::Struct& panther_build_config_executable_output =
+				this->type_manager.getStruct(panther_build_config_executable_output_type.structID());
+
+			panther_build_config_executable_output.mayDesignatedInitNew = true;
+		}
+
+
+		//////////////////
+		// PantherBuildConfigOutput
+
+		{
+			auto config_output_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("methodCallOnNonMethod"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
+				),
+			};
+
+			const BaseType::ID config_output_type = this->type_manager.createUnion(
+				BaseType::Union{
+					.sourceID          = BuiltinModule::ID::BUILD,
+					.name              = build_module.createString("PantherBuildConfigOutput"),
+					.fields            = evo::SmallVector<BaseType::Union::Field>{
+						BaseType::Union::Field(
+							build_module.createString("tokens"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("ast"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("semanticAnalysis"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("pir"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("llvmir"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("assembly"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("object"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("run"),
+							TypeInfo::VoidableID::Void()
+						),
+						BaseType::Union::Field(
+							build_module.createString("executable"),
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									build_module.getSymbol("PantherBuildConfigExecutableOutput")->as<BaseType::ID>()
+								)
+							)
+						),
+					},
+					.namespacedMembers = nullptr,
+					.scopeLevel        = nullptr,
+					.isPub             = false,
+					.isPriv            = false,
+					.isUntagged        = false,
+				}
+			);
+
+
+			build_module.createSymbol("PantherBuildConfigOutput", config_output_type);
+
+			std::ignore = this->type_manager.getUnion(config_output_type.unionID());
+		}
+
+
 		//////////////////
 		// PackageWarningSettings
 
@@ -2450,7 +2579,11 @@ namespace pcit::panther{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("output"),
-					TypeManager::getTypeUI32(),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							build_module.getSymbol("PantherBuildConfigOutput")->as<BaseType::ID>()
+						)
+					),
 					std::nullopt,
 					false
 				),

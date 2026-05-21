@@ -77,18 +77,43 @@ namespace pcit::panther{
 					[[nodiscard]] operator std::string() const { return std::string(this->data, this->size); }
 				};
 
-				enum class Output : uint32_t {
-					TOKENS              = 0,
-					AST                 = 1,
-					SEMANTIC_ANALYSIS   = 2,
-					PIR                 = 3,
-					LLVMIR              = 4,
-					ASSEMBLY            = 5,
-					OBJECT              = 6,
-					RUN                 = 7,
-					CONSOLE_EXECUTABLE  = 8,
-					WINDOWED_EXECUTABLE = 9,
+
+				struct Output{
+					enum class Tag : uint8_t {
+						TOKENS            = 0,
+						AST               = 1,
+						SEMANTIC_ANALYSIS = 2,
+						PIR               = 3,
+						LLVMIR            = 4,
+						ASSEMBLY          = 5,
+						OBJECT            = 6,
+						RUN               = 7,
+						EXECUTABLE        = 8,
+					};
+
+					struct ExectuableData{
+						bool isWindowed;
+					};
+
+
+					[[nodiscard]] auto getTag() const -> Tag { return this->tag; }
+
+					[[nodiscard]] auto exectuableData() const -> const ExectuableData& {
+						evo::debugAssert(this->tag == Tag::EXECUTABLE, "Not an executable output");
+						return this->data.executable;
+					}
+
+
+					private:
+						union Data{
+							std::byte dummy;
+							ExectuableData executable;
+						};
+
+						Data data;
+						Tag tag;
 				};
+
 
 				struct Package{
 					struct Directory{
@@ -108,6 +133,7 @@ namespace pcit::panther{
 					bool isCPP;
 					bool addIncludesToPubApi;
 				};
+
 
 
 				Output output;

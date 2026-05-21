@@ -22,6 +22,7 @@ testing/*.S
 *.vcxproj.user
 *.vcxproj.filters
 *.sln
+*.slnx
 
 # misc
 *.ini

@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.304.0"></a>
+## v0.0.304.0
+
+### Panther
+- Added `@build.PantherBuildConfigOutput`
+- Added `@build.PantherBuildConfigExecutableOutput`
+- Changed type of `@build.PantherBuildConfig.output` to `@build.PantherBuildConfigOutput`
+- Fixed union designated initializers when the target union type is a type alias
+
+### Misc
+- Updated to [Panther-std v0.0.25.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.25.0)
+
+
+<!---------------------------------->
 <a name="v0.0.303.1"></a>
 ## v0.0.303.1
 

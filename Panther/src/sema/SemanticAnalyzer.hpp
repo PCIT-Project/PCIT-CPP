@@ -790,7 +790,9 @@ namespace pcit::panther{
 
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto union_designated_init_new(
-				const Instruction::DesignatedInitNew<IS_COMPTIME>& instr, TypeInfo::ID target_type_info_id
+				const Instruction::DesignatedInitNew<IS_COMPTIME>& instr,
+				TypeInfo::ID target_type_info_id,
+				BaseType::Union::ID union_id
 			) -> Result;
 
 

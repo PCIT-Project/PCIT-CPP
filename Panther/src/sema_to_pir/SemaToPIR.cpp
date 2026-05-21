@@ -1647,6 +1647,15 @@ namespace pcit::panther{
 
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
 
+		// make sure dependencies are lowered
+		if constexpr(MAY_LOWER_DEPENDENCY){
+			for(const BaseType::Union::Field& field : union_type.fields){
+				if(field.typeID.isVoid()){ continue; }
+				std::ignore = this->get_type<true, false>(field.typeID.asTypeID());
+			}
+		}
+
+
 		this->current_source = union_type.sourceID.visit([&](const auto& source) -> Source* {
 			using SourceType = std::decay_t<decltype(source)>;
 		

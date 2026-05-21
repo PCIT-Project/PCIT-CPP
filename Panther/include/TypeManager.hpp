@@ -867,12 +867,12 @@ namespace pcit::panther{
 			using ID = UnionID;
 
 			struct Field{
-				evo::Variant<Token::ID, CFamilySourceDeclInfoID> location;
+				evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoVoidableID typeID;
 			};
 			
-			evo::Variant<SourceID, CFamilySourceID> sourceID;
-			evo::Variant<Token::ID, CFamilySourceDeclInfoID> location;
+			evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Field> fields;
 			SymbolProcNamespace* namespacedMembers; // nullptr if is c family type
@@ -885,14 +885,17 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
+			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
+
 
 			[[nodiscard]] auto getFieldName(
 				const Field& field, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
 			[[nodiscard]] auto operator==(const Union& rhs) const -> bool {
-				return this->sourceID == rhs.sourceID && this->location == rhs.location && this->parent == rhs.parent;
+				return this->sourceID == rhs.sourceID && this->name == rhs.name && this->parent == rhs.parent;
 			}
 		};
 

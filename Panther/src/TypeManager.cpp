@@ -138,10 +138,15 @@ namespace pcit::panther{
 	auto BaseType::Union::getName(const SourceManager& source_manager) const -> std::string_view {
 		if(this->isCFamilyType()){
 			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
-			return c_family_source.getDeclInfo(this->location.as<CFamilySource::DeclInfoID>()).name;
-		}else{
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[this->location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
 
@@ -150,10 +155,15 @@ namespace pcit::panther{
 	-> std::string_view {
 		if(this->isCFamilyType()){
 			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
-			return c_family_source.getDeclInfo(field.location.as<CFamilySource::DeclInfoID>()).name;
-		}else{
+			return c_family_source.getDeclInfo(field.name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
-			return source.getTokenBuffer()[field.location.as<Token::ID>()].getString();
+			return source.getTokenBuffer()[field.name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(field.name.as<BuiltinModule::StringID>());
 		}
 	}
 
@@ -1832,7 +1842,7 @@ namespace pcit::panther{
 
 		const BaseType::Union::ID new_union = this->unions.emplace_back(
 			new_type.sourceID,
-			new_type.location,
+			new_type.name,
 			new_type.parent,
 			std::move(new_type.fields),
 			new_type.namespacedMembers,

@@ -35,7 +35,10 @@ type Target = struct #pub {
 
 
 type PantherBuild = struct #pub {
-	var output: std.build.Output;
+	type Output = alias @build.PantherBuildConfigOutput;
+	type ExecutableOutput = alias @build.PantherBuildConfigExecutableOutput;
+
+	var output: Output;
 
 	var target: Target;
 	var optimization: Optimiziation;
@@ -69,7 +72,7 @@ type PantherBuild = struct #pub {
 
 		const build_was_successful: Bool = @createPantherBuild(
 			new @build.PantherBuildConfig{
-				output         = this.output as UI32,
+				output         = copy this.output,
 				numThreads     = copy this.numThreads,
 				addDebugInfo   = copy this.addDebugInfo,
 				packages       = packages as [@build.PantherBuildConfigPackage:*],
