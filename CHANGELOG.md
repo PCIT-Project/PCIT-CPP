@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.305.0"></a>
+## v0.0.305.0
+
+### Panther
+- Replaced `@build.PantherBuildConfigExecutableOutput.isWindowed` with `@build.PantherBuildConfigExecutableOutput.isConsole`
+
+
+<!---------------------------------->
 <a name="v0.0.304.0"></a>
 ## v0.0.304.0
 

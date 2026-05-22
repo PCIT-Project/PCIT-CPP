@@ -92,7 +92,7 @@ namespace pcit::panther{
 					};
 
 					struct ExectuableData{
-						bool isWindowed;
+						bool isConsole;
 					};
 
 

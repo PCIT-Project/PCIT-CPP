@@ -7,7 +7,7 @@ func entry = () #entry -> UI8 {
 	var build = new build_exp.PantherBuild{
 		output       = new build_exp.PantherBuild.Output{
 			executable = new build_exp.PantherBuild.ExecutableOutput{
-				isWindowed = false,
+				isConsole = true,
 			}
 		},
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},

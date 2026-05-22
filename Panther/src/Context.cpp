@@ -2125,7 +2125,7 @@ namespace pcit::panther{
 			auto panther_build_config_executable_output_members = evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					build_module.createString("isWindowed"),
+					build_module.createString("isConsole"),
 					TypeManager::getTypeBool(),
 					std::nullopt,
 					false

@@ -555,10 +555,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			const panther::Context::EntryKind entry_kind = [&](){
-				if(config.output.exectuableData().isWindowed){
-					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
-				}else{
+				if(config.output.exectuableData().isConsole){
 					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
+				}else{
+					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
 				}
 			}();
 
@@ -607,10 +607,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
 			plnk_options.outputFilePath = "build/output.exe";
 			plnk_options.getWindowsSpecific().subsystem = [&](){
-				if(config.output.exectuableData().isWindowed){
-					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
-				}else{
+				if(config.output.exectuableData().isConsole){
 					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
+				}else{
+					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
 				}
 			}();
 
