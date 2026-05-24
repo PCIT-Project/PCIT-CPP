@@ -715,7 +715,10 @@ namespace pcit::panther{
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
 
+			std::optional<uint32_t> alignment = std::nullopt;
+
 			std::atomic<bool> defCompleted = false; // includes PIR lowering
+
 
 			mutable evo::SpinLock memberVarsLock{}; // only needed before definition is completed
 

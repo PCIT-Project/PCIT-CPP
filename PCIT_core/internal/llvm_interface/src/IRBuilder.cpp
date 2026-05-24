@@ -192,12 +192,18 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::createAlloca(const Type& type, std::string_view name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), nullptr, name));
+	auto IRBuilder::createAlloca(const Type& type, uint32_t alignment, std::string_view name) -> Alloca {
+		llvm::AllocaInst* alloca_inst = this->builder->CreateAlloca(type.native(), nullptr, name);
+		alloca_inst->setAlignment(llvm::Align(uint64_t(alignment)));
+		return Alloca(alloca_inst);
 	}
 
-	auto IRBuilder::createAlloca(const Type& type, const Value& array_length, std::string_view name) -> Alloca {
-		return Alloca(this->builder->CreateAlloca(type.native(), array_length.native(), name));
+	auto IRBuilder::createAlloca(
+		const Type& type, const Value& array_length, uint32_t alignment, std::string_view name
+	) -> Alloca {
+		llvm::AllocaInst* alloca_inst = this->builder->CreateAlloca(type.native(), array_length.native(), name);
+		alloca_inst->setAlignment(llvm::Align(uint64_t(alignment)));
+		return Alloca(alloca_inst);
 	}
 	
 

@@ -147,7 +147,12 @@ namespace pcit::pir{
 			InstrReader reader;
 			bool add_debug_info;
 
-			std::unordered_map<const StructType*, llvmint::StructType> struct_types{};
+			struct StructData{
+				llvmint::StructType struct_type;
+				evo::SmallVector<uint32_t> member_offsets;
+			};
+
+			std::unordered_map<const StructType*, StructData> struct_types{};
 			std::unordered_map<const void*, llvmint::Function> funcs{}; // void* for funcs and extern funcs
 			std::unordered_map<const GlobalVar*, llvmint::GlobalVariable> global_vars{};
 			std::unordered_map<Expr, llvmint::Value> stmt_values{};

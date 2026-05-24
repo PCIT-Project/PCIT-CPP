@@ -352,6 +352,20 @@ namespace pcit::pir{
 		this->printer.printRed(" = ");
 		this->printer.printCyan("struct ");
 
+		{
+			uint32_t expected_alignment = 0;
+			for(const Type& member : struct_type.members){
+				expected_alignment = std::max(expected_alignment, uint32_t(this->get_module().getAlignment(member)));
+			}
+
+			if(struct_type.alignment != expected_alignment){
+				this->printer.printRed("#align");
+				this->printer.print("(");
+				this->printer.printMagenta("{}", struct_type.alignment);
+				this->printer.print(") ");
+			}
+		}
+
 		if(struct_type.isPacked){
 			this->printer.printRed("#packed ");
 		}

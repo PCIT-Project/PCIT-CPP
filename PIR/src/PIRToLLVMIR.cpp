@@ -529,17 +529,61 @@ namespace pcit::pir{
 			if(this->struct_types.contains(&struct_type)){ return; }
 		}
 
+
+		size_t struct_size = 0;
+		uint32_t member_offset = 0;
+
 		auto members = evo::SmallVector<llvmint::Type>();
 		members.reserve(struct_type.members.size());
+
+		auto member_offsets = evo::SmallVector<uint32_t>();
+		member_offsets.reserve(struct_type.members.size());
+
 		for(const Type& member : struct_type.members){
+			if(struct_type.isPacked){
+				struct_size += this->module.numBytes(member, false);
+
+			}else{
+				const size_t actual_align = this->module.getAlignment(member);
+
+				const size_t padding_offset = struct_size % actual_align;
+
+				if(padding_offset != 0){
+					member_offset += 1;
+
+					members.emplace_back(
+						this->builder.getArrayType(
+							this->builder.getTypeI_N(8).asType(), actual_align - padding_offset
+						).asType()
+					);
+				}
+
+				struct_size = ceil_to_multiple(struct_size, this->module.getAlignment(member));
+				struct_size += this->module.numBytes(member, true);
+			}
+
 			members.emplace_back(this->get_type<ADD_WEAK_DEPS>(member));
+
+			member_offsets.emplace_back(member_offset);
+			member_offset += 1;
 		}
+
+
+		const size_t end_padding_offset = struct_size % struct_type.alignment;
+		if(end_padding_offset != 0){
+			members.emplace_back(
+				this->builder.getArrayType(
+					this->builder.getTypeI_N(8).asType(), struct_type.alignment - end_padding_offset
+				).asType()
+			);
+		}
+
 
 		const llvmint::StructType llvm_struct_type = this->builder.createStructType(
 			members, struct_type.isPacked, struct_type.name
 		);
 
-		this->struct_types.emplace(&struct_type, llvm_struct_type);
+		this->struct_types.emplace(&struct_type, StructData{llvm_struct_type, std::move(member_offsets)});
 	}
 
 
@@ -735,7 +779,9 @@ namespace pcit::pir{
 
 			for(const Alloca& alloca_info : func.getAllocasRange()){
 				const llvmint::Alloca llvm_alloca = this->builder.createAlloca(
-					this->get_type<ADD_WEAK_DEPS>(alloca_info.type), alloca_info.name
+					this->get_type<ADD_WEAK_DEPS>(alloca_info.type),
+					uint32_t(this->module.getAlignment(alloca_info.type)),
+					alloca_info.name
 				);
 
 				this->allocas.emplace(&alloca_info, llvm_alloca);
@@ -1129,11 +1175,44 @@ namespace pcit::pir{
 						const CalcPtr& calc_ptr = this->reader.getCalcPtr(stmt);
 
 						auto indices = evo::SmallVector<llvmint::Value>();
-						for(const CalcPtr::Index& index : calc_ptr.indices){
-							if(index.is<int64_t>()){
-								indices.emplace_back(this->builder.getValueI32(int32_t(index.as<int64_t>())));
-							}else{
-								indices.emplace_back(this->get_value<ADD_WEAK_DEPS>(index.as<Expr>()));
+						{
+							Type index_type = calc_ptr.ptrType;
+							bool is_first_index = true;
+
+							for(const CalcPtr::Index& index : calc_ptr.indices){
+								if(index.is<int64_t>()){
+									int32_t index_value = int32_t(index.as<int64_t>());
+
+									if(index_type.kind() == Type::Kind::STRUCT){
+										const StructType& index_struct_type = this->module.getStructType(index_type);
+										const StructData& struct_data = this->struct_types.at(&index_struct_type);
+
+										index_value = int32_t(struct_data.member_offsets[index_value]);
+									}
+
+									indices.emplace_back(this->builder.getValueI32(index_value));
+
+								}else{
+									indices.emplace_back(this->get_value<ADD_WEAK_DEPS>(index.as<Expr>()));
+								}
+
+								if(is_first_index){
+									is_first_index = false;
+
+								}else{
+									switch(index_type.kind()){
+										case Type::Kind::STRUCT: {
+											index_type =
+												this->module.getStructType(index_type).members[index.as<int64_t>()];
+										} break;
+
+										case Type::Kind::ARRAY: {
+											index_type = this->module.getArrayType(index_type).elemType;
+										} break;
+
+										default: break;
+									}
+								}
 							}
 						}
 
@@ -2553,7 +2632,7 @@ namespace pcit::pir{
 			evo::debugAssert(this->struct_types.contains(&type), "Struct \"{}\" was not lowered", type.name);
 		}
 
-		return this->struct_types.at(&type);
+		return this->struct_types.at(&type).struct_type;
 	}
 
 

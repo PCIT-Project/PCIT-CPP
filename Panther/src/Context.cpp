@@ -2295,6 +2295,13 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("explicitAlignSameAsImplicit"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("experimentalF80"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
@@ -2322,7 +2329,7 @@ namespace pcit::panther{
 					.scopeLevel        = nullptr,
 					.isPub             = false,
 					.isPriv            = false,
-					.isOrdered         = false,
+					.isOrdered         = true,
 					.isPacked          = false,
 				}
 			);
@@ -4236,6 +4243,14 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType(), TypeManager::getTypeBool()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUI32()},
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};

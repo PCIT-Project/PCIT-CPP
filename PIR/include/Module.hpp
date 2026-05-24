@@ -475,15 +475,37 @@ namespace pcit::pir{
 
 
 			[[nodiscard]] auto createStructType(
-				std::string&& struct_name, evo::SmallVector<Type>&& members, bool is_packed
+				std::string&& struct_name,
+				evo::SmallVector<Type>&& members,
+				bool is_packed,
+				std::optional<uint32_t> alignment = std::nullopt
 			) -> Type {
 				#if defined(PCIT_CONFIG_DEBUG)
 					this->check_global_name_reuse(struct_name);
 				#endif
 				evo::debugAssert(members.empty() == false, "Cannot create a struct type with no members");
 
+				if(alignment.has_value() == false){
+					alignment = 1;
+
+					for(const Type& member : members){
+						alignment = std::max(*alignment, uint32_t(this->getAlignment(member)));
+					}
+				}else{
+					#if defined(PCIT_CONFIG_DEBUG)
+						uint32_t expected_alignment = 0;
+						for(const Type& member : members){
+							expected_alignment = std::max(expected_alignment, uint32_t(this->getAlignment(member)));
+						}
+
+						evo::debugAssert(expected_alignment <= *alignment, "Alignment for this type is too small");
+						evo::debugAssert(std::has_single_bit(*alignment), "Aligment must be power of 2");
+					#endif
+				}
+
+
 				const uint32_t struct_type_index = this->struct_types.emplace_back(
-					std::move(struct_name), std::move(members), is_packed
+					std::move(struct_name), std::move(members), *alignment, is_packed
 				);
 				return Type(Type::Kind::STRUCT, struct_type_index);
 			}

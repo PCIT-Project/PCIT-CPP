@@ -1,13 +1,20 @@
-func fast    = () #callConv(@pthr.CallingConvention.FAST)    -> Void {}
-func cold    = () #callConv(@pthr.CallingConvention.COLD)    -> Void {}
-func c       = () #callConv(@pthr.CallingConvention.C)       -> Void {}
-func win_api = () #callConv(@pthr.CallingConvention.WIN_API) -> Void {}
+type Num = struct #align(8) {
+	var num: UI32;
+}
+
+type Struct = struct {
+	var cond: Bool;
+	var num: Num;
+	var cond2: Bool;
+}
+
 
 func entry = () #entry -> UI8 {
-	fast();
-	cold();
-	c();
-	win_api();
+	const s = new Struct{
+		cond  = true,
+		num   = new Num{num = 12},
+		cond2 = false,
+	};
 	
-	return 0;
+	return s.num.num as UI8;
 }

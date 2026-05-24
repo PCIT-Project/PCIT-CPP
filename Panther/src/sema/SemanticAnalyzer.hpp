@@ -855,6 +855,7 @@ namespace pcit::panther{
 				bool is_priv;
 				bool is_ordered;
 				bool is_packed;
+				std::optional<uint32_t> alignment;
 			};
 			[[nodiscard]] auto analyze_struct_attrs(
 				const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info

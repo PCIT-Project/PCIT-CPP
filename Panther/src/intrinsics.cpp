@@ -87,6 +87,7 @@ namespace pcit::panther{
 			{"arrayRefElementTypeID",           Kind::ARRAY_REF_ELEMENT_TYPE_ID},
 			{"numBytes",                        Kind::NUM_BYTES},
 			{"numBits",                         Kind::NUM_BITS},
+			{"numAlignBytes",                   Kind::NUM_ALIGN_BYTES},
 			{"isDefaultInitializable",          Kind::IS_DEFAULT_INITIALIZABLE},
 			{"isTriviallyDefaultInitializable", Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE},
 			{"isComptimeDefaultInitializable",  Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE},

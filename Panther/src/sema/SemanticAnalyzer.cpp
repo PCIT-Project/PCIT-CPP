@@ -943,11 +943,7 @@ namespace pcit::panther{
 				);
 
 				if(type_check_info.ok == false){
-					if(type_check_info.special_result.has_value()){
-						return type_check_info.extractSpecialResult();
-					}else{
-						return Result::ERROR;
-					}
+					return type_check_info.extractSpecialResultForReturning();
 				}
 			}else{
 				if(value_term_info.is_ephemeral() == false){
@@ -1541,6 +1537,7 @@ namespace pcit::panther{
 				.isPriv            = struct_attrs.value().is_priv,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
+				.alignment         = struct_attrs.value().alignment,
 			}
 		);
 
@@ -1751,6 +1748,53 @@ namespace pcit::panther{
 					this->symbol_proc.ast_node
 				);
 				return Result::ERROR;
+			}
+		}
+
+
+		///////////////////////////////////
+		// check alignment
+
+		if(created_struct.alignment.has_value()){
+			uint32_t expected_alignment = 1;
+			for(const BaseType::Struct::MemberVar& member_var : created_struct.memberVars){
+				expected_alignment = std::max(
+					expected_alignment, uint32_t(this->context.getTypeManager().alignmentOf(member_var.typeID))
+				);
+			}
+
+			if(*created_struct.alignment <= expected_alignment){
+				const AST::StructDef& struct_def = this->source.getASTBuffer().getStructDef(this->symbol_proc.ast_node);
+				const AST::AttributeBlock& attribute_block = 
+					this->source.getASTBuffer().getAttributeBlock(struct_def.attributeBlock);
+
+				const AST::Node location = [&]() -> AST::Node {
+					for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+						const std::string_view attribute_name =
+							this->source.getTokenBuffer()[attribute.attribute].getString();
+
+						if(attribute_name == "align"){
+							return attribute.args[0];
+						}
+					}
+
+					evo::debugFatalBreak("Failed to find `#align`");
+				}();
+
+				if(*created_struct.alignment < expected_alignment){
+					this->emit_error(
+						"Alignment value in `#align` cannot be smaller than the largest alignment of the "
+							"struct's member variables",
+						location,
+						Diagnostic::Info(
+							std::format("Largest alignment of the struct's member variables: {}", expected_alignment)
+						)
+					);
+					return Result::ERROR;
+
+				}else if(this->get_package().warn.explicitAlignSameAsImplicit){
+					this->emit_warning("Alignment value is same as implcit alignment", location);
+				}
 			}
 		}
 
@@ -6449,11 +6493,7 @@ namespace pcit::panther{
 				}();
 
 				if(type_check_info.ok == false){
-					if(type_check_info.special_result.has_value()){
-						return type_check_info.extractSpecialResult();
-					}else{
-						return Result::ERROR;
-					}
+					return type_check_info.extractSpecialResultForReturning();
 				}
 
 				if(this->add_deduced_terms_to_scope(type_check_info.deduced_terms).isError()){ return Result::ERROR; }
@@ -12275,6 +12315,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES:
 			case TemplateIntrinsicFunc::Kind::NUM_BITS:
+			case TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES:
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE:
@@ -12638,6 +12679,15 @@ namespace pcit::panther{
 					comptime_intrinsic_evaluator.numBits(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
 						template_args[1].as<core::GenericValue>().getBool()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.numAlignBytes(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
 					)
 				);
 			} break;
@@ -30541,6 +30591,9 @@ namespace pcit::panther{
 		auto attr_ordered = Attribute(*this, "ordered");
 		// auto attr_extern = Attribute(*this, "extern");
 
+		auto attr_alignment = Attribute(*this, "align");
+		auto alignment = std::optional<uint32_t>();
+
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(struct_def.attributeBlock);
@@ -30697,6 +30750,43 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
+
+			}else if(attribute_str == "align"){
+				if(attribute_params_info[i].size() != 1){
+					if(attribute_params_info[i].size() == 0){
+						this->emit_error("Attribute #align requires an alignment value", attribute.args.front());
+					}else{
+						this->emit_error("Unknown argument in Attribute #align", attribute.args[1]);
+					}
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				TermInfo& alignment_term_info = this->get_term_info(attribute_params_info[i][0]);
+				if(this->check_term_isnt_type(alignment_term_info, attribute.args[0]).isError()){
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					TypeManager::getTypeUI32(),
+					alignment_term_info,
+					"Alignment value in #align",
+					this->get_location(attribute.args[0])
+				);
+				if(type_check_info.ok == false){
+					return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+				}
+
+				alignment = static_cast<uint32_t>(
+					sema::exprToGenericValue(alignment_term_info.getExpr(), this->context).getInt(32)
+				);
+
+				if(std::has_single_bit(*alignment) == false){
+					this->emit_error("Alignment value in `#align` must be a power of 2", attribute.args[0]);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_alignment.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
 			}else{
 				this->emit_error(std::format("Unknown struct attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -30709,6 +30799,7 @@ namespace pcit::panther{
 			.is_priv    = attr_priv.is_set(),
 			.is_ordered = attr_ordered.is_set(),
 			.is_packed  = attr_packed.is_set(),
+			.alignment  = alignment,
 		};
 	}
 

@@ -22,7 +22,7 @@
 namespace pcit::pir{
 
 
-	static constexpr auto round_up_to_nearest_multiple(size_t num, size_t multiple) -> size_t {
+	static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
 		return (num + (multiple - 1)) & ~(multiple - 1);
 	}
 
@@ -67,7 +67,7 @@ namespace pcit::pir{
 			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
 
 			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
-				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
+				const size_t unpadded_num_bytes = ceil_to_multiple(type.getWidth(), 8) / 8;
 
 				if(include_padding == false){
 					return unpadded_num_bytes;
@@ -76,7 +76,7 @@ namespace pcit::pir{
 					return std::bit_ceil(unpadded_num_bytes);
 					
 				}else{
-					return round_up_to_nearest_multiple(unpadded_num_bytes, this->sizeOfPtr());
+					return ceil_to_multiple(unpadded_num_bytes, this->sizeOfPtr());
 				}
 			} break;
 
@@ -108,13 +108,13 @@ namespace pcit::pir{
 					if(struct_type.isPacked){
 						size += this->numBytes(member, false);
 					}else{
-						size = round_up_to_nearest_multiple(size, this->getAlignment(member));
+						size = ceil_to_multiple(size, this->getAlignment(member));
 						size += this->numBytes(member, true);
 					}
 				}
 
 				if(include_padding){
-					return round_up_to_nearest_multiple(size, this->getAlignment(type));
+					return ceil_to_multiple(size, this->getAlignment(type));
 				}else{
 					return size;
 				}
@@ -132,8 +132,8 @@ namespace pcit::pir{
 			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
 
 			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
-				const size_t unpadded_num_bytes = round_up_to_nearest_multiple(type.getWidth(), 8) / 8;
-				return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->maxAlignmentOfPrimitive());
+				const size_t padded_num_bytes = ceil_to_multiple(type.getWidth(), 8) / 8;
+				return std::min<size_t>(std::bit_ceil(padded_num_bytes), this->maxAlignmentOfPrimitive());
 			} break;
 
 			case Type::Kind::BOOL: return 1;
@@ -148,7 +148,7 @@ namespace pcit::pir{
 				}
 			} break;
 
-			case Type::Kind::PTR:    return this->sizeOfPtr();
+			case Type::Kind::PTR: return this->sizeOfPtr();
 
 			case Type::Kind::ARRAY: {
 				const ArrayType& array_type = this->getArrayType(type);
@@ -157,14 +157,7 @@ namespace pcit::pir{
 
 			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->getStructType(type);
-
-				size_t max_align = 0;
-
-				for(const Type& member : struct_type.members){
-					max_align = std::max(max_align, this->getAlignment(member));
-				}
-
-				return max_align;
+				return struct_type.alignment;
 			} break;
 
 			case Type::Kind::FUNCTION: return this->sizeOfPtr();

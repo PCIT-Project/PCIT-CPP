@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.306.0"></a>
+## v0.0.306.0
+
+### Panther
+- Added struct attribute `#align`
+- Added warning "explicitAlignSameAsImplicit"
+- Added `@numAlignBytes`
+- Fixed alignment of unions
+- Fixed `@build.PackageWarningSettings` not having attribute `#ordered`
+
+### PIR
+- Added `union` type
+- Added struct attribute `#align`
+
+### Misc
+- Updated to [Panther-std v0.0.25.1](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.25.1)
+
+
+<!---------------------------------->
 <a name="v0.0.305.0"></a>
 ## v0.0.305.0
 

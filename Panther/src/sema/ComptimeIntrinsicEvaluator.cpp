@@ -97,6 +97,22 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::numAlignBytes(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeUI32(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt(
+					unsigned(32), uint64_t(this->type_manager.alignmentOf(type_id))
+
+				),
+				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+			))
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 

@@ -125,6 +125,7 @@ namespace pcit::pir{
 	struct StructType{
 		std::string name;
 		evo::SmallVector<Type> members;
+		uint32_t alignment;
 		bool isPacked;
 	};
 

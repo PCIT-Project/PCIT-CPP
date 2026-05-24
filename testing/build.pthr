@@ -6,9 +6,10 @@ def build_exp = @import("std_exp/building.pthr");
 func entry = () #entry -> UI8 {
 	var build = new build_exp.PantherBuild{
 		output       = new build_exp.PantherBuild.Output{
-			executable = new build_exp.PantherBuild.ExecutableOutput{
-				isConsole = true,
-			}
+			// executable = new build_exp.PantherBuild.ExecutableOutput{
+			// 	isConsole = true,
+			// }
+			llvmir = null,
 		},
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),
@@ -24,6 +25,7 @@ func entry = () #entry -> UI8 {
 		deleteTriviallyDeletableType = true,
 		comptimeIfCond               = true,
 		alreadyUnsafe                = true,
+		explicitAlignSameAsImplicit  = true,
 		experimentalF80              = true,
 	};
 

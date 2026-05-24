@@ -37,6 +37,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			[[nodiscard]] auto numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
+			[[nodiscard]] auto numAlignBytes(TypeInfo::ID type_id) -> TermInfo;
 
 			[[nodiscard]] auto isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;

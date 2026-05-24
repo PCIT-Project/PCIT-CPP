@@ -1569,7 +1569,10 @@ namespace pcit::panther{
 
 
 		const pir::Type new_type = this->module.createStructType(
-			this->mangle_name(struct_id), std::move(member_var_types), struct_type.isPacked
+			this->mangle_name(struct_id),
+			std::move(member_var_types),
+			struct_type.isPacked,
+			uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(struct_id)))
 		);
 
 		value_handle.emplaceValue(new_type);
@@ -1649,7 +1652,7 @@ namespace pcit::panther{
 
 		// make sure dependencies are lowered
 		if constexpr(MAY_LOWER_DEPENDENCY){
-			for(const BaseType::Union::Field& field : union_type.fields){
+			for(const BaseType::Union::Field& field : union_type.fields){ 
 				if(field.typeID.isVoid()){ continue; }
 				std::ignore = this->get_type<true, false>(field.typeID.asTypeID());
 			}
@@ -1680,13 +1683,24 @@ namespace pcit::panther{
 
 		const pir::Type union_pir_type = [&](){
 			if(union_type.isUntagged){
-				return underlying_data_type;
+				return this->module.createStructType(
+					this->mangle_name(union_id),
+					evo::SmallVector<pir::Type>{underlying_data_type},
+					false,
+					uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(union_id)))
+				);
+
 
 			}else{
 				return this->module.createStructType(
 					this->mangle_name(union_id),
 					evo::SmallVector<pir::Type>{
-						underlying_data_type,
+						this->module.createStructType(
+							this->mangle_name(union_id) + "-data",
+							evo::SmallVector<pir::Type>{underlying_data_type},
+							false,
+							uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(union_id)))
+						),
 						this->module.createUnsignedType(
 							unsigned(ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8))
 						)
@@ -11825,9 +11839,11 @@ namespace pcit::panther{
 
 				const size_t data_size = [&]() -> size_t {
 					if(union_type.isUntagged){
-						return this->module.getArrayType(union_pir_type).length;
-					}else{
 						return this->module.getArrayType(this->module.getStructType(union_pir_type).members[0]).length;
+					}else{
+						return this->module.getArrayType(
+							this->module.getStructType(this->module.getStructType(union_pir_type).members[0]).members[0]
+						).length;
 					}
 				}();
 

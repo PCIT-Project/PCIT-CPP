@@ -1752,7 +1752,8 @@ namespace pcit::panther{
 			new_type.isPub,
 			new_type.isPriv,
 			new_type.isOrdered,
-			new_type.isPacked
+			new_type.isPacked,
+			new_type.alignment
 		);
 
 		this->structs_lock.unlock();
@@ -2635,14 +2636,14 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				const BaseType::Struct& struct_info = this->getStruct(id.structID());
+				const BaseType::Struct& struct_type = this->getStruct(id.structID());
+
+				if(struct_type.alignment.has_value()){ return *struct_type.alignment; }
 				
 				size_t max_align = 1;
-
-				for(const BaseType::Struct::MemberVar& member_var : struct_info.memberVars){
+				for(const BaseType::Struct::MemberVar& member_var : struct_type.memberVars){
 					max_align = std::max(max_align, this->alignmentOf(member_var.typeID));
 				}
-
 				return max_align;
 			} break;
 

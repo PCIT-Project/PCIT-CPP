@@ -112,10 +112,11 @@ namespace pcit::llvmint{
 			///////////////////////////////////
 			// memory
 
-			[[nodiscard]] auto createAlloca(const Type& type, std::string_view name = {}) -> Alloca;
+			[[nodiscard]] auto createAlloca(const Type& type, uint32_t alignment, std::string_view name = {}) -> Alloca;
 
-			[[nodiscard]] auto createAlloca(const Type& type, const Value& array_length, std::string_view name = {}) 
-			-> Alloca;
+			[[nodiscard]] auto createAlloca(
+				const Type& type, const Value& array_length, uint32_t alignment, std::string_view name = {}
+			)  -> Alloca;
 			
 			[[nodiscard]] auto createLoad(
 				const Value& value,

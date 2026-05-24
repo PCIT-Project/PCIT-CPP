@@ -47,6 +47,7 @@ namespace pcit::panther{
 					bool deleteTriviallyDeletableType = true;
 					bool comptimeIfCond               = true;
 					bool alreadyUnsafe                = true;
+					bool explicitAlignSameAsImplicit  = true;
 					bool experimentalF80              = true;
 
 					static auto all() -> Warns { return Warns(); };
