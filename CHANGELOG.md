@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.306.1"></a>
+## v0.0.306.1
+
+### Panther
+- Fixed array references being considered trivially default initializable
+
+
+<!---------------------------------->
 <a name="v0.0.306.0"></a>
 ## v0.0.306.0
 

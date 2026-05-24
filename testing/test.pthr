@@ -1,20 +1,5 @@
-type Num = struct #align(8) {
-	var num: UI32;
-}
-
-type Struct = struct {
-	var cond: Bool;
-	var num: Num;
-	var cond2: Bool;
-}
-
-
 func entry = () #entry -> UI8 {
-	const s = new Struct{
-		cond  = true,
-		num   = new Num{num = 12},
-		cond2 = false,
-	};
+	const arr_ref = new [Char:*]();
 	
-	return s.num.num as UI8;
+	return 0;
 }

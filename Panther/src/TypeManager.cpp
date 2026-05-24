@@ -1184,7 +1184,12 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+				if constexpr(
+					SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW && SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL
+				){
+					return false;
+
+				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
 					if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL){
 						return false;
 					}else{
