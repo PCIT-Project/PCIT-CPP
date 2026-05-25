@@ -7,9 +7,11 @@ func entry = () #entry -> UI8 {
 	var build = new build_exp.PantherBuild{
 		output       = new build_exp.PantherBuild.Output{
 			// executable = new build_exp.PantherBuild.ExecutableOutput{
-			// 	isConsole = true,
+			// 	path       = "build/bin/output.exe",
+			// 	objectPath = "build/obj/output.o",
+			// 	isConsole  = true,
 			// }
-			pir = null,
+			pir = new build_exp.PantherBuild.PIROutput{path = null}
 		},
 		target       = new build_exp.Target{os = build_exp.Target.OS.WINDOWS, arch = build_exp.Target.Arch.X86_64},
 		optimization = new build_exp.PantherBuild.Optimiziation(),

@@ -2116,13 +2116,31 @@ namespace pcit::panther{
 
 		BuiltinModule& build_module = this->source_manager[BuiltinModule::ID::BUILD];
 
+		const TypeInfo::ID optional_string_ref_type_id = this->type_manager.getOrCreateTypeInfo(
+			this->type_manager.getTypeInfo(TypeManager::getTypeStringRef()).copyWithPushedQualifier(
+				TypeInfo::Qualifier::createOptional()
+			)
+		);
 
 
-		//////////////////
-		// PantherBuildConfigExecutableOutput
-
-		{
-			auto panther_build_config_executable_output_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config_executable_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigExecutableOutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("objectPath"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("isConsole"),
@@ -2130,61 +2148,98 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				),
-			};
-
-
-			auto panther_build_config_executable_output_member_vars_abi =
-				evo::SmallVector<BaseType::Struct::MemberVar*>();
-			panther_build_config_executable_output_member_vars_abi.reserve(
-				panther_build_config_executable_output_members.size()
-			);
-			for(BaseType::Struct::MemberVar& member : panther_build_config_executable_output_members){
-				panther_build_config_executable_output_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID panther_build_config_executable_output_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfigExecutableOutput"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(panther_build_config_executable_output_members),
-					.memberVarsABI     = std::move(panther_build_config_executable_output_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
+		);
 
 
-			build_module.createSymbol("PantherBuildConfigExecutableOutput", panther_build_config_executable_output_type);
-
-
-			BaseType::Struct& panther_build_config_executable_output =
-				this->type_manager.getStruct(panther_build_config_executable_output_type.structID());
-
-			panther_build_config_executable_output.mayDesignatedInitNew = true;
-		}
-
-
-		//////////////////
-		// PantherBuildConfigOutput
-
-		{
-			auto config_output_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config_object_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigObjectOutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					build_module.createString("methodCallOnNonMethod"),
-					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					build_module.createString("path"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
 					false
 				),
-			};
+			}
+		);
 
+
+		const BaseType::Struct::ID panther_build_config_assembly_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigAssemblyOutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					optional_string_ref_type_id,
+					std::nullopt,
+					false
+				),
+			}
+		);
+
+		const BaseType::Struct::ID panther_build_config_llvmir_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigLLVMIROutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					optional_string_ref_type_id,
+					std::nullopt,
+					false
+				),
+			}
+		);
+
+		const BaseType::Struct::ID panther_build_config_pir_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigPIROutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					optional_string_ref_type_id,
+					std::nullopt,
+					false
+				),
+			}
+		);
+
+
+		const BaseType::Struct::ID panther_build_config_ast_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigASTOutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					optional_string_ref_type_id,
+					std::nullopt,
+					false
+				),
+			}
+		);
+
+		const BaseType::Struct::ID panther_build_config_tokens_output = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigTokensOutput",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("path"),
+					optional_string_ref_type_id,
+					std::nullopt,
+					false
+				),
+			}
+		);
+
+
+		{
 			const BaseType::ID config_output_type = this->type_manager.createUnion(
 				BaseType::Union{
 					.sourceID          = BuiltinModule::ID::BUILD,
@@ -2192,11 +2247,15 @@ namespace pcit::panther{
 					.fields            = evo::SmallVector<BaseType::Union::Field>{
 						BaseType::Union::Field(
 							build_module.createString("tokens"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_tokens_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("ast"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_ast_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("semanticAnalysis"),
@@ -2204,19 +2263,27 @@ namespace pcit::panther{
 						),
 						BaseType::Union::Field(
 							build_module.createString("pir"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_pir_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("llvmir"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_llvmir_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("assembly"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_assembly_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("object"),
-							TypeInfo::VoidableID::Void()
+							this->type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(panther_build_config_object_output))
+							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("run"),
@@ -2225,9 +2292,7 @@ namespace pcit::panther{
 						BaseType::Union::Field(
 							build_module.createString("executable"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(
-									build_module.getSymbol("PantherBuildConfigExecutableOutput")->as<BaseType::ID>()
-								)
+								TypeInfo(BaseType::ID(panther_build_config_executable_output))
 							)
 						),
 					},
@@ -2246,11 +2311,11 @@ namespace pcit::panther{
 		}
 
 
-		//////////////////
-		// PackageWarningSettings
 
-		{
-			auto package_warning_settings_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID package_warning_settings = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PackageWarningSettings",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("methodCallOnNonMethod"),
@@ -2307,49 +2372,15 @@ namespace pcit::panther{
 					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
 					false
 				),
-			};
-
-
-			auto package_warning_settings_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			package_warning_settings_member_vars_abi.reserve(package_warning_settings_members.size());
-			for(BaseType::Struct::MemberVar& member : package_warning_settings_members){
-				package_warning_settings_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID package_warning_settings_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PackageWarningSettings"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(package_warning_settings_members),
-					.memberVarsABI     = std::move(package_warning_settings_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
+		);
 
 
-			build_module.createSymbol("PackageWarningSettings", package_warning_settings_type);
 
-
-			BaseType::Struct& package_warning_settings =
-				this->type_manager.getStruct(package_warning_settings_type.structID());
-
-			package_warning_settings.mayDesignatedInitNew = true;
-		}
-
-
-		//////////////////
-		// PantherBuildConfigDirectory
-
-		{
-			auto panther_build_config_directory_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config_directory = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigDirectory",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("path"),
@@ -2364,49 +2395,15 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				),
-			};
-
-
-			auto panther_build_config_directory_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			panther_build_config_directory_member_vars_abi.reserve(panther_build_config_directory_members.size());
-			for(BaseType::Struct::MemberVar& member : panther_build_config_directory_members){
-				panther_build_config_directory_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID panther_build_config_directory_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfigDirectory"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(panther_build_config_directory_members),
-					.memberVarsABI     = std::move(panther_build_config_directory_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
+		);
 
 
-			build_module.createSymbol("PantherBuildConfigDirectory", panther_build_config_directory_type);
 
-
-			BaseType::Struct& panther_build_config_directory =
-				this->type_manager.getStruct(panther_build_config_directory_type.structID());
-
-			panther_build_config_directory.mayDesignatedInitNew = true;
-		}
-
-
-		//////////////////
-		// PantherBuildConfigCFamilyHeader
-
-		{
-			auto panther_build_config_c_family_header_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config_c_family_header = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigCFamilyHeader",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("path"),
@@ -2428,49 +2425,14 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				),
-			};
-
-
-			auto panther_build_config_directory_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			panther_build_config_directory_member_vars_abi.reserve(panther_build_config_c_family_header_members.size());
-			for(BaseType::Struct::MemberVar& member : panther_build_config_c_family_header_members){
-				panther_build_config_directory_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID panther_build_config_directory_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfigCFamilyHeader"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(panther_build_config_c_family_header_members),
-					.memberVarsABI     = std::move(panther_build_config_directory_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
+		);
 
 
-			build_module.createSymbol("PantherBuildConfigCFamilyHeader", panther_build_config_directory_type);
-
-
-			BaseType::Struct& panther_build_config_directory =
-				this->type_manager.getStruct(panther_build_config_directory_type.structID());
-
-			panther_build_config_directory.mayDesignatedInitNew = true;
-		}
-
-
-		//////////////////
-		// PantherBuildConfigPackage
-
-		{
-			auto panther_build_config_package_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config_package = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfigPackage",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("path"),
@@ -2488,9 +2450,7 @@ namespace pcit::panther{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("warnings"),
-					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(build_module.getSymbol("PackageWarningSettings")->as<BaseType::ID>())
-					),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(package_warning_settings))),
 					std::nullopt,
 					false
 				),
@@ -2522,9 +2482,7 @@ namespace pcit::panther{
 							this->type_manager.getOrCreateArrayRef(
 								BaseType::ArrayRef(
 									this->type_manager.getOrCreateTypeInfo(
-										TypeInfo(
-											build_module.getSymbol("PantherBuildConfigDirectory")->as<BaseType::ID>()
-										)
+										TypeInfo(BaseType::ID(panther_build_config_directory))
 									),
 									evo::SmallVector<BaseType::ArrayRef::Dimension>{
 										BaseType::ArrayRef::Dimension::ptr()
@@ -2538,51 +2496,15 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				)
-			};
-
-
-			auto panther_build_config_package_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			panther_build_config_package_member_vars_abi.reserve(panther_build_config_package_members.size());
-			for(BaseType::Struct::MemberVar& member : panther_build_config_package_members){
-				panther_build_config_package_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID panther_build_config_package_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfigPackage"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(panther_build_config_package_members),
-					.memberVarsABI     = std::move(panther_build_config_package_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
-
-
-			build_module.createSymbol("PantherBuildConfigPackage", panther_build_config_package_type);
-
-
-			BaseType::Struct& panther_build_config_package =
-				this->type_manager.getStruct(panther_build_config_package_type.structID());
-
-			panther_build_config_package.mayDesignatedInitNew = true;
-		}
+		);
 
 
 
-
-		//////////////////
-		// PantherBuildConfig
-
-		{
-			auto panther_build_config_members = evo::SmallVector<BaseType::Struct::MemberVar>{
+		const BaseType::Struct::ID panther_build_config = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PantherBuildConfig",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("output"),
@@ -2616,9 +2538,7 @@ namespace pcit::panther{
 							this->type_manager.getOrCreateArrayRef(
 								BaseType::ArrayRef(
 									this->type_manager.getOrCreateTypeInfo(
-										TypeInfo(
-											build_module.getSymbol("PantherBuildConfigPackage")->as<BaseType::ID>()
-										)
+										TypeInfo(BaseType::ID(panther_build_config_package))
 									),
 									evo::SmallVector<BaseType::ArrayRef::Dimension>{
 										BaseType::ArrayRef::Dimension::ptr()
@@ -2640,10 +2560,7 @@ namespace pcit::panther{
 							this->type_manager.getOrCreateArrayRef(
 								BaseType::ArrayRef(
 									this->type_manager.getOrCreateTypeInfo(
-										TypeInfo(
-											build_module.getSymbol("PantherBuildConfigCFamilyHeader")
-												->as<BaseType::ID>()
-										)
+										TypeInfo(BaseType::ID(panther_build_config_c_family_header))
 									),
 									evo::SmallVector<BaseType::ArrayRef::Dimension>{
 										BaseType::ArrayRef::Dimension::ptr()
@@ -2657,46 +2574,10 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				),
-			};
-
-
-			auto panther_build_config_member_vars_abi = evo::SmallVector<BaseType::Struct::MemberVar*>();
-			panther_build_config_member_vars_abi.reserve(panther_build_config_members.size());
-			for(BaseType::Struct::MemberVar& member : panther_build_config_members){
-				panther_build_config_member_vars_abi.emplace_back(&member);
 			}
-
-			const BaseType::ID panther_build_config_type = this->type_manager.createStruct(
-				BaseType::Struct{
-					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfig"),
-					.parent            = std::nullopt,
-					.templateID        = std::nullopt,
-					.instantiation     = std::numeric_limits<uint32_t>::max(),
-					.memberVars        = std::move(panther_build_config_members),
-					.memberVarsABI     = std::move(panther_build_config_member_vars_abi),
-					.namespacedMembers = nullptr,
-					.scopeLevel        = nullptr,
-					.isPub             = false,
-					.isPriv            = false,
-					.isOrdered         = true,
-					.isPacked          = false,
-				}
-			);
+		);
 
 
-			build_module.createSymbol("PantherBuildConfig", panther_build_config_type);
-
-
-			BaseType::Struct& panther_build_config = this->type_manager.getStruct(panther_build_config_type.structID());
-
-			panther_build_config.mayDesignatedInitNew = true;
-		}
-
-
-
-		//////////////////
-		// CallingConvention
 
 		pthr_module.createSymbol("CallingConvention", this->type_manager.createEnum(
 			BaseType::Enum(
@@ -2738,8 +2619,7 @@ namespace pcit::panther{
 		));
 
 
-		//////////////////
-		// AtomicOrdering
+
 
 		pthr_module.createSymbol("AtomicOrdering", this->type_manager.createEnum(
 			BaseType::Enum(
@@ -2786,9 +2666,6 @@ namespace pcit::panther{
 			)
 		));
 
-
-		//////////////////
-		// AtomicRMWOp
 
 		pthr_module.createSymbol("AtomicRMWOp", this->type_manager.createEnum(
 			BaseType::Enum(
@@ -4955,6 +4832,50 @@ namespace pcit::panther{
 
 	auto Context::getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind) -> TemplateIntrinsicFuncInfo& {
 		return this->template_intrinsic_infos[size_t(evo::to_underlying(kind))];
+	}
+
+
+
+	auto Context::create_builtin_struct(
+		BuiltinModule::ID builtin_module_id,
+		std::string_view name,
+		evo::SmallVector<BaseType::Struct::MemberVar>&& members
+	) -> BaseType::Struct::ID {
+		auto members_abi =evo::SmallVector<BaseType::Struct::MemberVar*>();
+		members_abi.reserve(members.size());
+
+		for(BaseType::Struct::MemberVar& member : members){
+			members_abi.emplace_back(&member);
+		}
+
+		const BaseType::ID builtin_struct_type = this->type_manager.createStruct(
+			BaseType::Struct{
+				.sourceID          = builtin_module_id,
+				.name              = this->source_manager[builtin_module_id].createString(std::string(name)),
+				.parent            = std::nullopt,
+				.templateID        = std::nullopt,
+				.instantiation     = std::numeric_limits<uint32_t>::max(),
+				.memberVars        = std::move(members),
+				.memberVarsABI     = std::move(members_abi),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.isOrdered         = true,
+				.isPacked          = false,
+			}
+		);
+
+
+		this->source_manager[builtin_module_id].createSymbol(name, builtin_struct_type);
+
+		// these must happen after construction due to how struct type is created
+		BaseType::Struct& created_struct = this->type_manager.getStruct(builtin_struct_type.structID());
+		created_struct.defCompleted = true;
+		created_struct.mayDesignatedInitNew = true;
+
+
+		return builtin_struct_type.structID();		
 	}
 
 

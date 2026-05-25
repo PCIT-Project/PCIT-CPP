@@ -11999,6 +11999,7 @@ namespace pcit::panther{
 
 			if constexpr(GET_META){
 				std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
+				std::string type_name_copy = type_name;
 
 				const pir::meta::BasicType::ID bool_meta_type = this->data.get_or_create_meta_basic_type(
 					TypeManager::getTypeBool(), this->module, "Bool", this->module.createBoolType()
@@ -12006,14 +12007,14 @@ namespace pcit::panther{
 
 				const pir::meta::StructType::ID created_meta_struct = this->module.createMetaStructType(
 					created_struct,
-					evo::copy(type_name),
 					std::move(type_name),
+					std::move(type_name_copy),
 					evo::SmallVector<pir::meta::StructType::Member>{
 						pir::meta::StructType::Member(*target_pir_type.meta_type_id, "data"),
 						pir::meta::StructType::Member(bool_meta_type, "flag"),
 					},
-					*this->current_source->getPIRMetaFileID(),
-					*this->current_source->getPIRMetaFileID(),
+					this->data.get_builtin_meta_file(this->module),
+					this->data.get_builtin_meta_file(this->module),
 					0
 				);
 

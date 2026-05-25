@@ -35,9 +35,6 @@ type Target = struct #pub {
 
 
 type PantherBuild = struct #pub {
-	type Output = alias @build.PantherBuildConfigOutput;
-	type ExecutableOutput = alias @build.PantherBuildConfigExecutableOutput;
-
 	var output: Output;
 
 	var target: Target;
@@ -182,6 +179,17 @@ type PantherBuild = struct #pub {
 			),
 		};
 	}
+
+
+	type Output           = alias @build.PantherBuildConfigOutput;
+
+	type TokensOutput     = alias @build.PantherBuildConfigTokensOutput;
+	type ASTOutput        = alias @build.PantherBuildConfigASTOutput;
+	type PIROutput        = alias @build.PantherBuildConfigPIROutput;
+	type LLVMIROutput     = alias @build.PantherBuildConfigLLVMIROutput;
+	type AssemblyOutput   = alias @build.PantherBuildConfigAssemblyOutput;
+	type ObjectOutput     = alias @build.PantherBuildConfigObjectOutput;
+	type ExecutableOutput = alias @build.PantherBuildConfigExecutableOutput;
 
 
 

@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.307.0"></a>
+## v0.0.307.0
+
+### Panther
+- Added `@build.PantherBuildConfigObjectOutput`
+- Added `@build.PantherBuildConfigAssemblyOutput`
+- Added `@build.PantherBuildConfigLLVMIROutput`
+- Added `@build.PantherBuildConfigPIROutput`
+- Added `@build.PantherBuildConfigASTOutput`
+- Added `@build.PantherBuildConfigTokensOutput`
+- Added `@build.PantherBuildConfigExecutableOutput.path`
+- Added `@build.PantherBuildConfigExecutableOutput.objectPath`
+
+### PIR
+- Fixed `ModulePrinter` adding null-terminators after every character in a global string
+
+
+<!---------------------------------->
 <a name="v0.0.306.1"></a>
 ## v0.0.306.1
 

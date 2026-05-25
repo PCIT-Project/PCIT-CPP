@@ -136,7 +136,7 @@ namespace pcit::llvmint{
 		if(arch_specific_settings.is<ArchSpecificSettingsX86>()){
 			if(
 				arch_specific_settings.as<ArchSpecificSettingsX86>().dialect == 
-				ArchSpecificSettingsX86::AssemblyDialect::INTEL
+					ArchSpecificSettingsX86::AssemblyDialect::INTEL
 			){
 				const auto llvm_cmd_args = std::array<const char*, 2>{"", "--x86-asm-syntax=intel"};
 			    const bool llvm_parse_cmd_res = llvm::cl::ParseCommandLineOptions(

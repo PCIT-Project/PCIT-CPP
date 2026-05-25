@@ -26,7 +26,7 @@ namespace pthr{
 
 	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
-	auto print_AST(
+	auto print_ast(
 		core::Printer& printer, const panther::Source& source, const fs::path& relative_dir, bool legacy_mode
 	) -> void;
 

@@ -77,6 +77,28 @@ namespace pcit::panther{
 					[[nodiscard]] operator std::string() const { return std::string(this->data, this->size); }
 				};
 
+				template<class T>
+				struct Optional{
+					[[nodiscard]] auto operator*() const -> const T& {
+						evo::debugAssert(this->has_value(), "Optional doesn't have value");
+						return this->data.value;
+					}
+					[[nodiscard]] auto operator->() const -> const T* {
+						evo::debugAssert(this->has_value(), "Optional doesn't have value");
+						return &this->data.value;
+					}
+
+					[[nodiscard]] auto has_value() const -> bool { return this->_has_value; }
+
+					
+					private:
+						union{
+							std::byte dummy;
+							std::remove_cv_t<T> value;
+						} data;
+						bool _has_value;
+				};
+
 
 				struct Output{
 					enum class Tag : uint8_t {
@@ -91,14 +113,70 @@ namespace pcit::panther{
 						EXECUTABLE        = 8,
 					};
 
+					struct TokensData{
+						Optional<StringRef> path;
+					};
+
+					struct ASTData{
+						Optional<StringRef> path;
+					};
+
+					struct PIRData{
+						Optional<StringRef> path;
+					};
+
+					struct LLVMIRData{
+						Optional<StringRef> path;
+					};
+
+					struct AssemblyData{
+						Optional<StringRef> path;
+					};
+
+					struct ObjectData{
+						StringRef path;
+					};
+
 					struct ExectuableData{
+						StringRef path;
+						StringRef objectPath;
 						bool isConsole;
 					};
 
 
 					[[nodiscard]] auto getTag() const -> Tag { return this->tag; }
 
-					[[nodiscard]] auto exectuableData() const -> const ExectuableData& {
+					[[nodiscard]] auto tokensData() const -> const TokensData& {
+						evo::debugAssert(this->tag == Tag::TOKENS, "Not an tokens output");
+						return this->data.tokens;
+					}
+
+					[[nodiscard]] auto astData() const -> const ASTData& {
+						evo::debugAssert(this->tag == Tag::AST, "Not an ast output");
+						return this->data.ast;
+					}
+
+					[[nodiscard]] auto pirData() const -> const PIRData& {
+						evo::debugAssert(this->tag == Tag::PIR, "Not an pir output");
+						return this->data.pir;
+					}
+
+					[[nodiscard]] auto llvmirData() const -> const LLVMIRData& {
+						evo::debugAssert(this->tag == Tag::LLVMIR, "Not an llvmir output");
+						return this->data.llvmir;
+					}
+
+					[[nodiscard]] auto assemblyData() const -> const AssemblyData& {
+						evo::debugAssert(this->tag == Tag::ASSEMBLY, "Not an assembly output");
+						return this->data.assembly;
+					}
+
+					[[nodiscard]] auto objectData() const -> const ObjectData& {
+						evo::debugAssert(this->tag == Tag::OBJECT, "Not an object output");
+						return this->data.object;
+					}
+
+					[[nodiscard]] auto executableData() const -> const ExectuableData& {
 						evo::debugAssert(this->tag == Tag::EXECUTABLE, "Not an executable output");
 						return this->data.executable;
 					}
@@ -107,6 +185,12 @@ namespace pcit::panther{
 					private:
 						union Data{
 							std::byte dummy;
+							TokensData tokens;
+							ASTData ast;
+							PIRData pir;
+							LLVMIRData llvmir;
+							AssemblyData assembly;
+							ObjectData object;
 							ExectuableData executable;
 						};
 
@@ -238,13 +322,15 @@ namespace pcit::panther{
 			auto compileOtherLangHeaders() -> evo::Result<>; // done automatically by `analyzeSemantics`
 
 
+			//////////////////
+			// call analyzeSemantics before any of these
+
 			enum class EntryKind{
 				NONE,
 				CONSOLE_EXECUTABLE,
 				WINDOWED_EXECUTABLE,
 			};
 
-			// call analyzeSemantics before any of these
 			[[nodiscard]] auto lowerToPIR(EntryKind entry_kind) -> evo::Result<>;
 
 			[[nodiscard]] auto lowerToLLVMIR() -> evo::Result<std::string>;
@@ -561,6 +647,12 @@ namespace pcit::panther{
 			[[nodiscard]] auto getTemplateIntrinsicFuncInfo(TemplateIntrinsicFunc::Kind kind)
 				-> TemplateIntrinsicFuncInfo&;
 
+
+			[[nodiscard]] auto create_builtin_struct(
+				BuiltinModule::ID builtin_module_id,
+				std::string_view name,
+				evo::SmallVector<BaseType::Struct::MemberVar>&& members
+			) -> BaseType::Struct::ID;
 
 	
 		private:

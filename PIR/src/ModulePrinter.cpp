@@ -441,8 +441,8 @@ namespace pcit::pir{
 
 				this->printer.printYellow("\"");
 
-				auto char_str = evo::StaticString<2>();
-				char_str.resize(2);
+				auto char_str = evo::StaticString<1>();
+				char_str.resize(1);
 
 				auto hex_str = evo::StaticString<3>();
 				hex_str.resize(3);

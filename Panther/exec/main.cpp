@@ -68,6 +68,30 @@ namespace pthr{
 
 
 
+[[nodiscard]] static auto create_directories(const std::filesystem::path& path, core::Printer& printer)
+-> evo::Result<> {
+	std::error_code ec;
+	std::filesystem::create_directories(path, ec);
+
+	if(ec){
+		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+			panther::Diagnostic::Level::ERROR,
+			"Failed to create directory \"build\"",
+			panther::Diagnostic::Location::NONE,
+			evo::SmallVector<panther::Diagnostic::Info>{
+				panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
+				panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
+			}
+		));
+
+		return evo::resultError;
+	}
+
+	return evo::Result<>();
+}
+
+
+
 using CreatePantherPackageResult =
 	evo::Expected<panther::Source::Package::ID, panther::SourceManager::CreatePackageFailReason>;
 
@@ -418,8 +442,39 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+			auto printer_for_tokens = core::Printer::createString(
+				printer.isPrintingColor() && config.output.tokensData().path.has_value() == false
+			);
+
 			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
-				pthr::print_tokens(printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory);
+				pthr::print_tokens(
+					printer_for_tokens, context.getSourceManager()[source_id], cmd_args_config.workingDirectory
+				);
+			}
+
+			if(config.output.tokensData().path.has_value()){
+				if(create_directories(
+					std::filesystem::path(
+						static_cast<std::string_view>(*config.output.tokensData().path)
+					).parent_path(),
+					printer
+				).isError()){
+					return evo::resultError;
+				}
+
+				if(evo::fs::writeFile(
+					static_cast<std::string>(*config.output.tokensData().path), printer_for_tokens.getString()
+				) == false){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						"Failed to write tokens file",
+						panther::Diagnostic::Location::NONE
+					));
+					return evo::resultError;
+				}
+
+			}else{
+				printer.print(printer_for_tokens.getString());
 			}
 
 			return evo::Result<>();
@@ -431,10 +486,43 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+			auto printer_for_ast = core::Printer::createString(
+				printer.isPrintingColor() && config.output.astData().path.has_value() == false
+			);
+
 			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
-				pthr::print_AST(
-					printer, context.getSourceManager()[source_id], cmd_args_config.workingDirectory, false
+				pthr::print_ast(
+					printer_for_ast,
+					context.getSourceManager()[source_id],
+					cmd_args_config.workingDirectory,
+					false
 				);
+			}
+
+
+			if(config.output.astData().path.has_value()){
+				if(create_directories(
+					std::filesystem::path(
+						static_cast<std::string_view>(*config.output.astData().path)
+					).parent_path(),
+					printer
+				).isError()){
+					return evo::resultError;
+				}
+
+				if(evo::fs::writeFile(
+					static_cast<std::string>(*config.output.astData().path), printer_for_ast.getString()
+				) == false){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						"Failed to write AST file",
+						panther::Diagnostic::Location::NONE
+					));
+					return evo::resultError;
+				}
+
+			}else{
+				printer.print(printer_for_ast.getString());
 			}
 
 			return evo::Result<>();
@@ -456,12 +544,38 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 
-			auto printer_for_pir_module = core::Printer::createString(printer.isPrintingColor());
+			auto printer_for_pir_module = core::Printer::createString(
+				printer.isPrintingColor() && config.output.pirData().path.has_value() == false
+			);
 
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
 			pir::printModule(context.getPIRModule(), printer_for_pir_module);
 
-			evo::print(printer_for_pir_module.getString());
+
+			if(config.output.pirData().path.has_value()){
+				if(create_directories(
+					std::filesystem::path(
+						static_cast<std::string_view>(*config.output.pirData().path)
+					).parent_path(),
+					printer
+				).isError()){
+					return evo::resultError;
+				}
+
+				if(evo::fs::writeFile(
+					static_cast<std::string>(*config.output.pirData().path), printer_for_pir_module.getString()
+				) == false){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						"Failed to write pir code file",
+						panther::Diagnostic::Location::NONE
+					));
+					return evo::resultError;
+				}
+
+			}else{
+				printer.print(printer_for_pir_module.getString());
+			}
 
 			return evo::Result<>();
 		} break;
@@ -477,7 +591,31 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR();
 			if(llvmir_string.isError()){ return evo::resultError; }
 
-			printer.print(llvmir_string.value());
+
+			if(config.output.llvmirData().path.has_value()){
+				if(create_directories(
+					std::filesystem::path(
+						static_cast<std::string_view>(*config.output.llvmirData().path)
+					).parent_path(),
+					printer
+				).isError()){
+					return evo::resultError;
+				}
+
+				if(evo::fs::writeFile(
+					static_cast<std::string>(*config.output.llvmirData().path), llvmir_string.value()
+				) == false){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						"Failed to write llvm ir code file",
+						panther::Diagnostic::Location::NONE
+					));
+					return evo::resultError;
+				}
+
+			}else{
+				printer.print(llvmir_string.value());
+			}
 
 			return evo::Result<>();
 		} break;
@@ -494,13 +632,37 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					"Failed to output assembly code",
+					"Failed to create assembly code data",
 					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
 
-			printer.print(asm_result.value());
+			if(config.output.assemblyData().path.has_value()){
+				if(create_directories(
+					std::filesystem::path(
+						static_cast<std::string_view>(*config.output.assemblyData().path)
+					).parent_path(),
+					printer
+				).isError()){
+					return evo::resultError;
+				}
+
+
+				if(evo::fs::writeFile(
+					static_cast<std::string>(*config.output.assemblyData().path), asm_result.value()
+				) == false){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						"Failed to write assembly code file",
+						panther::Diagnostic::Location::NONE
+					));
+					return evo::resultError;
+				}
+
+			}else{
+				printer.print(asm_result.value());
+			}
 
 			return evo::Result<>();
 		} break;
@@ -513,22 +675,35 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
 
+
 			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					"Failed to output object file",
+					"Failed to create object file data",
 					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
 
-			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
+
+
+			const auto object_path = std::filesystem::path(
+				static_cast<std::string_view>(config.output.objectData().path)
+			);
+
+			if(create_directories(object_path.parent_path(), printer).isError()){
+				return evo::resultError;
+			}
+
+
+			if(evo::fs::writeBinaryFile(
+				static_cast<std::string>(config.output.objectData().path), object_data.value()
+			) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					"Failed to output object file",
-					panther::Diagnostic::Location::NONE,
-					panther::Diagnostic::Info("Failed to write file")
+					"Failed to write objject file",
+					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
 			}
@@ -555,7 +730,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			const panther::Context::EntryKind entry_kind = [&](){
-				if(config.output.exectuableData().isConsole){
+				if(config.output.executableData().isConsole){
 					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
 				}else{
 					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
@@ -576,25 +751,20 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			{
-				std::error_code ec;
-				std::filesystem::create_directories(std::filesystem::path("build"), ec);
-				if(ec){
-					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-						panther::Diagnostic::Level::ERROR,
-						"Failed to create directory \"build\"",
-						panther::Diagnostic::Location::NONE,
-						evo::SmallVector<panther::Diagnostic::Info>{
-							panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
-							panther::Diagnostic::Info(std::format("\tmessage: \"{}\"", ec.message())),
-						}
-					));
 
-					return evo::resultError;
-				}
+
+			const auto object_path = std::filesystem::path(
+				static_cast<std::string_view>(config.output.executableData().objectPath)
+			);
+
+			if(create_directories(object_path.parent_path(), printer).isError()){
+				return evo::resultError;
 			}
 
-			if(evo::fs::writeBinaryFile("build/output.o", object_data.value()) == false){
+
+			if(evo::fs::writeBinaryFile(
+				static_cast<std::string>(config.output.executableData().objectPath), object_data.value()
+			) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to output obj",
@@ -604,17 +774,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+
+			if(create_directories(
+				std::filesystem::path(static_cast<std::string_view>(config.output.executableData().path)).parent_path(),
+				printer
+			).isError()){
+				return evo::resultError;
+			}
+
+
 			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
-			plnk_options.outputFilePath = "build/output.exe";
+			plnk_options.outputFilePath = static_cast<std::string>(config.output.executableData().path);
 			plnk_options.getWindowsSpecific().subsystem = [&](){
-				if(config.output.exectuableData().isConsole){
+				if(config.output.executableData().isConsole){
 					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
 				}else{
 					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
 				}
 			}();
 
-			const plnk::LinkResult link_result = plnk::link({std::filesystem::path("build/output.o")}, plnk_options);
+			const plnk::LinkResult link_result = plnk::link({object_path}, plnk_options);
 
 			if(link_result.messages.empty() == false){
 				printer.printlnCyan("<Info> Linker messages");

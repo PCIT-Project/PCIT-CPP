@@ -1,5 +1,5 @@
 func entry = () #entry -> UI8 {
-	const arr_ref = new [Char:*]();
+	const str_ref: [Char:*] = "asdf".* as [Char:*];
 	
 	return 0;
 }
