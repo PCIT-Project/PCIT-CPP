@@ -14,6 +14,7 @@
 #include "./generic_values/GenericValue.hpp"
 
 #include "./LinearStepAlloc.hpp"
+#include "./linux.hpp"
 #include "./MapAlloc.hpp"
 #include "./SyncLinearStepAlloc.hpp"
 #include "./Optional.hpp"

@@ -11,6 +11,7 @@
 
 
 #include <Evo.hpp>
+#include <filesystem>
 
 namespace pcit::core::windows{
 
@@ -19,6 +20,8 @@ namespace pcit::core::windows{
 
 	#if defined(EVO_PLATFORM_WINDOWS)
 		[[nodiscard]] auto isDebuggerPresent() -> bool;
+
+		[[nodiscard]] auto getExecutablePath() -> std::filesystem::path;
 	#endif
 
 

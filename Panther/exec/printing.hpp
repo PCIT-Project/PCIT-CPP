@@ -23,6 +23,7 @@ namespace pthr{
 
 
 	auto print_logo(core::Printer& printer) -> void;
+	auto print_version(core::Printer& printer) -> void;
 
 	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 

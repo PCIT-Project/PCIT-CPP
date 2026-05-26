@@ -4,15 +4,6 @@
 testing/local
 dependencies/LLVM_build
 
-# outputs
-testing/build
-testing/*.o
-testing/*.exe
-testing/*.pdb
-testing/*.ll
-testing/*.S
-
-
 # sublime
 *.sublime-project
 *.sublime-workspace

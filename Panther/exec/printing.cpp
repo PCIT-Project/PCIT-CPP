@@ -44,6 +44,20 @@ namespace pthr{
 
 	}
 
+	auto print_version(core::Printer& printer) -> void {
+		printer.printlnMagenta("PCIT Project (C++)");
+
+		#if defined(PCIT_BUILD_DEBUG)
+			printer.printlnMagenta("v{} (debug)", pcit::core::VERSION);
+		#elif defined(PCIT_BUILD_RELEASE)
+			printer.printlnMagenta("v{}", pcit::core::VERSION);
+		#elif defined(PCIT_BUILD_DIST)
+			printer.printlnMagenta("v{}", pcit::core::VERSION);
+		#else
+			#error Unknown or unsupported build
+		#endif
+	}
+
 
 
 	class Indenter{

@@ -42,6 +42,12 @@ namespace pcit::core::windows{
 		auto isDebuggerPresent() -> bool {
 			return ::IsDebuggerPresent();
 		}
+
+		auto getExecutablePath() -> std::filesystem::path {
+			auto path_buffer = std::array<char, MAX_PATH>();
+			GetModuleFileNameA(nullptr, path_buffer.data(), static_cast<DWORD>(path_buffer.size()));
+			return std::filesystem::path(path_buffer.data());
+		}
 		
 	#endif
 

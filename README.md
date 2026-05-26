@@ -10,7 +10,7 @@
 PCIT (pronounced "P-Kit") is the Panther Compiler Infrastructure and Toolchain, and the home of the Panther programming language. Check out the PCIT Project website ([https://www.pcitproject.org](https://www.pcitproject.org)) for more information.
 
 > [!NOTE]
-> This is pre-alpha (although it is expected to enter alpha in the next few months). If you really want to try it now (with little documentation), you can run the `pthr` executable (once compiled) and modify the files found in `testing`.
+> This is pre-alpha (although it is expected to enter alpha in the next few months).
 
 ## Tools
 - [Panther](https://www.pcitproject.org/site/Panther.html): Statically-typed, high-performance, systems programming language

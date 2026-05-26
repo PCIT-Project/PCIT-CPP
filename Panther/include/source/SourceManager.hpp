@@ -57,7 +57,7 @@ namespace pcit::panther{
 				}
 
 				for(char character : package.name){
-					if(evo::isAlphaNumeric(character) == false && character != '_'  && character != '.'){
+					if(evo::isAlphaNumeric(character) == false && character != '_' && character != '.'){
 						return evo::Unexpected(CreatePackageFailReason::INVALID_NAME);
 					}
 				}

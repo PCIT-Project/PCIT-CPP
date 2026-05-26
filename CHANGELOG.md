@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.308.0"></a>
+## v0.0.308.0
+
+### pthr
+- Added console arguments
+	- Actions:
+		- build
+		- run
+		- version
+		- help
+	- Options
+		- `-no-color`
+		- `-v`
+		- `-workDir`
+
+
+<!---------------------------------->
 <a name="v0.0.307.0"></a>
 ## v0.0.307.0
 

@@ -1,5 +1,0 @@
-func entry = () #entry -> UI8 {
-	const str_ref: [Char:*] = "asdf".* as [Char:*];
-	
-	return 0;
-}

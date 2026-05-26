@@ -18,33 +18,22 @@ namespace pir = pcit::pir;
 namespace plnk = pcit::plnk;
 
 #include "./printing.hpp"
+#include "./args.hpp"
 
 
 namespace pthr{
 
 
-	struct CmdArgsConfig{
-		enum class Verbosity{
-			NONE = 0,
-			SOME = 1,
-			FULL = 2,
-		};
-
-		Verbosity verbosity  = Verbosity::FULL;
-		std::filesystem::path workingDirectory{};
-		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
-		bool print_color     = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
-		bool use_std_lib     = true;
-	};
-
-
-	static auto setup_env(bool print_color) -> void {
+	static auto setup_env() -> void {
 		core::windows::setConsoleToUTF8Mode();
 
 		#if defined(PCIT_CONFIG_DEBUG)
 			evo::log::setDefaultThreadSaferCallback();
 		#endif
+	}
 
+
+	static auto setup_debug_close(bool print_color) -> void {
 		#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
 			if(core::windows::isDebuggerPresent()){
 				static auto at_exit_call = [print_color]() -> void {
@@ -896,7 +885,11 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	if(cmd_args_config.use_std_lib){
 		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
 			panther::Source::Package{
-				.basePath = cmd_args_config.workingDirectory / "../extern/Panther-std/std",
+				#if defined(PCIT_BUILD_DIST)
+					.basePath = cmd_args_config.executablePath / "Panther-std/std",
+				#else
+					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",
+				#endif
 				.name     = "std",
 				.warn     = panther::Source::Package::Warns::all(),
 			}
@@ -925,18 +918,98 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	);
 
 	if(package_res.has_value() == false){
-		// TODO(FUTURE): handle fail
-		evo::debugFatalBreak("Failed to create build package");
+		switch(package_res.error()){
+			case panther::SourceManager::CreatePackageFailReason::PATH_NOT_ABSOLUTE: {
+				evo::debugFatalBreak("Should have already been made absolute");
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::PATH_DOESNT_EXIST: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Working directory path doesn't exist",
+					panther::Diagnostic::Location::NONE,
+					panther::Diagnostic::Info(std::format("Path: \"{}\"", cmd_args_config.workingDirectory.string()))
+				));
+				return evo::resultError;
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Working directory path isn't a directory",
+					panther::Diagnostic::Location::NONE,
+					panther::Diagnostic::Info(std::format("Path: \"{}\"", cmd_args_config.workingDirectory.string()))
+				));
+				return evo::resultError;
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
+				evo::debugFatalBreak("Should never have this result");
+			} break;
+		}
 	}
 
-	std::ignore = context.addSourceFile("build.pthr", *package_res);
 
+	const std::filesystem::path build_file_path = [&]() -> std::filesystem::path {
+		if(cmd_args_config.file.has_value()){
+			return *cmd_args_config.file;
+		}else{
+			return "build.pthr";
+		}
+	}();
+
+	switch(context.addSourceFile(build_file_path, *package_res)){
+		case panther::Context::AddSourceResult::SUCCESS: {
+			// do nothing
+		} break;
+
+		case panther::Context::AddSourceResult::DOESNT_EXIST: {
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				"Build system root file doesn't exist",
+				panther::Diagnostic::Location::NONE,
+				evo::SmallVector<panther::Diagnostic::Info>{
+					panther::Diagnostic::Info(std::format("Given Path: \"{}\"", build_file_path.string())),
+					panther::Diagnostic::Info(
+						std::format(
+							"Target Path: \"{}\"", (cmd_args_config.workingDirectory / build_file_path).string()
+						)
+					)
+				}
+			));
+			return evo::resultError;
+		} break;
+
+		case panther::Context::AddSourceResult::NOT_FILE: {
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				"Build system root file path isn't a file",
+				panther::Diagnostic::Location::NONE,
+				evo::SmallVector<panther::Diagnostic::Info>{
+					panther::Diagnostic::Info(std::format("Given Path: \"{}\"", build_file_path.string())),
+					panther::Diagnostic::Info(
+						std::format(
+							"Target Path: \"{}\"", (cmd_args_config.workingDirectory / build_file_path).string()
+						)
+					)
+				}
+			));
+			return evo::resultError;
+		} break;
+
+		case panther::Context::AddSourceResult::NOT_DIRECTORY: {
+			evo::debugFatalBreak("Invalid result");
+		} break;
+	}
 
 	if(context.analyzeSemantics().isError()){
 		print_num_context_errors(context, printer);
 		return evo::resultError;
 	}
 
+	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::FULL){
+		printer.printlnMagenta("Executing build system");
+	}
 
 	return context.runBuildSystem(
 		[&](panther::Context::PantherBuildConfig& panther_build_config) -> evo::Result<> {
@@ -948,24 +1021,204 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 
 
 
+static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Printer& printer)
+-> evo::Result<uint8_t> {
+	using ContextConfig = panther::Context::Config;
+	const auto context_config = ContextConfig{
+		.mode             = ContextConfig::Mode::BUILD_SYSTEM,
+		.title            = "<Panther-Script>",
+		.target           = core::Target::getNative(),
+		.workingDirectory = cmd_args_config.workingDirectory,
+
+		.includeDebugInfo = true,
+
+		.numThreads = cmd_args_config.numBuildThreads,
+	};
+
+	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+		printer.printlnMagenta("Script relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
+	}
+
+	auto context = panther::Context(
+		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
+	);
+
+
+	if(cmd_args_config.use_std_lib){
+		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
+			panther::Source::Package{
+				#if defined(PCIT_BUILD_DIST)
+					.basePath = cmd_args_config.executablePath / "Panther-std/std",
+				#else
+					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",
+				#endif
+				.name     = "std",
+				.warn     = panther::Source::Package::Warns::all(),
+			}
+		);
+
+		if(std_package_id.has_value() == false){
+			error_failed_to_add_std_lib(std_package_id.error(), printer);
+			return evo::resultError;
+		}
+
+		const panther::Context::AddSourceResult add_dir_result = 
+			context.addSourceDirectoryRecursive("./", *std_package_id);
+
+		evo::debugAssert(add_dir_result == panther::Context::AddSourceResult::SUCCESS, "This should never fail");
+
+		context.addStdLib(*std_package_id);
+	}
+
+
+	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
+		panther::Source::Package{
+			.basePath = cmd_args_config.workingDirectory,
+			.name     = "script",
+			.warn     = panther::Source::Package::Warns::all(),
+		}
+	);
+
+	if(package_res.has_value() == false){
+		switch(package_res.error()){
+			case panther::SourceManager::CreatePackageFailReason::PATH_NOT_ABSOLUTE: {
+				evo::debugFatalBreak("Should have already been made absolute");
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::PATH_DOESNT_EXIST: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Working directory path doesn't exist",
+					panther::Diagnostic::Location::NONE,
+					panther::Diagnostic::Info(std::format("Path: \"{}\"", cmd_args_config.workingDirectory.string()))
+				));
+				return evo::resultError;
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Working directory path isn't a directory",
+					panther::Diagnostic::Location::NONE,
+					panther::Diagnostic::Info(std::format("Path: \"{}\"", cmd_args_config.workingDirectory.string()))
+				));
+				return evo::resultError;
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
+				evo::debugFatalBreak("Should never have this result");
+			} break;
+		}
+	}
+
+
+	const std::filesystem::path build_file_path = [&]() -> std::filesystem::path {
+		if(cmd_args_config.file.has_value()){
+			return *cmd_args_config.file;
+		}else{
+			return "run.pthr";
+		}
+	}();
+
+	switch(context.addSourceFile(build_file_path, *package_res)){
+		case panther::Context::AddSourceResult::SUCCESS: {
+			// do nothing
+		} break;
+
+		case panther::Context::AddSourceResult::DOESNT_EXIST: {
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				"Script root file doesn't exist",
+				panther::Diagnostic::Location::NONE,
+				evo::SmallVector<panther::Diagnostic::Info>{
+					panther::Diagnostic::Info(std::format("Given Path: \"{}\"", build_file_path.string())),
+					panther::Diagnostic::Info(
+						std::format(
+							"Target Path: \"{}\"", (cmd_args_config.workingDirectory / build_file_path).string()
+						)
+					)
+				}
+			));
+			return evo::resultError;
+		} break;
+
+		case panther::Context::AddSourceResult::NOT_FILE: {
+			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+				panther::Diagnostic::Level::ERROR,
+				"Script root file path isn't a file",
+				panther::Diagnostic::Location::NONE,
+				evo::SmallVector<panther::Diagnostic::Info>{
+					panther::Diagnostic::Info(std::format("Given Path: \"{}\"", build_file_path.string())),
+					panther::Diagnostic::Info(
+						std::format(
+							"Target Path: \"{}\"", (cmd_args_config.workingDirectory / build_file_path).string()
+						)
+					)
+				}
+			));
+			return evo::resultError;
+		} break;
+
+		case panther::Context::AddSourceResult::NOT_DIRECTORY: {
+			evo::debugFatalBreak("Invalid result");
+		} break;
+	}
+
+	if(context.analyzeSemantics().isError()){
+		print_num_context_errors(context, printer);
+		return evo::resultError;
+	}
+
+	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::FULL){
+		printer.printlnMagenta("Executing run script");
+	}
+
+	return context.runEntry(true);
+}
+
+
+
+
+
+
+
+
+
+
+
 
 auto main(int argc, const char* argv[]) -> int {
 	auto args = std::vector<std::string_view>(argv, argv + argc);
 
-	auto cmd_args_config = pthr::CmdArgsConfig();
+	pthr::setup_env();
 
-	pthr::setup_env(cmd_args_config.print_color);
+	if(args.size() == 1){
+		const bool print_in_color = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
+		pthr::setup_debug_close(print_in_color);
+		auto printer = core::Printer::createConsole(print_in_color);
+		pthr::print_help(printer);
+		return EXIT_SUCCESS;
+	}
 
-	auto printer = core::Printer::createConsole(cmd_args_config.print_color);
+	evo::Result<pthr::CmdArgsConfig> cmd_args_config =
+		pthr::parse_args(args[1], evo::ArrayProxy<std::string_view>(args.data() + 2, args.size() - 2));
 
+	if(cmd_args_config.isError()){
+		pthr::setup_debug_close(core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES);
+		return EXIT_FAILURE;
+	}
+
+	pthr::setup_debug_close(cmd_args_config.value().print_color);
+
+	auto printer = core::Printer::createConsole(cmd_args_config.value().print_color);
 
 	{
 		std::error_code ec;
-		cmd_args_config.workingDirectory = std::filesystem::current_path(ec);
+		std::filesystem::path actual_working_path = std::filesystem::current_path(ec);
 		if(ec){
 			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 				panther::Diagnostic::Level::ERROR,
-				"Failed to get relative directory",
+				"Failed to get actual working directory",
 				panther::Diagnostic::Location::NONE,
 				evo::SmallVector<panther::Diagnostic::Info>{
 					panther::Diagnostic::Info(std::format("\tcode: \"{}\"", ec.value())),
@@ -975,49 +1228,100 @@ auto main(int argc, const char* argv[]) -> int {
 
 			return EXIT_FAILURE;
 		}
+
+		cmd_args_config.value().workingDirectory =
+			(actual_working_path / cmd_args_config.value().workingDirectory).lexically_normal();
 	}
 
 
-	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+	if(cmd_args_config.value().verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
 		pthr::print_logo(printer);
-
-		#if defined(PCIT_BUILD_DEBUG)
-			printer.printlnMagenta("v{} (debug)", pcit::core::VERSION);
-		#elif defined(PCIT_BUILD_RELEASE)
-			printer.printlnMagenta("v{}", pcit::core::VERSION);
-		#else
-			#error Unknown or unsupported build
-		#endif
-	}
-
-	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		if(cmd_args_config.numBuildThreads.isSingle()){
-			printer.printlnMagenta("Running build system single-threaded");
-		}else if(cmd_args_config.numBuildThreads.getNum() == 1){
-			printer.printlnMagenta("Running build system multi-threaded (1 worker thread)");
-		}else{
-			printer.printlnMagenta(
-				"Running build system multi-threaded ({} worker threads)", cmd_args_config.numBuildThreads.getNum()
-			);
-		}
+		pthr::print_version(printer);
 	}
 
 
-	const evo::Result<uint8_t> build_system_result = run_build_system(cmd_args_config, printer);
+	switch(cmd_args_config.value().action){
+		case pthr::CmdArgsConfig::Action::BUILD: {
+			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				printer.printlnMagenta(
+					"pthr executable directory: \"{}\"", cmd_args_config.value().executablePath.string()
+				);
 
-	if(build_system_result.isError()){ return EXIT_FAILURE; }
+				if(cmd_args_config.value().numBuildThreads.isSingle()){
+					printer.printlnMagenta("Building build system single-threaded");
+				}else if(cmd_args_config.value().numBuildThreads.getNum() == 1){
+					printer.printlnMagenta("Building build system multi-threaded (1 worker thread)");
+				}else{
+					printer.printlnMagenta(
+						"Building build system multi-threaded ({} worker threads)",
+						cmd_args_config.value().numBuildThreads.getNum()
+					);
+				}
+			}
 
-	if(build_system_result.value() != 0){
-		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
-			panther::Diagnostic::Level::ERROR,
-			std::format("Build system errored with code: {}", build_system_result.value()),
-			panther::Diagnostic::Location::NONE
-		));
-		return EXIT_FAILURE;
-	}
 
-	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
-		printer.printlnSuccess("Successfully completed");
+			const evo::Result<uint8_t> build_system_result = run_build_system(cmd_args_config.value(), printer);
+
+			if(build_system_result.isError()){ return EXIT_FAILURE; }
+
+			if(build_system_result.value() != 0){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					std::format("Build system errored with code: {}", build_system_result.value()),
+					panther::Diagnostic::Location::NONE
+				));
+				return EXIT_FAILURE;
+			}
+
+			if(cmd_args_config.value().verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+				printer.printlnSuccess("Successfully completed");
+			}
+		} break;
+
+		case pthr::CmdArgsConfig::Action::RUN: {
+			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				printer.printlnMagenta(
+					"pthr executable directory: \"{}\"", cmd_args_config.value().executablePath.string()
+				);
+
+				if(cmd_args_config.value().numBuildThreads.isSingle()){
+					printer.printlnMagenta("Building build system single-threaded");
+				}else if(cmd_args_config.value().numBuildThreads.getNum() == 1){
+					printer.printlnMagenta("Building build system multi-threaded (1 worker thread)");
+				}else{
+					printer.printlnMagenta(
+						"Building build system multi-threaded ({} worker threads)",
+						cmd_args_config.value().numBuildThreads.getNum()
+					);
+				}
+			}
+
+			const evo::Result<uint8_t> run_result = run_scripting(cmd_args_config.value(), printer);
+
+			if(run_result.isError()){ return EXIT_FAILURE; }
+
+			if(run_result.value() != 0){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					std::format("Run script errored with code: {}", run_result.value()),
+					panther::Diagnostic::Location::NONE
+				));
+				return EXIT_FAILURE;
+			}
+
+			if(cmd_args_config.value().verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+				printer.printlnSuccess("Successfully completed");
+			}
+		} break;
+
+		case pthr::CmdArgsConfig::Action::HELP: {
+			pthr::print_help(printer);
+		} break;
+
+		case pthr::CmdArgsConfig::Action::VERSION: {
+			pthr::print_logo(printer);
+			pthr::print_version(printer);
+		} break;
 	}
 
 	return EXIT_SUCCESS;
