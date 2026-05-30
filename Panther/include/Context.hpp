@@ -638,7 +638,14 @@ namespace pcit::panther{
 						std::move(instantiated_params),
 						std::move(instantiated_return_types),
 						evo::SmallVector<TypeInfo::VoidableID>(),
-						false,
+						BaseType::Function::Attributes{
+							.isComptime        = this->allowedInComptime,
+							.isRuntime         = this->allowedInRuntime,
+							.isUnsafe          = false,
+							.isNoReturn        = false,
+							.callingConvention = pir::CallingConvention::DEFAULT,
+							.abi               = BaseType::Function::ABI::PANTHER,
+						},
 						false,
 						false
 					);

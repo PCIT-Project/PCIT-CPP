@@ -498,6 +498,17 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// func ptrs
+
+			[[nodiscard]] auto createFuncPtr(auto&&... args) -> sema::FuncPtr::ID {
+				return sema::FuncPtr::ID(this->func_ptrs.emplace_back(std::forward<decltype(args)>(args)...));
+			}
+
+			[[nodiscard]] auto getFuncPtr(sema::FuncPtr::ID id) const -> const sema::FuncPtr& {
+				return this->func_ptrs[id];
+			}
+
+			///////////////////////////////////
 			// address ofs
 
 			[[nodiscard]] auto createAddrOf(auto&&... args) -> sema::AddrOf::ID {
@@ -1013,6 +1024,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::Forward, sema::Forward::ID> forwards{};
 
 			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
+			core::SyncLinearStepAlloc<sema::FuncPtr, sema::FuncPtr::ID> func_ptrs{};
 			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
 			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
 			core::SyncLinearStepAlloc<sema::ConversionToOptional, sema::ConversionToOptional::ID> 

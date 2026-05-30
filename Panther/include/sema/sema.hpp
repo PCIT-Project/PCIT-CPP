@@ -103,6 +103,13 @@ namespace pcit::panther::sema{
 		bool isInitialization;
 	};
 
+
+	struct FuncPtr{
+		using ID = FuncPtrID;
+
+		FuncID targetFuncID;
+	};
+
 	namespace AddrOf{
 		using ID = AddrOfID;
 	}
@@ -376,7 +383,12 @@ namespace pcit::panther::sema{
 	struct FuncCall{
 		using ID = FuncCallID;
 
-		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID> target;
+		struct FuncPtr{
+			BaseType::Function::ID funcTypeID;
+			sema::Expr funcPtr; 
+		};
+
+		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncPtr> target;
 		evo::SmallVector<Expr> args;
 		uint32_t line;
 		uint32_t collumn;
@@ -386,7 +398,12 @@ namespace pcit::panther::sema{
 	struct TryElse{
 		using ID = TryElseID;
 
-		FuncID target;
+		struct FuncPtr{
+			BaseType::Function::ID funcTypeID;
+			sema::Expr funcPtr; 
+		};
+
+		evo::Variant<FuncID, FuncPtr> target;
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
 		StmtBlock elseBlock;
@@ -698,10 +715,7 @@ namespace pcit::panther::sema{
 		struct AttributesImpl{
 			bool isPub      = ForceInit(); // meaningless if is CFamily or builtin
 			bool isPriv     = ForceInit(); // meaningless if not member
-			bool isComptime = ForceInit();
-			bool isRuntime  = ForceInit();
 			bool isRTDiff   = ForceInit(); // meaningless if not both comptime and runtime
-			bool isNoReturn = ForceInit();
 			bool isExport   = ForceInit(); // always true if is clang
 			bool isImplicit = ForceInit(); // meaningless if not member
 		};
@@ -723,7 +737,6 @@ namespace pcit::panther::sema{
 		uint32_t minNumArgs;
 		bool hasInParam;
 		Attributes attributes;
-		pir::CallingConvention callingConvention;
 
 		std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt;
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation

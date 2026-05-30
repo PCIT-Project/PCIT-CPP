@@ -544,7 +544,7 @@ namespace pcit::pir{
 			) -> Type {
 				const auto lock = std::scoped_lock(func_types_lock);
 
-				// TODO(FUTURE): lookup with hash map
+				// TODO(PERF): lookup with hash map
 				for(uint32_t i = 0; const FunctionType& func_type : this->func_types){
 					if(
 						func_type.parameters == parameters

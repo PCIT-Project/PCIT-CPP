@@ -139,6 +139,8 @@ namespace pcit::panther{
 
 			auto lower_func_def_detail(sema::Func::ID func_id, bool lower_comptime) -> void;
 
+			auto get_or_create_func_type_info(BaseType::Function::ID func_type_id) -> const Data::FuncTypeInfo&;
+
 			template<bool IS_COMPTIME>
 			auto lower_interface_vtable_def_impl(
 				BaseType::Interface::ID interface_id,
@@ -253,21 +255,19 @@ namespace pcit::panther{
 			) -> void;
 
 
+
+			struct PtrCallTarget{
+				pir::Expr target;
+				pir::Type funcType;
+			};
+			using CallTarget = evo::Variant<pir::Function::ID, pir::ExternalFunction::ID, PtrCallTarget>;
 			[[nodiscard]] auto create_call(
-				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args,
-				std::string&& name = ""
+				CallTarget func_id, evo::SmallVector<pir::Expr>&& args, std::string&& name = ""
 			) -> pir::Expr;
 
-			auto create_call_void(
-				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args
-			) -> void;
+			auto create_call_void(CallTarget func_id, evo::SmallVector<pir::Expr>&& args) -> void;
 
-			auto create_call_no_return(
-				evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-				evo::SmallVector<pir::Expr>&& args
-			) -> void;
+			auto create_call_no_return(CallTarget func_id, evo::SmallVector<pir::Expr>&& args) -> void;
 
 
 			template<GetExprMode MODE>
@@ -307,6 +307,9 @@ namespace pcit::panther{
 
 			template<bool MAY_LOWER_DEPENDENCY, bool GET_META>
 			[[nodiscard]] auto get_type(TypeInfo::ID type_id, BaseType::ID base_type_id) -> PIRType;
+
+
+			[[nodiscard]] auto get_function_pir_type(const BaseType::Function& func_type) -> pir::Type;
 
 
 			struct Location{
@@ -508,6 +511,7 @@ namespace pcit::panther{
 
 			class Source* current_source = nullptr;
 			const Data::FuncInfo* current_func_info = nullptr;
+			const Data::FuncTypeInfo* current_func_type_info = nullptr;
 			const BaseType::Function* current_func_type = nullptr;
 
 			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};

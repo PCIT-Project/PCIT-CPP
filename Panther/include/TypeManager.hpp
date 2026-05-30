@@ -303,10 +303,28 @@ namespace pcit::panther{
 				[[nodiscard]] auto operator==(const Param&) const -> bool = default;
 			};
 
+			enum class ABI{
+				PANTHER,
+				C,
+			};
+
+			template<class ForceInit>
+			struct AttributesImpl{
+				bool isComptime                          = ForceInit();
+				bool isRuntime                           = ForceInit();
+				bool isUnsafe                            = ForceInit();
+				bool isNoReturn                          = ForceInit();
+				pir::CallingConvention callingConvention = ForceInit();
+				ABI abi                                  = ForceInit();
+
+				[[nodiscard]] auto operator==(const AttributesImpl<ForceInit>&) const -> bool = default;
+			};
+			using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
+
 			evo::SmallVector<Param> params;
 			evo::SmallVector<TypeInfoVoidableID> returnTypes;
 			evo::SmallVector<TypeInfoVoidableID> errorTypes;
-			bool isUnsafe;
+			Attributes attributes;
 			bool hasNamedReturns;
 			bool hasNamedErrorReturns;
 
@@ -315,14 +333,14 @@ namespace pcit::panther{
 				evo::SmallVector<Param>&& _params,
 				evo::SmallVector<TypeInfoVoidableID>&& return_types,
 				evo::SmallVector<TypeInfoVoidableID>&& error_types,
-				bool is_unsafe,
+				Attributes _attributes,
 				bool has_named_returns,
 				bool has_named_error_returns
 			) : 
 				params(std::move(_params)),
 				returnTypes(std::move(return_types)),
 				errorTypes(std::move(error_types)),
-				isUnsafe(is_unsafe),
+				attributes(_attributes),
 				hasNamedReturns(has_named_returns),
 				hasNamedErrorReturns(has_named_error_returns)
 			{
@@ -344,7 +362,7 @@ namespace pcit::panther{
 				return this->hasErrorReturn() && this->errorTypes[0].isVoid() == false;
 			}
 
-			[[nodiscard]] auto isImplicitRVO(const class TypeManager& type_manager) const -> bool; // only if Panther
+			[[nodiscard]] auto isImplicitRVO(const class TypeManager& type_manager) const -> bool;
 
 			[[nodiscard]] auto operator==(const Function&) const -> bool = default;
 		};

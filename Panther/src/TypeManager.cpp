@@ -26,6 +26,7 @@ namespace pcit::panther{
 	// base type
 
 	auto BaseType::Function::isImplicitRVO(const TypeManager& type_manager) const -> bool {
+		if(this->attributes.abi == ABI::C){ return false; }
 		if(this->returnsVoid()){ return false; }
 		if(this->hasNamedReturns){ return false; }
 
@@ -369,7 +370,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				// TODO(FEATURE): fix this
+				// TODO(FUTURE): fix this
 				return "{FUNCTION}";
 			} break;
 
@@ -1156,7 +1157,14 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				return false;
+				if constexpr(
+					SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW && SPECIAL_MEMBER_PROP == SpecialMemberProp::TRIVIAL
+				){
+					return false;
+				
+				}else{
+					return true;
+				}
 			} break;
 
 			case BaseType::Kind::ARRAY: {
@@ -1244,7 +1252,7 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						const std::optional<sema::Func::ID> delete_overload = struct_type.deleteOverload.load();
 						if(delete_overload.has_value() == false){ return true; }
-						return sema_buffer->getFunc(*delete_overload).attributes.isComptime;
+						return this->getFunction(sema_buffer->getFunc(*delete_overload).typeID).attributes.isComptime;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
@@ -1259,7 +1267,9 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(copy_overload.wasDeleted()){ return false; }
 						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
-						return sema_buffer->getFunc(copy_overload.funcID()).attributes.isComptime;
+						return this->getFunction(
+							sema_buffer->getFunc(copy_overload.funcID()).typeID
+						).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(copy_overload.wasDeleted()){ return false; }
@@ -1273,7 +1283,7 @@ namespace pcit::panther{
 						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
 
 						const sema::Func& copy_overload_sema_func = sema_buffer->getFunc(copy_overload.funcID());
-						return this->getFunction(copy_overload_sema_func.typeID).isUnsafe == false;
+						return this->getFunction(copy_overload_sema_func.typeID).attributes.isUnsafe == false;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::MOVE){
@@ -1288,7 +1298,9 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						if(move_overload.wasDeleted()){ return false; }
 						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
-						return sema_buffer->getFunc(move_overload.funcID()).attributes.isComptime;
+						return this->getFunction(
+							sema_buffer->getFunc(move_overload.funcID()).typeID
+						).attributes.isComptime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(move_overload.wasDeleted()){ return false; }
@@ -1302,7 +1314,7 @@ namespace pcit::panther{
 						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
 
 						const sema::Func& move_overload_sema_func = sema_buffer->getFunc(move_overload.funcID());
-						return this->getFunction(move_overload_sema_func.typeID).isUnsafe == false;
+						return this->getFunction(move_overload_sema_func.typeID).attributes.isUnsafe == false;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
@@ -1335,7 +1347,7 @@ namespace pcit::panther{
 							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
 
 							if(func_type.params[0].typeID == func_type.params[1].typeID){
-								return sema_func.attributes.isComptime;
+								return func_type.attributes.isComptime;
 							}
 						}
 
@@ -1368,7 +1380,9 @@ namespace pcit::panther{
 							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
 							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
 
-							if(func_type.params[0].typeID == func_type.params[1].typeID){ return !func_type.isUnsafe; }
+							if(func_type.params[0].typeID == func_type.params[1].typeID){
+								return !func_type.attributes.isUnsafe;
+							}
 						}
 
 						return false;

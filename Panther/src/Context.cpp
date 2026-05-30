@@ -329,7 +329,19 @@ namespace pcit::panther{
 
 			base_type_id = type_manager.getOrCreateFunction(
 				BaseType::Function(
-					std::move(params), std::move(return_types), std::move(error_types), true, false, false
+					std::move(params),
+					std::move(return_types),
+					std::move(error_types),
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = true,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::C,
+						.abi               = BaseType::Function::ABI::C,
+					},
+					false,
+					false
 				)
 			);
 		}
@@ -1603,14 +1615,10 @@ namespace pcit::panther{
 								sema::Func::Attributes{
 									.isPub      = false,
 									.isPriv     = false,
-									.isComptime = false,
-									.isRuntime  = true,
 									.isRTDiff   = false,
-									.isNoReturn = false,
 									.isExport   = true,
 									.isImplicit = false,
-								},
-								pir::CallingConvention::C
+								}
 							);
 						}
 					);
@@ -2751,7 +2759,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -2772,14 +2787,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2802,7 +2813,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -2823,14 +2841,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2847,7 +2861,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -2868,14 +2889,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2915,7 +2932,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -2936,14 +2960,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -2966,7 +2986,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -2987,14 +3014,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3011,7 +3034,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3032,14 +3062,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3088,7 +3114,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3109,14 +3142,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3143,7 +3172,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3164,14 +3200,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -3222,7 +3254,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3243,14 +3282,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3304,7 +3339,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = false,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3325,14 +3367,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = false,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3371,7 +3409,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3392,14 +3437,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3422,7 +3463,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3443,14 +3491,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3467,7 +3511,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3488,14 +3539,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3536,7 +3583,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3557,14 +3611,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[next_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3587,7 +3637,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3608,14 +3665,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[get_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3632,7 +3685,14 @@ namespace pcit::panther{
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3653,14 +3713,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[at_end_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3709,7 +3765,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3730,14 +3793,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3764,7 +3823,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3785,14 +3851,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_mut_iterator_func_id].status =
@@ -3845,7 +3907,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3866,14 +3935,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3927,7 +3992,14 @@ namespace pcit::panther{
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>(),
-					false,
+					BaseType::Function::Attributes{
+						.isComptime        = true,
+						.isRuntime         = true,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
 					false,
 					false
 				)
@@ -3948,14 +4020,10 @@ namespace pcit::panther{
 				sema::Func::Attributes{
 					.isPub      = false,
 					.isPriv     = false,
-					.isComptime = true,
-					.isRuntime  = true,
 					.isRTDiff   = false,
-					.isNoReturn = false,
 					.isExport   = false,
 					.isImplicit = false,
-				},
-				pir::CallingConvention::DEFAULT
+				}
 			);
 
 			this->sema_buffer.funcs[create_iterator_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
@@ -3975,46 +4043,53 @@ namespace pcit::panther{
 		const auto create_func_type = [&](
 			evo::SmallVector<BaseType::Function::Param>&& params,
 			evo::SmallVector<TypeInfo::VoidableID>&& returns,
-			evo::SmallVector<TypeInfo::VoidableID>&& error_returns
+			evo::SmallVector<TypeInfo::VoidableID>&& error_returns,
+			bool allowed_in_comptime,
+			bool allowed_in_runtime
 		) -> TypeInfo::ID {
 			const BaseType::ID created_func_base_type = type_manager.getOrCreateFunction(
-				BaseType::Function(std::move(params), std::move(returns), std::move(error_returns), false, false, false)
+				BaseType::Function(
+					std::move(params),
+					std::move(returns),
+					std::move(error_returns),
+					BaseType::Function::Attributes{
+						.isComptime        = allowed_in_comptime,
+						.isRuntime         = allowed_in_runtime,
+						.isUnsafe          = false,
+						.isNoReturn        = false,
+						.callingConvention = pir::CallingConvention::DEFAULT,
+						.abi               = BaseType::Function::ABI::PANTHER,
+					},
+					false,
+					false
+				)
 			);
 
 			return type_manager.getOrCreateTypeInfo(TypeInfo(created_func_base_type));
 		};
 
 
-		const TypeInfo::ID no_params_return_void = create_func_type(
-			evo::SmallVector<BaseType::Function::Param>{},
-			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-			evo::SmallVector<TypeInfo::VoidableID>{}
-		);
-
-		const TypeInfo::ID ui32_arg_return_void = create_func_type(
-			evo::SmallVector<BaseType::Function::Param>{
-				BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ, true)
-			},
-			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-			evo::SmallVector<TypeInfo::VoidableID>{}
-		);
-
-		const TypeInfo::ID bool_arg_return_void = create_func_type(
-			evo::SmallVector<BaseType::Function::Param>{
-				BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ, true)
-			},
-			evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-			evo::SmallVector<TypeInfo::VoidableID>{}
-		);
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ABORT))] = IntrinsicFuncInfo{
-			.typeID = no_params_return_void,
+			.typeID = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{},
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
+			),
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
-			.typeID = no_params_return_void,
+			.typeID = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{},
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
+			),
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
 		};
@@ -4027,7 +4102,9 @@ namespace pcit::panther{
 					)
 				},
 				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
-				evo::SmallVector<TypeInfo::VoidableID>{}
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript = false, .allowedInBuild = true,
@@ -4037,9 +4114,11 @@ namespace pcit::panther{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{},
 				evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
-				evo::SmallVector<TypeInfo::VoidableID>{}
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
 			),
-			.allowedInComptime = false, .allowedInRuntime = true,
+			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true,  .allowedInScript  = false, .allowedInBuild = true,
 		};
 
@@ -4057,7 +4136,9 @@ namespace pcit::panther{
 						BaseType::Function::Param(panther_build_config, BaseType::Function::Param::Kind::READ, false)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
-					evo::SmallVector<TypeInfo::VoidableID>{}
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					false,
+					true
 				),
 				.allowedInComptime = false, .allowedInRuntime = true,
 				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,

@@ -70,7 +70,8 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-			if(func.attributes.isComptime){ continue; }
+
+			if(this->context.getTypeManager().getFunction(func.typeID).attributes.isComptime){ continue; }
 
 			this->lowerFuncDecl(func_id);
 		}
@@ -94,7 +95,9 @@ namespace pcit::panther{
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 			if(func.isCFamilyFunc()){ continue; }
 
-			if(func.attributes.isRuntime == false){
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+
+			if(func_type.attributes.isRuntime == false){
 				// TODO(FUTURE): delete function
 				continue;
 			}
@@ -113,7 +116,7 @@ namespace pcit::panther{
 					}
 				}
 
-			}else if(func.attributes.isComptime){
+			}else if(func_type.attributes.isComptime){
 				continue;
 			}
 
@@ -253,8 +256,6 @@ namespace pcit::panther{
 		params.reserve(func_type.params.size() + func_type.returnTypes.size() + size_t(!func_type.errorTypes.empty()));
 
 		uint32_t in_param_index = 0;
-		auto param_infos = evo::SmallVector<Data::FuncInfo::Param>();
-		param_infos.reserve(func_type.params.size());
 
 		auto meta_params = evo::SmallVector<pir::meta::Type>();
 		if(this->data.config.includeDebugInfo){
@@ -310,10 +311,7 @@ namespace pcit::panther{
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
-					param_infos.emplace_back(std::nullopt, in_param_index);
 					in_param_index += 1;
-				}else{
-					param_infos.emplace_back(std::nullopt, std::nullopt);
 				}
 
 			}else{
@@ -332,18 +330,14 @@ namespace pcit::panther{
 				params.emplace_back(std::move(param_name), this->module.createPtrType(), std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
-					param_infos.emplace_back(param_type, in_param_index);
 					in_param_index += 1;
-				}else{
-					param_infos.emplace_back(param_type, std::nullopt);
 				}
 			}
 		}
 
 		bool is_implicit_rvo = false;
-		auto return_params = evo::SmallVector<SemaToPIRData::FuncInfo::ReturnParam>();
 		if(func_type.hasNamedReturns){
-			for(const TypeInfo::VoidableID return_type_id : func_type.returnTypes){
+			for(size_t i = 0; const TypeInfo::VoidableID return_type_id : func_type.returnTypes){
 				const pir::Type reference_type = [&]() -> pir::Type {
 					if(this->data.config.includeDebugInfo){
 						const PIRType reference_pir_type = this->get_type<false, true>(return_type_id.asTypeID());
@@ -354,8 +348,6 @@ namespace pcit::panther{
 					}
 				}();
 
-
-				return_params.emplace_back(this->handler.createParamExpr(uint32_t(params.size())), reference_type);
 
 				auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 					pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -368,7 +360,7 @@ namespace pcit::panther{
 
 
 				if(this->data.getConfig().useReadableNames){
-					const Token::ID param_ident = func.returnParamIdents[return_params.size() - 1];
+					const Token::ID param_ident = func.returnParamIdents[i];
 
 					params.emplace_back(
 						std::format("RET.{}", this->current_source->getTokenBuffer()[param_ident].getString()),
@@ -380,6 +372,8 @@ namespace pcit::panther{
 						std::format(".{}", params.size()), this->module.createPtrType(), std::move(attributes)
 					);
 				}
+
+				i += 1;
 			}
 
 		}else if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
@@ -393,8 +387,6 @@ namespace pcit::panther{
 				}
 			}();
 
-
-			return_params.emplace_back(this->handler.createParamExpr(uint32_t(params.size())), ret_type);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -413,7 +405,7 @@ namespace pcit::panther{
 				);
 			}
 
-		}else if(func.isCFamilyFunc() == false && func_type.isImplicitRVO(this->context.getTypeManager())){
+		}else if(func_type.isImplicitRVO(this->context.getTypeManager())){
 			is_implicit_rvo = true;
 
 			const pir::Type ret_type = [&]() -> pir::Type {
@@ -425,8 +417,6 @@ namespace pcit::panther{
 					return this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type;
 				}
 			}();
-
-			return_params.emplace_back(this->handler.createParamExpr(uint32_t(params.size())), ret_type);
 
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
@@ -586,22 +576,15 @@ namespace pcit::panther{
 						pir::CallingConvention::C,
 						linkage,
 						return_type,
-						func.attributes.isNoReturn,
+						func_type.attributes.isNoReturn,
 						meta_id
 					);
 
 					pir_funcs.emplace_back(created_external_func_id);
 
-					this->data.create_func(
-						func_id,
-						std::move(pir_funcs), // first arg of FuncInfo construction
-						return_type,
-						is_implicit_rvo,
-						func.attributes.isNoReturn,
-						std::move(param_infos),
-						std::move(return_params),
-						error_return_type
-					);
+					this->data.create_func(func_id, std::move(pir_funcs));
+
+					std::ignore = this->get_or_create_func_type_info(func.typeID);
 				}
 
 				return std::nullopt;
@@ -610,10 +593,10 @@ namespace pcit::panther{
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(mangled_name),
 					std::move(params),
-					func.callingConvention,
+					func_type.attributes.callingConvention,
 					linkage,
 					return_type,
-					func.attributes.isNoReturn,
+					func_type.attributes.isNoReturn,
 					meta_id
 				);
 
@@ -683,10 +666,10 @@ namespace pcit::panther{
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(name),
 					evo::copy(params),
-					func.callingConvention,
+					func_type.attributes.callingConvention,
 					linkage,
 					return_type,
-					func.attributes.isNoReturn,
+					func_type.attributes.isNoReturn,
 					meta_id
 				);
 
@@ -707,16 +690,10 @@ namespace pcit::panther{
 			evo::unreachable();
 		}();
 
-		this->data.create_func(
-			func_id,
-			std::move(pir_funcs), // first arg of FuncInfo construction
-			return_type,
-			is_implicit_rvo,
-			func.attributes.isNoReturn,
-			std::move(param_infos),
-			std::move(return_params),
-			error_return_type
-		);
+
+		this->data.create_func(func_id, std::move(pir_funcs));
+
+		std::ignore = this->get_or_create_func_type_info(func.typeID);
 
 		return new_func_id;
 	}
@@ -740,15 +717,23 @@ namespace pcit::panther{
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
 		const Data::FuncInfo& func_info = this->data.get_func(func_id);
+		const Data::FuncTypeInfo& func_type_info = this->data.func_type_infos.get(sema_func.typeID).getValue();
+
+		this->current_func_info = &func_info;
+		this->current_func_type_info = &func_type_info;
+		EVO_DEFER([&](){
+			this->current_func_info = nullptr;
+			this->current_func_type_info = nullptr;
+		});
 
 		auto error_ret_debug_meta_type = std::optional<pir::meta::Type>();
 		if(this->data.config.includeDebugInfo && sema_func.hasNamedErrors()){
-			const pir::StructType& err_ret_struct_type = this->module.getStructType(*func_info.error_return_type);
+			const pir::StructType& err_ret_struct_type = this->module.getStructType(*func_type_info.error_return_type);
 
 			error_ret_debug_meta_type = this->module.createMetaQualifiedType(
 				std::format("{}&", err_ret_struct_type.name),
 				std::format("{}&", err_ret_struct_type.name),
-				*this->module.lookupMetaStructType(*func_info.error_return_type),
+				*this->module.lookupMetaStructType(*func_type_info.error_return_type),
 				pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
 			);
 		}
@@ -762,9 +747,6 @@ namespace pcit::panther{
 			if(pir_id.is<std::monostate>()){ continue; }
 
 			pir::Function& func = this->module.getFunction(pir_id.as<pir::Function::ID>());
-
-			this->current_func_info = &this->data.get_func(func_id);
-			EVO_DEFER([&](){ this->current_func_info = nullptr; });
 
 			if(this->data.config.includeDebugInfo){
 				this->local_scopes.emplace(*func.getMetaID());
@@ -784,7 +766,7 @@ namespace pcit::panther{
 			if(this->current_func_type->hasNamedReturns){
 				for(size_t i = 0; TypeInfo::VoidableID ret_type : this->current_func_type->returnTypes){
 					this->get_current_scope_level().defers.emplace_back(
-						AutoDeleteManagedLifetimeTarget(func_info.return_params[i].expr, ret_type.asTypeID()),
+						AutoDeleteManagedLifetimeTarget(func_type_info.return_params[i].expr, ret_type.asTypeID()),
 						DeferItem::Targets{
 							.on_scope_end = false,
 							.on_return    = false,
@@ -878,7 +860,7 @@ namespace pcit::panther{
 						*this->get_type<false, true>(func_type.params[i].typeID).meta_type_id;
 
 					const pir::meta::Type param_meta_type = [&]() -> pir::meta::Type {
-						if(this->current_func_info->params[i].is_copy()){
+						if(this->current_func_type_info->params[i].is_copy()){
 							return param_semantic_meta_type;
 
 						}else{
@@ -1031,6 +1013,115 @@ namespace pcit::panther{
 	}
 
 
+	auto SemaToPIR::get_or_create_func_type_info(BaseType::Function::ID func_type_id) -> const Data::FuncTypeInfo& {
+		const auto func_type_info_value_handle = this->data.func_type_infos.get(func_type_id);
+
+		if(func_type_info_value_handle.needsToBeSet() == false){ return func_type_info_value_handle.getValue(); }
+
+
+		uint32_t param_abi_index = 0;
+
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func_type_id);
+
+		uint32_t in_param_index = 0;
+		auto param_infos = evo::SmallVector<Data::FuncTypeInfo::Param>();
+		param_infos.reserve(func_type.params.size());
+
+		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
+			EVO_DEFER([&](){ i += 1; });
+
+			const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
+
+			if(param.shouldCopy){
+				if(param.kind == BaseType::Function::Param::Kind::IN){
+					param_infos.emplace_back(std::nullopt, in_param_index);
+					in_param_index += 1;
+				}else{
+					param_infos.emplace_back(std::nullopt, std::nullopt);
+				}
+
+			}else{
+				if(param.kind == BaseType::Function::Param::Kind::IN){
+					param_infos.emplace_back(param_type, in_param_index);
+					in_param_index += 1;
+				}else{
+					param_infos.emplace_back(param_type, std::nullopt);
+				}
+			}
+
+			param_abi_index += 1;
+		}
+
+		bool is_implicit_rvo = false;
+		auto return_params = evo::SmallVector<SemaToPIRData::FuncTypeInfo::ReturnParam>();
+		if(func_type.hasNamedReturns){
+			for(const TypeInfo::VoidableID return_type_id : func_type.returnTypes){
+				return_params.emplace_back(
+					this->handler.createParamExpr(uint32_t(param_abi_index)),
+					this->get_type<false, false>(return_type_id.asTypeID()).type
+				);
+
+				param_abi_index += 1;
+			}
+
+
+		}else if(func_type.hasErrorReturn() && func_type.returnsVoid() == false){
+			return_params.emplace_back(
+				this->handler.createParamExpr(uint32_t(param_abi_index)),
+				this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type
+			);
+
+			param_abi_index += 1;
+
+
+		}else if(func_type.isImplicitRVO(this->context.getTypeManager())){
+			is_implicit_rvo = true;
+
+			return_params.emplace_back(
+				this->handler.createParamExpr(uint32_t(param_abi_index)),
+				this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type
+			);
+
+			param_abi_index += 1;
+		}
+
+		auto error_return_type = std::optional<pir::Type>();
+		if(func_type.hasErrorReturnValue()){
+			auto error_return_param_types = evo::SmallVector<pir::Type>();
+			error_return_param_types.reserve(func_type.errorTypes.size());
+			for(TypeInfo::VoidableID error_type_id : func_type.errorTypes){
+				error_return_param_types.emplace_back(this->get_type<false, false>(error_type_id.asTypeID()).type);
+			}
+
+			error_return_type = this->module.createStructType(
+				std::format("PTHR.FUNC_ERR_{}", func_type_id.get()), std::move(error_return_param_types), true
+			);
+		}
+
+		const pir::Type return_type = [&](){
+			if(func_type.hasErrorReturn()){
+				return this->module.createBoolType();
+
+			}else if(func_type.hasNamedReturns || is_implicit_rvo){
+				return this->module.createVoidType();
+
+			}else{
+				return this->get_type<false, false>(func_type.returnTypes[0]).type;
+			}
+		}();
+
+
+		return func_type_info_value_handle.emplaceValue(
+			return_type,
+			is_implicit_rvo,
+			func_type.attributes.isNoReturn,
+			std::move(param_infos),
+			std::move(return_params),
+			error_return_type
+		);
+	}
+
+
 
 
 	auto SemaToPIR::lowerInterface(BaseType::Interface::ID interface_id) -> void {
@@ -1137,8 +1228,9 @@ namespace pcit::panther{
 		vtable_values.reserve(funcs.size());
 		for(sema::Func::ID func_id : funcs){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
-			if(func.attributes.isComptime){
+			if(func_type.attributes.isComptime){
 				vtable_values.emplace_back(
 					this->handler.createFunctionPointer(
 						this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
@@ -1176,8 +1268,9 @@ namespace pcit::panther{
 
 		if(funcs.size() == 1){
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(funcs[0]);
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
-			if(func.attributes.isComptime == false){
+			if(func_type.attributes.isComptime == false){
 				this->data.create_single_method_vtable(
 					Data::VTableID(interface_id, type_id),
 					this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
@@ -1461,7 +1554,7 @@ namespace pcit::panther{
 			param_i += 1;
 		}
 
-		if(func_type.hasNamedReturns || this->data.get_func(func_id).isImplicitRVO){
+		if(func_type.hasNamedReturns || this->data.func_type_infos.get(sema_func.typeID).getValue().isImplicitRVO){
 			for(size_t i = 0; i < func_type.returnTypes.size(); i+=1){
 				const pir::Expr param_calc_ptr = this->handler.createCalcPtr(
 					this->handler.createParamExpr(0),
@@ -1901,8 +1994,9 @@ namespace pcit::panther{
 		for(sema::Func::ID func_id : funcs){
 			if constexpr(IS_COMPTIME){
 				const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
-				if(func.attributes.isComptime){
+				if(func_type.attributes.isComptime){
 					vtable_values.emplace_back(
 						this->handler.createFunctionPointer(
 							this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
@@ -1985,15 +2079,22 @@ namespace pcit::panther{
 
 				const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
 
-				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
+				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+					}else{
+						return this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID;
+					}
+				}();
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
-				);
+				const Data::FuncTypeInfo& target_func_type_info =
+					this->data.func_type_infos.get(target_type_id).getValue();
+
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
-					if(target_func_info.params[i].is_copy()){
+					if(target_func_type_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
 					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
@@ -2020,15 +2121,41 @@ namespace pcit::panther{
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
-				if(target_func_info.return_type.kind() == pir::Type::Kind::VOID){
-					if(target_func_info.isNoReturn){
-						this->create_call_no_return(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+
+				const auto target = [&]() -> CallTarget {
+					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return PtrCallTarget{
+							.target   = this->get_expr_register(func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr),
+							.funcType = this->get_function_pir_type(target_type),
+						};
+
+					}else{
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(func_call.target.as<sema::Func::ID>());
+						return target_func_info.pir_ids[target_in_param_bitmap].visit(
+							[&](const auto& id) -> CallTarget {
+								using IDType = std::decay_t<decltype(id)>;
+
+								if constexpr(std::is_same<IDType, std::monostate>()){
+									evo::debugFatalBreak("target deleted by compiler");
+								}else{
+									return id;
+								}
+							}
+						);
+					}
+				}();
+
+
+				if(target_func_type_info.return_type.kind() == pir::Type::Kind::VOID){
+					if(target_func_type_info.isNoReturn){
+						this->create_call_no_return(target, std::move(args));
 					}else{	
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target, std::move(args));
 					}
 
 				}else{
-					std::ignore = this->create_call(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+					std::ignore = this->create_call(target, std::move(args));
 				}
 			} break;
 
@@ -2036,17 +2163,25 @@ namespace pcit::panther{
 				const sema::TryElse& try_else = this->context.getSemaBuffer().getTryElse(stmt.tryElseID());
 
 
-				const Data::FuncInfo& target_func_info = this->data.get_func(try_else.target);
+				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+					if(try_else.target.is<sema::TryElse::FuncPtr>()){
+						return try_else.target.as<sema::TryElse::FuncPtr>().funcTypeID;
+					}else{
+						return this->context.getSemaBuffer().getFunc(try_else.target.as<sema::Func::ID>()).typeID;
+					}
+				}();
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(try_else.target).typeID
-				);
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+
+				const Data::FuncTypeInfo& target_func_type_info =
+					this->data.func_type_infos.get(target_type_id).getValue();
+
 
 				const auto ssl = this->create_scoped_source_location(try_else.line, try_else.collumn);
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : try_else.args){
-					if(target_func_info.params[i].is_copy()){
+					if(target_func_type_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
 					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
@@ -2074,7 +2209,7 @@ namespace pcit::panther{
 
 				if(target_type.errorTypes[0].isVoid() == false){
 					const pir::Expr error_value = this->handler.createAlloca(
-						*target_func_info.error_return_type, this->name("ERR.ALLOCA")
+						*target_func_type_info.error_return_type, this->name("ERR.ALLOCA")
 					);
 
 					for(const sema::ExceptParam::ID except_param_id : try_else.exceptParams){
@@ -2083,7 +2218,7 @@ namespace pcit::panther{
 
 						const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
 							error_value,
-							*target_func_info.error_return_type,
+							*target_func_type_info.error_return_type,
 							evo::SmallVector<pir::CalcPtr::Index>{
 								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
 							},
@@ -2103,9 +2238,32 @@ namespace pcit::panther{
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, try_else.args);
 
 
-				const pir::Expr err_occurred = this->create_call(
-					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
-				);
+				const auto target = [&]() -> CallTarget {
+					if(try_else.target.is<sema::TryElse::FuncPtr>()){
+						return PtrCallTarget{
+							.target   = this->get_expr_register(try_else.target.as<sema::TryElse::FuncPtr>().funcPtr),
+							.funcType = this->get_function_pir_type(target_type),
+						};
+
+					}else{
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(try_else.target.as<sema::Func::ID>());
+						return target_func_info.pir_ids[target_in_param_bitmap].visit(
+							[&](const auto& id) -> CallTarget {
+								using IDType = std::decay_t<decltype(id)>;
+
+								if constexpr(std::is_same<IDType, std::monostate>()){
+									evo::debugFatalBreak("target deleted by compiler");
+								}else{
+									return id;
+								}
+							}
+						);
+					}
+				}();
+
+
+				const pir::Expr err_occurred = this->create_call(target, std::move(args));
 
 				const pir::BasicBlock::ID start_block = this->handler.getTargetBasicBlock().getID();
 
@@ -2483,7 +2641,9 @@ namespace pcit::panther{
 								this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
 							}
 
-							this->handler.createStore(this->current_func_info->return_params.front().expr, ret_value);
+							this->handler.createStore(
+								this->current_func_type_info->return_params.front().expr, ret_value
+							);
 						}
 
 						for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
@@ -2494,9 +2654,9 @@ namespace pcit::panther{
 
 					}else{
 						if(return_stmt.value.has_value()){
-							if(this->current_func_info->isImplicitRVO){
+							if(this->current_func_type_info->isImplicitRVO){
 								this->get_expr_store(
-									*return_stmt.value, this->current_func_info->return_params.front().expr
+									*return_stmt.value, this->current_func_type_info->return_params.front().expr
 								);
 
 								for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
@@ -3065,19 +3225,21 @@ namespace pcit::panther{
 						this->name("FOR.iterator_{}", iterator_allocas.size())
 					);
 
-					const Data::FuncInfo& create_iterable_func_info = 
-						this->data.get_func(iterable.createIteratorFunc);
+					const Data::FuncInfo& create_iterable_func_info = this->data.get_func(iterable.createIteratorFunc);
+					const Data::FuncTypeInfo& create_iterable_func_type_info =
+						this->data.func_type_infos.get(create_iterable_func.typeID).getValue();
 
 
-					if(create_iterable_func_info.isImplicitRVO){
+
+					if(create_iterable_func_type_info.isImplicitRVO){
 						this->create_call_void(
-							create_iterable_func_info.pir_ids[0],
+							create_iterable_func_info.pir_ids[0].as<pir::Function::ID>(),
 							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr), iterator_alloca}
 						);
 
 					}else{
 						const pir::Expr iterator_value = this->create_call(
-							create_iterable_func_info.pir_ids[0],
+							create_iterable_func_info.pir_ids[0].as<pir::Function::ID>(),
 							evo::SmallVector<pir::Expr>{this->get_expr_pointer(iterable.expr)}
 						);
 						this->handler.createStore(iterator_alloca, iterator_value);
@@ -3105,7 +3267,7 @@ namespace pcit::panther{
 						this->data.get_func(for_stmt.iterables[0].iteratorImpl.methods[ITERATOR_AT_END]);
 
 					const pir::Expr cond_value = this->create_call(
-						at_end_func_info.pir_ids[0],
+						at_end_func_info.pir_ids[0].as<pir::Function::ID>(),
 						evo::SmallVector<pir::Expr>{iterator_allocas[0]},
 						this->name("FOR.at_end")
 					);
@@ -3192,7 +3354,7 @@ namespace pcit::panther{
 						this->data.get_func(iterable.iteratorImpl.methods[ITERATOR_GET]);
 
 					const pir::Expr get_value = this->create_call(
-						get_func_info.pir_ids[0],
+						get_func_info.pir_ids[0].as<pir::Function::ID>(),
 						evo::SmallVector<pir::Expr>{iterator_allocas[i]},
 						this->name("FOR.GET_{}", i)
 					);
@@ -3208,7 +3370,9 @@ namespace pcit::panther{
 
 					this->get_current_scope_level().defers.emplace_back(
 						[this, pir_func = next_func_info.pir_ids[0], iterator_alloca = iterator_allocas[i]]() -> void {
-							this->create_call_void(pir_func, evo::SmallVector<pir::Expr>{iterator_alloca});
+							this->create_call_void(
+								pir_func.as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{iterator_alloca}
+							);
 						},
 						DeferItem::Targets{
 							.on_scope_end = true,
@@ -3910,7 +4074,8 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::STORE){
 					const sema::Param& target_param = 
 						this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
-					const uint32_t in_param_index = *this->current_func_info->params[target_param.index].in_param_index;
+					const uint32_t in_param_index =
+						*this->current_func_type_info->params[target_param.index].in_param_index;
 					const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
 
 					if(param_is_copy){
@@ -3943,16 +4108,49 @@ namespace pcit::panther{
 
 				const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
 
-				const Data::FuncInfo& target_func_info = this->data.get_func(func_call.target.as<sema::Func::ID>());
+				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+					}else{
+						return this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID;
+					}
+				}();
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID
-				);
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+
+				const Data::FuncTypeInfo& target_func_type_info =
+					this->data.func_type_infos.get(target_type_id).getValue();
+
+				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
+
+				const auto target = [&]() -> CallTarget {
+					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return PtrCallTarget{
+							.target   = this->get_expr_register(func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr),
+							.funcType = this->get_function_pir_type(target_type),
+						};
+
+					}else{
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(func_call.target.as<sema::Func::ID>());
+						return target_func_info.pir_ids[target_in_param_bitmap].visit(
+							[&](const auto& id) -> CallTarget {
+								using IDType = std::decay_t<decltype(id)>;
+
+								if constexpr(std::is_same<IDType, std::monostate>()){
+									evo::debugFatalBreak("target deleted by compiler");
+								}else{
+									return id;
+								}
+							}
+						);
+					}
+				}();
 
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
-					if(target_func_info.params[i].is_copy()){
+					if(target_func_type_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
 					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
@@ -3977,17 +4175,16 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
 
-				if(target_type.hasNamedReturns || target_func_info.isImplicitRVO){
+				if(target_type.hasNamedReturns || target_func_type_info.isImplicitRVO){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Type return_type =
 							this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
 
 						const pir::Expr return_alloc = this->handler.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target, std::move(args));
 
 						return this->handler.createLoad(return_alloc, return_type);
 
@@ -3997,7 +4194,7 @@ namespace pcit::panther{
 						
 						const pir::Expr return_alloc = this->handler.createAlloca(return_type);
 						args.emplace_back(return_alloc);
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target, std::move(args));
 
 						this->end_of_stmt_deletes.emplace_back(return_alloc, target_type.returnTypes[0].asTypeID());
 
@@ -4007,43 +4204,47 @@ namespace pcit::panther{
 						for(pir::Expr store_location : store_locations){
 							args.emplace_back(store_location);
 						}
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target, std::move(args));
 						return std::nullopt;
 
 					}else{
-						const pir::Function& target_func = this->module.getFunction(
-							target_func_info.pir_ids[target_in_param_bitmap].as<pir::Function::ID>()
-						);
-
-						const size_t current_num_args = args.size();
-						for(size_t i = current_num_args; i < target_func.getParameters().size(); i+=1){
+						for(size_t i = 0; i < target_func_type_info.return_params.size(); i+=1){
 							const pir::Expr ret_alloca = this->handler.createAlloca(
-								target_func_info.return_params[i - current_num_args].reference_type,
-								this->name(".DISCARD")
+								target_func_type_info.return_params[i].reference_type, this->name(".DISCARD")
 							);
 							args.emplace_back(ret_alloca);
 
 							this->add_auto_delete_target(
-								ret_alloca, target_type.returnTypes[i - current_num_args].asTypeID()
+								ret_alloca, target_type.returnTypes[i].asTypeID()
 							);
 						}
 
-						this->create_call_void(target_func_info.pir_ids[target_in_param_bitmap], std::move(args));
+						this->create_call_void(target, std::move(args));
 						return std::nullopt;
 					}
 
 				}else{
+					std::string call_name = [&]() -> std::string {
+						if(func_call.target.is<sema::Func::ID>()){
+							return this->name(
+								"CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>())
+							);
+						}else{
+							return this->name("CALL.ptr");
+						}
+					}();
+
 					const pir::Expr call_return = this->create_call(
-						target_func_info.pir_ids[target_in_param_bitmap],
+						target,
 						std::move(args),
-						this->name("CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>()))
+						std::move(call_name)
 					);
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return call_return;
 
 					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr return_alloca = this->handler.createAlloca(target_func_info.return_type);
+						const pir::Expr return_alloca = this->handler.createAlloca(target_func_type_info.return_type);
 						this->handler.createStore(return_alloca, call_return);
 						this->end_of_stmt_deletes.emplace_back(return_alloca, target_type.returnTypes[0].asTypeID());
 						return return_alloca;
@@ -4055,7 +4256,7 @@ namespace pcit::panther{
 
 					}else{
 						const pir::Expr discard_alloca =
-							this->handler.createAlloca(target_func_info.return_type, this->name(".DISCARD"));
+							this->handler.createAlloca(target_func_type_info.return_type, this->name(".DISCARD"));
 						this->handler.createStore(discard_alloca, call_return);
 
 						this->add_auto_delete_target(discard_alloca, target_type.returnTypes[0].asTypeID());
@@ -4063,7 +4264,36 @@ namespace pcit::panther{
 						return std::nullopt;
 					}
 				}
-				
+			} break;
+
+			case sema::Expr::Kind::FUNC_PTR: {
+				const sema::FuncPtr& func_ptr = this->context.getSemaBuffer().getFuncPtr(expr.funcPtrID());
+
+				const Data::FuncInfo& target_func_info = this->data.get_func(func_ptr.targetFuncID);
+
+				evo::debugAssert(target_func_info.pir_ids.size() == 1, "Cannot get func pointer of this func");
+
+				const pir::Expr func_ptr_value = this->handler.createFunctionPointer(
+					target_func_info.pir_ids[0].as<pir::Function::ID>()
+				);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return func_ptr_value;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr alloca = this->handler.createAlloca(this->module.createPtrType());
+					this->handler.createStore(alloca, func_ptr_value);
+					return alloca;
+					
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+					this->handler.createStore(store_locations.front(), func_ptr_value);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::ADDR_OF: {
@@ -4229,7 +4459,7 @@ namespace pcit::panther{
 						const sema::Param& target_param = 
 							this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
 						const uint32_t in_param_index =
-							*this->current_func_info->params[target_param.index].in_param_index;
+							*this->current_func_type_info->params[target_param.index].in_param_index;
 						const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
 
 						if(param_is_copy){
@@ -5873,18 +6103,25 @@ namespace pcit::panther{
 				const sema::FuncCall& attempt_func_call =
 					this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
 
-				const Data::FuncInfo& target_func_info = this->data.get_func(
-					attempt_func_call.target.as<sema::Func::ID>()
-				);
+				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+					if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+					}else{
+						return this->context.getSemaBuffer().getFunc(
+							attempt_func_call.target.as<sema::Func::ID>()
+						).typeID;
+					}
+				}();
 
+				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(
-					this->context.getSemaBuffer().getFunc(attempt_func_call.target.as<sema::Func::ID>()).typeID
-				);
+				const Data::FuncTypeInfo& target_func_type_info =
+					this->data.func_type_infos.get(target_type_id).getValue();
+
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
-					if(target_func_info.params[i].is_copy()){
+					if(target_func_type_info.params[i].is_copy()){
 						args.emplace_back(this->get_expr_register(arg));
 
 					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
@@ -5925,7 +6162,7 @@ namespace pcit::panther{
 
 				if(target_type.errorTypes[0].isVoid() == false){
 					const pir::Expr error_value = this->handler.createAlloca(
-						*target_func_info.error_return_type, this->name("ERR.ALLOCA")
+						*target_func_type_info.error_return_type, this->name("ERR.ALLOCA")
 					);
 
 					for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
@@ -5934,7 +6171,7 @@ namespace pcit::panther{
 
 						const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
 							error_value,
-							*target_func_info.error_return_type,
+							*target_func_type_info.error_return_type,
 							evo::SmallVector<pir::CalcPtr::Index>{
 								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
 							},
@@ -5954,9 +6191,35 @@ namespace pcit::panther{
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
 
 
-				const pir::Expr err_occurred = this->create_call(
-					target_func_info.pir_ids[target_in_param_bitmap], std::move(args)
-				);
+
+				const auto target = [&]() -> CallTarget {
+					if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return PtrCallTarget{
+							.target   = this->get_expr_register(
+								attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr
+							),
+							.funcType = this->get_function_pir_type(target_type),
+						};
+
+					}else{
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(attempt_func_call.target.as<sema::Func::ID>());
+						return target_func_info.pir_ids[target_in_param_bitmap].visit(
+							[&](const auto& id) -> CallTarget {
+								using IDType = std::decay_t<decltype(id)>;
+
+								if constexpr(std::is_same<IDType, std::monostate>()){
+									evo::debugFatalBreak("target deleted by compiler");
+								}else{
+									return id;
+								}
+							}
+						);
+					}
+				}();
+
+
+				const pir::Expr err_occurred = this->create_call(target, std::move(args));
 
 				const pir::BasicBlock::ID if_error_block = this->handler.createBasicBlock(this->name("TRY.ERROR"));
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("TRY.END"));
@@ -6149,7 +6412,7 @@ namespace pcit::panther{
 
 				const pir::Expr param_alloca = this->param_allocas[sema_param.abiIndex];
 
-				if(this->current_func_info->params[sema_param.abiIndex].is_copy()){
+				if(this->current_func_type_info->params[sema_param.abiIndex].is_copy()){
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
 						
@@ -6170,7 +6433,7 @@ namespace pcit::panther{
 					if constexpr(MODE == GetExprMode::REGISTER){
 						return this->handler.createLoad(
 							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
-							*this->current_func_info->params[sema_param.index].reference_type
+							*this->current_func_type_info->params[sema_param.index].reference_type
 						);
 						
 					}else if constexpr(MODE == GetExprMode::POINTER){
@@ -6180,7 +6443,7 @@ namespace pcit::panther{
 						this->handler.createMemcpy(
 							store_locations[0],
 							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
-							*this->current_func_info->params[sema_param.index].reference_type
+							*this->current_func_type_info->params[sema_param.index].reference_type
 						);
 						return std::nullopt;
 						
@@ -6201,7 +6464,7 @@ namespace pcit::panther{
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return this->handler.createLoad(
 						return_param_ptr,
-						this->current_func_info->return_params[sema_return_param.index].reference_type
+						this->current_func_type_info->return_params[sema_return_param.index].reference_type
 					);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
@@ -6216,7 +6479,7 @@ namespace pcit::panther{
 					this->handler.createMemcpy(
 						store_locations[0],
 						return_param_ptr,
-						this->current_func_info->return_params[sema_return_param.index].reference_type
+						this->current_func_type_info->return_params[sema_return_param.index].reference_type
 					);
 					return std::nullopt;
 
@@ -6234,7 +6497,7 @@ namespace pcit::panther{
 					this->handler.createLoad(
 						this->param_allocas[sema_error_param.abiIndex], this->module.createPtrType()
 					),
-					*this->current_func_info->error_return_type,
+					*this->current_func_type_info->error_return_type,
 					evo::SmallVector<pir::CalcPtr::Index>{
 						pir::CalcPtr::Index(0),
 						pir::CalcPtr::Index(sema_error_param.index)
@@ -9407,9 +9670,11 @@ namespace pcit::panther{
 
 						if(func_type.params[0].typeID == func_type.params[1].typeID){
 							const Data::FuncInfo& func_info = this->data.get_func(sema_func_id);
+							const Data::FuncTypeInfo& func_type_info =
+								this->data.func_type_infos.get(sema_func.typeID).getValue();
 
 							const pir::Expr target_lhs = [&](){
-								if(func_info.params[0].is_copy()){
+								if(func_type_info.params[0].is_copy()){
 									return this->handler.createLoad(
 										lhs, pir_type, is_equal ? this->name(".EQ.LHS") : this->name(".NEQ.LHS")
 									);
@@ -9419,7 +9684,7 @@ namespace pcit::panther{
 							}();
 
 							const pir::Expr target_rhs = [&](){
-								if(func_info.params[1].is_copy()){
+								if(func_type_info.params[1].is_copy()){
 									return this->handler.createLoad(
 										rhs, pir_type, is_equal ? this->name(".EQ.RHS") : this->name(".NEQ.RHS")
 									);
@@ -9657,7 +9922,7 @@ namespace pcit::panther{
 			}else if(arg.kind() == sema::Expr::Kind::FORWARD){
 				const sema::Forward& arg_forward = this->context.getSemaBuffer().getForward(arg.forwardID());
 				const sema::Param& target_param = this->context.getSemaBuffer().getParam(arg_forward.expr.paramID());
-				const uint32_t in_param_index = *this->current_func_info->params[target_param.index].in_param_index;
+				const uint32_t in_param_index = *this->current_func_type_info->params[target_param.index].in_param_index;
 				const bool in_param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
 
 				if(in_param_is_copy){
@@ -9754,44 +10019,53 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::create_call(
-		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-		evo::SmallVector<pir::Expr>&& args,
-		std::string&& name
-	) -> pir::Expr {
-		if(func_id.is<pir::Function::ID>()){
-			return this->handler.createCall(func_id.as<pir::Function::ID>(), std::move(args), std::move(name));
+	auto SemaToPIR::create_call(CallTarget func_id, evo::SmallVector<pir::Expr>&& args, std::string&& name)
+	-> pir::Expr {
+		return func_id.visit([&](const auto& id) -> pir::Expr {
+			using IDType = std::decay_t<decltype(id)>;
 
-		}else{
-			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			return this->handler.createCall(
-				func_id.as<pir::ExternalFunction::ID>(), std::move(args), std::move(name)
-			);
-		}
+			if constexpr(std::is_same<IDType, pir::Function::ID>()){
+				return this->handler.createCall(id, std::move(args), std::move(name));
+
+			}else if constexpr(std::is_same<IDType, pir::ExternalFunction::ID>()){
+				return this->handler.createCall(id, std::move(args), std::move(name));
+				
+			}else{
+				return this->handler.createCall(id.target, id.funcType, std::move(args), std::move(name));
+			}
+		});
 	}
 
-	auto SemaToPIR::create_call_void(
-		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-		evo::SmallVector<pir::Expr>&& args
-	) -> void {
-		if(func_id.is<pir::Function::ID>()){
-			this->handler.createCallVoid(func_id.as<pir::Function::ID>(), std::move(args));
-		}else{
-			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			this->handler.createCallVoid(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
-		}
+	auto SemaToPIR::create_call_void(CallTarget func_id, evo::SmallVector<pir::Expr>&& args) -> void {
+		func_id.visit([&](const auto& id) -> void {
+			using IDType = std::decay_t<decltype(id)>;
+
+			if constexpr(std::is_same<IDType, pir::Function::ID>()){
+				this->handler.createCallVoid(id, std::move(args));
+
+			}else if constexpr(std::is_same<IDType, pir::ExternalFunction::ID>()){
+				this->handler.createCallVoid(id, std::move(args));
+				
+			}else{
+				this->handler.createCallVoid(id.target, id.funcType, std::move(args));
+			}
+		});
 	}
 
-	auto SemaToPIR::create_call_no_return(
-		evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID> func_id,
-		evo::SmallVector<pir::Expr>&& args
-	) -> void {
-		if(func_id.is<pir::Function::ID>()){
-			this->handler.createCallNoReturn(func_id.as<pir::Function::ID>(), std::move(args));
-		}else{
-			evo::debugAssert(func_id.is<pir::ExternalFunction::ID>(), "This func id was deleted by in-param type");
-			this->handler.createCallNoReturn(func_id.as<pir::ExternalFunction::ID>(), std::move(args));
-		}
+	auto SemaToPIR::create_call_no_return(CallTarget func_id, evo::SmallVector<pir::Expr>&& args) -> void {
+		func_id.visit([&](const auto& id) -> void {
+			using IDType = std::decay_t<decltype(id)>;
+
+			if constexpr(std::is_same<IDType, pir::Function::ID>()){
+				this->handler.createCallNoReturn(id, std::move(args));
+
+			}else if constexpr(std::is_same<IDType, pir::ExternalFunction::ID>()){
+				this->handler.createCallNoReturn(id, std::move(args));
+				
+			}else{
+				this->handler.createCallNoReturn(id.target, id.funcType, std::move(args));
+			}
+		});
 	}
 
 
@@ -11884,25 +12158,26 @@ namespace pcit::panther{
 				return this->get_global_var_value(*global_var.expr.load());
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:            case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:        case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                      case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                   case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:                case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:              case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                 case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:         case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:               case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                        case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                    case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                 case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::FUNC_PTR:                case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:        case sema::Expr::Kind::DEREF:
+			case sema::Expr::Kind::UNWRAP:                  case sema::Expr::Kind::ACCESSOR:
+			case sema::Expr::Kind::UNION_ACCESSOR:          case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:              case sema::Expr::Kind::TRY_ELSE_EXPR:
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR: case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:          case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:          case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:       case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:    case sema::Expr::Kind::ARRAY_REF_DATA:
+			case sema::Expr::Kind::UNION_TAG_CMP:           case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:                   case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:            case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:       case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:               case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}
@@ -12578,7 +12853,21 @@ namespace pcit::panther{
 			} break;
 			
 			case BaseType::Kind::FUNCTION: {
-				evo::unimplemented("BaseType::Kind::FUNCTION");
+				if constexpr(GET_META){
+					return PIRType(
+						this->module.createPtrType(),
+						this->data.get_or_create_meta_pointer_qualified_type(
+							type_id,
+							this->module,
+							this->context.getTypeManager().printType(type_id, this->context),
+							std::nullopt,
+							pir::meta::QualifiedType::Qualifier::POINTER
+						)
+					);
+				}else{
+					return PIRType(this->module.createPtrType(), std::nullopt);
+				}
+
 			} break;
 			
 			case BaseType::Kind::ARRAY: {
@@ -12594,7 +12883,7 @@ namespace pcit::panther{
 					}else{
 						pir::Type array_type =
 							this->module.getOrCreateArrayType(elem_type.type, array.dimensions.back());
-
+ 
 						if(array.dimensions.size() > 1){
 							for(ptrdiff_t i = array.dimensions.size() - 2; i >= 0; i-=1){
 								array_type = this->module.getOrCreateArrayType(array_type, array.dimensions[i]);
@@ -12758,6 +13047,42 @@ namespace pcit::panther{
 
 		evo::debugFatalBreak("Unknown base type");
 	}
+
+
+
+	auto SemaToPIR::get_function_pir_type(const BaseType::Function& func_type) -> pir::Type {
+		auto param_types = evo::SmallVector<pir::Type>();
+		for(const BaseType::Function::Param& param : func_type.params){
+			if(param.shouldCopy){
+				param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
+			}else{
+				param_types.emplace_back(this->module.createPtrType());
+			}
+		}
+
+		if(func_type.hasNamedReturns || func_type.hasErrorReturnValue()){
+			for(size_t i = 0; i < func_type.returnTypes.size(); i+=1){
+				param_types.emplace_back(this->module.createPtrType());
+			}
+		}
+
+		if(func_type.hasErrorReturnValue()){
+			param_types.emplace_back(this->module.createPtrType());
+		}
+
+		const pir::Type return_type = [&](){
+			if(func_type.hasErrorReturn() ){ return this->module.createBoolType(); }
+			if(func_type.hasNamedReturns  ){ return this->module.createVoidType(); }
+			if(func_type.returnsVoid()    ){ return this->module.createVoidType(); }
+			return this->get_type<false, false>(func_type.returnTypes[0].asTypeID()).type;
+		}();
+
+		return this->module.getOrCreateFunctionType(
+			std::move(param_types), pir::CallingConvention::FAST, return_type
+		);	
+	}
+
+
 
 
 
@@ -14054,7 +14379,7 @@ namespace pcit::panther{
 										this->handler.createLoad(
 											this->param_allocas.back(), this->module.createPtrType()
 										),
-										*this->current_func_info->error_return_type,
+										*this->current_func_type_info->error_return_type,
 										evo::SmallVector<pir::CalcPtr::Index>{0, expr.index},
 										this->name(".ERR_PARAM.{}", expr.index)
 									);
@@ -14066,7 +14391,7 @@ namespace pcit::panther{
 									
 									const pir::Expr pir_expr = this->handler.createCalcPtr(
 										this->handler.createParamExpr(0),
-										*this->current_func_info->params[0].reference_type,
+										*this->current_func_type_info->params[0].reference_type,
 										evo::SmallVector<pir::CalcPtr::Index>{0, expr.abiIndex},
 										this->name(".ERR_PARAM.{}", expr.abiIndex)
 									);

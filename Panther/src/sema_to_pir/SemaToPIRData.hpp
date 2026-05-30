@@ -65,6 +65,11 @@ namespace pcit::panther{
 			};
 			
 			struct FuncInfo{
+				evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
+			};
+
+
+			struct FuncTypeInfo{
 				struct Param{
 					std::optional<pir::Type> reference_type;
 					std::optional<uint32_t> in_param_index;
@@ -77,7 +82,6 @@ namespace pcit::panther{
 					pir::Type reference_type;
 				};
 
-				evo::SmallVector<evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>> pir_ids;
 				pir::Type return_type;
 				bool isImplicitRVO;
 				bool isNoReturn;
@@ -176,21 +180,13 @@ namespace pcit::panther{
 
 
 			auto create_func(sema::Func::ID func_id, auto&&... func_info_args) -> void {
-				const auto lock = std::scoped_lock(this->funcs_lock);
-				const auto emplace_result = this->funcs.emplace(
-					func_id,
-					&this->funcs_info_alloc.emplace_back(
-						std::forward<decltype(func_info_args)>(func_info_args)...
-					)
-				);
-				evo::debugAssert(emplace_result.second, "This func id was already added to PIR lower");
+				this->func_infos.get(func_id).emplaceValue(std::forward<decltype(func_info_args)>(func_info_args)...);
 			}
 
 			[[nodiscard]] auto get_func(sema::Func::ID func_id) -> FuncInfo& {
-				const auto lock = std::scoped_lock(this->funcs_lock);
-				evo::debugAssert(this->funcs.contains(func_id), "Doesn't have this func");
-				return *this->funcs.at(func_id);
+				return this->func_infos.get(func_id).getValue();
 			}
+
 
 
 			// returns true if added
@@ -432,9 +428,9 @@ namespace pcit::panther{
 			std::unordered_map<pir::GlobalVar::ID, sema::StringValue::ID> reverse_global_strings{};
 			mutable evo::SpinLock global_strings_lock{};
 
-			evo::StepVector<FuncInfo> funcs_info_alloc{};
-			std::unordered_map<sema::Func::ID, FuncInfo*> funcs{};
-			mutable evo::SpinLock funcs_lock{};
+
+			core::MapAlloc<sema::Func::ID, FuncInfo> func_infos{};
+			core::MapAlloc<BaseType::Function::ID, FuncTypeInfo> func_type_infos{};
 
 			std::unordered_set<std::string> extern_funcs{};
 			mutable evo::SpinLock extern_funcs_lock{};

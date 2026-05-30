@@ -580,8 +580,13 @@ namespace pcit::panther{
 			struct SelectFuncOverloadFuncInfo{
 				struct IntrinsicFlag{};
 				struct BuiltinTypeMethodFlag{};
+				struct FuncPtrFlag{};
 				using FuncID = evo::Variant<
-					IntrinsicFlag, BuiltinTypeMethodFlag, sema::Func::ID, sema::TemplatedFunc::InstantiationInfo
+					IntrinsicFlag,
+					BuiltinTypeMethodFlag,
+					FuncPtrFlag,
+					sema::Func::ID,
+					sema::TemplatedFunc::InstantiationInfo
 				>;
 
 				FuncID func_id;

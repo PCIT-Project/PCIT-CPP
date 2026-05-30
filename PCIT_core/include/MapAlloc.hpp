@@ -88,7 +88,7 @@ namespace pcit::core{
 
 		private:
 			std::unordered_map<KEY, InternalValue*> map{};
-			evo::StepVector<InternalValue> allocator{};
+			evo::StepVector<InternalValue, STARTING_POW_OF_2> allocator{};
 			mutable evo::SpinLock spin_lock{};
 	};
 

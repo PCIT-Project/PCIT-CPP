@@ -57,7 +57,7 @@ namespace pcit::panther::sema{
 		const BaseType::Function& this_type = context.getTypeManager().getFunction(this->typeID);
 		const BaseType::Function& rhs_type = context.getTypeManager().getFunction(rhs.typeID);
 
-		if(this_type.isUnsafe != rhs_type.isUnsafe){ return false; }
+		if(this_type.attributes.isUnsafe != rhs_type.attributes.isUnsafe){ return false; }
 
 		if(this->minNumArgs == rhs.minNumArgs){
 			for(size_t i = 0; i < this->minNumArgs; i+=1){

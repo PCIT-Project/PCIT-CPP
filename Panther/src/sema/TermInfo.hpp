@@ -432,6 +432,12 @@ namespace pcit::panther{
 				|| this->value_category == ValueCategory::FUNCTION_NOT_PRIV_REQUIRED;
 		}
 
+		[[nodiscard]] constexpr auto is_function() const -> bool {
+			return this->value_category == ValueCategory::FUNCTION
+				|| this->value_category == ValueCategory::FUNCTION_PUB_REQUIRED
+				|| this->value_category == ValueCategory::FUNCTION_NOT_PRIV_REQUIRED;
+		}
+
 
 		[[nodiscard]] constexpr auto is_mutable() const -> bool {
 			return isValueCategoryMutable(this->value_category);
@@ -452,6 +458,7 @@ namespace pcit::panther{
 			    || value_category == ValueCategory::CONCRETE_MUT
 				|| value_category == ValueCategory::FORWARDABLE;
 		}
+
 
 
 		///////////////////////////////////
