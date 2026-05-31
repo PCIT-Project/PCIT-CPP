@@ -646,7 +646,6 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
-						false,
 						false
 					);
 				}
@@ -704,7 +703,6 @@ namespace pcit::panther{
 
 			pir::Module pir_module;
 			SemaToPIR::Data sema_to_pir_data;
-			// pir::JITEngine comptime_jit_engine{};
 			pir::ExecutionEngine comptime_execution_engine{pir_module};
 
 

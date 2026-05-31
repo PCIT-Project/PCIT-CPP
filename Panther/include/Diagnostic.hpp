@@ -119,6 +119,7 @@ namespace pcit::panther{
 				[[nodiscard]] static auto get(const AST::TryElse& try_expr, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Unsafe& unsafe, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::ArrayType& type, const class Source& src) -> Location;
+				[[nodiscard]] static auto get(const AST::FuncType& type, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::InterfaceMap& type, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Type& type, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::TypeIDConverter& type, const class Source& src) -> Location;

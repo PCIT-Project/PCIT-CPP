@@ -1679,7 +1679,7 @@ namespace pthr{
 
 						for(size_t i = 0; const std::optional<panther::AST::Node>& dimension : array_type.dimensions){
 							if(dimension.has_value()){
-								this->printer.printGray("...expr...");
+								this->printer.printGray("{EXPR}");
 							}else{
 								if(*array_type.refIsMut){
 									this->printer.printMagenta("*mut");
@@ -1695,10 +1695,81 @@ namespace pthr{
 
 						if(array_type.terminator.has_value()){
 							this->printer.printMagenta(";");
-							this->printer.printGray("...expr...");
+							this->printer.printGray("{EXPR}");
 						}
 
 						this->printer.printMagenta("]");
+					} break;
+
+					case panther::AST::Kind::FUNC_TYPE: {
+						const panther::AST::FuncType& func_type = this->ast_buffer.getFuncType(base_type);
+
+						this->printer.printMagenta("func(");
+						for(size_t i = 0; const panther::AST::FuncType::Param& param : func_type.params){
+							this->print_type(this->ast_buffer.getType(param.type));
+
+							using ParamKind = panther::AST::FuncType::Param::Kind;
+							switch(param.kind){
+								break; case ParamKind::READ: this->printer.printMagenta(" read");
+								break; case ParamKind::MUT:  this->printer.printMagenta(" mut");
+								break; case ParamKind::IN:   this->printer.printMagenta(" in");
+							}
+
+							if(i + 1 < func_type.params.size()){ this->printer.printMagenta(","); }
+							i += 1;
+						}
+						this->printer.printMagenta(")");
+
+						const panther::AST::AttributeBlock& attr_block =
+							this->ast_buffer.getAttributeBlock(func_type.attributeBlock);
+
+						// TODO(FUTURE): print this properly
+						for(const panther::AST::AttributeBlock::Attribute& attr : attr_block.attributes){
+							this->printer.printMagenta(
+								" #{}", this->source.getTokenBuffer()[attr.attribute].getString()
+							);
+
+							if(attr.args.empty() == false){
+								this->printer.printMagenta("(");
+
+								if(attr.args.size() == 1){
+									this->printer.printGray("{EXPR}");
+								}else{
+									this->printer.printGray("{EXPR}");
+									this->printer.printMagenta(", ");
+									this->printer.printGray("{EXPR}");
+								}
+
+								this->printer.printMagenta(")");
+							}
+						}
+
+						this->printer.printMagenta(" -> ");
+
+						if(func_type.hasNamedReturns){
+							this->printer.printMagenta("(");
+							for(size_t i = 0; const panther::AST::Node& return_type : func_type.returnTypes){
+								this->print_type(this->ast_buffer.getType(return_type));
+
+								if(i + 1 < func_type.returnTypes.size()){ this->printer.printMagenta(","); }
+								i += 1;
+							}
+							this->printer.printMagenta(")");
+
+						}else{
+							this->print_type(this->ast_buffer.getType(func_type.returnTypes[0]));
+						}
+
+						if(func_type.errorTypes.empty() == false){
+							this->printer.printMagenta(" <");
+							for(size_t i = 0; const panther::AST::Node& error_type : func_type.errorTypes){
+								this->print_type(this->ast_buffer.getType(error_type));
+
+								if(i + 1 < func_type.errorTypes.size()){ this->printer.printMagenta(","); }
+								i += 1;
+							}
+							this->printer.printMagenta(">");
+						}
 					} break;
 
 					case panther::AST::Kind::INTERFACE_MAP: {
@@ -1728,7 +1799,7 @@ namespace pthr{
 					// TODO(FUTURE): print this properly
 					case panther::AST::Kind::TYPEID_CONVERTER: {
 						this->printer.printMagenta("Type(");
-						this->printer.printGray("...expr...");
+						this->printer.printGray("{EXPR}");
 						this->printer.printMagenta(")");
 					} break;
 
@@ -1903,10 +1974,10 @@ namespace pthr{
 					case panther::AST::Kind::FOR:              case panther::AST::Kind::SWITCH:
 					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
 					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::UNSAFE:
-					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::INTERFACE_MAP:
-					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::FUNC_TYPE:
+					case panther::AST::Kind::INTERFACE_MAP:    case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::DEDUCER:          case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

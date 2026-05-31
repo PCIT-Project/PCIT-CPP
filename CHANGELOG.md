@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.310.0"></a>
+## v0.0.310.0
+
+### Panther
+- Added explicit function types
+- Fixed returning function pointer from a comptime function at comptime
+- Fixed race condition with function pointers at comptime
+- Fixed calling function pointers that have a type of an alias
+
+
+<!---------------------------------->
 <a name="v0.0.309.0"></a>
 ## v0.0.309.0
 

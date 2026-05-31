@@ -299,6 +299,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_primitive_type_term(const Instruction::PrimitiveTypeTerm& instr) -> Result;
 			[[nodiscard]] auto instr_array_type(const Instruction::ArrayType& instr) -> Result;
 			[[nodiscard]] auto instr_array_ref(const Instruction::ArrayRef& instr) -> Result;
+			[[nodiscard]] auto instr_func_type(const Instruction::FuncType& instr) -> Result;
 			[[nodiscard]] auto instr_interface_map(const Instruction::InterfaceMap& instr) -> Result;
 			[[nodiscard]] auto instr_type_id_converter(const Instruction::TypeIDConverter& instr) -> Result;
 			[[nodiscard]] auto instr_qualified_type(const Instruction::QualifiedType& instr) -> Result;
@@ -905,6 +906,18 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_func_attrs(
 				const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Expected<FuncAttrs, Result>;
+
+
+			struct FuncTypeAttrs{
+				bool is_runtime;
+				bool is_unsafe;
+				bool is_no_return;
+				std::optional<uint32_t> call_conv; // pir::CallingConvention
+			};
+			[[nodiscard]] auto analyze_func_type_attrs(
+				const AST::FuncType& func_type, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Expected<FuncTypeAttrs, Result>;
+
 
 
 			struct FuncParamAttrs{

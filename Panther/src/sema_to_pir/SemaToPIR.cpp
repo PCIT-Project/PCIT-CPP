@@ -66,15 +66,15 @@ namespace pcit::panther{
 		}
 
 
-		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
-			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+		// for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+		// 	const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+		// 	if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
+		// 	if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 
-			if(this->context.getTypeManager().getFunction(func.typeID).attributes.isComptime){ continue; }
+		// 	if(this->context.getTypeManager().getFunction(func.typeID).attributes.isComptime){ continue; }
 
-			this->lowerFuncDecl(func_id);
-		}
+		// 	this->lowerFuncDecl(func_id);
+		// }
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
 			const auto interface_id = BaseType::Interface::ID(i);
@@ -461,7 +461,7 @@ namespace pcit::panther{
 
 				if(this->data.config.includeDebugInfo){
 					std::string member_name = [&]() -> std::string {
-						if(func_type.hasNamedErrorReturns){
+						if(func.hasNamedErrors()){
 							return std::string(
 								this->current_source->getTokenBuffer()[func.errorParamIdents[i]].getString()
 							);	
@@ -780,7 +780,7 @@ namespace pcit::panther{
 				}
 			}
 
-			if(this->current_func_type->hasNamedErrorReturns){
+			if(sema_func.hasNamedErrors()){
 				for(uint32_t i = 0; TypeInfo::VoidableID error_type : this->current_func_type->errorTypes){
 					this->get_current_scope_level().defers.emplace_back(
 						AutoDeleteManagedLifetimeTarget(ManagedLifetimeErrorParam(i), error_type.asTypeID()),
@@ -958,7 +958,7 @@ namespace pcit::panther{
 
 				this->param_allocas.emplace_back(param_alloca);
 
-				if(this->data.config.includeDebugInfo && func_type.hasNamedErrorReturns){
+				if(this->data.config.includeDebugInfo && sema_func.hasNamedErrors()){
 					const Source::Location param_location = Diagnostic::Location::get(
 						sema_func.errorParamIdents.front(), *this->current_source
 					).as<Source::Location>();
@@ -1135,7 +1135,7 @@ namespace pcit::panther{
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
 			const BaseType::Function method_type = this->context.getTypeManager().getFunction(method.typeID);
 
-			if(method_type.hasNamedErrorReturns){
+			if(method.hasNamedErrors()){
 				auto error_return_param_types = evo::SmallVector<pir::Type>();
 				for(TypeInfo::VoidableID error_type : method_type.errorTypes){
 					error_return_param_types.emplace_back(this->get_type<false, false>(error_type.asTypeID()).type);
@@ -2087,8 +2087,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				const Data::FuncTypeInfo& target_func_type_info =
-					this->data.func_type_infos.get(target_type_id).getValue();
+				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
@@ -2173,8 +2172,7 @@ namespace pcit::panther{
 
 				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
-				const Data::FuncTypeInfo& target_func_type_info =
-					this->data.func_type_infos.get(target_type_id).getValue();
+				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 
 				const auto ssl = this->create_scoped_source_location(try_else.line, try_else.collumn);
@@ -4118,8 +4116,7 @@ namespace pcit::panther{
 
 				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
-				const Data::FuncTypeInfo& target_func_type_info =
-					this->data.func_type_infos.get(target_type_id).getValue();
+				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
 
@@ -4272,10 +4269,11 @@ namespace pcit::panther{
 				const Data::FuncInfo& target_func_info = this->data.get_func(func_ptr.targetFuncID);
 
 				evo::debugAssert(target_func_info.pir_ids.size() == 1, "Cannot get func pointer of this func");
+				const pir::Function::ID target_pir_func_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
-				const pir::Expr func_ptr_value = this->handler.createFunctionPointer(
-					target_func_info.pir_ids[0].as<pir::Function::ID>()
-				);
+				this->data.add_func_ptr(target_pir_func_id, func_ptr.targetFuncID);
+
+				const pir::Expr func_ptr_value = this->handler.createFunctionPointer(target_pir_func_id);
 
 
 				if constexpr(MODE == GetExprMode::REGISTER){
@@ -6115,9 +6113,7 @@ namespace pcit::panther{
 
 				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
 
-				const Data::FuncTypeInfo& target_func_type_info =
-					this->data.func_type_infos.get(target_type_id).getValue();
-
+				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
@@ -9671,7 +9667,7 @@ namespace pcit::panther{
 						if(func_type.params[0].typeID == func_type.params[1].typeID){
 							const Data::FuncInfo& func_info = this->data.get_func(sema_func_id);
 							const Data::FuncTypeInfo& func_type_info =
-								this->data.func_type_infos.get(sema_func.typeID).getValue();
+								this->get_or_create_func_type_info(sema_func.typeID);
 
 							const pir::Expr target_lhs = [&](){
 								if(func_type_info.params[0].is_copy()){

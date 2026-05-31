@@ -743,6 +743,9 @@ namespace pcit::panther{
 			case Instruction::Kind::ARRAY_REF:
 				return this->instr_array_ref(this->context.symbol_proc_manager.getArrayRef(instr));
 
+			case Instruction::Kind::FUNC_TYPE:
+				return this->instr_func_type(this->context.symbol_proc_manager.getFuncType(instr));
+
 			case Instruction::Kind::INTERFACE_MAP:
 				return this->instr_interface_map(this->context.symbol_proc_manager.getInterfaceMap(instr));
 
@@ -865,7 +868,7 @@ namespace pcit::panther{
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-				sema_var.comptimeJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
 		}else{
 			if(var_attrs.value().is_pub){
@@ -987,34 +990,7 @@ namespace pcit::panther{
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-
 				sema_to_pir.lowerGlobalDef(sema_var_id);
-
-
-				///////////////////////////////////
-				// The following code commented code is for lowering directly to JIT
-				// I'm purposely keeping this here (at least for now)
-
-				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.pir_module,
-				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.comptimeJITGlobal, }
-				// 	);
-
-				// if(add_module_subset_result.has_value() == false){
-				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
-				// 	for(const std::string& error : add_module_subset_result.error()){
-				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-				// 	}
-
-				// 	this->emit_fatal(
-				// 		
-				// 		instr.var_def,
-				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-				// 		std::move(infos)
-				// 	);
-				// 	return Result::ERROR;
-				// }
 			}
 
 		}else if(instr.value_id.has_value()){ // member var with default value
@@ -1224,34 +1200,8 @@ namespace pcit::panther{
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
-				sema_var.comptimeJITGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 				sema_to_pir.lowerGlobalDef(new_sema_var);
-
-
-				///////////////////////////////////
-				// The following code commented code is for lowering directly to JIT
-				// I'm purposely keeping this here (at least for now)
-
-				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.pir_module,
-				// 		pir::JITEngine::ModuleSubsets{ .globalVars = *sema_var.comptimeJITGlobal, }
-				// 	);
-
-				// if(add_module_subset_result.has_value() == false){
-				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
-				// 	for(const std::string& error : add_module_subset_result.error()){
-				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-				// 	}
-
-				// 	this->emit_fatal(
-				// 		
-				// 		instr.var_def,
-				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for const global variable"),
-				// 		std::move(infos)
-				// 	);
-				// 	return Result::ERROR;
-				// }
 			}
 
 		}else{
@@ -1913,8 +1863,7 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
-						true,
-						false
+						true
 					)
 				);
 
@@ -2079,7 +2028,6 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
-						false,
 						false
 					)
 				);
@@ -2267,7 +2215,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					);
@@ -2475,7 +2422,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					);
@@ -2616,45 +2562,9 @@ namespace pcit::panther{
 			sema::Func& target_func = this->context.sema_buffer.funcs[target_func_id];
 
 
-			target_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(target_func_id);
+			target_func.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(target_func_id);
 
 			sema_to_pir.lowerFuncDefComptime(target_func_id);
-
-			///////////////////////////////////
-			// The following code commented code is for lowering directly to JIT
-			// I'm purposely keeping this here (at least for now)
-
-			// target_func.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-			// 	target_func_id, *target_func.comptimeJITFunc
-			// );
-
-
-			// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 2>{
-			// 	*target_func.comptimeJITFunc, *target_func.comptimeJITInterfaceFunc
-			// };
-
-			// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-			// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
-			// 		this->context.pir_module,
-			// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
-			// 	);
-
-			// if(add_module_subset_result.has_value() == false){
-			// 	auto infos = evo::SmallVector<Diagnostic::Info>();
-			// 	for(const std::string& error : add_module_subset_result.error()){
-			// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-			// 	}
-
-			// 	this->emit_fatal(
-			// 		
-			// 		this->symbol_proc.extra_info.as<SymbolProc::StructInfo>().struct_id,
-			// 		Diagnostic::createFatalMessage(
-			// 			"Failed to setup PIR JIT interface generated default operator [new]"
-			// 		),
-			// 		std::move(infos)
-			// 	);
-			// 	return evo::resultError;
-			// }
 
 			return evo::Result<>();
 		};
@@ -3623,8 +3533,7 @@ namespace pcit::panther{
 					.callingConvention = calling_conv,
 					.abi               = BaseType::Function::ABI::PANTHER,
 				},
-				!return_param_idents.empty(),
-				!error_param_idents.empty()
+				!return_param_idents.empty()
 			)
 		);
 
@@ -4569,8 +4478,7 @@ namespace pcit::panther{
 										evo::copy(created_func_type.returnTypes),
 										evo::copy(created_func_type.errorTypes),
 										created_func_type.attributes,
-										created_func_type.hasNamedReturns,
-										created_func_type.hasNamedErrorReturns
+										created_func_type.hasNamedReturns
 									)
 								);
 
@@ -5082,21 +4990,22 @@ namespace pcit::panther{
 		//////////////////
 		// prepare pir
 
-		if(func_type.attributes.isComptime){
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-			current_func.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(current_func_id);
+		current_func.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(current_func_id);
 
 
-			if(func_info.flipped_version.has_value()){
-				sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
+		if(func_info.flipped_version.has_value()){
+			sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
 
-				flipped_version.comptimeJITFunc = sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
-			}
-
-			this->propagate_finished_pir_decl();
+			flipped_version.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
 		}
 
+		this->propagate_finished_pir_decl();
+
+
+		//////////////////
+		// done
 
 		return Result::SUCCESS;
 	}
@@ -5243,7 +5152,7 @@ namespace pcit::panther{
 		}
 
 
-		if(func_type.hasNamedErrorReturns){
+		if(current_func.hasNamedErrors()){
 			// account for the RET param
 			if(func_type.returnsVoid() == false && func_type.hasNamedReturns == false){
 				abi_index += 1;
@@ -5430,70 +5339,8 @@ namespace pcit::panther{
 		){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
-			{
-				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-
-				
-				sema_to_pir.lowerFuncDefComptime(sema_func_id);
-
-
-				///////////////////////////////////
-				// The following code commented code is for lowering directly to JIT
-				// I'm purposely keeping this here (at least for now)
-
-				// const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-				// sema::Func& sema_func = this->context.sema_buffer.funcs[sema_func_id];
-
-				// const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
-				// auto module_subset_funcs = evo::StaticVector<pir::Function::ID, 4>();
-				// module_subset_funcs.emplace_back(*sema_func.comptimeJITFunc);
-
-
-				// // create jit interface if needed
-				// if(func_type.returnsVoid() == false && func_type.returnTypes.size() == 1){
-				// 	sema_func.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-				// 		sema_func_id, *sema_func.comptimeJITFunc
-				// 	);
-				// 	module_subset_funcs.emplace_back(*sema_func.comptimeJITInterfaceFunc);
-
-
-				// 	if(func_info.flipped_version.has_value()){
-				// 		sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
-
-				// 		sema_to_pir.lowerFuncDef(*func_info.flipped_version);
-				// 		module_subset_funcs.emplace_back(*flipped_version.comptimeJITFunc);
-
-				// 		flipped_version.comptimeJITInterfaceFunc = sema_to_pir.createFuncJITInterface(
-				// 			*func_info.flipped_version, *flipped_version.comptimeJITFunc
-				// 		);
-				// 		module_subset_funcs.emplace_back(*flipped_version.comptimeJITInterfaceFunc);
-				// 	}
-				// }
-
-
-				// const evo::Expected<void, evo::SmallVector<std::string>> add_module_subset_result = 
-				// 	this->context.comptime_jit_engine.addModuleSubsetWithWeakDependencies(
-				// 		this->context.pir_module,
-				// 		pir::JITEngine::ModuleSubsets{ .funcs = module_subset_funcs, }
-				// 	);
-
-				// if(add_module_subset_result.has_value() == false){
-				// 	auto infos = evo::SmallVector<Diagnostic::Info>();
-				// 	for(const std::string& error : add_module_subset_result.error()){
-				// 		infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-				// 	}
-
-				// 	this->emit_fatal(
-				// 		
-				// 		instr.func_def,
-				// 		Diagnostic::createFatalMessage("Failed to setup PIR JIT interface for comptime function"),
-				// 		std::move(infos)
-				// 	);
-				// 	return Result::ERROR;
-				// }
-			}
-
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerFuncDefComptime(sema_func_id);
 
 
 			bool any_waiting = false;
@@ -6994,7 +6841,7 @@ namespace pcit::panther{
 		}else if(instr.error_stmt.value.is<AST::Node>()){ // error {EXPRESSION};
 			evo::debugAssert(instr.value.has_value(), "error return value needs to have value analyzed");
 
-			if(current_func_type.hasNamedErrorReturns){
+			if(current_func.hasNamedErrors()){
 				this->emit_error(
 					"Incorrect error return statement kind for a function named error return parameters",
 					instr.error_stmt,
@@ -7028,7 +6875,7 @@ namespace pcit::panther{
 		}else{ // error...;
 			evo::debugAssert(instr.error_stmt.value.is<Token::ID>(), "Unknown return kind");
 
-			if(current_func_type.hasNamedErrorReturns == false){
+			if(current_func.hasNamedErrors() == false){
 				this->emit_error(
 					"Incorrect error return statement kind for single unnamed error return parameters",
 					instr.error_stmt,
@@ -14710,6 +14557,47 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+
+			SymbolProc& target_func_symbol_proc = 
+				this->context.symbol_proc_manager.getSymbolProc(*target_func.symbolProcID);
+
+			const SymbolProc::WaitOnResult wait_on_result = [&]() -> SymbolProc::WaitOnResult {
+				if constexpr(IS_COMPTIME){
+					return target_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+				}else{
+					const BaseType::Function& func_type =
+						this->context.getTypeManager().getFunction(target_func.typeID);
+
+					if(func_type.attributes.isComptime){
+						return target_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+					}else{
+						return target_func_symbol_proc.waitOnPIRDeclIfNeeded(this->symbol_proc.getID(), this->context);
+					}
+				}
+			}();
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*target_func.symbolProcID);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:
+					return Result::NEED_TO_WAIT;
+
+				case SymbolProc::WaitOnResult::WAS_ERRORED:
+					return Result::ERROR;
+
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+					evo::debugFatalBreak("Shouldn't be possible");
+
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+					evo::debugFatalBreak("Shouldn't be possible");
+			}
+
+
+
 			target_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
 				TypeInfo(BaseType::ID(target_func.typeID))
 			);
@@ -21201,6 +21089,127 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_func_type(const Instruction::FuncType& instr) -> Result {
+		auto params = evo::SmallVector<BaseType::Function::Param>();
+		for(size_t i = 0; i < instr.func_type.params.size(); i+=1){
+			bool should_copy = false;
+
+			const TypeInfo::ID param_type_id = this->get_type(instr.types[i]).asTypeID();
+
+			const BaseType::Function::Param::Kind param_kind = [&]() -> BaseType::Function::Param::Kind {
+				switch(instr.func_type.params[i].kind){
+					case AST::FuncType::Param::Kind::READ: {
+						if(
+							this->context.getTypeManager().isTriviallyCopyable(param_type_id)
+							&& this->context.getTypeManager().isTriviallySized(param_type_id)
+						){
+							should_copy = true;
+						}
+
+						return BaseType::Function::Param::Kind::READ;
+					} break;
+
+					case AST::FuncType::Param::Kind::MUT:  return BaseType::Function::Param::Kind::MUT;
+					case AST::FuncType::Param::Kind::IN:   return BaseType::Function::Param::Kind::IN;
+				}
+				evo::debugFatalBreak("Unknown param kind");
+			}();
+
+			params.emplace_back(param_type_id, param_kind, should_copy);
+		}
+
+
+		const evo::Expected<FuncTypeAttrs, Result> func_type_attrs =
+			this->analyze_func_type_attrs(instr.func_type, instr.attribute_params_info);
+		if(func_type_attrs.has_value() == false){ return func_type_attrs.error(); }
+
+
+		auto return_types = evo::SmallVector<TypeInfo::VoidableID>();
+		for(size_t i = 0; i < instr.func_type.returnTypes.size(); i+=1){
+			const TypeInfo::VoidableID type_id = this->get_type(instr.types[i + params.size()]);
+
+			if(type_id.isVoid()){
+				if(i == 0){
+					if(instr.func_type.hasNamedReturns){
+						this->emit_error(
+							"A function return parameter that is type `Void` cannot be named",
+							instr.func_type.returnTypes[i]
+						);
+						return Result::ERROR;
+					}
+				}else{
+					this->emit_error(
+						"Only the first function return parameter can be type `Void`", instr.func_type.returnTypes[i]
+					);
+					return Result::ERROR;
+				}
+			}
+
+			return_types.emplace_back(type_id);
+		}
+
+
+		auto error_types = evo::SmallVector<TypeInfo::VoidableID>();
+		for(size_t i = 0; i < instr.func_type.errorTypes.size(); i+=1){
+			const TypeInfo::VoidableID type_id = this->get_type(instr.types[i + params.size() + return_types.size()]);
+
+			if(type_id.isVoid()){
+				if(i == 0){
+					if(instr.func_type.errorTypes.size() != 1){
+						this->emit_error(
+							"A function error return parameter that is type `Void` cannot be named",
+							instr.func_type.errorTypes[i]
+						);
+						return Result::ERROR;
+					}
+				}else{
+					this->emit_error(
+						"Only the first function error return parameter can be type `Void`",
+						instr.func_type.errorTypes[i]
+					);
+					return Result::ERROR;
+				}
+			}
+
+			error_types.emplace_back(type_id);
+		}
+
+
+		const pir::CallingConvention calling_conv = [&]() -> pir::CallingConvention {
+			if(func_type_attrs.value().call_conv.has_value()){
+				return static_cast<pir::CallingConvention>(*func_type_attrs.value().call_conv);
+			}else{
+				return pir::CallingConvention::DEFAULT;	
+			}
+		}();
+
+		const BaseType::ID func_type_id = this->context.type_manager.getOrCreateFunction(
+			BaseType::Function(
+				std::move(params),
+				std::move(return_types),
+				std::move(error_types),
+				BaseType::Function::Attributes{
+					.isComptime        = !func_type_attrs.value().is_runtime,
+					.isRuntime         = true,
+					.isUnsafe          = func_type_attrs.value().is_unsafe,
+					.isNoReturn        = func_type_attrs.value().is_no_return,
+					.callingConvention = calling_conv,
+					.abi               = BaseType::Function::ABI::PANTHER,
+				},
+				instr.func_type.hasNamedReturns
+			)
+		);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::TYPE,
+			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(func_type_id)))
+		);
+
+		return Result::SUCCESS;
+	}
+
+
+
 
 	auto SemanticAnalyzer::instr_interface_map(const Instruction::InterfaceMap& instr) -> Result {
 		const TypeInfo::VoidableID got_interface_type_id = this->get_type(instr.interface);
@@ -22462,7 +22471,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23217,7 +23225,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23263,7 +23270,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23312,7 +23318,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23387,7 +23392,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23433,7 +23437,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -23483,7 +23486,6 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
-							false,
 							false
 						)
 					)
@@ -24353,7 +24355,7 @@ namespace pcit::panther{
 
 
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.comptime_execution_engine.runFunction(*target_func.comptimeJITFunc, actual_args);
+			this->context.comptime_execution_engine.runFunction(*target_func.comptimePIRFunc, actual_args);
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -27011,14 +27013,18 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::EPHEMERAL:    case TermInfo::ValueCategory::CONCRETE_CONST:
 			case TermInfo::ValueCategory::CONCRETE_MUT: case TermInfo::ValueCategory::FORWARDABLE: {
 				const TypeInfo::ID type_info_id = target_term_info.type_id.as<TypeInfo::ID>();
-				const TypeInfo& type_info = type_manager.getTypeInfo(type_info_id);
 
-				if(type_info.baseTypeID().kind() != BaseType::Kind::FUNCTION){
+				const TypeInfo::ID decayed_type_info_id =
+					this->context.getTypeManager().decayType<true, false>(type_info_id);
+
+				const TypeInfo& decayed_type_info = type_manager.getTypeInfo(decayed_type_info_id);
+
+				if(decayed_type_info.baseTypeID().kind() != BaseType::Kind::FUNCTION){
 					this->emit_error("Cannot call expression like a function", func_call.target);
 					return evo::Unexpected(Result::ERROR);
 				}
 
-				const BaseType::Function& func_type = type_manager.getFunction(type_info.baseTypeID().funcID());
+				const BaseType::Function& func_type = type_manager.getFunction(decayed_type_info.baseTypeID().funcID());
 
 				func_infos.emplace_back(SelectFuncOverloadFuncInfo::FuncPtrFlag{}, func_type);
 			} break;
@@ -28319,7 +28325,23 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				evo::unimplemented("generic_value_to_sema_expr - BaseType::Kind::FUNCTION");
+				void* const extracted_func_ptr = value.getPtr<void*>();
+
+				const std::optional<pir::Function::ID> pir_func_id =
+					this->context.comptime_execution_engine.lookupFunction(extracted_func_ptr);
+				if(pir_func_id.has_value() == false){
+					this->emit_error("Comptime function pointer is not a valid", location);
+					return evo::resultError;
+				}
+
+				const std::optional<sema::Func::ID> sema_func_lookup =
+					this->context.sema_to_pir_data.lookupFuncPtr(*pir_func_id);
+				if(sema_func_lookup.has_value() == false){
+					this->emit_error("Comptime function pointer is not a valid", location);
+					return evo::resultError;	
+				}
+
+				return sema::Expr(this->context.sema_buffer.createFuncPtr(*sema_func_lookup));
 			} break;
 
 			case BaseType::Kind::ARRAY: {
@@ -31384,7 +31406,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_func_attrs(
-		const AST::FuncDef& func_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+		const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
@@ -31403,7 +31425,7 @@ namespace pcit::panther{
 
 
 		const AST::AttributeBlock& attribute_block = 
-			this->source.getASTBuffer().getAttributeBlock(func_decl.attributeBlock);
+			this->source.getASTBuffer().getAttributeBlock(func_def.attributeBlock);
 
 		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
 			EVO_DEFER([&](){ i += 1; });
@@ -31673,7 +31695,7 @@ namespace pcit::panther{
 					if(attribute_params_info[i].size() == 0){
 						this->emit_error("Attribute #callConv requires a calling convention", attribute.args.front());
 					}else{
-						this->emit_error("Unknown argument in Attribute #callConv", attribute.args[1]);
+						this->emit_error("Unknown argument in attribute #callConv", attribute.args[1]);
 					}
 					return evo::Unexpected(Result::ERROR);
 				}
@@ -31722,6 +31744,147 @@ namespace pcit::panther{
 			.is_commutative = attr_commutative.is_set(),
 			.is_swapped     = attr_swapped.is_set(),
 			.is_implicit    = attr_implicit.is_set(),
+			.call_conv      = call_conv,
+		};
+	}
+
+
+
+	auto SemanticAnalyzer::analyze_func_type_attrs(
+		const AST::FuncType& func_type, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Expected<FuncTypeAttrs, Result> {
+		auto attr_rt = ConditionalAttribute(*this, "rt");
+		auto attr_unsafe = ConditionalAttribute(*this, "unsafe");
+		auto attr_no_return = Attribute(*this, "noReturn");
+
+		auto attr_call_conv = Attribute(*this, "callConv");
+		auto call_conv = std::optional<uint32_t>();
+
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(func_type.attributeBlock);
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "rt"){
+				if(attribute_params_info[i].empty()){
+					if(attr_rt.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #rt",
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+					}
+
+					const bool rt_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::Unexpected(Result::ERROR); }
+
+				}else{
+					this->emit_error("Attribute #rt does not accept more than 1 argument", attribute.args[1]);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+			}else if(attribute_str == "unsafe"){
+				if(attribute_params_info[i].empty()){
+					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #unsafe",
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+					}
+
+					const bool unsafe_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_unsafe.set(attribute.attribute, unsafe_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
+
+				}else{
+					this->emit_error("Attribute #unsafe does not accept more than 1 argument", attribute.args[1]);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+			}else if(attribute_str == "noReturn"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #noReturn does not accept any arguments", attribute.args.front());
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_no_return.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
+			}else if(attribute_str == "callConv"){
+				if(attribute_params_info[i].size() != 1){
+					if(attribute_params_info[i].size() == 0){
+						this->emit_error("Attribute #callConv requires a calling convention", attribute.args.front());
+					}else{
+						this->emit_error("Unknown argument in attribute #callConv", attribute.args[1]);
+					}
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				TermInfo& calling_conv_term_info = this->get_term_info(attribute_params_info[i][0]);
+				if(this->check_term_isnt_type(calling_conv_term_info, attribute.args[0]).isError()){
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+				const TypeInfo::ID calling_conv_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(builtin_module_pthr.getSymbol("CallingConvention")->as<BaseType::ID>())
+				);
+
+				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+					calling_conv_type_id,
+					calling_conv_term_info,
+					"Calling convention in #callConv",
+					this->get_location(attribute.args[0])
+				);
+				if(type_check_info.ok == false){
+					return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+				}
+
+				call_conv = static_cast<uint32_t>(
+					sema::exprToGenericValue(calling_conv_term_info.getExpr(), this->context).getInt(32)
+				);
+
+				if(attr_call_conv.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
+			}else{
+				this->emit_error(std::format("Unknown function type attribute #{}", attribute_str), attribute.attribute);
+				return evo::Unexpected(Result::ERROR);
+			}
+		}
+
+		return FuncTypeAttrs{
+			.is_runtime     = attr_rt.is_set(),
+			.is_unsafe      = attr_unsafe.is_set(),
+			.is_no_return   = attr_no_return.is_set(),
 			.call_conv      = call_conv,
 		};
 	}
@@ -32663,6 +32826,52 @@ namespace pcit::panther{
 								}
 							}
 						}
+
+
+						if(expected_type.baseTypeID().kind() == BaseType::Kind::FUNCTION){
+							if(got_type.baseTypeID().kind() != BaseType::Kind::FUNCTION){
+								return TypeCheckInfo::fail();
+							}
+
+							const BaseType::Function& expected_func =
+								this->context.getTypeManager().getFunction(expected_type.baseTypeID().funcID());
+
+							const BaseType::Function& got_func =
+								this->context.getTypeManager().getFunction(got_type.baseTypeID().funcID());
+
+							if(expected_func.params != got_func.params){ return TypeCheckInfo::fail(); }
+							if(expected_func.returnTypes != got_func.returnTypes){ return TypeCheckInfo::fail(); }
+							if(expected_func.errorTypes != got_func.errorTypes){ return TypeCheckInfo::fail(); }
+							if(expected_func.hasNamedReturns != got_func.hasNamedReturns){
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_func.attributes.isComptime && got_func.attributes.isComptime == false){
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_func.attributes.isRuntime && got_func.attributes.isRuntime == false){
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_func.attributes.isUnsafe && got_func.attributes.isUnsafe == false){
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_func.attributes.callingConvention != got_func.attributes.callingConvention){
+								return TypeCheckInfo::fail();
+							}
+
+							if(expected_func.attributes.abi != got_func.attributes.abi){ return TypeCheckInfo::fail(); }
+
+
+							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+								got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+							}
+
+							return TypeCheckInfo::success(true);
+						}
+
 
 						if(
 							expected_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF

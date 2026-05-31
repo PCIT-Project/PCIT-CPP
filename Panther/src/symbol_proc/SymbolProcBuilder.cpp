@@ -554,20 +554,20 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:              case AST::Kind::ERROR:            case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:           case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:               case AST::Kind::FOR:              case AST::Kind::SWITCH:
-			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:
-			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:              case AST::Kind::INFIX:            case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:              case AST::Kind::ARRAY_INIT_NEW:
-			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:         case AST::Kind::UNSAFE:
-			case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:       case AST::Kind::INTERFACE_MAP:
-			case AST::Kind::TYPE:                case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
-			case AST::Kind::ATTRIBUTE:           case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
-			case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:        case AST::Kind::LITERAL:
-			case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:         case AST::Kind::THIS:
-			case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:         case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:        case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:           case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:   case AST::Kind::BLOCK:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:         case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:      case AST::Kind::UNSAFE:
+			case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:    case AST::Kind::FUNC_TYPE:
+			case AST::Kind::INTERFACE_MAP:       case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER:
+			case AST::Kind::ATTRIBUTE_BLOCK:     case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:
+			case AST::Kind::IDENT:               case AST::Kind::TYPE_THIS:     case AST::Kind::INTRINSIC:
+			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:        case AST::Kind::ZEROINIT:
+			case AST::Kind::THIS:                case AST::Kind::DISCARD: {
 				this->context.emitError("Invalid global statement", Diagnostic::Location::get(stmt, this->source));
 				return evo::resultError;
 			};
@@ -976,6 +976,22 @@ namespace pcit::panther{
 
 							if(array_type.terminator.has_value()){
 								terms_to_check_for_deducers.emplace(*array_type.terminator);
+							}
+						} break;
+
+						case AST::Kind::FUNC_TYPE: {
+							const AST::FuncType& func_type = this->source.getASTBuffer().getFuncType(target_term);
+
+							for(const AST::FuncType::Param& func_type_param : func_type.params){
+								terms_to_check_for_deducers.emplace(func_type_param.type);
+							}
+
+							for(const AST::Node& ret_type : func_type.returnTypes){
+								terms_to_check_for_deducers.emplace(ret_type);
+							}
+
+							for(const AST::Node& err_type : func_type.errorTypes){
+								terms_to_check_for_deducers.emplace(err_type);
 							}
 						} break;
 
@@ -1768,7 +1784,7 @@ namespace pcit::panther{
 
 
 				if(array_type.refIsMut.has_value()){ // array ref
-					auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
+					auto dimensions = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 					dimensions.reserve(array_type.dimensions.size());
 					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
 						if(dimension.has_value()){
@@ -1872,6 +1888,56 @@ namespace pcit::panther{
 					);
 					return new_term_info_id;
 				}
+			} break;
+
+			case AST::Kind::FUNC_TYPE: {
+				const AST::FuncType& func_type = ast_buffer.getFuncType(ast_type_base);
+					
+				auto types = evo::SmallVector<SymbolProc::TypeID>();
+				types.reserve(func_type.params.size() + func_type.returnTypes.size() + func_type.errorTypes.size());
+
+
+				for(const AST::FuncType::Param& param : func_type.params){
+					const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(param.type)
+					);
+
+					if(param_type.isError()){ return evo::resultError; }
+					types.emplace_back(param_type.value());
+				}
+
+				evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = 
+					this->analyze_attributes(this->source.getASTBuffer().getAttributeBlock(func_type.attributeBlock));
+
+				if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+				for(const AST::Node& type : func_type.returnTypes){
+					const evo::Result<SymbolProc::TypeID> ret_type = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(type)
+					);
+
+					if(ret_type.isError()){ return evo::resultError; }
+					types.emplace_back(ret_type.value());
+				}
+
+				for(const AST::Node& type : func_type.errorTypes){
+					const evo::Result<SymbolProc::TypeID> err_type = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(type)
+					);
+
+					if(err_type.isError()){ return evo::resultError; }
+					types.emplace_back(err_type.value());
+				}
+
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				this->add_instruction(
+					this->context.symbol_proc_manager.createFuncType(
+						func_type, std::move(types), std::move(attribute_params_info.value()), new_term_info_id
+					)
+				);
+				return new_term_info_id;
 			} break;
 
 			case AST::Kind::INTERFACE_MAP: {
@@ -2074,6 +2140,7 @@ namespace pcit::panther{
 			case AST::Kind::UNSAFE:                 return this->analyze_unsafe(ast_buffer.getUnsafe(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
+			case AST::Kind::FUNC_TYPE:              evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::INTERFACE_MAP:          evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPE:                   evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TYPEID_CONVERTER:       evo::debugFatalBreak("Invalid statment");
@@ -3032,7 +3099,7 @@ namespace pcit::panther{
 
 
 					if(array_type.refIsMut.has_value()){ // array ref
-						auto dimensions = evo::SmallVector<std::optional<SymbolProcTermInfoID>>();
+						auto dimensions = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
 						dimensions.reserve(array_type.dimensions.size());
 						for(const std::optional<AST::Node>& dimension : array_type.dimensions){
 							if(dimension.has_value()){
@@ -3094,8 +3161,61 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case AST::Kind::FUNC_TYPE: {
+					const AST::FuncType& func_type = ast_buffer.getFuncType(expr);
+						
+					auto types = evo::SmallVector<SymbolProc::TypeID>();
+					types.reserve(func_type.params.size() + func_type.returnTypes.size() + func_type.errorTypes.size());
+
+
+					for(const AST::FuncType::Param& param : func_type.params){
+						const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<true>(
+							this->source.getASTBuffer().getType(param.type)
+						);
+
+						if(param_type.isError()){ return evo::resultError; }
+						types.emplace_back(param_type.value());
+					}
+
+					evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = 
+						this->analyze_attributes(
+							this->source.getASTBuffer().getAttributeBlock(func_type.attributeBlock)
+						);
+
+					if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+					for(const AST::Node& type : func_type.returnTypes){
+						const evo::Result<SymbolProc::TypeID> ret_type = this->analyze_type<true>(
+							this->source.getASTBuffer().getType(type)
+						);
+
+						if(ret_type.isError()){ return evo::resultError; }
+						types.emplace_back(ret_type.value());
+					}
+
+					for(const AST::Node& type : func_type.errorTypes){
+						const evo::Result<SymbolProc::TypeID> err_type = this->analyze_type<true>(
+							this->source.getASTBuffer().getType(type)
+						);
+
+						if(err_type.isError()){ return evo::resultError; }
+						types.emplace_back(err_type.value());
+					}
+
+
+					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createFuncType(
+							func_type, std::move(types), std::move(attribute_params_info.value()), new_term_info_id
+						)
+					);
+					return new_term_info_id;
+				} break;
+
 				case AST::Kind::TYPE: {
 					if constexpr(MUST_BE_EXPR){
+						evo::breakpoint();
 						this->emit_error("Type used as expression", expr);
 						return evo::resultError;
 					}else{
@@ -4415,6 +4535,24 @@ namespace pcit::panther{
 				return array_type.terminator.has_value() && array_type.terminator->kind() == AST::Kind::DEDUCER;
 			} break;
 
+			case AST::Kind::FUNC_TYPE: {
+				const AST::FuncType& func_type = this->source.getASTBuffer().getFuncType(node);
+
+				for(const AST::FuncType::Param& param : func_type.params){
+					if(this->is_deducer(param.type)){ return true; }
+				}
+
+				for(const AST::Node& ret_type : func_type.returnTypes){
+					if(this->is_deducer(ret_type)){ return true; }
+				}
+
+				for(const AST::Node& err_type : func_type.errorTypes){
+					if(this->is_deducer(err_type)){ return true; }
+				}
+
+				return false;
+			} break;
+
 			case AST::Kind::TEMPLATED_EXPR: {
 				const AST::TemplatedExpr& templated_expr = this->source.getASTBuffer().getTemplatedExpr(node);
 
@@ -4463,6 +4601,24 @@ namespace pcit::panther{
 				}
 
 				return array_type.terminator.has_value() && this->is_named_deducer(*array_type.terminator);
+			} break;
+
+			case AST::Kind::FUNC_TYPE: {
+				const AST::FuncType& func_type = this->source.getASTBuffer().getFuncType(node);
+
+				for(const AST::FuncType::Param& param : func_type.params){
+					if(this->is_named_deducer(param.type)){ return true; }
+				}
+
+				for(const AST::Node& ret_type : func_type.returnTypes){
+					if(this->is_named_deducer(ret_type)){ return true; }
+				}
+
+				for(const AST::Node& err_type : func_type.errorTypes){
+					if(this->is_named_deducer(err_type)){ return true; }
+				}
+
+				return false;
 			} break;
 
 			case AST::Kind::TEMPLATED_EXPR: {
@@ -4528,6 +4684,37 @@ namespace pcit::panther{
 
 				if(array_type.terminator.has_value()){
 					extracted = this->extract_deducer_names(*array_type.terminator);
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
+				}
+			} break;
+
+			case AST::Kind::FUNC_TYPE: {
+				const AST::FuncType& func_type = this->source.getASTBuffer().getFuncType(node);
+
+				for(const AST::FuncType::Param& param : func_type.params){
+					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(param.type);
+
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
+				}
+
+				for(const AST::Node& ret_type : func_type.returnTypes){
+					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(ret_type);
+
+					output.reserve(std::bit_ceil(output.size() + extracted.size()));
+					for(const std::string_view& extracted_str : extracted){
+						output.emplace_back(extracted_str);
+					}
+				}
+
+				for(const AST::Node& err_type : func_type.errorTypes){
+					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(err_type);
+
 					output.reserve(std::bit_ceil(output.size() + extracted.size()));
 					for(const std::string_view& extracted_str : extracted){
 						output.emplace_back(extracted_str);

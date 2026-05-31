@@ -370,8 +370,94 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::FUNCTION: {
-				// TODO(FUTURE): fix this
-				return "{FUNCTION}";
+				const BaseType::Function& func_type = this->getFunction(base_type_id.funcID());
+
+				std::string output = "func(";
+
+				for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
+					output += this->printType(param.typeID, context);
+
+					switch(param.kind){
+						break; case BaseType::Function::Param::Kind::READ: output += " read";
+						break; case BaseType::Function::Param::Kind::MUT: output += " mut";
+						break; case BaseType::Function::Param::Kind::IN: output += " in";
+						break; case BaseType::Function::Param::Kind::C: output += " c";
+					}
+
+					if(i + 1 < func_type.params.size()){ output += ", "; }
+				
+					i += 1;
+				}
+
+				output += ')';
+
+				
+				if(func_type.attributes.isComptime){
+					if(func_type.attributes.isRuntime){
+						// no printing
+					}else{
+						evo::debugFatalBreak("Not valid");
+					}
+
+				}else{
+					if(func_type.attributes.isRuntime){
+						output += " #rt";
+					}else{
+						evo::debugFatalBreak("Not valid");
+					}
+				}
+
+				if(func_type.attributes.isUnsafe){
+					output += " #unsafe";
+				}
+
+				if(func_type.attributes.isNoReturn){
+					output += " #noReturn";
+				}
+
+				switch(func_type.attributes.callingConvention){
+					break; case pir::CallingConvention::FAST: // no printing
+					break; case pir::CallingConvention::COLD:   output += " #callConv(@pthr.CallingConvention.COLD)";
+					break; case pir::CallingConvention::C:      output += " #callConv(@pthr.CallingConvention.C)";
+					break; case pir::CallingConvention::WIN_API:output += " #callConv(@pthr.CallingConvention.WIN_API)";
+				}
+
+
+				output += " -> ";
+
+				if(func_type.hasNamedReturns){
+					output += '(';
+
+					for(size_t i = 0; const TypeInfo::VoidableID& ret_type : func_type.returnTypes){
+						output += this->printType(ret_type, context); 
+
+						if(i + 1 < func_type.params.size()){ output += ", "; }
+					
+						i += 1;
+					}
+
+					output += ')';
+
+				}else{
+					output += this->printType(func_type.returnTypes[0], context);
+				}
+
+
+				if(func_type.errorTypes.empty() == false){
+					output += " <";
+
+					for(size_t i = 0; const TypeInfo::VoidableID& err_type : func_type.errorTypes){
+						output += this->printType(err_type, context); 
+
+						if(i + 1 < func_type.params.size()){ output += ", "; }
+					
+						i += 1;
+					}
+
+					output += '>';
+				}
+
+				return output;
 			} break;
 
 			case BaseType::Kind::ARRAY: {

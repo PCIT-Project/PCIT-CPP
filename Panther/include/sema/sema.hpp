@@ -683,7 +683,7 @@ namespace pcit::panther::sema{
 		bool isPriv;
 		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
 
-		std::optional<pir::GlobalVar::ID> comptimeJITGlobal{};
+		std::optional<pir::GlobalVar::ID> comptimePIRGlobal{};
 
 		[[nodiscard]] auto isCFamilyVar() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 		[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
@@ -748,7 +748,7 @@ namespace pcit::panther::sema{
 
 		std::atomic<Status> status = Status::NOT_DONE;
 
-		std::optional<pir::Function::ID> comptimeJITFunc{};
+		std::optional<pir::Function::ID> comptimePIRFunc{};
 
 		[[nodiscard]] auto isSrcFunc() const -> bool { return this->sourceID.is<SourceID>(); }
 		[[nodiscard]] auto isCFamilyFunc() const -> bool { return this->sourceID.is<CFamilySourceID>(); }

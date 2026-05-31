@@ -1011,6 +1011,14 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+
+		struct FuncType{
+			const AST::FuncType& func_type;
+			evo::SmallVector<SymbolProcTypeID> types;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTermInfoID output;
+		};
+
 		struct InterfaceMap{
 			const AST::InterfaceMap& interface_map;
 			std::optional<SymbolProcTypeID> base_type; // nullopt if polymorphic
@@ -1270,6 +1278,7 @@ namespace pcit::panther{
 			PRIMITIVE_TYPE_TERM,
 			ARRAY_TYPE,
 			ARRAY_REF,
+			FUNC_TYPE,
 			INTERFACE_MAP,
 			TYPE_ID_CONVERTER,
 			QUALIFIED_TYPE,

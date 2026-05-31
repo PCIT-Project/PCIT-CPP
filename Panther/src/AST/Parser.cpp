@@ -1831,7 +1831,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_RAWPTR:        case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:
 			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
 			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG: 
 			case Token::Kind::TYPE_C_LONG_DOUBLE:
 				break;
 
@@ -1859,25 +1859,14 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case Token::Kind::IDENT: case Token::Kind::INTRINSIC: {
+			case Token::Kind::IDENT:        case Token::Kind::INTRINSIC:    case Token::lookupKind("["):
+			case Token::Kind::KEYWORD_FUNC: case Token::Kind::KEYWORD_IMPL: case Token::Kind::TYPE_THIS: {
 				is_primitive = false;
 			} break;
 
 			case Token::Kind::DEDUCER: case Token::Kind::ANONYMOUS_DEDUCER: {
 				is_primitive = false;
 				is_type_deducer = true;
-			} break;
-
-			case Token::lookupKind("["): {
-				is_primitive = false;
-			} break;
-
-			case Token::Kind::KEYWORD_IMPL: {
-				is_primitive = false;
-			} break;
-
-			case Token::Kind::TYPE_THIS: {
-				is_primitive = false;
 			} break;
 
 			default: return Result::Code::WRONG_TYPE;
@@ -2186,6 +2175,173 @@ namespace pcit::panther{
 						)
 					);
 				}
+
+			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_FUNC){
+				if(this->assert_token(Token::Kind::KEYWORD_FUNC).isError()){ return Result(Result::Code::ERROR); }
+
+				if(this->expect_token(Token::lookupKind("("), "parameter type list in function type").isError()){
+					return Result(Result::Code::ERROR);
+				}
+
+				auto params = evo::SmallVector<AST::FuncType::Param>();
+				while(true){
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+						if(this->assert_token(Token::lookupKind(")")).isError()){ return Result(Result::Code::ERROR); }
+						break;
+					}
+
+
+					const Result param_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+					if(this->check_result(param_type, "parameter type in function type").isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+
+					auto param_kind = std::optional<AST::FuncType::Param::Kind>();
+					switch(this->reader[this->reader.peek()].kind()){
+						case Token::Kind::KEYWORD_READ: {
+							this->reader.skip();
+							param_kind = AST::FuncType::Param::Kind::READ;
+						} break;
+
+						case Token::Kind::KEYWORD_MUT: {
+							this->reader.skip();
+							param_kind = AST::FuncType::Param::Kind::MUT;
+						} break;
+
+						case Token::Kind::KEYWORD_IN: {
+							this->reader.skip();
+							param_kind = AST::FuncType::Param::Kind::IN;
+						} break;
+
+						default: {
+							param_kind = AST::FuncType::Param::Kind::READ;
+						} break;
+					}
+
+					params.emplace_back(param_type.value(), *param_kind);
+
+
+					// check if ending or should continue
+					const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
+					if(after_param_next_token_kind != Token::lookupKind(",")){
+						if(after_param_next_token_kind != Token::lookupKind(")")){
+							this->expected_but_got(
+								"[,] at end of function type parameter or [)] at end of function type parameters block",
+								this->reader.peek(-1)
+							);
+							return Result(Result::Code::ERROR);
+						}
+
+						break;
+					}
+				}
+
+				const Result attributes = this->parse_attribute_block();
+				if(attributes.code() == Result::Code::ERROR){ return Result(Result::Code::ERROR); }
+
+				if(this->expect_token(Token::lookupKind("->"), "before return type(s) of function type").isError()){
+					return Result(Result::Code::ERROR);
+				}
+
+
+				auto return_types = evo::SmallVector<AST::Node>();
+				bool has_named_returns = false;
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+					this->reader.skip();
+					has_named_returns = true;
+
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+							if(this->assert_token(Token::lookupKind(")")).isError()){
+								return Result(Result::Code::ERROR);
+							}
+							break;
+						}
+
+
+						const Result return_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+						if(this->check_result(return_type, "parameter type in function type").isError()){
+							return Result(Result::Code::ERROR);
+						}
+
+						return_types.emplace_back(return_type.value());
+
+
+						// check if ending or should continue
+						const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_param_next_token_kind != Token::lookupKind(",")){
+							if(after_param_next_token_kind != Token::lookupKind(")")){
+								this->expected_but_got(
+									"[,] at end of function type return type "
+										"or [)] at end of function type return types",
+									this->reader.peek(-1)
+								);
+								return Result(Result::Code::ERROR);
+							}
+
+							break;
+						}
+					}
+
+				}else{
+					const Result ret_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+					if(this->check_result(ret_type, "return type in function type").isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+					return_types.emplace_back(ret_type.value());
+				}
+
+
+
+				auto error_types = evo::SmallVector<AST::Node>();
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+					this->reader.skip();
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+							if(this->assert_token(Token::lookupKind(">")).isError()){
+								return Result(Result::Code::ERROR);
+							}
+							break;
+						}
+
+
+						const Result error_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+						if(this->check_result(error_type, "error type in function type").isError()){
+							return Result(Result::Code::ERROR);
+						}
+
+						error_types.emplace_back(error_type.value());
+
+
+						// check if ending or should continue
+						const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_param_next_token_kind != Token::lookupKind(",")){
+							if(after_param_next_token_kind != Token::lookupKind(">")){
+								this->expected_but_got(
+									"[,] at end of function type error type "
+										"or [>] at end of function type error types",
+									this->reader.peek(-1)
+								);
+								return Result(Result::Code::ERROR);
+							}
+
+							break;
+						}
+					}
+				}
+
+				return Result(
+					this->source.ast_buffer.createFuncType(
+						start_location,
+						std::move(params),
+						attributes.value(),
+						std::move(return_types),
+						std::move(error_types),
+						has_named_returns
+					)
+				);
 
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_IMPL){
 				if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result(Result::Code::ERROR); }

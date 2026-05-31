@@ -74,6 +74,7 @@ namespace pcit::panther{
 			case AST::Kind::UNSAFE:            return Location::get(ast_buffer.getUnsafe(node), src);
 			case AST::Kind::DEDUCER:           return Location::get(ast_buffer.getDeducer(node), src);
 			case AST::Kind::ARRAY_TYPE:        return Location::get(ast_buffer.getArrayType(node), src);
+			case AST::Kind::FUNC_TYPE:         return Location::get(ast_buffer.getFuncType(node), src);
 			case AST::Kind::INTERFACE_MAP:     return Location::get(ast_buffer.getInterfaceMap(node), src);
 			case AST::Kind::TYPE:              return Location::get(ast_buffer.getType(node), src);
 			case AST::Kind::TYPEID_CONVERTER:  return Location::get(ast_buffer.getTypeIDConverter(node), src);
@@ -251,6 +252,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::ArrayType& type, const Source& src) -> Location {
 		return Location::get(type.openBracket, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::FuncType& type, const Source& src) -> Location {
+		return Location::get(type.funcKeyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::InterfaceMap& type, const Source& src) -> Location {

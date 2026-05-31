@@ -2835,6 +2835,22 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// FuncType
+
+			[[nodiscard]] auto createFuncType(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FUNC_TYPE,
+					this->func_types.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getFuncType(Instruction instr) const -> const Instruction::FuncType& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_TYPE, "Not a FuncType");
+				return this->func_types[instr._index];
+			}
+
+
 
 			//////////////////
 			// InterfaceMap
@@ -3399,6 +3415,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::PrimitiveTypeTerm, uint32_t> primitive_type_terms{};
 			core::SyncLinearStepAlloc<Instruction::ArrayType, uint32_t> array_types{};
 			core::SyncLinearStepAlloc<Instruction::ArrayRef, uint32_t> array_refs{};
+			core::SyncLinearStepAlloc<Instruction::FuncType, uint32_t> func_types{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceMap, uint32_t> interface_maps{};
 			core::SyncLinearStepAlloc<Instruction::TypeIDConverter, uint32_t> type_id_converters{};
 			core::SyncLinearStepAlloc<Instruction::QualifiedType, uint32_t> qualified_types{};

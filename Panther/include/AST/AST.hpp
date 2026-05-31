@@ -69,6 +69,7 @@ namespace pcit::panther::AST{
 		UNSAFE,
 
 		ARRAY_TYPE,
+		FUNC_TYPE,
 		INTERFACE_MAP,
 		TYPE,
 		TYPEID_CONVERTER,
@@ -473,6 +474,26 @@ namespace pcit::panther::AST{
 		evo::SmallVector<std::optional<Node>> dimensions; // element is nullopt if dimension is ptr
 		std::optional<Node> terminator;
 		std::optional<bool> refIsMut; // only has value if is array ref
+	};
+
+	struct FuncType{
+		struct Param{
+			enum class Kind : uint8_t {
+				READ,
+				MUT,
+				IN,
+			};
+			
+			Node type; // no type given if ident is `this`
+			Kind kind;
+		};
+
+		Token::ID funcKeyword;
+		evo::SmallVector<Param> params;
+		Node attributeBlock;
+		evo::SmallVector<Node> returnTypes;
+		evo::SmallVector<Node> errorTypes;
+		bool hasNamedReturns;
 	};
 
 	struct InterfaceMap{

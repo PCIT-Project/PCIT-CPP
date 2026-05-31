@@ -135,6 +135,13 @@ namespace pcit::panther{
 			[[nodiscard]] auto lookupVTable(pir::GlobalVar::ID id) const -> std::optional<VTableID>;
 			[[nodiscard]] auto lookupSingleMethodVTable(pir::Function::ID id) const -> std::optional<VTableID>;
 
+			[[nodiscard]] auto lookupFuncPtr(pir::Function::ID id) const -> std::optional<sema::Func::ID> {
+				const auto lock = std::scoped_lock(this->func_ptr_map_lock);
+				const auto find = this->func_ptr_map.find(id);
+				if(find != this->func_ptr_map.end()){ return find->second; }
+				return std::nullopt;
+			}
+
 
 
 			//////////////////
@@ -201,6 +208,11 @@ namespace pcit::panther{
 				return emplace_result.second;
 			}
 
+
+			auto add_func_ptr(pir::Function::ID pir_id, sema::Func::ID func_id) -> void {
+				const auto lock = std::scoped_lock(this->func_ptr_map_lock);
+				this->func_ptr_map.emplace(pir_id, func_id);
+			}
 
 
 			auto create_vtable(VTableID vtable_id, pir::GlobalVar::ID pir_id) -> void {
@@ -434,6 +446,9 @@ namespace pcit::panther{
 
 			std::unordered_set<std::string> extern_funcs{};
 			mutable evo::SpinLock extern_funcs_lock{};
+
+			std::unordered_map<pir::Function::ID, sema::Func::ID> func_ptr_map{};
+			mutable evo::SpinLock func_ptr_map_lock{};
 
 			JITBuildFuncs jit_build_funcs{};
 

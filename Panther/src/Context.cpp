@@ -340,7 +340,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::C,
 						.abi               = BaseType::Function::ABI::C,
 					},
-					false,
 					false
 				)
 			);
@@ -2767,7 +2766,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -2821,7 +2819,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -2869,7 +2866,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -2940,7 +2936,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -2994,7 +2989,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3042,7 +3036,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3122,7 +3115,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3180,7 +3172,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3262,7 +3253,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3347,7 +3337,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3417,7 +3406,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3471,7 +3459,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3519,7 +3506,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3591,7 +3577,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3645,7 +3630,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3693,7 +3677,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3773,7 +3756,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3831,7 +3813,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -3915,7 +3896,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -4000,7 +3980,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);
@@ -4060,7 +4039,6 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
-					false,
 					false
 				)
 			);

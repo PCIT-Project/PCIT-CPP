@@ -326,7 +326,6 @@ namespace pcit::panther{
 			evo::SmallVector<TypeInfoVoidableID> errorTypes;
 			Attributes attributes;
 			bool hasNamedReturns;
-			bool hasNamedErrorReturns;
 
 
 			Function(
@@ -334,23 +333,17 @@ namespace pcit::panther{
 				evo::SmallVector<TypeInfoVoidableID>&& return_types,
 				evo::SmallVector<TypeInfoVoidableID>&& error_types,
 				Attributes _attributes,
-				bool has_named_returns,
-				bool has_named_error_returns
+				bool has_named_returns
 			) : 
 				params(std::move(_params)),
 				returnTypes(std::move(return_types)),
 				errorTypes(std::move(error_types)),
 				attributes(_attributes),
-				hasNamedReturns(has_named_returns),
-				hasNamedErrorReturns(has_named_error_returns)
+				hasNamedReturns(has_named_returns)
 			{
 				evo::debugAssert(
 					this->hasNamedReturns == false || this->returnsVoid() == false,
 					"Type `Void` cannot be named"
-				);
-				evo::debugAssert(
-					this->hasNamedErrorReturns == false || this->hasErrorReturnValue(),
-					"Cannot have named error returns without error return values"
 				);
 			}
 
@@ -1247,7 +1240,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto getArrayRef(BaseType::ArrayRef::ID id) const -> const BaseType::ArrayRef&;
 			[[nodiscard]] auto getOrCreateArrayRef(BaseType::ArrayRef&& lookup_type) -> BaseType::ID;
 
-			[[nodiscard]] auto getArrayRefDeducer(BaseType::ArrayRefDeducer::ID id) const -> const BaseType::ArrayRefDeducer&;
+			[[nodiscard]] auto getArrayRefDeducer(BaseType::ArrayRefDeducer::ID id) const
+				-> const BaseType::ArrayRefDeducer&;
 			[[nodiscard]] auto getOrCreateArrayRefDeducer(BaseType::ArrayRefDeducer&& lookup_type) -> BaseType::ID;
 
 			[[nodiscard]] auto getPrimitive(BaseType::Primitive::ID id) const -> const BaseType::Primitive&;

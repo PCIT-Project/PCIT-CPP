@@ -469,6 +469,17 @@ namespace pcit::panther{
 			}
 
 
+			[[nodiscard]] auto createFuncType(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->func_types.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::FUNC_TYPE, node_index);
+			}
+			[[nodiscard]] auto getFuncType(const AST::Node& node) const -> const AST::FuncType& {
+				evo::debugAssert(node.kind() == AST::Kind::FUNC_TYPE, "Node is not an FuncType");
+				return this->func_types[node._value.node_index];
+			}
+
+
 			[[nodiscard]] auto createInterfaceMap(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 				const uint32_t node_index = this->interface_maps.emplace_back(std::forward<decltype(args)>(args)...);
@@ -567,6 +578,7 @@ namespace pcit::panther{
 			core::LinearStepAlloc<AST::Unsafe, uint32_t> unsafes{};
 
 			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};
+			core::LinearStepAlloc<AST::FuncType, uint32_t> func_types{};
 			core::LinearStepAlloc<AST::InterfaceMap, uint32_t> interface_maps{};
 			core::LinearStepAlloc<AST::Type, uint32_t> types{};
 			core::LinearStepAlloc<AST::TypeIDConverter, uint32_t> type_id_converters{};

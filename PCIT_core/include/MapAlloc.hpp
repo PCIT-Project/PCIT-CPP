@@ -34,7 +34,7 @@ namespace pcit::core{
 				[[nodiscard]] auto needsToBeSet() const -> bool { return this->needs_to_be_set; }
 
 				[[nodiscard]] auto getValue() const -> VALUE& {
-					evo::debugAssert(this->needsToBeSet() == false, "Cannot get value if it doesn't need to be set");
+					evo::debugAssert(this->needsToBeSet() == false, "Cannot get value if it needs to be set");
 
 					while(this->internal_value.flag.load() == false){
 						std::this_thread::yield();
@@ -44,7 +44,7 @@ namespace pcit::core{
 				}
 
 				auto emplaceValue(auto&&... args) const -> VALUE& {
-					evo::debugAssert(this->needsToBeSet(), "Cannot emplace value if it needs to be set");
+					evo::debugAssert(this->needsToBeSet(), "Cannot emplace value if it doesn't need to be set");
 
 					this->internal_value.value.emplace(std::forward<decltype(args)>(args)...);
 					this->internal_value.flag = true;
