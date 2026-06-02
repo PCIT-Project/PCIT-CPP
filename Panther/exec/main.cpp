@@ -193,11 +193,11 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 						"Invalid path for package",
 						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info("Path isn't absolute"),
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path)),
 							panther::Diagnostic::Info(
 								std::format("Normalized Path: \"{}\"", normalized_package_path.string())
 							),
-							panther::Diagnostic::Info("Path isn't absolute")
 						}
 					));
 				} break;
@@ -208,11 +208,11 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 						"Invalid path for package",
 						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info("Path doesn't exist"),
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path)),
 							panther::Diagnostic::Info(
 								std::format("Normalized Path: \"{}\"", normalized_package_path.string())
 							),
-							panther::Diagnostic::Info("Path doesn't exist")
 						}
 					));
 				} break;
@@ -223,11 +223,11 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 						"Invalid path for package",
 						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
+							panther::Diagnostic::Info("Path isn't directory"),
 							panther::Diagnostic::Info(std::format("Path: \"{}\"", package_path)),
 							panther::Diagnostic::Info(
 								std::format("Normalized Path: \"{}\"", normalized_package_path.string())
 							),
-							panther::Diagnostic::Info("Path isn't directory")
 						}
 					));
 				} break;
@@ -247,8 +247,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			num_errors += 1;
-		}
 
+			continue;
+
+		}
 
 		if(static_cast<std::string_view>(package.name) == "std"){
 			context.addStdLib(create_package_res.value());

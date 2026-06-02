@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.312.1"></a>
+## v0.0.312.1
+
+### pthr
+- Fixed crashing when the path of a package given by the build system is invalid
+
+
+<!---------------------------------->
 <a name="v0.0.312.0"></a>
 ## v0.0.312.0
 
@@ -11,7 +19,7 @@
 	- `@abort()`
 	- `@breakpoint()`
 	- `@panic()`
-	- `isComptime()`
+	- `@isComptime()`
 
 ### pthr
 - Added console argument option `-noStdLib`
