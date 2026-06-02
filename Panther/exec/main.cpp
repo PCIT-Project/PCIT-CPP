@@ -1057,7 +1057,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 -> evo::Result<uint8_t> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode             = ContextConfig::Mode::BUILD_SYSTEM,
+		.mode             = ContextConfig::Mode::SCRIPTING,
 		.title            = "<Panther-Script>",
 		.target           = core::Target::getNative(),
 		.workingDirectory = cmd_args_config.workingDirectory,
@@ -1318,12 +1318,12 @@ auto main(int argc, const char* argv[]) -> int {
 				);
 
 				if(cmd_args_config.value().numBuildThreads.isSingle()){
-					printer.printlnGray("Building build system single-threaded");
+					printer.printlnGray("Building run script single-threaded");
 				}else if(cmd_args_config.value().numBuildThreads.getNum() == 1){
-					printer.printlnGray("Building build system multi-threaded (1 worker thread)");
+					printer.printlnGray("Building run script multi-threaded (1 worker thread)");
 				}else{
 					printer.printlnGray(
-						"Building build system multi-threaded ({} worker threads)",
+						"Building run script multi-threaded ({} worker threads)",
 						cmd_args_config.value().numBuildThreads.getNum()
 					);
 				}

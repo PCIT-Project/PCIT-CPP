@@ -3242,7 +3242,6 @@ namespace pcit::panther{
 
 				case AST::Kind::TYPE: {
 					if constexpr(MUST_BE_EXPR){
-						evo::breakpoint();
 						this->emit_error("Type used as expression", expr);
 						return evo::resultError;
 					}else{

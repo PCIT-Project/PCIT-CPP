@@ -698,15 +698,20 @@ namespace pcit::panther{
 
 				enum class Outcome{
 					MATCH,
+					MATCH_WITH_IMPLICIT_CONVERT,
 					NO_MATCH,
 					RESULT,
 				};
 
-				DeducerMatchOutput(evo::SmallVector<DeducedTerm>&& deduced_terms, TypeInfo::ID resultant_type_id) :
+				DeducerMatchOutput(
+					evo::SmallVector<DeducedTerm>&& deduced_terms,
+					TypeInfo::ID resultant_type_id,
+					bool requires_implicit_conversion
+				) :
 					_result(),
 					_deduced_terms(std::move(deduced_terms)),
 					_resultant_type_id(resultant_type_id),
-					_outcome(Outcome::MATCH)
+					_outcome(requires_implicit_conversion ? Outcome::MATCH_WITH_IMPLICIT_CONVERT : Outcome::MATCH)
 				{}
 
 				DeducerMatchOutput(evo::ResultError_t) :
@@ -731,22 +736,34 @@ namespace pcit::panther{
 				}
 
 				[[nodiscard]] auto deducedTerms() const& -> evo::ArrayProxy<DeducedTerm> {
-					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					evo::debugAssert(
+						this->outcome() == Outcome::MATCH || this->outcome() == Outcome::MATCH_WITH_IMPLICIT_CONVERT,
+						"Incorrect outcome"
+					);
 					return this->_deduced_terms;
 				}
 
 				[[nodiscard]] auto deducedTerms() & -> evo::SmallVector<DeducedTerm> {
-					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					evo::debugAssert(
+						this->outcome() == Outcome::MATCH || this->outcome() == Outcome::MATCH_WITH_IMPLICIT_CONVERT,
+						"Incorrect outcome"
+					);
 					return this->_deduced_terms;
 				}
 
 				[[nodiscard]] auto deducedTerms() && -> evo::SmallVector<DeducedTerm>&& {
-					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					evo::debugAssert(
+						this->outcome() == Outcome::MATCH || this->outcome() == Outcome::MATCH_WITH_IMPLICIT_CONVERT,
+						"Incorrect outcome"
+					);
 					return std::move(this->_deduced_terms);
 				}
 
 				[[nodiscard]] auto resultantTypeID() const -> TypeInfo::ID {
-					evo::debugAssert(this->outcome() == Outcome::MATCH, "Incorrect outcome");
+					evo::debugAssert(
+						this->outcome() == Outcome::MATCH || this->outcome() == Outcome::MATCH_WITH_IMPLICIT_CONVERT,
+						"Incorrect outcome"
+					);
 					return *this->_resultant_type_id;
 				}
 

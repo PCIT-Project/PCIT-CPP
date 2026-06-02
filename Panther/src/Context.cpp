@@ -4085,7 +4085,7 @@ namespace pcit::panther{
 				true
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 			
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::BREAKPOINT))] = IntrinsicFuncInfo{
@@ -4097,7 +4097,7 @@ namespace pcit::panther{
 				true
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript  = false, .allowedInBuild = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::PANIC))] = IntrinsicFuncInfo{
@@ -4113,7 +4113,7 @@ namespace pcit::panther{
 				true
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
-			.allowedInCompile  = true, .allowedInScript = false, .allowedInBuild = true,
+			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
 		};
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::IS_COMPTIME))] = IntrinsicFuncInfo{
@@ -4125,7 +4125,7 @@ namespace pcit::panther{
 				true
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
-			.allowedInCompile  = true,  .allowedInScript  = false, .allowedInBuild = true,
+			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
 		};
 
 		{

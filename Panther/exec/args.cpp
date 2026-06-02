@@ -35,6 +35,7 @@ Actions:
 
 Options:
     -noColor        Disables color printing
+    -noStdLib       Doesn't include the standard library
     -v=VALUE        Sets the verbosity level
         none        (default)
         some
@@ -100,10 +101,22 @@ Options:
 
 		auto arg_map = std::unordered_map<std::string_view, Arg>{
 			std::pair<std::string_view, Arg>{
+				"noStdLib",
+				Arg(
+					Arg::Kind::SINGLE,
+					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
+					-> evo::Result<> {
+						cmd_args_config.use_std_lib = false;
+						return evo::Result<>();
+					}
+				)
+			},
+			std::pair<std::string_view, Arg>{
 				"noColor",
 				Arg(
 					Arg::Kind::SINGLE,
-					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str) -> evo::Result<> {
+					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
+					-> evo::Result<> {
 						cmd_args_config.print_color = false;
 						return evo::Result<>();
 					}
@@ -189,7 +202,9 @@ Options:
 					}
 
 					if(end_index + 1 == arg_str.size()){
-						cmd_args_config.printError("This argument requires a value after the `=` ({}{{VALUE}})", arg_str);
+						cmd_args_config.printError(
+							"This argument requires a value after the `=` ({}{{VALUE}})", arg_str
+						);
 						return evo::resultError;
 					}
 

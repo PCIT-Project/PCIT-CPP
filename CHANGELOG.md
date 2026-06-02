@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.312.0"></a>
+## v0.0.312.0
+
+### Panther
+- Added support for implicit conversion to deducer types
+- Fixed function overload resolution when a parameter is a deducer and the deduced type is an non-distinct alias
+- Fixed some intrinsic functions not being allowed in script mode
+	- `@abort()`
+	- `@breakpoint()`
+	- `@panic()`
+	- `isComptime()`
+
+### pthr
+- Added console argument option `-noStdLib`
+- Fixed action `run`
+
+
+<!---------------------------------->
 <a name="v0.0.311.0"></a>
 ## v0.0.311.0
 

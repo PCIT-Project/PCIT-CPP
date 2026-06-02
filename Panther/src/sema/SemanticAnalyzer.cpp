@@ -3083,9 +3083,11 @@ namespace pcit::panther{
 
 		const TypeInfo::VoidableID param_type = this->get_type(instr.param_type);
 
+		TypeInfo::ID& instantiation_param_arg_type_id =
+			*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[instr.param_index];
+
 		const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-			param_type.asTypeID(),
-			*this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().instantiation_param_arg_types[instr.param_index]
+			param_type.asTypeID(), instantiation_param_arg_type_id
 		);
 
 		switch(deducer_match_output.outcome()){
@@ -3093,6 +3095,15 @@ namespace pcit::panther{
 				if(this->add_deduced_terms_to_scope(deducer_match_output.deducedTerms()).isError()){
 					return Result::ERROR;
 				}else{
+					return Result::SUCCESS;
+				}
+			} break;
+
+			case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
+				if(this->add_deduced_terms_to_scope(deducer_match_output.deducedTerms()).isError()){
+					return Result::ERROR;
+				}else{
+					instantiation_param_arg_type_id = deducer_match_output.resultantTypeID();
 					return Result::SUCCESS;
 				}
 			} break;
@@ -7857,7 +7868,8 @@ namespace pcit::panther{
 					this->deducer_matches_and_extract(got_type_id.asTypeID(), iterator_get_type_id);
 
 				switch(deducer_match_output.outcome()){
-					case DeducerMatchOutput::Outcome::MATCH: {
+					case DeducerMatchOutput::Outcome::MATCH:
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
 						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 						param_type_ids.emplace_back(deducer_match_output.resultantTypeID());
 					} break;
@@ -8070,7 +8082,8 @@ namespace pcit::panther{
 					this->deducer_matches_and_extract(for_param_type.asTypeID(), variadic_param_type);
 
 				switch(deducer_match_output.outcome()){
-					case DeducerMatchOutput::Outcome::MATCH: {
+					case DeducerMatchOutput::Outcome::MATCH:
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
 						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 						param_type_ids.emplace_back(deducer_match_output.resultantTypeID());
 					} break;
@@ -26305,6 +26318,7 @@ namespace pcit::panther{
 		size_t best_score_index = 0;
 		bool found_matching_best_score = false;
 
+
 		
 		for(size_t func_i = 0; const SelectFuncOverloadFuncInfo& func_info : func_infos){
 			EVO_DEFER([&](){ func_i += 1; });
@@ -26371,13 +26385,10 @@ namespace pcit::panther{
 
 				///////////////////////////////////
 				// check type mismatch
-
 				TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
 					if(is_comptime){
 						return this->type_check<false, false, true>(
-							this->context.type_manager.decayType<false, false>(
-								func_info.func_type.params[arg_i].typeID
-							),
+							func_info.func_type.params[arg_i].typeID,
 							arg_info.term_info,
 							"",
 							this->get_location(arg_info.ast_node)
@@ -26385,9 +26396,7 @@ namespace pcit::panther{
 						
 					}else{
 						return this->type_check<false, false, false>(
-							this->context.type_manager.decayType<false, false>(
-								func_info.func_type.params[arg_i].typeID
-							),
+							func_info.func_type.params[arg_i].typeID,
 							arg_info.term_info,
 							"",
 							this->get_location(arg_info.ast_node)
@@ -28836,9 +28845,17 @@ namespace pcit::panther{
 				this->deducer_matches_and_extract(deducer_impl->deducerTypeID, target_type_id);
 
 			switch(deducer_match_output.outcome()){
-				break; case DeducerMatchOutput::Outcome::MATCH:   deducer_matches.emplace_back(deducer_impl);
-				break; case DeducerMatchOutput::Outcome::NO_MATCH:// do nothing...
-				break; case DeducerMatchOutput::Outcome::RESULT:  return evo::Unexpected(deducer_match_output.result());
+				break; case DeducerMatchOutput::Outcome::MATCH:
+					deducer_matches.emplace_back(deducer_impl);
+
+				break; case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+					deducer_matches.emplace_back(deducer_impl);
+
+				break; case DeducerMatchOutput::Outcome::NO_MATCH:
+					// do nothing
+
+				break; case DeducerMatchOutput::Outcome::RESULT:
+					return evo::Unexpected(deducer_match_output.result());
 			}
 		}
 
@@ -29167,9 +29184,10 @@ namespace pcit::panther{
 		const TypeInfo& got_type = type_manager.getTypeInfo(got_type_id);
 
 
-
 		switch(deducer.baseTypeID().kind()){
 			case BaseType::Kind::TYPE_DEDUCER: {
+				bool requires_implicit_conversion = false;
+
 				if(deducer.qualifiers().size() < got_type.qualifiers().size()){
 					for(size_t i = 0; i < deducer.qualifiers().size(); i+=1){
 						if(deducer.qualifiers()[i] != got_type.qualifiers()[i - got_type.qualifiers().size()]){
@@ -29178,10 +29196,31 @@ namespace pcit::panther{
 					}
 
 				}else if(deducer.qualifiers().size() == got_type.qualifiers().size()){
-					if(deducer.qualifiers() != got_type.qualifiers()){ return evo::resultError; }
+					const evo::Result<bool> qualifiers_check_result =
+						this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+
+					if(qualifiers_check_result.isError() || qualifiers_check_result.value()){
+						return evo::resultError;
+					}
+
+					requires_implicit_conversion = deducer.qualifiers() != got_type.qualifiers();
 					
 				}else{ // deducer.qualifiers().size() > got_type.qualifiers().size()
 					return evo::resultError;
+				}
+
+
+				TypeInfo::ID output_type_id = got_type_id;
+
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
 				}
 
 
@@ -29189,14 +29228,14 @@ namespace pcit::panther{
 					type_manager.getTypeDeducer(deducer.baseTypeID().typeDeducerID());
 
 				if(type_deducer.isAnonymous()){
-					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+					return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 				}
 
 				const Source& deducer_source = this->context.source_manager[*type_deducer.sourceID];
 				const Token& type_deducer_token = deducer_source.getTokenBuffer()[*type_deducer.identTokenID];
 
 				if(type_deducer_token.kind() == Token::Kind::ANONYMOUS_DEDUCER){
-					return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+					return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 				}
 
 				if(deducer.qualifiers().empty()){
@@ -29216,7 +29255,8 @@ namespace pcit::panther{
 					);
 				}
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::ARRAY: {
@@ -29238,14 +29278,34 @@ namespace pcit::panther{
 				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_type.elementTypeID, got_array_type.elementTypeID
 				);
+
+				bool requires_implicit_conversion = false;
 				switch(deducer_match_output.outcome()){
 					case DeducerMatchOutput::Outcome::MATCH:    break;
+
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+						requires_implicit_conversion = true;
+						break;
+
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
 
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -29267,14 +29327,33 @@ namespace pcit::panther{
 				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_ref_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
+				bool requires_implicit_conversion = false;
 				switch(deducer_match_output.outcome()){
 					case DeducerMatchOutput::Outcome::MATCH:    break;
+
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+						requires_implicit_conversion = true;
+						break;
+
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
@@ -29293,12 +29372,21 @@ namespace pcit::panther{
 				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_deducer_type.elementTypeID, got_array_type.elementTypeID
 				);
+
+				bool requires_implicit_conversion = false;
 				switch(deducer_match_output.outcome()){
 					case DeducerMatchOutput::Outcome::MATCH:    break;
+
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+						requires_implicit_conversion = true;
+						break;
+
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+
 
 				if(deducer_array_deducer_type.dimensions.size() != got_array_type.dimensions.size()){
 					return evo::resultError;
@@ -29369,7 +29457,20 @@ namespace pcit::panther{
 					}
 				}
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
@@ -29388,11 +29489,18 @@ namespace pcit::panther{
 				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_array_ref_deducer_type.elementTypeID, got_array_ref_type.elementTypeID
 				);
+				bool requires_implicit_conversion = false;
 				switch(deducer_match_output.outcome()){
 					case DeducerMatchOutput::Outcome::MATCH:    break;
+
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+						requires_implicit_conversion = true;
+						break;
+
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 
 
@@ -29483,7 +29591,19 @@ namespace pcit::panther{
 					}
 				}
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
@@ -29512,7 +29632,7 @@ namespace pcit::panther{
 				const evo::SmallVector<BaseType::StructTemplate::Arg> got_template_args =
 					got_struct_template.getInstantiationArgs(got_struct_type.instantiation);
 
-
+				bool requires_implicit_conversion = false;
 				for(size_t i = 0; i < struct_template_deducer.args.size(); i+=1){
 					const BaseType::StructTemplate::Arg& deducer_arg = struct_template_deducer.args[i];
 					const BaseType::StructTemplate::Arg& got_arg = got_template_args[i];
@@ -29536,11 +29656,17 @@ namespace pcit::panther{
 
 							switch(deducer_match_output.outcome()){
 								case DeducerMatchOutput::Outcome::MATCH:    break;
+
+								case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+									requires_implicit_conversion = true;
+									break;
+
 								case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 								case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 							}
 
 							deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+
 						}
 
 					}else if(deducer_arg.is<TypeInfo::VoidableID>()){ // arg is deducer
@@ -29579,7 +29705,19 @@ namespace pcit::panther{
 					}
 				}
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
@@ -29601,23 +29739,42 @@ namespace pcit::panther{
 				DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 					deducer_interface_map_type.underlyingTypeID, got_interface_map_type.underlyingTypeID
 				);
+				bool requires_implicit_conversion = false;
 				switch(deducer_match_output.outcome()){
 					case DeducerMatchOutput::Outcome::MATCH:    break;
+
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+						requires_implicit_conversion = true;
+						break;
+
 					case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
 					case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
 				}
+
 				deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
 
 				if(deducer_interface_map_type.interfaceID != got_interface_map_type.interfaceID){
 					return evo::resultError;
 				}
 
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+				TypeInfo::ID output_type_id = got_type_id;
+				if(requires_implicit_conversion){
+					output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							got_type.baseTypeID(),
+							evo::SmallVector<TypeInfo::Qualifier>(
+								deducer.qualifiers().begin(), deducer.qualifiers().end()
+							)
+						)
+					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
 			default: {
 				if(deducer.baseTypeID() != got_type.baseTypeID()){ return evo::resultError; }
-				return DeducerMatchOutput(std::move(deduced_terms), got_type_id);
+				return DeducerMatchOutput(std::move(deduced_terms), got_type_id, false);
 			} break;
 		}
 	}
@@ -30549,6 +30706,7 @@ namespace pcit::panther{
 											continue;
 										} break;
 
+										case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
 										case DeducerMatchOutput::Outcome::NO_MATCH: {
 											return_params_matched = false;
 											break;
@@ -30601,6 +30759,7 @@ namespace pcit::panther{
 											continue;
 										} break;
 
+										case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
 										case DeducerMatchOutput::Outcome::NO_MATCH: {
 											error_params_matched = false;
 											break;
@@ -32586,6 +32745,11 @@ namespace pcit::panther{
 							case DeducerMatchOutput::Outcome::MATCH: {
 								got_expr.type_id = deducer_match_output.resultantTypeID();
 								return TypeCheckInfo::success(false, std::move(deducer_match_output.deducedTerms()));
+							} break;
+
+							case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
+								got_expr.type_id = deducer_match_output.resultantTypeID();
+								return TypeCheckInfo::success(true, std::move(deducer_match_output.deducedTerms()));
 							} break;
 
 							case DeducerMatchOutput::Outcome::NO_MATCH: {
