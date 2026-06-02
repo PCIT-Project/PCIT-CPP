@@ -196,16 +196,23 @@ namespace pcit::panther::AST{
 			Node type;
 		};
 
+		enum class Kind{
+			DEF,
+			EXTERN,
+			DELETE,
+		};
+
 		Token::ID name; // either identifier or operator
 		std::optional<Node> templatePack;
 		evo::SmallVector<Param> params;
 		bool isVariadic;
-		bool isDeleted;
+		Kind kind;
 		Node attributeBlock;
 		evo::SmallVector<Return> returns;
 		evo::SmallVector<Return> errorReturns;
-		std::optional<Node> value; // if not deleted, nullopt if is an interface method with no default implementation
-		                           // if deleted, delete message (if one was provided)
+		std::optional<Node> value; // if Kind::DEF, nullopt if is an interface method with no default implementation
+		                           // if Kind::EXTERN, always contains language
+		                           // if Kind::DELETED, delete message (if one was provided)
 	};
 
 	struct DeletedSpecialMethod{

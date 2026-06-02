@@ -56,6 +56,10 @@ namespace pthr{
 }
 
 
+[[nodiscard]] static auto create_absolute_path(const fs::path& path, const fs::path& base_path) -> fs::path {
+	return (base_path / path).lexically_normal();
+}
+
 
 [[nodiscard]] static auto create_directories(const std::filesystem::path& path, core::Printer& printer)
 -> evo::Result<> {
@@ -134,11 +138,11 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 ) -> evo::Result<> {
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
 		if(config.numThreads.isSingle()){
-			printer.printlnMagenta("Running compile single-threaded");
+			printer.printlnGray("Running compile single-threaded");
 		}else if(config.numThreads.getNum() == 1){
-			printer.printlnMagenta("Running compile multi-threaded (1 worker thread)");
+			printer.printlnGray("Running compile multi-threaded (1 worker thread)");
 		}else{
-			printer.printlnMagenta(
+			printer.printlnGray(
 				"Running compile multi-threaded ({} worker threads)", config.numThreads.getNum()
 			);
 		}
@@ -158,7 +162,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
+		printer.printlnGray("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
 	auto context = panther::Context(
@@ -173,8 +177,9 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	for(const panther::Context::PantherBuildConfig::Package& package : config.packages){
 		const std::string_view package_path = static_cast<std::string_view>(package.path);
 
-		const std::filesystem::path normalized_package_path = 
-			(cmd_args_config.workingDirectory / std::filesystem::path(package_path)).lexically_normal();
+		const std::filesystem::path normalized_package_path = create_absolute_path(
+			std::filesystem::path(package_path), cmd_args_config.workingDirectory
+		);
 
 		const CreatePantherPackageResult create_package_res = context.getSourceManager().createPackage(
 			panther::Source::Package(normalized_package_path, static_cast<std::string>(package.name), package.warns)
@@ -442,24 +447,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			if(config.output.tokensData().path.has_value()){
-				if(create_directories(
-					std::filesystem::path(
-						static_cast<std::string_view>(*config.output.tokensData().path)
-					).parent_path(),
-					printer
-				).isError()){
+				const std::filesystem::path tokens_path = create_absolute_path(
+					std::filesystem::path(static_cast<std::string_view>(*config.output.tokensData().path)),
+					cmd_args_config.workingDirectory
+				);
+
+				if(create_directories(tokens_path.parent_path(), printer).isError()){
 					return evo::resultError;
 				}
 
-				if(evo::fs::writeFile(
-					static_cast<std::string>(*config.output.tokensData().path), printer_for_tokens.getString()
-				) == false){
+				if(evo::fs::writeFile(tokens_path.string(), printer_for_tokens.getString()) == false){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write tokens file",
 						panther::Diagnostic::Location::NONE
 					));
 					return evo::resultError;
+				}
+
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+					printer.printlnMagenta("Created tokens file: \"{}\"", tokens_path.string());
 				}
 
 			}else{
@@ -490,24 +497,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 			if(config.output.astData().path.has_value()){
-				if(create_directories(
-					std::filesystem::path(
-						static_cast<std::string_view>(*config.output.astData().path)
-					).parent_path(),
-					printer
-				).isError()){
+				const std::filesystem::path ast_path = create_absolute_path(
+					std::filesystem::path(static_cast<std::string_view>(*config.output.astData().path)),
+					cmd_args_config.workingDirectory
+				);
+
+				if(create_directories(ast_path.parent_path(), printer).isError()){
 					return evo::resultError;
 				}
 
-				if(evo::fs::writeFile(
-					static_cast<std::string>(*config.output.astData().path), printer_for_ast.getString()
-				) == false){
+				if(evo::fs::writeFile(ast_path.string(), printer_for_ast.getString()) == false){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write AST file",
 						panther::Diagnostic::Location::NONE
 					));
 					return evo::resultError;
+				}
+
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+					printer.printlnMagenta("Created AST file: \"{}\"", ast_path.string());
 				}
 
 			}else{
@@ -542,24 +551,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 			if(config.output.pirData().path.has_value()){
-				if(create_directories(
-					std::filesystem::path(
-						static_cast<std::string_view>(*config.output.pirData().path)
-					).parent_path(),
-					printer
-				).isError()){
+				const std::filesystem::path pir_path = create_absolute_path(
+					std::filesystem::path(static_cast<std::string_view>(*config.output.pirData().path)),
+					cmd_args_config.workingDirectory
+				);
+
+				if(create_directories(pir_path.parent_path(), printer).isError()){
 					return evo::resultError;
 				}
 
-				if(evo::fs::writeFile(
-					static_cast<std::string>(*config.output.pirData().path), printer_for_pir_module.getString()
-				) == false){
+				if(evo::fs::writeFile(pir_path.string(), printer_for_pir_module.getString()) == false){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						"Failed to write pir code file",
+						"Failed to write PIR code file",
 						panther::Diagnostic::Location::NONE
 					));
 					return evo::resultError;
+				}
+
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+					printer.printlnMagenta("Created PIR file: \"{}\"", pir_path.string());
 				}
 
 			}else{
@@ -582,24 +593,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 			if(config.output.llvmirData().path.has_value()){
-				if(create_directories(
-					std::filesystem::path(
-						static_cast<std::string_view>(*config.output.llvmirData().path)
-					).parent_path(),
-					printer
-				).isError()){
+				const std::filesystem::path llvm_ir_path = create_absolute_path(
+					std::filesystem::path(static_cast<std::string_view>(*config.output.llvmirData().path)),
+					cmd_args_config.workingDirectory
+				);
+
+				if(create_directories(llvm_ir_path.parent_path(), printer).isError()){
 					return evo::resultError;
 				}
 
-				if(evo::fs::writeFile(
-					static_cast<std::string>(*config.output.llvmirData().path), llvmir_string.value()
-				) == false){
+				if(evo::fs::writeFile(llvm_ir_path.string(), llvmir_string.value()) == false){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						"Failed to write llvm ir code file",
+						"Failed to write LLVM IR code file",
 						panther::Diagnostic::Location::NONE
 					));
 					return evo::resultError;
+				}
+
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+					printer.printlnMagenta("Created LLVM IR file: \"{}\"", llvm_ir_path.string());
 				}
 
 			}else{
@@ -628,25 +641,27 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			if(config.output.assemblyData().path.has_value()){
-				if(create_directories(
-					std::filesystem::path(
-						static_cast<std::string_view>(*config.output.assemblyData().path)
-					).parent_path(),
-					printer
-				).isError()){
+				const std::filesystem::path assembly_path = create_absolute_path(
+					std::filesystem::path(static_cast<std::string_view>(*config.output.assemblyData().path)),
+					cmd_args_config.workingDirectory
+				);
+
+				if(create_directories(assembly_path.parent_path(), printer).isError()){
 					return evo::resultError;
 				}
 
 
-				if(evo::fs::writeFile(
-					static_cast<std::string>(*config.output.assemblyData().path), asm_result.value()
-				) == false){
+				if(evo::fs::writeFile(assembly_path.string(), asm_result.value()) == false){
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write assembly code file",
 						panther::Diagnostic::Location::NONE
 					));
 					return evo::resultError;
+				}
+
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+					printer.printlnMagenta("Created assembly file: \"{}\"", assembly_path.string());
 				}
 
 			}else{
@@ -676,9 +691,9 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 
-
-			const auto object_path = std::filesystem::path(
-				static_cast<std::string_view>(config.output.objectData().path)
+			const std::filesystem::path object_path = create_absolute_path(
+				std::filesystem::path(static_cast<std::string_view>(config.output.objectData().path)),
+				cmd_args_config.workingDirectory
 			);
 
 			if(create_directories(object_path.parent_path(), printer).isError()){
@@ -695,6 +710,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
+			}
+
+			if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+				printer.printlnMagenta("Created object file: \"{}\"", object_path.string());
 			}
 
 			return evo::Result<>();
@@ -742,18 +761,18 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 
-			const auto object_path = std::filesystem::path(
-				static_cast<std::string_view>(config.output.executableData().objectPath)
+			const std::filesystem::path object_path = create_absolute_path(
+				std::filesystem::path(static_cast<std::string_view>(config.output.executableData().objectPath)),
+				cmd_args_config.workingDirectory
 			);
+
 
 			if(create_directories(object_path.parent_path(), printer).isError()){
 				return evo::resultError;
 			}
 
 
-			if(evo::fs::writeBinaryFile(
-				static_cast<std::string>(config.output.executableData().objectPath), object_data.value()
-			) == false){
+			if(evo::fs::writeBinaryFile(object_path.string(), object_data.value()) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to output obj",
@@ -763,17 +782,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+			if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+				printer.printlnMagenta("Created object file: \"{}\"", object_path.string());
+			}
 
-			if(create_directories(
-				std::filesystem::path(static_cast<std::string_view>(config.output.executableData().path)).parent_path(),
-				printer
-			).isError()){
+
+			const std::filesystem::path exec_path = create_absolute_path(
+				std::filesystem::path(static_cast<std::string_view>(config.output.executableData().path)),
+				cmd_args_config.workingDirectory
+			);
+
+
+			if(create_directories(exec_path.parent_path(), printer).isError()){
 				return evo::resultError;
 			}
 
 
 			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
-			plnk_options.outputFilePath = static_cast<std::string>(config.output.executableData().path);
+			plnk_options.outputFilePath = exec_path.string();
 			plnk_options.getWindowsSpecific().subsystem = [&](){
 				if(config.output.executableData().isConsole){
 					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
@@ -783,6 +809,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}();
 
 			const plnk::LinkResult link_result = plnk::link({object_path}, plnk_options);
+
 
 			if(link_result.messages.empty() == false){
 				printer.printlnCyan("<Info> Linker messages");
@@ -844,7 +871,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 					}
 				}
 
+
 				return evo::resultError;
+			}
+
+			if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+				printer.printlnMagenta("Created executable: \"{}\"", exec_path.string());
 			}
 
 			return evo::Result<>();
@@ -874,7 +906,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Build system relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
+		printer.printlnGray("Build system relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
 	auto context = panther::Context(
@@ -1008,7 +1040,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	}
 
 	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Executing build system");
+		printer.printlnGray("Executing build system");
 	}
 
 	return context.runBuildSystem(
@@ -1036,7 +1068,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Script relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
+		printer.printlnGray("Script relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
 	auto context = panther::Context(
@@ -1169,8 +1201,8 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		return evo::resultError;
 	}
 
-	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::FULL){
-		printer.printlnMagenta("Executing run script");
+	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+		printer.printlnGray("Executing run script");
 	}
 
 	return context.runEntry(true);
@@ -1229,8 +1261,9 @@ auto main(int argc, const char* argv[]) -> int {
 			return EXIT_FAILURE;
 		}
 
-		cmd_args_config.value().workingDirectory =
-			(actual_working_path / cmd_args_config.value().workingDirectory).lexically_normal();
+		cmd_args_config.value().workingDirectory = create_absolute_path(
+			cmd_args_config.value().workingDirectory, actual_working_path
+		);
 	}
 
 
@@ -1243,16 +1276,16 @@ auto main(int argc, const char* argv[]) -> int {
 	switch(cmd_args_config.value().action){
 		case pthr::CmdArgsConfig::Action::BUILD: {
 			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-				printer.printlnMagenta(
+				printer.printlnGray(
 					"pthr executable directory: \"{}\"", cmd_args_config.value().executablePath.string()
 				);
 
 				if(cmd_args_config.value().numBuildThreads.isSingle()){
-					printer.printlnMagenta("Building build system single-threaded");
+					printer.printlnGray("Building build system single-threaded");
 				}else if(cmd_args_config.value().numBuildThreads.getNum() == 1){
-					printer.printlnMagenta("Building build system multi-threaded (1 worker thread)");
+					printer.printlnGray("Building build system multi-threaded (1 worker thread)");
 				}else{
-					printer.printlnMagenta(
+					printer.printlnGray(
 						"Building build system multi-threaded ({} worker threads)",
 						cmd_args_config.value().numBuildThreads.getNum()
 					);
@@ -1280,16 +1313,16 @@ auto main(int argc, const char* argv[]) -> int {
 
 		case pthr::CmdArgsConfig::Action::RUN: {
 			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
-				printer.printlnMagenta(
+				printer.printlnGray(
 					"pthr executable directory: \"{}\"", cmd_args_config.value().executablePath.string()
 				);
 
 				if(cmd_args_config.value().numBuildThreads.isSingle()){
-					printer.printlnMagenta("Building build system single-threaded");
+					printer.printlnGray("Building build system single-threaded");
 				}else if(cmd_args_config.value().numBuildThreads.getNum() == 1){
-					printer.printlnMagenta("Building build system multi-threaded (1 worker thread)");
+					printer.printlnGray("Building build system multi-threaded (1 worker thread)");
 				}else{
-					printer.printlnMagenta(
+					printer.printlnGray(
 						"Building build system multi-threaded ({} worker threads)",
 						cmd_args_config.value().numBuildThreads.getNum()
 					);

@@ -313,14 +313,6 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
-			this->context.emitError(
-				"Deleted overloads are currently unimplemented",
-				Diagnostic::Location::get(this->reader.peek(), this->source)
-			);
-			return Result::Code::ERROR;
-		}
-
 		evo::Result<evo::SmallVector<AST::FuncDef::Return>> returns = this->parse_func_returns<!MUST_HAVE_BODY>();
 		if(returns.isError()){ return Result::Code::ERROR; }
 
@@ -328,52 +320,95 @@ namespace pcit::panther{
 		if(error_returns.isError()){ return Result::Code::ERROR; }
 
 
-		// deleting overload
+		// extern / deleting overload
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 			this->reader.skip();
 
-			if(this->reader[this->reader.next()].kind() != Token::Kind::KEYWORD_DELETE){
-				this->expected_but_got(
-					"keyword `delete` after `=` in deleted function overload definition",
-					this->reader.peek(-1),
-					evo::SmallVector<Diagnostic::Info>{
-						Diagnostic::Info("If defining a function body, remove the extranous `=`")
+			switch(this->reader[this->reader.next()].kind()){
+				case Token::Kind::KEYWORD_EXTERN: {
+					if(this->expect_token(Token::lookupKind("("), "after [extern]").isError()){
+						return Result::Code::ERROR;
 					}
-				);
-				return Result::Code::ERROR;
-			}
 
-			auto message = std::optional<AST::Node>();
-			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
-				this->reader.skip();
+					const Result language_res = this->parse_expr();
+					if(this->check_result(language_res, "language in extern function declaration").isError()){
+						return Result::Code::ERROR;
+					}
 
-				const Result message_res = this->parse_expr();
-				if(this->check_result(message_res, "message in deleted function overload").isError()){
+					if(
+						this->expect_token(
+							Token::lookupKind(")"), "after extern function declaration language argument"
+						).isError()
+					){
+						return Result::Code::ERROR;
+					}
+
+					if(this->expect_token(Token::lookupKind(";"), "at end of extern function declaration").isError()){
+						return Result::Code::ERROR;
+					}
+
+					return this->source.ast_buffer.createFuncDef(
+						name,
+						template_pack_node,
+						std::move(params.value().params),
+						params.value().is_variadic,
+						AST::FuncDef::Kind::EXTERN,
+						attributes.value(),
+						std::move(returns.value()),
+						std::move(error_returns.value()),
+						language_res.value()
+					);
+				} break;
+
+				case Token::Kind::KEYWORD_DELETE: {
+					auto message = std::optional<AST::Node>();
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+						this->reader.skip();
+
+						const Result message_res = this->parse_expr();
+						if(this->check_result(message_res, "message in deleted function overload").isError()){
+							return Result::Code::ERROR;
+						}
+
+						message = message_res.value();
+
+						if(
+							this->expect_token(
+								Token::lookupKind(")"), "at end of deleted function overload message"
+							).isError()
+						){
+							return Result::Code::ERROR;
+						}
+					}
+
+					if(this->expect_token(Token::lookupKind(";"), "at end of deleted function overload").isError()){
+						return Result::Code::ERROR;
+					}
+
+					return this->source.ast_buffer.createFuncDef(
+						name,
+						template_pack_node,
+						std::move(params.value().params),
+						params.value().is_variadic,
+						AST::FuncDef::Kind::DELETE,
+						attributes.value(),
+						std::move(returns.value()),
+						std::move(error_returns.value()),
+						message
+					);
+				} break;
+
+				default: {
+					this->expected_but_got(
+						"keyword [extern] or [delete] after `=` in special function declaration",
+						this->reader.peek(-1),
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("If defining a function body, remove the extranous `=`")
+						}
+					);
 					return Result::Code::ERROR;
-				}
-
-				message = message_res.value();
-
-				if(this->expect_token(Token::lookupKind(")"), "at end of deleted function overload message").isError()){
-					return Result::Code::ERROR;
-				}
+				} break;
 			}
-
-			if(this->expect_token(Token::lookupKind(";"), "at end of deleted function overload").isError()){
-				return Result::Code::ERROR;
-			}
-
-			return this->source.ast_buffer.createFuncDef(
-				name,
-				template_pack_node,
-				std::move(params.value().params),
-				params.value().is_variadic,
-				true,
-				attributes.value(),
-				std::move(returns.value()),
-				std::move(error_returns.value()),
-				message
-			);
 		}
 
 
@@ -390,7 +425,7 @@ namespace pcit::panther{
 				template_pack_node,
 				std::move(params.value().params),
 				params.value().is_variadic,
-				false,
+				AST::FuncDef::Kind::DEF,
 				attributes.value(),
 				std::move(returns.value()),
 				std::move(error_returns.value()),
@@ -405,7 +440,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
-						false,
+						AST::FuncDef::Kind::DEF,
 						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -425,7 +460,7 @@ namespace pcit::panther{
 						template_pack_node,
 						std::move(params.value().params),
 						params.value().is_variadic,
-						false,
+						AST::FuncDef::Kind::DEF,
 						attributes.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),
@@ -831,7 +866,7 @@ namespace pcit::panther{
 						std::nullopt,
 						std::move(params.value().params),
 						params.value().is_variadic,
-						false,
+						AST::FuncDef::Kind::DEF,
 						attribute_block.value(),
 						std::move(returns.value()),
 						std::move(error_returns.value()),

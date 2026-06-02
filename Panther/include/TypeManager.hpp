@@ -303,7 +303,7 @@ namespace pcit::panther{
 				[[nodiscard]] auto operator==(const Param&) const -> bool = default;
 			};
 
-			enum class ABI{
+			enum class ABI : uint32_t {
 				PANTHER,
 				C,
 			};

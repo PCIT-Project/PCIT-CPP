@@ -46,7 +46,7 @@ namespace pcit::panther{
 		return path_exitsts(path) && path.extension() == ".pthr";
 	}
 
-	[[nodiscard]] static auto normalize_path(const fs::path& path, const fs::path& base_path) -> fs::path {
+	[[nodiscard]] static auto create_absolute_path(const fs::path& path, const fs::path& base_path) -> fs::path {
 		return (base_path / path).lexically_normal();
 	}
 
@@ -1155,7 +1155,7 @@ namespace pcit::panther{
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-		const fs::path target_path = normalize_path(path, package.basePath);
+		const fs::path target_path = create_absolute_path(path, package.basePath);
 
 		if(path_exitsts(target_path) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(target_path)){ return AddSourceResult::NOT_FILE; }
@@ -1169,14 +1169,14 @@ namespace pcit::panther{
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-		const fs::path target_directory = normalize_path(directory, package.basePath);
+		const fs::path target_directory = create_absolute_path(directory, package.basePath);
 
 		if(path_exitsts(target_directory) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(target_directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		for(const fs::path& file_path : std::filesystem::directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
-				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
+				this->files_to_load.emplace_back(create_absolute_path(file_path, package.basePath), package_id);
 			}
 		}
 
@@ -1188,14 +1188,14 @@ namespace pcit::panther{
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
 		const Source::Package& package = this->source_manager.getPackage(package_id);
-		const fs::path target_directory = normalize_path(directory, package.basePath);
+		const fs::path target_directory = create_absolute_path(directory, package.basePath);
 
 		if(path_exitsts(target_directory) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(target_directory) == false){ return AddSourceResult::NOT_DIRECTORY; }
 
 		for(const fs::path& file_path : std::filesystem::recursive_directory_iterator(target_directory)){
 			if(path_is_pthr_file(file_path)){
-				this->files_to_load.emplace_back(normalize_path(file_path, package.basePath), package_id);
+				this->files_to_load.emplace_back(create_absolute_path(file_path, package.basePath), package_id);
 			}
 		}
 
@@ -1223,7 +1223,7 @@ namespace pcit::panther{
 	auto Context::addCHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
-		const fs::path normalized_path = normalize_path(path, std::filesystem::current_path());
+		const fs::path normalized_path = create_absolute_path(path, std::filesystem::current_path());
 
 		if(path_exitsts(normalized_path) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
@@ -1236,7 +1236,7 @@ namespace pcit::panther{
 	auto Context::addCPPHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
-		const fs::path normalized_path = normalize_path(path, std::filesystem::current_path());
+		const fs::path normalized_path = create_absolute_path(path, std::filesystem::current_path());
 
 		if(path_exitsts(normalized_path) == false){ return AddSourceResult::DOESNT_EXIST; }
 		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
@@ -1592,8 +1592,11 @@ namespace pcit::panther{
 							params.reserve(function_decl.params.size());
 							for(const clangint::API::Function::Param& param : function_decl.params){
 								params.emplace_back(
-									source_c_family_source.createDeclInfo(param.name, param.declLine, param.declCollumn),
-									std::nullopt
+									source_c_family_source.createDeclInfo(
+										param.name, param.declLine, param.declCollumn
+									),
+									std::nullopt,
+									true
 								);
 							}
 
@@ -2615,6 +2618,31 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(
 							evo::to_underlying(pir::CallingConvention::WIN_API)
 						)
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				true
+			)
+		));
+
+
+
+		pthr_module.createSymbol("Language", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Language"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("PANTHER"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(BaseType::Function::ABI::PANTHER))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("C"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(BaseType::Function::ABI::C))
 					),
 				},
 				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),

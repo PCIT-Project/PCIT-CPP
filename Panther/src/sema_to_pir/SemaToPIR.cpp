@@ -94,6 +94,7 @@ namespace pcit::panther{
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
 			if(func.isCFamilyFunc()){ continue; }
+			if(func.isExtern()){ continue; }
 
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
@@ -545,6 +546,7 @@ namespace pcit::panther{
 
 		const pir::Linkage linkage = [&](){
 			if(func.attributes.isExport){ return pir::Linkage::EXTERNAL; }
+			if(func.isExtern()){ return pir::Linkage::EXTERNAL; }
 			return pir::Linkage::PRIVATE;
 		}();
 
@@ -568,12 +570,12 @@ namespace pcit::panther{
 				);
 			}
 
-			if(func.isCFamilyFunc()){
+			if(func.isCFamilyFunc() || func.isExtern()){
 				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
 					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
 						std::move(mangled_name),
 						std::move(params),
-						pir::CallingConvention::C,
+						func_type.attributes.callingConvention,
 						linkage,
 						return_type,
 						func_type.attributes.isNoReturn,
@@ -975,9 +977,9 @@ namespace pcit::panther{
 
 			const sema::StmtBlock& stmt_block = [&]() -> const sema::StmtBlock& {
 				if(lower_comptime == false && sema_func.attributes.isRTDiff){
-					return sema_func.stmtBlockRT;
+					return sema_func.value.as<sema::Func::DefValue>().stmtBlockRT;
 				}else{
-					return sema_func.stmtBlock;
+					return sema_func.value.as<sema::Func::DefValue>().stmtBlock;
 				}
 			}();
 
@@ -13138,6 +13140,13 @@ namespace pcit::panther{
 		if(func.isCFamilyFunc()){
 			return std::string(func.getName(this->context.getSourceManager()));
 
+		}else if(
+			func.isExtern()
+			&& this->context.getTypeManager().getFunction(func.typeID).attributes.abi == BaseType::Function::ABI::C
+		){
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
+
 		}else if(func.attributes.isExport){
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
 			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
@@ -13465,6 +13474,13 @@ namespace pcit::panther{
 				return func.cFamilyMangledName;
 			}
 
+		}else if(
+			func.isExtern()
+			&& this->context.getTypeManager().getFunction(func.typeID).attributes.abi == BaseType::Function::ABI::C
+		){
+			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
+			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());
+			
 		}else if(func.attributes.isExport){
 			const Source& source = this->context.getSourceManager()[func.sourceID.as<Source::ID>()];
 			return std::string(source.getTokenBuffer()[func.name.as<Token::ID>()].getString());

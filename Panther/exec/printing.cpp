@@ -457,11 +457,17 @@ namespace pthr{
 			auto print_func_def(const panther::AST::FuncDef& func_def) -> void {
 				this->indenter.print();
 
-				if(func_def.isDeleted){
-					this->print_major_header("Function Definition (Deleted Overload)");
-				}else{
-					this->print_major_header("Function Definition");
+				switch(func_def.kind){
+					break; case panther::AST::FuncDef::Kind::DEF:
+						this->print_major_header("Function Definition");
+						
+					break; case panther::AST::FuncDef::Kind::EXTERN:
+						this->print_major_header("Function Definition (Extern)");
+
+					break; case panther::AST::FuncDef::Kind::DELETE:
+						this->print_major_header("Function Definition (Deleted Overload)");
 				}
+
 
 				{
 					this->indenter.push();
@@ -641,25 +647,37 @@ namespace pthr{
 					}
 
 					this->indenter.print_end();
-					if(func_def.isDeleted){
-						this->print_minor_header("Deleted Message");
 
-						if(func_def.value.has_value()){
+					switch(func_def.kind){
+						case panther::AST::FuncDef::Kind::DEF: {
+							this->print_minor_header("Statement Block");
+
+							if(func_def.value.has_value()){
+								this->print_block(this->ast_buffer.getBlock(*func_def.value));
+							}else{
+								this->printer.printGray(" {NONE}\n");
+							}
+						} break;
+
+						case panther::AST::FuncDef::Kind::EXTERN: {
+							this->print_minor_header("Extern Language");
+							this->printer.println();
 							this->indenter.push();
 							this->print_expr(*func_def.value);
 							this->indenter.pop();
-						}else{
-							this->printer.printGray(" {NONE}\n");
-						}
+						} break;
 
-					}else{
-						this->print_minor_header("Statement Block");
+						case panther::AST::FuncDef::Kind::DELETE: {
+							this->print_minor_header("Deleted Message");
 
-						if(func_def.value.has_value()){
-							this->print_block(this->ast_buffer.getBlock(*func_def.value));
-						}else{
-							this->printer.printGray(" {NONE}\n");
-						}
+							if(func_def.value.has_value()){
+								this->indenter.push();
+								this->print_expr(*func_def.value);
+								this->indenter.pop();
+							}else{
+								this->printer.printGray(" {NONE}\n");
+							}
+						} break;
 					}
 
 					this->indenter.pop();

@@ -382,6 +382,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// FuncExtern
+
+			[[nodiscard]] auto createFuncExtern(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::FUNC_EXTERN,
+					this->func_externs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getFuncExtern(Instruction instr) const
+			-> const Instruction::FuncExtern& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::FUNC_EXTERN, "Not a FuncExtern");
+				return this->func_externs[instr._index];
+			}
+
+
+			//////////////////
 			// FuncDeleteOverload
 
 			[[nodiscard]] auto createFuncDeleteOverload() -> Instruction {
@@ -3240,6 +3257,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducers, uint32_t> func_decl_extract_deducerss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
+			core::SyncLinearStepAlloc<Instruction::FuncExtern, uint32_t> func_externs{};
 			core::SyncLinearStepAlloc<Instruction::FuncBodySetup, uint32_t> func_body_setups{};
 			core::SyncLinearStepAlloc<Instruction::FuncPostDeclCheckingAndSetup, uint32_t>
 				func_post_decl_checking_and_setups{};

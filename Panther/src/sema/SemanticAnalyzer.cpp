@@ -220,6 +220,9 @@ namespace pcit::panther{
 			case Instruction::Kind::FUNC_DECL:
 				return this->instr_func_decl<false>(this->context.symbol_proc_manager.getFuncDecl(instr));
 
+			case Instruction::Kind::FUNC_EXTERN:
+				return this->instr_func_extern(this->context.symbol_proc_manager.getFuncExtern(instr));
+
 			case Instruction::Kind::FUNC_DELETE_OVERLOAD:
 				return this->instr_func_delete_overload();
 
@@ -1915,7 +1918,7 @@ namespace pcit::panther{
 					}();
 
 					if(member_var.defaultValue.has_value()){
-						created_default_init_new.stmtBlock.emplace_back(
+						created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(member_var_expr, member_var.defaultValue->value)
 						);
 						continue;
@@ -1928,7 +1931,7 @@ namespace pcit::panther{
 
 
 					if(member_type.isOptional()){
-						created_default_init_new.stmtBlock.emplace_back(
+						created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								member_var_expr,
 								sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true))
@@ -1937,7 +1940,7 @@ namespace pcit::panther{
 						continue;
 					}
 
-					created_default_init_new.stmtBlock.emplace_back(
+					created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 						this->context.sema_buffer.createAssign(
 							member_var_expr,
 							sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true))
@@ -1945,9 +1948,11 @@ namespace pcit::panther{
 					);
 				}
 
-				created_default_init_new.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
+					this->context.sema_buffer.createReturn()
+				);
 
-				created_default_init_new.stmtBlock.setTerminated();
+				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
 				created_default_init_new.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
@@ -2090,15 +2095,17 @@ namespace pcit::panther{
 					).isError()){
 						evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
 					}
-					created_default_delete.stmtBlock.emplace_back(
+					created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 						this->context.sema_buffer.createDelete(member_var_expr, member_var.typeID)
 					);
 
 				}
 
-				created_default_delete.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
+					this->context.sema_buffer.createReturn()
+				);
 
-				created_default_delete.stmtBlock.setTerminated();
+				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
 				created_default_delete.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.deleteOverload = created_default_delete_id;
@@ -2283,7 +2290,7 @@ namespace pcit::panther{
 							evo::debugFatalBreak("Automatic creation of operator [move] should not be able to fail");
 						}
 
-						created_default_move.stmtBlock.emplace_back(
+						created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
 								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID, true))
@@ -2291,9 +2298,11 @@ namespace pcit::panther{
 						);
 					}
 
-					created_default_move.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
+						this->context.sema_buffer.createReturn()
+					);
 
-					created_default_move.stmtBlock.setTerminated();
+					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
 					created_default_move.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(created_default_move_id);
@@ -2491,7 +2500,7 @@ namespace pcit::panther{
 							evo::debugFatalBreak("Automatic creation of operator [copy] should not be able to fail");
 						}
 
-						created_default_copy.stmtBlock.emplace_back(
+						created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
 								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID, true))
@@ -2499,9 +2508,11 @@ namespace pcit::panther{
 						);
 					}
 
-					created_default_copy.stmtBlock.emplace_back(this->context.sema_buffer.createReturn());
+					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
+						this->context.sema_buffer.createReturn()
+					);
 
-					created_default_copy.stmtBlock.setTerminated();
+					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
 					created_default_copy.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(created_default_copy_id);
@@ -2562,7 +2573,8 @@ namespace pcit::panther{
 			sema::Func& target_func = this->context.sema_buffer.funcs[target_func_id];
 
 
-			target_func.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(target_func_id);
+			target_func.value.as<sema::Func::DefValue>().comptimePIRFunc =
+				sema_to_pir.lowerFuncDeclComptime(target_func_id);
 
 			sema_to_pir.lowerFuncDefComptime(target_func_id);
 
@@ -3517,6 +3529,37 @@ namespace pcit::panther{
 		}();
 
 
+
+		///////////////////////////////////
+		// extern ABI
+
+		BaseType::Function::ABI abi = BaseType::Function::ABI::PANTHER;
+
+		if(instr.func_def.kind == AST::FuncDef::Kind::EXTERN){
+			TermInfo& language_term_info = this->get_term_info(*instr.special_decl_arg);
+
+			const BuiltinModule& builtin_module_pthr = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
+
+			const TypeInfo::ID language_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("Language")->as<BaseType::ID>())
+			);
+
+			if(this->type_check<true, true, true>(
+				language_type_id,
+				language_term_info,
+				"Language in extern function declaration",
+				this->get_location(instr.func_def)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			const sema::IntValue& int_value =
+				this->context.getSemaBuffer().getIntValue(language_term_info.getExpr().intValueID());
+
+			abi = BaseType::Function::ABI(static_cast<uint32_t>(int_value.value));
+		}
+
+
 		///////////////////////////////////
 		// create func
 
@@ -3526,12 +3569,13 @@ namespace pcit::panther{
 				std::move(return_params),
 				std::move(error_return_params),
 				BaseType::Function::Attributes{
-					.isComptime        = !func_attrs.value().is_runtime,
+					.isComptime        = !func_attrs.value().is_runtime 
+					                     	&& instr.func_def.kind != AST::FuncDef::Kind::EXTERN,
 					.isRuntime         = true,
 					.isUnsafe          = func_attrs.value().is_unsafe,
 					.isNoReturn        = func_attrs.value().is_no_return,
 					.callingConvention = calling_conv,
-					.abi               = BaseType::Function::ABI::PANTHER,
+					.abi               = abi,
 				},
 				!return_param_idents.empty()
 			)
@@ -4503,7 +4547,7 @@ namespace pcit::panther{
 								const Diagnostic::Location func_location = 
 									Diagnostic::Location::get(created_func, this->context);
 
-								created_swapped_func.stmtBlock.emplace_back(
+								created_swapped_func.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 									this->context.sema_buffer.createReturn(
 										sema::Expr(
 											this->context.sema_buffer.createFuncCall(
@@ -4522,7 +4566,7 @@ namespace pcit::panther{
 									)
 								);
 
-								created_swapped_func.stmtBlock.setTerminated();
+								created_swapped_func.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
 								created_swapped_func.status = sema::Func::Status::DEF_DONE;
 
 								func_info.flipped_version = created_swapped_func_id;
@@ -4736,50 +4780,164 @@ namespace pcit::panther{
 
 
 		///////////////////////////////////
-		// delete
+		// kind
 
-		if(instr.func_def.isDeleted){
-			if(
-				this->scope.getCurrentInterfaceSymbolIfExists().has_value()
-				&&  (
-						this->symbol_proc.parent == nullptr
-						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
-					)
-			){
-				this->emit_error("Interface methods cannot be deleted", instr.func_def);
-				return Result::ERROR;
-			}
+		switch(instr.func_def.kind){
+			case AST::FuncDef::Kind::DEF: {
+				created_func.value = sema::Func::DefValue{};
+				this->push_scope_level(&created_func.value.as<sema::Func::DefValue>().stmtBlock, created_func_id);
+			} break;
 
-
-			auto message_str_id = std::optional<sema::StringValue::ID>();
-
-			if(instr.delete_message.has_value()){
-				TermInfo& message_term_info = this->get_term_info(*instr.delete_message);
-
-				if(this->type_check<true, true, true>(
-					TypeManager::getTypeStringRef(),
-					message_term_info,
-					"Message in deleted function overload",
-					this->get_location(instr.func_def)
-				).ok == false){
+			case AST::FuncDef::Kind::EXTERN: {
+				if(
+					this->scope.getCurrentInterfaceSymbolIfExists().has_value()
+					&&  (
+							this->symbol_proc.parent == nullptr
+							|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+						)
+				){
+					this->emit_error("Interface methods cannot be extern", instr.func_def);
 					return Result::ERROR;
 				}
 
-				message_str_id = sema::extractStringIDFromExpr(message_term_info.getExpr(), this->context);
-			}
+				const BaseType::Function& created_func_type =
+					this->context.getTypeManager().getFunction(created_func.typeID);
 
-			created_func.deletedInfo = sema::Func::DeletedInfo{message_str_id};
+				if(created_func_type.attributes.abi == BaseType::Function::ABI::C){
+					if(
+						created_func_type.attributes.callingConvention != pir::CallingConvention::C
+						&& created_func_type.attributes.callingConvention != pir::CallingConvention::WIN_API
+					){
+						this->emit_error("Invalid calling convention for a C extern function", instr.func_def);
+						return Result::ERROR;
+					}
+				}
 
-		}else{
-			this->push_scope_level(&created_func.stmtBlock, created_func_id);
+				created_func.value = sema::Func::ExternValue{};
+
+				// TODO(PERF): this is a hack just get the created func accessable for use in `instr_func_extern()`
+				this->push_scope_level(nullptr, created_func_id);
+			} break;
+
+			case AST::FuncDef::Kind::DELETE: {
+				if(
+					this->scope.getCurrentInterfaceSymbolIfExists().has_value()
+					&&  (
+							this->symbol_proc.parent == nullptr
+							|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
+						)
+				){
+					this->emit_error("Interface methods cannot be deleted", instr.func_def);
+					return Result::ERROR;
+				}
+
+
+				auto message_str_id = std::optional<sema::StringValue::ID>();
+
+				if(instr.special_decl_arg.has_value()){
+					TermInfo& message_term_info = this->get_term_info(*instr.special_decl_arg);
+
+					if(this->type_check<true, true, true>(
+						TypeManager::getTypeStringRef(),
+						message_term_info,
+						"Message in deleted function overload",
+						this->get_location(instr.func_def)
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					message_str_id = sema::extractStringIDFromExpr(message_term_info.getExpr(), this->context);
+				}
+
+				created_func.value = sema::Func::DeleteValue{message_str_id};
+			} break;
 		}
-
 
 
 		///////////////////////////////////
 		// done
 
 		this->propagate_finished_decl();
+
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_func_extern(const Instruction::FuncExtern& instr) -> Result {
+		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
+		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+
+		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
+		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+
+
+		//////////////////
+		// check for in parameters
+
+		for(size_t i = 0; const BaseType::Function::Param& param : func_type.params){
+			if(param.kind == BaseType::Function::Param::Kind::IN){
+				this->emit_error("Extern function declaration cannot have an in parameter", instr.func_def.params[i]);
+				return Result::ERROR;
+			}
+
+			i += 1;
+		}
+
+
+		//////////////////
+		// check param is copy
+
+		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(type_id.has_value() == false){ continue; }
+
+			if(
+				this->context.getTypeManager().isTriviallyCopyable(*type_id)
+				&& this->context.getTypeManager().isTriviallySized(*type_id)
+			){
+				func_type.params[i].shouldCopy = true;
+			}
+		}
+
+
+
+		//////////////////
+		// check noReturn has valid signature
+
+		if(func_type.attributes.isNoReturn){
+			if(func_type.returnsVoid() == false){
+				this->emit_error("Functions with the `#noReturn` attribute must return `Void`", instr.func_def);
+				return Result::ERROR;
+			}
+
+			if(func_type.hasErrorReturn()){
+				this->emit_error("Functions with the `#noReturn` attribute cannot have error returns", instr.func_def);
+				return Result::ERROR;
+			}
+
+			if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
+				this->emit_error("Operator overloads cannot have attribute `#noReturn`", instr.func_def);
+				return Result::ERROR;
+			}
+		}
+
+
+		//////////////////
+		// prepare pir
+
+		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		sema_to_pir.lowerFuncDecl(current_func_id);
+
+		this->propagate_finished_pir_decl();
+
+
+		//////////////////
+		// done
+
+		this->propagate_finished_def();
 
 		return Result::SUCCESS;
 	}
@@ -4992,13 +5150,15 @@ namespace pcit::panther{
 
 		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-		current_func.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(current_func_id);
+		current_func.value.as<sema::Func::DefValue>().comptimePIRFunc =
+			sema_to_pir.lowerFuncDeclComptime(current_func_id);
 
 
 		if(func_info.flipped_version.has_value()){
 			sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
 
-			flipped_version.comptimePIRFunc = sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
+			flipped_version.value.as<sema::Func::DefValue>().comptimePIRFunc =
+				sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
 		}
 
 		this->propagate_finished_pir_decl();
@@ -5464,7 +5624,7 @@ namespace pcit::panther{
 			this->symbol_proc.setInstructionIndex(instr.start_index);
 			func_info.currently_rt_diff = true;
 
-			this->push_scope_level(&current_func.stmtBlockRT, current_func_id);
+			this->push_scope_level(&current_func.value.as<sema::Func::DefValue>().stmtBlockRT, current_func_id);
 		}
 
 		return Result::SUCCESS;
@@ -24355,7 +24515,9 @@ namespace pcit::panther{
 
 
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.comptime_execution_engine.runFunction(*target_func.comptimePIRFunc, actual_args);
+			this->context.comptime_execution_engine.runFunction(
+				*target_func.value.as<sema::Func::DefValue>().comptimePIRFunc, actual_args
+			);
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -26732,9 +26894,10 @@ namespace pcit::panther{
 
 			if(selected_sema_func.isDeleted()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
-				if(selected_sema_func.deletedInfo->message.has_value()){
-					const sema::StringValue& string_value =
-						this->context.getSemaBuffer().getStringValue(*selected_sema_func.deletedInfo->message);
+				if(selected_sema_func.value.as<sema::Func::DeleteValue>().message.has_value()){
+					const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+						*selected_sema_func.value.as<sema::Func::DeleteValue>().message
+					);
 
 					infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
 				}
@@ -26750,9 +26913,10 @@ namespace pcit::panther{
 
 			if(selected_sema_func.isDeleted()){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
-				if(selected_sema_func.deletedInfo->message.has_value()){
-					const sema::StringValue& string_value =
-						this->context.getSemaBuffer().getStringValue(*selected_sema_func.deletedInfo->message);
+				if(selected_sema_func.value.as<sema::Func::DeleteValue>().message.has_value()){
+					const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+						*selected_sema_func.value.as<sema::Func::DeleteValue>().message
+					);
 
 					infos.emplace_back(std::format("Message: \"{}\"", string_value.value));
 				}
@@ -31433,6 +31597,11 @@ namespace pcit::panther{
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 			if(attribute_str == "pub"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error("Attribute #pub is not a valid extern function attribute", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty()){
 					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -31463,6 +31632,11 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "priv"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error("Attribute #priv is not a valid extern function attribute", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -31495,6 +31669,12 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "rt"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					// TODO(FEATURE): add warning (in attributes as well)
+					this->emit_warning("Attribute #rt is implicitly set on extern functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty()){
 					if(attr_rt.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -31517,6 +31697,15 @@ namespace pcit::panther{
 					const bool rt_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
+					if(func_def.kind == AST::FuncDef::Kind::EXTERN && rt_cond == false){
+						this->emit_error(
+							"Extern functions must have attribute #rt",
+							attribute.attribute,
+							Diagnostic::Info("Note: attribute #rt is implicitly set on extern functions")
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
 					if(attr_rt.set(attribute.attribute, rt_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
@@ -31532,6 +31721,11 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "rtDiff"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error("Attribute #rtDiff is not a valid extern function attribute", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty()){
 					if(attr_rt_diff.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -31603,6 +31797,11 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "export"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error("Attribute #export is not a valid extern function attribute", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #export does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
@@ -31650,6 +31849,13 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "commutative"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error(
+						"Attribute #commutative is not a valid extern function attribute", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #commutative does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
@@ -31665,6 +31871,13 @@ namespace pcit::panther{
 				if(attr_commutative.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "swapped"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error(
+						"Attribute #swapped is not a valid extern function attribute", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #swapped does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
@@ -31683,6 +31896,13 @@ namespace pcit::panther{
 				// do nothing (checked already in SymbolProc)
 
 			}else if(attribute_str == "implicit"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error(
+						"Attribute #implicit is not a valid extern function attribute", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #implicit does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);

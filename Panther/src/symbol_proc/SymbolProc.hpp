@@ -268,7 +268,7 @@ namespace pcit::panther{
 			evo::SmallVector<AttributeParams> attribute_params_info;
 			evo::SmallVector<std::optional<SymbolProcTermInfoID>> default_param_values;
 			evo::SmallVector<evo::SmallVector<AttributeParams>> param_attribute_params;
-			std::optional<SymbolProcTermInfoID> delete_message;
+			std::optional<SymbolProcTermInfoID> special_decl_arg;
 			std::optional<sema::TemplatedFunc::ID> templated_func_id = std::nullopt;
 			uint32_t instantiation_id = std::numeric_limits<uint32_t>::max();
 			size_t num_extra_variadics = 0;
@@ -306,13 +306,13 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<evo::SmallVector<AttributeParams>>&& _param_attribute_params,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
-				std::optional<SymbolProcTermInfoID> _delete_message
+				std::optional<SymbolProcTermInfoID> _special_decl_arg
 			) requires(!IS_INSTANTIATION) : 
 				func_def(_func_def),
 				attribute_params_info(std::move(_attribute_params_info)),
 				default_param_values(std::move(_default_param_values)),
 				param_attribute_params(std::move(_param_attribute_params)),
-				delete_message(_delete_message),
+				special_decl_arg(_special_decl_arg),
 				types(std::move(_types))
 			{
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -331,7 +331,7 @@ namespace pcit::panther{
 				evo::SmallVector<std::optional<SymbolProcTermInfoID>>&& _default_param_values,
 				evo::SmallVector<evo::SmallVector<AttributeParams>>&& _param_attribute_params,
 				evo::SmallVector<std::optional<SymbolProcTypeID>>&& _types,
-				std::optional<SymbolProcTermInfoID> _delete_message,
+				std::optional<SymbolProcTermInfoID> _special_decl_arg,
 				sema::TemplatedFunc::ID _templated_func_id,
 				uint32_t _instantiation_id,
 				size_t _num_extra_variadics
@@ -340,7 +340,7 @@ namespace pcit::panther{
 				attribute_params_info(std::move(_attribute_params_info)),
 				default_param_values(std::move(_default_param_values)),
 				param_attribute_params(std::move(_param_attribute_params)),
-				delete_message(_delete_message),
+				special_decl_arg(_special_decl_arg),
 				types(std::move(_types)),
 				templated_func_id(_templated_func_id),
 				instantiation_id(_instantiation_id),
@@ -365,6 +365,10 @@ namespace pcit::panther{
 				);
 		};
 
+
+		struct FuncExtern{
+			const AST::FuncDef& func_def;
+		};
 
 		struct FuncPostDeclCheckingAndSetup{
 			const AST::FuncDef& func_def;
@@ -1129,6 +1133,7 @@ namespace pcit::panther{
 			FUNC_DECL_EXTRACT_DEDUCERS,
 			FUNC_DECL_INSTANTIATION,
 			FUNC_DECL,
+			FUNC_EXTERN,
 			FUNC_DELETE_OVERLOAD,
 			FUNC_POST_DECL_CHECKING_AND_SETUP,
 			FUNC_BODY_SETUP,

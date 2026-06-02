@@ -121,6 +121,8 @@ namespace pcit::panther{
 				KEYWORD_DELETE,
 				KEYWORD_AS,
 
+				KEYWORD_EXTERN,
+
 				KEYWORD_IF,
 				KEYWORD_ELSE,
 				KEYWORD_WHEN,
@@ -497,6 +499,8 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_NEW:            return "new";
 					break; case Kind::KEYWORD_DELETE:         return "delete";
 					break; case Kind::KEYWORD_AS:             return "as";
+
+					break; case Kind::KEYWORD_EXTERN:         return "extern";
 
 					break; case Kind::KEYWORD_IF:             return "if";
 					break; case Kind::KEYWORD_ELSE:           return "else";

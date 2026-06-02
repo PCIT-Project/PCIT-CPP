@@ -721,9 +721,21 @@ namespace pcit::panther::sema{
 		};
 		using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
 
-		struct DeletedInfo{
+
+		struct DefValue{
+			sema::StmtBlock stmtBlock{};
+			sema::StmtBlock stmtBlockRT{};
+			std::optional<pir::Function::ID> comptimePIRFunc{};
+		};
+
+		struct ExternValue{};
+
+		struct DeleteValue{
 			std::optional<sema::StringValueID> message;
 		};
+
+		using Value = evo::Variant<DefValue, ExternValue, DeleteValue>;
+
 
 		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
 		evo::Variant<Token::ID, CFamilySourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
@@ -741,14 +753,10 @@ namespace pcit::panther::sema{
 		std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt;
 		uint32_t instanceID = std::numeric_limits<uint32_t>::max(); // max if not an instantiation
 
-		std::optional<DeletedInfo> deletedInfo = std::nullopt;
-
-		sema::StmtBlock stmtBlock{};
-		sema::StmtBlock stmtBlockRT{};
+		Value value{};
 
 		std::atomic<Status> status = Status::NOT_DONE;
 
-		std::optional<pir::Function::ID> comptimePIRFunc{};
 
 		[[nodiscard]] auto isSrcFunc() const -> bool { return this->sourceID.is<SourceID>(); }
 		[[nodiscard]] auto isCFamilyFunc() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
@@ -766,7 +774,8 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty() == false; }
 		[[nodiscard]] auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty() == false; }
 
-		[[nodiscard]] auto isDeleted() const -> bool { return this->deletedInfo.has_value(); }
+		[[nodiscard]] auto isExtern() const -> bool { return this->value.is<ExternValue>(); }
+		[[nodiscard]] auto isDeleted() const -> bool { return this->value.is<DeleteValue>(); }
 	};
 
 

@@ -293,12 +293,12 @@ namespace pcit::panther{
 		}
 
 
-		auto delete_message = std::optional<SymbolProc::TermInfoID>();
-		if(func_def.isDeleted && func_def.value.has_value()){
-			const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*func_def.value);
-			if(message_res.isError()){ return evo::resultError; }
+		auto special_decl_arg = std::optional<SymbolProc::TermInfoID>();
+		if(func_def.kind != AST::FuncDef::Kind::DEF && func_def.value.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> special_decl_arg_res = this->analyze_expr<true>(*func_def.value);
+			if(special_decl_arg_res.isError()){ return evo::resultError; }
 
-			delete_message = message_res.value();
+			special_decl_arg = special_decl_arg_res.value();
 		}
 
 
@@ -309,7 +309,7 @@ namespace pcit::panther{
 				std::move(default_param_values),
 				std::move(param_attribute_params),
 				std::move(types),
-				delete_message,
+				special_decl_arg,
 				templated_func_id,
 				instantiation_id,
 				num_extra_variadics
@@ -345,31 +345,45 @@ namespace pcit::panther{
 		}
 
 
-		if(func_def.isDeleted){
-			this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload());
+		switch(func_def.kind){
+			case AST::FuncDef::Kind::DEF: {
+				if(func_def.value.has_value()){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def)
+					);
+					this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
 
-		}else if(func_def.value.has_value()){
-			this->add_instruction(this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def));
-			this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
-
-			SymbolProc::InstructionIndex rt_diff_instr_index = 
-				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2));
-
-
-			this->symbol_scopes.emplace_back(nullptr);
-			this->symbol_namespaces.emplace_back(nullptr);
-			for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
-				if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
-			}
-			this->symbol_namespaces.pop_back();
-			this->symbol_scopes.pop_back();
+					SymbolProc::InstructionIndex rt_diff_instr_index = SymbolProc::InstructionIndex(
+						uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2)
+					);
 
 
-			this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
-			this->add_instruction(this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def));
-			this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
+					this->symbol_scopes.emplace_back(nullptr);
+					this->symbol_namespaces.emplace_back(nullptr);
+					for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
+						if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
+					}
+					this->symbol_namespaces.pop_back();
+					this->symbol_scopes.pop_back();
 
-			this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
+
+					this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
+					this->add_instruction(
+						this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def)
+					);
+					this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
+
+					this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
+				}
+			} break;
+
+			case AST::FuncDef::Kind::EXTERN: {
+				this->add_instruction(this->context.symbol_proc_manager.createFuncExtern(func_def));
+			} break;
+
+			case AST::FuncDef::Kind::DELETE: {
+				this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload());
+			} break;
 		}
 
 
@@ -777,12 +791,13 @@ namespace pcit::panther{
 			}
 
 
-			auto delete_message = std::optional<SymbolProc::TermInfoID>();
-			if(func_def.isDeleted && func_def.value.has_value()){
-				const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*func_def.value);
-				if(message_res.isError()){ return evo::resultError; }
+			auto special_decl_arg = std::optional<SymbolProc::TermInfoID>();
+			if(func_def.kind != AST::FuncDef::Kind::DEF && func_def.value.has_value()){
+				const evo::Result<SymbolProc::TermInfoID> special_decl_arg_res =
+					this->analyze_expr<true>(*func_def.value);
+				if(special_decl_arg_res.isError()){ return evo::resultError; }
 
-				delete_message = message_res.value();
+				special_decl_arg = special_decl_arg_res.value();
 			}
 
 			this->add_instruction(
@@ -792,7 +807,7 @@ namespace pcit::panther{
 					std::move(default_param_values),
 					std::move(param_attribute_params),
 					std::move(types),
-					delete_message
+					special_decl_arg
 				)
 			);
 
@@ -823,45 +838,57 @@ namespace pcit::panther{
 			}
 
 
-			if(func_def.isDeleted){
-				this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload());
 
-			}else if(func_def.value.has_value()){
-				for(const AST::FuncDef::Return& return_param : func_def.returns){
-					if(this->is_deducer(return_param.type)){
-						this->emit_error(
-							"Interface method with default implementation cannot have a deducer return type",
-							return_param.type
+			switch(func_def.kind){
+				case AST::FuncDef::Kind::DEF: {
+					if(func_def.value.has_value()){
+						for(const AST::FuncDef::Return& return_param : func_def.returns){
+							if(this->is_deducer(return_param.type)){
+								this->emit_error(
+									"Interface method with default implementation cannot have a deducer return type",
+									return_param.type
+								);
+								return evo::resultError;
+							}
+						}
+
+						this->add_instruction(
+							this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def)
 						);
-						return evo::resultError;
+						this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
+
+						SymbolProc::InstructionIndex rt_diff_instr_index = SymbolProc::InstructionIndex(
+							uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2)
+						);
+
+						this->symbol_scopes.emplace_back(nullptr);
+						this->symbol_namespaces.emplace_back(nullptr);
+						for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
+							if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
+						}
+						this->symbol_namespaces.pop_back();
+						this->symbol_scopes.pop_back();
+
+						this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
+						this->add_instruction(
+							this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def)
+						);
+						this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
+
+						this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
+
+					}else{
+						this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_def));
 					}
-				}
+				} break;
 
-				this->add_instruction(this->context.symbol_proc_manager.createFuncPostDeclCheckingAndSetup(func_def));
-				this->add_instruction(this->context.symbol_proc_manager.createFuncBodySetup(func_def));
+				case AST::FuncDef::Kind::EXTERN: {
+					this->add_instruction(this->context.symbol_proc_manager.createFuncExtern(func_def));
+				} break;
 
-				SymbolProc::InstructionIndex rt_diff_instr_index = SymbolProc::InstructionIndex(
-					uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 2)
-				);
-
-				this->symbol_scopes.emplace_back(nullptr);
-				this->symbol_namespaces.emplace_back(nullptr);
-				for(const AST::Node& func_stmt : ast_buffer.getBlock(*func_def.value).statements){
-					if(this->analyze_stmt(func_stmt).isError()){ return evo::resultError; }
-				}
-				this->symbol_namespaces.pop_back();
-				this->symbol_scopes.pop_back();
-
-				this->add_instruction(this->context.symbol_proc_manager.createFuncDef(func_def));
-				this->add_instruction(
-					this->context.symbol_proc_manager.createFuncPrepareComptimePIRIfNeeded(func_def)
-				);
-				this->add_instruction(this->context.symbol_proc_manager.createFuncComptimePIRReadyIfNeeded());
-
-				this->add_instruction(this->context.symbol_proc_manager.createFuncRTDiff(rt_diff_instr_index));
-
-			}else{
-				this->add_instruction(this->context.symbol_proc_manager.createInterfaceFuncDef(func_def));
+				case AST::FuncDef::Kind::DELETE: {
+					this->add_instruction(this->context.symbol_proc_manager.createFuncDeleteOverload());
+				} break;
 			}
 
 

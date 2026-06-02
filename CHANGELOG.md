@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.311.0"></a>
+## v0.0.311.0
+
+### Panther
+- Added extern function declarations
+- Added `@pthr.Language`
+
+### pthr
+- Improved verbose messages
+- Fixed not calculating relative paths correctly
+
+
+<!---------------------------------->
 <a name="v0.0.310.0"></a>
 ## v0.0.310.0
 

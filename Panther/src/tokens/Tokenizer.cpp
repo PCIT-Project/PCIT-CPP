@@ -223,6 +223,8 @@ namespace pcit::panther{
 		{"delete",      Token::Kind::KEYWORD_DELETE},
 		{"as",          Token::Kind::KEYWORD_AS},
 
+		{"extern",      Token::Kind::KEYWORD_EXTERN},
+
 		{"if",          Token::Kind::KEYWORD_IF},
 		{"else",        Token::Kind::KEYWORD_ELSE},
 		{"when",        Token::Kind::KEYWORD_WHEN},
