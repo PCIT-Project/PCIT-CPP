@@ -11409,6 +11409,66 @@ namespace pcit::panther{
 						return Result::SUCCESS;
 					} break;
 
+					case IntrinsicFunc::Kind::COMPILER_EXECUTABLE_DIRECTORY: {
+						std::string executable_path_str = this->context.getConfig().compilerExecutablePath.string();
+						if(executable_path_str.back() != '/'){
+							executable_path_str += '/';
+						}
+
+						const uint64_t executable_path_str_size = uint64_t(executable_path_str.size());
+
+						const TypeInfo& str_ref_type_info =
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeStringRef());
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							TypeManager::getTypeStringRef(),
+							sema::Expr(
+								this->context.sema_buffer.createInitArrayRef(
+									sema::Expr(
+										this->context.sema_buffer.createStringValue(std::move(executable_path_str))
+									),
+									str_ref_type_info.baseTypeID().arrayRefID(),
+									evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>{executable_path_str_size}
+								)
+							)
+						);
+
+						return Result::SUCCESS;
+					} break;
+
+					case IntrinsicFunc::Kind::COMPILE_WORKING_DIRECTORY: {
+						std::string working_dir_str = this->context.getConfig().workingDirectory.string();
+						if(working_dir_str.back() != '/'){
+							working_dir_str += '/';
+						}
+
+						const uint64_t working_dir_str_size = uint64_t(working_dir_str.size());
+
+						const TypeInfo& str_ref_type_info =
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeStringRef());
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							TypeManager::getTypeStringRef(),
+							sema::Expr(
+								this->context.sema_buffer.createInitArrayRef(
+									sema::Expr(
+										this->context.sema_buffer.createStringValue(std::move(working_dir_str))
+									),
+									str_ref_type_info.baseTypeID().arrayRefID(),
+									evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>{working_dir_str_size}
+								)
+							)
+						);
+
+						return Result::SUCCESS;
+					} break;
+
 					default: break;
 				}
 

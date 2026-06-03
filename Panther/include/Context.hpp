@@ -60,6 +60,7 @@ namespace pcit::panther{
 				Mode mode;
 				std::string title;
 				core::Target target;
+				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
 				bool includeDebugInfo = true;
@@ -273,8 +274,6 @@ namespace pcit::panther{
 					config.target.architecture != core::Target::Architecture::UNKNOWN, "Architecture must be known"
 				);
 			}
-
-			~Context();
 
 
 

@@ -41,13 +41,17 @@ namespace pcit::panther{
 		if(was_initialized){ return; }
 
 		intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
-			{"abort",                   Kind::ABORT},
-			{"breakpoint",              Kind::BREAKPOINT},
-			{"panic"     ,              Kind::PANIC},
-			{"isComptime",              Kind::IS_COMPTIME},
+			{"abort",                       Kind::ABORT},
+			{"breakpoint",                  Kind::BREAKPOINT},
+			{"panic"     ,                  Kind::PANIC},
+			{"isComptime",                  Kind::IS_COMPTIME},
 
 			// build system
-			{"createPantherBuild",      Kind::CREATE_PANTHER_BUILD},
+			{"createPantherBuild",          Kind::CREATE_PANTHER_BUILD},
+
+			// misc
+			{"compilerExecutableDirectory", Kind::COMPILER_EXECUTABLE_DIRECTORY},
+			{"compileWorkingDirectory",     Kind::COMPILE_WORKING_DIRECTORY},
 		};
 
 		intrinsic_kinds_end = intrinsic_kinds.end();

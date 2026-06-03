@@ -83,6 +83,10 @@ project "pthr"
 		}
 	filter {}
 
+	filter "action:vs*"
+		buildoptions{ "/bigobj" }
+	filter {}
+
 
 
 project "*"

@@ -152,13 +152,14 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode             = ContextConfig::Mode::COMPILE,
-		.title            = "Panther Testing",
-		.target           = core::Target::getNative(),
-		.workingDirectory = cmd_args_config.workingDirectory,
+		.mode                   = ContextConfig::Mode::COMPILE,
+		.title                  = "Panther Testing",
+		.target                 = core::Target::getNative(),
+		.compilerExecutablePath = cmd_args_config.executablePath,
+		.workingDirectory       = cmd_args_config.workingDirectory,
 
-		.includeDebugInfo = config.addDebugInfo,
-		.numThreads       = config.numThreads,
+		.includeDebugInfo       = config.addDebugInfo,
+		.numThreads             = config.numThreads,
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
@@ -897,14 +898,15 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 -> evo::Result<uint8_t> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode             = ContextConfig::Mode::BUILD_SYSTEM,
-		.title            = "<Panther-Build-System>",
-		.target           = core::Target::getNative(),
-		.workingDirectory = cmd_args_config.workingDirectory,
+		.mode                   = ContextConfig::Mode::BUILD_SYSTEM,
+		.title                  = "<Panther-Build-System>",
+		.target                 = core::Target::getNative(),
+		.compilerExecutablePath = cmd_args_config.executablePath,
+		.workingDirectory       = cmd_args_config.workingDirectory,
 
-		.includeDebugInfo = true,
+		.includeDebugInfo       = true,
 
-		.numThreads = cmd_args_config.numBuildThreads,
+		.numThreads             = cmd_args_config.numBuildThreads,
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
@@ -1059,14 +1061,15 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 -> evo::Result<uint8_t> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode             = ContextConfig::Mode::SCRIPTING,
-		.title            = "<Panther-Script>",
-		.target           = core::Target::getNative(),
-		.workingDirectory = cmd_args_config.workingDirectory,
+		.mode                   = ContextConfig::Mode::SCRIPTING,
+		.title                  = "<Panther-Script>",
+		.target                 = core::Target::getNative(),
+		.compilerExecutablePath = cmd_args_config.executablePath,
+		.workingDirectory       = cmd_args_config.workingDirectory,
 
-		.includeDebugInfo = true,
+		.includeDebugInfo       = true,
 
-		.numThreads = cmd_args_config.numBuildThreads,
+		.numThreads             = cmd_args_config.numBuildThreads,
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){

@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.313.0"></a>
+## v0.0.313.0
+
+### Panther
+- Added `@compilerExecutableDirectory()`
+- Added `@compileWorkingDirectory()`
+
+### Misc
+- Updated to [Panther-std v0.0.25.2](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.25.2)
+
+
+<!---------------------------------->
 <a name="v0.0.312.1"></a>
 ## v0.0.312.1
 

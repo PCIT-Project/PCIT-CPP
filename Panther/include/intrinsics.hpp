@@ -29,7 +29,11 @@ namespace pcit::panther{
 			// build system
 			CREATE_PANTHER_BUILD,
 
-			_LAST_ = CREATE_PANTHER_BUILD,
+			// misc
+			COMPILER_EXECUTABLE_DIRECTORY,
+			COMPILE_WORKING_DIRECTORY,
+
+			_LAST_ = COMPILE_WORKING_DIRECTORY,
 		};
 
 		[[nodiscard]] auto lookupKind(std::string_view name) -> std::optional<Kind>;
