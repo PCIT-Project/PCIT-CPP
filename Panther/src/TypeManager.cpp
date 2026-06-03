@@ -1590,8 +1590,9 @@ namespace pcit::panther{
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				switch(source_id.as<BuiltinModule::ID>()){
-					break; case BuiltinModule::ID::PTHR:  output = "@pthr.";
-					break; case BuiltinModule::ID::BUILD: output = "@build.";
+					break; case BuiltinModule::ID::PTHR:   output = "@pthr.";
+					break; case BuiltinModule::ID::BUILD:  output = "@build.";
+					break; case BuiltinModule::ID::CONFIG: output = "@config.";
 				}
 
 			}else{

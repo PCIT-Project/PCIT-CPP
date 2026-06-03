@@ -113,6 +113,7 @@ namespace pcit::panther{
 	enum class BuiltinModuleID : uint32_t {
 		PTHR,
 		BUILD,
+		CONFIG,
 	};
 
 	struct BuiltinModuleStringID : public core::UniqueID<uint32_t, struct BuiltinModuleStringID> { 

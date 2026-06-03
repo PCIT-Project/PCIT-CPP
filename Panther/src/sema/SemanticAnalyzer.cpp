@@ -20329,9 +20329,7 @@ namespace pcit::panther{
 		}else{
 			auto resultant_type = std::optional<TypeInfo::ID>();
 
-			const TypeInfo::ID lhs_decayed_type_id 
-
-			=
+			const TypeInfo::ID lhs_decayed_type_id =
 				this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
 
 			const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
@@ -21782,6 +21780,12 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 
+		}else if(intrinsic_name == "config"){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_MODULE, BuiltinModule::ID::CONFIG
+			);
+			return Result::SUCCESS;
+
 		}
 
 
@@ -22436,10 +22440,17 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<SymbolType, sema::GlobalVar::ID>()){
 				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(symbol);
 
+				const TermInfo::ValueCategory category = [&]() -> TermInfo::ValueCategory {
+					switch(global_var.kind){
+						case AST::VarDef::Kind::VAR:   return TermInfo::ValueCategory::CONCRETE_MUT;
+						case AST::VarDef::Kind::CONST: return TermInfo::ValueCategory::CONCRETE_CONST;
+						case AST::VarDef::Kind::DEF:   return TermInfo::ValueCategory::EPHEMERAL;
+					}
+					evo::debugFatalBreak("Unknown var kind");
+				}();
+
 				this->return_term_info(instr.output,
-					global_var.kind == AST::VarDef::Kind::CONST 
-						? TermInfo::ValueCategory::CONCRETE_CONST
-						: TermInfo::ValueCategory::CONCRETE_MUT,
+					category,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					*global_var.typeID,
@@ -30147,190 +30158,206 @@ namespace pcit::panther{
 			this->context.type_manager, this->context.sema_buffer
 		);
 
+		const sema::Expr lhs_value = [&]() -> sema::Expr {
+			if(lhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
+				return *this->context.getSemaBuffer().getGlobalVar(lhs.globalVarID()).expr.load();
+			}else{
+				return lhs;
+			}
+		}();
+
+		const sema::Expr rhs_value = [&]() -> sema::Expr {
+			if(rhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
+				return *this->context.getSemaBuffer().getGlobalVar(rhs.globalVarID()).expr.load();
+			}else{
+				return rhs;
+			}
+		}();
+
 		TermInfo output = [&](){
 			switch(op){
 				case Token::lookupKind("=="): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.eq(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.eq(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.eq(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("!="): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.neq(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.neq(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.neq(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("<"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.lt(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.lt(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.lt(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("<="): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.lte(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.lte(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.lte(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind(">"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.gt(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.gt(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.gt(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind(">="): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.gte(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
-					}else if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					}else if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.gte(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.gte(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("&"): {
-					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.bitwiseAnd(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.bitwiseAnd(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("|"): {
-					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.bitwiseOr(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.bitwiseOr(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("^"): {
-					if(lhs.kind() == sema::Expr::Kind::BOOL_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::BOOL_VALUE){
 						return comptime_intrinsic_evaluator.bitwiseXor(
-							this->context.sema_buffer.getBoolValue(lhs.boolValueID()).value,
-							this->context.sema_buffer.getBoolValue(rhs.boolValueID()).value
+							this->context.sema_buffer.getBoolValue(lhs_value.boolValueID()).value,
+							this->context.sema_buffer.getBoolValue(rhs_value.boolValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.bitwiseXor(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 					}
 				} break;
@@ -30339,16 +30366,16 @@ namespace pcit::panther{
 					return comptime_intrinsic_evaluator.shl(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					).value();
 				} break;
 
 				case Token::lookupKind("<<|"): {
 					return comptime_intrinsic_evaluator.shlSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					);
 				} break;
 
@@ -30356,25 +30383,25 @@ namespace pcit::panther{
 					return comptime_intrinsic_evaluator.shr(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					).value();
 				} break;
 
 				case Token::lookupKind("+"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.add(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						).value();
 
 					}else{
 						return comptime_intrinsic_evaluator.fadd(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
@@ -30383,33 +30410,33 @@ namespace pcit::panther{
 					return comptime_intrinsic_evaluator.add(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					).value();
 				} break;
 
 				case Token::lookupKind("+|"): {
 					return comptime_intrinsic_evaluator.addSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					);
 				} break;
 
 				case Token::lookupKind("-"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.sub(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						).value();
 
 					}else{
 						return comptime_intrinsic_evaluator.fsub(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
@@ -30418,33 +30445,33 @@ namespace pcit::panther{
 					return comptime_intrinsic_evaluator.sub(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					).value();
 				} break;
 
 				case Token::lookupKind("-|"): {
 					return comptime_intrinsic_evaluator.subSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					);
 				} break;
 
 				case Token::lookupKind("*"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.mul(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							true,
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						).value();
 
 					}else{
 						return comptime_intrinsic_evaluator.fmul(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
@@ -30453,50 +30480,50 @@ namespace pcit::panther{
 					return comptime_intrinsic_evaluator.mul(
 						lhs_type.value_or(TypeManager::getTypeI256()),
 						true,
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					).value();
 				} break;
 
 				case Token::lookupKind("*|"): {
 					return comptime_intrinsic_evaluator.mulSat(
 						lhs_type.value_or(TypeManager::getTypeI256()),
-						this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-						this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+						this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+						this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 					);
 				} break;
 
 				case Token::lookupKind("/"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.div(
 							lhs_type.value_or(TypeManager::getTypeI256()),
 							false,
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						).value();
 
 					}else{
 						return comptime_intrinsic_evaluator.fdiv(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;
 
 				case Token::lookupKind("%"): {
-					if(lhs.kind() == sema::Expr::Kind::INT_VALUE){
+					if(lhs_value.kind() == sema::Expr::Kind::INT_VALUE){
 						return comptime_intrinsic_evaluator.rem(
 							lhs_type.value_or(TypeManager::getTypeI256()),
-							this->context.sema_buffer.getIntValue(lhs.intValueID()).value,
-							this->context.sema_buffer.getIntValue(rhs.intValueID()).value
+							this->context.sema_buffer.getIntValue(lhs_value.intValueID()).value,
+							this->context.sema_buffer.getIntValue(rhs_value.intValueID()).value
 						);
 
 					}else{
 						return comptime_intrinsic_evaluator.rem(
 							lhs_type.value_or(TypeManager::getTypeF128()),
-							this->context.sema_buffer.getFloatValue(lhs.floatValueID()).value,
-							this->context.sema_buffer.getFloatValue(rhs.floatValueID()).value
+							this->context.sema_buffer.getFloatValue(lhs_value.floatValueID()).value,
+							this->context.sema_buffer.getFloatValue(rhs_value.floatValueID()).value
 						);
 					}
 				} break;

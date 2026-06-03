@@ -673,8 +673,8 @@ namespace pcit::panther::sema{
 		using ID = GlobalVarID;
 
 		AST::VarDef::Kind kind;
-		evo::Variant<SourceID, CFamilySourceID> sourceID;
-		evo::Variant<Token::ID, CFamilySourceDeclInfoID> ident;
+		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
+		evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> ident;
 		std::string cFamilyMangledName; // empty if not c-family type
 		std::optional<EncapsulatingSymbolID> parent;
 		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if c-family type
@@ -686,6 +686,7 @@ namespace pcit::panther::sema{
 		std::optional<pir::GlobalVar::ID> comptimePIRGlobal{};
 
 		[[nodiscard]] auto isCFamilyVar() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
+		[[nodiscard]] auto isBuiltinVar() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 		[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
 	};
 

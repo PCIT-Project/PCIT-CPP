@@ -203,7 +203,7 @@ namespace pcit::panther{
 					core::LinearStepAlloc<CFamilySource, CFamilySource::ID, 0> c_family_sources{};
 					mutable evo::SpinLock c_family_sources_lock{};
 
-					std::array<BuiltinModule, 2> builtin_modules{};
+					std::array<BuiltinModule, 3> builtin_modules{};
 
 					core::LinearStepAlloc<Source::Package, Source::Package::ID> packages{};
 

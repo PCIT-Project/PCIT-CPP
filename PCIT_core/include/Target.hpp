@@ -16,7 +16,7 @@ namespace pcit::core{
 
 
 	struct TargetArchitecture{
-		enum class Value{
+		enum class Value : uint32_t{
 			X86_64,
 
 			UNKNOWN,
@@ -25,6 +25,7 @@ namespace pcit::core{
 
 		constexpr TargetArchitecture(const Value& value) : _value(value) {}
 		[[nodiscard]] constexpr operator Value() const { return this->_value; }
+		[[nodiscard]] explicit constexpr operator uint32_t() const { return static_cast<uint32_t>(this->_value); }
 
 
 		[[nodiscard]] constexpr static auto getNative() -> TargetArchitecture {
@@ -42,7 +43,7 @@ namespace pcit::core{
 
 
 	struct TargetPlatform{
-		enum class Value{
+		enum class Value : uint32_t{
 			WINDOWS,
 			LINUX,
 
@@ -53,6 +54,7 @@ namespace pcit::core{
 
 		constexpr TargetPlatform(const Value& value) : _value(value) {}
 		[[nodiscard]] constexpr operator Value() const { return this->_value; }
+		[[nodiscard]] explicit constexpr operator uint32_t() const { return static_cast<uint32_t>(this->_value); }
 
 
 		[[nodiscard]] constexpr static auto getNative() -> TargetPlatform {

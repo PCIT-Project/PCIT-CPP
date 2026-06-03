@@ -51,10 +51,10 @@ namespace pcit::panther{
 
 
 			struct Config{
-				enum class Mode{
-					COMPILE,
-					SCRIPTING,
-					BUILD_SYSTEM,
+				enum class Mode : uint32_t {
+					COMPILE      = 0,
+					SCRIPTING    = 1,
+					BUILD_SYSTEM = 2,
 				};
 
 				Mode mode;

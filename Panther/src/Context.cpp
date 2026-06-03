@@ -2120,6 +2120,8 @@ namespace pcit::panther{
 
 		BuiltinModule& build_module = this->source_manager[BuiltinModule::ID::BUILD];
 
+		BuiltinModule& config_module = this->source_manager[BuiltinModule::ID::CONFIG];
+
 		const TypeInfo::ID optional_string_ref_type_id = this->type_manager.getOrCreateTypeInfo(
 			this->type_manager.getTypeInfo(TypeManager::getTypeStringRef()).copyWithPushedQualifier(
 				TypeInfo::Qualifier::createOptional()
@@ -2582,6 +2584,71 @@ namespace pcit::panther{
 		);
 
 
+		pthr_module.createSymbol("Architecture", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Architecture"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("X86_64"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
+		pthr_module.createSymbol("Platform", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Platform"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("WINDOWS"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
+		pthr_module.createSymbol("Mode", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Mode"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("COMPILE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SCRIPTING"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SCRIPTING))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("BUILD_SYSTEM"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::BUILD_SYSTEM))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
 
 		pthr_module.createSymbol("CallingConvention", this->type_manager.createEnum(
 			BaseType::Enum(
@@ -2618,7 +2685,7 @@ namespace pcit::panther{
 				nullptr,
 				nullptr,
 				true,
-				true
+				false
 			)
 		));
 
@@ -2643,7 +2710,7 @@ namespace pcit::panther{
 				nullptr,
 				nullptr,
 				true,
-				true
+				false
 			)
 		));
 
@@ -2691,7 +2758,7 @@ namespace pcit::panther{
 				nullptr,
 				nullptr,
 				true,
-				true
+				false
 			)
 		));
 
@@ -2743,7 +2810,7 @@ namespace pcit::panther{
 				nullptr,
 				nullptr,
 				true,
-				true
+				false
 			)
 		));
 
@@ -4031,6 +4098,73 @@ namespace pcit::panther{
 
 			iterable_rt_mut_ref_type.methods.emplace_back(create_iterator_func_id);
 		}
+
+
+		///////////////////////////////////
+		// @config
+
+		config_module.createSymbol("mode", this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			BuiltinModule::ID::CONFIG,
+			config_module.createString("mode"),
+			std::string(),
+			std::nullopt,
+			std::optional<sema::Expr>(
+				sema::Expr(
+					this->sema_buffer.createIntValue(
+						core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().mode)),
+						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+					)
+				)
+			),
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Mode")->as<BaseType::ID>())),
+			true,
+			false,
+			std::nullopt
+		));
+
+		config_module.createSymbol("architecture", this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			BuiltinModule::ID::CONFIG,
+			config_module.createString("architecture"),
+			std::string(),
+			std::nullopt,
+			std::optional<sema::Expr>(
+				sema::Expr(
+					this->sema_buffer.createIntValue(
+						core::GenericInt::create<uint32_t>(
+							static_cast<uint32_t>(this->getConfig().target.architecture)
+						),
+						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+					)
+				)
+			),
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Architecture")->as<BaseType::ID>())),
+			true,
+			false,
+			std::nullopt
+		));
+
+		config_module.createSymbol("platform", this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			BuiltinModule::ID::CONFIG,
+			config_module.createString("platform"),
+			std::string(),
+			std::nullopt,
+			std::optional<sema::Expr>(
+				sema::Expr(
+					this->sema_buffer.createIntValue(
+						core::GenericInt::create<uint32_t>(static_cast<uint32_t>(this->getConfig().target.platform)),
+						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+					)
+				)
+			),
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())),
+			true,
+			false,
+			std::nullopt
+		));
+
 	}
 
 

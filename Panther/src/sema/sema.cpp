@@ -101,6 +101,11 @@ namespace pcit::panther::sema{
 		if(this->isCFamilyVar()){
 			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
 			return c_family_source.getDeclInfo(this->ident.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isBuiltinVar()){
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->ident.as<BuiltinModule::StringID>());
+
 		}else{
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->ident.as<Token::ID>()].getString();

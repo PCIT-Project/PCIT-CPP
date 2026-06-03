@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.314.0"></a>
+## v0.0.314.0
+
+### Panther
+- Added builtin module `@config`
+	- `@config.mode`
+	- `@config.architecture`
+	- `@config.platform`
+- Added `@pthr.Mode`
+- Added `@pthr.Architecture`
+- Added `@pthr.Platform`
+
+
+<!---------------------------------->
 <a name="v0.0.313.0"></a>
 ## v0.0.313.0
 
