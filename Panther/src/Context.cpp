@@ -2129,9 +2129,9 @@ namespace pcit::panther{
 		);
 
 
-		const BaseType::Struct::ID panther_build_config_executable_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_executable_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigExecutableOutput",
+			"BuildExecutableOutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2158,9 +2158,9 @@ namespace pcit::panther{
 		);
 
 
-		const BaseType::Struct::ID panther_build_config_object_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_object_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigObjectOutput",
+			"BuildObjectOutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2173,9 +2173,9 @@ namespace pcit::panther{
 		);
 
 
-		const BaseType::Struct::ID panther_build_config_assembly_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_assembly_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigAssemblyOutput",
+			"BuildAssemblyOutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2187,9 +2187,9 @@ namespace pcit::panther{
 			}
 		);
 
-		const BaseType::Struct::ID panther_build_config_llvmir_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_llvmir_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigLLVMIROutput",
+			"BuildLLVMIROutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2201,9 +2201,9 @@ namespace pcit::panther{
 			}
 		);
 
-		const BaseType::Struct::ID panther_build_config_pir_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_pir_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigPIROutput",
+			"BuildPIROutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2216,9 +2216,9 @@ namespace pcit::panther{
 		);
 
 
-		const BaseType::Struct::ID panther_build_config_ast_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_ast_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigASTOutput",
+			"BuildASTOutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2230,9 +2230,9 @@ namespace pcit::panther{
 			}
 		);
 
-		const BaseType::Struct::ID panther_build_config_tokens_output = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_tokens_output = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigTokensOutput",
+			"BuildTokensOutput",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2246,21 +2246,21 @@ namespace pcit::panther{
 
 
 		{
-			const BaseType::ID config_output_type = this->type_manager.createUnion(
+			const BaseType::ID config_build_output_type = this->type_manager.createUnion(
 				BaseType::Union{
 					.sourceID          = BuiltinModule::ID::BUILD,
-					.name              = build_module.createString("PantherBuildConfigOutput"),
+					.name              = build_module.createString("PantherOutput"),
 					.fields            = evo::SmallVector<BaseType::Union::Field>{
 						BaseType::Union::Field(
 							build_module.createString("tokens"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_tokens_output))
+								TypeInfo(BaseType::ID(panther_build_tokens_output))
 							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("ast"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_ast_output))
+								TypeInfo(BaseType::ID(panther_build_ast_output))
 							)
 						),
 						BaseType::Union::Field(
@@ -2270,25 +2270,25 @@ namespace pcit::panther{
 						BaseType::Union::Field(
 							build_module.createString("pir"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_pir_output))
+								TypeInfo(BaseType::ID(panther_build_pir_output))
 							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("llvmir"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_llvmir_output))
+								TypeInfo(BaseType::ID(panther_build_llvmir_output))
 							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("assembly"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_assembly_output))
+								TypeInfo(BaseType::ID(panther_build_assembly_output))
 							)
 						),
 						BaseType::Union::Field(
 							build_module.createString("object"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_object_output))
+								TypeInfo(BaseType::ID(panther_build_object_output))
 							)
 						),
 						BaseType::Union::Field(
@@ -2298,7 +2298,7 @@ namespace pcit::panther{
 						BaseType::Union::Field(
 							build_module.createString("executable"),
 							this->type_manager.getOrCreateTypeInfo(
-								TypeInfo(BaseType::ID(panther_build_config_executable_output))
+								TypeInfo(BaseType::ID(panther_build_executable_output))
 							)
 						),
 					},
@@ -2311,9 +2311,9 @@ namespace pcit::panther{
 			);
 
 
-			build_module.createSymbol("PantherBuildConfigOutput", config_output_type);
+			build_module.createSymbol("BuildOutput", config_build_output_type);
 
-			std::ignore = this->type_manager.getUnion(config_output_type.unionID());
+			std::ignore = this->type_manager.getUnion(config_build_output_type.unionID());
 		}
 
 
@@ -2385,7 +2385,7 @@ namespace pcit::panther{
 
 		const BaseType::Struct::ID panther_build_config_directory = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigDirectory",
+			"PantherDirectory",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2406,9 +2406,9 @@ namespace pcit::panther{
 
 
 
-		const BaseType::Struct::ID panther_build_config_c_family_header = this->create_builtin_struct(
+		const BaseType::Struct::ID panther_build_c_family_header = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigCFamilyHeader",
+			"CFamilyHeader",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2435,9 +2435,58 @@ namespace pcit::panther{
 		);
 
 
+		build_module.createSymbol("PackageOptionValue", this->type_manager.createUnion(
+			BaseType::Union{
+				.sourceID          = BuiltinModule::ID::BUILD,
+				.name              = build_module.createString("PackageOptionValue"),
+				.fields            = evo::SmallVector<BaseType::Union::Field>{
+					BaseType::Union::Field(build_module.createString("bool"), TypeManager::getTypeBool()),
+					BaseType::Union::Field(build_module.createString("ui8"), TypeManager::getTypeUI8()),
+					BaseType::Union::Field(build_module.createString("ui16"), TypeManager::getTypeUI16()),
+					BaseType::Union::Field(build_module.createString("ui32"), TypeManager::getTypeUI32()),
+					BaseType::Union::Field(build_module.createString("ui64"), TypeManager::getTypeUI64()),
+					BaseType::Union::Field(build_module.createString("i8"), TypeManager::getTypeI8()),
+					BaseType::Union::Field(build_module.createString("i16"), TypeManager::getTypeI16()),
+					BaseType::Union::Field(build_module.createString("i32"), TypeManager::getTypeI32()),
+					BaseType::Union::Field(build_module.createString("i64"), TypeManager::getTypeI64()),
+					BaseType::Union::Field(build_module.createString("f32"), TypeManager::getTypeF32()),
+					BaseType::Union::Field(build_module.createString("f64"), TypeManager::getTypeF64()),
+					BaseType::Union::Field(build_module.createString("string"), TypeManager::getTypeStringRef()),
+				},
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = false,
+				.isPriv            = false,
+				.isUntagged        = false,
+			}
+		));
+
+		const BaseType::Struct::ID panther_build_package_option = this->create_builtin_struct(
+			BuiltinModule::ID::BUILD,
+			"PackageOption",
+			evo::SmallVector<BaseType::Struct::MemberVar>{
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("name"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("value"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(build_module.getSymbol("PackageOptionValue")->as<BaseType::ID>())
+					),
+					std::nullopt,
+					false
+				),
+			}
+		);
+
 		const BaseType::Struct::ID panther_build_config_package = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
-			"PantherBuildConfigPackage",
+			"PantherPackage",
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
@@ -2457,6 +2506,28 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("warnings"),
 					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(package_warning_settings))),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("options"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									this->type_manager.getOrCreateTypeInfo(
+										TypeInfo(BaseType::ID(panther_build_package_option))
+									),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
 					std::nullopt,
 					false
 				),
@@ -2516,7 +2587,7 @@ namespace pcit::panther{
 					build_module.createString("output"),
 					this->type_manager.getOrCreateTypeInfo(
 						TypeInfo(
-							build_module.getSymbol("PantherBuildConfigOutput")->as<BaseType::ID>()
+							build_module.getSymbol("BuildOutput")->as<BaseType::ID>()
 						)
 					),
 					std::nullopt,
@@ -2566,7 +2637,7 @@ namespace pcit::panther{
 							this->type_manager.getOrCreateArrayRef(
 								BaseType::ArrayRef(
 									this->type_manager.getOrCreateTypeInfo(
-										TypeInfo(BaseType::ID(panther_build_config_c_family_header))
+										TypeInfo(BaseType::ID(panther_build_c_family_header))
 									),
 									evo::SmallVector<BaseType::ArrayRef::Dimension>{
 										BaseType::ArrayRef::Dimension::ptr()

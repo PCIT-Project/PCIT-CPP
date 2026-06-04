@@ -113,6 +113,10 @@ static auto error_failed_to_add_std_lib(
 		case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
 			infos.emplace_back("Invaid name");
 		} break;
+
+		case panther::SourceManager::CreatePackageFailReason::INVALID_OPTION_NAME: {
+			infos.emplace_back("Invaid option name");
+		} break;
 	}
 
 	panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
@@ -191,8 +195,112 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			std::filesystem::path(package_path), cmd_args_config.workingDirectory
 		);
 
+		bool errored_in_options = false;
+		auto options = std::unordered_map<std::string_view, panther::Source::Package::Option>();
+		for(const panther::Context::PantherBuildConfig::Package::Option& option : package.options){
+			const std::string_view option_name = static_cast<std::string_view>(option.name);
+
+			if(option_name.empty()){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					"Package option name \"\" is invalid",
+					panther::Diagnostic::Location::NONE,
+					evo::SmallVector<panther::Diagnostic::Info>{
+						panther::Diagnostic::Info("Name cannot be empty"),
+					}
+				));
+				errored_in_options = true;
+				break;
+			}
+
+			if(evo::isLetter(option_name[0]) == false && option_name[0] != '_'){
+				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+					panther::Diagnostic::Level::ERROR,
+					std::format("Package option name \"{}\" is invalid", option_name),
+					panther::Diagnostic::Location::NONE
+				));
+				errored_in_options = true;
+				break;
+			}
+
+			for(size_t i = 1; i < option_name.size(); i+=1){
+				if(evo::isAlphaNumeric(option_name[i]) == false && option_name[i] != '_'){
+					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+						panther::Diagnostic::Level::ERROR,
+						std::format("Package option name \"{}\" is invalid", option_name),
+						panther::Diagnostic::Location::NONE
+					));
+					errored_in_options = true;
+					break;
+				}
+			}
+			if(errored_in_options){ break; }
+
+
+			switch(option.value.getTag()){
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::BOOLEAN: {
+					options.emplace(option_name, option.value.boolValue());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::UI8: {
+					options.emplace(option_name, option.value.ui8Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::UI16: {
+					options.emplace(option_name, option.value.ui16Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::UI32: {
+					options.emplace(option_name, option.value.ui32Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::UI64: {
+					options.emplace(option_name, option.value.ui64Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::I8: {
+					options.emplace(option_name, option.value.i8Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::I16: {
+					options.emplace(option_name, option.value.i16Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::I32: {
+					options.emplace(option_name, option.value.i32Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::I64: {
+					options.emplace(option_name, option.value.i64Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::F32: {
+					options.emplace(option_name, option.value.f32Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::F64: {
+					options.emplace(option_name, option.value.f64Value());
+				} break;
+
+				case panther::Context::PantherBuildConfig::Package::Option::Value::Tag::STRING: {
+					options.emplace(option_name, option.value.stringValue());
+				} break;
+			}
+		}
+
+		if(errored_in_options){
+			num_errors += 1;
+			continue;
+		}
+
+
 		const CreatePantherPackageResult create_package_res = context.getSourceManager().createPackage(
-			panther::Source::Package(normalized_package_path, static_cast<std::string>(package.name), package.warns)
+			panther::Source::Package(
+				normalized_package_path,
+				static_cast<std::string>(package.name),
+				package.warns,
+				std::move(options)
+			)
 		);
 
 		if(create_package_res.has_value() == false){
@@ -253,6 +361,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 							),
 						}
 					));
+				} break;
+
+				case panther::SourceManager::CreatePackageFailReason::INVALID_OPTION_NAME: {
+					evo::debugFatalBreak("Should have already caught");
 				} break;
 			}
 
@@ -991,6 +1103,10 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 			case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
 				evo::debugFatalBreak("Should never have this result");
 			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::INVALID_OPTION_NAME: {
+				evo::debugFatalBreak("Should never have this result");
+			} break;
 		}
 	}
 
@@ -1152,6 +1268,10 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 			} break;
 
 			case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
+				evo::debugFatalBreak("Should never have this result");
+			} break;
+
+			case panther::SourceManager::CreatePackageFailReason::INVALID_OPTION_NAME: {
 				evo::debugFatalBreak("Should never have this result");
 			} break;
 		}

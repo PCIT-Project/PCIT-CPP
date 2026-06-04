@@ -200,15 +200,123 @@ namespace pcit::panther{
 				};
 
 
+
+
 				struct Package{
 					struct Directory{
 						StringRef path;
 						bool isRecursive;
 					};
 
+
+					struct Option{
+						struct Value{
+							enum class Tag : uint8_t {
+								BOOLEAN = 0,
+								UI8     = 1,
+								UI16    = 2,
+								UI32    = 3,
+								UI64    = 4,
+								I8      = 5,
+								I16     = 6,
+								I32     = 7,
+								I64     = 8,
+								F32     = 9,
+								F64     = 10,
+								STRING  = 11,
+							};
+
+							[[nodiscard]] auto getTag() const -> Tag { return this->tag; }
+
+							[[nodiscard]] auto boolValue() const -> bool {
+								evo::debugAssert(this->tag == Tag::BOOLEAN, "Not a bool value");
+								return this->data.boolean;
+							}
+
+							[[nodiscard]] auto ui8Value() const -> uint8_t {
+								evo::debugAssert(this->tag == Tag::UI8, "Not a ui8 value");
+								return this->data.ui8;
+							}
+
+							[[nodiscard]] auto ui16Value() const -> uint16_t {
+								evo::debugAssert(this->tag == Tag::UI16, "Not a ui16 value");
+								return this->data.ui16;
+							}
+
+							[[nodiscard]] auto ui32Value() const -> uint32_t {
+								evo::debugAssert(this->tag == Tag::UI32, "Not a ui32 value");
+								return this->data.ui32;
+							}
+
+							[[nodiscard]] auto ui64Value() const -> uint64_t {
+								evo::debugAssert(this->tag == Tag::UI64, "Not a ui64 value");
+								return this->data.ui64;
+							}
+
+							[[nodiscard]] auto i8Value() const -> int8_t {
+								evo::debugAssert(this->tag == Tag::I8, "Not a i8 value");
+								return this->data.i8;
+							}
+
+							[[nodiscard]] auto i16Value() const -> int16_t {
+								evo::debugAssert(this->tag == Tag::I16, "Not a i16 value");
+								return this->data.i16;
+							}
+
+							[[nodiscard]] auto i32Value() const -> int32_t {
+								evo::debugAssert(this->tag == Tag::I32, "Not a i32 value");
+								return this->data.i32;
+							}
+
+							[[nodiscard]] auto i64Value() const -> int64_t {
+								evo::debugAssert(this->tag == Tag::I64, "Not a i64 value");
+								return this->data.i64;
+							}
+
+							[[nodiscard]] auto f32Value() const -> float32_t {
+								evo::debugAssert(this->tag == Tag::F32, "Not a f32 value");
+								return this->data.f32;
+							}
+
+							[[nodiscard]] auto f64Value() const -> float64_t {
+								evo::debugAssert(this->tag == Tag::F64, "Not a f64 value");
+								return this->data.f64;
+							}
+
+							[[nodiscard]] auto stringValue() const -> std::string_view {
+								evo::debugAssert(this->tag == Tag::STRING, "Not a string value");
+								return static_cast<std::string_view>(this->data.string);
+							}
+
+
+							private:
+								union Data{
+									bool boolean;
+									uint8_t ui8;
+									uint16_t ui16;
+									uint32_t ui32;
+									uint64_t ui64;
+									int8_t i8;
+									int16_t i16;
+									int32_t i32;
+									int64_t i64;
+									float32_t f32;
+									float64_t f64;
+									StringRef string;
+								};
+
+								Data data;
+								Tag tag;
+						};
+
+						StringRef name;
+						Value value;
+					};
+
 					StringRef path;
 					StringRef name;
 					Source::Package::Warns warns;
+					evo::ArrayProxy<Option> options;
 					evo::ArrayProxy<StringRef> sourceFiles;
 					evo::ArrayProxy<Directory> sourceDirectories;
 				};

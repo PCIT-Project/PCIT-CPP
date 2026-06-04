@@ -35,6 +35,7 @@ namespace pcit::panther{
 				PATH_DOESNT_EXIST,
 				PATH_NOT_DIRECTORY,
 				INVALID_NAME,
+				INVALID_OPTION_NAME,
 			};
 
 		public:
@@ -59,6 +60,20 @@ namespace pcit::panther{
 				for(char character : package.name){
 					if(evo::isAlphaNumeric(character) == false && character != '_' && character != '.'){
 						return evo::Unexpected(CreatePackageFailReason::INVALID_NAME);
+					}
+				}
+
+				for(const auto& [name, value] : package.options){
+					if(name.empty()){ return evo::Unexpected(CreatePackageFailReason::INVALID_OPTION_NAME); }
+
+					if(evo::isLetter(name[0]) == false && name[0] != '_'){
+						return evo::Unexpected(CreatePackageFailReason::INVALID_OPTION_NAME);
+					}
+
+					for(size_t i = 1; i < name.size(); i+=1){
+						if(evo::isAlphaNumeric(name[i]) == false && name[i] != '_'){
+							return evo::Unexpected(CreatePackageFailReason::INVALID_OPTION_NAME);
+						}
 					}
 				}
 

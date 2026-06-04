@@ -37,9 +37,6 @@ namespace pcit::panther{
 					using core::UniqueID<uint32_t, ID>::UniqueID;
 				};
 
-				std::filesystem::path basePath;
-				std::string name;
-
 				struct Warns{
 					bool methodCallOnNonMethod        = true;
 					bool memberTypeByValueAccessor    = true;
@@ -51,7 +48,27 @@ namespace pcit::panther{
 					bool experimentalF80              = true;
 
 					static auto all() -> Warns { return Warns(); };
-				} warn;
+				};
+
+				using Option = evo::Variant<
+					bool,
+					uint8_t,
+					uint16_t,
+					uint32_t,
+					uint64_t,
+					int8_t,
+					int16_t,
+					int32_t,
+					int64_t,
+					float32_t,
+					float64_t,
+					std::string_view
+				>;
+
+				std::filesystem::path basePath;
+				std::string name;
+				Warns warn;
+				std::unordered_map<std::string_view, Option> options;
 			};
 
 		public:

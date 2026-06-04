@@ -1,6 +1,28 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.315.0"></a>
+## v0.0.315.0
+
+### Panther
+- Added `@options`
+- Added `@build.PackageOptionValue`
+- Added `@build.PackageOption`
+- Renamed many types in `@build`
+	- `PantherBuildConfigCFamilyHeader`    -> `CFamilyHeader`
+	- `PantherBuildConfigDirectory`        -> `PantherDirectory`
+	- `PantherBuildConfigOutput`           -> `BuildOutput`
+	- `PantherBuildConfigPackage`          -> `PantherPackage`
+	- `PantherBuildConfigTokensOutput`     -> `BuildTokensOutput`
+	- `PantherBuildConfigASTOutput`        -> `BuildASTOutput`
+	- `PantherBuildConfigPIROutput`        -> `BuildPIROutput`
+	- `PantherBuildConfigLLVMIROutput`     -> `BuildLLVMIROutput`
+	- `PantherBuildConfigAssemblyOutput`   -> `BuildAssemblyOutput`
+	- `PantherBuildConfigObjectOutput`     -> `BuildObjectOutput`
+	- `PantherBuildConfigExecutableOutput` -> `BuildExecutableOutput`
+
+
+<!---------------------------------->
 <a name="v0.0.314.1"></a>
 ## v0.0.314.1
 

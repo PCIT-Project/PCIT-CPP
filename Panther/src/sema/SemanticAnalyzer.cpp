@@ -21790,6 +21790,12 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 
+		}else if(intrinsic_name == "options"){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_MODULE, BuiltinModule::ID::OPTIONS
+			);
+			return Result::SUCCESS;
+
 		}
 
 
@@ -22392,6 +22398,197 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::builtin_module_accessor(
 		const Instruction::Accessor<IS_COMPTIME>& instr, std::string_view rhs_ident_str, const TermInfo& lhs
 	) -> Result {
+		if(lhs.type_id.as<BuiltinModule::ID>() == BuiltinModule::ID::OPTIONS){
+			const Source::Package& package = this->get_package();
+
+			const auto option_find = package.options.find(rhs_ident_str);
+
+			if(option_find == package.options.end()){
+				this->emit_error(std::format("Package has no option \"{}\"", rhs_ident_str), instr.infix.rhs);
+				return Result::ERROR;
+			}
+
+			option_find->second.visit([&](const auto& value) -> void {
+				using ValueType = std::decay_t<decltype(value)>;
+			
+				if constexpr(std::is_same<ValueType, bool>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeBool(),
+						sema::Expr(this->context.sema_buffer.createBoolValue(value))
+					);
+			
+				}else if constexpr(std::is_same<ValueType, uint8_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUI8(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<uint8_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 8)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, uint16_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUI16(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<uint16_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 16)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, uint32_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUI32(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<uint32_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, uint64_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUI64(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<uint64_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 64)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, int8_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeI8(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<int8_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 8)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, int16_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeI16(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<int16_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 16)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, int32_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeI32(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<int32_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 32)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, int64_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeI64(),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								core::GenericInt::create<int64_t>(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 64)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, float32_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeF32(),
+						sema::Expr(
+							this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF32(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F32)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, float64_t>()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeF64(),
+						sema::Expr(
+							this->context.sema_buffer.createFloatValue(
+								core::GenericFloat::createF64(value),
+								this->context.type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_F64)
+							)
+						)
+					);
+
+				}else if constexpr(std::is_same<ValueType, std::string_view>()){					
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						this->context.type_manager.getOrCreateTypeInfo(
+							TypeInfo(
+								this->context.type_manager.getOrCreateArray(
+									BaseType::Array(
+										this->context.getTypeManager().getTypeChar(),
+										evo::SmallVector<uint64_t>{value.size()},
+										core::GenericValue('\0')
+									)
+								),
+								evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
+							)
+						),
+						sema::Expr(this->context.sema_buffer.createStringValue(std::string(value)))
+					);
+
+				}else{
+					static_assert(false, "Unknown package option value");
+				}
+			});
+
+			return Result::SUCCESS;
+		}
+
+
 		const BuiltinModule& builtin_module = this->context.getSourceManager()[lhs.type_id.as<BuiltinModule::ID>()];
 
 		const std::optional<BuiltinModule::Symbol> symbol_find = builtin_module.getSymbol(rhs_ident_str);

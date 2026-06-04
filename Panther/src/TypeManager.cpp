@@ -230,7 +230,7 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_UINT);
 		const BaseType::Primitive::ID type_usize = this->primitives.emplace_back(Token::Kind::TYPE_USIZE);
 		this->primitives.emplace_back(Token::Kind::TYPE_F16);
-		this->primitives.emplace_back(Token::Kind::TYPE_F32);
+		const BaseType::Primitive::ID type_f32     = this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		const BaseType::Primitive::ID type_f64     = this->primitives.emplace_back(Token::Kind::TYPE_F64);
 		const BaseType::Primitive::ID type_f80     = this->primitives.emplace_back(Token::Kind::TYPE_F80);
 		const BaseType::Primitive::ID type_f128    = this->primitives.emplace_back(Token::Kind::TYPE_F128);
@@ -281,6 +281,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_usize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f32.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f64.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f80.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f128.get())));
@@ -1596,9 +1597,10 @@ namespace pcit::panther{
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				switch(source_id.as<BuiltinModule::ID>()){
-					break; case BuiltinModule::ID::PTHR:   output = "@pthr.";
-					break; case BuiltinModule::ID::BUILD:  output = "@build.";
-					break; case BuiltinModule::ID::CONFIG: output = "@config.";
+					break; case BuiltinModule::ID::PTHR:    output = "@pthr.";
+					break; case BuiltinModule::ID::BUILD:   output = "@build.";
+					break; case BuiltinModule::ID::CONFIG:  output = "@config.";
+					break; case BuiltinModule::ID::OPTIONS: evo::debugFatalBreak("Invalid module to have as parent");
 				}
 
 			}else{

@@ -114,6 +114,8 @@ namespace pcit::panther{
 		PTHR,
 		BUILD,
 		CONFIG,
+
+		OPTIONS,
 	};
 
 	struct BuiltinModuleStringID : public core::UniqueID<uint32_t, struct BuiltinModuleStringID> { 
