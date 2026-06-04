@@ -1772,8 +1772,15 @@ namespace pcit::panther{
 		});
 
 
+		size_t num_bytes_data = 1;
+		for(const BaseType::Union::Field& field : union_type.fields){
+			if(field.typeID.isVoid()){ continue; }
+			num_bytes_data = std::max(num_bytes_data, this->context.getTypeManager().numBytes(field.typeID.asTypeID()));
+		}
+
+
 		const pir::Type underlying_data_type = this->module.getOrCreateArrayType(
-			this->module.createUnsignedType(8), this->context.getTypeManager().numBytes(BaseType::ID(union_id))
+			this->module.createUnsignedType(8), num_bytes_data
 		);
 
 		const pir::Type union_pir_type = [&](){

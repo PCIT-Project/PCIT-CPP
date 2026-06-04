@@ -21,6 +21,11 @@ namespace plnk = pcit::plnk;
 #include "./args.hpp"
 
 
+#if defined(EVO_COMPILER_MSVC)
+	#pragma warning(default : 4062)
+#endif
+
+
 namespace pthr{
 
 
@@ -103,6 +108,10 @@ static auto error_failed_to_add_std_lib(
 
 		case panther::SourceManager::CreatePackageFailReason::PATH_NOT_DIRECTORY: {
 			infos.emplace_back("Path isn't directory");
+		} break;
+
+		case panther::SourceManager::CreatePackageFailReason::INVALID_NAME: {
+			infos.emplace_back("Invaid name");
 		} break;
 	}
 

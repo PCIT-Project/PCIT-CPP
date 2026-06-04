@@ -1070,6 +1070,10 @@ namespace pcit::panther{
 
 			this->propagate_finished_decl_def();
 			return Result::SUCCESS;
+
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::BUILTIN_MODULE){
+			this->emit_error("Cannot define a variable with a builtin module", *instr.var_def.value);
+			return Result::ERROR;
 		}
 
 
@@ -22451,7 +22455,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					category,
-					false,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					*global_var.typeID,
 					sema::Expr(symbol)
