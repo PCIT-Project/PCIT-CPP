@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.316.0"></a>
+## v0.0.316.0
+
+### Panther
+- Fixed lowering entry when not adding debug info
+
+### Misc
+- Added build target `ReleaseDist` fully
+
+
+<!---------------------------------->
 <a name="v0.0.315.0"></a>
 ## v0.0.315.0
 

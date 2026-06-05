@@ -87,6 +87,15 @@ project "pthr"
 		buildoptions{ "/bigobj" }
 	filter {}
 
+	filter "configurations:ReleaseDist"
+		postbuildcommands {
+			("{COPYDIR} " .. (config.location) .. "/extern/Panther-std " .. target.bin .. "/Panther-std"),
+			("{COPYDIR} " .. (config.location) .. "/extern/libc " .. target.bin .. "/lib"),
+
+			("{COPYFILE} " .. (config.location) .. "/LICENSE " .. target.bin),
+			("{COPYFILE} " .. (config.location) .. "/README.md " .. target.bin),
+		}
+	filter{}
 
 
 project "*"

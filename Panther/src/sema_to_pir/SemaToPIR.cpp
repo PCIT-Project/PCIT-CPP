@@ -1383,7 +1383,13 @@ namespace pcit::panther{
 		this->handler.createBasicBlock();
 		this->handler.setTargetBasicBlockAtEnd();
 
-		const auto ssl = this->create_scoped_source_location(*meta_id, 0, 0);
+		const auto ssl = [&]() -> std::optional<pir::InstrHandler::DeferPopSourceLocation> {
+			if(this->data.config.includeDebugInfo){
+				return this->create_scoped_source_location(*meta_id, 0, 0);
+			}else{
+				return std::nullopt;
+			}
+		}();
 
 		const pir::Expr entry_call = this->handler.createCall(
 			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {}
@@ -1463,7 +1469,13 @@ namespace pcit::panther{
 				this->handler.createBasicBlock();
 				this->handler.setTargetBasicBlockAtEnd();
 
-				const auto ssl = this->create_scoped_source_location(*meta_id, 0, 0);
+				const auto ssl = [&]() -> std::optional<pir::InstrHandler::DeferPopSourceLocation> {
+					if(this->data.config.includeDebugInfo){
+						return this->create_scoped_source_location(*meta_id, 0, 0);
+					}else{
+						return std::nullopt;
+					}
+				}();
 
 				std::ignore = this->handler.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
 
