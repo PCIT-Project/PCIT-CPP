@@ -90,12 +90,11 @@ namespace pcit::pir{
 
 	enum class OptMode{
 		NONE,
-		O0 = NONE,
-		O1,
-		O2,
-		O3,
-		Os,
-		Oz,
+		SPEED_MINOR,
+		SPEED,
+		SPEED_AGRESSIVE,
+		SIZE,
+		SIZE_AGRESSIVE,
 	};
 
 }

@@ -302,6 +302,8 @@ namespace pcit::pir::passes{
 					see_expr(memcpy.dst);
 					see_expr(memcpy.src);
 					see_expr(memcpy.numBytes);
+
+					return false;
 				} break;
 
 				case Expr::Kind::MEMSET: {
@@ -309,6 +311,8 @@ namespace pcit::pir::passes{
 					see_expr(memset.dst);
 					see_expr(memset.value);
 					see_expr(memset.numBytes);
+
+					return false;
 				} break;
 
 
@@ -317,6 +321,8 @@ namespace pcit::pir::passes{
 
 					const BitCast& bitcast = handler.getBitCast(stmt);
 					see_expr(bitcast.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::TRUNC: {
@@ -324,6 +330,8 @@ namespace pcit::pir::passes{
 
 					const Trunc& trunc = handler.getTrunc(stmt);
 					see_expr(trunc.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::FTRUNC: {
@@ -331,6 +339,8 @@ namespace pcit::pir::passes{
 
 					const FTrunc& ftrunc = handler.getFTrunc(stmt);
 					see_expr(ftrunc.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::SEXT: {
@@ -338,6 +348,8 @@ namespace pcit::pir::passes{
 
 					const SExt& sext = handler.getSExt(stmt);
 					see_expr(sext.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::ZEXT: {
@@ -345,6 +357,8 @@ namespace pcit::pir::passes{
 
 					const ZExt& zext = handler.getZExt(stmt);
 					see_expr(zext.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::FEXT: {
@@ -352,6 +366,8 @@ namespace pcit::pir::passes{
 
 					const FExt& fext = handler.getFExt(stmt);
 					see_expr(fext.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::ITOF: {
@@ -359,6 +375,8 @@ namespace pcit::pir::passes{
 
 					const IToF& itof = handler.getIToF(stmt);
 					see_expr(itof.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::UITOF: {
@@ -366,6 +384,8 @@ namespace pcit::pir::passes{
 
 					const UIToF& uitof = handler.getUIToF(stmt);
 					see_expr(uitof.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::FTOI: {
@@ -373,6 +393,8 @@ namespace pcit::pir::passes{
 
 					const FToI& ftoi = handler.getFToI(stmt);
 					see_expr(ftoi.fromValue);
+
+					return false;
 				} break;
 
 				case Expr::Kind::FTOUI: {
@@ -380,8 +402,9 @@ namespace pcit::pir::passes{
 
 					const FToUI& ftoui = handler.getFToUI(stmt);
 					see_expr(ftoui.fromValue);
-				} break;
 
+					return false;
+				} break;
 
 				case Expr::Kind::ADD: {
 					if(remove_unused_stmt()){ return true; }

@@ -70,6 +70,9 @@ namespace pcit::llvmint{
 		}
 
 		this->data = new Data(std::move(*created_lljit));
+
+		this->opt_mode = config.optMode;
+
 		return {};
 	}
 
@@ -85,6 +88,8 @@ namespace pcit::llvmint{
 	auto OrcJIT::addModule(LLVMContext&& context, Module&& module)
 	-> evo::Expected<void, evo::SmallVector<std::string>> {
 		evo::debugAssert(this->isInitialized(), "OrcJIT not initialized");
+
+		module.optimize(this->opt_mode);
 
 		llvm::Error add_module_result = this->data->lljit->addIRModule(
 			llvm::orc::ThreadSafeModule(

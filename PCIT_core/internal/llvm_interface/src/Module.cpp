@@ -396,8 +396,8 @@ namespace pcit::llvmint{
 				case OptMode::O1: return llvm::OptimizationLevel::O1;
 				case OptMode::O2: return llvm::OptimizationLevel::O2;
 				case OptMode::O3: return llvm::OptimizationLevel::O3;
-				case OptMode::Os: return llvm::OptimizationLevel::Os;
-				case OptMode::Oz: return llvm::OptimizationLevel::Oz;
+				case OptMode::OS: return llvm::OptimizationLevel::Os;
+				case OptMode::OZ: return llvm::OptimizationLevel::Oz;
 			}
 
 			evo::unreachable();

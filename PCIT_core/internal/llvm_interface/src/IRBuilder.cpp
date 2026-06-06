@@ -666,7 +666,9 @@ namespace pcit::llvmint{
 	}
 
 	auto IRBuilder::getValueGlobalByteArray(evo::ArrayProxy<std::byte> bytes) const -> Constant {
-		return llvm::ConstantDataArray::get(this->get_native_context(), llvm::ArrayRef((int8_t*)bytes.data(), bytes.size()));
+		return llvm::ConstantDataArray::get(
+			this->get_native_context(), llvm::ArrayRef((int8_t*)bytes.data(), bytes.size())
+		);
 	}
 
 	auto IRBuilder::getValueGlobalArray(const Type& elem_type, evo::ArrayProxy<Constant> values) const -> Constant {

@@ -18,13 +18,13 @@
 
 // #include "../../../include/platform.hpp"
 
+#include "./Module.hpp"
 
 #include <mutex>
 
 
 namespace llvm{
 	class LLVMContext;
-	class Module;
 }
 
 
@@ -34,6 +34,7 @@ namespace pcit::llvmint{
 	class OrcJIT{
 		public:
 			struct InitConfig{
+				Module::OptMode optMode;
 				bool allowDefaultSymbolLinking = false;
 			};
 
@@ -56,8 +57,10 @@ namespace pcit::llvmint{
 
 			[[nodiscard]] auto deinit() -> void;
 
+			[[nodiscard]] auto getOptMode() const -> Module::OptMode { return this->opt_mode; }
 
-			[[nodiscard]] auto addModule(class LLVMContext&& context, class Module&& module)
+
+			[[nodiscard]] auto addModule(class LLVMContext&& context, Module&& module)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
 
 			// deletes the context and the module
@@ -85,7 +88,9 @@ namespace pcit::llvmint{
 			struct Data;
 			Data* data = nullptr;
 
-			std::mutex mutex{};
+			Module::OptMode opt_mode = Module::OptMode::NONE;
+
+			std::mutex mutex{}; // TODO(PERF): 
 	};
 
 	

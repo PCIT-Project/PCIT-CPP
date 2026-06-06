@@ -33,6 +33,7 @@ namespace pcit::pir{
 	class JITEngine{
 		public:
 			struct InitConfig{
+				OptMode optMode;
 				bool allowDefaultSymbolLinking = false;
 			};
 		

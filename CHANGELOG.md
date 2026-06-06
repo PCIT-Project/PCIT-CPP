@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.317.0"></a>
+## v0.0.317.0
+
+### Panther
+- Added `@pthr.OptMode`
+- Added `@build.PantherBuildConfig.title`
+- Added `@build.PantherBuildConfig.architecture`
+- Added `@build.PantherBuildConfig.platform`
+- Added `@build.PantherBuildConfig.optMode`
+- Added `@config.optMode`
+- Added `@config.includeDebugInfo`
+- Fixed crashing in semantic analysis of type accessors when the type is not panther source type and the member doesn't exist
+
+### PIR
+- Fixed lowering of global variables always having external linkage
+- Fixed `removeUnusedStmts` and `instCombine` optimization passes for a number of instructions
+
+
+<!---------------------------------->
 <a name="v0.0.316.0"></a>
 ## v0.0.316.0
 
@@ -18,7 +37,7 @@
 ### Panther
 - Added `@options`
 - Added `@build.PackageOptionValue`
-- Added `@build.PackageOption`
+- Added `@build.PackageOption`/
 - Renamed many types in `@build`
 	- `PantherBuildConfigCFamilyHeader`    -> `CFamilyHeader`
 	- `PantherBuildConfigDirectory`        -> `PantherDirectory`

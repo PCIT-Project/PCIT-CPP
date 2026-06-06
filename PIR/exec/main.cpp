@@ -228,7 +228,7 @@ auto main(int argc, const char* argv[]) -> int {
 	}
 
 
-	const pcit::pir::OptMode opt_mode = config.optimize ? pcit::pir::OptMode::O3 : pcit::pir::OptMode::NONE;
+	const pcit::pir::OptMode opt_mode = config.optimize ? pcit::pir::OptMode::FAST_AGRESSIVE : pcit::pir::OptMode::NONE;
 
 
 	printer.printlnGray("--------------------------------");

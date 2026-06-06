@@ -57,9 +57,10 @@ namespace pcit::panther{
 					BUILD_SYSTEM = 2,
 				};
 
-				Mode mode;
 				std::string title;
 				core::Target target;
+				Mode mode;
+				pir::OptMode optMode;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -200,8 +201,6 @@ namespace pcit::panther{
 				};
 
 
-
-
 				struct Package{
 					struct Directory{
 						StringRef path;
@@ -329,7 +328,11 @@ namespace pcit::panther{
 
 
 
+				StringRef title;
 				Output output;
+				core::Target::Architecture architecture;
+				core::Target::Platform platform;
+				pir::OptMode optMode;
 				NumThreads numThreads;
 				bool addDebugInfo;
 
@@ -641,7 +644,7 @@ namespace pcit::panther{
 			}
 
 
-			auto jit_engine_result_emit_diagnositc(const evo::SmallVector<std::string>& messages) -> void;
+			auto jit_engine_result_emit_diagnostic(const evo::SmallVector<std::string>& messages) -> void;
 
 
 

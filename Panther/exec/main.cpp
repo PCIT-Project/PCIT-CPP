@@ -149,13 +149,17 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	panther::Context::PantherBuildConfig& config,
 	core::Printer& printer
 ) -> evo::Result<> {
-	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+
+	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::SOME){
+		printer.printlnMagenta("Running compile");
+
+	}else if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
 		if(config.numThreads.isSingle()){
-			printer.printlnGray("Running compile single-threaded");
+			printer.printlnMagenta("Running compile single-threaded");
 		}else if(config.numThreads.getNum() == 1){
-			printer.printlnGray("Running compile multi-threaded (1 worker thread)");
+			printer.printlnMagenta("Running compile multi-threaded (1 worker thread)");
 		}else{
-			printer.printlnGray(
+			printer.printlnMagenta(
 				"Running compile multi-threaded ({} worker threads)", config.numThreads.getNum()
 			);
 		}
@@ -165,9 +169,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
+		.title                  = config.title,
+		.target                 = core::Target(config.architecture, config.platform),
 		.mode                   = ContextConfig::Mode::COMPILE,
-		.title                  = "Panther Testing",
-		.target                 = core::Target::getNative(),
+		.optMode                = config.optMode,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -178,6 +183,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
 		printer.printlnGray("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
+
+	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
+		printer.printlnMagenta("Architecture: {}", config.architecture);
+		printer.printlnMagenta("Platform: {}", config.platform);
+
+		switch(config.optMode){
+			break; case pir::OptMode::NONE:            printer.printlnMagenta("Optimization Mode: NONE");
+			break; case pir::OptMode::SPEED_MINOR:     printer.printlnMagenta("Optimization Mode: SPEED_MINOR");
+			break; case pir::OptMode::SPEED:           printer.printlnMagenta("Optimization Mode: SPEED");
+			break; case pir::OptMode::SPEED_AGRESSIVE: printer.printlnMagenta("Optimization Mode: SPEED_AGRESSIVE");
+			break; case pir::OptMode::SIZE:            printer.printlnMagenta("Optimization Mode: SIZE");
+			break; case pir::OptMode::SIZE_AGRESSIVE:  printer.printlnMagenta("Optimization Mode: SIZE_AGRESSIVE");
+		}
+
+		printer.printlnMagenta("Include debug info: {}", config.addDebugInfo);
+	}
+
+
 
 	auto context = panther::Context(
 		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
@@ -830,7 +853,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			) == false){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
-					"Failed to write objject file",
+					"Failed to write object file",
 					panther::Diagnostic::Location::NONE
 				));
 				return evo::resultError;
@@ -1019,9 +1042,10 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 -> evo::Result<uint8_t> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode                   = ContextConfig::Mode::BUILD_SYSTEM,
 		.title                  = "<Panther-Build-System>",
 		.target                 = core::Target::getNative(),
+		.mode                   = ContextConfig::Mode::BUILD_SYSTEM,
+		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1186,9 +1210,10 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 -> evo::Result<uint8_t> {
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
-		.mode                   = ContextConfig::Mode::SCRIPTING,
 		.title                  = "<Panther-Script>",
 		.target                 = core::Target::getNative(),
+		.mode                   = ContextConfig::Mode::SCRIPTING,
+		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 

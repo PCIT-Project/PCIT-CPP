@@ -42,12 +42,12 @@ namespace pcit::pir{
 
 			const llvmint::Module::OptLevel opt_level = [&](){
 				switch(opt_mode){
-					case OptMode::O0: return llvmint::Module::OptLevel::NONE;
-					case OptMode::O1: return llvmint::Module::OptLevel::LESS;
-					case OptMode::O2: return llvmint::Module::OptLevel::DEFAULT;
-					case OptMode::O3: return llvmint::Module::OptLevel::AGGRESSIVE;
-					case OptMode::Os: return llvmint::Module::OptLevel::DEFAULT;
-					case OptMode::Oz: return llvmint::Module::OptLevel::DEFAULT;
+					case OptMode::NONE:            return llvmint::Module::OptLevel::NONE;
+					case OptMode::SPEED_MINOR:     return llvmint::Module::OptLevel::LESS;
+					case OptMode::SPEED:           return llvmint::Module::OptLevel::DEFAULT;
+					case OptMode::SPEED_AGRESSIVE: return llvmint::Module::OptLevel::AGGRESSIVE;
+					case OptMode::SIZE:            return llvmint::Module::OptLevel::DEFAULT;
+					case OptMode::SIZE_AGRESSIVE:  return llvmint::Module::OptLevel::DEFAULT;
 				}
 
 				evo::unreachable();
@@ -81,12 +81,12 @@ namespace pcit::pir{
 			lowerer.lower();
 
 			switch(opt_mode){
-				break; case OptMode::O0: // do nothing...
-				break; case OptMode::O1: this->module.optimize(llvmint::Module::OptMode::O1);
-				break; case OptMode::O2: this->module.optimize(llvmint::Module::OptMode::O2);
-				break; case OptMode::O3: this->module.optimize(llvmint::Module::OptMode::O3);
-				break; case OptMode::Os: this->module.optimize(llvmint::Module::OptMode::Os);
-				break; case OptMode::Oz: this->module.optimize(llvmint::Module::OptMode::Oz);
+				break; case OptMode::NONE:            // do nothing...
+				break; case OptMode::SPEED_MINOR:     this->module.optimize(llvmint::Module::OptMode::O1);
+				break; case OptMode::SPEED:           this->module.optimize(llvmint::Module::OptMode::O2);
+				break; case OptMode::SPEED_AGRESSIVE: this->module.optimize(llvmint::Module::OptMode::O3);
+				break; case OptMode::SIZE:            this->module.optimize(llvmint::Module::OptMode::OS);
+				break; case OptMode::SIZE_AGRESSIVE:  this->module.optimize(llvmint::Module::OptMode::OZ);
 			}
 
 

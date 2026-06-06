@@ -613,7 +613,11 @@ namespace pcit::pir{
 		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type);
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
-			llvmint::Constant(nullptr), constant_type, llvmint::LinkageType::External, global.isConstant, global.name
+			llvmint::Constant(nullptr),
+			constant_type,
+			this->get_linkage(global.linkage),
+			global.isConstant,
+			global.name
 		);
 
 		llvm_global_var.setAlignment(unsigned(this->module.getAlignment(global.type)));

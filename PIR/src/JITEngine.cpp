@@ -31,8 +31,21 @@ namespace pcit::pir{
 
 		this->data = new Data();
 
+		const llvmint::Module::OptMode opt_mode = [&]() -> llvmint::Module::OptMode {
+			switch(config.optMode){
+				case OptMode::NONE:            return llvmint::Module::OptMode::O0;
+				case OptMode::SPEED_MINOR:     return llvmint::Module::OptMode::O1;
+				case OptMode::SPEED:           return llvmint::Module::OptMode::O2;
+				case OptMode::SPEED_AGRESSIVE: return llvmint::Module::OptMode::O3;
+				case OptMode::SIZE:            return llvmint::Module::OptMode::OS;
+				case OptMode::SIZE_AGRESSIVE:  return llvmint::Module::OptMode::OZ;
+			}
+			evo::unreachable();
+		}();
+
 		evo::Expected<void, evo::SmallVector<std::string>> res = this->data->orc_jit.init(
 			llvmint::OrcJIT::InitConfig{
+				.optMode                   = opt_mode,
 				.allowDefaultSymbolLinking = config.allowDefaultSymbolLinking,
 			}
 		);
@@ -68,11 +81,23 @@ namespace pcit::pir{
 		llvm_module.init(module.getName(), llvm_context);
 
 		{
+			const llvmint::Module::OptLevel opt_level = [&]() -> llvmint::Module::OptLevel {
+				switch(this->data->orc_jit.getOptMode()){
+					case llvmint::Module::OptMode::O0: return llvmint::Module::OptLevel::NONE;
+					case llvmint::Module::OptMode::O1: return llvmint::Module::OptLevel::LESS;
+					case llvmint::Module::OptMode::O2: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::O3: return llvmint::Module::OptLevel::AGGRESSIVE;
+					case llvmint::Module::OptMode::OS: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::OZ: return llvmint::Module::OptLevel::DEFAULT;
+				}
+				evo::unreachable();
+			}();
+
 			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
 				core::Target::getNative(),
 				llvmint::Module::Relocation::DEFAULT,
 				llvmint::Module::CodeSize::DEFAULT,
-				llvmint::Module::OptLevel::DEFAULT,
+				opt_level,
 				true
 			);
 			if(set_target_res_message.empty() == false){
@@ -109,11 +134,23 @@ namespace pcit::pir{
 		llvm_module.init(module.getName(), llvm_context);
 
 		{
+			const llvmint::Module::OptLevel opt_level = [&]() -> llvmint::Module::OptLevel {
+				switch(this->data->orc_jit.getOptMode()){
+					case llvmint::Module::OptMode::O0: return llvmint::Module::OptLevel::NONE;
+					case llvmint::Module::OptMode::O1: return llvmint::Module::OptLevel::LESS;
+					case llvmint::Module::OptMode::O2: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::O3: return llvmint::Module::OptLevel::AGGRESSIVE;
+					case llvmint::Module::OptMode::OS: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::OZ: return llvmint::Module::OptLevel::DEFAULT;
+				}
+				evo::unreachable();
+			}();
+
 			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
 				core::Target::getNative(),
 				llvmint::Module::Relocation::DEFAULT,
 				llvmint::Module::CodeSize::DEFAULT,
-				llvmint::Module::OptLevel::DEFAULT,
+				opt_level,
 				true
 			);
 			if(set_target_res_message.empty() == false){
@@ -146,12 +183,24 @@ namespace pcit::pir{
 		auto llvm_module = llvmint::Module();
 		llvm_module.init(module.getName(), llvm_context);
 
-		{
+		{	
+			const llvmint::Module::OptLevel opt_level = [&]() -> llvmint::Module::OptLevel {
+				switch(this->data->orc_jit.getOptMode()){
+					case llvmint::Module::OptMode::O0: return llvmint::Module::OptLevel::NONE;
+					case llvmint::Module::OptMode::O1: return llvmint::Module::OptLevel::LESS;
+					case llvmint::Module::OptMode::O2: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::O3: return llvmint::Module::OptLevel::AGGRESSIVE;
+					case llvmint::Module::OptMode::OS: return llvmint::Module::OptLevel::DEFAULT;
+					case llvmint::Module::OptMode::OZ: return llvmint::Module::OptLevel::DEFAULT;
+				}
+				evo::unreachable();
+			}();
+
 			std::string set_target_res_message = llvm_module.setTargetAndDataLayout(
 				core::Target::getNative(),
 				llvmint::Module::Relocation::DEFAULT,
 				llvmint::Module::CodeSize::DEFAULT,
-				llvmint::Module::OptLevel::DEFAULT,
+				opt_level,
 				true
 			);
 			if(set_target_res_message.empty() == false){

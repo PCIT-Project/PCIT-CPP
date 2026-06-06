@@ -22271,7 +22271,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_union.namespacedMembers;
 				scope_level = lhs_union.scopeLevel;
 
-				if(lhs_union.isCFamilyType() == false){
+				if(lhs_union.isPTHRSourceType()){
 					type_source = &this->context.getSourceManager()[lhs_union.sourceID.as<Source::ID>()];
 				}
 			} break;
@@ -22301,7 +22301,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_enum.namespacedMembers;
 				scope_level = lhs_enum.scopeLevel;
 
-				if(lhs_enum.isCFamilyType() == false){
+				if(lhs_enum.isPTHRSourceType()){
 					type_source = &this->context.getSourceManager()[lhs_enum.sourceID.as<Source::ID>()];
 				}
 			} break;
@@ -22313,10 +22313,15 @@ namespace pcit::panther{
 		}
 
 
+		if(namespaced_members == nullptr){
+			this->emit_error(std::format("Type has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
+			return Result::ERROR;
+		}
+
+
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			namespaced_members, rhs_ident_str
 		);
-
 
 		switch(wait_on_symbol_proc_result){
 			case WaitOnSymbolProcResult::NOT_FOUND: {
@@ -22366,6 +22371,7 @@ namespace pcit::panther{
 				// do nothing...
 			} break;
 		}
+
 
 		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
 			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NOT_PRIV>(

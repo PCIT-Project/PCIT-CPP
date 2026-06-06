@@ -728,6 +728,26 @@ namespace pcit::panther{
 			} break;
 		}
 
+		if(this->_config.optMode != pir::OptMode::NONE){
+			unsigned num_threads = 0;
+			if(this->_config.numThreads.isMulti()){
+				num_threads = this->_config.numThreads.getNum();
+			}
+
+			auto pass_manager = pir::PassManager(this->pir_module, num_threads);
+
+			pass_manager.addPass(pir::passes::removeUnusedStmts());
+			pass_manager.addPass(pir::passes::instCombine());
+
+			if(this->_config.numThreads.isMulti()){
+				const evo::Result<> opt_result = pass_manager.run();
+				if(opt_result.isError()){ return evo::resultError; }
+				
+			}else{
+				pass_manager.runSingleThreaded();
+			}
+		}
+
 		return evo::Result<>();
 	}
 
@@ -919,7 +939,7 @@ namespace pcit::panther{
 			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
 				jit_engine.addModule(this->pir_module);
 			if(add_module_result.has_value() == false){
-				this->jit_engine_result_emit_diagnositc(add_module_result.error());
+				this->jit_engine_result_emit_diagnostic(add_module_result.error());
 				return evo::resultError;
 			}
 		}
@@ -961,7 +981,7 @@ namespace pcit::panther{
 				jit_engine.addModule(pair.first.steal(), pair.second);
 
 			if(add_module_result.has_value() == false){
-				this->jit_engine_result_emit_diagnositc(add_module_result.error());
+				this->jit_engine_result_emit_diagnostic(add_module_result.error());
 				return evo::resultError;
 			}
 		}
@@ -1027,14 +1047,14 @@ namespace pcit::panther{
 			});
 
 		if(register_result.has_value() == false){
-			this->jit_engine_result_emit_diagnositc(register_result.error());
+			this->jit_engine_result_emit_diagnostic(register_result.error());
 			return evo::resultError;
 		}
 
 		const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
 			jit_engine.addModule(this->pir_module);
 		if(add_module_result.has_value() == false){
-			this->jit_engine_result_emit_diagnositc(add_module_result.error());
+			this->jit_engine_result_emit_diagnostic(add_module_result.error());
 			return evo::resultError;
 		}
 
@@ -1091,7 +1111,7 @@ namespace pcit::panther{
 
 		return pir::lowerToLLVMIR(
 			this->pir_module,
-			pir::OptMode::O0,
+			this->_config.optMode,
 			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
@@ -1111,7 +1131,7 @@ namespace pcit::panther{
 
 		return pir::lowerToAssembly(
 			this->pir_module,
-			pir::OptMode::O0,
+			this->_config.optMode,
 			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
@@ -1131,7 +1151,7 @@ namespace pcit::panther{
 
 		return pir::lowerToObject(
 			this->pir_module,
-			pir::OptMode::O0,
+			this->_config.optMode,
 			true,
 			llvm_context.native(),
 			std::move(clang_modules.value())
@@ -2080,7 +2100,7 @@ namespace pcit::panther{
 
 
 
-	auto Context::jit_engine_result_emit_diagnositc(const evo::SmallVector<std::string>& messages) -> void {
+	auto Context::jit_engine_result_emit_diagnostic(const evo::SmallVector<std::string>& messages) -> void {
 		auto infos = evo::SmallVector<Diagnostic::Info>();
 		for(const std::string& error : messages){
 			infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
@@ -2577,6 +2597,84 @@ namespace pcit::panther{
 		);
 
 
+		pthr_module.createSymbol("Architecture", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Architecture"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("X86_64"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
+		pthr_module.createSymbol("Platform", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("Platform"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("WINDOWS"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
+
+		pthr_module.createSymbol("OptMode", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("OptMode"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("NONE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::NONE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SPEED_MINOR"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_MINOR))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SPEED"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SPEED_AGRESSIVE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_AGRESSIVE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SIZE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("SIZE_AGRESSIVE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE_AGRESSIVE))
+					),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
 
 		const BaseType::Struct::ID panther_build_config = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
@@ -2584,11 +2682,45 @@ namespace pcit::panther{
 			evo::SmallVector<BaseType::Struct::MemberVar>{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("title"),
+					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("output"),
 					this->type_manager.getOrCreateTypeInfo(
 						TypeInfo(
 							build_module.getSymbol("BuildOutput")->as<BaseType::ID>()
 						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("architecture"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(pthr_module.getSymbol("Architecture")->as<BaseType::ID>())
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("platform"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("optMode"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(pthr_module.getSymbol("OptMode")->as<BaseType::ID>())
 					),
 					std::nullopt,
 					false
@@ -2655,43 +2787,6 @@ namespace pcit::panther{
 		);
 
 
-		pthr_module.createSymbol("Architecture", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Architecture"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("X86_64"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
-					),
-				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
-		));
-
-		pthr_module.createSymbol("Platform", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Platform"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("WINDOWS"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
-					),
-				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
-		));
 
 		pthr_module.createSymbol("Mode", this->type_manager.createEnum(
 			BaseType::Enum(
@@ -4231,6 +4326,41 @@ namespace pcit::panther{
 				)
 			),
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())),
+			true,
+			false,
+			std::nullopt
+		));
+
+		config_module.createSymbol("optMode", this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			BuiltinModule::ID::CONFIG,
+			config_module.createString("optMode"),
+			std::string(),
+			std::nullopt,
+			std::optional<sema::Expr>(
+				sema::Expr(
+					this->sema_buffer.createIntValue(
+						core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().optMode)),
+						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+					)
+				)
+			),
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("OptMode")->as<BaseType::ID>())),
+			true,
+			false,
+			std::nullopt
+		));
+
+		config_module.createSymbol("includeDebugInfo", this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			BuiltinModule::ID::CONFIG,
+			config_module.createString("includeDebugInfo"),
+			std::string(),
+			std::nullopt,
+			std::optional<sema::Expr>(
+				sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo))
+			),
+			TypeManager::getTypeBool(),
 			true,
 			false,
 			std::nullopt

@@ -871,7 +871,7 @@ namespace pcit::clangint{
 		clang_instance.setOutputStream(std::make_unique<StringOStream>(output));
 
 
-		auto ela = clang::EmitLLVMOnlyAction(llvm_context); // TODO(FUTURE): make EmitLLVMOnlyAction?
+		auto ela = clang::EmitLLVMOnlyAction(llvm_context);
 		const bool execute_result = clang_instance.ExecuteAction(ela);
 
 		if(execute_result == false){ return evo::resultError; }

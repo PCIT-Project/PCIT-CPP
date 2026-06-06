@@ -54,7 +54,7 @@ namespace pcit::llvmint{
 			enum class OptLevel{
 				NONE,       // O0
 				LESS,       // O1
-				DEFAULT,    // O2 / Os
+				DEFAULT,    // O2 / Os / Oz
 				AGGRESSIVE, // O3
 			};
 
@@ -65,8 +65,8 @@ namespace pcit::llvmint{
 				O1,
 				O2,
 				O3,
-				Os,
-				Oz,
+				OS,
+				OZ,
 			};
 
 

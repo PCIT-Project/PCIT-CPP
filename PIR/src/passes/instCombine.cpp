@@ -945,6 +945,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, bitcast.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::TRUNC: {
@@ -954,6 +956,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, trunc.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::FTRUNC: {
@@ -963,6 +967,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, ftrunc.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::SEXT: {
@@ -972,6 +978,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, sext.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::ZEXT: {
@@ -981,6 +989,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, zext.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::FEXT: {
@@ -990,6 +1000,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, fext.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::ITOF: {
@@ -999,6 +1011,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, itof.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::UITOF: {
@@ -1008,6 +1022,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, uitof.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::FTOI: {
@@ -1017,6 +1033,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, ftoi.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 			case Expr::Kind::FTOUI: {
@@ -1026,6 +1044,8 @@ namespace pcit::pir::passes{
 					handler.replaceExpr(stmt, ftoui.fromValue);
 					return true;
 				}
+
+				return false;
 			} break;
 
 
