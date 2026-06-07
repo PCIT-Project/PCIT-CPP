@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.1"></a>
+## v0.0.318.1
+
+### Panther
+- Fixed lowering of getting address of string literal
+
+### PIR
+- Fixed `removeUnusedStmts` optimization pass when using `@branch`, `@phi`, and `@switch` statements
+
+
+<!---------------------------------->
 <a name="v0.0.318.0"></a>
 ## v0.0.318.0
 

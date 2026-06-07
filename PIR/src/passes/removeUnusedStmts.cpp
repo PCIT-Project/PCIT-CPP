@@ -229,11 +229,39 @@ namespace pcit::pir::passes{
 					return false;
 				} break;
 
-				case Expr::Kind::JUMP:        return false;
-				case Expr::Kind::BRANCH:      return false;
+				case Expr::Kind::JUMP: return false;
+
+				case Expr::Kind::BRANCH: {
+					const Branch& branch_inst = handler.getBranch(stmt);
+
+					see_expr(branch_inst.cond);
+
+					return false;
+				} break;
+
 				case Expr::Kind::UNREACHABLE: return false;
-				case Expr::Kind::PHI:         return false;
-				case Expr::Kind::SWITCH:      return false;
+
+				case Expr::Kind::PHI: {
+					if(remove_unused_stmt()){ return true; }
+
+					const Phi& phi_inst = handler.getPhi(stmt);
+
+					for(const Phi::Predecessor& predecessor : phi_inst.predecessors){
+						see_expr(predecessor.value);
+					}
+
+					return false;
+				} break;
+
+				case Expr::Kind::SWITCH: {
+					const Switch& switch_inst = handler.getSwitch(stmt);
+
+					see_expr(switch_inst.cond);
+
+					for(const Switch::Case& switch_case : switch_inst.cases){
+						see_expr(switch_case.value);
+					}
+				} break;
 
 				case Expr::Kind::ALLOCA: {
 					if(func_metadata.contains(stmt) == false){

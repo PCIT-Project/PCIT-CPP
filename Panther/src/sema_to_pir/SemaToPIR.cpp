@@ -4178,7 +4178,6 @@ namespace pcit::panther{
 					}
 				}();
 
-
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : func_call.args){
 					if(target_func_type_info.params[i].is_copy()){
@@ -4330,7 +4329,14 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::ADDR_OF: {
 				const sema::Expr& target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
-				const pir::Expr address = this->get_expr_pointer(target);
+
+				const pir::Expr address = [&]() -> pir::Expr {
+					if(target.kind() == sema::Expr::Kind::STRING_VALUE){
+						return this->get_expr_register(target);
+					}else{
+						return this->get_expr_pointer(target);
+					}
+				}();;
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return address;
