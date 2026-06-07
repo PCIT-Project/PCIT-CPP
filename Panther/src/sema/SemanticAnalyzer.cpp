@@ -6075,7 +6075,9 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id.asTypeID());
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(
+			this->context.getTypeManager().decayType<false, false>(target_type_id.asTypeID())
+		);
 
 		if(target_type.qualifiers().empty() == false || target_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){
 			this->emit_error("Interface impl target is not an interface", instr.interface_impl.target);
@@ -7410,7 +7412,18 @@ namespace pcit::panther{
 		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 
-		const bool when_cond_value = this->context.getSemaBuffer().getBoolValue(cond.getExpr().boolValueID()).value;
+		const sema::BoolValue::ID bool_value_id = [&]() -> sema::BoolValue::ID {
+			if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
+				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
+					cond.getExpr().globalVarID()
+				);
+				return global_var.expr.load()->boolValueID();
+			}else{
+				return cond.getExpr().boolValueID();
+			}
+		}();
+
+		const bool when_cond_value = this->context.getSemaBuffer().getBoolValue(bool_value_id).value;
 
 		if(when_cond_value == false){
 			this->symbol_proc.setInstructionIndex(instr.else_index);
@@ -21496,8 +21509,9 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const TypeInfo& got_interface_type =
-			this->context.getTypeManager().getTypeInfo(got_interface_type_id.asTypeID());
+		const TypeInfo& got_interface_type = this->context.getTypeManager().getTypeInfo(
+			this->context.getTypeManager().decayType<false, false>(got_interface_type_id.asTypeID())
+		);
 
 		if(got_interface_type.baseTypeID().kind() != BaseType::Kind::INTERFACE){
 			this->emit_error("Target interface of interface map must be an interface", instr.interface_map.interface);

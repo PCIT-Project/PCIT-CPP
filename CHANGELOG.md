@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.2"></a>
+## v0.0.318.2
+
+### Panther
+- Fixed alias of interface not properly being considered an interface in `impl` and interface map
+- Fixed global variable values being used in `when` conditionals
+
+
+<!---------------------------------->
 <a name="v0.0.318.1"></a>
 ## v0.0.318.1
 
