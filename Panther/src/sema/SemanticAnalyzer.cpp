@@ -17060,19 +17060,27 @@ namespace pcit::panther{
 		}();
 
 		
-		if(
-			attempt_func_type.errorTypes.size() != instr.except_params.size()
-			&& attempt_func_type.errorTypes[0].isVoid() == false
-		){
+		if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
 			this->emit_error(
 				"Number of except parameters does not match attempt function call",
 				instr.handler_kind_token_id,
 				Diagnostic::Info(
-					std::format("Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size())
+					std::format(
+						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size()
+					)
 				)
 			);
 			return Result::ERROR;
+					
+		}else if(attempt_func_type.errorTypes[0].isVoid() && instr.except_params.size() != 0){
+			this->emit_error(
+				"Number of except parameters does not match attempt function call",
+				instr.handler_kind_token_id,
+				Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
+			);
+			return Result::ERROR;
 		}
+		
 
 		auto except_params = evo::SmallVector<sema::Expr>();
 		except_params.reserve(instr.except_params.size());

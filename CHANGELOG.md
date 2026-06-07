@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.4"></a>
+## v0.0.318.4
+
+### Panther
+- Fixed checking of correct number of except arguments
+
+
+<!---------------------------------->
 <a name="v0.0.318.3"></a>
 ## v0.0.318.3
 
