@@ -3904,15 +3904,28 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::BOOL_VALUE: {
 				const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
-				const pir::Expr boolean = this->handler.createBoolean(bool_value.value);
+
+				const pir::Expr boolean = [&]() -> pir::Expr {
+					if(bool_value.isBool32){
+						return this->handler.createBoolean32(bool_value.value);
+					}else{
+						return this->handler.createBoolean(bool_value.value);
+					}
+				}();
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return boolean;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(
-						this->module.createBoolType(), this->name(".BOOLEAN.ALLOCA")
-					);
+					const pir::Type bool_type = [&]() -> pir::Type {
+						if(bool_value.isBool32){
+							return this->module.createBool32Type();
+						}else{
+							return this->module.createBoolType();	
+						}
+					}();
+
+					const pir::Expr alloca = this->handler.createAlloca(bool_type, this->name(".BOOLEAN.ALLOCA"));
 					this->handler.createStore(alloca, boolean);
 					return alloca;
 
@@ -12599,6 +12612,23 @@ namespace pcit::panther{
 								return PIRType(
 									pir_type,
 									this->data.get_or_create_meta_basic_type(type_id, this->module, "Bool", pir_type)
+								);
+							}else{
+								return PIRType(pir_type, std::nullopt);
+							}
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					} break;
+
+					case Token::Kind::TYPE_BOOL32: {
+						const pir::Type pir_type = this->module.createBool32Type();
+
+						if constexpr(GET_META){
+							if(this->data.config.includeDebugInfo){
+								return PIRType(
+									pir_type,
+									this->data.get_or_create_meta_basic_type(type_id, this->module, "Bool32", pir_type)
 								);
 							}else{
 								return PIRType(pir_type, std::nullopt);

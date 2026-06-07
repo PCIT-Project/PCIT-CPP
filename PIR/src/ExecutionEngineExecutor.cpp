@@ -164,6 +164,10 @@ namespace pcit::pir{
 				evo::debugFatalBreak("Invalid stmt");
 			} break;
 
+			case Expr::Kind::BOOLEAN32: {
+				evo::debugFatalBreak("Invalid stmt");
+			} break;
+
 			case Expr::Kind::PARAM_EXPR: {
 				evo::debugFatalBreak("Invalid stmt");
 			} break;
@@ -857,16 +861,8 @@ namespace pcit::pir{
 
 				const Type from_type = stack_frame.reader_agent.getExprType(zext_inst.fromValue);
 
-				const unsigned from_type_size = [&]() -> unsigned {
-					if(from_type.kind() == Type::Kind::BOOL){
-						return 1;
-					}else{
-						return unsigned(from_type.getWidth());
-					}
-				}();
-
 				const core::GenericValue& generic_value = this->get_expr(zext_inst.fromValue, stack_frame);
-				const core::GenericInt int_value = generic_value.getInt(from_type_size);
+				const core::GenericInt int_value = generic_value.getInt(from_type.getWidth());
 
 				stack_frame.registers[expr] = core::GenericValue(int_value.zext(zext_inst.toType.getWidth()));
 			} break;
@@ -2248,6 +2244,12 @@ namespace pcit::pir{
 				).first->second;
 			} break;
 
+			case Expr::Kind::BOOLEAN32: {
+				return &stack_frame.registers.emplace(
+					expr, core::GenericValue(stack_frame.reader_agent.getBoolean32(expr))
+				).first->second;
+			} break;
+
 			case Expr::Kind::PARAM_EXPR: {
 				const Type param_type = stack_frame.reader_agent.getExprType(expr);
 
@@ -2389,6 +2391,12 @@ namespace pcit::pir{
 						evo::debugAssert(dst.size() == sizeof(bool), "Not Bool dst");
 
 						*std::bit_cast<bool*>(dst.data()) = InstrReader::getBoolean(decayed_value);
+					} break;
+
+					case Expr::Kind::BOOLEAN32: {
+						evo::debugAssert(dst.size() == sizeof(uint32_t), "Not Bool dst");
+
+						*std::bit_cast<uint32_t*>(dst.data()) = uint32_t(InstrReader::getBoolean32(decayed_value));
 					} break;
 
 					case Expr::Kind::NULLPTR: {

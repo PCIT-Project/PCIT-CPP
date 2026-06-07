@@ -559,7 +559,15 @@ namespace pcit::pir{
 			case Type::Kind::VOID:     { this->printer.printCyan("Void");                  } break;
 			case Type::Kind::UNSIGNED: { this->printer.printCyan("UI{}", type.getWidth()); } break;
 			case Type::Kind::SIGNED:   { this->printer.printCyan("I{}", type.getWidth());  } break;
-			case Type::Kind::BOOL:     { this->printer.printCyan("Bool");                  } break;
+
+			case Type::Kind::BOOL: {
+				if(type.getWidth() == 1){
+					this->printer.printCyan("Bool");
+				}else{
+					this->printer.printCyan("Bool32");
+				}
+			} break;
+
 			case Type::Kind::FLOAT:    { this->printer.printCyan("F{}", type.getWidth());  } break;
 			case Type::Kind::PTR:      { this->printer.printCyan("Ptr");                   } break;
 
@@ -631,6 +639,10 @@ namespace pcit::pir{
 
 			case Expr::Kind::BOOLEAN: {
 				this->printer.printMagenta(evo::boolStr(this->reader.getBoolean(expr)));
+			} break;
+
+			case Expr::Kind::BOOLEAN32: {
+				this->printer.printMagenta("{}32", this->reader.getBoolean32(expr));
 			} break;
 
 			case Expr::Kind::NULLPTR: {
@@ -1083,6 +1095,7 @@ namespace pcit::pir{
 				evo::debugFatalBreak("Expr::Kind::FUNCTION_POINTER is not a valid statement");
 			case Expr::Kind::NUMBER:      evo::debugFatalBreak("Expr::Kind::NUMBER is not a valid statement");
 			case Expr::Kind::BOOLEAN:     evo::debugFatalBreak("Expr::Kind::BOOLEAN is not a valid statement");
+			case Expr::Kind::BOOLEAN32:   evo::debugFatalBreak("Expr::Kind::BOOLEAN32 is not a valid statement");
 			case Expr::Kind::NULLPTR:     evo::debugFatalBreak("Expr::Kind::NULLPTR is not a valid statement");
 			case Expr::Kind::PARAM_EXPR:  evo::debugFatalBreak("Expr::Kind::PARAM_EXPR is not a valid statement");
 

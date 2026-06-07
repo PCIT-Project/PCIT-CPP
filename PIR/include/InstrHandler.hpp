@@ -123,8 +123,10 @@ namespace pcit::pir{
 			// booleans
 
 			[[nodiscard]] static auto createBoolean(bool value) -> Expr;
+			[[nodiscard]] static auto createBoolean32(bool value) -> Expr;
 
 			[[nodiscard]] static auto getBoolean(Expr expr) -> bool;
+			[[nodiscard]] static auto getBoolean32(Expr expr) -> bool;
 
 
 			///////////////////////////////////

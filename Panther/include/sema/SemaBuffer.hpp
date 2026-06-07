@@ -890,8 +890,8 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// bools
 
-			[[nodiscard]] auto createBoolValue(bool boolean) -> sema::BoolValue::ID {
-				return this->bool_values.emplace_back(boolean);
+			[[nodiscard]] auto createBoolValue(bool boolean, bool is_bool_32) -> sema::BoolValue::ID {
+				return this->bool_values.emplace_back(boolean, is_bool_32);
 			}
 
 			[[nodiscard]] auto getBoolValue(sema::BoolValue::ID id) const -> const sema::BoolValue& {

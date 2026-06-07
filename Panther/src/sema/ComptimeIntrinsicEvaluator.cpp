@@ -121,7 +121,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isDefaultInitializable(type_id)
+					this->type_manager.isDefaultInitializable(type_id), false
 				)
 			)
 		);
@@ -135,7 +135,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isTriviallyDefaultInitializable(type_id)
+					this->type_manager.isTriviallyDefaultInitializable(type_id), false
 				)
 			)
 		);
@@ -149,7 +149,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComptimeDefaultInitializable(type_id)
+					this->type_manager.isComptimeDefaultInitializable(type_id), false
 				)
 			)
 		);
@@ -163,7 +163,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isNoErrorDefaultInitializable(type_id)
+					this->type_manager.isNoErrorDefaultInitializable(type_id), false
 				)
 			)
 		);
@@ -177,7 +177,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isSafeDefaultInitializable(type_id)
+					this->type_manager.isSafeDefaultInitializable(type_id), false
 				)
 			)
 		);
@@ -191,7 +191,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isTriviallyDeletable(type_id)
+					this->type_manager.isTriviallyDeletable(type_id), false
 				)
 			)
 		);
@@ -205,7 +205,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComptimeDeletable(type_id, this->sema_buffer)
+					this->type_manager.isComptimeDeletable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -219,7 +219,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isCopyable(type_id)
+					this->type_manager.isCopyable(type_id), false
 				)
 			)
 		);
@@ -233,7 +233,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isTriviallyCopyable(type_id)
+					this->type_manager.isTriviallyCopyable(type_id), false
 				)
 			)
 		);
@@ -247,7 +247,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComptimeCopyable(type_id, this->sema_buffer)
+					this->type_manager.isComptimeCopyable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -261,7 +261,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isNoErrorCopyable(type_id, this->sema_buffer)
+					this->type_manager.isNoErrorCopyable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -275,7 +275,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isSafeCopyable(type_id, this->sema_buffer)
+					this->type_manager.isSafeCopyable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -289,7 +289,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isMovable(type_id)
+					this->type_manager.isMovable(type_id), false
 				)
 			)
 		);
@@ -303,7 +303,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isTriviallyMovable(type_id)
+					this->type_manager.isTriviallyMovable(type_id), false
 				)
 			)
 		);
@@ -317,7 +317,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComptimeMovable(type_id, this->sema_buffer)
+					this->type_manager.isComptimeMovable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -331,7 +331,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isNoErrorMovable(type_id, this->sema_buffer)
+					this->type_manager.isNoErrorMovable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -345,7 +345,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isSafeMovable(type_id, this->sema_buffer)
+					this->type_manager.isSafeMovable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -359,7 +359,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComparable(type_id, this->sema_buffer)
+					this->type_manager.isComparable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -373,7 +373,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isTriviallyComparable(type_id)
+					this->type_manager.isTriviallyComparable(type_id), false
 				)
 			)
 		);
@@ -387,7 +387,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isComptimeComparable(type_id, this->sema_buffer)
+					this->type_manager.isComptimeComparable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -401,7 +401,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isNoErrorComparable(type_id, this->sema_buffer)
+					this->type_manager.isNoErrorComparable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -415,7 +415,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isSafeComparable(type_id, this->sema_buffer)
+					this->type_manager.isSafeComparable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -429,7 +429,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isIntegral(type_id)
+					this->type_manager.isIntegral(type_id), false
 				)
 			)
 		);
@@ -443,7 +443,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isSignedIntegral(type_id)
+					this->type_manager.isSignedIntegral(type_id), false
 				)
 			)
 		);
@@ -457,7 +457,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isUnsignedIntegral(type_id)
+					this->type_manager.isUnsignedIntegral(type_id), false
 				)
 			)
 		);
@@ -471,7 +471,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isFloatingPoint(type_id)
+					this->type_manager.isFloatingPoint(type_id), false
 				)
 			)
 		);
@@ -485,7 +485,7 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(),
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
-					this->type_manager.isPointer(type_id)
+					this->type_manager.isPointer(type_id), false
 				)
 			)
 		);
@@ -1010,7 +1010,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1020,7 +1020,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs == rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs == rhs, false))
 		);
 	}
 
@@ -1038,7 +1038,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1057,7 +1057,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1067,7 +1067,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs != rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs != rhs, false))
 		);
 	}
 
@@ -1085,7 +1085,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1108,7 +1108,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1118,7 +1118,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs < rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs < rhs, false))
 		);
 	}
 
@@ -1136,7 +1136,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1159,7 +1159,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1169,7 +1169,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs <= rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs <= rhs, false))
 		);
 	}
 
@@ -1187,7 +1187,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1210,7 +1210,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1220,7 +1220,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs > rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs > rhs, false))
 		);
 	}
 
@@ -1238,7 +1238,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1261,7 +1261,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1271,7 +1271,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs >= rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs >= rhs, false))
 		);
 	}
 
@@ -1289,7 +1289,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(result))
+			sema::Expr(this->sema_buffer.createBoolValue(result, false))
 		);
 	}
 
@@ -1324,7 +1324,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs & rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs & rhs, false))
 		);
 	}
 
@@ -1355,7 +1355,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs | rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs | rhs, false))
 		);
 	}
 
@@ -1386,7 +1386,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->sema_buffer.createBoolValue(lhs ^ rhs))
+			sema::Expr(this->sema_buffer.createBoolValue(lhs ^ rhs, false))
 		);
 	}
 

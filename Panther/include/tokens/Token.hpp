@@ -67,6 +67,7 @@ namespace pcit::panther{
 
 				TYPE_BYTE,
 				TYPE_BOOL,
+				TYPE_BOOL32,
 				TYPE_CHAR,
 				TYPE_RAWPTR,
 				TYPE_TYPEID,
@@ -446,6 +447,7 @@ namespace pcit::panther{
 
 					break; case Kind::TYPE_BYTE:              return "Byte";
 					break; case Kind::TYPE_BOOL:              return "Bool";
+					break; case Kind::TYPE_BOOL32:            return "Bool32";
 					break; case Kind::TYPE_CHAR:              return "Char";
 					break; case Kind::TYPE_RAWPTR:            return "RawPtr";
 					break; case Kind::TYPE_TYPEID:            return "TypeID";

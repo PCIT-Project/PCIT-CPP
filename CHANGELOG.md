@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.0"></a>
+## v0.0.318.0
+
+### Panther
+- Added primitive type `Bool32`
+
+### PIR
+- Added type `Bool32`
+- Added literals `true32` and `false32`
+
+
+<!---------------------------------->
 <a name="v0.0.317.0"></a>
 ## v0.0.317.0
 
@@ -37,7 +49,7 @@
 ### Panther
 - Added `@options`
 - Added `@build.PackageOptionValue`
-- Added `@build.PackageOption`/
+- Added `@build.PackageOption`
 - Renamed many types in `@build`
 	- `PantherBuildConfigCFamilyHeader`    -> `CFamilyHeader`
 	- `PantherBuildConfigDirectory`        -> `PantherDirectory`

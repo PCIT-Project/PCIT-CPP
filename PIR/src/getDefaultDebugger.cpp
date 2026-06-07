@@ -536,10 +536,18 @@ namespace pcit::pir{
 				} break;
 
 				case Type::Kind::BOOL: {
-					if(value.getBool()){
-						printer.printMagenta("true");
+					if(type.getWidth() == 1){
+						if(value.getBool()){
+							printer.printMagenta("true");
+						}else{
+							printer.printMagenta("false");
+						}
 					}else{
-						printer.printMagenta("false");
+						if(value.getBool()){
+							printer.printMagenta("true32");
+						}else{
+							printer.printMagenta("false32");
+						}
 					}
 				} break;
 
@@ -750,9 +758,10 @@ namespace pcit::pir{
 				case Expr::Kind::FUNCTION_POINTER:
 					return std::string_view(reader.getModule().getFunction(reader.getFunctionPointer(expr)).getName());
 
-				case Expr::Kind::NUMBER:  return evo::resultError;
-				case Expr::Kind::BOOLEAN: return evo::resultError;
-				case Expr::Kind::NULLPTR: return evo::resultError;
+				case Expr::Kind::NUMBER:    return evo::resultError;
+				case Expr::Kind::BOOLEAN:   return evo::resultError;
+				case Expr::Kind::BOOLEAN32: return evo::resultError;
+				case Expr::Kind::NULLPTR:   return evo::resultError;
 
 				case Expr::Kind::PARAM_EXPR:
 					return std::string_view(

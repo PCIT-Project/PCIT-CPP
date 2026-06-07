@@ -174,6 +174,7 @@ namespace pcit::pir{
 					case Expr::Kind::FUNCTION_POINTER: continue;
 					case Expr::Kind::NUMBER:           continue;
 					case Expr::Kind::BOOLEAN:          continue;
+					case Expr::Kind::BOOLEAN32:        continue;
 					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					
@@ -894,8 +895,16 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::BOOLEAN, uint32_t(value));
 	}
 
+	auto InstrHandler::createBoolean32(bool value) -> Expr {
+		return Expr(Expr::Kind::BOOLEAN32, uint32_t(value));
+	}
+
 	auto InstrHandler::getBoolean(Expr expr) -> bool {
 		return InstrReader::getBoolean(expr);
+	}
+
+	auto InstrHandler::getBoolean32(Expr expr) -> bool {
+		return InstrReader::getBoolean32(expr);
 	}
 
 
@@ -3621,6 +3630,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::FUNCTION_POINTER:  return;
 			break; case Expr::Kind::NUMBER:            this->module.numbers.erase(expr.index);
 			break; case Expr::Kind::BOOLEAN:           return;
+			break; case Expr::Kind::BOOLEAN32:         return;
 			break; case Expr::Kind::NULLPTR:           return;
 			break; case Expr::Kind::PARAM_EXPR:        return;
 			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
@@ -3753,6 +3763,7 @@ namespace pcit::pir{
 					case Expr::Kind::FUNCTION_POINTER: continue;
 					case Expr::Kind::NUMBER:           continue;
 					case Expr::Kind::BOOLEAN:          continue;
+					case Expr::Kind::BOOLEAN32:        continue;
 					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;

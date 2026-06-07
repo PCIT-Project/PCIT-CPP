@@ -173,6 +173,7 @@ namespace pcit::panther{
 
 		{"Byte",        Token::Kind::TYPE_BYTE},
 		{"Bool",        Token::Kind::TYPE_BOOL},
+		{"Bool32",      Token::Kind::TYPE_BOOL32},
 		{"Char",        Token::Kind::TYPE_CHAR},
 		{"RawPtr",      Token::Kind::TYPE_RAWPTR},
 		{"TypeID",      Token::Kind::TYPE_TYPEID},

@@ -92,7 +92,10 @@ namespace pcit::pir{
 			}
 
 			[[nodiscard]] auto hasWidth() const -> bool {
-				return this->_kind == Kind::UNSIGNED || this->_kind == Kind::SIGNED || this->_kind == Kind::FLOAT;
+				return this->_kind == Kind::UNSIGNED
+					|| this->_kind == Kind::SIGNED
+					|| this->_kind == Kind::BOOL
+					|| this->_kind == Kind::FLOAT;
 			}
 
 

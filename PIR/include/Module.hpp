@@ -437,7 +437,8 @@ namespace pcit::pir{
 				return Type(Type::Kind::SIGNED, width);
 			}
 
-			[[nodiscard]] static auto createBoolType() -> Type { return Type(Type::Kind::BOOL); }
+			[[nodiscard]] static auto createBoolType() -> Type { return Type(Type::Kind::BOOL, 1); }
+			[[nodiscard]] static auto createBool32Type() -> Type { return Type(Type::Kind::BOOL, 32); }
 
 
 			[[nodiscard]] static auto createFloatType(uint32_t width) -> Type {

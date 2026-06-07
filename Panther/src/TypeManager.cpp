@@ -229,13 +229,14 @@ namespace pcit::panther{
 		this->primitives.emplace_back(Token::Kind::TYPE_ISIZE);
 		this->primitives.emplace_back(Token::Kind::TYPE_UINT);
 		const BaseType::Primitive::ID type_usize = this->primitives.emplace_back(Token::Kind::TYPE_USIZE);
-		this->primitives.emplace_back(Token::Kind::TYPE_F16);
+		const BaseType::Primitive::ID type_f16     = this->primitives.emplace_back(Token::Kind::TYPE_F16);
 		const BaseType::Primitive::ID type_f32     = this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		const BaseType::Primitive::ID type_f64     = this->primitives.emplace_back(Token::Kind::TYPE_F64);
 		const BaseType::Primitive::ID type_f80     = this->primitives.emplace_back(Token::Kind::TYPE_F80);
 		const BaseType::Primitive::ID type_f128    = this->primitives.emplace_back(Token::Kind::TYPE_F128);
 		const BaseType::Primitive::ID type_byte    = this->primitives.emplace_back(Token::Kind::TYPE_BYTE);
 		const BaseType::Primitive::ID type_bool    = this->primitives.emplace_back(Token::Kind::TYPE_BOOL);
+		const BaseType::Primitive::ID type_bool32  = this->primitives.emplace_back(Token::Kind::TYPE_BOOL32);
 		const BaseType::Primitive::ID type_char    = this->primitives.emplace_back(Token::Kind::TYPE_CHAR);
 		const BaseType::Primitive::ID type_raw_ptr = this->primitives.emplace_back(Token::Kind::TYPE_RAWPTR);
 		const BaseType::Primitive::ID type_type_id = this->primitives.emplace_back(Token::Kind::TYPE_TYPEID);
@@ -267,6 +268,7 @@ namespace pcit::panther{
 
 
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_bool.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_bool32.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_char.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui1.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_ui8.get())));
@@ -281,6 +283,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_usize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f16.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f32.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f64.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f80.get())));
@@ -2272,6 +2275,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128:   return 16;
 					case Token::Kind::TYPE_BYTE:   return 1;
 					case Token::Kind::TYPE_BOOL:   return 1;
+					case Token::Kind::TYPE_BOOL32: return 4;
 					case Token::Kind::TYPE_CHAR:   return 1;
 					case Token::Kind::TYPE_RAWPTR: return this->numBytesOfPtr();
 					case Token::Kind::TYPE_TYPEID: return 4;
@@ -2507,6 +2511,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128:   return 128;
 					case Token::Kind::TYPE_BYTE:   return 8;
 					case Token::Kind::TYPE_BOOL:   return 1;
+					case Token::Kind::TYPE_BOOL32: return 32;
 					case Token::Kind::TYPE_CHAR:   return 8;
 					case Token::Kind::TYPE_RAWPTR: return this->numBitsOfPtr();
 					case Token::Kind::TYPE_TYPEID: return 32;
@@ -2701,6 +2706,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128:   return 16;
 					case Token::Kind::TYPE_BYTE:   return 1;
 					case Token::Kind::TYPE_BOOL:   return 1;
+					case Token::Kind::TYPE_BOOL32: return 4;
 					case Token::Kind::TYPE_CHAR:   return 1;
 					case Token::Kind::TYPE_RAWPTR: return this->numBytesOfPtr();
 					case Token::Kind::TYPE_TYPEID: return 4;
@@ -3137,6 +3143,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F128:          return false;
 			case Token::Kind::TYPE_BYTE:          return true;
 			case Token::Kind::TYPE_BOOL:          return false;
+			case Token::Kind::TYPE_BOOL32:        return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
@@ -3191,6 +3198,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F128:          return false;
 			case Token::Kind::TYPE_BYTE:          return true;
 			case Token::Kind::TYPE_BOOL:          return false;
+			case Token::Kind::TYPE_BOOL32:        return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
@@ -3245,6 +3253,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F128:          return false;
 			case Token::Kind::TYPE_BYTE:          return false;
 			case Token::Kind::TYPE_BOOL:          return false;
+			case Token::Kind::TYPE_BOOL32:        return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
@@ -3299,6 +3308,7 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_F128:          return true;
 			case Token::Kind::TYPE_BYTE:          return false;
 			case Token::Kind::TYPE_BOOL:          return false;
+			case Token::Kind::TYPE_BOOL32:        return false;
 			case Token::Kind::TYPE_CHAR:          return false;
 			case Token::Kind::TYPE_RAWPTR:        return false;
 			case Token::Kind::TYPE_TYPEID:        return false;
@@ -3445,23 +3455,23 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_F16: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeF16();
 			} break;
 
 			case Token::Kind::TYPE_F32: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeF32();
 			} break;
 
 			case Token::Kind::TYPE_F64: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeF64();
 			} break;
 
 			case Token::Kind::TYPE_F80: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeF80();
 			} break;
 
 			case Token::Kind::TYPE_F128: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeF128();
 			} break;
 
 			case Token::Kind::TYPE_BYTE: {
@@ -3471,7 +3481,11 @@ namespace pcit::panther{
 			} break;
 
 			case Token::Kind::TYPE_BOOL: {
-				return this->getOrCreateTypeInfo(TypeInfo(id));
+				return TypeManager::getTypeBool();
+			} break;
+
+			case Token::Kind::TYPE_BOOL32: {
+				return TypeManager::getTypeBool32();
 			} break;
 
 			case Token::Kind::TYPE_CHAR: {
@@ -3617,6 +3631,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_BYTE:   return core::GenericValue(core::GenericInt(8, 0));
 			case Token::Kind::TYPE_BOOL:   return core::GenericValue(false);
+			case Token::Kind::TYPE_BOOL32: return core::GenericValue(false);
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_min_signed(8));
 
 			case Token::Kind::TYPE_RAWPTR:
@@ -3706,6 +3721,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_BYTE:   return core::GenericValue(core::GenericInt(8, 0));
 			case Token::Kind::TYPE_BOOL:   return core::GenericValue(false);
+			case Token::Kind::TYPE_BOOL32: return core::GenericValue(false);
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_min_signed(8));
 
 			case Token::Kind::TYPE_RAWPTR:
@@ -3792,6 +3808,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_BYTE:   return core::GenericValue(calc_max_unsigned(8));
 			case Token::Kind::TYPE_BOOL:   return core::GenericValue(true);
+			case Token::Kind::TYPE_BOOL32: return core::GenericValue(true);
 			case Token::Kind::TYPE_CHAR:   return core::GenericValue(calc_max_signed(8));
 			case Token::Kind::TYPE_RAWPTR: return core::GenericValue(calc_max_unsigned(this->numBytesOfPtr() * 8));
 			case Token::Kind::TYPE_TYPEID: return core::GenericValue(calc_max_unsigned(32));

@@ -26,6 +26,7 @@ namespace pcit::pir{
 			case Expr::Kind::FUNCTION_POINTER: return this->module.createPtrType();
 			case Expr::Kind::NUMBER:           return this->getNumber(expr).type;
 			case Expr::Kind::BOOLEAN:          return this->module.createBoolType();
+			case Expr::Kind::BOOLEAN32:        return this->module.createBool32Type();
 			case Expr::Kind::NULLPTR:          return this->module.createPtrType();
 			case Expr::Kind::PARAM_EXPR: {
 				evo::debugAssert(this->hasTargetFunction(), "No target function is set");
@@ -175,6 +176,11 @@ namespace pcit::pir{
 
 	auto InstrReader::getBoolean(Expr expr) -> bool {
 		evo::debugAssert(expr.kind() == Expr::Kind::BOOLEAN, "Not a Boolean");
+		return bool(expr.index);
+	}
+
+	auto InstrReader::getBoolean32(Expr expr) -> bool {
+		evo::debugAssert(expr.kind() == Expr::Kind::BOOLEAN32, "Not a Boolean32");
 		return bool(expr.index);
 	}
 

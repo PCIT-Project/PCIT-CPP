@@ -173,9 +173,15 @@ namespace pcit::pir{
 				} break;
 
 				case Type::Kind::BOOL: {
-					return this->di_builder.createBasicType(
-						meta_basic_type.typeName, 8, llvmint::DIBuilder::BasicTypeKind::BOOL
-					);
+					if(meta_basic_type.underlyingType.getWidth() == 1){
+						return this->di_builder.createBasicType(
+							meta_basic_type.typeName, 8, llvmint::DIBuilder::BasicTypeKind::BOOL
+						);
+					}else{
+						return this->di_builder.createBasicType(
+							meta_basic_type.typeName, 32, llvmint::DIBuilder::BasicTypeKind::BOOL
+						);
+					}
 				} break;
 
 				case Type::Kind::FLOAT: {
@@ -820,6 +826,7 @@ namespace pcit::pir{
 					case Expr::Kind::FUNCTION_POINTER: evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::NUMBER:           evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::BOOLEAN:          evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::BOOLEAN32:        evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::NULLPTR:          evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::PARAM_EXPR:       evo::debugFatalBreak("Not a valid stmt");
 
@@ -1087,11 +1094,14 @@ namespace pcit::pir{
 
 					case Expr::Kind::BRANCH: {
 						const Branch& branch = this->reader.getBranch(stmt);
+
+						llvmint::Value cond_value = this->get_value<ADD_WEAK_DEPS>(branch.cond);
+						if(branch.cond.kind() == Expr::Kind::BOOLEAN32){
+							cond_value = this->builder.createTrunc(cond_value, this->builder.getTypeBool().asType());
+						}
 						
 						llvmint::BranchInst br_inst = this->builder.createCondBranch(
-							this->get_value<ADD_WEAK_DEPS>(branch.cond),
-							basic_block_map.at(branch.thenBlock),
-							basic_block_map.at(branch.elseBlock)
+							cond_value, basic_block_map.at(branch.thenBlock), basic_block_map.at(branch.elseBlock)
 						);
 
 						if(this->add_debug_info && branch.sourceLocation.has_value()){
@@ -2164,10 +2174,11 @@ namespace pcit::pir{
 
 						llvmint::Value value = this->get_value<ADD_WEAK_DEPS>(atomic_rmw.value);
 
-						const bool value_is_bool =
-							this->reader.getExprType(atomic_rmw.value).kind() == Type::Kind::BOOL;
+						const Type value_type = this->reader.getExprType(atomic_rmw.value);
 
-						if(value_is_bool){
+						const bool value_is_bool1 = value_type.kind() == Type::Kind::BOOL && value_type.getWidth() == 1;
+
+						if(value_is_bool1){
 							value = this->builder.createZExt(value, this->builder.getTypeI8().asType());
 						}
 
@@ -2179,7 +2190,7 @@ namespace pcit::pir{
 							atomic_rmw.name
 						);
 
-						if(value_is_bool){
+						if(value_is_bool1){
 							output_value =
 								this->builder.createTrunc(output_value, this->builder.getTypeBool().asType());
 						}
@@ -2257,6 +2268,10 @@ namespace pcit::pir{
 				return this->builder.getValueBool(this->reader.getBoolean(expr)).asConstant();
 			} break;
 
+			case Expr::Kind::BOOLEAN32: {
+				return this->builder.getValueI_N(32, uint64_t(this->reader.getBoolean32(expr))).asConstant();
+			} break;
+
 			case Expr::Kind::NULLPTR: {
 				return this->builder.getValueNull();
 			} break;
@@ -2297,7 +2312,11 @@ namespace pcit::pir{
 					} break;
 
 					case Type::Kind::BOOL: {
-						return this->builder.getValueI_N(8, 0).asConstant();
+						if(type.getWidth() == 1){
+							return this->builder.getValueI_N(8, 0).asConstant();
+						}else{
+							return this->builder.getValueI_N(32, 0).asConstant();
+						}
 					} break;
 
 					case Type::Kind::FLOAT: {
@@ -2410,6 +2429,10 @@ namespace pcit::pir{
 
 			case Expr::Kind::BOOLEAN: {
 				return this->builder.getValueBool(this->reader.getBoolean(expr)).asValue();
+			} break;
+
+			case Expr::Kind::BOOLEAN32: {
+				return this->builder.getValueI_N(32, uint64_t(this->reader.getBoolean32(expr))).asValue();
 			} break;
 
 			case Expr::Kind::NULLPTR: {
@@ -2578,7 +2601,14 @@ namespace pcit::pir{
 				return this->builder.getTypeI_N(type.getWidth()).asType();
 			}
 
-			case Type::Kind::BOOL:     return this->builder.getTypeBool().asType();
+			case Type::Kind::BOOL: {
+				if(type.getWidth() == 1){
+					return this->builder.getTypeBool().asType();
+				}else{
+					return this->builder.getTypeI_N(32).asType();
+				}
+			} break;
+
 			case Type::Kind::FLOAT: {
 				switch(type.getWidth()){
 					case 16:  return this->builder.getTypeF16();

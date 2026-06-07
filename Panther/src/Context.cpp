@@ -1721,7 +1721,9 @@ namespace pcit::panther{
 							macro.name,
 							std::nullopt,
 							std::optional<sema::Expr>(sema::Expr(
-								this->sema_buffer.createBoolValue(clang_api.macroExprBuffer.getBool(macro.value))
+								this->sema_buffer.createBoolValue(
+									clang_api.macroExprBuffer.getBool(macro.value), false
+								)
 							)),
 							TypeManager::getTypeBool(),
 							false,
@@ -2346,56 +2348,72 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("methodCallOnNonMethod"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("memberTypeByValueAccessor"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("deleteMovedFromExpr"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("deleteTriviallyDeletableType"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("comptimeIfCond"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("alreadyUnsafe"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("explicitAlignSameAsImplicit"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("experimentalF80"),
 					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(sema::Expr(this->sema_buffer.createBoolValue(true)),true),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
 					false
 				),
 			}
@@ -4358,7 +4376,7 @@ namespace pcit::panther{
 			std::string(),
 			std::nullopt,
 			std::optional<sema::Expr>(
-				sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo))
+				sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo, false))
 			),
 			TypeManager::getTypeBool(),
 			true,

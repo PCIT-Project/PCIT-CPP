@@ -1304,26 +1304,28 @@ namespace pcit::panther{
 			
 			
 			[[nodiscard]] static auto getTypeBool()      -> TypeInfo::ID { return TypeInfo::ID(0);  }
-			[[nodiscard]] static auto getTypeChar()      -> TypeInfo::ID { return TypeInfo::ID(1);  }
-			[[nodiscard]] static auto getTypeUI1()       -> TypeInfo::ID { return TypeInfo::ID(2);  }
-			[[nodiscard]] static auto getTypeUI8()       -> TypeInfo::ID { return TypeInfo::ID(3);  }
-			[[nodiscard]] static auto getTypeUI16()      -> TypeInfo::ID { return TypeInfo::ID(4);  }
-			[[nodiscard]] static auto getTypeUI32()      -> TypeInfo::ID { return TypeInfo::ID(5);  }
-			[[nodiscard]] static auto getTypeUI64()      -> TypeInfo::ID { return TypeInfo::ID(6);  }
-			[[nodiscard]] static auto getTypeI8()        -> TypeInfo::ID { return TypeInfo::ID(7);  }
-			[[nodiscard]] static auto getTypeI16()       -> TypeInfo::ID { return TypeInfo::ID(8);  }
-			[[nodiscard]] static auto getTypeI32()       -> TypeInfo::ID { return TypeInfo::ID(9);  }
-			[[nodiscard]] static auto getTypeI64()       -> TypeInfo::ID { return TypeInfo::ID(10); }
-			[[nodiscard]] static auto getTypeI256()      -> TypeInfo::ID { return TypeInfo::ID(11); }
-			[[nodiscard]] static auto getTypeUSize()     -> TypeInfo::ID { return TypeInfo::ID(12); }
-			[[nodiscard]] static auto getTypeTypeID()    -> TypeInfo::ID { return TypeInfo::ID(13); }
-			[[nodiscard]] static auto getTypeRawPtr()    -> TypeInfo::ID { return TypeInfo::ID(14); }
-			[[nodiscard]] static auto getTypeF32()       -> TypeInfo::ID { return TypeInfo::ID(15); }
-			[[nodiscard]] static auto getTypeF64()       -> TypeInfo::ID { return TypeInfo::ID(16); }
-			[[nodiscard]] static auto getTypeF80()       -> TypeInfo::ID { return TypeInfo::ID(17); }
-			[[nodiscard]] static auto getTypeF128()      -> TypeInfo::ID { return TypeInfo::ID(18); }
-			[[nodiscard]] static auto getTypeByte()      -> TypeInfo::ID { return TypeInfo::ID(19); }
-			[[nodiscard]] static auto getTypeStringRef() -> TypeInfo::ID { return TypeInfo::ID(20); }
+			[[nodiscard]] static auto getTypeBool32()    -> TypeInfo::ID { return TypeInfo::ID(1);  }
+			[[nodiscard]] static auto getTypeChar()      -> TypeInfo::ID { return TypeInfo::ID(2);  }
+			[[nodiscard]] static auto getTypeUI1()       -> TypeInfo::ID { return TypeInfo::ID(3);  }
+			[[nodiscard]] static auto getTypeUI8()       -> TypeInfo::ID { return TypeInfo::ID(4);  }
+			[[nodiscard]] static auto getTypeUI16()      -> TypeInfo::ID { return TypeInfo::ID(5);  }
+			[[nodiscard]] static auto getTypeUI32()      -> TypeInfo::ID { return TypeInfo::ID(6);  }
+			[[nodiscard]] static auto getTypeUI64()      -> TypeInfo::ID { return TypeInfo::ID(7);  }
+			[[nodiscard]] static auto getTypeI8()        -> TypeInfo::ID { return TypeInfo::ID(8);  }
+			[[nodiscard]] static auto getTypeI16()       -> TypeInfo::ID { return TypeInfo::ID(9);  }
+			[[nodiscard]] static auto getTypeI32()       -> TypeInfo::ID { return TypeInfo::ID(10); }
+			[[nodiscard]] static auto getTypeI64()       -> TypeInfo::ID { return TypeInfo::ID(11); }
+			[[nodiscard]] static auto getTypeI256()      -> TypeInfo::ID { return TypeInfo::ID(12); }
+			[[nodiscard]] static auto getTypeUSize()     -> TypeInfo::ID { return TypeInfo::ID(13); }
+			[[nodiscard]] static auto getTypeTypeID()    -> TypeInfo::ID { return TypeInfo::ID(14); }
+			[[nodiscard]] static auto getTypeRawPtr()    -> TypeInfo::ID { return TypeInfo::ID(15); }
+			[[nodiscard]] static auto getTypeF16()       -> TypeInfo::ID { return TypeInfo::ID(16); }
+			[[nodiscard]] static auto getTypeF32()       -> TypeInfo::ID { return TypeInfo::ID(17); }
+			[[nodiscard]] static auto getTypeF64()       -> TypeInfo::ID { return TypeInfo::ID(18); }
+			[[nodiscard]] static auto getTypeF80()       -> TypeInfo::ID { return TypeInfo::ID(19); }
+			[[nodiscard]] static auto getTypeF128()      -> TypeInfo::ID { return TypeInfo::ID(20); }
+			[[nodiscard]] static auto getTypeByte()      -> TypeInfo::ID { return TypeInfo::ID(21); }
+			[[nodiscard]] static auto getTypeStringRef() -> TypeInfo::ID { return TypeInfo::ID(22); }
 
 
 			[[nodiscard]] auto isTypeDeducer(TypeInfo::VoidableID id) const -> bool;

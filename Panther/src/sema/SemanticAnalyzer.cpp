@@ -8295,16 +8295,16 @@ namespace pcit::panther{
 						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
 					
 					switch(primitive_type.kind()){
-						case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
-						case Token::Kind::TYPE_I_N:          case Token::Kind::TYPE_UINT:
-						case Token::Kind::TYPE_USIZE:        case Token::Kind::TYPE_UI_N:
-						case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_BOOL:
-						case Token::Kind::TYPE_CHAR:         case Token::Kind::TYPE_TYPEID:
-						case Token::Kind::TYPE_C_WCHAR:      case Token::Kind::TYPE_C_SHORT:
-						case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-						case Token::Kind::TYPE_C_UINT:       case Token::Kind::TYPE_C_LONG:
-						case Token::Kind::TYPE_C_ULONG:      case Token::Kind::TYPE_C_LONG_LONG:
-						case Token::Kind::TYPE_C_ULONG_LONG: {
+						case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+						case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+						case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
+						case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_BOOL:
+						case Token::Kind::TYPE_BOOL32:      case Token::Kind::TYPE_CHAR:
+						case Token::Kind::TYPE_TYPEID:      case Token::Kind::TYPE_C_WCHAR:
+						case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+						case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+						case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
+						case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
 							// valid
 						} break;
 
@@ -8613,7 +8613,7 @@ namespace pcit::panther{
 							}
 						} break;
 
-						case Token::Kind::TYPE_BOOL: {
+						case Token::Kind::TYPE_BOOL: case Token::Kind::TYPE_BOOL32: {
 							if(else_index.has_value()){
 								if(used_values.size() == 2){
 									this->emit_error(
@@ -8632,14 +8632,14 @@ namespace pcit::panther{
 
 									if(num_missing == 1){
 										this->emit_error(
-											std::format("Missing 1 case in [switch] statement", num_missing),
+											"Missing 1 case in [switch] statement",
 											instr.switch_stmt
 										);
 										return Result::ERROR;
 										
 									}else{
 										this->emit_error(
-											std::format("Missing {} cases in [switch] statement", num_missing),
+											"Missing 2 cases in [switch] statement",
 											instr.switch_stmt
 										);
 										return Result::ERROR;
@@ -11407,7 +11407,7 @@ namespace pcit::panther{
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeBool(),
-							sema::Expr(this->context.sema_buffer.createBoolValue(is_comptime_output_value))
+							sema::Expr(this->context.sema_buffer.createBoolValue(is_comptime_output_value, false))
 						);
 
 						return Result::SUCCESS;
@@ -12216,7 +12216,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
-			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined))
+			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined, false))
 		);
 		return Result::SUCCESS;
 	}
@@ -15424,7 +15424,7 @@ namespace pcit::panther{
 					}
 				);
 
-			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true);
+			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true, false);
 
 
 			const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix.rhs, this->source);
@@ -18967,7 +18967,9 @@ namespace pcit::panther{
 				}
 			}
 
-		}else if(to_underlying_type_id == TypeManager::getTypeBool()){
+		}else if(
+			to_underlying_type_id == TypeManager::getTypeBool() || to_underlying_type_id == TypeManager::getTypeBool32()
+		){
 			if constexpr(IS_COMPTIME){
 				auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 					this->context.type_manager, this->context.sema_buffer
@@ -19040,6 +19042,37 @@ namespace pcit::panther{
 						);
 					} break;
 
+					case Token::Kind::TYPE_BOOL: {
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							TypeManager::getTypeBool(),
+							sema::Expr(
+								this->context.sema_buffer.createBoolValue(
+									this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value,
+									false
+								)
+							)
+						);
+					} break;
+
+					case Token::Kind::TYPE_BOOL32: {
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							TypeManager::getTypeBool(),
+							sema::Expr(
+								this->context.sema_buffer.createBoolValue(
+									this->context.getSemaBuffer().getBoolValue(expr.getExpr().boolValueID()).value,
+									true
+								)
+							)
+						);
+					} break;
+
+
 					default: evo::debugFatalBreak("Unknown or unsupported underlying type");
 				}
 
@@ -19082,6 +19115,14 @@ namespace pcit::panther{
 							));
 						} break;
 
+						case Token::Kind::TYPE_BOOL: {
+							return sema::Expr(this->context.sema_buffer.createBoolValue(false, false));
+						} break;
+
+						case Token::Kind::TYPE_BOOL32: {
+							return sema::Expr(this->context.sema_buffer.createBoolValue(false, true));
+						} break;
+
 						default: evo::debugFatalBreak("Unknown or unsupported underlying type");
 					}
 				}();
@@ -19091,7 +19132,7 @@ namespace pcit::panther{
 					this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 						TemplateIntrinsicFunc::Kind::NEQ,
 						evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-							from_underlying_type_id, to_underlying_type_id
+							from_underlying_type_id
 						}
 					);
 
@@ -19946,6 +19987,7 @@ namespace pcit::panther{
 								if(
 									this->context.getTypeManager().isIntegral(lhs_decayed_type_id) == false
 									&& lhs_decayed_primitive.kind() != Token::Kind::TYPE_BOOL
+									&& lhs_decayed_primitive.kind() != Token::Kind::TYPE_BOOL32
 								){
 									auto infos = evo::SmallVector<Diagnostic::Info>();
 									this->diagnostic_print_type_info(
@@ -20315,7 +20357,7 @@ namespace pcit::panther{
 					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
-					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value))
+					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value, false))
 				);
 
 			}else{
@@ -20827,13 +20869,13 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F32:          case Token::Kind::TYPE_F64:
-			case Token::Kind::TYPE_BYTE:          case Token::Kind::TYPE_BOOL:         case Token::Kind::TYPE_CHAR:
-			case Token::Kind::TYPE_RAWPTR:        case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:
-			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_INT:     case Token::Kind::TYPE_ISIZE:       case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_BYTE:    case Token::Kind::TYPE_BOOL:        case Token::Kind::TYPE_BOOL32:
+			case Token::Kind::TYPE_CHAR:    case Token::Kind::TYPE_RAWPTR:      case Token::Kind::TYPE_TYPEID:
+			case Token::Kind::TYPE_C_WCHAR: case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
+			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
@@ -20918,13 +20960,13 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case Token::Kind::TYPE_INT:           case Token::Kind::TYPE_ISIZE:        case Token::Kind::TYPE_UINT:
-			case Token::Kind::TYPE_USIZE:         case Token::Kind::TYPE_F32:          case Token::Kind::TYPE_F64:
-			case Token::Kind::TYPE_BYTE:          case Token::Kind::TYPE_BOOL:         case Token::Kind::TYPE_CHAR:
-			case Token::Kind::TYPE_RAWPTR:        case Token::Kind::TYPE_TYPEID:       case Token::Kind::TYPE_C_WCHAR:
-			case Token::Kind::TYPE_C_SHORT:       case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-			case Token::Kind::TYPE_C_UINT:        case Token::Kind::TYPE_C_LONG:       case Token::Kind::TYPE_C_ULONG:
-			case Token::Kind::TYPE_C_LONG_LONG:   case Token::Kind::TYPE_C_ULONG_LONG:
+			case Token::Kind::TYPE_INT:     case Token::Kind::TYPE_ISIZE:       case Token::Kind::TYPE_UINT:
+			case Token::Kind::TYPE_USIZE:   case Token::Kind::TYPE_F32:         case Token::Kind::TYPE_F64:
+			case Token::Kind::TYPE_BYTE:    case Token::Kind::TYPE_BOOL:        case Token::Kind::TYPE_BOOL32:
+			case Token::Kind::TYPE_CHAR:    case Token::Kind::TYPE_RAWPTR:      case Token::Kind::TYPE_TYPEID:
+			case Token::Kind::TYPE_C_WCHAR: case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+			case Token::Kind::TYPE_C_INT:   case Token::Kind::TYPE_C_UINT:      case Token::Kind::TYPE_C_LONG:
+			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 			case Token::Kind::TYPE_C_LONG_DOUBLE: {
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
@@ -21908,11 +21950,11 @@ namespace pcit::panther{
 
 			case Token::Kind::LITERAL_BOOL: {
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
+					TermInfo::ValueCategory::EPHEMERAL_FLUID,
 					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
-					this->context.getTypeManager().getTypeBool(),
-					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool()))
+					TermInfo::FluidType{},
+					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool(), false))
 				);
 				return Result::SUCCESS;
 			} break;
@@ -22423,7 +22465,7 @@ namespace pcit::panther{
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeBool(),
-						sema::Expr(this->context.sema_buffer.createBoolValue(value))
+						sema::Expr(this->context.sema_buffer.createBoolValue(value, false))
 					);
 			
 				}else if constexpr(std::is_same<ValueType, uint8_t>()){
@@ -28762,7 +28804,11 @@ namespace pcit::panther{
 					} break;
 
 					case Token::Kind::TYPE_BOOL: {
-						return sema::Expr(this->context.sema_buffer.createBoolValue(value.getBool()));
+						return sema::Expr(this->context.sema_buffer.createBoolValue(value.getBool(), false));
+					} break;
+
+					case Token::Kind::TYPE_BOOL32: {
+						return sema::Expr(this->context.sema_buffer.createBoolValue(value.getBool(), true));
 					} break;
 
 					case Token::Kind::TYPE_CHAR: {
@@ -33713,6 +33759,37 @@ namespace pcit::panther{
 							return TypeCheckInfo::success(true);
 						}
 
+						if(
+							decayed_expected_type_id == TypeManager::getTypeBool()
+							&& decayed_got_type_id == TypeManager::getTypeBool32()
+						){
+							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+								const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
+									this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+										TemplateIntrinsicFunc::Kind::NEQ,
+										evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+											TypeManager::getTypeBool32()
+										}
+									);
+
+								const sema::Expr false_value = sema::Expr(
+									this->context.sema_buffer.createBoolValue(false, true)
+								);
+
+								const sema::FuncCall::ID created_func_call_id = 
+									this->context.sema_buffer.createFuncCall(
+										instantiation_id,
+										evo::SmallVector<sema::Expr>{got_expr.getExpr(), false_value},
+										location.as<SourceLocation>().lineStart,
+										location.as<SourceLocation>().collumnStart
+									);
+
+								got_expr.getExpr() = sema::Expr(created_func_call_id);
+							}
+
+							return TypeCheckInfo::success(true);
+						}
+
 
 						if(
 							expected_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
@@ -33954,11 +34031,7 @@ namespace pcit::panther{
 						int_value.typeID = type_manager.getTypeInfo(expected_type_id).baseTypeID();
 					}
 
-				}else{
-					evo::debugAssert(
-						got_expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE, "Expected float"
-					);
-
+				}else if(got_expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE){
 					switch(expected_type_primitive.kind()){
 						case Token::Kind::TYPE_F16:
 						case Token::Kind::TYPE_F32:
@@ -34066,6 +34139,32 @@ namespace pcit::panther{
 						}
 
 						float_value.typeID = type_manager.getTypeInfo(expected_type_id).baseTypeID();
+					}
+
+				}else{
+					evo::debugAssert(
+						got_expr.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE, "Expected bool"
+					);
+
+
+					switch(expected_type_primitive.kind()){
+						case Token::Kind::TYPE_BOOL: {
+							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+								const sema::BoolValue::ID bool_value_id = got_expr.getExpr().boolValueID();
+								this->context.sema_buffer.bool_values[bool_value_id].isBool32 = false;
+							}
+						} break;
+
+						case Token::Kind::TYPE_BOOL32: {
+							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+								const sema::BoolValue::ID bool_value_id = got_expr.getExpr().boolValueID();
+								this->context.sema_buffer.bool_values[bool_value_id].isBool32 = true;
+							}
+						} break;
+
+						default: {
+							return TypeCheckInfo::fail();
+						} break;
 					}
 				}
 

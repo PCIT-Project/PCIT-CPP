@@ -49,6 +49,7 @@ namespace pcit::panther::sema{
 		using ID = BoolValueID;
 
 		bool value;
+		bool isBool32;
 	};
 
 	struct StringValue{

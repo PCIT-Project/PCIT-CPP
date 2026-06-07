@@ -30,6 +30,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FUNCTION_POINTER: return false;
 			case Expr::Kind::NUMBER:           return false;
 			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::BOOLEAN32:        return false;
 			case Expr::Kind::NULLPTR:          return false;
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
@@ -881,6 +882,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::FUNCTION_POINTER: return false;
 			case Expr::Kind::NUMBER:           return false;
 			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::BOOLEAN32:        return false;
 			case Expr::Kind::NULLPTR:          return false;
 			case Expr::Kind::PARAM_EXPR:       return false;
 			case Expr::Kind::CALL:             return false;
@@ -894,19 +896,39 @@ namespace pcit::pir::passes{
 			case Expr::Kind::BRANCH: {
 				const Branch& branch = handler.getBranch(stmt);
 
-				if(branch.cond.kind() != Expr::Kind::BOOLEAN){ return false; }
+				switch(branch.cond.kind()){
+					case Expr::Kind::BOOLEAN: {
+						if(handler.getBoolean(branch.cond)){
+							const BasicBlock::ID then_block = branch.thenBlock;
+							handler.removeStmt(stmt);
+							handler.createJump(then_block);
+						}else{
+							const BasicBlock::ID else_block = branch.elseBlock;
+							handler.removeStmt(stmt);
+							handler.createJump(else_block);
+						}
 
-				if(handler.getBoolean(branch.cond)){
-					const BasicBlock::ID then_block = branch.thenBlock;
-					handler.removeStmt(stmt);
-					handler.createJump(then_block);
-				}else{
-					const BasicBlock::ID else_block = branch.elseBlock;
-					handler.removeStmt(stmt);
-					handler.createJump(else_block);
-				}
+						return true;
+					} break;
 
-				return true;
+					case Expr::Kind::BOOLEAN32: {
+						if(handler.getBoolean32(branch.cond)){
+							const BasicBlock::ID then_block = branch.thenBlock;
+							handler.removeStmt(stmt);
+							handler.createJump(then_block);
+						}else{
+							const BasicBlock::ID else_block = branch.elseBlock;
+							handler.removeStmt(stmt);
+							handler.createJump(else_block);
+						}
+
+						return true;
+					} break;
+
+					default: {
+						return false;
+					} break;
+				}				
 			} break;
 
 			case Expr::Kind::UNREACHABLE: return false;
