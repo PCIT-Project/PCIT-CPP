@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.3"></a>
+## v0.0.318.3
+
+### PIR
+- Fixed race conditions and/or invalid behavior for optimization passes with context
+
+
+<!---------------------------------->
 <a name="v0.0.318.2"></a>
 ## v0.0.318.2
 

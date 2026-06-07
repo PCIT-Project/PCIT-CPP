@@ -91,9 +91,15 @@ namespace pcit::pir{
 	auto PassManager::run_pass_group(const StmtPassGroup& stmt_pass_group, const StmtPassGroupItem& item) -> void {
 		auto handler = InstrHandler(this->module, item.func);
 
+		auto passes = evo::SmallVector<StmtPass::Func, 32>();
+		passes.reserve(stmt_pass_group.passes.size());
+		for(const StmtPass& stmt_pass : stmt_pass_group.passes){
+			passes.emplace_back(stmt_pass.generator());
+		}
+
 		for(auto iter = item.func.getAllocasRange().begin(); iter != item.func.getAllocasRange().end(); ++iter){
-			for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-				if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
+			for(const StmtPass::Func& pass : passes){
+				if(pass(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
 			}
 		}
 
@@ -109,8 +115,8 @@ namespace pcit::pir{
 				handler.setInsertIndex(i);
 
 				bool made_transformation = false;
-				for(const StmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(*iter, handler)){
+				for(const StmtPass::Func& pass : passes){
+					if(pass(*iter, handler)){
 						made_transformation = true;
 						break;
 					}
@@ -176,6 +182,12 @@ namespace pcit::pir{
 	) -> void {
 		auto handler = InstrHandler(this->module, item.func);
 
+		auto passes = evo::SmallVector<ReverseStmtPass::Func, 32>();
+		passes.reserve(stmt_pass_group.passes.size());
+		for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
+			passes.emplace_back(stmt_pass.generator());
+		}
+
 		for(BasicBlock::ID basic_block_id : item.func | std::views::reverse){
 			BasicBlock& basic_block = handler.getBasicBlock(basic_block_id);
 			handler.setTargetBasicBlock(basic_block);
@@ -183,8 +195,8 @@ namespace pcit::pir{
 			for(ptrdiff_t i = basic_block.size() - 1; i >= 0; i-=1){
 				handler.setInsertIndex(i);
 
-				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(basic_block[i], handler)){ break; }
+				for(const ReverseStmtPass::Func& pass : passes){
+					if(pass(basic_block[i], handler)){ break; }
 				}
 			}
 		}
@@ -195,8 +207,8 @@ namespace pcit::pir{
 
 			auto iter = item.func.getAllocasRange().begin();
 			while(iter != item.func.getAllocasRange().end()){
-				for(const ReverseStmtPass& stmt_pass : stmt_pass_group.passes){
-					if(stmt_pass.func(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
+				for(const ReverseStmtPass::Func& pass : passes){
+					if(pass(Expr(Expr::Kind::ALLOCA, iter.getID()), handler)){ break; }
 				}
 
 				if(item.func.getAllocasRange().size() != current_allocas_range_size){

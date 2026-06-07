@@ -23,7 +23,9 @@ namespace pcit::pir::passes{
 		-> PassManager::MadeTransformation;
 
 	[[nodiscard]] inline auto constantFolding() -> PassManager::StmtPass {
-		return PassManager::StmtPass(constant_folding_impl);
+		return PassManager::StmtPass([]() -> PassManager::StmtPass::Func {
+			return constant_folding_impl;
+		});
 	}
 
 
@@ -33,7 +35,9 @@ namespace pcit::pir::passes{
 		-> PassManager::MadeTransformation;
 
 	[[nodiscard]] inline auto instSimplify() -> PassManager::StmtPass {
-		return PassManager::StmtPass(inst_simplify_impl);
+		return PassManager::StmtPass([]() -> PassManager::StmtPass::Func {
+			return inst_simplify_impl;
+		});
 	}
 
 
@@ -45,7 +49,9 @@ namespace pcit::pir::passes{
 		return PassManager::StmtPassGroup({
 			constantFolding(),
 			instSimplify(),
-			PassManager::StmtPass(inst_combine_impl),
+			PassManager::StmtPass([]() -> PassManager::StmtPass::Func {
+				return inst_combine_impl;
+			})
 		});
 	}
 

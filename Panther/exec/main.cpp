@@ -197,7 +197,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			break; case pir::OptMode::SIZE_AGRESSIVE:  printer.printlnMagenta("Optimization Mode: SIZE_AGRESSIVE");
 		}
 
-		printer.printlnMagenta("Include debug info: {}", config.addDebugInfo);
+		printer.printlnMagenta("Include Debug Info: {}", config.addDebugInfo);
 	}
 
 

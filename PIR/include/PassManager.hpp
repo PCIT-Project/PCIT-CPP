@@ -26,7 +26,8 @@ namespace pcit::pir{
 
 			struct StmtPass{
 				using Func = std::function<MadeTransformation(Expr, const class InstrHandler&)>;
-				Func func;
+				using Generator = std::function<Func()>;
+				Generator generator;
 			};
 
 			struct StmtPassGroup{
@@ -41,7 +42,8 @@ namespace pcit::pir{
 
 			struct ReverseStmtPass{
 				using Func = std::function<MadeTransformation(Expr, const class InstrHandler&)>;
-				Func func;
+				using Generator = std::function<Func()>;
+				Generator generator;
 			};
 
 			struct ReverseStmtPassGroup{

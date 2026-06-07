@@ -24,1101 +24,1114 @@
 
 namespace pcit::pir::passes{
 	
+	using FuncMetadata = std::unordered_set<Expr>;
 
-	auto removeUnusedStmts() -> PassManager::ReverseStmtPass {
-		using FuncMetadata = std::unordered_set<Expr>;
-		auto metadata = std::unordered_map<Function*, FuncMetadata>();
+	static auto remove_unused_stmts_exec(
+		Expr stmt, const InstrHandler& handler, std::unordered_map<Function*, FuncMetadata>& metadata
+	) -> PassManager::MadeTransformation {
+		FuncMetadata& func_metadata = [&]() -> FuncMetadata& {
+			auto func_metadata_iter = metadata.find(&handler.getTargetFunction());
 
-		auto impl = [metadata](Expr stmt, const InstrHandler& handler) mutable -> PassManager::MadeTransformation {
-			FuncMetadata& func_metadata = [&]() -> FuncMetadata& {
-				auto func_metadata_iter = metadata.find(&handler.getTargetFunction());
+			if(func_metadata_iter == metadata.end()){
+				return metadata.emplace(&handler.getTargetFunction(), FuncMetadata()).first->second;
+			}else{
+				return func_metadata_iter->second;
+			}
+		}();
 
-				if(func_metadata_iter == metadata.end()){
-					return metadata.emplace(&handler.getTargetFunction(), FuncMetadata()).first->second;
-				}else{
-					return func_metadata_iter->second;
+		auto see_expr = [&](const Expr& expr) -> void {
+			switch(expr.kind()){
+				break; case Expr::Kind::NONE:              evo::debugFatalBreak("Invalid expr");
+				break; case Expr::Kind::GLOBAL_VALUE:      break;
+				break; case Expr::Kind::FUNCTION_POINTER:  break;
+				break; case Expr::Kind::NUMBER:            break;
+				break; case Expr::Kind::BOOLEAN:           break;
+				break; case Expr::Kind::BOOLEAN32:         break;
+				break; case Expr::Kind::NULLPTR:           break;
+				break; case Expr::Kind::PARAM_EXPR:        break;
+				break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
+				break; case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::CALL_NO_RETURN:    evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::ABORT:             evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::RET:               evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::JUMP:              evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::PHI:               evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::SWITCH:            evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::ALLOCA:            func_metadata.emplace(expr);
+				break; case Expr::Kind::LOAD:              func_metadata.emplace(expr);
+				break; case Expr::Kind::STORE:             evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::CALC_PTR:          func_metadata.emplace(expr);
+				break; case Expr::Kind::MEMCPY:            func_metadata.emplace(expr);
+				break; case Expr::Kind::MEMSET:            func_metadata.emplace(expr);
+				break; case Expr::Kind::BIT_CAST:          func_metadata.emplace(expr);
+				break; case Expr::Kind::TRUNC:             func_metadata.emplace(expr);
+				break; case Expr::Kind::FTRUNC:            func_metadata.emplace(expr);
+				break; case Expr::Kind::SEXT:              func_metadata.emplace(expr);
+				break; case Expr::Kind::ZEXT:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FEXT:              func_metadata.emplace(expr);
+				break; case Expr::Kind::ITOF:              func_metadata.emplace(expr);
+				break; case Expr::Kind::UITOF:             func_metadata.emplace(expr);
+				break; case Expr::Kind::FTOI:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FTOUI:             func_metadata.emplace(expr);
+				break; case Expr::Kind::ADD:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::SADD_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::SADD_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::UADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::UADD_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::UADD_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::SADD_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::UADD_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::FADD:              func_metadata.emplace(expr);
+				break; case Expr::Kind::SUB:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SSUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::SSUB_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::SSUB_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::USUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::USUB_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::USUB_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::SSUB_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::USUB_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::FSUB:              func_metadata.emplace(expr);
+				break; case Expr::Kind::MUL:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::SMUL_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::SMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::UMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::UMUL_WRAP_RESULT:  func_metadata.emplace(expr);
+				break; case Expr::Kind::UMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
+				break; case Expr::Kind::SMUL_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::UMUL_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::FMUL:              func_metadata.emplace(expr);
+				break; case Expr::Kind::SDIV:              func_metadata.emplace(expr);
+				break; case Expr::Kind::UDIV:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FDIV:              func_metadata.emplace(expr);
+				break; case Expr::Kind::SREM:              func_metadata.emplace(expr);
+				break; case Expr::Kind::UREM:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FREM:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FNEG:              func_metadata.emplace(expr);
+				break; case Expr::Kind::IEQ:               func_metadata.emplace(expr);
+				break; case Expr::Kind::FEQ:               func_metadata.emplace(expr);
+				break; case Expr::Kind::INEQ:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FNEQ:              func_metadata.emplace(expr);
+				break; case Expr::Kind::SLT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::ULT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::FLT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SLTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::ULTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FLTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::SGT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::UGT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::FGT:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SGTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::UGTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::FGTE:              func_metadata.emplace(expr);
+				break; case Expr::Kind::AND:               func_metadata.emplace(expr);
+				break; case Expr::Kind::OR:                func_metadata.emplace(expr);
+				break; case Expr::Kind::XOR:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SHL:               func_metadata.emplace(expr);
+				break; case Expr::Kind::SSHL_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::USHL_SAT:          func_metadata.emplace(expr);
+				break; case Expr::Kind::SSHR:              func_metadata.emplace(expr);
+				break; case Expr::Kind::USHR:              func_metadata.emplace(expr);
+				break; case Expr::Kind::BIT_REVERSE:       func_metadata.emplace(expr);
+				break; case Expr::Kind::BYTE_SWAP:         func_metadata.emplace(expr);
+				break; case Expr::Kind::CTPOP:             func_metadata.emplace(expr);
+				break; case Expr::Kind::CTLZ:              func_metadata.emplace(expr);
+				break; case Expr::Kind::CTTZ:              func_metadata.emplace(expr);
+				break; case Expr::Kind::CMPXCHG:           evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
+				break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
+				break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
+				break; case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Should never see this expr kind");
+			}
+		};
+
+		const auto remove_unused_stmt = [&]() -> bool {
+			if(func_metadata.contains(stmt) == false){
+				handler.removeStmt(stmt);
+				return true;
+			}
+
+			return false;
+		};
+
+		switch(stmt.kind()){
+			case Expr::Kind::NONE:            evo::debugFatalBreak("Invalid expr");
+			case Expr::Kind::GLOBAL_VALUE:     return false;
+			case Expr::Kind::FUNCTION_POINTER: return false;
+			case Expr::Kind::NUMBER:           return false;
+			case Expr::Kind::BOOLEAN:          return false;
+			case Expr::Kind::BOOLEAN32:        return false;
+			case Expr::Kind::NULLPTR:          return false;
+			case Expr::Kind::PARAM_EXPR:       return false;
+
+			case Expr::Kind::CALL: {
+				// TODO(FUTURE): remove if func has no side-effects
+				// if(remove_unused_stmt(stmt)){ return true; }
+
+				const Call& call_inst = handler.getCall(stmt);
+
+				if(call_inst.target.is<PtrCall>()){
+					see_expr(call_inst.target.as<PtrCall>().location);
 				}
-			}();
 
-			auto see_expr = [&](const Expr& expr) -> void {
-				switch(expr.kind()){
-					break; case Expr::Kind::NONE:              evo::debugFatalBreak("Invalid expr");
-					break; case Expr::Kind::GLOBAL_VALUE:      break;
-					break; case Expr::Kind::FUNCTION_POINTER:  break;
-					break; case Expr::Kind::NUMBER:            break;
-					break; case Expr::Kind::BOOLEAN:           break;
-					break; case Expr::Kind::BOOLEAN32:         break;
-					break; case Expr::Kind::NULLPTR:           break;
-					break; case Expr::Kind::PARAM_EXPR:        break;
-					break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
-					break; case Expr::Kind::CALL_VOID:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CALL_NO_RETURN:    evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::ABORT:             evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::BREAKPOINT:        evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::RET:               evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::JUMP:              evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::PHI:               evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SWITCH:            evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::ALLOCA:            func_metadata.emplace(expr);
-					break; case Expr::Kind::LOAD:              func_metadata.emplace(expr);
-					break; case Expr::Kind::STORE:             evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CALC_PTR:          func_metadata.emplace(expr);
-					break; case Expr::Kind::MEMCPY:            func_metadata.emplace(expr);
-					break; case Expr::Kind::MEMSET:            func_metadata.emplace(expr);
-					break; case Expr::Kind::BIT_CAST:          func_metadata.emplace(expr);
-					break; case Expr::Kind::TRUNC:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FTRUNC:            func_metadata.emplace(expr);
-					break; case Expr::Kind::SEXT:              func_metadata.emplace(expr);
-					break; case Expr::Kind::ZEXT:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FEXT:              func_metadata.emplace(expr);
-					break; case Expr::Kind::ITOF:              func_metadata.emplace(expr);
-					break; case Expr::Kind::UITOF:             func_metadata.emplace(expr);
-					break; case Expr::Kind::FTOI:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FTOUI:             func_metadata.emplace(expr);
-					break; case Expr::Kind::ADD:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SADD_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SADD_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::UADD_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::UADD_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::UADD_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::SADD_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::UADD_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::FADD:              func_metadata.emplace(expr);
-					break; case Expr::Kind::SUB:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SSUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SSUB_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SSUB_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::USUB_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::USUB_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::USUB_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::SSUB_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::USUB_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::FSUB:              func_metadata.emplace(expr);
-					break; case Expr::Kind::MUL:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::SMUL_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::SMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::UMUL_WRAP:         evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::UMUL_WRAP_RESULT:  func_metadata.emplace(expr);
-					break; case Expr::Kind::UMUL_WRAP_WRAPPED: func_metadata.emplace(expr);
-					break; case Expr::Kind::SMUL_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::UMUL_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::FMUL:              func_metadata.emplace(expr);
-					break; case Expr::Kind::SDIV:              func_metadata.emplace(expr);
-					break; case Expr::Kind::UDIV:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FDIV:              func_metadata.emplace(expr);
-					break; case Expr::Kind::SREM:              func_metadata.emplace(expr);
-					break; case Expr::Kind::UREM:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FREM:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FNEG:              func_metadata.emplace(expr);
-					break; case Expr::Kind::IEQ:               func_metadata.emplace(expr);
-					break; case Expr::Kind::FEQ:               func_metadata.emplace(expr);
-					break; case Expr::Kind::INEQ:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FNEQ:              func_metadata.emplace(expr);
-					break; case Expr::Kind::SLT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::ULT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::FLT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SLTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::ULTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FLTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::SGT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::UGT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::FGT:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SGTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::UGTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::FGTE:              func_metadata.emplace(expr);
-					break; case Expr::Kind::AND:               func_metadata.emplace(expr);
-					break; case Expr::Kind::OR:                func_metadata.emplace(expr);
-					break; case Expr::Kind::XOR:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SHL:               func_metadata.emplace(expr);
-					break; case Expr::Kind::SSHL_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::USHL_SAT:          func_metadata.emplace(expr);
-					break; case Expr::Kind::SSHR:              func_metadata.emplace(expr);
-					break; case Expr::Kind::USHR:              func_metadata.emplace(expr);
-					break; case Expr::Kind::BIT_REVERSE:       func_metadata.emplace(expr);
-					break; case Expr::Kind::BYTE_SWAP:         func_metadata.emplace(expr);
-					break; case Expr::Kind::CTPOP:             func_metadata.emplace(expr);
-					break; case Expr::Kind::CTLZ:              func_metadata.emplace(expr);
-					break; case Expr::Kind::CTTZ:              func_metadata.emplace(expr);
-					break; case Expr::Kind::CMPXCHG:           evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
-					break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
-					break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
-					break; case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Should never see this expr kind");
-					break; case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Should never see this expr kind");
+				for(const Expr& arg : call_inst.args){
+					see_expr(arg);
 				}
-			};
 
-			const auto remove_unused_stmt = [&]() -> bool {
+				return false;
+			} break;
+
+			case Expr::Kind::CALL_VOID: {
+				const CallVoid& call_void_inst = handler.getCallVoid(stmt);
+
+				if(call_void_inst.target.is<PtrCall>()){
+					see_expr(call_void_inst.target.as<PtrCall>().location);
+				}
+
+				for(const Expr& arg : call_void_inst.args){
+					see_expr(arg);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::CALL_NO_RETURN: {
+				const CallNoReturn& call_no_return_inst = handler.getCallNoReturn(stmt);
+
+				if(call_no_return_inst.target.is<PtrCall>()){
+					see_expr(call_no_return_inst.target.as<PtrCall>().location);
+				}
+
+				for(const Expr& arg : call_no_return_inst.args){
+					see_expr(arg);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::ABORT:      return false;
+			case Expr::Kind::BREAKPOINT: return false;
+
+			case Expr::Kind::RET: {
+				const Ret& ret_inst = handler.getRet(stmt);
+
+				if(ret_inst.value.has_value()){
+					see_expr(*ret_inst.value);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::JUMP: return false;
+
+			case Expr::Kind::BRANCH: {
+				const Branch& branch_inst = handler.getBranch(stmt);
+
+				see_expr(branch_inst.cond);
+
+				return false;
+			} break;
+
+			case Expr::Kind::UNREACHABLE: return false;
+
+			case Expr::Kind::PHI: {
+				if(remove_unused_stmt()){ return true; }
+
+				const Phi& phi_inst = handler.getPhi(stmt);
+
+				for(const Phi::Predecessor& predecessor : phi_inst.predecessors){
+					see_expr(predecessor.value);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::SWITCH: {
+				const Switch& switch_inst = handler.getSwitch(stmt);
+
+				see_expr(switch_inst.cond);
+
+				for(const Switch::Case& switch_case : switch_inst.cases){
+					see_expr(switch_case.value);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::ALLOCA: {
 				if(func_metadata.contains(stmt) == false){
+					for(BasicBlock::ID current_func_basic_block_id : handler.getTargetFunction()){
+						for(Expr current_func_expr : handler.getBasicBlock(current_func_basic_block_id)){
+							switch(current_func_expr.kind()){
+								case Expr::Kind::META_LOCAL_VAR: {
+									if(handler.getMetaLocalVar(current_func_expr).value == stmt){
+										handler.removeStmt(current_func_expr);
+									}
+								} break;
+
+								case Expr::Kind::META_PARAM: {
+									if(handler.getMetaParam(current_func_expr).value == stmt){
+										handler.removeStmt(current_func_expr);
+									}
+								} break;
+
+								default: break;
+							}
+						}
+					}
+
 					handler.removeStmt(stmt);
 					return true;
 				}
 
 				return false;
-			};
+			} break;
 
-			switch(stmt.kind()){
-				case Expr::Kind::NONE:            evo::debugFatalBreak("Invalid expr");
-				case Expr::Kind::GLOBAL_VALUE:     return false;
-				case Expr::Kind::FUNCTION_POINTER: return false;
-				case Expr::Kind::NUMBER:           return false;
-				case Expr::Kind::BOOLEAN:          return false;
-				case Expr::Kind::BOOLEAN32:        return false;
-				case Expr::Kind::NULLPTR:          return false;
-				case Expr::Kind::PARAM_EXPR:       return false;
 
-				case Expr::Kind::CALL: {
-					// TODO(FUTURE): remove if func has no side-effects
-					// if(remove_unused_stmt(stmt)){ return true; }
+			case Expr::Kind::LOAD: {
+				const Load& load = handler.getLoad(stmt);
 
-					const Call& call_inst = handler.getCall(stmt);
-
-					if(call_inst.target.is<PtrCall>()){
-						see_expr(call_inst.target.as<PtrCall>().location);
-					}
-
-					for(const Expr& arg : call_inst.args){
-						see_expr(arg);
-					}
-
-					return false;
-				} break;
-
-				case Expr::Kind::CALL_VOID: {
-					const CallVoid& call_void_inst = handler.getCallVoid(stmt);
-
-					if(call_void_inst.target.is<PtrCall>()){
-						see_expr(call_void_inst.target.as<PtrCall>().location);
-					}
-
-					for(const Expr& arg : call_void_inst.args){
-						see_expr(arg);
-					}
-
-					return false;
-				} break;
-
-				case Expr::Kind::CALL_NO_RETURN: {
-					const CallNoReturn& call_no_return_inst = handler.getCallNoReturn(stmt);
-
-					if(call_no_return_inst.target.is<PtrCall>()){
-						see_expr(call_no_return_inst.target.as<PtrCall>().location);
-					}
-
-					for(const Expr& arg : call_no_return_inst.args){
-						see_expr(arg);
-					}
-
-					return false;
-				} break;
-
-				case Expr::Kind::ABORT:      return false;
-				case Expr::Kind::BREAKPOINT: return false;
-
-				case Expr::Kind::RET: {
-					const Ret& ret_inst = handler.getRet(stmt);
-
-					if(ret_inst.value.has_value()){
-						see_expr(*ret_inst.value);
-					}
-
-					return false;
-				} break;
-
-				case Expr::Kind::JUMP: return false;
-
-				case Expr::Kind::BRANCH: {
-					const Branch& branch_inst = handler.getBranch(stmt);
-
-					see_expr(branch_inst.cond);
-
-					return false;
-				} break;
-
-				case Expr::Kind::UNREACHABLE: return false;
-
-				case Expr::Kind::PHI: {
+				if(load.atomicOrdering == AtomicOrdering::NONE || load.atomicOrdering == AtomicOrdering::MONOTONIC){
 					if(remove_unused_stmt()){ return true; }
+				}
 
-					const Phi& phi_inst = handler.getPhi(stmt);
+				see_expr(load.source);
 
-					for(const Phi::Predecessor& predecessor : phi_inst.predecessors){
-						see_expr(predecessor.value);
-					}
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::STORE: {
+				const Store& store = handler.getStore(stmt);
+				see_expr(store.destination);
+				see_expr(store.value);
 
-				case Expr::Kind::SWITCH: {
-					const Switch& switch_inst = handler.getSwitch(stmt);
+				return false;
+			} break;
 
-					see_expr(switch_inst.cond);
+			case Expr::Kind::CALC_PTR: {
+				if(remove_unused_stmt()){ return true; }
 
-					for(const Switch::Case& switch_case : switch_inst.cases){
-						see_expr(switch_case.value);
-					}
-				} break;
+				const CalcPtr& calc_ptr = handler.getCalcPtr(stmt);
+				see_expr(calc_ptr.basePtr);
 
-				case Expr::Kind::ALLOCA: {
-					if(func_metadata.contains(stmt) == false){
-						for(BasicBlock::ID current_func_basic_block_id : handler.getTargetFunction()){
-							for(Expr current_func_expr : handler.getBasicBlock(current_func_basic_block_id)){
-								switch(current_func_expr.kind()){
-									case Expr::Kind::META_LOCAL_VAR: {
-										if(handler.getMetaLocalVar(current_func_expr).value == stmt){
-											handler.removeStmt(current_func_expr);
-										}
-									} break;
+				for(const CalcPtr::Index& index : calc_ptr.indices){
+					if(index.is<Expr>()){ see_expr(index.as<Expr>()); }
+				}
 
-									case Expr::Kind::META_PARAM: {
-										if(handler.getMetaParam(current_func_expr).value == stmt){
-											handler.removeStmt(current_func_expr);
-										}
-									} break;
+				return false;
+			} break;
 
-									default: break;
-								}
-							}
-						}
 
+			case Expr::Kind::MEMCPY: {
+				const Memcpy& memcpy = handler.getMemcpy(stmt);
+				see_expr(memcpy.dst);
+				see_expr(memcpy.src);
+				see_expr(memcpy.numBytes);
+
+				return false;
+			} break;
+
+			case Expr::Kind::MEMSET: {
+				const Memset& memset = handler.getMemset(stmt);
+				see_expr(memset.dst);
+				see_expr(memset.value);
+				see_expr(memset.numBytes);
+
+				return false;
+			} break;
+
+
+			case Expr::Kind::BIT_CAST: {
+				if(remove_unused_stmt()){ return true; }
+
+				const BitCast& bitcast = handler.getBitCast(stmt);
+				see_expr(bitcast.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::TRUNC: {
+				if(remove_unused_stmt()){ return true; }
+
+				const Trunc& trunc = handler.getTrunc(stmt);
+				see_expr(trunc.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::FTRUNC: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FTrunc& ftrunc = handler.getFTrunc(stmt);
+				see_expr(ftrunc.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::SEXT: {
+				if(remove_unused_stmt()){ return true; }
+
+				const SExt& sext = handler.getSExt(stmt);
+				see_expr(sext.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::ZEXT: {
+				if(remove_unused_stmt()){ return true; }
+
+				const ZExt& zext = handler.getZExt(stmt);
+				see_expr(zext.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::FEXT: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FExt& fext = handler.getFExt(stmt);
+				see_expr(fext.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::ITOF: {
+				if(remove_unused_stmt()){ return true; }
+
+				const IToF& itof = handler.getIToF(stmt);
+				see_expr(itof.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::UITOF: {
+				if(remove_unused_stmt()){ return true; }
+
+				const UIToF& uitof = handler.getUIToF(stmt);
+				see_expr(uitof.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::FTOI: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FToI& ftoi = handler.getFToI(stmt);
+				see_expr(ftoi.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::FTOUI: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FToUI& ftoui = handler.getFToUI(stmt);
+				see_expr(ftoui.fromValue);
+
+				return false;
+			} break;
+
+			case Expr::Kind::ADD: {
+				if(remove_unused_stmt()){ return true; }
+
+				const Add& add = handler.getAdd(stmt);
+				see_expr(add.lhs);
+				see_expr(add.rhs);
+
+				return false;
+			} break;
+
+			case Expr::Kind::SADD_WRAP: {
+				if(func_metadata.contains(handler.extractSAddWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractSAddWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
 						return true;
 					}
 
-					return false;
-				} break;
-
-
-				case Expr::Kind::LOAD: {
-					const Load& load = handler.getLoad(stmt);
-
-					if(load.atomicOrdering == AtomicOrdering::NONE || load.atomicOrdering == AtomicOrdering::MONOTONIC){
-						if(remove_unused_stmt()){ return true; }
-					}
-
-					see_expr(load.source);
-
-					return false;
-				} break;
-
-				case Expr::Kind::STORE: {
-					const Store& store = handler.getStore(stmt);
-					see_expr(store.destination);
-					see_expr(store.value);
-
-					return false;
-				} break;
-
-				case Expr::Kind::CALC_PTR: {
-					if(remove_unused_stmt()){ return true; }
-
-					const CalcPtr& calc_ptr = handler.getCalcPtr(stmt);
-					see_expr(calc_ptr.basePtr);
-
-					for(const CalcPtr::Index& index : calc_ptr.indices){
-						if(index.is<Expr>()){ see_expr(index.as<Expr>()); }
-					}
-
-					return false;
-				} break;
-
-
-				case Expr::Kind::MEMCPY: {
-					const Memcpy& memcpy = handler.getMemcpy(stmt);
-					see_expr(memcpy.dst);
-					see_expr(memcpy.src);
-					see_expr(memcpy.numBytes);
-
-					return false;
-				} break;
-
-				case Expr::Kind::MEMSET: {
-					const Memset& memset = handler.getMemset(stmt);
-					see_expr(memset.dst);
-					see_expr(memset.value);
-					see_expr(memset.numBytes);
-
-					return false;
-				} break;
-
-
-				case Expr::Kind::BIT_CAST: {
-					if(remove_unused_stmt()){ return true; }
-
-					const BitCast& bitcast = handler.getBitCast(stmt);
-					see_expr(bitcast.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::TRUNC: {
-					if(remove_unused_stmt()){ return true; }
-
-					const Trunc& trunc = handler.getTrunc(stmt);
-					see_expr(trunc.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::FTRUNC: {
-					if(remove_unused_stmt()){ return true; }
-
-					const FTrunc& ftrunc = handler.getFTrunc(stmt);
-					see_expr(ftrunc.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::SEXT: {
-					if(remove_unused_stmt()){ return true; }
-
-					const SExt& sext = handler.getSExt(stmt);
-					see_expr(sext.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::ZEXT: {
-					if(remove_unused_stmt()){ return true; }
-
-					const ZExt& zext = handler.getZExt(stmt);
-					see_expr(zext.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::FEXT: {
-					if(remove_unused_stmt()){ return true; }
-
-					const FExt& fext = handler.getFExt(stmt);
-					see_expr(fext.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::ITOF: {
-					if(remove_unused_stmt()){ return true; }
-
-					const IToF& itof = handler.getIToF(stmt);
-					see_expr(itof.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::UITOF: {
-					if(remove_unused_stmt()){ return true; }
-
-					const UIToF& uitof = handler.getUIToF(stmt);
-					see_expr(uitof.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::FTOI: {
-					if(remove_unused_stmt()){ return true; }
-
-					const FToI& ftoi = handler.getFToI(stmt);
-					see_expr(ftoi.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::FTOUI: {
-					if(remove_unused_stmt()){ return true; }
-
-					const FToUI& ftoui = handler.getFToUI(stmt);
-					see_expr(ftoui.fromValue);
-
-					return false;
-				} break;
-
-				case Expr::Kind::ADD: {
-					if(remove_unused_stmt()){ return true; }
-
-					const Add& add = handler.getAdd(stmt);
-					see_expr(add.lhs);
-					see_expr(add.rhs);
-
-					return false;
-				} break;
-
-				case Expr::Kind::SADD_WRAP: {
-					if(func_metadata.contains(handler.extractSAddWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractSAddWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;
-						}
-
-						// if wrapped value is never used, replace addWrap with just an add
-						const SAddWrap& sadd_wrap = handler.getSAddWrap(stmt);
-						see_expr(sadd_wrap.lhs);
-						see_expr(sadd_wrap.rhs);
-
-						const Expr new_add = handler.createAdd(
-							sadd_wrap.lhs, sadd_wrap.rhs, false, false, std::string(sadd_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractSAddWrapResult(stmt), new_add);
-						handler.removeStmt(stmt);
-						return true;
-					}
-
+					// if wrapped value is never used, replace addWrap with just an add
 					const SAddWrap& sadd_wrap = handler.getSAddWrap(stmt);
 					see_expr(sadd_wrap.lhs);
 					see_expr(sadd_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_add = handler.createAdd(
+						sadd_wrap.lhs, sadd_wrap.rhs, false, false, std::string(sadd_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractSAddWrapResult(stmt), new_add);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::SADD_WRAP_RESULT:  return false;
-				case Expr::Kind::SADD_WRAP_WRAPPED: return false;
+				const SAddWrap& sadd_wrap = handler.getSAddWrap(stmt);
+				see_expr(sadd_wrap.lhs);
+				see_expr(sadd_wrap.rhs);
 
-				case Expr::Kind::UADD_WRAP: {
-					if(func_metadata.contains(handler.extractUAddWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractUAddWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;		
-						}
+				return false;
+			} break;
 
-						// if wrapped value is never used, replace addWrap with just an add
-						const UAddWrap& uadd_wrap = handler.getUAddWrap(stmt);
-						see_expr(uadd_wrap.lhs);
-						see_expr(uadd_wrap.rhs);
+			case Expr::Kind::SADD_WRAP_RESULT:  return false;
+			case Expr::Kind::SADD_WRAP_WRAPPED: return false;
 
-						const Expr new_add = handler.createAdd(
-							uadd_wrap.lhs, uadd_wrap.rhs, false, false, std::string(uadd_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractUAddWrapResult(stmt), new_add);
+			case Expr::Kind::UADD_WRAP: {
+				if(func_metadata.contains(handler.extractUAddWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractUAddWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
-						return true;
+						return true;		
 					}
 
+					// if wrapped value is never used, replace addWrap with just an add
 					const UAddWrap& uadd_wrap = handler.getUAddWrap(stmt);
 					see_expr(uadd_wrap.lhs);
 					see_expr(uadd_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_add = handler.createAdd(
+						uadd_wrap.lhs, uadd_wrap.rhs, false, false, std::string(uadd_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractUAddWrapResult(stmt), new_add);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::UADD_WRAP_RESULT:  return false;
-				case Expr::Kind::UADD_WRAP_WRAPPED: return false;
+				const UAddWrap& uadd_wrap = handler.getUAddWrap(stmt);
+				see_expr(uadd_wrap.lhs);
+				see_expr(uadd_wrap.rhs);
 
-				case Expr::Kind::SADD_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				return false;
+			} break;
 
-					const SAddSat& sadd_sat = handler.getSAddSat(stmt);
-					see_expr(sadd_sat.lhs);
-					see_expr(sadd_sat.rhs);
+			case Expr::Kind::UADD_WRAP_RESULT:  return false;
+			case Expr::Kind::UADD_WRAP_WRAPPED: return false;
 
-					return false;
-				} break;
+			case Expr::Kind::SADD_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UADD_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				const SAddSat& sadd_sat = handler.getSAddSat(stmt);
+				see_expr(sadd_sat.lhs);
+				see_expr(sadd_sat.rhs);
 
-					const UAddSat& uadd_sat = handler.getUAddSat(stmt);
-					see_expr(uadd_sat.lhs);
-					see_expr(uadd_sat.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UADD_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FADD: {
-					if(remove_unused_stmt()){ return true; }
+				const UAddSat& uadd_sat = handler.getUAddSat(stmt);
+				see_expr(uadd_sat.lhs);
+				see_expr(uadd_sat.rhs);
 
-					const FAdd& fadd = handler.getFAdd(stmt);
-					see_expr(fadd.lhs);
-					see_expr(fadd.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FADD: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FAdd& fadd = handler.getFAdd(stmt);
+				see_expr(fadd.lhs);
+				see_expr(fadd.rhs);
+
+				return false;
+			} break;
 
 
-				case Expr::Kind::SUB: {
-					if(remove_unused_stmt()){ return true; }
+			case Expr::Kind::SUB: {
+				if(remove_unused_stmt()){ return true; }
 
-					const Sub& sub = handler.getSub(stmt);
-					see_expr(sub.lhs);
-					see_expr(sub.rhs);
+				const Sub& sub = handler.getSub(stmt);
+				see_expr(sub.lhs);
+				see_expr(sub.rhs);
 
-					return false;
-				} break;
+				return false;
+			} break;
 
-				case Expr::Kind::SSUB_WRAP: {
-					if(func_metadata.contains(handler.extractSSubWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractSSubWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;		
-						}
-
-						// if wrapped value is never used, replace subWrap with just an sub
-						const SSubWrap& ssub_wrap = handler.getSSubWrap(stmt);
-						see_expr(ssub_wrap.lhs);
-						see_expr(ssub_wrap.rhs);
-
-						const Expr new_sub = handler.createSub(
-							ssub_wrap.lhs, ssub_wrap.rhs, false, false, std::string(ssub_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractSSubWrapResult(stmt), new_sub);
+			case Expr::Kind::SSUB_WRAP: {
+				if(func_metadata.contains(handler.extractSSubWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractSSubWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
-						return true;
+						return true;		
 					}
 
+					// if wrapped value is never used, replace subWrap with just an sub
 					const SSubWrap& ssub_wrap = handler.getSSubWrap(stmt);
 					see_expr(ssub_wrap.lhs);
 					see_expr(ssub_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_sub = handler.createSub(
+						ssub_wrap.lhs, ssub_wrap.rhs, false, false, std::string(ssub_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractSSubWrapResult(stmt), new_sub);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::SSUB_WRAP_RESULT:  return false;
-				case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
+				const SSubWrap& ssub_wrap = handler.getSSubWrap(stmt);
+				see_expr(ssub_wrap.lhs);
+				see_expr(ssub_wrap.rhs);
 
-				case Expr::Kind::USUB_WRAP: {
-					if(func_metadata.contains(handler.extractUSubWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractUSubWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;		
-						}
+				return false;
+			} break;
 
-						// if wrapped value is never used, replace subWrap with just an sub
-						const USubWrap& usub_wrap = handler.getUSubWrap(stmt);
-						see_expr(usub_wrap.lhs);
-						see_expr(usub_wrap.rhs);
+			case Expr::Kind::SSUB_WRAP_RESULT:  return false;
+			case Expr::Kind::SSUB_WRAP_WRAPPED: return false;
 
-						const Expr new_sub = handler.createSub(
-							usub_wrap.lhs, usub_wrap.rhs, false, false, std::string(usub_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractUSubWrapResult(stmt), new_sub);
+			case Expr::Kind::USUB_WRAP: {
+				if(func_metadata.contains(handler.extractUSubWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractUSubWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
-						return true;
+						return true;		
 					}
 
+					// if wrapped value is never used, replace subWrap with just an sub
 					const USubWrap& usub_wrap = handler.getUSubWrap(stmt);
 					see_expr(usub_wrap.lhs);
 					see_expr(usub_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_sub = handler.createSub(
+						usub_wrap.lhs, usub_wrap.rhs, false, false, std::string(usub_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractUSubWrapResult(stmt), new_sub);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::USUB_WRAP_RESULT:  return false;
-				case Expr::Kind::USUB_WRAP_WRAPPED: return false;
+				const USubWrap& usub_wrap = handler.getUSubWrap(stmt);
+				see_expr(usub_wrap.lhs);
+				see_expr(usub_wrap.rhs);
 
-				case Expr::Kind::SSUB_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				return false;
+			} break;
 
-					const SSubSat& ssub_sat = handler.getSSubSat(stmt);
-					see_expr(ssub_sat.lhs);
-					see_expr(ssub_sat.rhs);
+			case Expr::Kind::USUB_WRAP_RESULT:  return false;
+			case Expr::Kind::USUB_WRAP_WRAPPED: return false;
 
-					return false;
-				} break;
+			case Expr::Kind::SSUB_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::USUB_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				const SSubSat& ssub_sat = handler.getSSubSat(stmt);
+				see_expr(ssub_sat.lhs);
+				see_expr(ssub_sat.rhs);
 
-					const USubSat& usub_sat = handler.getUSubSat(stmt);
-					see_expr(usub_sat.lhs);
-					see_expr(usub_sat.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::USUB_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FSUB: {
-					if(remove_unused_stmt()){ return true; }
+				const USubSat& usub_sat = handler.getUSubSat(stmt);
+				see_expr(usub_sat.lhs);
+				see_expr(usub_sat.rhs);
 
-					const FSub& fsub = handler.getFSub(stmt);
-					see_expr(fsub.lhs);
-					see_expr(fsub.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FSUB: {
+				if(remove_unused_stmt()){ return true; }
+
+				const FSub& fsub = handler.getFSub(stmt);
+				see_expr(fsub.lhs);
+				see_expr(fsub.rhs);
+
+				return false;
+			} break;
 
 
-				case Expr::Kind::MUL: {
-					if(remove_unused_stmt()){ return true; }
+			case Expr::Kind::MUL: {
+				if(remove_unused_stmt()){ return true; }
 
-					const Mul& mul = handler.getMul(stmt);
-					see_expr(mul.lhs);
-					see_expr(mul.rhs);
+				const Mul& mul = handler.getMul(stmt);
+				see_expr(mul.lhs);
+				see_expr(mul.rhs);
 
-					return false;
-				} break;
+				return false;
+			} break;
 
-				case Expr::Kind::SMUL_WRAP: {
-					if(func_metadata.contains(handler.extractSMulWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractSMulWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;		
-						}
-
-						// if wrapped value is never used, replace mulWrap with just an mul
-						const SMulWrap& smul_wrap = handler.getSMulWrap(stmt);
-						see_expr(smul_wrap.lhs);
-						see_expr(smul_wrap.rhs);
-
-						const Expr new_mul = handler.createMul(
-							smul_wrap.lhs, smul_wrap.rhs, false, false, std::string(smul_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractSMulWrapResult(stmt), new_mul);
+			case Expr::Kind::SMUL_WRAP: {
+				if(func_metadata.contains(handler.extractSMulWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractSMulWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
-						return true;
+						return true;		
 					}
 
+					// if wrapped value is never used, replace mulWrap with just an mul
 					const SMulWrap& smul_wrap = handler.getSMulWrap(stmt);
 					see_expr(smul_wrap.lhs);
 					see_expr(smul_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_mul = handler.createMul(
+						smul_wrap.lhs, smul_wrap.rhs, false, false, std::string(smul_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractSMulWrapResult(stmt), new_mul);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::SMUL_WRAP_RESULT:  return false;
-				case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
+				const SMulWrap& smul_wrap = handler.getSMulWrap(stmt);
+				see_expr(smul_wrap.lhs);
+				see_expr(smul_wrap.rhs);
 
-				case Expr::Kind::UMUL_WRAP: {
-					if(func_metadata.contains(handler.extractUMulWrapWrapped(stmt)) == false){
-						if(func_metadata.contains(handler.extractUMulWrapResult(stmt)) == false){
-							handler.removeStmt(stmt);
-							return true;		
-						}
+				return false;
+			} break;
 
-						// if wrapped value is never used, replace mulWrap with just an mul
-						const UMulWrap& umul_wrap = handler.getUMulWrap(stmt);
-						see_expr(umul_wrap.lhs);
-						see_expr(umul_wrap.rhs);
+			case Expr::Kind::SMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::SMUL_WRAP_WRAPPED: return false;
 
-						const Expr new_mul = handler.createMul(
-							umul_wrap.lhs, umul_wrap.rhs, false, false, std::string(umul_wrap.resultName)
-						);
-						handler.replaceExpr(handler.extractUMulWrapResult(stmt), new_mul);
+			case Expr::Kind::UMUL_WRAP: {
+				if(func_metadata.contains(handler.extractUMulWrapWrapped(stmt)) == false){
+					if(func_metadata.contains(handler.extractUMulWrapResult(stmt)) == false){
 						handler.removeStmt(stmt);
-						return true;
+						return true;		
 					}
 
+					// if wrapped value is never used, replace mulWrap with just an mul
 					const UMulWrap& umul_wrap = handler.getUMulWrap(stmt);
 					see_expr(umul_wrap.lhs);
 					see_expr(umul_wrap.rhs);
 
-					return false;
-				} break;
+					const Expr new_mul = handler.createMul(
+						umul_wrap.lhs, umul_wrap.rhs, false, false, std::string(umul_wrap.resultName)
+					);
+					handler.replaceExpr(handler.extractUMulWrapResult(stmt), new_mul);
+					handler.removeStmt(stmt);
+					return true;
+				}
 
-				case Expr::Kind::UMUL_WRAP_RESULT:  return false;
-				case Expr::Kind::UMUL_WRAP_WRAPPED: return false;
+				const UMulWrap& umul_wrap = handler.getUMulWrap(stmt);
+				see_expr(umul_wrap.lhs);
+				see_expr(umul_wrap.rhs);
 
-				case Expr::Kind::SMUL_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				return false;
+			} break;
 
-					const SMulSat& smul_sat = handler.getSMulSat(stmt);
-					see_expr(smul_sat.lhs);
-					see_expr(smul_sat.rhs);
+			case Expr::Kind::UMUL_WRAP_RESULT:  return false;
+			case Expr::Kind::UMUL_WRAP_WRAPPED: return false;
 
-					return false;
-				} break;
+			case Expr::Kind::SMUL_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UMUL_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				const SMulSat& smul_sat = handler.getSMulSat(stmt);
+				see_expr(smul_sat.lhs);
+				see_expr(smul_sat.rhs);
 
-					const UMulSat& umul_sat = handler.getUMulSat(stmt);
-					see_expr(umul_sat.lhs);
-					see_expr(umul_sat.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UMUL_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FMUL: {
-					if(remove_unused_stmt()){ return true; }
+				const UMulSat& umul_sat = handler.getUMulSat(stmt);
+				see_expr(umul_sat.lhs);
+				see_expr(umul_sat.rhs);
 
-					const FMul& fmul = handler.getFMul(stmt);
-					see_expr(fmul.lhs);
-					see_expr(fmul.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FMUL: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SDIV: {
-					if(remove_unused_stmt()){ return true; }
+				const FMul& fmul = handler.getFMul(stmt);
+				see_expr(fmul.lhs);
+				see_expr(fmul.rhs);
 
-					const SDiv& sdiv = handler.getSDiv(stmt);
-					see_expr(sdiv.lhs);
-					see_expr(sdiv.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SDIV: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UDIV: {
-					if(remove_unused_stmt()){ return true; }
+				const SDiv& sdiv = handler.getSDiv(stmt);
+				see_expr(sdiv.lhs);
+				see_expr(sdiv.rhs);
 
-					const UDiv udiv = handler.getUDiv(stmt);
-					see_expr(udiv.lhs);
-					see_expr(udiv.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UDIV: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FDIV: {
-					if(remove_unused_stmt()){ return true; }
+				const UDiv udiv = handler.getUDiv(stmt);
+				see_expr(udiv.lhs);
+				see_expr(udiv.rhs);
 
-					const FDiv& fdiv = handler.getFDiv(stmt);
-					see_expr(fdiv.lhs);
-					see_expr(fdiv.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FDIV: {
+				if(remove_unused_stmt()){ return true; }
 
+				const FDiv& fdiv = handler.getFDiv(stmt);
+				see_expr(fdiv.lhs);
+				see_expr(fdiv.rhs);
 
-				case Expr::Kind::SREM: {
-					if(remove_unused_stmt()){ return true; }
+				return false;
+			} break;
 
-					const SRem& srem = handler.getSRem(stmt);
-					see_expr(srem.lhs);
-					see_expr(srem.rhs);
 
-					return false;
-				} break;
+			case Expr::Kind::SREM: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UREM: {
-					if(remove_unused_stmt()){ return true; }
+				const SRem& srem = handler.getSRem(stmt);
+				see_expr(srem.lhs);
+				see_expr(srem.rhs);
 
-					const URem urem = handler.getURem(stmt);
-					see_expr(urem.lhs);
-					see_expr(urem.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UREM: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FREM: {
-					if(remove_unused_stmt()){ return true; }
+				const URem urem = handler.getURem(stmt);
+				see_expr(urem.lhs);
+				see_expr(urem.rhs);
 
-					const FRem& frem = handler.getFRem(stmt);
-					see_expr(frem.lhs);
-					see_expr(frem.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FREM: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FNEG: {
-					if(remove_unused_stmt()){ return true; }
+				const FRem& frem = handler.getFRem(stmt);
+				see_expr(frem.lhs);
+				see_expr(frem.rhs);
 
-					const FNeg& fneg = handler.getFNeg(stmt);
-					see_expr(fneg.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FNEG: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::IEQ: {
-					if(remove_unused_stmt()){ return true; }
+				const FNeg& fneg = handler.getFNeg(stmt);
+				see_expr(fneg.rhs);
 
-					const IEq& ieq = handler.getIEq(stmt);
-					see_expr(ieq.lhs);
-					see_expr(ieq.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::IEQ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FEQ: {
-					if(remove_unused_stmt()){ return true; }
+				const IEq& ieq = handler.getIEq(stmt);
+				see_expr(ieq.lhs);
+				see_expr(ieq.rhs);
 
-					const FEq& feq = handler.getFEq(stmt);
-					see_expr(feq.lhs);
-					see_expr(feq.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FEQ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::INEQ: {
-					if(remove_unused_stmt()){ return true; }
+				const FEq& feq = handler.getFEq(stmt);
+				see_expr(feq.lhs);
+				see_expr(feq.rhs);
 
-					const INeq& ineq = handler.getINeq(stmt);
-					see_expr(ineq.lhs);
-					see_expr(ineq.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::INEQ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FNEQ: {
-					if(remove_unused_stmt()){ return true; }
+				const INeq& ineq = handler.getINeq(stmt);
+				see_expr(ineq.lhs);
+				see_expr(ineq.rhs);
 
-					const FNeq& fneq = handler.getFNeq(stmt);
-					see_expr(fneq.lhs);
-					see_expr(fneq.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FNEQ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SLT: {
-					if(remove_unused_stmt()){ return true; }
+				const FNeq& fneq = handler.getFNeq(stmt);
+				see_expr(fneq.lhs);
+				see_expr(fneq.rhs);
 
-					const SLT& slt = handler.getSLT(stmt);
-					see_expr(slt.lhs);
-					see_expr(slt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SLT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::ULT: {
-					if(remove_unused_stmt()){ return true; }
+				const SLT& slt = handler.getSLT(stmt);
+				see_expr(slt.lhs);
+				see_expr(slt.rhs);
 
-					const ULT& ult = handler.getULT(stmt);
-					see_expr(ult.lhs);
-					see_expr(ult.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::ULT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FLT: {
-					if(remove_unused_stmt()){ return true; }
+				const ULT& ult = handler.getULT(stmt);
+				see_expr(ult.lhs);
+				see_expr(ult.rhs);
 
-					const FLT& flt = handler.getFLT(stmt);
-					see_expr(flt.lhs);
-					see_expr(flt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FLT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SLTE: {
-					if(remove_unused_stmt()){ return true; }
+				const FLT& flt = handler.getFLT(stmt);
+				see_expr(flt.lhs);
+				see_expr(flt.rhs);
 
-					const SLTE& slte = handler.getSLTE(stmt);
-					see_expr(slte.lhs);
-					see_expr(slte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SLTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::ULTE: {
-					if(remove_unused_stmt()){ return true; }
+				const SLTE& slte = handler.getSLTE(stmt);
+				see_expr(slte.lhs);
+				see_expr(slte.rhs);
 
-					const ULTE& ulte = handler.getULTE(stmt);
-					see_expr(ulte.lhs);
-					see_expr(ulte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::ULTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FLTE: {
-					if(remove_unused_stmt()){ return true; }
+				const ULTE& ulte = handler.getULTE(stmt);
+				see_expr(ulte.lhs);
+				see_expr(ulte.rhs);
 
-					const FLTE& flte = handler.getFLTE(stmt);
-					see_expr(flte.lhs);
-					see_expr(flte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FLTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SGT: {
-					if(remove_unused_stmt()){ return true; }
+				const FLTE& flte = handler.getFLTE(stmt);
+				see_expr(flte.lhs);
+				see_expr(flte.rhs);
 
-					const SGT& sgt = handler.getSGT(stmt);
-					see_expr(sgt.lhs);
-					see_expr(sgt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SGT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UGT: {
-					if(remove_unused_stmt()){ return true; }
+				const SGT& sgt = handler.getSGT(stmt);
+				see_expr(sgt.lhs);
+				see_expr(sgt.rhs);
 
-					const UGT& ugt = handler.getUGT(stmt);
-					see_expr(ugt.lhs);
-					see_expr(ugt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UGT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FGT: {
-					if(remove_unused_stmt()){ return true; }
+				const UGT& ugt = handler.getUGT(stmt);
+				see_expr(ugt.lhs);
+				see_expr(ugt.rhs);
 
-					const FGT& fgt = handler.getFGT(stmt);
-					see_expr(fgt.lhs);
-					see_expr(fgt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FGT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SGTE: {
-					if(remove_unused_stmt()){ return true; }
+				const FGT& fgt = handler.getFGT(stmt);
+				see_expr(fgt.lhs);
+				see_expr(fgt.rhs);
 
-					const SGTE& sgte = handler.getSGTE(stmt);
-					see_expr(sgte.lhs);
-					see_expr(sgte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SGTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::UGTE: {
-					if(remove_unused_stmt()){ return true; }
+				const SGTE& sgte = handler.getSGTE(stmt);
+				see_expr(sgte.lhs);
+				see_expr(sgte.rhs);
 
-					const UGTE& ugte = handler.getUGTE(stmt);
-					see_expr(ugte.lhs);
-					see_expr(ugte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::UGTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::FGTE: {
-					if(remove_unused_stmt()){ return true; }
+				const UGTE& ugte = handler.getUGTE(stmt);
+				see_expr(ugte.lhs);
+				see_expr(ugte.rhs);
 
-					const FGTE& fgte = handler.getFGTE(stmt);
-					see_expr(fgte.lhs);
-					see_expr(fgte.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::FGTE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::AND: {
-					if(remove_unused_stmt()){ return true; }
+				const FGTE& fgte = handler.getFGTE(stmt);
+				see_expr(fgte.lhs);
+				see_expr(fgte.rhs);
 
-					const And& and_stmt = handler.getAnd(stmt);
-					see_expr(and_stmt.lhs);
-					see_expr(and_stmt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::AND: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::OR: {
-					if(remove_unused_stmt()){ return true; }
+				const And& and_stmt = handler.getAnd(stmt);
+				see_expr(and_stmt.lhs);
+				see_expr(and_stmt.rhs);
 
-					const Or& or_stmt = handler.getOr(stmt);
-					see_expr(or_stmt.lhs);
-					see_expr(or_stmt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::OR: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::XOR: {
-					if(remove_unused_stmt()){ return true; }
+				const Or& or_stmt = handler.getOr(stmt);
+				see_expr(or_stmt.lhs);
+				see_expr(or_stmt.rhs);
 
-					const Xor& xor_stmt = handler.getXor(stmt);
-					see_expr(xor_stmt.lhs);
-					see_expr(xor_stmt.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::XOR: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SHL: {
-					if(remove_unused_stmt()){ return true; }
+				const Xor& xor_stmt = handler.getXor(stmt);
+				see_expr(xor_stmt.lhs);
+				see_expr(xor_stmt.rhs);
 
-					const SHL& shl = handler.getSHL(stmt);
-					see_expr(shl.lhs);
-					see_expr(shl.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SHL: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SSHL_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				const SHL& shl = handler.getSHL(stmt);
+				see_expr(shl.lhs);
+				see_expr(shl.rhs);
 
-					const SSHLSat& sshlsat = handler.getSSHLSat(stmt);
-					see_expr(sshlsat.lhs);
-					see_expr(sshlsat.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SSHL_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::USHL_SAT: {
-					if(remove_unused_stmt()){ return true; }
+				const SSHLSat& sshlsat = handler.getSSHLSat(stmt);
+				see_expr(sshlsat.lhs);
+				see_expr(sshlsat.rhs);
 
-					const USHLSat& ushlsat = handler.getUSHLSat(stmt);
-					see_expr(ushlsat.lhs);
-					see_expr(ushlsat.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::USHL_SAT: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::SSHR: {
-					if(remove_unused_stmt()){ return true; }
+				const USHLSat& ushlsat = handler.getUSHLSat(stmt);
+				see_expr(ushlsat.lhs);
+				see_expr(ushlsat.rhs);
 
-					const SSHR& sshr = handler.getSSHR(stmt);
-					see_expr(sshr.lhs);
-					see_expr(sshr.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::SSHR: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::USHR: {
-					if(remove_unused_stmt()){ return true; }
+				const SSHR& sshr = handler.getSSHR(stmt);
+				see_expr(sshr.lhs);
+				see_expr(sshr.rhs);
 
-					const USHR& ushr = handler.getUSHR(stmt);
-					see_expr(ushr.lhs);
-					see_expr(ushr.rhs);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::USHR: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::BIT_REVERSE: {
-					if(remove_unused_stmt()){ return true; }
+				const USHR& ushr = handler.getUSHR(stmt);
+				see_expr(ushr.lhs);
+				see_expr(ushr.rhs);
 
-					const BitReverse& bit_reverse = handler.getBitReverse(stmt);
-					see_expr(bit_reverse.arg);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::BIT_REVERSE: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::BYTE_SWAP: {
-					if(remove_unused_stmt()){ return true; }
+				const BitReverse& bit_reverse = handler.getBitReverse(stmt);
+				see_expr(bit_reverse.arg);
 
-					const ByteSwap& byte_swap = handler.getByteSwap(stmt);
-					see_expr(byte_swap.arg);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::BYTE_SWAP: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::CTPOP: {
-					if(remove_unused_stmt()){ return true; }
+				const ByteSwap& byte_swap = handler.getByteSwap(stmt);
+				see_expr(byte_swap.arg);
 
-					const CtPop& ctpop = handler.getCtPop(stmt);
-					see_expr(ctpop.arg);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::CTPOP: {
+				if(remove_unused_stmt()){ return true; }
 
+				const CtPop& ctpop = handler.getCtPop(stmt);
+				see_expr(ctpop.arg);
 
-				case Expr::Kind::CTLZ: {
-					if(remove_unused_stmt()){ return true; }
+				return false;
+			} break;
 
-					const CTLZ& ctlz = handler.getCTLZ(stmt);
-					see_expr(ctlz.arg);
 
-					return false;
-				} break;
+			case Expr::Kind::CTLZ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::CTTZ: {
-					if(remove_unused_stmt()){ return true; }
+				const CTLZ& ctlz = handler.getCTLZ(stmt);
+				see_expr(ctlz.arg);
 
-					const CTTZ& cttz = handler.getCTTZ(stmt);
-					see_expr(cttz.arg);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::CTTZ: {
+				if(remove_unused_stmt()){ return true; }
 
-				case Expr::Kind::CMPXCHG: {
-					const CmpXchg& cmpxchg = handler.getCmpXchg(stmt);
-					see_expr(cmpxchg.target);
-					see_expr(cmpxchg.expected);
-					see_expr(cmpxchg.desired);
+				const CTTZ& cttz = handler.getCTTZ(stmt);
+				see_expr(cttz.arg);
 
-					return false;
-				} break;
+				return false;
+			} break;
 
-				case Expr::Kind::CMPXCHG_LOADED:    return false;
-				case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
+			case Expr::Kind::CMPXCHG: {
+				const CmpXchg& cmpxchg = handler.getCmpXchg(stmt);
+				see_expr(cmpxchg.target);
+				see_expr(cmpxchg.expected);
+				see_expr(cmpxchg.desired);
 
-				case Expr::Kind::ATOMIC_RMW: {
-					const AtomicRMW& atomic_rmw = handler.getAtomicRMW(stmt);
-					see_expr(atomic_rmw.target);
-					see_expr(atomic_rmw.value);
+				return false;
+			} break;
 
-					return false;
-				} break;
+			case Expr::Kind::CMPXCHG_LOADED:    return false;
+			case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
 
-				case Expr::Kind::META_LOCAL_VAR: return false;
-				case Expr::Kind::META_PARAM:     return false;
-			}
+			case Expr::Kind::ATOMIC_RMW: {
+				const AtomicRMW& atomic_rmw = handler.getAtomicRMW(stmt);
+				see_expr(atomic_rmw.target);
+				see_expr(atomic_rmw.value);
 
-			evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));
+				return false;
+			} break;
+
+			case Expr::Kind::META_LOCAL_VAR: return false;
+			case Expr::Kind::META_PARAM:     return false;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported Expr::Kind ({})", evo::to_underlying(stmt.kind()));
+	}
+
+
+
+
+	auto removeUnusedStmts() -> PassManager::ReverseStmtPass {
+		auto impl = []() -> PassManager::ReverseStmtPass::Func {
+			return [metadata = std::unordered_map<Function*, FuncMetadata>()] 
+				(Expr stmt, const InstrHandler& handler) mutable -> PassManager::MadeTransformation 
+			{
+				return remove_unused_stmts_exec(stmt, handler, metadata);
+			};	
 		};
 
 		return PassManager::ReverseStmtPass(impl);
