@@ -5408,10 +5408,7 @@ namespace pcit::panther{
 		}
 
 
-		if(
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
-			&& func_type.attributes.isComptime
-		){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			bool any_waiting = false;
 			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
@@ -5505,13 +5502,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_prepare_comptime_pir_if_needed(
 		const Instruction::FuncPrepareComptimePIRIfNeeded& instr [[maybe_unused]]
 	) -> Result {
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
-			&& current_func_type.attributes.isComptime
-		){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
 			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
@@ -5610,13 +5601,7 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_func_comptime_pir_ready_if_needed() -> Result {
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff == false
-			&& current_func_type.attributes.isComptime
-		){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			this->propagate_finished_pir_def();
 		}
 
@@ -7493,11 +7478,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_for(const Instruction::BeginFor& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
 
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
-		const bool in_comptime_func = current_func_type.attributes.isComptime;
-
+		const bool in_comptime_func = this->func_scope_current_value_stage().requiresComptime();
 
 		const AST::AttributeBlock& attribute_block =
 			this->source.getASTBuffer().getAttributeBlock(instr.for_stmt.attributeBlock);
@@ -7506,7 +7487,9 @@ namespace pcit::panther{
 			const std::string_view first_attribute_str =
 				this->source.getTokenBuffer()[attribute_block.attributes[0].attribute].getString();
 
-			evo::debugAssert(first_attribute_str != "unroll", "Should be using unroll for instructions, not normal for");
+			evo::debugAssert(
+				first_attribute_str != "unroll", "Should be using unroll for instructions, not normal for"
+			);
 
 			this->emit_error(
 				std::format("Unknown [for] loop attribute #{}", first_attribute_str),
@@ -8842,10 +8825,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(current_func_type.attributes.isComptime && func_call_impl_res.value().is_src_func()){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			if(func_call_impl_res.value().selected_func_type.attributes.isComptime == false){
 				this->emit_error(
 					"Cannot call a non-comptime function within a comptime function",
@@ -8858,28 +8838,24 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
-				*func_call_impl_res.value().selected_func_id
-			);
-		}
-
-
-		if(
-			current_func_type.attributes.isComptime
-			&& func_call_impl_res.value().selected_func_type.attributes.isComptime == false
-		){
-			this->emit_error(
-				"Cannot call a non-comptime function within a comptime function", instr.func_call.target
-			);
-			return Result::ERROR;
+			if(func_call_impl_res.value().is_src_func()){
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+					*func_call_impl_res.value().selected_func_id
+				);
+			}
 		}
 
 		if(
-			current_func_type.attributes.isRuntime
+			this->func_scope_current_value_stage().requiresRuntime()
 			&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
 		){
 			this->emit_error(
-				"Cannot call a non-runtime function within a runtime function", instr.func_call.target
+				"Cannot call a non-runtime function within a runtime function",
+				instr.func_call.target,
+				Diagnostic::Info(
+					"Called function was defined here:",
+					this->get_location(*func_call_impl_res.value().selected_func_id)
+				)
 			);
 			return Result::ERROR;
 		}
@@ -10108,7 +10084,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime
+			this->func_scope_current_value_stage().requiresComptime()
 			&& this->context.getTypeManager().isComptimeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -10293,7 +10269,7 @@ namespace pcit::panther{
 		}
 
 		if(
-			this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime
+			this->func_scope_current_value_stage().requiresComptime()
 			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -10485,7 +10461,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			if(is_initialization){
 				if(target_is_copyable){
 					if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
@@ -11334,18 +11310,20 @@ namespace pcit::panther{
 					this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
 				if(this->currently_in_func()){
-					const sema::Func& current_func = this->get_current_func();
-					const BaseType::Function& current_func_type =
-						this->context.getTypeManager().getFunction(current_func.typeID);
-
-					if(current_func_type.attributes.isComptime && intrinsic_func_info.allowedInComptime == false){
+					if(
+						this->func_scope_current_value_stage().requiresComptime()
+						&& intrinsic_func_info.allowedInComptime == false
+					){
 						this->emit_error(
 							"Cannot call a non-comptime function within a comptime function", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
 
-					if(current_func_type.attributes.isRuntime && intrinsic_func_info.allowedInRuntime == false){
+					if(
+						this->func_scope_current_value_stage().requiresRuntime()
+						&& intrinsic_func_info.allowedInRuntime == false
+					){
 						this->emit_error(
 							"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 						);
@@ -11385,42 +11363,27 @@ namespace pcit::panther{
 
 				switch(intrinsic_kind){
 					case IntrinsicFunc::Kind::IS_COMPTIME: {
-						bool is_comptime_output_value = false;
-						{
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
+						const FuncScopeValueStage func_scope_value_stage = this->func_scope_current_value_stage();
 
-							if(current_func_type.attributes.isComptime){
-								if(current_func_type.attributes.isRuntime){
-									if(current_func.attributes.isRTDiff){
-										is_comptime_output_value =
-											!this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff;
-									}else{
-										this->emit_error(
-											"Cannot call `@isComptime` in this function as the value is ambiguous",
-											instr.func_call.target,
-											Diagnostic::Info("Did you give this function attribute #rtDiff?")
-										);
-										return Result::ERROR;
-									}
-
-								}else{
-									is_comptime_output_value = true;
-								}
-
-							}else{ // is runtime
-								is_comptime_output_value = false;
-							}
+						if(func_scope_value_stage == FuncScopeValueStage::BOTH){
+							this->emit_error(
+								"Cannot call `@isComptime` in this function as the value is ambiguous",
+								instr.func_call.target,
+								Diagnostic::Info("Did you mean to give this function attribute #rtDiff?")
+							);
+							return Result::ERROR;
 						}
-
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeBool(),
-							sema::Expr(this->context.sema_buffer.createBoolValue(is_comptime_output_value, false))
+							sema::Expr(
+								this->context.sema_buffer.createBoolValue(
+									func_scope_value_stage == FuncScopeValueStage::COMPTIME, false
+								)
+							)
 						);
 
 						return Result::SUCCESS;
@@ -11548,21 +11511,18 @@ namespace pcit::panther{
 
 				}else{
 					if(
-						this->context.getTypeManager().getFunction(
-							this->get_current_func().typeID
-						).attributes.isComptime
+						this->func_scope_current_value_stage().requiresComptime()
+						&& func_call_impl_res.value().selected_func_type.attributes.isComptime == false
 					){
-						if(func_call_impl_res.value().selected_func_type.attributes.isComptime == false){
-							this->emit_error(
-								"Cannot call a non-comptime function within a comptime function",
-								instr.func_call.target,
-								Diagnostic::Info(
-									"Called function was defined here:",
-									this->get_location(*func_call_impl_res.value().selected_func_id)
-								)
-							);
-							return Result::ERROR;
-						}
+						this->emit_error(
+							"Cannot call a non-comptime function within a comptime function",
+							instr.func_call.target,
+							Diagnostic::Info(
+								"Called function was defined here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							)
+						);
+						return Result::ERROR;
 					}
 				}
 
@@ -11716,7 +11676,7 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+			if(this->func_scope_current_value_stage().requiresComptime()){
 				if(func_call_impl_res.value().selected_func_type.attributes.isComptime == false){
 					this->emit_error(
 						"Cannot call a non-comptime function within a comptime function",
@@ -12388,15 +12348,18 @@ namespace pcit::panther{
 			this->context.getTemplateIntrinsicFuncInfo(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>());
 
 
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(current_func_type.attributes.isComptime && template_intrinsic_func_info.allowedInComptime == false){
+		if(
+			this->func_scope_current_value_stage().requiresComptime()
+			&& template_intrinsic_func_info.allowedInComptime == false
+		){
 			this->emit_error("Cannot call a non-comptime function within a comptime function", instr.func_call.target);
 			return Result::ERROR;
 		}
 
-		if(current_func_type.attributes.isRuntime && template_intrinsic_func_info.allowedInRuntime == false){
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& template_intrinsic_func_info.allowedInRuntime == false
+		){
 			this->emit_error("Cannot call a non-runtime function within a runtime function", instr.func_call.target);
 			return Result::ERROR;
 		}
@@ -12712,14 +12675,20 @@ namespace pcit::panther{
 			const BaseType::Function& current_func_type =
 				this->context.getTypeManager().getFunction(current_func.typeID);
 
-			if(current_func_type.attributes.isComptime && template_intrinsic_func_info.allowedInComptime == false){
+			if(
+				this->func_scope_current_value_stage().requiresComptime()
+				&& template_intrinsic_func_info.allowedInComptime == false
+			){
 				this->emit_error(
 					"Cannot call a non-comptime function within a comptime function", instr.func_call.target
 				);
 				return Result::ERROR;
 			}
 
-			if(current_func_type.attributes.isRuntime && template_intrinsic_func_info.allowedInRuntime == false){
+			if(
+				this->func_scope_current_value_stage().requiresRuntime()
+				&& template_intrinsic_func_info.allowedInRuntime == false
+			){
 				this->emit_error(
 					"Cannot call a non-runtime function within a runtime function", instr.func_call.target
 				);
@@ -14815,10 +14784,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					return target_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 				}else{
-					const BaseType::Function& func_type =
-						this->context.getTypeManager().getFunction(target_func.typeID);
-
-					if(func_type.attributes.isComptime){
+					if(this->func_scope_current_value_stage().requiresComptime()){
 						return target_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 					}else{
 						return target_func_symbol_proc.waitOnPIRDeclIfNeeded(this->symbol_proc.getID(), this->context);
@@ -14910,7 +14876,7 @@ namespace pcit::panther{
 			
 		}else{
 			if(
-				this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime
+				this->func_scope_current_value_stage().requiresComptime()
 				&& !this->context.getTypeManager().isComptimeCopyable(*target_type_id, this->context.getSemaBuffer())
 			){
 				this->emit_error("Type of argument of operator [copy] is not comptime copyable", instr.prefix);
@@ -15001,7 +14967,7 @@ namespace pcit::panther{
 
 
 		if(
-			this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime
+			this->func_scope_current_value_stage().requiresComptime()
 			&& this->context.getTypeManager().isComptimeMovable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
 			) == false
@@ -15106,7 +15072,7 @@ namespace pcit::panther{
 		const bool target_is_copyable = this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>());
 		const bool target_is_movable = this->context.getTypeManager().isMovable(target.type_id.as<TypeInfo::ID>());
 
-		if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			if(target_is_copyable){
 				if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_INIT, true>(
 					target,
@@ -16251,12 +16217,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					if(
-						this->currently_in_func()
-						&& this->context.getTypeManager().getFunction(
-							this->get_current_func().typeID
-						).attributes.isComptime
-					){
+					if(this->currently_in_func() && this->func_scope_current_value_stage().requiresComptime()){
 						if(selected_func_type.attributes.isComptime == false){
 							this->emit_error(
 								"Cannot call a non-comptime operator [new] within a comptime function",
@@ -17535,7 +17496,7 @@ namespace pcit::panther{
 				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
 
 
-				if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
 					const BaseType::Function& selected_func_type =
 						this->context.getTypeManager().getFunction(selected_overload.typeID);
@@ -18499,7 +18460,7 @@ namespace pcit::panther{
 
 
 			if(this->currently_in_func()){
-				if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					if(selected_func_type.attributes.isComptime == false){
 						this->emit_error("Operator [as] in a comptime scope must be comptime", instr.infix);
 						return Result::ERROR;
@@ -19477,7 +19438,7 @@ namespace pcit::panther{
 						from_expr.getExpr(), target_poly_interface_ref.interfaceID, from_type_id
 					);
 
-				if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					const auto lock = std::scoped_lock(target_interface.implsLock);
 
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls.emplace(
@@ -24210,17 +24171,13 @@ namespace pcit::panther{
 
 					if(delete_overload.has_value()){
 						if constexpr(CHECK_VALIDITY){
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							const sema::Func& delete_overload_func =
 								this->context.getSemaBuffer().getFunc(*delete_overload);
 							const BaseType::Function& delete_overload_func_type =
 								this->context.getTypeManager().getFunction(delete_overload_func.typeID);
 
 							if(
-								current_func_type.attributes.isComptime
+								this->func_scope_current_value_stage().requiresComptime()
 								&& delete_overload_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
@@ -24261,12 +24218,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [copy] initialization within a comptime function",
@@ -24320,12 +24274,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [copy] assignment within a comptime function",
@@ -24363,12 +24314,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [copy] initialization within a comptime function",
@@ -24419,12 +24367,8 @@ namespace pcit::panther{
 								const BaseType::Function& sema_func_type =
 									this->context.getTypeManager().getFunction(sema_func.typeID);
 
-								const sema::Func& current_func = this->get_current_func();
-								const BaseType::Function& current_func_type =
-									this->context.getTypeManager().getFunction(current_func.typeID);
-
 								if(
-									current_func_type.attributes.isComptime
+									this->func_scope_current_value_stage().requiresComptime()
 									&& sema_func_type.attributes.isComptime == false
 								){
 									this->emit_error(
@@ -24490,12 +24434,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [move] initialization within a comptime function",
@@ -24555,12 +24496,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [move] assignment within a comptime function",
@@ -24602,12 +24540,9 @@ namespace pcit::panther{
 							const BaseType::Function& sema_func_type =
 								this->context.getTypeManager().getFunction(sema_func.typeID);
 
-							const sema::Func& current_func = this->get_current_func();
-							const BaseType::Function& current_func_type =
-								this->context.getTypeManager().getFunction(current_func.typeID);
-
 							if(
-								current_func_type.attributes.isComptime && sema_func_type.attributes.isComptime == false
+								this->func_scope_current_value_stage().requiresComptime()
+								&& sema_func_type.attributes.isComptime == false
 							){
 								this->emit_error(
 									"Cannot call a non-comptime [move] initialization within a comptime function",
@@ -24662,12 +24597,8 @@ namespace pcit::panther{
 								const BaseType::Function& sema_func_type =
 									this->context.getTypeManager().getFunction(sema_func.typeID);
 
-								const sema::Func& current_func = this->get_current_func();
-								const BaseType::Function& current_func_type =
-									this->context.getTypeManager().getFunction(current_func.typeID);
-
 								if(
-									current_func_type.attributes.isComptime
+									this->func_scope_current_value_stage().requiresComptime()
 									&& sema_func_type.attributes.isComptime == false
 								){
 									this->emit_error(
@@ -24793,6 +24724,34 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_current_func() const -> const sema::Func& {
 		return this->context.getSemaBuffer().getFunc(this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>());
+	}
+
+
+
+	auto SemanticAnalyzer::func_scope_current_value_stage() const -> FuncScopeValueStage {
+		const sema::Func& current_func = this->get_current_func();
+		const BaseType::Function& current_func_type =
+			this->context.getTypeManager().getFunction(current_func.typeID);
+
+		if(current_func_type.attributes.isComptime){
+			if(current_func_type.attributes.isRuntime){
+				if(current_func.attributes.isRTDiff){
+					if(this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().currently_rt_diff){
+						return FuncScopeValueStage::RUNTIME;
+					}else{
+						return FuncScopeValueStage::COMPTIME;
+					}
+				}else{
+					return FuncScopeValueStage::BOTH;
+				}
+
+			}else{
+				return FuncScopeValueStage::COMPTIME;
+			}
+
+		}else{
+			return FuncScopeValueStage::RUNTIME;
+		}
 	}
 
 
@@ -25285,9 +25244,7 @@ namespace pcit::panther{
 
 						if(
 							this->currently_in_func() == false
-							|| this->context.getTypeManager().getFunction(
-								this->get_current_func().typeID
-							).attributes.isComptime
+							|| this->func_scope_current_value_stage().requiresComptime()
 						){
 							this->emit_error(
 								"`var` variables cannot be only be used within a runtime function scope", ident
@@ -25316,9 +25273,7 @@ namespace pcit::panther{
 
 						if(
 							this->currently_in_func()
-							&& this->context.getTypeManager().getFunction(
-								this->get_current_func().typeID
-							).attributes.isComptime
+							&& this->func_scope_current_value_stage().requiresComptime()
 						){
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_vars.emplace(ident_id);
 						}
@@ -30303,11 +30258,7 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type =
-			this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(current_func_type.attributes.isComptime){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
 			const BaseType::Function& infix_op_sema_func_type =
 				this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
@@ -30376,11 +30327,7 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		const sema::Func& current_func = this->get_current_func();
-		const BaseType::Function& current_func_type =
-			this->context.getTypeManager().getFunction(current_func.typeID);
-
-		if(current_func_type.attributes.isComptime){
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
 			const BaseType::Function& infix_op_sema_func_type =
 				this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
@@ -33221,9 +33168,7 @@ namespace pcit::panther{
 									}else{
 										if(
 											this->currently_in_func() == false
-											|| this->context.getTypeManager().getFunction(
-												this->get_current_func().typeID
-											).attributes.isComptime
+											|| this->func_scope_current_value_stage().requiresComptime()
 										){
 											if constexpr(MAY_EMIT_ERROR){
 												this->error_type_mismatch(
@@ -33334,11 +33279,7 @@ namespace pcit::panther{
 									}
 
 									if constexpr(IS_COMPTIME == false){
-										if(
-											this->context.getTypeManager().getFunction(
-												this->get_current_func().typeID
-											).attributes.isComptime
-										){
+										if(this->func_scope_current_value_stage().requiresComptime()){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
 												.dependent_funcs.emplace(target_as_func_id);
 										}
@@ -33411,11 +33352,7 @@ namespace pcit::panther{
 											)
 										);
 
-										if(
-											this->context.getTypeManager().getFunction(
-												this->get_current_func().typeID
-											).attributes.isComptime
-										){
+										if(this->func_scope_current_value_stage().requiresComptime()){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
 												.dependent_funcs.emplace(new_func_id);
 										}
@@ -34309,7 +34246,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);
@@ -34327,7 +34264,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->context.getTypeManager().getFunction(this->get_current_func().typeID).attributes.isComptime){
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 						conversion_target.func_id
 					);

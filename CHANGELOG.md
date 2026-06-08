@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.5"></a>
+## v0.0.318.5
+
+### Panther
+- Fixed comptime checking within `#rtDiff` functions
+
+
+<!---------------------------------->
 <a name="v0.0.318.4"></a>
 ## v0.0.318.4
 

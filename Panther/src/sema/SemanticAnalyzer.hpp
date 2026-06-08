@@ -488,6 +488,27 @@ namespace pcit::panther{
 			[[nodiscard]] auto get_current_func() const -> const sema::Func&;
 
 
+			struct FuncScopeValueStage{
+				enum class Value : uint32_t{
+					COMPTIME = 0,
+					BOTH     = 1,
+					RUNTIME  = 2,
+				};
+				using enum class Value;
+
+				FuncScopeValueStage(Value value) : _value(value) {}
+
+				[[nodiscard]] operator Value() const { return this->_value; }
+
+				[[nodiscard]] auto requiresComptime() const -> bool { return this->_value <= Value::BOTH; }
+				[[nodiscard]] auto requiresRuntime()  const -> bool { return this->_value >= Value::BOTH; }
+
+				private:
+					Value _value;
+			};
+			[[nodiscard]] auto func_scope_current_value_stage() const -> FuncScopeValueStage;
+
+
 			auto end_sub_scopes(Diagnostic::Location&& location) -> evo::Result<>;
 
 			auto end_sub_scopes(const Diagnostic::Location& location) -> evo::Result<> {
