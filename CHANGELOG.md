@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.318.6"></a>
+## v0.0.318.6
+
+### Panther
+- Fixed attribute `#pub` not being allowed on extern functions
+
+
+<!---------------------------------->
 <a name="v0.0.318.5"></a>
 ## v0.0.318.5
 

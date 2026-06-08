@@ -948,6 +948,7 @@ namespace pcit::panther{
 
 
 			struct FuncTypeAttrs{
+				bool is_pub;
 				bool is_runtime;
 				bool is_unsafe;
 				bool is_no_return;

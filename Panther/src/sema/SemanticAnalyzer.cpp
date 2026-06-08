@@ -32065,11 +32065,6 @@ namespace pcit::panther{
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 			if(attribute_str == "pub"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_error("Attribute #pub is not a valid extern function attribute", attribute.attribute);
-					return evo::Unexpected(Result::ERROR);
-				}
-
 				if(attribute_params_info[i].empty()){
 					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
