@@ -265,7 +265,7 @@ namespace pcit::panther{
 
 
 
-			Primitive(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
+			explicit Primitive(Token::Kind tok_kind) : _kind(tok_kind), bit_width(0) {
 				evo::debugAssert(
 					this->_kind != Token::Kind::TYPE_I_N && this->_kind != Token::Kind::TYPE_UI_N,
 					"This type requires a bit-width"

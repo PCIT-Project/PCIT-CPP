@@ -18712,8 +18712,9 @@ namespace pcit::panther{
 				this->currently_in_unsafe() == false
 				&& from_decayed_type_id != to_decayed_type_id
 				&& from_decayed_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE
-				&& this->context.getTypeManager().getPrimitive(from_decayed_type.baseTypeID().primitiveID())
+				&& this->context.getTypeManager().getPrimitive(from_decayed_type.baseTypeID().primitiveID()).kind()
 					== Token::Kind::TYPE_RAWPTR
+				&& to_primitive.kind() != Token::Kind::TYPE_RAWPTR
 			){
 				this->emit_error("Unsafe operator [as] while not in an unsafe scope", instr.infix);
 				return Result::ERROR;
@@ -19496,7 +19497,7 @@ namespace pcit::panther{
 			this->emit_error(
 				"LHS cannot be compared to [null]",
 				instr.infix.lhs,
-				Diagnostic::Info("Only optional values can be compared to [null]")
+				Diagnostic::Info("Only optional values and type `RawPtr` can be compared to [null]")
 			);
 			return Result::ERROR;
 		}
@@ -19514,12 +19515,17 @@ namespace pcit::panther{
 		const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);
 
 		if(lhs_decayed_type.isOptional() == false){
-			this->emit_error(
-				"LHS cannot be compared to [null]",
-				instr.infix.lhs,
-				Diagnostic::Info("Only optional values can be compared to [null]")
-			);
-			return Result::ERROR;
+			const BaseType::Primitive lhs_primitive = 
+				this->context.getTypeManager().getPrimitive(lhs_decayed_type.baseTypeID().primitiveID());
+
+			if(lhs_primitive.kind() != Token::Kind::TYPE_RAWPTR){
+				this->emit_error(
+					"LHS cannot be compared to [null]",
+					instr.infix.lhs,
+					Diagnostic::Info("Only optional values and type `RawPtr` can be compared to [null]")
+				);
+				return Result::ERROR;
+			}
 		}
 
 		const bool is_equal = this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("==");
@@ -34143,12 +34149,26 @@ namespace pcit::panther{
 				const TypeInfo& expected_type = type_manager.getTypeInfo(decayed_expected_type_id);
 				
 				if(expected_type.isOptional() == false){
-					this->emit_error("Value [null] can only be assigned to optional types", location);
-					return TypeCheckInfo::fail();
+					const BaseType::Primitive expected_primitive = 
+						this->context.getTypeManager().getPrimitive(expected_type.baseTypeID().primitiveID());
+
+					if(expected_primitive.kind() == Token::Kind::TYPE_RAWPTR){
+						return TypeCheckInfo::success(true);
+
+					}else{
+						if constexpr(MAY_EMIT_ERROR){
+							this->emit_error(
+								"Value [null] can only be assigned to optional types or `RawPtr`", location
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
 				}
 
 				if(type_manager.isTypeDeducer(decayed_expected_type_id)){
-					this->emit_error("Cannot extract deducers from [null]", location);
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error("Cannot extract deducers from [null]", location);
+					}
 					return TypeCheckInfo::fail();
 				}
 

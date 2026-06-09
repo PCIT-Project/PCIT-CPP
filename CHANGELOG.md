@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.319.0"></a>
+## v0.0.319.0
+
+### Panther
+- Added `RawPtr` accepting `null`
+- Fixed `RawPtr as RawPtr` (including distinct aliases) being considered unsafe
+
+
+<!---------------------------------->
 <a name="v0.0.318.6"></a>
 ## v0.0.318.6
 

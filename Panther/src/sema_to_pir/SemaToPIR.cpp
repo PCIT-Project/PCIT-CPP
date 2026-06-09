@@ -3848,7 +3848,19 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Expr::Kind::NULL_VALUE: {
-				evo::debugFatalBreak("Can't lower `null`");
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->handler.createNullptr();
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					evo::debugFatalBreak("Cannot get pointer of [null]");
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->handler.createStore(store_locations[0], this->handler.createNullptr());
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
 			} break;
 
 			case sema::Expr::Kind::INT_VALUE: {
@@ -4537,7 +4549,14 @@ namespace pcit::panther{
 					const TypeInfo& target_type_info =
 						this->context.getTypeManager().getTypeInfo(optional_null_check.targetTypeID);
 
-					if(target_type_info.isPointer()){
+					bool is_pointer = target_type_info.isPointer();
+					if(is_pointer == false){
+						const BaseType::Primitive target_type_primitive = 
+							this->context.getTypeManager().getPrimitive(target_type_info.baseTypeID().primitiveID());
+						is_pointer = target_type_primitive.kind() == Token::Kind::TYPE_RAWPTR;
+					}
+
+					if(is_pointer){
 						const pir::Expr lhs = this->get_expr_register(optional_null_check.expr);
 
 						if(optional_null_check.equal){
