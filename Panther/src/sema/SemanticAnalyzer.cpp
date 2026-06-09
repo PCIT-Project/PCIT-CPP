@@ -18297,6 +18297,23 @@ namespace pcit::panther{
 					);
 					return Result::SUCCESS;
 
+				}else if(target_type.asTypeID() == TypeManager::getTypeChar()){ // int to char
+					const sema::IntValue& initial_val = 
+						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+
+					const sema::CharValue::ID new_char_value = this->context.sema_buffer.createCharValue(
+						static_cast<char>(initial_val.value)
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type.asTypeID(),
+						sema::Expr(new_char_value)
+					);
+					return Result::SUCCESS;
+					
 				}else{ // int to float
 					const sema::IntValue& initial_val = 
 						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
@@ -34149,20 +34166,21 @@ namespace pcit::panther{
 				const TypeInfo& expected_type = type_manager.getTypeInfo(decayed_expected_type_id);
 				
 				if(expected_type.isOptional() == false){
-					const BaseType::Primitive expected_primitive = 
-						this->context.getTypeManager().getPrimitive(expected_type.baseTypeID().primitiveID());
-
-					if(expected_primitive.kind() == Token::Kind::TYPE_RAWPTR){
-						return TypeCheckInfo::success(true);
-
-					}else{
-						if constexpr(MAY_EMIT_ERROR){
-							this->emit_error(
-								"Value [null] can only be assigned to optional types or `RawPtr`", location
-							);
-						}
-						return TypeCheckInfo::fail();
+					if(expected_type.baseTypeID().kind() == BaseType::Kind::PRIMITIVE){
+						const BaseType::Primitive expected_primitive = 
+							this->context.getTypeManager().getPrimitive(expected_type.baseTypeID().primitiveID());
+						
+						if(expected_primitive.kind() == Token::Kind::TYPE_RAWPTR){
+							return TypeCheckInfo::success(true);
+						}	
 					}
+
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Value [null] can only be assigned to optional types or `RawPtr`", location
+						);
+					}
+					return TypeCheckInfo::fail();
 				}
 
 				if(type_manager.isTypeDeducer(decayed_expected_type_id)){

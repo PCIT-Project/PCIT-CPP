@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.319.1"></a>
+## v0.0.319.1
+
+### Panther
+- Fixed type checking for non-prmimitive non-optional types recieving value `null`
+- Fixed `{FLUID INTEGRAL} as Char`
+
+
+<!---------------------------------->
 <a name="v0.0.319.0"></a>
 ## v0.0.319.0
 
