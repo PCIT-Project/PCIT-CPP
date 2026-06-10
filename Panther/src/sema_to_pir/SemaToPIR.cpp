@@ -7392,7 +7392,6 @@ namespace pcit::panther{
 				this->handler.createJump(end_block);
 
 				this->handler.setTargetBasicBlock(end_block);
-
 			}
 
 			if constexpr(MODE == GetExprMode::REGISTER){

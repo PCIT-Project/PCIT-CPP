@@ -1160,6 +1160,12 @@ namespace pcit::panther{
 			) const -> void;
 
 			auto diagnostic_print_type_info(
+				TypeInfo::ID type_id,
+				evo::SmallVector<Diagnostic::Info>& infos,
+				std::string_view message
+			) const -> void;
+
+			auto diagnostic_print_type_info(
 				const TermInfo& term_info,
 				std::optional<unsigned> multi_type_index,
 				evo::SmallVector<Diagnostic::Info>& infos,

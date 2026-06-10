@@ -21647,10 +21647,12 @@ namespace pcit::panther{
 			} break;
 		}
 
-		const TypeInfo& base_type = this->context.getTypeManager().getTypeInfo(*base_type_id);
+
+		const TypeInfo::ID decayed_base_type_id = this->context.getTypeManager().decayType<false, false>(*base_type_id);
+		const TypeInfo& decayed_base_type = this->context.getTypeManager().getTypeInfo(decayed_base_type_id);
 
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
-			base_type.qualifiers().begin(), base_type.qualifiers().end()
+			decayed_base_type.qualifiers().begin(), decayed_base_type.qualifiers().end()
 		);
 
 		if(instr.ast_type.qualifiers.empty() == false){
@@ -21686,7 +21688,9 @@ namespace pcit::panther{
 		this->return_type(
 			instr.output,
 			TypeInfo::VoidableID(
-				this->context.type_manager.getOrCreateTypeInfo(TypeInfo(base_type.baseTypeID(), std::move(qualifiers)))
+				this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(decayed_base_type.baseTypeID(), std::move(qualifiers))
+				)
 			)
 		);
 		return Result::SUCCESS;
@@ -27009,6 +27013,14 @@ namespace pcit::panther{
 							}
 						}();
 
+
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("This argument:", this->get_location(arg_infos[reason.arg_index].ast_node))
+						};
+
+						this->diagnostic_print_type_info(got_arg, std::nullopt, sub_infos, "Argument type:  ");
+						this->diagnostic_print_type_info(expected_type_id, sub_infos, "Parameter type: ");
+
 						infos.emplace_back(
 							std::format(
 								"Failed to match: argument (index: {}) type mismatch, "
@@ -27016,18 +27028,7 @@ namespace pcit::panther{
 								reason.arg_index - size_t(func_is_method)
 							),
 							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(arg_infos[reason.arg_index].ast_node)
-								),
-								Diagnostic::Info(std::format("Argument type:  {}", this->print_term_type(got_arg))),
-								Diagnostic::Info(
-									std::format(
-										"Parameter type: {}",
-										this->context.getTypeManager().printType(expected_type_id, this->context)
-									)
-								),
-							}
+							std::move(sub_infos)
 						);
 
 					}else if constexpr(std::is_same<ReasonT, OverloadScore::ValueKindMismatch>()){
@@ -27882,6 +27883,15 @@ namespace pcit::panther{
 					}else if constexpr(
 						std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
 					){
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(
+								"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+							)
+						};
+
+						this->diagnostic_print_type_info(reason.got_type_id, sub_infos, "Argument type:  ");
+						this->diagnostic_print_type_info(reason.expected_type_id, sub_infos, "Parameter type: ");
+
 						instantiation_error_infos.emplace_back(
 							std::format(
 								"Failed to match: argument (index: {}) type mismatch, "
@@ -27889,23 +27899,7 @@ namespace pcit::panther{
 								reason.arg_index
 							),
 							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Argument type:  {}",
-										this->context.getTypeManager().printType(reason.got_type_id, this->context)
-									)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Parameter type: {}",
-										this->context.getTypeManager().printType(reason.expected_type_id, this->context)
-									)
-								),
-							}
+							std::move(sub_infos)
 						);
 
 					}else if constexpr(
@@ -34381,16 +34375,21 @@ namespace pcit::panther{
 	) const -> void {
 		if(type_id.isVoid()){
 			infos.emplace_back(std::format("{}Void", message));
-
 		}else{
-			auto initial_type_str = std::string();
-			initial_type_str += message;
-			initial_type_str +=
-				this->context.getTypeManager().printType(type_id.asTypeID(), this->context);
-			infos.emplace_back(std::move(initial_type_str));
-
-			this->diagnostic_print_type_info_impl(type_id.asTypeID(), infos, message);
+			this->diagnostic_print_type_info(type_id.asTypeID(), infos, message);
 		}
+	}
+
+
+	auto SemanticAnalyzer::diagnostic_print_type_info(
+		TypeInfo::ID type_id, evo::SmallVector<Diagnostic::Info>& infos, std::string_view message
+	) const -> void {
+		auto initial_type_str = std::string();
+		initial_type_str += message;
+		initial_type_str += this->context.getTypeManager().printType(type_id, this->context);
+		infos.emplace_back(std::move(initial_type_str));
+
+		this->diagnostic_print_type_info_impl(type_id, infos, message);
 	}
 
 
@@ -34433,13 +34432,13 @@ namespace pcit::panther{
 		);
 
 
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 		while(true){
-			const TypeInfo& expected_type = this->context.getTypeManager().getTypeInfo(type_id);
-			if(expected_type.qualifiers().empty() == false){ break; }
-			if(expected_type.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
+			const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+			if(type_info.baseTypeID().kind() != BaseType::Kind::ALIAS){ break; }
 
 			const BaseType::Alias& expected_alias = this->context.getTypeManager().getAlias(
-				expected_type.baseTypeID().aliasID()
+				type_info.baseTypeID().aliasID()
 			);
 
 			type_id = expected_alias.aliasedType;
@@ -34452,6 +34451,17 @@ namespace pcit::panther{
 			}
 
 			alias_of_str += this->context.getTypeManager().printType(type_id, this->context);
+
+			for(const TypeInfo::Qualifier& qualifier : qualifiers | std::views::reverse){
+				if(qualifier.isPtr){ alias_of_str += '*'; };
+				if(qualifier.isMut){ alias_of_str += "mut"; };
+				if(qualifier.isUninit){ alias_of_str += "uninit"; };
+				if(qualifier.isOptional){ alias_of_str += '?'; };
+			}
+
+			for(const TypeInfo::Qualifier& qualifier : type_info.qualifiers() | std::views::reverse){
+				qualifiers.emplace_back(qualifier);
+			}
 
 			infos.emplace_back(std::move(alias_of_str));
 		}

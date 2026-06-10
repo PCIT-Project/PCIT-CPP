@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.319.4"></a>
+## v0.0.319.4
+
+### Panther
+- Fixed semantic analysis of types with qualifiers where the base is an alias
+- Fixed printing of type aliases in diagnostics
+
+
+<!---------------------------------->
 <a name="v0.0.319.3"></a>
 ## v0.0.319.3
 
