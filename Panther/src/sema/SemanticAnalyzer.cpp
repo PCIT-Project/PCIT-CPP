@@ -33027,7 +33027,7 @@ namespace pcit::panther{
 			);
 		}
 
-
+		
 		const TypeManager& type_manager = this->context.getTypeManager();
 
 
@@ -33786,6 +33786,15 @@ namespace pcit::panther{
 						const BaseType::ArrayRef& got_array_ref =
 							type_manager.getArrayRef(got_type.baseTypeID().arrayRefID());
 
+
+						if(expected_array_ref.elementTypeID != got_array_ref.elementTypeID){
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+							return TypeCheckInfo::fail();
+						}
 
 						if(expected_array_ref.isMut && got_array_ref.isMut == false){
 							if constexpr(MAY_EMIT_ERROR){

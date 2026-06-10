@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.319.2"></a>
+## v0.0.319.2
+
+### Panther
+- Fixed type checking of array reference types not considering element type
+
+
+<!---------------------------------->
 <a name="v0.0.319.1"></a>
 ## v0.0.319.1
 
