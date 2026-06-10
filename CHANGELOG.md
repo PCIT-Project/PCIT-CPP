@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.320.0"></a>
+## v0.0.320.0
+
+### pthr
+- Fixed linking issue in build system
+
+### Misc
+- Updated to [Panther-std v0.0.26.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.26.0)
+
+
+<!---------------------------------->
 <a name="v0.0.319.4"></a>
 ## v0.0.319.4
 

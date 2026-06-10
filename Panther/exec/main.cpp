@@ -1199,7 +1199,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	return context.runBuildSystem(
 		[&](panther::Context::PantherBuildConfig& panther_build_config) -> evo::Result<> {
 			return run_compile(cmd_args_config, panther_build_config, printer);
-		}
+		},
+		true
 	);
 }
 
