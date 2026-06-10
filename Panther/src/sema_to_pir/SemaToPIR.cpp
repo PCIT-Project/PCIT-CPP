@@ -4065,7 +4065,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::CHAR_VALUE: {
 				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
-				const pir::Type value_type = this->module.createUnsignedType(8);
+				const pir::Type value_type = this->module.createSignedType(8);
 				const pir::Expr number = this->handler.createNumber(
 					value_type, core::GenericInt(8, uint64_t(char_value.value))
 				);
