@@ -4620,6 +4620,15 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_RUNTIME_DEFAULT_INITIALIZABLE) =
+		TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE) =
 		TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
@@ -4654,6 +4663,14 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_RUNTIME_DELETABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COPYABLE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
@@ -4671,6 +4688,14 @@ namespace pcit::panther{
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_RUNTIME_COPYABLE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
@@ -4718,6 +4743,14 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_RUNTIME_MOVABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
@@ -4751,6 +4784,14 @@ namespace pcit::panther{
 		};
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IS_RUNTIME_COMPARABLE) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},

@@ -762,6 +762,7 @@ namespace pcit::panther{
 			bool isDefaultInitializable = false;
 			bool isTriviallyDefaultInitializable = false;
 			bool isComptimeDefaultInitializable = false;
+			bool isRuntimeDefaultInitializable = false;
 			bool isNoErrorDefaultInitializable = false;
 			bool isSafeDefaultInitializable = false;
 
@@ -1379,6 +1380,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto isComptimeDefaultInitializable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isComptimeDefaultInitializable(BaseType::ID id) const -> bool;
 
+			[[nodiscard]] auto isRuntimeDefaultInitializable(TypeInfo::ID id) const -> bool;
+			[[nodiscard]] auto isRuntimeDefaultInitializable(BaseType::ID id) const -> bool;
+
 			[[nodiscard]] auto isNoErrorDefaultInitializable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isNoErrorDefaultInitializable(BaseType::ID id) const -> bool;
 
@@ -1394,6 +1398,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto isComptimeDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isComptimeDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
+			[[nodiscard]] auto isRuntimeDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 
 			// copy
 
@@ -1405,6 +1412,9 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto isComptimeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isComptimeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
+			[[nodiscard]] auto isRuntimeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 			[[nodiscard]] auto isNoErrorCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isNoErrorCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
@@ -1424,6 +1434,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto isComptimeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isComptimeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
+			[[nodiscard]] auto isRuntimeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
 			[[nodiscard]] auto isNoErrorMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isNoErrorMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
@@ -1441,6 +1454,9 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto isComptimeComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isComptimeComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+
+			[[nodiscard]] auto isRuntimeComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 
 			[[nodiscard]] auto isNoErrorComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
 			[[nodiscard]] auto isNoErrorComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
@@ -1544,6 +1560,7 @@ namespace pcit::panther{
 				AT_ALL,
 				TRIVIAL,
 				COMPTIME,
+				RUNTIME,
 				NO_ERROR,
 				SAFE,
 			};

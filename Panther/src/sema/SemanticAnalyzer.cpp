@@ -1798,6 +1798,7 @@ namespace pcit::panther{
 			created_struct.isDefaultInitializable = true;
 			created_struct.isTriviallyDefaultInitializable = true;
 			created_struct.isComptimeDefaultInitializable = true;
+			created_struct.isRuntimeDefaultInitializable = true;
 			created_struct.isNoErrorDefaultInitializable = true;
 			created_struct.isSafeDefaultInitializable = true;
 
@@ -1837,6 +1838,12 @@ namespace pcit::panther{
 					}
 				}
 
+				if(created_struct.isComptimeDefaultInitializable){
+					if(this->context.getTypeManager().isRuntimeDefaultInitializable(member_var.typeID) == false){
+						created_struct.isRuntimeDefaultInitializable = false;
+					}
+				}
+
 				if(created_struct.isTriviallyDefaultInitializable){
 					if(	
 						member_var.defaultValue.has_value()
@@ -1864,7 +1871,7 @@ namespace pcit::panther{
 						evo::SmallVector<TypeInfo::VoidableID>(),
 						BaseType::Function::Attributes{
 							.isComptime        = created_struct.isComptimeDefaultInitializable,
-							.isRuntime         = true,
+							.isRuntime         = created_struct.isRuntimeDefaultInitializable,
 							.isUnsafe          = !created_struct.isSafeDefaultInitializable,
 							.isNoReturn        = false,
 							.callingConvention = pir::CallingConvention::DEFAULT,
@@ -1979,6 +1986,10 @@ namespace pcit::panther{
 
 				if(new_init_overload_func_type.attributes.isComptime){
 					created_struct.isComptimeDefaultInitializable = true;
+				}
+
+				if(new_init_overload_func_type.attributes.isRuntime){
+					created_struct.isRuntimeDefaultInitializable = true;
 				}
 
 				if(new_init_overload_func_type.errorTypes.empty()){
@@ -3586,7 +3597,7 @@ namespace pcit::panther{
 				BaseType::Function::Attributes{
 					.isComptime        = !func_attrs.value().is_runtime 
 					                     	&& instr.func_def.kind != AST::FuncDef::Kind::EXTERN,
-					.isRuntime         = true,
+					.isRuntime         = !func_attrs.value().is_comptime,
 					.isUnsafe          = func_attrs.value().is_unsafe,
 					.isNoReturn        = func_attrs.value().is_no_return,
 					.callingConvention = calling_conv,
@@ -7479,6 +7490,7 @@ namespace pcit::panther{
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
 
 		const bool in_comptime_func = this->func_scope_current_value_stage().requiresComptime();
+		const bool in_runtime_func = this->func_scope_current_value_stage().requiresRuntime();
 
 		const AST::AttributeBlock& attribute_block =
 			this->source.getASTBuffer().getAttributeBlock(instr.for_stmt.attributeBlock);
@@ -7539,14 +7551,15 @@ namespace pcit::panther{
 				return &this->context.type_manager.getInterface(symbol_find->as<BaseType::ID>().interfaceID());
 			};
 
+			if(in_comptime_func){
+				interface_iterable         = get_interface("Iterable");
+				interface_iterable_ref     = get_interface("IterableRef");
+				interface_iterable_mut_ref = get_interface("IterableMutRef");
+				interface_iterator         = get_interface("Iterator");
+				interface_mut_iterator     = get_interface("MutIterator");
+			}
 
-			interface_iterable         = get_interface("Iterable");
-			interface_iterable_ref     = get_interface("IterableRef");
-			interface_iterable_mut_ref = get_interface("IterableMutRef");
-			interface_iterator         = get_interface("Iterator");
-			interface_mut_iterator     = get_interface("MutIterator");
-
-			if(in_comptime_func == false){
+			if(in_runtime_func){
 				interface_iterable_rt         = get_interface("IterableRT");
 				interface_iterable_ref_rt     = get_interface("IterableRefRT");
 				interface_iterable_mut_ref_rt = get_interface("IterableMutRefRT");
@@ -7613,7 +7626,9 @@ namespace pcit::panther{
 					interfaces_to_check.emplace_back( 
 						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
 					);
-				}else{
+				}
+
+				if(in_runtime_func){
 					interfaces_to_check.emplace_back(
 						*interface_iterable_rt,
 						*interface_iterator_rt,
@@ -7626,14 +7641,6 @@ namespace pcit::panther{
 						*interface_mut_iterator_rt,
 						nullptr,
 						InterfaceKind::ITERABLE_MUT_REF
-					);
-
-					interfaces_to_check.emplace_back(
-						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
-					);
-
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
 					);
 				}
 			}else{
@@ -7649,8 +7656,9 @@ namespace pcit::panther{
 					interfaces_to_check.emplace_back( 
 						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
 					);
+				}
 
-				}else{
+				if(in_runtime_func){
 					interfaces_to_check.emplace_back(
 						*interface_iterable_rt,
 						*interface_iterator_rt,
@@ -7667,18 +7675,6 @@ namespace pcit::panther{
 						*interface_mut_iterator_rt,
 						nullptr,
 						InterfaceKind::ITERABLE_MUT_REF
-					);
-
-					interfaces_to_check.emplace_back(
-						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
-					);
-
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_ref, *interface_iterator, nullptr, InterfaceKind::ITERABLE_REF
-					);
-
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
 					);
 				}
 			}
@@ -10097,6 +10093,19 @@ namespace pcit::panther{
 		}
 
 		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& this->context.getTypeManager().isRuntimeCopyable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				"Type of argument of operator [copy] is not runtime copyable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
+			);
+			return Result::ERROR;
+		}
+
+		if(
 			this->currently_in_unsafe() == false
 			&& this->context.getTypeManager().isSafeCopyable(
 				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
@@ -10276,6 +10285,19 @@ namespace pcit::panther{
 		){
 			this->emit_error(
 				"Type of argument of operator [move] is not comptime movable",
+				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& this->context.getTypeManager().isRuntimeMovable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error(
+				"Type of argument of operator [move] is not runtime movable",
 				this->source.getASTBuffer().getPrefix(instr.infix.rhs)
 			);
 			return Result::ERROR;
@@ -11524,6 +11546,21 @@ namespace pcit::panther{
 						);
 						return Result::ERROR;
 					}
+
+					if(
+						this->func_scope_current_value_stage().requiresRuntime()
+						&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
+					){
+						this->emit_error(
+							"Cannot call a non-runtime function within a runtime function",
+							instr.func_call.target,
+							Diagnostic::Info(
+								"Called function was defined here:",
+								this->get_location(*func_call_impl_res.value().selected_func_id)
+							)
+						);
+						return Result::ERROR;
+					}
 				}
 
 
@@ -11692,6 +11729,21 @@ namespace pcit::panther{
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 					*func_call_impl_res.value().selected_func_id
 				);
+			}
+
+			if(
+				this->func_scope_current_value_stage().requiresRuntime()
+				&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
+			){
+				this->emit_error(
+					"Cannot call a non-runtime function within a runtime function",
+					instr.func_call.target,
+					Diagnostic::Info(
+						"Called function was defined here:",
+						this->get_location(*func_call_impl_res.value().selected_func_id)
+					)
+				);
+				return Result::ERROR;
 			}
 
 			return Result::SUCCESS;
@@ -12555,23 +12607,28 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE:
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE:
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DELETABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COPYABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE:
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COPYABLE:
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE:
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE:
 			case TemplateIntrinsicFunc::Kind::IS_MOVABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE:
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_MOVABLE:
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE:
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE:
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE:
 			case TemplateIntrinsicFunc::Kind::BIT_CAST:
@@ -12963,6 +13020,15 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DEFAULT_INITIALIZABLE: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isRuntimeDefaultInitializable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
@@ -12999,6 +13065,15 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DELETABLE: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isRuntimeDeletable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::IS_COPYABLE: {
 				this->return_term_info(
 					instr.output,
@@ -13021,6 +13096,15 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeCopyable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COPYABLE: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isRuntimeCopyable(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
 					)
 				);
@@ -13071,6 +13155,15 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_MOVABLE: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isRuntimeMovable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE: {
 				this->return_term_info(
 					instr.output,
@@ -13111,6 +13204,15 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isComptimeComparable(
+						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COMPARABLE: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.isRuntimeComparable(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
 					)
 				);
@@ -14884,6 +14986,14 @@ namespace pcit::panther{
 			}
 
 			if(
+				this->func_scope_current_value_stage().requiresRuntime()
+				&& !this->context.getTypeManager().isRuntimeCopyable(*target_type_id, this->context.getSemaBuffer())
+			){
+				this->emit_error("Type of argument of operator [copy] is not runtime copyable", instr.prefix);
+				return Result::ERROR;
+			}
+
+			if(
 				target.value_state != TermInfo::ValueState::INIT
 				&& target.value_state != TermInfo::ValueState::NOT_APPLICABLE
 			){
@@ -14973,6 +15083,16 @@ namespace pcit::panther{
 			) == false
 		){
 			this->emit_error("Type of argument of operator [move] is not comptime movable", instr.prefix);
+			return Result::ERROR;
+		}
+
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& this->context.getTypeManager().isRuntimeMovable(
+				target.type_id.as<TypeInfo::ID>(), this->context.getSemaBuffer()
+			) == false
+		){
+			this->emit_error("Type of argument of operator [move] is not runtime movable", instr.prefix);
 			return Result::ERROR;
 		}
 
@@ -16232,6 +16352,22 @@ namespace pcit::panther{
 						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 							selected_func_id
 						);
+					}
+
+
+					if(
+						this->currently_in_func()
+						&& this->func_scope_current_value_stage().requiresRuntime()
+						&& selected_func_type.attributes.isRuntime == false
+					){
+						this->emit_error(
+							"Cannot call a non-runtime operator [new] within a runtime function",
+							instr.ast_new,
+							Diagnostic::Info(
+								"Called operator [new] was defined here:", this->get_location(selected_func_id)
+							)
+						);
+						return Result::ERROR;
 					}
 				}
 
@@ -17496,11 +17632,11 @@ namespace pcit::panther{
 				const sema::Func::ID selected_overload_id = selected_overload_info.func_id.as<sema::Func::ID>();
 
 
-				if(this->func_scope_current_value_stage().requiresComptime()){
-					const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
-					const BaseType::Function& selected_func_type =
-						this->context.getTypeManager().getFunction(selected_overload.typeID);
+				const sema::Func& selected_overload = this->context.getSemaBuffer().getFunc(selected_overload_id);
+				const BaseType::Function& selected_func_type =
+					this->context.getTypeManager().getFunction(selected_overload.typeID);
 
+				if(this->func_scope_current_value_stage().requiresComptime()){
 					if(selected_func_type.attributes.isComptime == false){
 						this->emit_error(
 							"Cannot call a non-comptime operator overload within a comptime function",
@@ -17514,6 +17650,19 @@ namespace pcit::panther{
 
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
 						.dependent_funcs.emplace(selected_overload_id);
+				}
+
+				if(this->func_scope_current_value_stage().requiresRuntime()){
+					if(selected_func_type.attributes.isRuntime == false){
+						this->emit_error(
+							"Cannot call a non-runtime operator overload within a runtime function",
+							instr.indexer,
+							Diagnostic::Info(
+								"Called operator overload was defined here:", this->get_location(selected_overload_id)
+							)
+						);
+						return Result::ERROR;
+					}
 				}
 
 
@@ -18484,6 +18633,14 @@ namespace pcit::panther{
 					}
 
 					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
+				}
+
+				if(
+					this->func_scope_current_value_stage().requiresRuntime()
+					&& selected_func_type.attributes.isRuntime == false
+				){
+					this->emit_error("Operator [as] in a runtime scope must be runtime", instr.infix);
+					return Result::ERROR;
 				}
 
 			}else if(selected_func_type.attributes.isComptime == false){
@@ -30275,11 +30432,11 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->func_scope_current_value_stage().requiresComptime()){
-			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			const BaseType::Function& infix_op_sema_func_type =
-				this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
+		const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
+		const BaseType::Function& infix_op_sema_func_type =
+			this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
 
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			if(infix_op_sema_func_type.attributes.isComptime == false){
 				this->emit_error(
 					"Cannot call a non-comptime operator overload within a comptime function",
@@ -30292,6 +30449,20 @@ namespace pcit::panther{
 			}
 
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
+		}
+
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& infix_op_sema_func_type.attributes.isRuntime == false
+		){
+			this->emit_error(
+				"Cannot call a non-runtime operator overload within a runtime function",
+				ast_infix.opTokenID,
+				Diagnostic::Info(
+					"Called operator overload was defined here:", this->get_location(selected_overload_id)
+				)
+			);
+			return evo::Unexpected(Result::ERROR);
 		}
 
 		const Diagnostic::Location location = Diagnostic::Location::get(ast_infix, this->source);
@@ -30344,11 +30515,11 @@ namespace pcit::panther{
 		const sema::Func::ID selected_overload_id =
 			overloads_list[selected_overload_index.value()].func_id.as<sema::Func::ID>();
 
-		if(this->func_scope_current_value_stage().requiresComptime()){
-			const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
-			const BaseType::Function& infix_op_sema_func_type =
-				this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
+		const sema::Func& infix_op_sema_func = this->context.getSemaBuffer().getFunc(selected_overload_id);
+		const BaseType::Function& infix_op_sema_func_type =
+			this->context.getTypeManager().getFunction(infix_op_sema_func.typeID);
 
+		if(this->func_scope_current_value_stage().requiresComptime()){
 			if(infix_op_sema_func_type.attributes.isComptime == false){
 				this->emit_error(
 					"Cannot call a non-comptime operator overload within a comptime function",
@@ -30361,6 +30532,20 @@ namespace pcit::panther{
 			}
 
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_overload_id);
+		}
+
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& infix_op_sema_func_type.attributes.isRuntime == false
+		){
+			this->emit_error(
+				"Cannot call a non-runtime operator overload within a runtime function",
+				ast_prefix.opTokenID,
+				Diagnostic::Info(
+					"Called operator overload was defined here:", this->get_location(selected_overload_id)
+				)
+			);
+			return Result::ERROR;
 		}
 
 
@@ -32057,20 +32242,21 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
-		auto attr_priv = ConditionalAttribute(*this, "priv");
-		auto attr_rt = ConditionalAttribute(*this, "rt");
-		auto attr_rt_diff = ConditionalAttribute(*this, "rtDiff");
-		auto attr_unsafe = ConditionalAttribute(*this, "unsafe");
-		auto attr_export = Attribute(*this, "export");
-		auto attr_no_return = Attribute(*this, "noReturn");
-		auto attr_entry = Attribute(*this, "entry");
+		auto attr_pub         = ConditionalAttribute(*this, "pub");
+		auto attr_priv        = ConditionalAttribute(*this, "priv");
+		auto attr_rt          = ConditionalAttribute(*this, "rt");
+		auto attr_ct          = ConditionalAttribute(*this, "ct");
+		auto attr_rt_diff     = ConditionalAttribute(*this, "rtDiff");
+		auto attr_unsafe      = ConditionalAttribute(*this, "unsafe");
+		auto attr_export      = Attribute(*this, "export");
+		auto attr_no_return   = Attribute(*this, "noReturn");
+		auto attr_entry       = Attribute(*this, "entry");
 		auto attr_commutative = Attribute(*this, "commutative");
-		auto attr_swapped = Attribute(*this, "swapped");
-		auto attr_implicit = Attribute(*this, "implicit");
+		auto attr_swapped     = Attribute(*this, "swapped");
+		auto attr_implicit    = Attribute(*this, "implicit");
 
-		auto attr_call_conv = Attribute(*this, "callConv");
-		auto call_conv = std::optional<uint32_t>();
+		auto attr_call_conv   = Attribute(*this, "callConv");
+		auto call_conv        = std::optional<uint32_t>();
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -32148,11 +32334,60 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
+			}else if(attribute_str == "ct"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error("Attribute #ct cannot be set on extern functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attribute_params_info[i].empty()){
+					if(attr_ct.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
+
+				}else if(attribute_params_info[i].size() == 1){
+					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
+					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+						this->context.getTypeManager().getTypeBool(),
+						cond_term_info,
+						"Condition in #ct",
+						this->get_location(attribute.args[0])
+					);
+					if(type_check_info.ok == false){
+						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
+					}
+
+					const bool ct_cond = this->context.sema_buffer
+						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+
+					if(attr_ct.set(attribute.attribute, ct_cond).isError()){ return evo::Unexpected(Result::ERROR); }
+
+				}else{
+					this->emit_error("Attribute #ct does not accept more than 1 argument", attribute.args[1]);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_ct.is_set()){
+					if(attr_rt_diff.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #ct and attribute #rtDiff", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+
+					}else if(attr_rt.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #ct and attribute #rt", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+				}
+
 			}else if(attribute_str == "rt"){
 				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
 					// TODO(FEATURE): add warning (in attributes as well)
 					this->emit_warning("Attribute #rt is implicitly set on extern functions", attribute.attribute);
-					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attribute_params_info[i].empty()){
@@ -32193,11 +32428,20 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_rt_diff.is_set()){
-					this->emit_error(
-						"Function cannot have both attribute #rt and attribute #rtDiff", attribute.attribute
-					);
-					return evo::Unexpected(Result::ERROR);
+				if(attr_rt.is_set()){
+					if(attr_rt_diff.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #rt and attribute #rtDiff", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(attr_ct.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #rt and attribute #ct", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
 				}
 
 			}else if(attribute_str == "rtDiff"){
@@ -32237,11 +32481,20 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_rt.is_set()){
-					this->emit_error(
-						"Function cannot have both attribute #rtDiff and attribute #rt", attribute.attribute
-					);
-					return evo::Unexpected(Result::ERROR);
+				if(attr_rt_diff.is_set()){
+					if(attr_rt.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #rtDiff and attribute #rt", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(attr_ct.is_set()){
+						this->emit_error(
+							"Function cannot have both attribute #rtDiff and attribute #ct", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
 				}
 
 			}else if(attribute_str == "unsafe"){
@@ -32435,6 +32688,7 @@ namespace pcit::panther{
 		return FuncAttrs{
 			.is_pub         = attr_pub.is_set(),
 			.is_priv        = attr_priv.is_set(),
+			.is_comptime    = attr_ct.is_set(),
 			.is_runtime     = attr_rt.is_set(),
 			.is_rt_diff     = attr_rt_diff.is_set(),
 			.is_unsafe      = attr_unsafe.is_set(),
@@ -33196,6 +33450,24 @@ namespace pcit::panther{
 									}
 								}
 
+
+								if constexpr(IS_COMPTIME == false){
+									if(
+										target_as_func_type.attributes.isRuntime == false
+										&& this->func_scope_current_value_stage().requiresRuntime()
+									){
+										if constexpr(MAY_EMIT_ERROR){
+											this->error_type_mismatch(
+												expected_type_id,
+												got_expr,
+												expected_type_location_name,
+												location,
+												multi_type_index
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+								}
 
 
 								if constexpr(MAY_DO_IMPLICIT_CONVERSION){

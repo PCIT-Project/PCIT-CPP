@@ -406,7 +406,7 @@ namespace pcit::panther{
 					if(func_type.attributes.isRuntime){
 						// no printing
 					}else{
-						evo::debugFatalBreak("Not valid");
+						output += " #ct";
 					}
 
 				}else{
@@ -1139,6 +1139,7 @@ namespace pcit::panther{
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::RUNTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
 		){
@@ -1153,6 +1154,7 @@ namespace pcit::panther{
 				SPECIAL_MEMBER_PROP == SpecialMemberProp::AT_ALL
 				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR
 				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME
+				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME
 				|| SPECIAL_MEMBER_PROP == SpecialMemberProp::SAFE
 			){
 				if(type_info.qualifiers().empty()){
@@ -1222,6 +1224,7 @@ namespace pcit::panther{
 			SPECIAL_MEMBER_PROP != SpecialMemberProp::AT_ALL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::TRIVIAL
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::COMPTIME
+			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::RUNTIME
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
 			&& SPECIAL_MEMBER_PROP != SpecialMemberProp::SAFE
 		){
@@ -1334,6 +1337,9 @@ namespace pcit::panther{
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::COMPTIME){
 						return struct_type.isComptimeDefaultInitializable;
 
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME){
+						return struct_type.isRuntimeDefaultInitializable;
+
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						return struct_type.isNoErrorDefaultInitializable;
 
@@ -1349,6 +1355,11 @@ namespace pcit::panther{
 						const std::optional<sema::Func::ID> delete_overload = struct_type.deleteOverload.load();
 						if(delete_overload.has_value() == false){ return true; }
 						return this->getFunction(sema_buffer->getFunc(*delete_overload).typeID).attributes.isComptime;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME){
+						const std::optional<sema::Func::ID> delete_overload = struct_type.deleteOverload.load();
+						if(delete_overload.has_value() == false){ return true; }
+						return this->getFunction(sema_buffer->getFunc(*delete_overload).typeID).attributes.isRuntime;
 					}
 
 				}else if constexpr(SPECIAL_MEMBER == SpecialMember::COPY){
@@ -1366,6 +1377,13 @@ namespace pcit::panther{
 						return this->getFunction(
 							sema_buffer->getFunc(copy_overload.funcID()).typeID
 						).attributes.isComptime;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME){
+						if(copy_overload.wasDeleted()){ return false; }
+						if(copy_overload.wasExplicitlyDeclared() == false){ return true; }
+						return this->getFunction(
+							sema_buffer->getFunc(copy_overload.funcID()).typeID
+						).attributes.isRuntime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(copy_overload.wasDeleted()){ return false; }
@@ -1397,6 +1415,13 @@ namespace pcit::panther{
 						return this->getFunction(
 							sema_buffer->getFunc(move_overload.funcID()).typeID
 						).attributes.isComptime;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME){
+						if(move_overload.wasDeleted()){ return false; }
+						if(move_overload.wasExplicitlyDeclared() == false){ return true; }
+						return this->getFunction(
+							sema_buffer->getFunc(move_overload.funcID()).typeID
+						).attributes.isRuntime;
 
 					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::NO_ERROR){
 						if(move_overload.wasDeleted()){ return false; }
@@ -1444,6 +1469,23 @@ namespace pcit::panther{
 
 							if(func_type.params[0].typeID == func_type.params[1].typeID){
 								return func_type.attributes.isComptime;
+							}
+						}
+
+						return false;
+
+					}else if constexpr(SPECIAL_MEMBER_PROP == SpecialMemberProp::RUNTIME){
+						const auto [begin_overloads_range, end_overloads_range] = 
+							struct_type.infixOverloads.equal_range(Token::lookupKind("=="));
+
+						const auto overloads_range = evo::IterRange(begin_overloads_range, end_overloads_range);
+
+						for(const auto& [_, sema_func_id] : overloads_range){
+							const sema::Func& sema_func = sema_buffer->getFunc(sema_func_id);
+							const BaseType::Function& func_type = this->getFunction(sema_func.typeID);
+
+							if(func_type.params[0].typeID == func_type.params[1].typeID){
+								return func_type.attributes.isRuntime;
 							}
 						}
 
@@ -2911,6 +2953,15 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::isRuntimeDefaultInitializable(TypeInfo::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::RUNTIME>(id, nullptr);
+	}
+
+	auto TypeManager::isRuntimeDefaultInitializable(BaseType::ID id) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::RUNTIME>(id, nullptr);
+	}
+
+
 	auto TypeManager::isTriviallyDefaultInitializable(TypeInfo::ID id) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DEFAULT_NEW, SpecialMemberProp::TRIVIAL>(id, nullptr);
 	}
@@ -2955,6 +3006,14 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::isRuntimeDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+	auto TypeManager::isRuntimeDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+
+
 	///////////////////////////////////
 	// copyable
 
@@ -2979,6 +3038,14 @@ namespace pcit::panther{
 	}
 	auto TypeManager::isComptimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
+	}
+
+
+	auto TypeManager::isRuntimeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+	auto TypeManager::isRuntimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
 
@@ -3026,6 +3093,14 @@ namespace pcit::panther{
 	}
 
 
+	auto TypeManager::isRuntimeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+	auto TypeManager::isRuntimeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+
+
 	auto TypeManager::isNoErrorMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
@@ -3067,6 +3142,14 @@ namespace pcit::panther{
 	}
 	auto TypeManager::isComptimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
+	}
+
+
+	auto TypeManager::isRuntimeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
+	}
+	auto TypeManager::isRuntimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
 

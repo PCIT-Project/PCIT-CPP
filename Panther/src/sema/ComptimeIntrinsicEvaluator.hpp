@@ -42,27 +42,32 @@ namespace pcit::panther{
 			[[nodiscard]] auto isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isRuntimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isNoErrorDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isSafeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 
 			[[nodiscard]] auto isTriviallyDeletable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeDeletable(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isRuntimeDeletable(TypeInfo::ID type_id) -> TermInfo;
 
 			[[nodiscard]] auto isCopyable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyCopyable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeCopyable(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isRuntimeCopyable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isNoErrorCopyable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isSafeCopyable(TypeInfo::ID type_id) -> TermInfo;
 			
 			[[nodiscard]] auto isMovable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyMovable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeMovable(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isRuntimeMovable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isNoErrorMovable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isSafeMovable(TypeInfo::ID type_id) -> TermInfo;
 
 			[[nodiscard]] auto isComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeComparable(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto isRuntimeComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isNoErrorComparable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isSafeComparable(TypeInfo::ID type_id) -> TermInfo;
 			

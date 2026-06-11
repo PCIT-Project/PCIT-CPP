@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.321.0"></a>
+## v0.0.321.0
+
+### Panther
+- Added function attribute `#rt`
+- Added `@isRuntimeDefaultInitializable`
+- Added `@isRuntimeDeletable`
+- Added `@isRuntimeCopyable`
+- Added `@isRuntimeMovable`
+- Added `@isRuntimeComparable`
+
+
+<!---------------------------------->
 <a name="v0.0.320.0"></a>
 ## v0.0.320.0
 

@@ -155,6 +155,20 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::isRuntimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isRuntimeDefaultInitializable(type_id), false
+				)
+			)
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::isNoErrorDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
@@ -211,6 +225,20 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::isRuntimeDeletable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isRuntimeDeletable(type_id, this->sema_buffer), false
+				)
+			)
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::isCopyable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
@@ -248,6 +276,20 @@ namespace pcit::panther{
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
 					this->type_manager.isComptimeCopyable(type_id, this->sema_buffer), false
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isRuntimeCopyable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isRuntimeCopyable(type_id, this->sema_buffer), false
 				)
 			)
 		);
@@ -323,6 +365,20 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::isRuntimeMovable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isRuntimeMovable(type_id, this->sema_buffer), false
+				)
+			)
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::isNoErrorMovable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 
@@ -388,6 +444,20 @@ namespace pcit::panther{
 			sema::Expr(
 				this->sema_buffer.createBoolValue(
 					this->type_manager.isComptimeComparable(type_id, this->sema_buffer), false
+				)
+			)
+		);
+	}
+
+	auto ComptimeIntrinsicEvaluator::isRuntimeComparable(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeBool(),
+			sema::Expr(
+				this->sema_buffer.createBoolValue(
+					this->type_manager.isRuntimeComparable(type_id, this->sema_buffer), false
 				)
 			)
 		);

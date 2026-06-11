@@ -931,6 +931,7 @@ namespace pcit::panther{
 			struct FuncAttrs{
 				bool is_pub;
 				bool is_priv;
+				bool is_comptime;
 				bool is_runtime;
 				bool is_rt_diff;
 				bool is_unsafe;
