@@ -8266,102 +8266,12 @@ namespace pcit::panther{
 		}
 
 		const TypeInfo::ID cond_type_id = cond.type_id.as<TypeInfo::ID>();
-		const TypeInfo::ID decayed_cond_type_id = this->context.type_manager.decayType<true, false>(cond_type_id);
-		const TypeInfo& decayed_cond_type = this->context.getTypeManager().getTypeInfo(decayed_cond_type_id);
-
 
 		if(instr.is_no_jump){
 			// TODO(FUTURE): when structs can delete ==
 
 		}else{
-			if(decayed_cond_type.qualifiers().empty() == false){
-				this->emit_error(
-					"Invalid condition value in [switch] statement",
-					instr.switch_stmt.cond,
-					Diagnostic::Info(
-						"NOTE: the type of a condition value of a [switch] statement without attribute `#noJump` "
-							"cannot have qualifiers"
-					)
-				);
-				return Result::ERROR;
-			}
-				
-
-			switch(decayed_cond_type.baseTypeID().kind()){
-				case BaseType::Kind::PRIMITIVE: {
-					const BaseType::Primitive& primitive_type =
-						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
-					
-					switch(primitive_type.kind()){
-						case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
-						case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
-						case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
-						case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_BOOL:
-						case Token::Kind::TYPE_BOOL32:      case Token::Kind::TYPE_CHAR:
-						case Token::Kind::TYPE_TYPEID:      case Token::Kind::TYPE_C_WCHAR:
-						case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
-						case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
-						case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
-						case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-							// valid
-						} break;
-
-						case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
-						case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
-						case Token::Kind::TYPE_F128: case Token::Kind::TYPE_C_LONG_DOUBLE: {
-							this->emit_error(
-								"Invalid condition value in [switch] statement",
-								instr.switch_stmt.cond,
-								Diagnostic::Info(
-									"NOTE: the type of a condition value of a [switch] statement without attribute "
-										"`#noJump` cannot be floating point"
-								)
-							);
-							return Result::ERROR;
-						} break;
-
-						case Token::Kind::TYPE_RAWPTR: {
-							this->emit_error(
-								"Invalid condition value in [switch] statement",
-								instr.switch_stmt.cond,
-								Diagnostic::Info(
-									"NOTE: the type of a condition value of a [switch] statement without attribute "
-										"`#noJump` cannot be a pointer"
-								)
-							);
-							return Result::ERROR;
-						} break;
-
-						default: evo::debugFatalBreak("Not a type");
-					}
-				} break;
-
-				case BaseType::Kind::UNION: {
-					const BaseType::Union& union_type =
-						this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
-
-					if(union_type.isUntagged){
-						this->emit_error(
-							"Invalid condition value in [switch] statement",
-							instr.switch_stmt.cond,
-							Diagnostic::Info(
-								"NOTE: a union expression can only be the condition value of a [switch] statement"
-									"if it is tagged"
-							)
-						);
-						return Result::ERROR;
-					}
-				} break;
-
-				case BaseType::Kind::ENUM: {
-					// valid
-				} break;
-
-				default: {
-					this->emit_error("Invalid condition value in [switch] statement", instr.switch_stmt.cond);
-					return Result::ERROR;
-				} break;
-			}
+			if(this->type_is_valid_jump_switch_cond(cond_type_id, instr.switch_stmt).isError()){ return Result::ERROR; }
 		}
 
 
@@ -8761,11 +8671,11 @@ namespace pcit::panther{
 			this->analyze_switch_attrs(attribute_block, instr.attribute_params_info);
 		if(switch_attrs.isError()){ return Result::ERROR; }
 
-		const sema::Switch::Kind switch_kind = [&]() -> sema::Switch::Kind {
-			if(switch_attrs.value().is_partial){ return sema::Switch::Kind::PARTIAL; }
-			if(switch_attrs.value().is_no_jump){ return sema::Switch::Kind::NO_JUMP; }
-			return sema::Switch::Kind::COMPLETE;
-		}();
+		// const sema::Switch::Kind switch_kind = [&]() -> sema::Switch::Kind {
+		// 	if(switch_attrs.value().is_partial){ return sema::Switch::Kind::PARTIAL; }
+		// 	if(switch_attrs.value().is_no_jump){ return sema::Switch::Kind::NO_JUMP; }
+		// 	return sema::Switch::Kind::COMPLETE;
+		// }();
 
 
 
@@ -8841,230 +8751,21 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// check for missing values, unneded else
+			// check for missing values, unneeded else
 
-			evo::debugAssert(
-				decayed_cond_type.qualifiers().empty(), "switch cond without #noJump cannot have qualifiers"
-			);
-
-			switch(decayed_cond_type.baseTypeID().kind()){
-				case BaseType::Kind::PRIMITIVE: {
-					const BaseType::Primitive& primitive_type =
-						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
-					
-					switch(primitive_type.kind()){
-						case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
-						case Token::Kind::TYPE_I_N:          case Token::Kind::TYPE_UINT:
-						case Token::Kind::TYPE_USIZE:        case Token::Kind::TYPE_UI_N:
-						case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_TYPEID:
-						case Token::Kind::TYPE_C_WCHAR:      case Token::Kind::TYPE_C_SHORT:
-						case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
-						case Token::Kind::TYPE_C_UINT:       case Token::Kind::TYPE_C_LONG:
-						case Token::Kind::TYPE_C_ULONG:      case Token::Kind::TYPE_C_LONG_LONG:
-						case Token::Kind::TYPE_C_ULONG_LONG: {
-							const size_t bit_width =
-								this->context.getTypeManager().numBits(decayed_cond_type.baseTypeID(), false);
-
-							const size_t expected_num_cases = size_t(1) << bit_width; // 0 means > 2^64
-
-							if(else_index.has_value()){
-								if(used_values.size() == expected_num_cases && used_values.size() != 0){
-									this->emit_error(
-										"Extraneous [else] in [switch] statement",
-										instr.when_switch_stmt.cases[*else_index].block
-									);
-									return Result::ERROR;
-								}
-								
-							}else{
-								if(
-									switch_kind == sema::Switch::Kind::COMPLETE
-									&& used_values.size() != expected_num_cases
-									&& used_values.size() != 0
-								){
-									const size_t num_missing = expected_num_cases - used_values.size();
-
-									if(num_missing == 1){
-										this->emit_error(
-											std::format("Missing 1 case in [switch] statement", num_missing),
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-										
-									}else{
-										this->emit_error(
-											std::format("Missing {} cases in [switch] statement", num_missing),
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-									}
-								}
-							}
-						} break;
-
-						case Token::Kind::TYPE_CHAR: {
-							if(else_index.has_value()){
-								if(used_values.size() == 256){
-									this->emit_error(
-										"Extraneous [else] in [switch] statement",
-										instr.when_switch_stmt.cases[*else_index].block
-									);
-									return Result::ERROR;
-								}
-								
-							}else{
-								if(
-									switch_kind == sema::Switch::Kind::COMPLETE
-									&& used_values.size() != 256
-								){
-									const size_t num_missing = 256 - used_values.size();
-
-									if(num_missing == 1){
-										this->emit_error(
-											std::format("Missing 1 case in [switch] statement", num_missing),
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-										
-									}else{
-										this->emit_error(
-											std::format("Missing {} cases in [switch] statement", num_missing),
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-									}
-								}
-							}
-						} break;
-
-						case Token::Kind::TYPE_BOOL: case Token::Kind::TYPE_BOOL32: {
-							if(else_index.has_value()){
-								if(used_values.size() == 2){
-									this->emit_error(
-										"Extraneous [else] in [switch] statement",
-										instr.when_switch_stmt.cases[*else_index].block
-									);
-									return Result::ERROR;
-								}
-								
-							}else{
-								if(
-									switch_kind == sema::Switch::Kind::COMPLETE
-									&& used_values.size() != 2
-								){
-									const size_t num_missing = 2 - used_values.size();
-
-									if(num_missing == 1){
-										this->emit_error(
-											"Missing 1 case in [switch] statement",
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-										
-									}else{
-										this->emit_error(
-											"Missing 2 cases in [switch] statement",
-											instr.when_switch_stmt
-										);
-										return Result::ERROR;
-									}
-								}
-							}
-						} break;
-
-						case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
-						case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
-						case Token::Kind::TYPE_F128: case Token::Kind::TYPE_RAWPTR:
-						case Token::Kind::TYPE_C_LONG_DOUBLE: {
-							evo::debugFatalBreak("Invalid switch cond type (base type)");
-						} break;
-
-						default: evo::debugFatalBreak("Not a type");
-					}
-				} break;
-
-				case BaseType::Kind::UNION: {
-					const BaseType::Union& union_type =
-						this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
-
-					evo::debugAssert(union_type.isUntagged == false, "Invalid switch cond type (base type)");
-
-					if(else_index.has_value()){
-						if(used_values.size() == union_type.fields.size()){
-							this->emit_error(
-								"Extraneous [else] in [switch] statement",
-								instr.when_switch_stmt.cases[*else_index].block
-							);
-							return Result::ERROR;
-						}
-						
-					}else{
-						if(
-							switch_kind == sema::Switch::Kind::COMPLETE
-							&& used_values.size() != union_type.fields.size()
-						){
-							const size_t num_missing = union_type.fields.size() - used_values.size();
-
-							if(num_missing == 1){
-								this->emit_error(
-									std::format("Missing 1 case in [switch] statement", num_missing),
-									instr.when_switch_stmt
-								);
-								return Result::ERROR;
-								
-							}else{
-								this->emit_error(
-									std::format("Missing {} cases in [switch] statement", num_missing),
-									instr.when_switch_stmt
-								);
-								return Result::ERROR;
-							}
-						}
-					}
-				} break;
-
-				case BaseType::Kind::ENUM: {
-					const BaseType::Enum& enum_type =
-						this->context.getTypeManager().getEnum(decayed_cond_type.baseTypeID().enumID());
-
-					if(else_index.has_value()){
-						if(used_values.size() == enum_type.enumerators.size()){
-							this->emit_error(
-								"Extraneous [else] in [switch] statement",
-								instr.when_switch_stmt.cases[*else_index].block
-							);
-							return Result::ERROR;
-						}
-						
-					}else{
-						if(
-							switch_kind == sema::Switch::Kind::COMPLETE
-							&& used_values.size() != enum_type.enumerators.size()
-						){
-							const size_t num_missing = enum_type.enumerators.size() - used_values.size();
-
-							if(num_missing == 1){
-								this->emit_error(
-									std::format("Missing 1 case in [switch] statement", num_missing),
-									instr.when_switch_stmt
-								);
-								return Result::ERROR;
-								
-							}else{
-								this->emit_error(
-									std::format("Missing {} cases in [switch] statement", num_missing),
-									instr.when_switch_stmt
-								);
-								return Result::ERROR;
-							}
-						}
-					}
-				} break;
-
-				default: {
-					evo::debugFatalBreak("Invalid switch cond type (base type)");
-				} break;
+			if(this->type_is_valid_jump_switch_cond(cond_type_id, instr.when_switch_stmt).isError()){
+				return Result::ERROR;
 			}
+
+
+			const bool switch_kind_is_complete = !switch_attrs.value().is_partial & !switch_attrs.value().is_no_jump;
+
+			if(this->check_jump_switch_missing_values_and_unneeded_else(
+				decayed_cond_type.baseTypeID(), used_values, else_index, switch_kind_is_complete, instr.when_switch_stmt
+			).isError()){
+				return Result::ERROR;
+			}
+
 
 
 			//////////////////
@@ -29209,6 +28910,318 @@ namespace pcit::panther{
 		}
 	}
 
+
+
+	auto SemanticAnalyzer::type_is_valid_jump_switch_cond(TypeInfo::ID cond_type_id, const auto& ast_switch_stmt)
+	-> evo::Result<> {
+		const TypeInfo::ID decayed_cond_type_id = this->context.type_manager.decayType<true, false>(cond_type_id);
+		const TypeInfo& decayed_cond_type = this->context.getTypeManager().getTypeInfo(decayed_cond_type_id);
+
+		if(decayed_cond_type.qualifiers().empty() == false){
+			this->emit_error(
+				"Invalid condition value in [switch] statement",
+				ast_switch_stmt.cond,
+				Diagnostic::Info(
+					"NOTE: the type of a condition value of a [switch] statement without attribute `#noJump` "
+						"cannot have qualifiers"
+				)
+			);
+			return evo::resultError;
+		}
+
+		switch(decayed_cond_type.baseTypeID().kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive_type =
+					this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
+				
+				switch(primitive_type.kind()){
+					case Token::Kind::TYPE_INT:         case Token::Kind::TYPE_ISIZE:
+					case Token::Kind::TYPE_I_N:         case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:       case Token::Kind::TYPE_UI_N:
+					case Token::Kind::TYPE_BYTE:        case Token::Kind::TYPE_BOOL:
+					case Token::Kind::TYPE_BOOL32:      case Token::Kind::TYPE_CHAR:
+					case Token::Kind::TYPE_TYPEID:      case Token::Kind::TYPE_C_WCHAR:
+					case Token::Kind::TYPE_C_SHORT:     case Token::Kind::TYPE_C_USHORT:
+					case Token::Kind::TYPE_C_INT:       case Token::Kind::TYPE_C_UINT:
+					case Token::Kind::TYPE_C_LONG:      case Token::Kind::TYPE_C_ULONG:
+					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG: {
+						// valid
+					} break;
+
+					case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
+					case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
+					case Token::Kind::TYPE_F128: case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						this->emit_error(
+							"Invalid condition value in [switch] statement",
+							ast_switch_stmt.cond,
+							Diagnostic::Info(
+								"NOTE: the type of a condition value of a [switch] statement without attribute "
+									"`#noJump` cannot be floating point"
+							)
+						);
+						return evo::resultError;
+					} break;
+
+					case Token::Kind::TYPE_RAWPTR: {
+						this->emit_error(
+							"Invalid condition value in [switch] statement",
+							ast_switch_stmt.cond,
+							Diagnostic::Info(
+								"NOTE: the type of a condition value of a [switch] statement without attribute "
+									"`#noJump` cannot be a pointer"
+							)
+						);
+						return evo::resultError;
+					} break;
+
+					default: evo::debugFatalBreak("Not a type");
+				}
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_type =
+					this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
+
+				if(union_type.isUntagged){
+					this->emit_error(
+						"Invalid condition value in [switch] statement",
+						ast_switch_stmt.cond,
+						Diagnostic::Info(
+							"NOTE: a union expression can only be the condition value of a [switch] statement"
+								"if it is tagged"
+						)
+					);
+					return evo::resultError;
+				}
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				// valid
+			} break;
+
+			default: {
+				this->emit_error("Invalid condition value in [switch] statement", ast_switch_stmt.cond);
+				return evo::resultError;
+			} break;
+		}
+
+		return evo::Result<>();
+	}
+
+
+
+	auto SemanticAnalyzer::check_jump_switch_missing_values_and_unneeded_else(
+		BaseType::ID cond_base_type,
+		const std::unordered_set<core::GenericValue>& used_values,
+		std::optional<size_t> else_index,
+		bool switch_kind_is_complete,
+		const auto& ast_switch_stmt
+	) -> evo::Result<> {
+		switch(cond_base_type.kind()){
+			case BaseType::Kind::PRIMITIVE: {
+				const BaseType::Primitive& primitive_type =
+					this->context.getTypeManager().getPrimitive(cond_base_type.primitiveID());
+				
+				switch(primitive_type.kind()){
+					case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
+					case Token::Kind::TYPE_I_N:          case Token::Kind::TYPE_UINT:
+					case Token::Kind::TYPE_USIZE:        case Token::Kind::TYPE_UI_N:
+					case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_TYPEID:
+					case Token::Kind::TYPE_C_WCHAR:      case Token::Kind::TYPE_C_SHORT:
+					case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+					case Token::Kind::TYPE_C_UINT:       case Token::Kind::TYPE_C_LONG:
+					case Token::Kind::TYPE_C_ULONG:      case Token::Kind::TYPE_C_LONG_LONG:
+					case Token::Kind::TYPE_C_ULONG_LONG: {
+						const size_t bit_width = this->context.getTypeManager().numBits(cond_base_type, false);
+						const size_t expected_num_cases = size_t(1) << bit_width; // 0 means > 2^64
+
+						if(else_index.has_value()){
+							if(used_values.size() == expected_num_cases && used_values.size() != 0){
+								this->emit_error(
+									"Extraneous [else] in [switch] statement",
+									ast_switch_stmt.cases[*else_index].block
+								);
+								return evo::resultError;
+							}
+							
+						}else{
+							if(
+								switch_kind_is_complete
+								&& used_values.size() != expected_num_cases
+								&& used_values.size() != 0
+							){
+								const size_t num_missing = expected_num_cases - used_values.size();
+
+								if(num_missing == 1){
+									this->emit_error(
+										std::format("Missing 1 case in [switch] statement", num_missing),
+										ast_switch_stmt
+									);
+									return evo::resultError;
+									
+								}else{
+									this->emit_error(
+										std::format("Missing {} cases in [switch] statement", num_missing),
+										ast_switch_stmt
+									);
+									return evo::resultError;
+								}
+							}
+						}
+					} break;
+
+					case Token::Kind::TYPE_CHAR: {
+						if(else_index.has_value()){
+							if(used_values.size() == 256){
+								this->emit_error(
+									"Extraneous [else] in [switch] statement",
+									ast_switch_stmt.cases[*else_index].block
+								);
+								return evo::resultError;
+							}
+							
+						}else{
+							if(switch_kind_is_complete && used_values.size() != 256){
+								const size_t num_missing = 256 - used_values.size();
+
+								if(num_missing == 1){
+									this->emit_error(
+										std::format("Missing 1 case in [switch] statement", num_missing),
+										ast_switch_stmt
+									);
+									return evo::resultError;
+									
+								}else{
+									this->emit_error(
+										std::format("Missing {} cases in [switch] statement", num_missing),
+										ast_switch_stmt
+									);
+									return evo::resultError;
+								}
+							}
+						}
+					} break;
+
+					case Token::Kind::TYPE_BOOL: case Token::Kind::TYPE_BOOL32: {
+						if(else_index.has_value()){
+							if(used_values.size() == 2){
+								this->emit_error(
+									"Extraneous [else] in [switch] statement",
+									ast_switch_stmt.cases[*else_index].block
+								);
+								return evo::resultError;
+							}
+							
+						}else{
+							if(switch_kind_is_complete && used_values.size() != 2){
+								const size_t num_missing = 2 - used_values.size();
+
+								if(num_missing == 1){
+									this->emit_error(
+										"Missing 1 case in [switch] statement",
+										ast_switch_stmt
+									);
+									return evo::resultError;
+									
+								}else{
+									this->emit_error(
+										"Missing 2 cases in [switch] statement",
+										ast_switch_stmt
+									);
+									return evo::resultError;
+								}
+							}
+						}
+					} break;
+
+					case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
+					case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
+					case Token::Kind::TYPE_F128: case Token::Kind::TYPE_RAWPTR:
+					case Token::Kind::TYPE_C_LONG_DOUBLE: {
+						evo::debugFatalBreak("Invalid switch cond type (base type)");
+					} break;
+
+					default: evo::debugFatalBreak("Not a type");
+				}
+			} break;
+
+			case BaseType::Kind::UNION: {
+				const BaseType::Union& union_type = this->context.getTypeManager().getUnion(cond_base_type.unionID());
+
+				evo::debugAssert(union_type.isUntagged == false, "Invalid switch cond type (base type)");
+
+				if(else_index.has_value()){
+					if(used_values.size() == union_type.fields.size()){
+						this->emit_error(
+							"Extraneous [else] in [switch] statement",
+							ast_switch_stmt.cases[*else_index].block
+						);
+						return evo::resultError;
+					}
+					
+				}else{
+					if(switch_kind_is_complete && used_values.size() != union_type.fields.size()){
+						const size_t num_missing = union_type.fields.size() - used_values.size();
+
+						if(num_missing == 1){
+							this->emit_error(
+								std::format("Missing 1 case in [switch] statement", num_missing),
+								ast_switch_stmt
+							);
+							return evo::resultError;
+							
+						}else{
+							this->emit_error(
+								std::format("Missing {} cases in [switch] statement", num_missing),
+								ast_switch_stmt
+							);
+							return evo::resultError;
+						}
+					}
+				}
+			} break;
+
+			case BaseType::Kind::ENUM: {
+				const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(cond_base_type.enumID());
+
+				if(else_index.has_value()){
+					if(used_values.size() == enum_type.enumerators.size()){
+						this->emit_error(
+							"Extraneous [else] in [switch] statement",
+							ast_switch_stmt.cases[*else_index].block
+						);
+						return evo::resultError;
+					}
+					
+				}else{
+					if(switch_kind_is_complete && used_values.size() != enum_type.enumerators.size()){
+						const size_t num_missing = enum_type.enumerators.size() - used_values.size();
+
+						if(num_missing == 1){
+							this->emit_error(
+								std::format("Missing 1 case in [switch] statement", num_missing),
+								ast_switch_stmt
+							);
+							return evo::resultError;
+							
+						}else{
+							this->emit_error(
+								std::format("Missing {} cases in [switch] statement", num_missing),
+								ast_switch_stmt
+							);
+							return evo::resultError;
+						}
+					}
+				}
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Invalid switch cond type (base type)");
+			} break;
+		}
+
+		return evo::Result<>();
+	}
 
 
 

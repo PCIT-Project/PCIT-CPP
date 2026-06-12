@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.322.1"></a>
+## v0.0.322.1
+
+### Panther
+- Fixed missing checks for type of condition value in global `when switch`
+
+
+<!---------------------------------->
 <a name="v0.0.322.0"></a>
 ## v0.0.322.0
 

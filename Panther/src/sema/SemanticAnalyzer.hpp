@@ -686,6 +686,18 @@ namespace pcit::panther{
 			) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail>;
 
 
+			[[nodiscard]] auto type_is_valid_jump_switch_cond(TypeInfo::ID cond_type_id, const auto& ast_switch_stmt)
+				-> evo::Result<>;
+
+			[[nodiscard]] auto check_jump_switch_missing_values_and_unneeded_else(
+				BaseType::ID cond_base_type,
+				const std::unordered_set<core::GenericValue>& used_values,
+				std::optional<size_t> else_index,
+				bool switch_kind_is_complete,
+				const auto& ast_switch_stmt
+			) -> evo::Result<>;
+
+
 
 			[[nodiscard]] auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
