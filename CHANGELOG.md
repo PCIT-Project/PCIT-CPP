@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.322.0"></a>
+## v0.0.322.0
+
+### Panther
+- Added global `when switch`
+
+### Misc
+- Updated to [Panther-std v0.0.27.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.27.0)
+
+
+<!---------------------------------->
 <a name="v0.0.321.0"></a>
 ## v0.0.321.0
 

@@ -1201,7 +1201,7 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// EndCase
+			// EndSwitch
 
 			[[nodiscard]] auto createEndSwitch(auto&&... args) -> Instruction {
 				return Instruction(
@@ -1213,6 +1213,22 @@ namespace pcit::panther{
 			[[nodiscard]] auto getEndSwitch(Instruction instr) const -> const Instruction::EndSwitch& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::END_SWITCH, "Not a EndSwitch");
 				return this->end_switches[instr._index];
+			}
+
+
+			//////////////////
+			// WhenSwitch
+
+			[[nodiscard]] auto createWhenSwitch(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::WHEN_SWITCH,
+					this->when_switches.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getWhenSwitch(Instruction instr) const -> const Instruction::WhenSwitch& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::WHEN_SWITCH, "Not a WhenSwitch");
+				return this->when_switches[instr._index];
 			}
 
 
@@ -3303,8 +3319,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::ForUnrollContinue, uint32_t> for_unroll_continues{};
 			core::SyncLinearStepAlloc<Instruction::BeginSwitch, uint32_t> begin_switches{};
 			core::SyncLinearStepAlloc<Instruction::BeginCase, uint32_t> begin_cases{};
-
 			core::SyncLinearStepAlloc<Instruction::EndSwitch, uint32_t> end_switches{};
+			core::SyncLinearStepAlloc<Instruction::WhenSwitch, uint32_t> when_switches{};
 			core::SyncLinearStepAlloc<Instruction::BeginDefer, uint32_t> begin_defers{};
 			core::SyncLinearStepAlloc<Instruction::EndDefer, uint32_t> end_defers{};
 			core::SyncLinearStepAlloc<Instruction::BeginStmtBlock, uint32_t> begin_stmt_blocks{};

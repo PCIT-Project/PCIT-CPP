@@ -63,7 +63,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_WHEN:        return this->parse_conditional<true>();
 			case Token::Kind::KEYWORD_WHILE:       return this->parse_while();
 			case Token::Kind::KEYWORD_FOR:         return this->parse_for();
-			case Token::Kind::KEYWORD_SWITCH:      return this->parse_switch();
+			case Token::Kind::KEYWORD_SWITCH:      return this->parse_switch<false>();
 			case Token::Kind::KEYWORD_DEFER:       return this->parse_defer<false>();
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
@@ -1050,8 +1050,15 @@ namespace pcit::panther{
 	auto Parser::parse_conditional() -> Result {
 		const Token::ID keyword_token_id = this->reader.peek();
 
+
 		static constexpr Token::Kind COND_TOKEN_KIND = IS_WHEN ? Token::Kind::KEYWORD_WHEN : Token::Kind::KEYWORD_IF;
 		if(this->assert_token(COND_TOKEN_KIND).isError()){ return Result::Code::ERROR; }
+
+		if constexpr(IS_WHEN){
+			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_SWITCH){
+				return this->parse_switch<true>();
+			}
+		}
 
 
 		if(this->expect_token(Token::lookupKind("("), "in conditional statement").isError()){
@@ -1113,6 +1120,16 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 
 			}else{
+				if constexpr(IS_WHEN){
+					if(this->reader[this->reader.peek(1)].kind() == Token::Kind::KEYWORD_SWITCH){
+						this->context.emitError(
+							"Cannot mix [when] and [when] [switch] in a chain",
+							Diagnostic::Location::get(this->reader.peek(1), this->source)
+						);
+						return Result::Code::ERROR;
+					}
+				}
+
 				const Result else_block_result = this->parse_conditional<IS_WHEN>();
 				if(this->check_result(else_block_result, "statement block in conditional statement").isError()){
 					return Result::Code::ERROR;
@@ -1363,6 +1380,7 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
+	template<bool IS_WHEN>
 	auto Parser::parse_switch() -> Result {
 		const Token::ID keyword = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_SWITCH).isError()){ return Result::Code::ERROR; }
@@ -1385,7 +1403,9 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		auto cases = evo::SmallVector<AST::Switch::Case>();
+		using SwitchCaseType = std::conditional<IS_WHEN, AST::WhenSwitch::Case, AST::Switch::Case>::type;
+
+		auto cases = evo::SmallVector<SwitchCaseType>();
 		bool has_else_case = false;
 
 		auto close_brace_token_id = std::optional<Token::ID>();
@@ -1471,9 +1491,15 @@ namespace pcit::panther{
 		}
 
 
-		return this->source.ast_buffer.createSwitch(
-			keyword, *close_brace_token_id, cond.value(), attributes.value(), std::move(cases)
-		);
+		if constexpr(IS_WHEN){
+			return this->source.ast_buffer.createWhenSwitch(
+				keyword, *close_brace_token_id, cond.value(), attributes.value(), std::move(cases)
+			);
+		}else{
+			return this->source.ast_buffer.createSwitch(
+				keyword, *close_brace_token_id, cond.value(), attributes.value(), std::move(cases)
+			);
+		}
 	}
 
 

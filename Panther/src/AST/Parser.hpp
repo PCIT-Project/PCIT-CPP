@@ -102,7 +102,7 @@ namespace pcit::panther{
 			template<bool IS_WHEN> [[nodiscard]] auto parse_conditional() -> Result;
 			[[nodiscard]] auto parse_while() -> Result;
 			[[nodiscard]] auto parse_for() -> Result;
-			[[nodiscard]] auto parse_switch() -> Result;
+			template<bool IS_WHEN> [[nodiscard]] auto parse_switch() -> Result;
 			template<bool IS_ERROR_DEFER> [[nodiscard]] auto parse_defer() -> Result;
 			[[nodiscard]] auto parse_try_stmt() -> Result;
 			[[nodiscard]] auto parse_unsafe() -> Result;

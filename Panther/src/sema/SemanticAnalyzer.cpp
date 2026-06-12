@@ -397,6 +397,9 @@ namespace pcit::panther{
 			case Instruction::Kind::END_SWITCH:
 				return this->instr_end_switch(this->context.symbol_proc_manager.getEndSwitch(instr));
 
+			case Instruction::Kind::WHEN_SWITCH:
+				return this->instr_when_switch(this->context.symbol_proc_manager.getWhenSwitch(instr));
+
 			case Instruction::Kind::BEGIN_DEFER:
 				return this->instr_begin_defer(this->context.symbol_proc_manager.getBeginDefer(instr));
 
@@ -8248,8 +8251,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_switch(const Instruction::BeginSwitch& instr) -> Result {
 		const TermInfo& cond = this->get_term_info(instr.cond);
 
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.switch_stmt.attributeBlock);
+
 		const evo::Result<SwitchAttrs> switch_attrs =
-			this->analyze_switch_attrs(instr.switch_stmt, instr.attribute_params_info);
+			this->analyze_switch_attrs(attribute_block, instr.attribute_params_info);
 		if(switch_attrs.isError()){ return Result::ERROR; }
 
 
@@ -8483,7 +8489,7 @@ namespace pcit::panther{
 		sema::Switch& current_switch = this->context.sema_buffer.switches[current_switch_id];
 
 		if(current_switch.kind != sema::Switch::Kind::NO_JUMP){
-			auto else_index = std::optional<size_t>();;
+			auto else_index = std::optional<size_t>();
 
 			auto used_values = std::unordered_set<core::GenericValue>();
 
@@ -8740,6 +8746,453 @@ namespace pcit::panther{
 		if(this->end_sub_scopes(this->get_location(instr.switch_stmt.closeBrace)).isError()){ return Result::ERROR; }
 
 
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_when_switch(const Instruction::WhenSwitch& instr) -> Result {
+		const TermInfo& cond = this->get_term_info(instr.cond);
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.when_switch_stmt.attributeBlock);
+
+		const evo::Result<SwitchAttrs> switch_attrs =
+			this->analyze_switch_attrs(attribute_block, instr.attribute_params_info);
+		if(switch_attrs.isError()){ return Result::ERROR; }
+
+		const sema::Switch::Kind switch_kind = [&]() -> sema::Switch::Kind {
+			if(switch_attrs.value().is_partial){ return sema::Switch::Kind::PARTIAL; }
+			if(switch_attrs.value().is_no_jump){ return sema::Switch::Kind::NO_JUMP; }
+			return sema::Switch::Kind::COMPLETE;
+		}();
+
+
+
+		if(cond.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error("Invalid condition value in [switch] statement", instr.when_switch_stmt.cond);
+			return Result::ERROR;
+		}
+
+		const TypeInfo::ID cond_type_id = cond.type_id.as<TypeInfo::ID>();
+		const TypeInfo::ID decayed_cond_type_id = this->context.type_manager.decayType<true, false>(cond_type_id);
+		const TypeInfo& decayed_cond_type = this->context.getTypeManager().getTypeInfo(decayed_cond_type_id);
+
+
+		if(switch_attrs.value().is_no_jump){
+			this->emit_error("When swtich attribute `#noJump` is unimplemented", instr.when_switch_stmt.cond);
+			return Result::ERROR;
+
+		}else{
+			//////////////////
+			// check type of case values work with cond
+
+			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
+				for(size_t j = 0; const SymbolProc::TermInfoID value_id : when_switch_case.values){
+					TermInfo& value = this->get_term_info(value_id);
+
+					if(this->type_check<true, true, true>(
+						cond.type_id.as<TypeInfo::ID>(),
+						value,
+						"Case value in when switch",
+						this->get_location(instr.when_switch_stmt.cases[i].values[j])
+					).ok == false){
+						return Result::ERROR;
+					}
+
+					j += 1;
+				}
+
+				i += 1;
+			}
+
+
+			//////////////////
+			// check reuse, find else
+
+			auto else_index = std::optional<size_t>();
+			auto used_values = std::unordered_set<core::GenericValue>();
+
+			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
+				if(when_switch_case.values.empty()){
+					else_index = i;
+					continue;
+				}
+
+				for(size_t j = 0; const SymbolProc::TermInfoID value_id : when_switch_case.values){
+					TermInfo& value_term_info = this->get_term_info(value_id);
+
+					core::GenericValue expr_generic_value = 
+						sema::exprToGenericValue(value_term_info.getExpr(), this->context);
+
+					if(used_values.emplace(std::move(expr_generic_value)).second == false){
+						this->emit_error(
+							"This case value in this [switch] statement was already used",
+							instr.when_switch_stmt.cases[i].values[j]
+						);
+						return Result::ERROR;
+					}
+
+					j += 1;
+				}
+
+				i += 1;
+			}
+
+
+			//////////////////
+			// check for missing values, unneded else
+
+			evo::debugAssert(
+				decayed_cond_type.qualifiers().empty(), "switch cond without #noJump cannot have qualifiers"
+			);
+
+			switch(decayed_cond_type.baseTypeID().kind()){
+				case BaseType::Kind::PRIMITIVE: {
+					const BaseType::Primitive& primitive_type =
+						this->context.getTypeManager().getPrimitive(decayed_cond_type.baseTypeID().primitiveID());
+					
+					switch(primitive_type.kind()){
+						case Token::Kind::TYPE_INT:          case Token::Kind::TYPE_ISIZE:
+						case Token::Kind::TYPE_I_N:          case Token::Kind::TYPE_UINT:
+						case Token::Kind::TYPE_USIZE:        case Token::Kind::TYPE_UI_N:
+						case Token::Kind::TYPE_BYTE:         case Token::Kind::TYPE_TYPEID:
+						case Token::Kind::TYPE_C_WCHAR:      case Token::Kind::TYPE_C_SHORT:
+						case Token::Kind::TYPE_C_USHORT:     case Token::Kind::TYPE_C_INT:
+						case Token::Kind::TYPE_C_UINT:       case Token::Kind::TYPE_C_LONG:
+						case Token::Kind::TYPE_C_ULONG:      case Token::Kind::TYPE_C_LONG_LONG:
+						case Token::Kind::TYPE_C_ULONG_LONG: {
+							const size_t bit_width =
+								this->context.getTypeManager().numBits(decayed_cond_type.baseTypeID(), false);
+
+							const size_t expected_num_cases = size_t(1) << bit_width; // 0 means > 2^64
+
+							if(else_index.has_value()){
+								if(used_values.size() == expected_num_cases && used_values.size() != 0){
+									this->emit_error(
+										"Extraneous [else] in [switch] statement",
+										instr.when_switch_stmt.cases[*else_index].block
+									);
+									return Result::ERROR;
+								}
+								
+							}else{
+								if(
+									switch_kind == sema::Switch::Kind::COMPLETE
+									&& used_values.size() != expected_num_cases
+									&& used_values.size() != 0
+								){
+									const size_t num_missing = expected_num_cases - used_values.size();
+
+									if(num_missing == 1){
+										this->emit_error(
+											std::format("Missing 1 case in [switch] statement", num_missing),
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+										
+									}else{
+										this->emit_error(
+											std::format("Missing {} cases in [switch] statement", num_missing),
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+									}
+								}
+							}
+						} break;
+
+						case Token::Kind::TYPE_CHAR: {
+							if(else_index.has_value()){
+								if(used_values.size() == 256){
+									this->emit_error(
+										"Extraneous [else] in [switch] statement",
+										instr.when_switch_stmt.cases[*else_index].block
+									);
+									return Result::ERROR;
+								}
+								
+							}else{
+								if(
+									switch_kind == sema::Switch::Kind::COMPLETE
+									&& used_values.size() != 256
+								){
+									const size_t num_missing = 256 - used_values.size();
+
+									if(num_missing == 1){
+										this->emit_error(
+											std::format("Missing 1 case in [switch] statement", num_missing),
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+										
+									}else{
+										this->emit_error(
+											std::format("Missing {} cases in [switch] statement", num_missing),
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+									}
+								}
+							}
+						} break;
+
+						case Token::Kind::TYPE_BOOL: case Token::Kind::TYPE_BOOL32: {
+							if(else_index.has_value()){
+								if(used_values.size() == 2){
+									this->emit_error(
+										"Extraneous [else] in [switch] statement",
+										instr.when_switch_stmt.cases[*else_index].block
+									);
+									return Result::ERROR;
+								}
+								
+							}else{
+								if(
+									switch_kind == sema::Switch::Kind::COMPLETE
+									&& used_values.size() != 2
+								){
+									const size_t num_missing = 2 - used_values.size();
+
+									if(num_missing == 1){
+										this->emit_error(
+											"Missing 1 case in [switch] statement",
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+										
+									}else{
+										this->emit_error(
+											"Missing 2 cases in [switch] statement",
+											instr.when_switch_stmt
+										);
+										return Result::ERROR;
+									}
+								}
+							}
+						} break;
+
+						case Token::Kind::TYPE_F16:  case Token::Kind::TYPE_F32:
+						case Token::Kind::TYPE_F64:  case Token::Kind::TYPE_F80:
+						case Token::Kind::TYPE_F128: case Token::Kind::TYPE_RAWPTR:
+						case Token::Kind::TYPE_C_LONG_DOUBLE: {
+							evo::debugFatalBreak("Invalid switch cond type (base type)");
+						} break;
+
+						default: evo::debugFatalBreak("Not a type");
+					}
+				} break;
+
+				case BaseType::Kind::UNION: {
+					const BaseType::Union& union_type =
+						this->context.getTypeManager().getUnion(decayed_cond_type.baseTypeID().unionID());
+
+					evo::debugAssert(union_type.isUntagged == false, "Invalid switch cond type (base type)");
+
+					if(else_index.has_value()){
+						if(used_values.size() == union_type.fields.size()){
+							this->emit_error(
+								"Extraneous [else] in [switch] statement",
+								instr.when_switch_stmt.cases[*else_index].block
+							);
+							return Result::ERROR;
+						}
+						
+					}else{
+						if(
+							switch_kind == sema::Switch::Kind::COMPLETE
+							&& used_values.size() != union_type.fields.size()
+						){
+							const size_t num_missing = union_type.fields.size() - used_values.size();
+
+							if(num_missing == 1){
+								this->emit_error(
+									std::format("Missing 1 case in [switch] statement", num_missing),
+									instr.when_switch_stmt
+								);
+								return Result::ERROR;
+								
+							}else{
+								this->emit_error(
+									std::format("Missing {} cases in [switch] statement", num_missing),
+									instr.when_switch_stmt
+								);
+								return Result::ERROR;
+							}
+						}
+					}
+				} break;
+
+				case BaseType::Kind::ENUM: {
+					const BaseType::Enum& enum_type =
+						this->context.getTypeManager().getEnum(decayed_cond_type.baseTypeID().enumID());
+
+					if(else_index.has_value()){
+						if(used_values.size() == enum_type.enumerators.size()){
+							this->emit_error(
+								"Extraneous [else] in [switch] statement",
+								instr.when_switch_stmt.cases[*else_index].block
+							);
+							return Result::ERROR;
+						}
+						
+					}else{
+						if(
+							switch_kind == sema::Switch::Kind::COMPLETE
+							&& used_values.size() != enum_type.enumerators.size()
+						){
+							const size_t num_missing = enum_type.enumerators.size() - used_values.size();
+
+							if(num_missing == 1){
+								this->emit_error(
+									std::format("Missing 1 case in [switch] statement", num_missing),
+									instr.when_switch_stmt
+								);
+								return Result::ERROR;
+								
+							}else{
+								this->emit_error(
+									std::format("Missing {} cases in [switch] statement", num_missing),
+									instr.when_switch_stmt
+								);
+								return Result::ERROR;
+							}
+						}
+					}
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Invalid switch cond type (base type)");
+				} break;
+			}
+
+
+			//////////////////
+			// select case
+
+			const sema::Expr cond_expr = [&]() -> sema::Expr {
+				if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
+					return *this->context.getSemaBuffer().getGlobalVar(cond.getExpr().globalVarID()).expr.load();
+				}else{
+					return cond.getExpr();
+				}
+			}();
+
+			const core::GenericInt& cond_value =
+				this->context.getSemaBuffer().getIntValue(cond_expr.intValueID()).value;
+
+			auto selected_case_index = std::optional<size_t>();
+			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
+				for(size_t j = 0; const SymbolProc::TermInfoID value_id : when_switch_case.values){
+					TermInfo& value_term_info = this->get_term_info(value_id);
+
+					const core::GenericInt& value =
+						this->context.getSemaBuffer().getIntValue(value_term_info.getExpr().intValueID()).value;
+					
+					if(cond_value.eq(value)){
+						selected_case_index = i;
+						break;
+					}
+
+					j += 1;
+				}
+
+				if(selected_case_index.has_value()){ break; }
+
+				i += 1;
+			}
+
+			if(selected_case_index.has_value() == false){
+				if(else_index.has_value()){
+					selected_case_index = *else_index;
+					
+				}else{
+					this->emit_error("Didn't find matching case for this value", instr.when_switch_stmt.cond);
+					return Result::ERROR;
+				}
+			}
+
+
+			//////////////////
+			// signal selected and passed symbols
+
+			auto passed_symbols = std::queue<SymbolProc::ID>();
+			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
+				if(i != *selected_case_index){
+					for(SymbolProc::ID passed_symbol_id : when_switch_case.symbol_scope){
+						passed_symbols.push(passed_symbol_id);
+					}
+				}
+
+				i += 1;
+			}
+
+
+			SymbolProc* encapsulating_symbol_proc = this->symbol_proc.parent;
+			while(
+				encapsulating_symbol_proc != nullptr
+				&& encapsulating_symbol_proc->getASTNode().kind() == AST::Kind::WHEN_CONDITIONAL
+			){
+				encapsulating_symbol_proc = encapsulating_symbol_proc->parent;
+			}
+
+			for(SymbolProc::ID symbol_scope_id : instr.cases[*selected_case_index].symbol_scope){
+				SymbolProc& symbol = this->context.symbol_proc_manager.getSymbolProc(symbol_scope_id);
+				symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+					*this->symbol_proc.sema_scope_id
+				);
+
+				if(encapsulating_symbol_proc != nullptr){
+					symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+					encapsulating_symbol_proc->waiting_for.emplace_back(symbol_scope_id);
+				}
+
+				this->set_waiting_for_is_done(symbol_scope_id, this->symbol_proc.getID());	
+			}
+
+			while(passed_symbols.empty() == false){
+				SymbolProc::ID passed_symbol_id = passed_symbols.front();
+				passed_symbols.pop();
+
+
+				SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
+
+				{
+					const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
+					passed_symbol.setStatusPassedOnByWhenCond();
+				}
+				this->context.symbol_proc_manager.symbol_proc_done();
+
+
+				{
+					const auto lock =
+						std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
+
+					for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
+						this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+					}
+					for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
+						this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+					}
+				}
+
+
+				if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
+					const SymbolProc::WhenCondInfo& passed_when_cond_info =
+						passed_symbol.extra_info.as<SymbolProc::WhenCondInfo>();
+
+					for(const SymbolProc::ID& then_id : passed_when_cond_info.then_ids){
+						passed_symbols.push(then_id);
+					}
+
+					for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
+						passed_symbols.push(else_id);
+					}
+				}
+			}
+		}
+
+		this->propagate_finished_def();
 		return Result::SUCCESS;
 	}
 
@@ -32986,13 +33439,10 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze_switch_attrs(
-		const AST::Switch& switch_stmt, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+		const AST::AttributeBlock& attribute_block, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<SwitchAttrs> {
 		auto attr_no_jump = Attribute(*this, "noJump");
 		auto attr_partial = Attribute(*this, "partial");
-
-		const AST::AttributeBlock& attribute_block = 
-			this->source.getASTBuffer().getAttributeBlock(switch_stmt.attributeBlock);
 
 		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
 			EVO_DEFER([&](){ i += 1; });
@@ -33032,6 +33482,7 @@ namespace pcit::panther{
 		}
 
 		return SwitchAttrs{
+			.is_no_jump = attr_no_jump.is_set(),
 			.is_partial = attr_partial.is_set(),
 		};
 	}

@@ -226,6 +226,7 @@ namespace pcit::panther{
 						break; case AST::Kind::INTERFACE_DEF:          evo::printlnGray("\tAST Node: INTERFACE_DEF");
 						break; case AST::Kind::INTERFACE_IMPL:         evo::printlnGray("\tAST Node: INTERFACE_IMPL");
 						break; case AST::Kind::WHEN_CONDITIONAL:       evo::printlnGray("\tAST Node: WHEN_CONDITIONAL");
+						break; case AST::Kind::WHEN_SWITCH:            evo::printlnGray("\tAST Node: WHEN_SWITCH");
 						break; case AST::Kind::FUNC_CALL:              evo::printlnGray("\tAST Node: FUNC_CALL");
 						break; default: 
 							evo::printlnRed(
@@ -282,6 +283,7 @@ namespace pcit::panther{
 					break; case AST::Kind::INTERFACE_DEF:          print_field("AST Node", "INTERFACE_DEF");
 					break; case AST::Kind::INTERFACE_IMPL:         print_field("AST Node", "INTERFACE_IMPL");
 					break; case AST::Kind::WHEN_CONDITIONAL:       print_field("AST Node", "WHEN_CONDITIONAL");
+					break; case AST::Kind::WHEN_SWITCH:            print_field("AST Node", "WHEN_SWITCH");
 					break; case AST::Kind::FUNC_CALL:              print_field("AST Node", "FUNC_CALL");
 					break; default:
 						evo::printlnRed(

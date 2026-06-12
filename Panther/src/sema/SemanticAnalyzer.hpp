@@ -154,6 +154,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_begin_case(const Instruction::BeginCase& instr) -> Result;
 			[[nodiscard]] auto instr_end_case() -> Result;
 			[[nodiscard]] auto instr_end_switch(const Instruction::EndSwitch& instr) -> Result;
+			[[nodiscard]] auto instr_when_switch(const Instruction::WhenSwitch& instr) -> Result;
 			[[nodiscard]] auto instr_begin_defer(const Instruction::BeginDefer& instr) -> Result;
 			[[nodiscard]] auto instr_end_defer(const Instruction::EndDefer& instr) -> Result;
 			[[nodiscard]] auto instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result;
@@ -983,10 +984,11 @@ namespace pcit::panther{
 
 
 			struct SwitchAttrs{
+				bool is_no_jump;
 				bool is_partial;
 			};
 			[[nodiscard]] auto analyze_switch_attrs(
-				const AST::Switch& switch_stmt,
+				const AST::AttributeBlock& attribute_block,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<SwitchAttrs>;
 

@@ -72,6 +72,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto build_interface_def(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_interface_impl(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
+			[[nodiscard]] auto build_when_switch(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_func_call(const AST::Node& stmt) -> evo::Result<>;
 
 			template<bool NEEDS_DEF>
@@ -101,6 +102,7 @@ namespace pcit::panther{
 			auto analyze_delete(const AST::Delete& delete_stmt) -> evo::Result<>;
 			auto analyze_conditional(const AST::Conditional& conditional_stmt) -> evo::Result<>;
 			auto analyze_when_cond(const AST::WhenConditional& when_stmt) -> evo::Result<>;
+			auto analyze_when_switch(const AST::WhenSwitch& when_switch_stmt) -> evo::Result<>;
 			auto analyze_while(const AST::While& while_stmt) -> evo::Result<>;
 			auto analyze_for(const AST::For& for_stmt) -> evo::Result<>;
 			auto analyze_switch(const AST::Switch& switch_stmt) -> evo::Result<>;

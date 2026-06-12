@@ -362,6 +362,10 @@ namespace pthr{
 						this->print_conditional(this->ast_buffer.getWhenConditional(stmt));
 					} break;
 
+					case panther::AST::Kind::WHEN_SWITCH: {
+						this->print_when_switch(this->ast_buffer.getWhenSwitch(stmt));
+					} break;
+
 					case panther::AST::Kind::WHILE: {
 						this->print_while(this->ast_buffer.getWhile(stmt));
 					} break;
@@ -1424,6 +1428,86 @@ namespace pthr{
 			}
 
 
+			auto print_when_switch(const panther::AST::WhenSwitch& when_switch_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("When Switch");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Condition");
+					this->printer.println();
+					this->indenter.push();
+					this->print_expr(when_switch_stmt.cond);
+					this->indenter.pop();
+
+					this->indenter.set_arrow();
+					this->print_attribute_block(this->ast_buffer.getAttributeBlock(when_switch_stmt.attributeBlock));
+
+					this->indenter.print_end();
+					this->print_minor_header("Cases");
+					{
+						this->indenter.push();
+						this->printer.println();
+						
+						for(size_t i = 0; const panther::AST::WhenSwitch::Case& switch_case : when_switch_stmt.cases){
+							if(i + 1 < when_switch_stmt.cases.size()){
+								this->indenter.print_arrow();
+							}else{
+								this->indenter.print_end();
+							}
+
+							{
+								this->print_major_header(std::format("Case {}", i));
+								this->indenter.push();
+
+								this->indenter.print_arrow();
+								this->print_minor_header("Values");
+								if(switch_case.values.empty()){
+									this->printer.printMagenta("else\n");
+									
+								}else{
+									this->printer.println();
+									this->indenter.push();
+									for(size_t j = 0; const panther::AST::Node value : switch_case.values){
+										if(j + 1 < switch_case.values.size()){
+											this->indenter.print_arrow();
+										}else{
+											this->indenter.print_end();
+										}
+
+										this->print_major_header(std::format("Value {}", j));
+										this->indenter.push();
+										this->print_expr(value);
+										this->indenter.pop();
+
+										j += 1;
+									}
+									this->indenter.pop();
+								}
+
+								
+
+								this->indenter.print_end();
+								this->print_minor_header("Block");
+								this->print_block(this->source.getASTBuffer().getBlock(switch_case.block));
+
+								this->indenter.pop();
+							}
+
+							i += 1;
+						}
+
+						this->indenter.pop();
+
+					}
+
+
+					this->indenter.pop();
+				}
+			}
+
 			auto print_switch(const panther::AST::Switch& switch_stmt) -> void {
 				this->indenter.print();
 				this->print_major_header("Switch");
@@ -1990,12 +2074,13 @@ namespace pthr{
 					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
 					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
 					case panther::AST::Kind::FOR:              case panther::AST::Kind::SWITCH:
-					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::UNSAFE:
-					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::FUNC_TYPE:
-					case panther::AST::Kind::INTERFACE_MAP:    case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::DEDUCER:          case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::WHEN_SWITCH:      case panther::AST::Kind::DEFER:
+					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
+					case panther::AST::Kind::UNSAFE:           case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::FUNC_TYPE:        case panther::AST::Kind::INTERFACE_MAP:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

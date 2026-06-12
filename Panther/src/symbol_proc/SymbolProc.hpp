@@ -617,6 +617,19 @@ namespace pcit::panther{
 		};
 
 
+		struct WhenSwitch{
+			struct Case{
+				evo::SmallVector<SymbolProcTermInfoID> values;
+				evo::SmallVector<SymbolProcID> symbol_scope; // SymbolProcBuilder::SymbolScope
+			};
+
+			const AST::WhenSwitch& when_switch_stmt;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			SymbolProcTermInfoID cond;
+			evo::SmallVector<Case> cases;
+		};
+
+
 
 		struct BeginDefer{
 			const AST::Defer& defer_stmt;
@@ -1188,6 +1201,7 @@ namespace pcit::panther{
 			BEGIN_CASE,
 			END_CASE,
 			END_SWITCH,
+			WHEN_SWITCH,
 			BEGIN_DEFER,
 			END_DEFER,
 			BEGIN_STMT_BLOCK,

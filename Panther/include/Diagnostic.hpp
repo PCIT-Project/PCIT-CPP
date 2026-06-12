@@ -101,6 +101,8 @@ namespace pcit::panther{
 				[[nodiscard]] static auto get(const AST::While& while_loop, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::For& for_loop, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Switch& switch_stmt, const class Source& src) -> Location;
+				[[nodiscard]] static auto get(const AST::WhenSwitch& when_switch_stmt, const class Source& src)
+					-> Location;
 				[[nodiscard]] static auto get(const AST::Defer& defer, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Block& block, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::FuncCall& func_call, const class Source& src) -> Location;

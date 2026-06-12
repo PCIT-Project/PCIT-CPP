@@ -44,6 +44,7 @@ namespace pcit::panther::AST{
 		WHILE,
 		FOR,
 		SWITCH,
+		WHEN_SWITCH,
 		DEFER,
 		BREAK,
 		CONTINUE,
@@ -354,6 +355,20 @@ namespace pcit::panther::AST{
 	};
 
 	struct Switch{
+		struct Case{
+			Token::ID token;
+			evo::SmallVector<Node> values; // empty if `else`
+			Node block;
+		};
+
+		Token::ID keyword;
+		Token::ID closeBrace;
+		Node cond;
+		Node attributeBlock;
+		evo::SmallVector<Case> cases;
+	};
+
+	struct WhenSwitch{
 		struct Case{
 			Token::ID token;
 			evo::SmallVector<Node> values; // empty if `else`

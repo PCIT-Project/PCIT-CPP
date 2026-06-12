@@ -74,6 +74,9 @@ namespace pcit::panther{
 			break; case AST::Kind::WHEN_CONDITIONAL:
 				if(this->build_when_conditional(stmt).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::WHEN_SWITCH:
+				if(this->build_when_switch(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::FUNC_CALL:
 				if(this->build_func_call(stmt).isError()){ return evo::resultError; }
 
@@ -561,6 +564,10 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::WHEN_CONDITIONAL: {
+				return std::string_view();
+			} break;
+
+			case AST::Kind::WHEN_SWITCH: {
 				return std::string_view();
 			} break;
 
@@ -1622,6 +1629,66 @@ namespace pcit::panther{
 		return evo::Result<>();
 	}
 
+
+	auto SymbolProcBuilder::build_when_switch(const AST::Node& stmt) -> evo::Result<> {
+		const AST::WhenSwitch& when_switch = this->source.getASTBuffer().getWhenSwitch(stmt);
+
+		const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(when_switch.cond);
+		if(cond.isError()){ return evo::resultError; }
+
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(when_switch.attributeBlock);
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(attribute_block);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+		auto cases = evo::SmallVector<Instruction::WhenSwitch::Case>();
+		cases.reserve(when_switch.cases.size());
+
+		for(const AST::WhenSwitch::Case& when_switch_case : when_switch.cases){
+			Instruction::WhenSwitch::Case& symbol_proc_case = cases.emplace_back();
+
+			for(const AST::Node& value : when_switch_case.values){
+				const evo::Result<SymbolProc::TermInfoID> value_res = this->analyze_expr<true>(value);
+				if(value_res.isError()){ return evo::resultError; }
+
+				symbol_proc_case.values.emplace_back(value_res.value());
+			}
+
+			this->symbol_scopes.emplace_back(&symbol_proc_case.symbol_scope);
+			for(const AST::Node& block_stmt : this->source.getASTBuffer().getBlock(when_switch_case.block).statements){
+				if(this->build(block_stmt).isError()){ return evo::resultError; }
+			}
+			this->symbol_scopes.pop_back();
+		}
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWhenSwitch(
+				when_switch, std::move(attribute_params_info.value()), cond.value(), std::move(cases)
+			)
+		);
+
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol.symbol_proc_id);
+			current_symbol.symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol.symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace("", this->get_current_symbol().symbol_proc_id);
+		}
+
+		return evo::Result<>();
+	}
+
+
 	auto SymbolProcBuilder::build_func_call(const AST::Node& stmt) -> evo::Result<> {
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(stmt);
 
@@ -2152,6 +2219,7 @@ namespace pcit::panther{
 			case AST::Kind::DELETE:                 return this->analyze_delete(ast_buffer.getDelete(stmt));
 			case AST::Kind::CONDITIONAL:            return this->analyze_conditional(ast_buffer.getConditional(stmt));
 			case AST::Kind::WHEN_CONDITIONAL:       return this->analyze_when_cond(ast_buffer.getWhenConditional(stmt));
+			case AST::Kind::WHEN_SWITCH:            return this->analyze_when_switch(ast_buffer.getWhenSwitch(stmt));
 			case AST::Kind::WHILE:                  return this->analyze_while(ast_buffer.getWhile(stmt));
 			case AST::Kind::FOR:                    return this->analyze_for(ast_buffer.getFor(stmt));
 			case AST::Kind::SWITCH:                 return this->analyze_switch(ast_buffer.getSwitch(stmt));
@@ -2515,6 +2583,12 @@ namespace pcit::panther{
 				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
 		}
 
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_when_switch(const AST::WhenSwitch& when_switch_stmt) -> evo::Result<> {
+		this->emit_error("When switch in function scope is unimplemented", when_switch_stmt);
 		return evo::Result<>();
 	}
 
