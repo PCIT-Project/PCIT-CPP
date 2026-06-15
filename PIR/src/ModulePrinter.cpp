@@ -403,10 +403,9 @@ namespace pcit::pir{
 		this->printer.print(" ");
 
 		this->print_linkage(global_var.linkage);
-		this->printer.print(" ");
 
 		if(global_var.value.is<GlobalVar::NoValue>() == false){
-			this->printer.printRed("= ");
+			this->printer.printRed(" = ");
 			this->printGlobalVarValue(global_var.value);
 		}
 

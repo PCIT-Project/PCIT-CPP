@@ -36,6 +36,7 @@ namespace pcit::panther{
 			struct SymbolInfo{
 				Symbol symbol;
 				ID sourceID;
+				bool isPub;
 			};
 
 
@@ -48,8 +49,15 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto getID() const -> ID { return this->id; }
 			[[nodiscard]] auto getPath() const -> const std::filesystem::path& { return this->path; }
+			[[nodiscard]] auto getSystemIncludeDirectories() const -> evo::ArrayProxy<std::string> {
+				return this->system_include_directories;
+			}
+			[[nodiscard]] auto getIncludeDirectories() const -> evo::ArrayProxy<std::string> {
+				return this->include_directories;
+			}
 			[[nodiscard]] auto getData() const -> const std::string& { return this->data; }
 			[[nodiscard]] auto isCPP() const -> bool { return this->is_cpp; }
+			[[nodiscard]] auto isImportedByPthr() const -> bool { return this->is_imported_by_pthr; }
 			
 			[[nodiscard]] auto getPIRMetaFileID() const -> std::optional<pir::meta::File::ID> {
 				return this->pir_file_id;
@@ -83,15 +91,15 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// imported symbols
 
-			auto addImportedSymbol(std::string&& symbol_name, Symbol symbol, ID source_id) -> void {
+			auto addImportedSymbol(std::string&& symbol_name, Symbol symbol, ID source_id, bool is_pub) -> void {
 				evo::debugAssert(this->isSymbolImportComplete() == false, "symbol import was already completed");
 
 				const auto symbol_name_view = std::string_view(this->names.emplace_back(std::move(symbol_name)));
-				this->imported_symbols.emplace(symbol_name_view, SymbolInfo(symbol, source_id));
+				this->imported_symbols.emplace(symbol_name_view, SymbolInfo(symbol, source_id, is_pub));
 			}
 
-			auto addImportedSymbol(std::string_view symbol_name, Symbol symbol, ID source_id) -> void {
-				return this->addImportedSymbol(std::string(symbol_name), symbol, source_id);
+			auto addImportedSymbol(std::string_view symbol_name, Symbol symbol, ID source_id, bool is_pub) -> void {
+				return this->addImportedSymbol(std::string(symbol_name), symbol, source_id, is_pub);
 			}
 
 
@@ -171,14 +179,20 @@ namespace pcit::panther{
 		private:
 			CFamilySource(
 				std::filesystem::path&& _path,
+				evo::SmallVector<std::string>&& _system_include_directories,
+				evo::SmallVector<std::string>&& _include_directories,
 				std::string&& data_str,
 				bool _is_cpp,
+				bool _is_imported_by_pthr,
 				std::optional<pir::meta::FileID> _pir_file_id
 			) :
 				id(ID(0)),
 				path(std::move(_path)),
+				system_include_directories(std::move(_system_include_directories)),
+				include_directories(std::move(_include_directories)),
 				data(std::move(data_str)),
 				is_cpp(_is_cpp),
+				is_imported_by_pthr(_is_imported_by_pthr),
 				pir_file_id(_pir_file_id)
 			{}
 
@@ -195,8 +209,11 @@ namespace pcit::panther{
 		private:
 			ID id;
 			std::filesystem::path path;
+			evo::SmallVector<std::string> system_include_directories;
+			evo::SmallVector<std::string> include_directories;
 			std::string data;
 			bool is_cpp;
+			bool is_imported_by_pthr;
 			std::optional<pir::meta::FileID> pir_file_id;
 
 			core::SyncLinearStepAlloc<SavedDeclInfo, DeclInfoID> decl_infos{};

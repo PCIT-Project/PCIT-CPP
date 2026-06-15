@@ -512,14 +512,40 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	}
 
 	for(const panther::Context::PantherBuildConfig::CFamilyHeader& c_family_header : config.cFamilyHeaders){
+		const std::string_view header_path = static_cast<std::string_view>(c_family_header.path);
+
+		const std::filesystem::path normalized_header_path = create_absolute_path(
+			std::filesystem::path(header_path), cmd_args_config.workingDirectory
+		);
+
+		auto system_include_directories = evo::SmallVector<std::string>();
+		for(
+			panther::Context::PantherBuildConfig::StringRef system_include_directory
+			: c_family_header.systemIncludeDirectories
+		){
+			system_include_directories.emplace_back(static_cast<std::string>(system_include_directory));
+		}
+
+		auto include_directories = evo::SmallVector<std::string>();
+		for(panther::Context::PantherBuildConfig::StringRef include_directory : c_family_header.includeDirectories){
+			include_directories.emplace_back(static_cast<std::string>(include_directory));
+		}
+
+
 		const panther::Context::AddSourceResult result = [&](){
 			if(c_family_header.isCPP){
 				return context.addCPPHeaderFile(
-					static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
+					normalized_header_path,
+					std::move(system_include_directories),
+					std::move(include_directories),
+					c_family_header.addIncludesToPubApi
 				);
 			}else{
 				return context.addCHeaderFile(
-					static_cast<std::string_view>(c_family_header.path), c_family_header.addIncludesToPubApi
+					normalized_header_path,
+					std::move(system_include_directories),
+					std::move(include_directories),
+					c_family_header.addIncludesToPubApi
 				);
 			}
 		}();

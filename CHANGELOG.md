@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.323.0"></a>
+## v0.0.323.0
+
+### Panther
+- Added `@build.CFamilyHeader.systemIncludeDirectories`
+- Added `@build.CFamilyHeader.includeDirectories`
+- Fixed various issue with importing c-family headers
+- Fixed lowering of debug info of `CLongDouble`
+
+### pthr
+- Fixed c-family header lookup not using working directory
+
+
+<!---------------------------------->
 <a name="v0.0.322.1"></a>
 ## v0.0.322.1
 
@@ -21,7 +35,7 @@
 
 <!---------------------------------->
 <a name="v0.0.321.0"></a>
-## v0.0.321.0
+## v0.0.321.0w
 
 ### Panther
 - Added function attribute `#rt`

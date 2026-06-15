@@ -340,8 +340,12 @@ _CRTIMP double __cdecl scalb (double, long);
 #ifdef __GNUC__
 #define HUGE_VALF	__builtin_huge_valf()
 #define HUGE_VALL	__builtin_huge_vall()
+#ifndef INFINITY // ADDED BY PCIT-PROJECT: guard clause to prevent redefinition with "any/float.h:164"
 #define INFINITY	__builtin_inff()
+#endif
+#ifndef NAN // ADDED BY PCIT-PROJECT: guard clause to prevent redefinition with "any/float.h:165"
 #define NAN		__builtin_nanf("")
+#endif
 #else
 extern const float __INFF;
 #define HUGE_VALF __INFF

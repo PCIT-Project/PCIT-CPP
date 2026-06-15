@@ -128,7 +128,7 @@ namespace pcit::clangint{
 		clang::QualType target_qual_type = qual_type;
 		while(true){
 			auto split = target_qual_type.split();
-			
+
 			switch(split.Ty->getTypeClass()){
 				case clang::Type::Decayed: {
 					target_qual_type = split.Ty->getPointeeType();
@@ -213,6 +213,14 @@ namespace pcit::clangint{
 						std::move(qualifiers),
 						split.Quals.hasConst()
 					);
+				} break;
+
+				// Represents a K&R-style 'int foo()' function, which has no information available about its arguments
+				case clang::Type::FunctionNoProto: {
+					// const clang::FunctionNoProtoType& function_no_proto_type = 
+					// 	*clang::cast<clang::FunctionNoProtoType>(split.Ty);
+
+					return Type(BaseType::Primitive::UNKNOWN, std::move(qualifiers), split.Quals.hasConst());
 				} break;
 
 				case clang::Type::Attributed: {
@@ -359,10 +367,17 @@ namespace pcit::clangint{
 
 				const clang::PresumedLoc presumed_loc = this->source_manager.getPresumedLoc(func_decl->getLocation());
 
+				const Type func_type = make_type(func_decl->getType(), this->api);
+
+				// Represents a K&R-style 'int foo()' function, which has no information available about its arguments
+				if(func_type.baseType.is<BaseType::Primitive>()){
+					return true;
+				}
+
 				this->api.addFunction(
 					std::move(name),
 					std::move(mangled_name),
-					make_type(func_decl->getType(), this->api).baseType.as<BaseType::Function>(),
+					func_type.baseType.as<BaseType::Function>(),
 					std::move(params),
 					func_decl->isNoReturn(),
 					func_decl->isInlined(),
@@ -667,12 +682,17 @@ namespace pcit::clangint{
 
 
 	[[nodiscard]] static auto get_compiler_args(
-		const std::string& file_name, evo::Variant<COpts, CPPOpts> opts, core::Target target, bool include_debug_info
+		const std::string& file_name,
+		evo::Variant<COpts,
+		CPPOpts> opts,
+		core::Target target,
+		bool include_debug_info,
+		evo::ArrayProxy<std::string> system_include_directories,
+		evo::ArrayProxy<std::string> include_directories
 	) -> evo::SmallVector<const char*> {
 		auto args = evo::SmallVector<const char*>{
 			file_name.c_str(),
-			"-Wall", "-Wextra", // TODO(FUTURE): figure out why these don't seem to do anything
-			"-D__GNUC__",
+			// "-D__GNUC__",
 			"-DNO_OLDNAMES",
 		};
 
@@ -732,34 +752,31 @@ namespace pcit::clangint{
 			}
 		});
 
-		args.emplace_back("-I");
-		args.emplace_back("../extern/libc/include/any");
+		args.emplace_back("-fgnuc-version=4.2.1");
+
+
+		for(const std::string& system_include_directory : system_include_directories){
+			args.emplace_back("-isystem");
+			args.emplace_back(system_include_directory.c_str());
+		}
+
+		for(const std::string& include_directory : include_directories){
+			args.emplace_back("-I");
+			args.emplace_back(include_directory.c_str());
+		}
 
 		switch(target.platform){
 			case core::Target::Platform::WINDOWS: {
-				args.emplace_back("-I");
-				args.emplace_back("../extern/libc/include/any-windows-any");
-
 				args.emplace_back("-fms-extensions");
+
+				// TODO(FUTURE): figure out why these do nothing
+				// For including windows.h
+				args.emplace_back("-Wno-pragma-pack");
+				args.emplace_back("-Wno-microsoft-anon-tag");
 			} break;
 
 			case core::Target::Platform::LINUX: {
-				args.emplace_back("-I");
-				args.emplace_back("../extern/libc/include/any-linux-any");
-
-				args.emplace_back("-I");
-				args.emplace_back("../extern/libc/include/generic-glibc");
-
-				switch(target.architecture){
-					case core::Target::Architecture::X86_64: {
-						args.emplace_back("-I");
-						args.emplace_back("../extern/libc/include/x86+64-linux-gnu");
-					} break;
-
-					case core::Target::Architecture::UNKNOWN: {
-						// do nothing...
-					} break;
-				}
+				// do nothing...
 			} break;
 
 			case core::Target::Platform::UNKNOWN: {
@@ -781,6 +798,8 @@ namespace pcit::clangint{
 		core::Target target,
 		bool include_debug_info,
 		DiagnosticList& diagnostic_list,
+		evo::ArrayProxy<std::string> system_include_directories,
+		evo::ArrayProxy<std::string> include_directories,
 		API& api
 	) -> evo::Result<> {
 		auto diagnostic_ids = llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs());
@@ -788,7 +807,9 @@ namespace pcit::clangint{
 		auto diagnostic_options = clang::DiagnosticOptions();
 		auto diagnostic_consumer = DiagnosticConsumer(diagnostic_list);
 
-		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target, include_debug_info);
+		const evo::SmallVector<const char*> args = get_compiler_args(
+			file_name, opts, target, include_debug_info, system_include_directories, include_directories
+		);
 		
 
 		// will be given ownership to clang by `setDiagnostics`
@@ -836,14 +857,18 @@ namespace pcit::clangint{
 		core::Target target,
 		bool include_debug_info,
 		llvm::LLVMContext* llvm_context,
-		DiagnosticList& diagnostic_list
+		DiagnosticList& diagnostic_list,
+		evo::ArrayProxy<std::string> system_include_directories,
+		evo::ArrayProxy<std::string> include_directories
 	) -> evo::Result<llvm::Module*> {
 		auto diagnostic_ids = llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs>(new clang::DiagnosticIDs());
 
 		auto diagnostic_options = clang::DiagnosticOptions();
 		auto diagnostic_consumer = DiagnosticConsumer(diagnostic_list);
 
-		const evo::SmallVector<const char*> args = get_compiler_args(file_name, opts, target, include_debug_info);
+		const evo::SmallVector<const char*> args = get_compiler_args(
+			file_name, opts, target, include_debug_info, system_include_directories, include_directories
+		);
 		
 		// will be given ownership to clang by `setDiagnostics`
 		clang::DiagnosticsEngine* diagnostics_engine =

@@ -322,6 +322,8 @@ namespace pcit::panther{
 
 				struct CFamilyHeader{
 					StringRef path;
+					evo::ArrayProxy<StringRef> systemIncludeDirectories;
+					evo::ArrayProxy<StringRef> includeDirectories;
 					bool isCPP;
 					bool addIncludesToPubApi;
 				};
@@ -475,10 +477,18 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto addStdLib(Source::Package::ID package_id) -> void;
 
-			[[nodiscard]] auto addCHeaderFile(const std::filesystem::path& path, bool add_includes_to_pub_api)
-				-> AddSourceResult;
-			[[nodiscard]] auto addCPPHeaderFile(const std::filesystem::path& path, bool add_includes_to_pub_api)
-				-> AddSourceResult;
+			[[nodiscard]] auto addCHeaderFile(
+				const std::filesystem::path& path,
+				evo::SmallVector<std::string>&& system_include_directories,
+				evo::SmallVector<std::string>&& include_directories,
+				bool add_includes_to_pub_api
+			) -> AddSourceResult;
+			[[nodiscard]] auto addCPPHeaderFile(
+				const std::filesystem::path& path,
+				evo::SmallVector<std::string>&& system_include_directories,
+				evo::SmallVector<std::string>&& include_directories,
+				bool add_includes_to_pub_api
+			) -> AddSourceResult;
 
 
 
@@ -527,8 +537,13 @@ namespace pcit::panther{
 				std::filesystem::path&& path, Source::Package::ID package_id
 			) -> evo::Result<Source::ID>;
 
-			auto analyze_c_family_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
-				-> void;
+			auto analyze_c_family_header_impl(
+				std::filesystem::path&& path,
+				evo::SmallVector<std::string>&& system_include_directories,
+				evo::SmallVector<std::string>&& include_directories,
+				bool add_includes_to_pub_api,
+				bool is_cpp
+			) -> void;
 
 
 			enum class LookupSourceIDError{
@@ -557,11 +572,15 @@ namespace pcit::panther{
 
 			struct CHeaderToLoad{
 				std::filesystem::path path;
+				evo::SmallVector<std::string> system_include_directories;
+				evo::SmallVector<std::string> include_directories;
 				bool add_includes_to_pub_api;
 			};
 
 			struct CPPHeaderToLoad{
 				std::filesystem::path path;
+				evo::SmallVector<std::string> system_include_directories;
+				evo::SmallVector<std::string> include_directories;
 				bool add_includes_to_pub_api;
 			};
 

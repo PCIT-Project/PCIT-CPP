@@ -1974,6 +1974,8 @@ namespace pcit::panther{
 				if(created_struct.isComptimeDefaultInitializable){
 					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().init_func = 
 						created_default_init_new_id;
+				}else{
+					sema_to_pir.lowerFuncDecl(created_default_init_new_id);
 				}
 			}
 
@@ -2129,8 +2131,10 @@ namespace pcit::panther{
 				created_struct.deleteOverload = created_default_delete_id;
 
 				if(is_comptime_deletable){
-					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().delete_func = 
+					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
 						created_default_delete_id;
+				}else{
+					sema_to_pir.lowerFuncDecl(created_default_delete_id);
 				}
 			}
 		}
@@ -2328,6 +2332,8 @@ namespace pcit::panther{
 					if(is_comptime_movable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().move_func = 
 							created_default_move_id;
+					}else{
+						sema_to_pir.lowerFuncDecl(created_default_move_id);
 					}
 				}
 			}
@@ -2538,6 +2544,8 @@ namespace pcit::panther{
 					if(is_comptime_copyable){
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
 							created_default_copy_id;
+					}else{
+						sema_to_pir.lowerFuncDecl(created_default_copy_id);
 					}
 				}
 			}
@@ -11567,7 +11575,7 @@ namespace pcit::panther{
 
 					case IntrinsicFunc::Kind::COMPILER_EXECUTABLE_DIRECTORY: {
 						std::string executable_path_str = this->context.getConfig().compilerExecutablePath.string();
-						if(executable_path_str.back() != '/'){
+						if(executable_path_str.back() != '/' && executable_path_str.back() != '\\'){
 							executable_path_str += '/';
 						}
 
@@ -11597,7 +11605,7 @@ namespace pcit::panther{
 
 					case IntrinsicFunc::Kind::COMPILE_WORKING_DIRECTORY: {
 						std::string working_dir_str = this->context.getConfig().workingDirectory.string();
-						if(working_dir_str.back() != '/'){
+						if(working_dir_str.back() != '/' && working_dir_str.back() != '\\'){
 							working_dir_str += '/';
 						}
 
@@ -22503,6 +22511,13 @@ namespace pcit::panther{
 
 		if(c_family_symbol.has_value() == false){
 			this->emit_error(std::format("Module has no symbol named \"{}\"", rhs_ident_str), instr.infix.rhs);
+			return Result::ERROR;
+		}
+
+		if(c_family_symbol->isPub == false){
+			this->emit_error(
+				std::format("Module has symbol named \"{}\", but it isn't imported", rhs_ident_str), instr.infix.rhs
+			);
 			return Result::ERROR;
 		}
 

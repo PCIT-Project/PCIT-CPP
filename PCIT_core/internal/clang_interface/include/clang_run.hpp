@@ -54,6 +54,8 @@ namespace pcit::clangint{
 		core::Target target,
 		bool include_debug_info,
 		DiagnosticList& diagnostic_list,
+		evo::ArrayProxy<std::string> system_include_directories,
+		evo::ArrayProxy<std::string> include_directories,
 		API& api
 	) -> evo::Result<>;
 
@@ -66,7 +68,9 @@ namespace pcit::clangint{
 		core::Target target,
 		bool include_debug_info,
 		llvm::LLVMContext* llvm_context,
-		DiagnosticList& diagnostic_list
+		DiagnosticList& diagnostic_list,
+		evo::ArrayProxy<std::string> system_include_directories,
+		evo::ArrayProxy<std::string> include_directories
 	) -> evo::Result<llvm::Module*>; // consumer must delete the result
 
 	

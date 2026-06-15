@@ -638,10 +638,22 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Should never hit this task");
 
 				}else if constexpr(std::is_same<TaskType, CHeaderToLoad>()){
-					this->analyze_c_family_header_impl(std::move(task.path), task.add_includes_to_pub_api, false);
+					this->analyze_c_family_header_impl(
+						std::move(task.path),
+						std::move(task.system_include_directories),
+						std::move(task.include_directories),
+						task.add_includes_to_pub_api,
+						false
+					);
 
 				}else if constexpr(std::is_same<TaskType, CPPHeaderToLoad>()){
-					this->analyze_c_family_header_impl(std::move(task.path), task.add_includes_to_pub_api, true);
+					this->analyze_c_family_header_impl(
+						std::move(task.path),
+						std::move(task.system_include_directories),
+						std::move(task.include_directories),
+						task.add_includes_to_pub_api,
+						true
+					);
 
 				}else if constexpr(std::is_same<TaskType, SymbolProc::ID>()){
 					evo::debugFatalBreak("Should never hit this task");
@@ -758,7 +770,8 @@ namespace pcit::panther{
 		const pcit::clangint::DiagnosticList& diagnostic_list,
 		Context& context,
 		SourceManager& source_manager,
-		bool is_cpp
+		bool is_cpp,
+		bool print_warnings
 	) -> evo::Result<> {
 		bool errored = false;
 
@@ -807,7 +820,13 @@ namespace pcit::panther{
 				} break;
 
 				case ClangDiagnosticLevel::WARNING: {
-					std::string message = "Clang: " + diagnostic_list.diagnostics[i].message;
+					std::string message = [&]() -> std::string {
+						if(print_warnings){
+							return "Clang: " + diagnostic_list.diagnostics[i].message;
+						}else{
+							return std::string();
+						}
+					}();
 
 					auto infos = evo::SmallVector<Diagnostic::Info>();
 					while(
@@ -815,10 +834,14 @@ namespace pcit::panther{
 						&& diagnostic_list.diagnostics[i + 1].level == ClangDiagnosticLevel::NOTE
 					){
 						i += 1;
-						infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
+						if(print_warnings){
+							infos.emplace_back("Note: " + diagnostic_list.diagnostics[i].message, get_location());
+						}
 					}
 
-					context.emitWarning(std::move(message), location, std::move(infos));
+					if(print_warnings){
+						context.emitWarning(std::move(message), location, std::move(infos));
+					}
 				} break;
 
 				case ClangDiagnosticLevel::REMARK: {
@@ -882,18 +905,20 @@ namespace pcit::panther{
 			target,
 			include_debug_info,
 			llvm_context.native(),
-			diagnostic_list
+			diagnostic_list,
+			c_family_source.getSystemIncludeDirectories(),
+			c_family_source.getIncludeDirectories()
 		);
 
 		if(clang_module.isError()){
 			std::ignore = analyze_and_print_clang_diagnostics(
-				diagnostic_list, context, source_manager, c_family_source.isCPP()
+				diagnostic_list, context, source_manager, c_family_source.isCPP(), false
 			);
 			return evo::resultError;
 		}
 
 		if(analyze_and_print_clang_diagnostics(
-			diagnostic_list, context, source_manager, c_family_source.isCPP()
+			diagnostic_list, context, source_manager, c_family_source.isCPP(), false
 		).isError()){
 			return evo::resultError;
 		}
@@ -955,6 +980,8 @@ namespace pcit::panther{
 
 		for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
 			const CFamilySource& c_family_source = source_manager[c_family_source_id];
+
+			if(c_family_source.isImportedByPthr() == false){ continue; }
 
 			auto llvm_context = llvmint::LLVMContext();
 			llvm_context.init();
@@ -1084,6 +1111,8 @@ namespace pcit::panther{
 
 		for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
 			const CFamilySource& c_family_source = source_manager[c_family_source_id];
+
+			if(c_family_source.isImportedByPthr() == false){ continue; }
 
 			const evo::Result<llvm::Module*> clang_module = get_clang_module(
 				c_family_source, llvm_context, diagnostic_list, target, include_debug_info, context, source_manager
@@ -1234,7 +1263,12 @@ namespace pcit::panther{
 
 
 
-	auto Context::addCHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
+	auto Context::addCHeaderFile(
+		const fs::path& path,
+		evo::SmallVector<std::string>&& system_include_directories,
+		evo::SmallVector<std::string>&& include_directories,
+		bool add_includes_to_pub_api
+	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
 		const fs::path normalized_path = create_absolute_path(path, std::filesystem::current_path());
@@ -1243,11 +1277,21 @@ namespace pcit::panther{
 		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
 
 
-		this->c_headers_to_load.emplace_back(normalized_path, add_includes_to_pub_api);
+		this->c_headers_to_load.emplace_back(
+			normalized_path,
+			std::move(system_include_directories),
+			std::move(include_directories),
+			add_includes_to_pub_api
+		);
 		return AddSourceResult::SUCCESS;
 	}
 
-	auto Context::addCPPHeaderFile(const fs::path& path, bool add_includes_to_pub_api) -> AddSourceResult {
+	auto Context::addCPPHeaderFile(
+		const fs::path& path,
+		evo::SmallVector<std::string>&& system_include_directories,
+		evo::SmallVector<std::string>&& include_directories,
+		bool add_includes_to_pub_api
+	) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
 
 		const fs::path normalized_path = create_absolute_path(path, std::filesystem::current_path());
@@ -1256,7 +1300,12 @@ namespace pcit::panther{
 		if(std::filesystem::is_directory(normalized_path)){ return AddSourceResult::NOT_FILE; }
 
 
-		this->cpp_headers_to_load.emplace_back(normalized_path, add_includes_to_pub_api);
+		this->cpp_headers_to_load.emplace_back(
+			normalized_path,
+			std::move(system_include_directories),
+			std::move(include_directories),
+			add_includes_to_pub_api
+		);
 		return AddSourceResult::SUCCESS;
 	}
 
@@ -1316,8 +1365,13 @@ namespace pcit::panther{
 
 
 
-	auto Context::analyze_c_family_header_impl(std::filesystem::path&& path, bool add_includes_to_pub_api, bool is_cpp)
-	-> void {
+	auto Context::analyze_c_family_header_impl(
+		std::filesystem::path&& path,
+		evo::SmallVector<std::string>&& system_include_directories,
+		evo::SmallVector<std::string>&& include_directories,
+		bool add_includes_to_pub_api,
+		bool is_cpp
+	) -> void {
 		const std::string filepath_str = path.string();
 
 		const evo::Result<std::string> file = evo::fs::readFile(filepath_str);
@@ -1330,12 +1384,21 @@ namespace pcit::panther{
 		CFamilySource::ID created_c_family_source_id = [&]() -> CFamilySource::ID {
 			if(this->_config.includeDebugInfo){
 				return this->source_manager.create_c_family_source_with_debug_info(
-					std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp, this->pir_module
+					std::filesystem::path(filepath_str),
+					evo::copy(system_include_directories),
+					evo::copy(include_directories),
+					evo::copy(file.value()),
+					is_cpp,
+					this->pir_module
 				);
 
 			}else{
 				return this->source_manager.create_c_family_source(
-					std::filesystem::path(filepath_str), evo::copy(file.value()), is_cpp
+					std::filesystem::path(filepath_str),
+					evo::copy(system_include_directories),
+					evo::copy(include_directories),
+					evo::copy(file.value()),
+					is_cpp
 				);
 			}
 		}();
@@ -1360,12 +1423,14 @@ namespace pcit::panther{
 			this->getConfig().target,
 			this->getConfig().includeDebugInfo,
 			diagnostic_list,
+			system_include_directories,
+			include_directories,
 			clang_api
 		);
 
 
 		const bool errored =
-			analyze_and_print_clang_diagnostics(diagnostic_list, *this, this->source_manager, is_cpp).isError();
+			analyze_and_print_clang_diagnostics(diagnostic_list, *this, this->source_manager, is_cpp, true).isError();
 
 		if(get_clang_header_api_res.isError() || errored){ return; }
 
@@ -1422,9 +1487,9 @@ namespace pcit::panther{
 
 					type_map.emplace(alias_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							alias_decl.name, created_symbol, source_c_family_source_id
+							alias_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 					}
 
@@ -1484,9 +1549,9 @@ namespace pcit::panther{
 
 					type_map.emplace(struct_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							struct_decl.name, created_symbol, source_c_family_source_id
+							struct_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 					}
 
@@ -1529,9 +1594,9 @@ namespace pcit::panther{
 
 					type_map.emplace(union_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							union_decl.name, created_symbol, source_c_family_source_id
+							union_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 					}
 
@@ -1582,9 +1647,9 @@ namespace pcit::panther{
 
 					type_map.emplace(enum_decl.name, created_symbol.as<BaseType::ID>());
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							enum_decl.name, created_symbol, source_c_family_source_id
+							enum_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 					}
 
@@ -1610,7 +1675,7 @@ namespace pcit::panther{
 										param.name, param.declLine, param.declCollumn
 									),
 									std::nullopt,
-									true
+									false
 								);
 							}
 
@@ -1639,9 +1704,9 @@ namespace pcit::panther{
 						}
 					);
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							function_decl.name, created_symbol, source_c_family_source_id
+							function_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 
 						if(function_decl.isInlined){
@@ -1680,9 +1745,9 @@ namespace pcit::panther{
 						}
 					);
 
-					if(add_includes_to_pub_api || source_c_family_source_id == created_c_family_source_id){
+					if(source_c_family_source_id == created_c_family_source_id){
 						created_c_family_source.addImportedSymbol(
-							global_var_decl.name, created_symbol, source_c_family_source_id
+							global_var_decl.name, created_symbol, source_c_family_source_id, add_includes_to_pub_api
 						);
 					}
 
@@ -1730,7 +1795,8 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_c_family_source_id
+						created_c_family_source_id,
+						true
 					);
 				} break;
 
@@ -1779,7 +1845,8 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_c_family_source_id
+						created_c_family_source_id,
+						true
 					);
 				} break;
 
@@ -1828,7 +1895,8 @@ namespace pcit::panther{
 							false,
 							std::nullopt
 						),
-						created_c_family_source_id
+						created_c_family_source_id,
+						true
 					);
 				} break;
 
@@ -1840,7 +1908,7 @@ namespace pcit::panther{
 
 					if(imported_symbol.has_value()){
 						created_c_family_source.addImportedSymbol(
-							macro.name, imported_symbol.value().symbol, created_c_family_source_id
+							macro.name, imported_symbol.value().symbol, created_c_family_source_id, true
 						);
 					}
 				} break;
@@ -2085,7 +2153,13 @@ namespace pcit::panther{
 				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
 			}
 
-			this->analyze_c_family_header_impl(std::move(file_path), true, is_cpp);
+			this->analyze_c_family_header_impl(
+				std::move(file_path),
+				evo::SmallVector<std::string>(),
+				evo::SmallVector<std::string>(),
+				true,
+				is_cpp
+			);
 		}
 
 		return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
@@ -2452,6 +2526,46 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("path"),
 					TypeManager::getTypeStringRef(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("systemIncludeDirectories"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									TypeManager::getTypeStringRef(),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("includeDirectories"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									TypeManager::getTypeStringRef(),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
 					std::nullopt,
 					false
 				),

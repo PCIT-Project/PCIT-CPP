@@ -2058,6 +2058,10 @@ namespace pcit::panther{
 		return BaseType::ID(BaseType::Kind::ENUM, new_enum.get());
 	}
 
+	auto TypeManager::getNumEnums() const -> size_t {
+		const auto lock = std::scoped_lock(this->enums_lock);
+		return this->enums.size();
+	}
 
 
 	//////////////////////////////////////////////////////////////////////

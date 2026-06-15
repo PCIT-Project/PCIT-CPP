@@ -78,6 +78,10 @@ project "PCIT_clang_interface"
 		}
 	filter {}
 
+	filter "action:vs*"
+		buildoptions{ "/bigobj" }
+	filter {}
+
 
 project "*"
 

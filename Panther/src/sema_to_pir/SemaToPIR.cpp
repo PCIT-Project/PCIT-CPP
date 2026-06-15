@@ -40,6 +40,13 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::lowerRuntime() -> void {
+		for(uint32_t i = 0; i < this->context.getTypeManager().getNumEnums(); i+=1){
+			const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(BaseType::Enum::ID(i));
+			if(enum_type.isCFamilyType() == false){ continue; }
+
+			this->lowerEnumAndDepsIfNeeded(BaseType::Enum::ID(i));
+		}
+
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumStructs(); i+=1){
 			const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(BaseType::Struct::ID(i));
 			if(struct_type.isCFamilyType() == false){ continue; }
@@ -56,7 +63,7 @@ namespace pcit::panther{
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
-			if(global_var.isCFamilyVar() == false && global_var.kind != AST::VarDef::Kind::VAR){ continue; }
+			if(global_var.kind == AST::VarDef::Kind::DEF){ continue; }
 
 			this->lowerGlobalDecl(global_var_id);
 
@@ -66,15 +73,12 @@ namespace pcit::panther{
 		}
 
 
-		// for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
-		// 	const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
-		// 	if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
-		// 	if(func.status == sema::Func::Status::SUSPENDED){ continue; }
+		for(const sema::Func::ID& func_id : this->context.getSemaBuffer().getFuncs()){
+			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+			if(func.isCFamilyFunc() == false){ continue; }
 
-		// 	if(this->context.getTypeManager().getFunction(func.typeID).attributes.isComptime){ continue; }
-
-		// 	this->lowerFuncDecl(func_id);
-		// }
+			this->lowerFuncDecl(func_id);
+		}
 
 		for(uint32_t i = 0; i < this->context.getTypeManager().getNumInterfaces(); i+=1){
 			const auto interface_id = BaseType::Interface::ID(i);
@@ -93,8 +97,8 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-			if(func.isCFamilyFunc()){ continue; }
 			if(func.isExtern()){ continue; }
+			if(func.isCFamilyFunc()){ continue; }
 
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
@@ -196,10 +200,18 @@ namespace pcit::panther{
 			);
 		}
 
+		const pir::Linkage linkage = [&]() -> pir::Linkage {
+			if(sema_global_var.isCFamilyVar() && sema_global_var.expr.load().has_value() == false){
+				return pir::Linkage::EXTERNAL;
+			}else{
+				return pir::Linkage::INTERNAL;
+			}
+		}();
+
 		const pir::GlobalVar::ID new_global_var = this->module.createGlobalVar(
 			this->mangle_name(global_var_id),
 			pir_type.type,
-			pir::Linkage::INTERNAL,
+			linkage,
 			pir::GlobalVar::NoValue{},
 			sema_global_var.kind == AST::VarDef::Kind::CONST,
 			meta_global_var
@@ -555,23 +567,23 @@ namespace pcit::panther{
 		std::string mangled_name = this->mangle_name(func_id);
 
 		if(func.hasInParam == false){
-			auto meta_id = std::optional<pir::meta::Function::ID>();
-			if(this->data.config.includeDebugInfo){
-				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
-
-				meta_id = this->module.createMetaFunction(
-					evo::copy(mangled_name),
-					this->get_unmangled_func_name(func),
-					return_meta_type,
-					std::move(meta_params),
-					location.meta_file_id,
-					location.meta_file_id,
-					location.line_number
-				);
-			}
-
 			if(func.isCFamilyFunc() || func.isExtern()){
 				if(this->data.add_extern_func_if_needed(mangled_name)){ // prevent ODR violation
+					auto meta_id = std::optional<pir::meta::Function::ID>();
+					if(this->data.config.includeDebugInfo){
+						const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+						meta_id = this->module.createMetaFunction(
+							evo::copy(mangled_name),
+							this->get_unmangled_func_name(func),
+							return_meta_type,
+							std::move(meta_params),
+							location.meta_file_id,
+							location.meta_file_id,
+							location.line_number
+						);
+					}
+
 					const pir::ExternalFunction::ID created_external_func_id = this->module.createExternalFunction(
 						std::move(mangled_name),
 						std::move(params),
@@ -592,6 +604,21 @@ namespace pcit::panther{
 				return std::nullopt;
 				
 			}else{
+				auto meta_id = std::optional<pir::meta::Function::ID>();
+				if(this->data.config.includeDebugInfo){
+					const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
+
+					meta_id = this->module.createMetaFunction(
+						evo::copy(mangled_name),
+						this->get_unmangled_func_name(func),
+						return_meta_type,
+						std::move(meta_params),
+						location.meta_file_id,
+						location.meta_file_id,
+						location.line_number
+					);
+				}
+
 				const pir::Function::ID new_func_id = this->module.createFunction(
 					std::move(mangled_name),
 					std::move(params),
@@ -12908,7 +12935,7 @@ namespace pcit::panther{
 								return PIRType(
 									pir_type,
 									this->data.get_or_create_meta_basic_type(
-										type_id, this->module, "CULongLong", pir_type
+										type_id, this->module, "CLongDouble", pir_type
 									)
 								);
 							}else{
@@ -13382,12 +13409,22 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::get_unmangled_global_name(const sema::GlobalVar& global_var) const -> std::string {
-		const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
+		if(global_var.isCFamilyVar()){
+			const CFamilySource& c_family_source = 
+				this->context.getSourceManager()[global_var.sourceID.as<CFamilySource::ID>()];
+			return std::string(c_family_source.getDeclInfo(global_var.ident.as<CFamilySource::DeclInfoID>()).name);
 
-		std::string output = this->get_parent_name<false>(std::nullopt, global_var.sourceID);
-		output += source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString();
+		}else if(global_var.isBuiltinVar()){
+			evo::unreachable(); // I don't think this is ever possible
 
-		return output;
+		}else{
+			const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
+
+			std::string output = this->get_parent_name<false>(std::nullopt, global_var.sourceID);
+			output += source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString();
+
+			return output;
+		}
 	}
 
 

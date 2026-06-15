@@ -67,7 +67,7 @@ namespace pcit::panther{
 
 		// look for path
 		for(const CFamilySource::ID c_family_source_id : c_family_source_id_range){
-			const CFamilySource& c_family_source = this->operator[](c_family_source_id);
+			const CFamilySource& c_family_source = this->priv.c_family_sources[c_family_source_id];
 			if(c_family_source.getPath() == file_path){ return c_family_source_id; }
 		}
 
@@ -87,7 +87,7 @@ namespace pcit::panther{
 		);
 
 		for(const CFamilySource::ID c_family_source_id : c_family_source_id_range){
-			const CFamilySource& c_family_source = this->operator[](c_family_source_id);
+			const CFamilySource& c_family_source = this->priv.c_family_sources[c_family_source_id];
 			if(c_family_source.getPath() == path){ return GottenCFamilySourceID(c_family_source_id, false); }
 		}
 
@@ -108,18 +108,55 @@ namespace pcit::panther{
 
 
 		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
-			std::move(path), std::move(file_data.value()), is_cpp, meta_file_id
+			std::move(path),
+			evo::SmallVector<std::string>(),
+			evo::SmallVector<std::string>(),
+			std::move(file_data.value()),
+			is_cpp,
+			false,
+			meta_file_id
 		);
 
-		this->operator[](new_source_id).id = new_source_id;
+		this->priv.c_family_sources[new_source_id].id = new_source_id;
 
 		return GottenCFamilySourceID(new_source_id, true);
 	}
 
 
 
+
+	auto SourceManager::create_c_family_source(
+		std::filesystem::path&& path,
+		evo::SmallVector<std::string>&& system_include_directories,
+		evo::SmallVector<std::string>&& include_directories,
+		std::string&& data_str,
+		bool is_cpp
+	) -> CFamilySource::ID {
+		const auto lock = std::scoped_lock(this->priv.c_family_sources_lock);
+
+		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
+			std::move(path),
+			std::move(system_include_directories),
+			std::move(include_directories),
+			std::move(data_str),
+			is_cpp,
+			true,
+			std::nullopt
+		);
+
+		this->priv.c_family_sources[new_source_id].id = new_source_id;
+
+		return new_source_id;
+	}
+
+
 	auto SourceManager::create_c_family_source_with_debug_info(
-		std::filesystem::path&& path, std::string&& data_str, bool is_cpp, pir::Module& pir_module
+		std::filesystem::path&& path,
+		evo::SmallVector<std::string>&& system_include_directories,
+		evo::SmallVector<std::string>&& include_directories,
+		std::string&& data_str,
+		bool is_cpp,
+		pir::Module& pir_module
 	) -> CFamilySource::ID {
 		const auto lock = std::lock_guard(this->priv.c_family_sources_lock);
 
@@ -127,8 +164,11 @@ namespace pcit::panther{
 
 		const CFamilySource::ID new_source_id = this->priv.c_family_sources.emplace_back(
 			std::move(path),
+			std::move(system_include_directories),
+			std::move(include_directories),
 			std::move(data_str),
 			is_cpp,
+			true,
 			pir_module.createMetaFile(
 				std::format("PTHR.c-family-file.{}", this->priv.c_family_sources.size()),
 				std::move(path_str),
@@ -137,7 +177,7 @@ namespace pcit::panther{
 			)
 		);
 
-		this->operator[](new_source_id).id = new_source_id;
+		this->priv.c_family_sources[new_source_id].id = new_source_id;
 
 		return new_source_id;
 	}

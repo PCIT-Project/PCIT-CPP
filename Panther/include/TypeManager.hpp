@@ -1280,6 +1280,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto getEnum(BaseType::Enum::ID id) const -> const BaseType::Enum&;
 			[[nodiscard]] auto getEnum(BaseType::Enum::ID id)       ->       BaseType::Enum&;
 			[[nodiscard]] auto createEnum(BaseType::Enum&& new_type) -> BaseType::ID;
+			[[nodiscard]] auto getNumEnums() const -> size_t; // I don't love this design
 
 			[[nodiscard]] auto getTypeDeducer(BaseType::TypeDeducer::ID id) const -> const BaseType::TypeDeducer&;
 			[[nodiscard]] auto createTypeDeducer(BaseType::TypeDeducer&& new_type) -> BaseType::ID;
