@@ -81,6 +81,9 @@ namespace pcit::pir{
 
 					break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 						evo::printlnBlue("Process stopped with code: UNKNOWN_EXCEPTION");
+
+					break; case ExecutionEngineExecutor::FuncRunError::Code::ASSEMBLY:
+						evo::printlnBlue("Process stopped with code: ASSEMBLY");
 				}
 			}
 
@@ -194,6 +197,9 @@ namespace pcit::pir{
 
 						break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 							evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION\n\n");
+
+						break; case ExecutionEngineExecutor::FuncRunError::Code::ASSEMBLY:
+							evo::printBlue("Process stopped with code: ASSEMBLY\n\n");
 					}
 
 					continue;
@@ -233,6 +239,9 @@ namespace pcit::pir{
 
 							break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 								evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::ASSEMBLY:
+								evo::printBlue("Process stopped with code: ASSEMBLY\n\n");
 						}
 					}
 
@@ -878,6 +887,13 @@ namespace pcit::pir{
 				case Expr::Kind::CMPXCHG_LOADED:    return std::string_view(reader.getCmpXchg(expr).loadedName);
 				case Expr::Kind::CMPXCHG_SUCCEEDED: return std::string_view(reader.getCmpXchg(expr).succeededName);
 				case Expr::Kind::ATOMIC_RMW:        return std::string_view(reader.getAtomicRMW(expr).name);
+
+				case Expr::Kind::ASM:               return evo::resultError;
+				case Expr::Kind::EXTRACT_ASM_VALUE: {
+					const ExtractAsmValue& extract_asm_value = reader.getExtractAsmValue(expr);
+					return std::string_view(extract_asm_value.asmExpr.outputs[extract_asm_value.index].name);
+				} break;      
+				case Expr::Kind::ASM_VOID:          return evo::resultError;
 
 				case Expr::Kind::META_LOCAL_VAR:    return evo::resultError;
 				case Expr::Kind::META_PARAM:        return evo::resultError;

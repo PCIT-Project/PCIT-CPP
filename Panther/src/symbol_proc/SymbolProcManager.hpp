@@ -1489,6 +1489,22 @@ namespace pcit::panther{
 
 
 
+			//////////////////
+			// AsmStmt
+
+			[[nodiscard]] auto createAsmStmt(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASM_STMT,
+					this->asm_stmts.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getAsmStmt(Instruction instr) const -> const Instruction::AsmStmt& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASM_STMT, "Not a AsmStmt");
+				return this->asm_stmts[instr._index];
+			}
+
+
 
 			//////////////////
 			// TypeToTerm
@@ -2432,6 +2448,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// AsmExpr
+
+			[[nodiscard]] auto createAsmExpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ASM_EXPR,
+					this->asm_exprs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getAsmExpr(Instruction instr) const -> const Instruction::AsmExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ASM_EXPR, "Not a AsmExpr");
+				return this->asm_exprs[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginExprBlock
 
 			[[nodiscard]] auto createBeginExprBlock(auto&&... args) -> Instruction {
@@ -3336,6 +3369,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::TryElseBegin, uint32_t> try_else_begins{};
 			core::SyncLinearStepAlloc<Instruction::TryElseEnd, uint32_t> try_else_ends{};
 			core::SyncLinearStepAlloc<Instruction::BeginUnsafe, uint32_t> begin_unsafes{};
+			core::SyncLinearStepAlloc<Instruction::AsmStmt, uint32_t> asm_stmts{};
 			core::SyncLinearStepAlloc<Instruction::TypeToTerm, uint32_t> type_to_terms{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDecl, uint32_t> wait_on_sub_symbol_proc_decls{};
 			core::SyncLinearStepAlloc<Instruction::WaitOnSubSymbolProcDef, uint32_t> wait_on_sub_symbol_proc_defs{};
@@ -3398,6 +3432,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint32_t> designated_init_news{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
 			core::SyncLinearStepAlloc<Instruction::TryElseExpr, uint32_t> try_else_exprs{};
+			core::SyncLinearStepAlloc<Instruction::AsmExpr, uint32_t> asm_exprs{};
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::As<true>, uint32_t> as_contexprs{};

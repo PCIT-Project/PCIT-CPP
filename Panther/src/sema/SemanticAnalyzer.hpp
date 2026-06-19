@@ -171,6 +171,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_try_else_end(const Instruction::TryElseEnd& instr) -> Result;
 			[[nodiscard]] auto instr_begin_unsafe(const Instruction::BeginUnsafe& instr) -> Result;
 			[[nodiscard]] auto instr_end_unsafe() -> Result;
+			[[nodiscard]] auto instr_asm_stmt(const Instruction::AsmStmt& instr) -> Result;
 
 
 			[[nodiscard]] auto instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result;
@@ -271,6 +272,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
 			[[nodiscard]] auto instr_try_else_expr(const Instruction::TryElseExpr& instr) -> Result;
+			[[nodiscard]] auto instr_asm_expr(const Instruction::AsmExpr& instr) -> Result;
 			[[nodiscard]] auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			[[nodiscard]] auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;
 
@@ -1003,6 +1005,18 @@ namespace pcit::panther{
 				const AST::AttributeBlock& attribute_block,
 				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 			) -> evo::Result<SwitchAttrs>;
+
+
+
+			struct AsmAttrs{
+				bool is_side_effect;
+				bool is_align_stack;
+				evo::SmallVector<std::string_view> clobbers;
+			};
+			[[nodiscard]] auto analyze_asm_attrs(
+				const AST::AttributeBlock& attribute_block,
+				evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+			) -> evo::Result<AsmAttrs>;
 
 
 			///////////////////////////////////

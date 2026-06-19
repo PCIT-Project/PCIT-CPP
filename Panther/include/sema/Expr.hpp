@@ -50,6 +50,7 @@ namespace pcit::panther::sema{
 			MOVE,
 			FORWARD,
 			FUNC_CALL,
+			ASM,
 			FUNC_PTR,
 			ADDR_OF,
 			CONVERSION_TO_OPTIONAL,
@@ -118,6 +119,7 @@ namespace pcit::panther::sema{
 		explicit Expr(MoveID id)               : _kind(Kind::MOVE),                 value{.move = id}                {};
 		explicit Expr(ForwardID id)            : _kind(Kind::FORWARD),              value{.forward = id}             {};
 		explicit Expr(FuncCallID id)           : _kind(Kind::FUNC_CALL),            value{.func_call = id}           {};
+		explicit Expr(AsmID id)                : _kind(Kind::ASM),                  value{.asm_expr = id}            {};
 		explicit Expr(FuncPtrID id)            : _kind(Kind::FUNC_PTR),             value{.func_ptr = id}            {};
 		explicit Expr(AddrOfID id)             : _kind(Kind::ADDR_OF),              value{.addr_of = id}             {};
 		explicit Expr(sema::ConversionToOptionalID id) :
@@ -240,6 +242,10 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto funcCallID() const -> FuncCallID {
 			evo::debugAssert(this->kind() == Kind::FUNC_CALL, "not a func call");
 			return this->value.func_call;
+		}
+		[[nodiscard]] auto asmID() const -> AsmID {
+			evo::debugAssert(this->kind() == Kind::ASM, "not an asm");
+			return this->value.asm_expr;
 		}
 		[[nodiscard]] auto funcPtrID() const -> FuncPtrID {
 			evo::debugAssert(this->kind() == Kind::FUNC_PTR, "not a func ptr");
@@ -432,6 +438,7 @@ namespace pcit::panther::sema{
 				MoveID move;
 				ForwardID forward;
 				FuncCallID func_call;
+				AsmID asm_expr;
 				FuncPtrID func_ptr;
 				AddrOfID addr_of;
 				ConversionToOptionalID conversion_to_optional;

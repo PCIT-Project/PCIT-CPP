@@ -450,6 +450,9 @@ namespace pcit::panther{
 			case Instruction::Kind::END_UNSAFE:
 				return this->instr_end_unsafe();
 
+			case Instruction::Kind::ASM_STMT:
+				return this->instr_asm_stmt(this->context.symbol_proc_manager.getAsmStmt(instr));
+
 			case Instruction::Kind::TYPE_TO_TERM:
 				return this->instr_type_to_term(this->context.symbol_proc_manager.getTypeToTerm(instr));
 
@@ -655,6 +658,9 @@ namespace pcit::panther{
 
 			case Instruction::Kind::TRY_ELSE_EXPR:
 				return this->instr_try_else_expr(this->context.symbol_proc_manager.getTryElseExpr(instr));
+
+			case Instruction::Kind::ASM_EXPR:
+				return this->instr_asm_expr(this->context.symbol_proc_manager.getAsmExpr(instr));
 
 			case Instruction::Kind::BEGIN_EXPR_BLOCK:
 				return this->instr_begin_expr_block(this->context.symbol_proc_manager.getBeginExprBlock(instr));
@@ -11209,6 +11215,127 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::instr_asm_stmt(const Instruction::AsmStmt& instr) -> Result {
+		if(this->func_scope_current_value_stage().requiresComptime()){
+			this->emit_error("Cannot call inline assembly within a comptime function", instr.asm_stmt);
+			return Result::ERROR;
+		}
+
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.asm_stmt.attributeBlock);
+		evo::Result<AsmAttrs> asm_attrs = this->analyze_asm_attrs(attribute_block, instr.attribute_params_info);
+		if(asm_attrs.isError()){ return Result::ERROR; }
+
+
+		const std::string_view code = this->source.getTokenBuffer()[instr.asm_stmt.asmStr].getString();
+
+		// size_t is index of the name
+		auto names_used = std::unordered_map<std::string_view, size_t>();
+
+		auto params = evo::SmallVector<sema::Asm::Param>();
+		params.reserve(instr.params.size());
+		for(size_t i = 0; const Instruction::AsmStmt::Param& param : instr.params){
+			const TypeInfo::VoidableID param_type = this->get_type(param.type_id);
+
+			if(param_type.isVoid()){
+				this->emit_error("Asm parameter cannot be type `Void`", instr.asm_stmt.params[i].type);
+				return Result::ERROR;
+			}
+
+			if(
+				this->context.getTypeManager().numBytes(param_type.asTypeID())
+				> this->context.getTypeManager().numBytesOfGeneralRegister()
+			){
+				this->emit_error("This type is too large for an asm parameter", instr.asm_stmt.params[i].type);
+				return Result::ERROR;
+			}
+
+			TermInfo& param_value = this->get_term_info(param.value);
+
+			if(this->type_check<true, true, false>(
+				param_type.asTypeID(),
+				param_value,
+				"Asm argument",
+				this->get_location(instr.asm_stmt.params[i].arg)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			bool is_mut = false;
+			switch(instr.asm_stmt.params[i].kind){
+				case AST::Asm::Param::Kind::READ: {
+					
+				} break;
+
+				case AST::Asm::Param::Kind::MUT: {
+					if(param_value.is_concrete() == false || param_value.is_mutable() == false){
+						this->emit_error(
+							"Asm parameters that are [mut] can only accept values that are mutable",
+							instr.asm_stmt.params[i].arg
+						);
+						return Result::ERROR;
+					}
+
+					is_mut = true;
+				} break;
+
+				case AST::Asm::Param::Kind::IN: {
+					if(param_value.is_ephemeral() == false){
+						this->emit_error(
+							"Asm parameters that are [in] can only accept values that are ephemeral",
+							instr.asm_stmt.params[i].arg
+						);
+						return Result::ERROR;
+					}
+				} break;
+			}
+
+			const std::string_view param_name = 
+				this->source.getTokenBuffer()[instr.asm_stmt.params[i].ident].getString();
+
+			const auto insert_name_res = names_used.emplace(param_name, i);
+			if(insert_name_res.second == false){ // already found
+				this->emit_error(
+					"Name of asm parameter was already used",
+					instr.asm_stmt.params[i].ident,
+					Diagnostic::Info(
+						"First used here:",
+						this->get_location(instr.asm_stmt.params[insert_name_res.first->second].ident)
+					)
+				);
+				return Result::ERROR;
+			}
+
+
+			params.emplace_back(
+				this->source.getTokenBuffer()[instr.asm_stmt.params[i].ident].getString(),
+				param_type.asTypeID(),
+				param_value.getExpr(),
+				this->source.getTokenBuffer()[instr.asm_stmt.params[i].paramConstraintString].getString(),
+				is_mut
+			);
+
+			i += 1;
+		}
+
+		const Diagnostic::Location location = Diagnostic::Location::get(instr.asm_stmt.startToken, this->source);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createAsm(
+				code,
+				std::move(params),
+				std::move(asm_attrs.value().clobbers),
+				evo::SmallVector<sema::Asm::RetParam>(),
+				asm_attrs.value().is_side_effect,
+				asm_attrs.value().is_align_stack,
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
+		);
+		return Result::SUCCESS;
+	}
+
+
 
 	auto SemanticAnalyzer::instr_type_to_term(const Instruction::TypeToTerm& instr) -> Result {
 		this->return_term_info(instr.to,
@@ -17472,6 +17599,165 @@ namespace pcit::panther{
 		return Result::SUCCESS;
 	}
 
+
+	auto SemanticAnalyzer::instr_asm_expr(const Instruction::AsmExpr& instr) -> Result {
+		if(this->func_scope_current_value_stage().requiresComptime()){
+			this->emit_error("Cannot call inline assembly within a comptime function", instr.asm_expr);
+			return Result::ERROR;
+		}
+		
+		const AST::AttributeBlock& attribute_block = 
+			this->source.getASTBuffer().getAttributeBlock(instr.asm_expr.attributeBlock);
+		evo::Result<AsmAttrs> asm_attrs = this->analyze_asm_attrs(attribute_block, instr.attribute_params_info);
+		if(asm_attrs.isError()){ return Result::ERROR; }
+
+		const std::string_view code = this->source.getTokenBuffer()[instr.asm_expr.asmStr].getString();
+
+		// size_t is index of the name
+		auto names_used = std::unordered_map<std::string_view, size_t>();
+
+		auto params = evo::SmallVector<sema::Asm::Param>();
+		params.reserve(instr.params.size());
+		for(size_t i = 0; const Instruction::AsmExpr::Param& param : instr.params){
+			const TypeInfo::VoidableID param_type = this->get_type(param.type_id);
+
+			if(param_type.isVoid()){
+				this->emit_error("Asm parameter cannot be type `Void`", instr.asm_expr.params[i].type);
+				return Result::ERROR;
+			}
+
+			if(
+				this->context.getTypeManager().numBytes(param_type.asTypeID())
+				> this->context.getTypeManager().numBytesOfGeneralRegister()
+			){
+				this->emit_error("This type is too large for an asm parameter", instr.asm_expr.params[i].type);
+				return Result::ERROR;
+			}
+
+			TermInfo& param_value = this->get_term_info(param.value);
+
+			if(this->type_check<true, true, false>(
+				param_type.asTypeID(),
+				param_value,
+				"Asm argument",
+				this->get_location(instr.asm_expr.params[i].arg)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			bool is_mut = false;
+			switch(instr.asm_expr.params[i].kind){
+				case AST::Asm::Param::Kind::READ: {
+					
+				} break;
+
+				case AST::Asm::Param::Kind::MUT: {
+					if(param_value.is_concrete() == false || param_value.is_mutable() == false){
+						this->emit_error(
+							"Asm parameters that are [mut] can only accept values that are mutable",
+							instr.asm_expr.params[i].arg
+						);
+						return Result::ERROR;
+					}
+
+					is_mut = true;
+				} break;
+
+				case AST::Asm::Param::Kind::IN: {
+					if(param_value.is_ephemeral() == false){
+						this->emit_error(
+							"Asm parameters that are [in] can only accept values that are ephemeral",
+							instr.asm_expr.params[i].arg
+						);
+						return Result::ERROR;
+					}
+				} break;
+			}
+
+			const std::string_view param_name = 
+				this->source.getTokenBuffer()[instr.asm_expr.params[i].ident].getString();
+
+			const auto insert_name_res = names_used.emplace(param_name, i);
+			if(insert_name_res.second == false){ // already found
+				this->emit_error(
+					"Name of asm parameter was already used",
+					instr.asm_expr.params[i].ident,
+					Diagnostic::Info(
+						"First used here:",
+						this->get_location(instr.asm_expr.params[insert_name_res.first->second].ident)
+					)
+				);
+				return Result::ERROR;
+			}
+
+
+			params.emplace_back(
+				this->source.getTokenBuffer()[instr.asm_expr.params[i].ident].getString(),
+				param_type.asTypeID(),
+				param_value.getExpr(),
+				this->source.getTokenBuffer()[instr.asm_expr.params[i].paramConstraintString].getString(),
+				is_mut
+			);
+
+			i += 1;
+		}
+
+
+		auto ret_param_types = evo::SmallVector<TypeInfo::ID>();
+		ret_param_types.reserve(instr.retTypes.size());
+
+		auto ret_params = evo::SmallVector<sema::Asm::RetParam>();
+		ret_params.reserve(instr.retTypes.size());
+		for(size_t i = 0; SymbolProc::TypeID ret_type_id : instr.retTypes){
+			const TypeInfo::VoidableID ret_type = this->get_type(ret_type_id);
+			if(ret_type.isVoid()){
+				this->emit_error("Asm return parameter cannot be type `Void`", instr.asm_expr.retParams[i].type);
+				return Result::ERROR;
+			}
+
+			ret_param_types.emplace_back(ret_type.asTypeID());
+			ret_params.emplace_back(
+				this->source.getTokenBuffer()[instr.asm_expr.retParams[i].ident].getString(),
+				ret_type.asTypeID(),
+				this->source.getTokenBuffer()[instr.asm_expr.retParams[i].paramConstraintString].getString()
+			);
+		
+			i += 1;
+		}
+
+
+		const Diagnostic::Location location = Diagnostic::Location::get(instr.asm_expr.startToken, this->source);
+
+		const sema::AsmID asm_expr = this->context.sema_buffer.createAsm(
+			code,
+			std::move(params),
+			std::move(asm_attrs.value().clobbers),
+			std::move(ret_params),
+			asm_attrs.value().is_side_effect,
+			asm_attrs.value().is_align_stack,
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
+		);
+
+		if(ret_param_types.size() == 1){
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				false,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				ret_param_types[0],
+				sema::Expr(asm_expr)
+			);
+
+		}else{
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				false,
+				std::move(ret_param_types),
+				sema::Expr(asm_expr)
+			);
+		}
+		return Result::SUCCESS;
+	}
 
 
 
@@ -25230,6 +25516,10 @@ namespace pcit::panther{
 				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
 					infos.emplace_back("Cause of error: unknown exception");
 				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::ASSEMBLY: {
+					infos.emplace_back("Cause of error: inline assembly cannot be comptime");
+				} break;
 			}
 
 			Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
@@ -26746,28 +27036,29 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                    case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                 case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:           case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                     case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                  case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                 case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:            case sema::Expr::Kind::CHAR_VALUE:
 			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::FUNC_PTR:                  case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:       case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::UNWRAP:                    case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:               case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:             case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_NEW:               case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::VARIADIC_PARAM:
-			case sema::Expr::Kind::GLOBAL_VAR:                case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:     case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:           case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::UNION_ACCESSOR:             case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                 case sema::Expr::Kind::TRY_ELSE_EXPR:
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:    case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:             case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::DEFAULT_NEW:
+			case sema::Expr::Kind::INIT_ARRAY_REF:             case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return evo::Result<>();
 			} break;
 		}
@@ -33504,7 +33795,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
+				this->emit_error(std::format("Unknown switch attribute #{}", attribute_str), attribute.attribute);
 				return evo::resultError;
 			}
 		}
@@ -33512,6 +33803,87 @@ namespace pcit::panther{
 		return SwitchAttrs{
 			.is_no_jump = attr_no_jump.is_set(),
 			.is_partial = attr_partial.is_set(),
+		};
+	}
+
+
+	auto SemanticAnalyzer::analyze_asm_attrs(
+		const AST::AttributeBlock& attribute_block, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
+	) -> evo::Result<AsmAttrs> {
+		auto attr_side_effect = Attribute(*this, "sideEffect");
+		auto attr_align_stack = Attribute(*this, "alignStack");
+		auto clobbers = evo::SmallVector<std::string_view>();
+
+		for(size_t i = 0; const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			EVO_DEFER([&](){ i += 1; });
+			
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+
+			if(attribute_str == "sideEffect"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #sideEffect does not accept any arguments", attribute.args.front());
+					return evo::resultError;
+				}
+
+				if(attr_side_effect.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "alignStack"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #alignStack does not accept any arguments", attribute.args.front());
+					return evo::resultError;
+				}
+
+				if(attr_align_stack.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "clobber"){
+				if(attribute_params_info[i].size() != 1){
+					if(attribute_params_info[i].size() == 0){
+						this->emit_error("Attribute #clobber requires a constraint string", attribute.args.front());
+					}else{
+						this->emit_error("Unknown argument in attribute #clobber", attribute.args[1]);
+					}
+					return evo::resultError;
+				}
+
+
+				TermInfo& constraint_str_term_info = this->get_term_info(attribute_params_info[i][0]);
+				if(this->check_term_isnt_type(constraint_str_term_info, attribute.args[0]).isError()){
+					return evo::resultError;
+				}
+
+				if(this->type_check<true, true, true>(
+					TypeManager::getTypeStringRef(),
+					constraint_str_term_info,
+					"Calling convention in #callConv",
+					this->get_location(attribute.args[0])
+				).ok == false){
+					return evo::resultError;
+				}
+
+
+				const std::string_view clobber_str = sema::extractStringFromExpr(
+					constraint_str_term_info.getExpr(), this->context
+				);
+
+				for(const std::string_view& existing_clobber : clobbers){
+					if(existing_clobber == clobber_str){
+						this->emit_error("This asm clobber was already set", this->get_location(attribute.args[0]));
+						return evo::resultError;
+					}
+				}
+
+				clobbers.emplace_back(clobber_str);
+
+			}else{
+				this->emit_error(std::format("Unknown asm attribute #{}", attribute_str), attribute.attribute);
+				return evo::resultError;
+			}
+		}
+
+		return AsmAttrs{
+			.is_side_effect = attr_side_effect.is_set(),
+			.is_align_stack = attr_align_stack.is_set(),
+			.clobbers       = std::move(clobbers),
 		};
 	}
 

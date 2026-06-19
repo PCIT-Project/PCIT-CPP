@@ -867,6 +867,9 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CMPXCHG_LOADED:    return false;
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
 			case Expr::Kind::ATOMIC_RMW:        return false;
+			case Expr::Kind::ASM:               return false;
+			case Expr::Kind::EXTRACT_ASM_VALUE: return false;
+			case Expr::Kind::ASM_VOID:          return false;
 			case Expr::Kind::META_LOCAL_VAR:    return false;
 			case Expr::Kind::META_PARAM:        return false;
 		}
@@ -1272,8 +1275,12 @@ namespace pcit::pir::passes{
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return false;
 			case Expr::Kind::ATOMIC_RMW:        return false;
 
-			case Expr::Kind::META_LOCAL_VAR:    return false;
-			case Expr::Kind::META_PARAM:        return false;
+			case Expr::Kind::ASM:               return false;
+			case Expr::Kind::EXTRACT_ASM_VALUE: return false;
+			case Expr::Kind::ASM_VOID:          return false;
+
+			case Expr::Kind::META_LOCAL_VAR: return false;
+			case Expr::Kind::META_PARAM:     return false;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

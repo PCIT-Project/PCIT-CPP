@@ -424,7 +424,35 @@ namespace pcit::panther::sema{
 		StmtBlock elseBlock;
 		uint32_t line;
 		uint32_t collumn;
-	};	
+	};
+
+
+	struct Asm{
+		using ID = AsmID;
+
+		struct Param{
+			std::string_view name;
+			TypeInfo::ID typeID;
+			Expr value;
+			std::string_view constraint;
+			bool isMut;
+		};
+
+		struct RetParam{
+			std::string_view name;
+			TypeInfo::ID typeID;
+			std::string_view constraint;
+		};
+
+		std::string_view code;
+		evo::SmallVector<Param> params;
+		evo::SmallVector<std::string_view> clobbers;
+		evo::SmallVector<RetParam> retParams;
+		bool isSideEffect;
+		bool isAlignStack;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+	};
 
 
 	struct Assign{
@@ -441,8 +469,8 @@ namespace pcit::panther::sema{
 
 		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>> targets; // TypeInfo::ID if is a discard
 		Expr value;
-		uint32_t line;
-		uint32_t collumn;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
 	struct Return{

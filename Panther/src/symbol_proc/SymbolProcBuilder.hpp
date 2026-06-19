@@ -112,7 +112,8 @@ namespace pcit::panther{
 			auto analyze_assignment(const AST::Infix& infix) -> evo::Result<>;
 			auto analyze_multi_assign(const AST::MultiAssign& multi_assign) -> evo::Result<>;
 			auto analyze_try_else(const AST::TryElse& try_else) -> evo::Result<>;
-			auto analyze_unsafe(const AST::Unsafe& unsafe) -> evo::Result<>;
+			auto analyze_unsafe(const AST::Unsafe& unsafe_stmt) -> evo::Result<>;
+			auto analyze_asm(const AST::Asm& asm_stmt) -> evo::Result<>;
 
 
 			template<bool IS_COMPTIME>
@@ -162,6 +163,8 @@ namespace pcit::panther{
 
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto analyze_expr_try_else(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+
+			[[nodiscard]] auto analyze_expr_asm(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool NEEDS_DEF>
 			[[nodiscard]] auto analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;

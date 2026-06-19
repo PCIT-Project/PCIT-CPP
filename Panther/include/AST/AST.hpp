@@ -68,6 +68,7 @@ namespace pcit::panther::AST{
 
 		TRY_ELSE,
 		UNSAFE,
+		ASM,
 
 		ARRAY_TYPE,
 		FUNC_TYPE,
@@ -487,6 +488,35 @@ namespace pcit::panther::AST{
 	struct Unsafe{
 		Token::ID keyword;
 		Node block;
+	};
+
+
+	struct Asm{
+		struct Param{
+			enum class Kind{
+				READ,
+				MUT,
+				IN,
+			};
+
+			Token::ID ident;
+			Token::ID paramConstraintString;
+			Node type;
+			Node arg;
+			Kind kind;
+		};
+
+		struct RetParam{
+			Token::ID ident;
+			Token::ID paramConstraintString;
+			Node type;
+		};
+
+		Token::ID startToken;
+		Token::ID asmStr;
+		evo::SmallVector<Param> params;
+		Node attributeBlock;
+		evo::SmallVector<RetParam> retParams; // empty if `Void`
 	};
 
 

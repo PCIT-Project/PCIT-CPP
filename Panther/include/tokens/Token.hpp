@@ -136,6 +136,7 @@ namespace pcit::panther{
 
 				KEYWORD_UNSAFE,
 				KEYWORD_TRY,
+				KEYWORD_ASM,
 
 
 				///////////////////////////////////
@@ -514,8 +515,9 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_DEFER:          return "defer";
 					break; case Kind::KEYWORD_ERROR_DEFER:    return "errorDefer";
 
-					break; case Kind::KEYWORD_TRY:            return "try";
 					break; case Kind::KEYWORD_UNSAFE:         return "unsafe";
+					break; case Kind::KEYWORD_TRY:            return "try";
+					break; case Kind::KEYWORD_ASM:            return "asm";
 
 
 

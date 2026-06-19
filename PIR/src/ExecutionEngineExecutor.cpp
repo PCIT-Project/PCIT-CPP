@@ -2189,6 +2189,18 @@ namespace pcit::pir{
 				}
 			} break;
 
+			case Expr::Kind::ASM: {
+				this->last_error = FuncRunError::Code::ASSEMBLY;
+				break;
+			} break;
+
+			case Expr::Kind::EXTRACT_ASM_VALUE: evo::debugFatalBreak("Invalid stmt");
+
+			case Expr::Kind::ASM_VOID: {
+				this->last_error = FuncRunError::Code::ASSEMBLY;
+				break;
+			} break;
+
 			case Expr::Kind::META_LOCAL_VAR: {
 				// do nothing
 			} break;

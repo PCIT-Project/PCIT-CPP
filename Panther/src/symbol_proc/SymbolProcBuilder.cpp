@@ -575,20 +575,20 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:              case AST::Kind::ERROR:         case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:        case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:               case AST::Kind::FOR:           case AST::Kind::SWITCH:
-			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:   case AST::Kind::BLOCK:
-			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK: case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:              case AST::Kind::INFIX:         case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:           case AST::Kind::ARRAY_INIT_NEW:
-			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:      case AST::Kind::UNSAFE:
-			case AST::Kind::DEDUCER:             case AST::Kind::ARRAY_TYPE:    case AST::Kind::FUNC_TYPE:
-			case AST::Kind::INTERFACE_MAP:       case AST::Kind::TYPE:          case AST::Kind::TYPEID_CONVERTER:
-			case AST::Kind::ATTRIBUTE_BLOCK:     case AST::Kind::ATTRIBUTE:     case AST::Kind::PRIMITIVE_TYPE:
-			case AST::Kind::IDENT:               case AST::Kind::TYPE_THIS:     case AST::Kind::INTRINSIC:
-			case AST::Kind::LITERAL:             case AST::Kind::UNINIT:        case AST::Kind::ZEROINIT:
-			case AST::Kind::THIS:                case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:           case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:          case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:             case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:             case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:        case AST::Kind::UNSAFE:
+			case AST::Kind::ASM:                 case AST::Kind::DEDUCER:         case AST::Kind::ARRAY_TYPE:
+			case AST::Kind::FUNC_TYPE:           case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:
+			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
+			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:           case AST::Kind::TYPE_THIS:
+			case AST::Kind::INTRINSIC:           case AST::Kind::LITERAL:         case AST::Kind::UNINIT:
+			case AST::Kind::ZEROINIT:            case AST::Kind::THIS:            case AST::Kind::DISCARD: {
 				this->context.emitError("Invalid global statement", Diagnostic::Location::get(stmt, this->source));
 				return evo::resultError;
 			};
@@ -2233,6 +2233,7 @@ namespace pcit::panther{
 			case AST::Kind::DESIGNATED_INIT_NEW:    evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:               return this->analyze_try_else(ast_buffer.getTryElse(stmt));
 			case AST::Kind::UNSAFE:                 return this->analyze_unsafe(ast_buffer.getUnsafe(stmt));
+			case AST::Kind::ASM:                    return this->analyze_asm(ast_buffer.getAsm(stmt));
 			case AST::Kind::DEDUCER:                evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::ARRAY_TYPE:             evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::FUNC_TYPE:              evo::debugFatalBreak("Invalid statment");
@@ -3126,6 +3127,38 @@ namespace pcit::panther{
 	}
 
 
+	auto SymbolProcBuilder::analyze_asm(const AST::Asm& asm_stmt) -> evo::Result<> {
+		if(asm_stmt.retParams.empty() == false){
+			this->emit_error("Cannot discard the return values of an asm expression", asm_stmt.retParams[0].type);
+			return evo::resultError;
+		}
+
+		auto params = evo::SmallVector<Instruction::AsmStmt::Param>();
+		params.reserve(asm_stmt.params.size());
+		for(const AST::Asm::Param& param : asm_stmt.params){
+			const evo::Result<SymbolProc::TypeID> param_type = 
+				this->analyze_type<true>(this->source.getASTBuffer().getType(param.type));
+			if(param_type.isError()){ return evo::resultError; }
+
+			const evo::Result<SymbolProc::TermInfoID> param_arg = this->analyze_expr<false>(param.arg);
+			if(param_arg.isError()){ return evo::resultError; }
+
+			params.emplace_back(param_type.value(), param_arg.value());
+		}
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(this->source.getASTBuffer().getAttributeBlock(asm_stmt.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createAsmStmt(
+				asm_stmt, std::move(params), std::move(attribute_params_info.value())
+			)
+		);
+		return evo::Result<>();
+	}
+
+
 
 	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
@@ -3179,6 +3212,16 @@ namespace pcit::panther{
 				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::TRY_ELSE:            return this->analyze_expr_try_else<IS_COMPTIME>(expr);
+
+				case AST::Kind::ASM: {
+					if constexpr(IS_COMPTIME){
+						this->emit_error("Assembly expression cannot be comptime", expr);
+						return evo::resultError;
+					}else{
+						return this->analyze_expr_asm(expr);
+					}
+				} break;
+
 				case AST::Kind::IDENT:               return this->analyze_expr_ident<IS_COMPTIME>(expr);
 				case AST::Kind::INTRINSIC:           return this->analyze_expr_intrinsic(expr);
 				case AST::Kind::LITERAL:             return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
@@ -3378,7 +3421,7 @@ namespace pcit::panther{
 		evo::debugAssert(block.label.has_value(), "Block expr must have label");
 
 		if constexpr(IS_COMPTIME){
-			this->emit_error("Block expressions cannot be constexpr", block);
+			this->emit_error("Block expressions cannot be comptime", block);
 			return evo::resultError;
 
 		}else{
@@ -3644,7 +3687,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_COMPTIME){
 			if constexpr(ERRORS){
-				this->emit_error("Erroring constexpr function calls are unimplemented", func_call.target);
+				this->emit_error("Erroring comptime function calls are unimplemented", func_call.target);
 				return evo::resultError;
 			}else{
 				this->add_instruction(
@@ -4358,6 +4401,59 @@ namespace pcit::panther{
 		);
 		return new_term_info_id;
 	}
+
+
+	auto SymbolProcBuilder::analyze_expr_asm(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+		const AST::Asm& asm_expr = this->source.getASTBuffer().getAsm(node);
+
+		if(asm_expr.retParams.empty()){
+			this->emit_error(
+				"Cannot get a value from an asm expression that returns `Void`", asm_expr.retParams[0].type
+			);
+			return evo::resultError;
+		}
+
+		auto params = evo::SmallVector<Instruction::AsmExpr::Param>();
+		params.reserve(asm_expr.params.size());
+		for(const AST::Asm::Param& param : asm_expr.params){
+			const evo::Result<SymbolProc::TypeID> param_type = 
+				this->analyze_type<true>(this->source.getASTBuffer().getType(param.type));
+			if(param_type.isError()){ return evo::resultError; }
+
+			const evo::Result<SymbolProc::TermInfoID> param_arg = this->analyze_expr<false>(param.arg);
+			if(param_arg.isError()){ return evo::resultError; }
+
+			params.emplace_back(param_type.value(), param_arg.value());
+		}
+
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(this->source.getASTBuffer().getAttributeBlock(asm_expr.attributeBlock));
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+		auto ret_types = evo::SmallVector<SymbolProc::TypeID>();
+		ret_types.reserve(asm_expr.retParams.size());
+		for(const AST::Asm::RetParam& ret_param : asm_expr.retParams){
+			const evo::Result<SymbolProc::TypeID> ret_type = 
+				this->analyze_type<true>(this->source.getASTBuffer().getType(ret_param.type));
+			if(ret_type.isError()){ return evo::resultError; }
+
+			ret_types.emplace_back(ret_type.value());
+		}
+
+
+		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+		this->add_instruction(
+			this->context.symbol_proc_manager.createAsmExpr(
+				asm_expr,
+				std::move(params),
+				std::move(attribute_params_info.value()),
+				std::move(ret_types),
+				new_term_info_id
+			)
+		);
+		return new_term_info_id;
+	}
+
 
 	template<bool NEEDS_DEF>
 	auto SymbolProcBuilder::analyze_expr_ident(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {

@@ -146,6 +146,9 @@ namespace pcit::pir::passes{
 				break; case Expr::Kind::CMPXCHG_LOADED:    func_metadata.emplace(expr);
 				break; case Expr::Kind::CMPXCHG_SUCCEEDED: func_metadata.emplace(expr);
 				break; case Expr::Kind::ATOMIC_RMW:        func_metadata.emplace(expr);
+				break; case Expr::Kind::ASM:               evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::EXTRACT_ASM_VALUE: func_metadata.emplace(expr);
+				break; case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Should never see this expr kind");
 			}
@@ -1111,6 +1114,42 @@ namespace pcit::pir::passes{
 				const AtomicRMW& atomic_rmw = handler.getAtomicRMW(stmt);
 				see_expr(atomic_rmw.target);
 				see_expr(atomic_rmw.value);
+
+				return false;
+			} break;
+
+			case Expr::Kind::ASM: {
+				const Asm& asm_expr = handler.getAsm(stmt);
+
+				if(asm_expr.isSideEffect == false){
+					bool found_output = false;
+					for(size_t i = 0; i < asm_expr.outputs.size(); i+=1){
+						if(func_metadata.contains(handler.createExtractAsmValue(asm_expr, i))){
+							found_output = true;
+							break;
+						}
+					}
+
+					if(found_output == false){
+						handler.removeStmt(stmt);
+						return true;
+					}
+				}
+				
+				for(const AsmArg& arg : asm_expr.args){
+					see_expr(arg.value);
+				}
+
+				return false;
+			} break;
+
+			case Expr::Kind::EXTRACT_ASM_VALUE: return false;
+
+			case Expr::Kind::ASM_VOID: {
+				const AsmVoid& asm_void = handler.getAsmVoid(stmt);
+				for(const AsmArg& arg : asm_void.args){
+					see_expr(arg.value);
+				}
 
 				return false;
 			} break;

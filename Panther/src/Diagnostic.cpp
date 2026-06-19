@@ -73,6 +73,7 @@ namespace pcit::panther{
 			case AST::Kind::DESIGNATED_INIT_NEW: return Location::get(ast_buffer.getDesignatedInitNew(node), src);
 			case AST::Kind::TRY_ELSE:          return Location::get(ast_buffer.getTryElse(node), src);
 			case AST::Kind::UNSAFE:            return Location::get(ast_buffer.getUnsafe(node), src);
+			case AST::Kind::ASM:               return Location::get(ast_buffer.getAsm(node), src);
 			case AST::Kind::DEDUCER:           return Location::get(ast_buffer.getDeducer(node), src);
 			case AST::Kind::ARRAY_TYPE:        return Location::get(ast_buffer.getArrayType(node), src);
 			case AST::Kind::FUNC_TYPE:         return Location::get(ast_buffer.getFuncType(node), src);
@@ -253,6 +254,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::Unsafe& unsafe, const Source& src) -> Location {
 		return Location::get(unsafe.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Asm& asm_expr, const Source& src) -> Location {
+		return Location::get(asm_expr.startToken, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::ArrayType& type, const Source& src) -> Location {

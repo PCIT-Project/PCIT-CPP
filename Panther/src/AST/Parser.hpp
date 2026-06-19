@@ -106,6 +106,7 @@ namespace pcit::panther{
 			template<bool IS_ERROR_DEFER> [[nodiscard]] auto parse_defer() -> Result;
 			[[nodiscard]] auto parse_try_stmt() -> Result;
 			[[nodiscard]] auto parse_unsafe() -> Result;
+			template<bool IS_STMT> [[nodiscard]] auto parse_asm() -> Result;
 
 			[[nodiscard]] auto parse_assignment() -> Result;
 

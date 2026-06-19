@@ -2608,6 +2608,68 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Stmt::Kind::ASM: {
+				const sema::Asm& asm_stmt = this->context.getSemaBuffer().getAsm(stmt.asmID());
+
+				evo::debugAssert(asm_stmt.retParams.empty(), "asm stmt cannot have ret params");
+
+				const auto ssl = this->create_scoped_source_location(asm_stmt.line, asm_stmt.collumn);
+
+
+				auto args = evo::SmallVector<pir::AsmArg>();
+				auto outputs = evo::SmallVector<pir::Asm::Output>();
+				auto output_exprs = evo::SmallVector<pir::Expr>();
+				for(const sema::Asm::Param& param : asm_stmt.params){
+					const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
+
+					const pir::Expr param_expr = [&]() -> pir::Expr {
+						if(param.isMut){
+							return this->get_expr_pointer(param.value);
+						}else{
+							return this->get_expr_register(param.value);	
+						}
+					}();
+
+					args.emplace_back(std::string(param.name), param_type, param_expr, std::string(param.constraint));
+
+					if(param.isMut){
+						outputs.emplace_back(
+							std::format(".ASM_OUTPUT_{}", outputs.size()),
+							std::string(),
+							std::string(param.name),
+							param_type
+						);
+						output_exprs.emplace_back(param_expr);
+					}
+				}
+
+				if(outputs.empty()){
+					std::ignore = this->handler.createAsmVoid(
+						std::string(asm_stmt.code),
+						std::move(args),
+						evo::copy(asm_stmt.clobbers),
+						asm_stmt.isSideEffect,
+						asm_stmt.isAlignStack
+					);
+					break;
+				}
+
+				const pir::Expr asm_expr = this->handler.createAsm(
+					std::string(asm_stmt.code),
+					std::move(args),
+					std::move(outputs),
+					evo::copy(asm_stmt.clobbers),
+					asm_stmt.isSideEffect,
+					asm_stmt.isAlignStack
+				);
+				const pir::Asm& asm_expr_ref = this->handler.getAsm(asm_expr);
+
+				for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
+					this->handler.createStore(output_expr, this->handler.createExtractAsmValue(asm_expr_ref, i));
+					i += 1;
+				}
+			} break;
+
 			case sema::Stmt::Kind::ASSIGN: {
 				const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
 
@@ -4332,6 +4394,102 @@ namespace pcit::panther{
 
 						return std::nullopt;
 					}
+				}
+			} break;
+
+			case sema::Expr::Kind::ASM: {
+				const sema::Asm& asm_expr = this->context.getSemaBuffer().getAsm(expr.asmID());
+
+				evo::debugAssert(asm_expr.retParams.empty() == false, "asm expr must have ret params");
+
+				const auto ssl = this->create_scoped_source_location(asm_expr.line, asm_expr.collumn);
+
+
+				auto args = evo::SmallVector<pir::AsmArg>();
+				auto outputs = evo::SmallVector<pir::Asm::Output>();
+				auto output_exprs = evo::SmallVector<pir::Expr>();
+				for(const sema::Asm::Param& param : asm_expr.params){
+					const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
+
+					const pir::Expr param_expr = [&]() -> pir::Expr {
+						if(param.isMut){
+							return this->get_expr_pointer(param.value);
+						}else{
+							return this->get_expr_register(param.value);	
+						}
+					}();
+
+					args.emplace_back(std::string(param.name), param_type, param_expr, std::string(param.constraint));
+
+					if(param.isMut){
+						outputs.emplace_back(
+							this->name(".ASM_OUTPUT_{}", outputs.size()),
+							std::string(),
+							std::string(param.name),
+							param_type
+						);
+						output_exprs.emplace_back(param_expr);
+					}
+				}
+
+				for(const sema::Asm::RetParam& ret_param : asm_expr.retParams){
+					outputs.emplace_back(
+						this->name(".ASM_OUTPUT_{}", outputs.size()),
+						std::string(ret_param.name),
+						std::string(ret_param.constraint),
+						this->get_type<false, false>(ret_param.typeID).type
+					);
+				}
+
+
+				const pir::Expr asm_pir_expr = this->handler.createAsm(
+					std::string(asm_expr.code),
+					std::move(args),
+					std::move(outputs),
+					evo::copy(asm_expr.clobbers),
+					asm_expr.isSideEffect,
+					asm_expr.isAlignStack
+				);
+				const pir::Asm& asm_pir_expr_ref = this->handler.getAsm(asm_pir_expr);
+
+				for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
+					this->handler.createStore(output_expr, this->handler.createExtractAsmValue(asm_pir_expr_ref, i));
+					i += 1;
+				}
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
+					return this->handler.createExtractAsmValue(asm_pir_expr_ref, output_exprs.size());
+					
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
+
+					const pir::Expr pointer_alloca = this->handler.createAlloca(
+						this->handler.getExprType(asm_pir_expr), this->name("ASM_OUTPUT")
+					);
+
+					this->handler.createStore(pointer_alloca, asm_pir_expr);
+					return pointer_alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					evo::debugAssert(
+						asm_expr.retParams.size() == store_locations.size(), "wrong number of store location"
+					);
+
+					for(size_t i = 0; pir::Expr store_location : store_locations){
+						this->handler.createStore(
+							store_location,
+							this->handler.createExtractAsmValue(asm_pir_expr_ref, output_exprs.size() + i)
+						);
+
+						i += 1;
+					}
+
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
 				}
 			} break;
 
@@ -12239,26 +12397,26 @@ namespace pcit::panther{
 				return this->get_global_var_value(*global_var.expr.load());
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:            case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                    case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                 case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::FUNC_PTR:                case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::OPTIONAL_EXTRACT:        case sema::Expr::Kind::DEREF:
-			case sema::Expr::Kind::UNWRAP:                  case sema::Expr::Kind::ACCESSOR:
-			case sema::Expr::Kind::UNION_ACCESSOR:          case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:              case sema::Expr::Kind::TRY_ELSE_EXPR:
-			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR: case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:          case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:          case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:       case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:    case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_TAG_CMP:           case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::PARAM:                   case sema::Expr::Kind::VARIADIC_PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:            case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:       case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::FOR_PARAM:               case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:        case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                      case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::ACCESSOR:                   case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:                case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:              case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:                 case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:         case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:               case sema::Expr::Kind::FOR_PARAM:
+			case sema::Expr::Kind::VAR:                        case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

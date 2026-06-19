@@ -2198,6 +2198,264 @@ namespace pcit::pir{
 						this->stmt_values.emplace(stmt, output_value);
 					} break;
 
+					case Expr::Kind::ASM: {
+						const Asm& asm_expr = this->reader.getAsm(stmt);
+
+						auto arg_name_index_map = std::unordered_map<std::string_view, size_t>();
+
+						for(const Asm::Output& output : asm_expr.outputs){
+							arg_name_index_map.emplace(
+								std::string_view(output.registerName), arg_name_index_map.size()
+							);
+						}
+
+						for(const AsmArg& arg : asm_expr.args){
+							arg_name_index_map.emplace(std::string_view(arg.name), arg_name_index_map.size());
+						}
+
+
+						std::string code = "";
+						for(size_t i = 0; i < asm_expr.code.size(); i+=1){
+							if(asm_expr.code[i] == '\\' && i + 1 < asm_expr.code.size() && asm_expr.code[i + 1] == '%'){
+								code += '%';
+								i += 1;
+
+							}else if(asm_expr.code[i] == '%'){
+								if(i + 1 == asm_expr.code.size()){ // if last character
+									code += '%';
+									break;
+								}
+
+								i += 1;
+								const char* ident_start = &asm_expr.code[i];
+								size_t num_chars = 0;
+								while(i < asm_expr.code.size()){
+									if(
+										num_chars == 0
+										&& evo::isLetter(asm_expr.code[i]) == false
+										&& asm_expr.code[i] != '_'
+									){
+										i -= 1;
+										break;
+
+									}else if(evo::isAlphaNumeric(asm_expr.code[i]) == false && asm_expr.code[i] != '_'){
+										i -= 1;
+										break;
+									}
+
+									num_chars += 1;
+									i += 1;
+								}
+
+								const auto ident_str = std::string_view(ident_start, num_chars);
+
+								const auto find_arg_index = arg_name_index_map.find(ident_str);
+
+								if(find_arg_index != arg_name_index_map.end()){
+									code += std::format("${}", find_arg_index->second);
+								}else{
+									code += std::format("%{}", ident_str);
+								}
+
+							}else{
+								code += asm_expr.code[i];
+							}
+						}
+
+						std::string constraints = "";
+
+						auto types = evo::SmallVector<llvmint::Type>();
+						auto values = evo::SmallVector<llvmint::Value>();
+						auto output_types = evo::SmallVector<llvmint::Type>();
+
+						auto mut_output_indices = evo::SmallVector<size_t>();
+						for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+							constraints += '=';
+
+							if(output.isMutParam()){
+								mut_output_indices.emplace_back(i);
+
+								for(const AsmArg& arg : asm_expr.args){
+									if(arg.name == output.constraint){
+										constraints += arg.constraint;
+
+										const llvmint::Type arg_type = this->get_type<false>(arg.type);
+
+										types.emplace_back(arg_type);
+										values.emplace_back(
+											this->builder.createLoad(this->get_value<false>(arg.value), arg_type, false)
+										);
+
+										break;
+									}
+								}
+
+							}else{
+								constraints += output.constraint;
+							}
+
+							constraints += ',';
+
+							output_types.emplace_back(this->get_type<false>(output.type));
+
+							i += 1;
+						}
+
+
+						for(const AsmArg& arg : asm_expr.args){
+							bool is_mut = false;
+							for(const Asm::Output& output : asm_expr.outputs){
+								if(output.isMutParam() == false){ continue; }
+
+								if(arg.name == output.constraint){
+									is_mut = true;
+									break;
+								}
+							}
+
+							if(is_mut){ continue; }
+
+							constraints += arg.constraint;
+							constraints += ',';
+
+							types.emplace_back(this->get_type<false>(arg.type));
+							values.emplace_back(this->get_value<false>(arg.value));
+						}
+
+						for(size_t index : mut_output_indices){
+							constraints += std::format("{},", index);
+						}
+
+						for(const std::string_view& clobber : asm_expr.clobbers){
+							constraints += "~{";
+							constraints += clobber;
+							constraints += "},";
+						}
+
+						constraints += "~{dirflag},~{fpsr},~{flags}";
+
+						const llvmint::Type output_type = [&]() -> llvmint::Type {
+							if(output_types.size() == 1){
+								return output_types[0];
+							}else{
+								return this->builder.createStructType(output_types, false).asType();
+							}
+						}();
+
+
+						llvmint::CallInst asm_expr_call = this->builder.createAsm(
+							code,
+							constraints,
+							output_type,
+							types,
+							values,
+							asm_expr.isSideEffect,
+							asm_expr.isAlignStack
+						);
+
+						if(this->add_debug_info && asm_expr.sourceLocation.has_value()){
+							asm_expr_call.setLocation(this->lower_meta_source_location(*asm_expr.sourceLocation));
+						}
+
+						this->asm_exprs.emplace(&asm_expr, asm_expr_call);
+					} break;
+
+					case Expr::Kind::EXTRACT_ASM_VALUE: evo::debugFatalBreak("Not a valid stmt");
+
+					case Expr::Kind::ASM_VOID: {
+						const AsmVoid& asm_void = this->reader.getAsmVoid(stmt);
+
+						auto arg_name_index_map = std::unordered_map<std::string_view, size_t>();
+						for(size_t i = 0; const AsmArg& arg : asm_void.args){
+							arg_name_index_map.emplace(std::string_view(arg.name), i);
+							i += 1;
+						}
+
+						std::string code = "";
+						for(size_t i = 0; i < asm_void.code.size(); i+=1){
+							if(asm_void.code[i] == '\\' && i + 1 < asm_void.code.size() && asm_void.code[i + 1] == '%'){
+								code += '%';
+								i += 1;
+
+							}else if(asm_void.code[i] == '%'){
+								if(i + 1 == asm_void.code.size()){ // if last character
+									code += '%';
+									break;
+								}
+
+								i += 1;
+								const char* ident_start = &asm_void.code[i];
+								size_t num_chars = 0;
+								while(i < asm_void.code.size()){
+									if(
+										num_chars == 0
+										&& evo::isLetter(asm_void.code[i]) == false
+										&& asm_void.code[i] != '_'
+									){
+										i -= 1;
+										break;
+
+									}else if(evo::isAlphaNumeric(asm_void.code[i]) == false && asm_void.code[i] != '_'){
+										i -= 1;
+										break;
+									}
+
+									num_chars += 1;
+									i += 1;
+								}
+
+								const auto ident_str = std::string_view(ident_start, num_chars);
+
+								const auto find_arg_index = arg_name_index_map.find(ident_str);
+
+								if(find_arg_index != arg_name_index_map.end()){
+									code += std::format("${}", find_arg_index->second);
+								}else{
+									code += std::format("%{}", ident_str);
+								}
+
+							}else{
+								code += asm_void.code[i];
+							}
+						}
+
+						std::string constraints = "";
+
+						auto types = evo::SmallVector<llvmint::Type>();
+						auto values = evo::SmallVector<llvmint::Value>();
+
+						for(const AsmArg& arg : asm_void.args){
+							constraints += arg.constraint;
+							constraints += ',';
+
+							types.emplace_back(this->get_type<false>(arg.type));
+							values.emplace_back(this->get_value<false>(arg.value));
+						}
+
+						for(const std::string_view& clobber : asm_void.clobbers){
+							constraints += "~{";
+							constraints += clobber;
+							constraints += "},";
+						}
+
+						constraints += "~{dirflag},~{fpsr},~{flags}";
+
+
+						llvmint::CallInst asm_void_call = this->builder.createAsm(
+							code,
+							constraints,
+							this->builder.getTypeVoid(),
+							types,
+							values,
+							asm_void.isSideEffect,
+							asm_void.isAlignStack
+						);
+
+						if(this->add_debug_info && asm_void.sourceLocation.has_value()){
+							asm_void_call.setLocation(this->lower_meta_source_location(*asm_void.sourceLocation));
+						}
+					}
+
 					case Expr::Kind::META_LOCAL_VAR: {
 						if(this->add_debug_info == false){ continue; }
 
@@ -2535,48 +2793,48 @@ namespace pcit::pir{
 			case Expr::Kind::UMUL_WRAP_WRAPPED: {
 				return this->stmt_values.at(this->reader.extractUMulWrapWrapped(expr));
 			} break;
-			case Expr::Kind::SMUL_SAT:       return this->stmt_values.at(expr);
-			case Expr::Kind::UMUL_SAT:       return this->stmt_values.at(expr);
-			case Expr::Kind::FMUL:           return this->stmt_values.at(expr);
+			case Expr::Kind::SMUL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::UMUL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::FMUL:        return this->stmt_values.at(expr);
 
-			case Expr::Kind::SDIV:           return this->stmt_values.at(expr);
-			case Expr::Kind::UDIV:           return this->stmt_values.at(expr);
-			case Expr::Kind::FDIV:           return this->stmt_values.at(expr);
-			case Expr::Kind::SREM:           return this->stmt_values.at(expr);
-			case Expr::Kind::UREM:           return this->stmt_values.at(expr);
-			case Expr::Kind::FREM:           return this->stmt_values.at(expr);
-			case Expr::Kind::FNEG:           return this->stmt_values.at(expr);
+			case Expr::Kind::SDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::UDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::FDIV:        return this->stmt_values.at(expr);
+			case Expr::Kind::SREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::UREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::FREM:        return this->stmt_values.at(expr);
+			case Expr::Kind::FNEG:        return this->stmt_values.at(expr);
 
-			case Expr::Kind::IEQ:            return this->stmt_values.at(expr);
-			case Expr::Kind::FEQ:            return this->stmt_values.at(expr);
-			case Expr::Kind::INEQ:           return this->stmt_values.at(expr);
-			case Expr::Kind::FNEQ:           return this->stmt_values.at(expr);
-			case Expr::Kind::SLT:            return this->stmt_values.at(expr);
-			case Expr::Kind::ULT:            return this->stmt_values.at(expr);
-			case Expr::Kind::FLT:            return this->stmt_values.at(expr);
-			case Expr::Kind::SLTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::ULTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::FLTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::SGT:            return this->stmt_values.at(expr);
-			case Expr::Kind::UGT:            return this->stmt_values.at(expr);
-			case Expr::Kind::FGT:            return this->stmt_values.at(expr);
-			case Expr::Kind::SGTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::UGTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::FGTE:           return this->stmt_values.at(expr);
-			case Expr::Kind::AND:            return this->stmt_values.at(expr);
-			case Expr::Kind::OR:             return this->stmt_values.at(expr);
-			case Expr::Kind::XOR:            return this->stmt_values.at(expr);
-			case Expr::Kind::SHL:            return this->stmt_values.at(expr);
-			case Expr::Kind::SSHL_SAT:       return this->stmt_values.at(expr);
-			case Expr::Kind::USHL_SAT:       return this->stmt_values.at(expr);
-			case Expr::Kind::SSHR:           return this->stmt_values.at(expr);
-			case Expr::Kind::USHR:           return this->stmt_values.at(expr);
+			case Expr::Kind::IEQ:         return this->stmt_values.at(expr);
+			case Expr::Kind::FEQ:         return this->stmt_values.at(expr);
+			case Expr::Kind::INEQ:        return this->stmt_values.at(expr);
+			case Expr::Kind::FNEQ:        return this->stmt_values.at(expr);
+			case Expr::Kind::SLT:         return this->stmt_values.at(expr);
+			case Expr::Kind::ULT:         return this->stmt_values.at(expr);
+			case Expr::Kind::FLT:         return this->stmt_values.at(expr);
+			case Expr::Kind::SLTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::ULTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::FLTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::SGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::UGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::FGT:         return this->stmt_values.at(expr);
+			case Expr::Kind::SGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::UGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::FGTE:        return this->stmt_values.at(expr);
+			case Expr::Kind::AND:         return this->stmt_values.at(expr);
+			case Expr::Kind::OR:          return this->stmt_values.at(expr);
+			case Expr::Kind::XOR:         return this->stmt_values.at(expr);
+			case Expr::Kind::SHL:         return this->stmt_values.at(expr);
+			case Expr::Kind::SSHL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::USHL_SAT:    return this->stmt_values.at(expr);
+			case Expr::Kind::SSHR:        return this->stmt_values.at(expr);
+			case Expr::Kind::USHR:        return this->stmt_values.at(expr);
 
-			case Expr::Kind::BIT_REVERSE:    return this->stmt_values.at(expr);
-			case Expr::Kind::BYTE_SWAP:      return this->stmt_values.at(expr);
-			case Expr::Kind::CTPOP:          return this->stmt_values.at(expr);
-			case Expr::Kind::CTLZ:           return this->stmt_values.at(expr);
-			case Expr::Kind::CTTZ:           return this->stmt_values.at(expr);
+			case Expr::Kind::BIT_REVERSE: return this->stmt_values.at(expr);
+			case Expr::Kind::BYTE_SWAP:   return this->stmt_values.at(expr);
+			case Expr::Kind::CTPOP:       return this->stmt_values.at(expr);
+			case Expr::Kind::CTLZ:        return this->stmt_values.at(expr);
+			case Expr::Kind::CTTZ:        return this->stmt_values.at(expr);
 
 			case Expr::Kind::CMPXCHG:        evo::debugFatalBreak("Not a value");
 			case Expr::Kind::CMPXCHG_LOADED: {
@@ -2585,8 +2843,24 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_SUCCEEDED: {
 				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
 			} break;
-			case Expr::Kind::ATOMIC_RMW:     return this->stmt_values.at(expr);
-			case Expr::Kind::META_LOCAL_VAR: evo::debugFatalBreak("Not a value");
+			case Expr::Kind::ATOMIC_RMW:       return this->stmt_values.at(expr);
+			case Expr::Kind::ASM:              evo::debugFatalBreak("Not a value");
+
+			case Expr::Kind::EXTRACT_ASM_VALUE: {
+				const ExtractAsmValue& extract_asm_value = this->reader.getExtractAsmValue(expr);
+
+				const llvmint::Value asm_expr = this->asm_exprs.at(&extract_asm_value.asmExpr).asValue();
+
+				if(extract_asm_value.asmExpr.outputs.size() == 1){
+					return asm_expr;
+				}else{
+					return this->builder.createExtractValue(asm_expr, {uint32_t(extract_asm_value.index)});
+				}
+			} break;
+
+			case Expr::Kind::ASM_VOID:         evo::debugFatalBreak("Not a value");
+			case Expr::Kind::META_LOCAL_VAR:   evo::debugFatalBreak("Not a value");
+			case Expr::Kind::META_PARAM:       evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");

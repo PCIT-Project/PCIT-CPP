@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.324.0"></a>
+## v0.0.324.0
+
+### Panther
+- Added `asm` statements / expression (inline assembly )
+
+
+<!---------------------------------->
 <a name="v0.0.323.0"></a>
 ## v0.0.323.0
 

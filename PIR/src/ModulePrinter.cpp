@@ -1077,6 +1077,15 @@ namespace pcit::pir{
 				this->printer.print("${}", atomic_rmw.name);
 			} break;
 
+			case Expr::Kind::ASM: evo::debugFatalBreak("Expr::Kind::ASM is not a valid expression");
+
+			case Expr::Kind::EXTRACT_ASM_VALUE: {
+				const ExtractAsmValue& extract_asm_value = this->reader.getExtractAsmValue(expr);
+				this->printer.print("${}", extract_asm_value.asmExpr.outputs[extract_asm_value.index].name);
+			} break;
+
+			case Expr::Kind::ASM_VOID: evo::debugFatalBreak("Expr::Kind::ASM_VOID is not a valid expression");
+
 			case Expr::Kind::META_LOCAL_VAR:
 				evo::debugFatalBreak("Expr::Kind::META_LOCAL_VAR is not a valid expression");
 
@@ -2128,6 +2137,115 @@ namespace pcit::pir{
 				this->print_atomic_ordering(atomic_rmw.ordering);
 
 				this->printer.println();
+			} break;
+
+			case Expr::Kind::ASM: {
+				const Asm& asm_expr = this->reader.getAsm(stmt);
+
+				this->printer.print(tabs(2));
+
+				for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+					this->printer.print("${}", output.name);
+
+					if(i + 1 < asm_expr.outputs.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+
+				this->printer.printRed(" = @asm ");
+
+				this->printer.print("(");
+				for(size_t i = 0; const AsmArg& arg : asm_expr.args){
+					this->printer.printYellow("\"{}\"", arg.name);
+					this->printer.printRed(": ");
+
+					this->printType(arg.type);
+					this->printer.printYellow(" \"{}\" ", arg.constraint);
+
+					this->printer.printRed("= ");
+
+					this->print_expr(arg.value);
+
+					if(i + 1 < asm_expr.args.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print(")");
+
+				if(asm_expr.isSideEffect){ this->printer.printRed(" #sideEffect"); }
+				if(asm_expr.isAlignStack){ this->printer.printRed(" #alignStack"); }
+
+				for(const std::string_view& clobber : asm_expr.clobbers){
+					this->printer.printRed(" #clobber");
+					this->printer.print("(");
+					this->printer.printYellow("\"{}\"", clobber);
+					this->printer.print(")");
+				}
+
+				this->printer.printRed(" -> ");
+
+				this->printer.print("(");
+				for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+					this->printer.printYellow("\"{}\"", output.registerName);
+					this->printer.printRed(": ");
+					this->printType(output.type);
+					this->printer.printYellow(" \"{}\"", output.constraint);
+
+					if(i + 1 < asm_expr.outputs.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print(")");
+
+				this->printer.printYellow(" \"{}\"\n", asm_expr.code);
+			} break;
+
+			case Expr::Kind::EXTRACT_ASM_VALUE:
+				evo::debugFatalBreak("Expr::Kind::USubWrapWrapped is not a valid statement");
+
+			case Expr::Kind::ASM_VOID: {
+				const AsmVoid& asm_expr = this->reader.getAsmVoid(stmt);
+
+				this->printer.print(tabs(2));
+				this->printer.printRed("@asm ");
+
+				this->printer.print("(");
+				for(size_t i = 0; const AsmArg& arg : asm_expr.args){
+					this->printer.printYellow("\"{}\"", arg.name);
+					this->printer.printRed(": ");
+
+					this->printType(arg.type);
+					this->printer.printYellow(" \"{}\" ", arg.constraint);
+
+					this->printer.printRed("= ");
+
+					this->print_expr(arg.value);
+
+					if(i + 1 < asm_expr.args.size()){
+						this->printer.print(", ");
+					}
+
+					i += 1;
+				}
+				this->printer.print(")");
+
+				if(asm_expr.isSideEffect){ this->printer.printRed(" #sideEffect"); }
+				if(asm_expr.isAlignStack){ this->printer.printRed(" #alignStack"); }
+
+				for(const std::string_view& clobber : asm_expr.clobbers){
+					this->printer.printRed(" #clobber");
+					this->printer.print("(");
+					this->printer.printYellow("\"{}\"", clobber);
+					this->printer.print(")");
+				}
+
+				this->printer.printYellow(" \"{}\"\n", asm_expr.code);
 			} break;
 
 			case Expr::Kind::META_LOCAL_VAR: {

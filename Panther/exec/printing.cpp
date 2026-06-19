@@ -395,6 +395,10 @@ namespace pthr{
 						this->print_unsafe(this->ast_buffer.getUnsafe(stmt));
 					} break;
 
+					case panther::AST::Kind::ASM: {
+						this->print_asm(this->ast_buffer.getAsm(stmt));
+					} break;
+
 					case panther::AST::Kind::BLOCK: {
 						this->indenter.print();
 						this->print_major_header("Statement Block");
@@ -1984,6 +1988,10 @@ namespace pthr{
 						this->print_try_else(this->ast_buffer.getTryElse(node));
 					} break;
 
+					case panther::AST::Kind::ASM: {
+						this->print_asm(this->ast_buffer.getAsm(node));
+					} break;
+
 					case panther::AST::Kind::LITERAL: {
 						const panther::Token::ID token_id = this->ast_buffer.getLiteral(node);
 						const panther::Token& token = this->source.getTokenBuffer()[token_id];
@@ -2025,7 +2033,6 @@ namespace pthr{
 						this->printer.println();
 					} break;
 
-
 					case panther::AST::Kind::IDENT: {
 						this->print_ident(node);
 					} break;
@@ -2061,7 +2068,6 @@ namespace pthr{
 					case panther::AST::Kind::DESIGNATED_INIT_NEW: {
 						this->print_designated_init_new(this->ast_buffer.getDesignatedInitNew(node));
 					} break;
-
 
 					case panther::AST::Kind::NONE:             case panther::AST::Kind::VAR_DEF:
 					case panther::AST::Kind::FUNC_DEF:         case panther::AST::Kind::DELETED_SPECIAL_METHOD:
@@ -2635,19 +2641,60 @@ namespace pthr{
 
 
 			auto print_unsafe(const panther::AST::Unsafe& unsafe_stmt) -> void {
-				this->indenter.print();
 				this->print_major_header("Unsafe");
 
-				{
+				this->indenter.push();
+
+				this->indenter.print_end();
+				this->print_minor_header("Block");
+				this->print_block(this->source.getASTBuffer().getBlock(unsafe_stmt.block));
+
+				this->indenter.pop();
+			}
+
+
+			auto print_asm(const panther::AST::Asm& asm_expr) -> void {
+				this->print_major_header("Asm");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Params");
+				this->printer.println();
+				this->indenter.push();
+				for(const panther::AST::Asm::Param& param : asm_expr.params){
+					
+				}
+				this->indenter.pop();
+
+				this->indenter.set_arrow();
+				this->print_attribute_block(this->ast_buffer.getAttributeBlock(asm_expr.attributeBlock));
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Return Parameters");
+				if(asm_expr.retParams.empty()){
+					this->printer.printlnMagenta("`Void`");
+				}else{
+					this->printer.println();
 					this->indenter.push();
-
-					this->indenter.print_end();
-					this->print_minor_header("Block");
-					this->print_block(this->source.getASTBuffer().getBlock(unsafe_stmt.block));
-
+					for(const panther::AST::Asm::RetParam& ret_param : asm_expr.retParams){
+						
+					}
 					this->indenter.pop();
 				}
+
+				this->indenter.print_end();
+				this->print_minor_header("Code");
+				this->printer.printMagenta(" \"");
+				for(char character : this->source.getTokenBuffer()[asm_expr.asmStr].getString()){
+					this->printer.printMagenta(std::string_view(&character, 1));
+					if(character == '\n'){ this->indenter.print(); }
+				}
+				this->printer.printMagenta("\"\n");
+
+				this->indenter.pop();
 			}
+
 
 
 			auto print_attribute_block(const panther::AST::AttributeBlock& attr_block) -> void {

@@ -120,20 +120,20 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> params, std::string_view name) -> CallInst {
-		return this->builder->CreateCall(func.native(), create_array_ref<llvm::Value>(params), name);
+	auto IRBuilder::createCall(const Function& func, evo::ArrayProxy<Value> args, std::string_view name) -> CallInst {
+		return this->builder->CreateCall(func.native(), create_array_ref<llvm::Value>(args), name);
 	}
 
 	auto IRBuilder::createCall(
-		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, std::string_view name
+		const Value& value, const FunctionType& type, evo::ArrayProxy<Value> args, std::string_view name
 	) -> CallInst {
 		return this->builder->CreateCall(
-			type.native(), value.native(), create_array_ref<llvm::Value>(params), name
+			type.native(), value.native(), create_array_ref<llvm::Value>(args), name
 		);
 	}
 
 	auto IRBuilder::createIntrinsicCall(
-		IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, std::string_view name
+		IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> args, std::string_view name
 	)-> CallInst {
 
 		// llvm/IR/IntrinsicEnums.inc
@@ -172,7 +172,7 @@ namespace pcit::llvmint{
 		}();
 
 		return this->builder->CreateIntrinsic(
-			return_type.native(), intrinsic_id, create_array_ref<llvm::Value>(params), nullptr, name
+			return_type.native(), intrinsic_id, create_array_ref<llvm::Value>(args), nullptr, name
 		);
 	};
 
@@ -504,6 +504,40 @@ namespace pcit::llvmint{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// asm
+
+	auto IRBuilder::createAsm(
+		std::string_view code,
+		std::string_view constraints,
+		Type ret_type,
+		evo::ArrayProxy<Type> param_types,
+		evo::ArrayProxy<Value> args,
+		bool has_side_effects,
+		bool is_align_stack
+	) -> CallInst {
+		evo::debugAssert(param_types.size() == args.size(), "Number of params must be the same as args");
+
+		llvm::FunctionType* func_type = llvm::FunctionType::get(
+			ret_type.native(), create_array_ref<llvm::Type>(param_types), false
+		);
+
+		llvm::InlineAsm* inline_asm = llvm::InlineAsm::get(
+			func_type,
+			code,
+			constraints,
+			has_side_effects,
+			is_align_stack,
+			llvm::InlineAsm::AsmDialect::AD_Intel,
+			false
+		);
+
+		return CallInst(this->builder->CreateCall(func_type, inline_asm, create_array_ref<llvm::Value>(args)));
+	}
+
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// insertion point
 
 	auto IRBuilder::setInsertionPoint(const BasicBlock& block) -> void {
@@ -514,8 +548,8 @@ namespace pcit::llvmint{
 		this->setInsertionPoint(function.back());
 	}
 
-	auto IRBuilder::getInsertionPoint() -> llvmint::BasicBlock {
-		return llvmint::BasicBlock(this->builder->GetInsertBlock());
+	auto IRBuilder::getInsertionPoint() -> BasicBlock {
+		return BasicBlock(this->builder->GetInsertBlock());
 	}
 
 
@@ -524,7 +558,7 @@ namespace pcit::llvmint{
 
 
 	auto IRBuilder::getValueNull() const -> Constant {
-		return llvmint::Constant(llvm::Constant::getNullValue(this->builder->getPtrTy()));
+		return Constant(llvm::Constant::getNullValue(this->builder->getPtrTy()));
 	}
 
 

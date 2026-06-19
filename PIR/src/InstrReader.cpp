@@ -156,6 +156,12 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_LOADED:    return this->getExprType(this->getCmpXchg(expr).expected);
 			case Expr::Kind::CMPXCHG_SUCCEEDED: return this->module.createBoolType();
 			case Expr::Kind::ATOMIC_RMW:        return this->getExprType(this->getAtomicRMW(expr).value);
+			case Expr::Kind::ASM:               evo::debugFatalBreak("Not a value");
+			case Expr::Kind::EXTRACT_ASM_VALUE: {
+				const ExtractAsmValue& extract_asm_values = this->getExtractAsmValue(expr);
+				return extract_asm_values.asmExpr.outputs[extract_asm_values.index].type;
+			} break;
+			case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Not a value");
 			case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Not a value");
 			case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Not a value");
 		}
@@ -903,6 +909,27 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::ATOMIC_RMW, "Not an atomic rmw");
 
 		return this->module.atomic_rmws[expr.index];
+	}
+
+	auto InstrReader::getAsm(Expr expr) const -> const Asm& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::ASM, "Not an asm");
+
+		return this->module.asms[expr.index];
+	}
+
+	auto InstrReader::getExtractAsmValue(Expr expr) const -> const ExtractAsmValue& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::EXTRACT_ASM_VALUE, "Not an extract asm value");
+
+		return this->module.extract_asm_values[expr.index];
+	}
+
+	auto InstrReader::getAsmVoid(Expr expr) const -> const AsmVoid& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::ASM_VOID, "Not an asm void");
+
+		return this->module.asm_voids[expr.index];
 	}
 
 	auto InstrReader::getMetaLocalVar(Expr expr) const -> const MetaLocalVar& {

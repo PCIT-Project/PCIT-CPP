@@ -94,13 +94,13 @@ namespace pcit::llvmint{
 			auto createSwitch(const Value& cond, BasicBlock default_block, evo::ArrayProxy<Case> cases) -> void;
 
 
-			auto createCall(const Function& func, evo::ArrayProxy<Value> params, std::string_view name = {}) 
+			auto createCall(const Function& func, evo::ArrayProxy<Value> args, std::string_view name = {}) 
 				-> CallInst;
 			auto createCall(
-				const Value& value, const FunctionType& type, evo::ArrayProxy<Value> params, std::string_view name = {}
+				const Value& value, const FunctionType& type, evo::ArrayProxy<Value> args, std::string_view name = {}
 			)  -> CallInst;
 			auto createIntrinsicCall(
-				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> params, std::string_view name = {}
+				IntrinsicID id, const Type& return_type, evo::ArrayProxy<Value> args, std::string_view name = {}
 			) -> CallInst;
 
 			auto createMemCpyInline(const Value& dst, const Value& src, const Value& size, bool is_volatile)
@@ -289,12 +289,27 @@ namespace pcit::llvmint{
 
 
 			//////////////////////////////////////////////////////////////////////
+			// asm
+
+			auto createAsm(
+				std::string_view code,
+				std::string_view constraints,
+				Type ret_type,
+				evo::ArrayProxy<Type> param_types,
+				evo::ArrayProxy<Value> args,
+				bool has_side_effects,
+				bool is_align_stack
+			) -> CallInst;
+
+
+
+			//////////////////////////////////////////////////////////////////////
 			// insertion point
 
 			auto setInsertionPoint(const BasicBlock& block) -> void;
 			auto setInsertionPointAtBack(const Function& func) -> void;
 
-			[[nodiscard]] auto getInsertionPoint() -> llvmint::BasicBlock;
+			[[nodiscard]] auto getInsertionPoint() -> BasicBlock;
 
 
 

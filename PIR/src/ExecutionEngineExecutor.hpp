@@ -37,6 +37,7 @@ namespace pcit::pir{
 					ARITHMETIC_WRAP,
 					FLOATING_POINT_EXCEPTION,
 					UNKNOWN_EXCEPTION,
+					ASSEMBLY,
 				};
 				
 				Code code;

@@ -762,6 +762,24 @@ namespace pcit::pir{
 						if(atomic_rmw.value == original){ atomic_rmw.value = replacement; }
 					} break;
 
+					case Expr::Kind::ASM: {
+						Asm& asm_expr = this->module.asms[stmt.index];
+
+						for(AsmArg& arg : asm_expr.args){
+							if(arg.value == original){ arg.value = replacement; }
+						}
+					} break;
+
+					case Expr::Kind::EXTRACT_ASM_VALUE: continue;
+
+					case Expr::Kind::ASM_VOID: {
+						AsmVoid& asm_stmt = this->module.asm_voids[stmt.index];
+
+						for(AsmArg& arg : asm_stmt.args){
+							if(arg.value == original){ arg.value = replacement; }
+						}
+					} break;
+
 					case Expr::Kind::META_LOCAL_VAR: {
 						MetaLocalVar& meta_local_var = this->module.meta_local_vars[stmt.index];
 
@@ -3554,6 +3572,107 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// asm
+
+
+	auto InstrHandler::createAsm(
+		std::string&& code,
+		evo::SmallVector<AsmArg>&& args,
+		evo::SmallVector<Asm::Output>&& outputs,
+		evo::SmallVector<std::string_view>&& clobbers,
+		bool is_side_effect,
+		bool is_align_stack
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+
+		evo::debugAssert(outputs.size() >= 1, "Must have at least 1 output");
+
+		for(Asm::Output& output : outputs){
+			output.name = this->get_stmt_name(std::move(output.name));
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				if(output.isMutParam()){
+					for(const AsmArg& arg : args){
+						if(arg.name == output.constraint){
+							evo::debugAssert(
+								arg.type == output.type, "Asm arg and output with same name must have same type"
+							);
+							break;
+						}
+					}
+				}
+			#endif
+		}
+
+		const auto new_expr = Expr(
+			Expr::Kind::ASM,
+			this->module.asms.emplace_back(
+				std::move(code),
+				std::move(args),
+				std::move(outputs),
+				std::move(clobbers),
+				is_side_effect,
+				is_align_stack,
+				this->get_current_source_location()
+			)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+
+	auto InstrHandler::getAsm(Expr expr) const -> const Asm& {
+		return InstrReader(this->module, this->getTargetFunction()).getAsm(expr);
+	}
+
+
+	auto InstrHandler::createExtractAsmValue(const Asm& asm_expr, size_t index) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(index < asm_expr.outputs.size(), "Index must be a valid output");
+		
+		return Expr(
+			Expr::Kind::EXTRACT_ASM_VALUE, this->module.extract_asm_values.emplace_back(asm_expr, index)
+		);
+	}
+
+
+
+	auto InstrHandler::getExtractAsmValue(Expr expr) const -> const ExtractAsmValue& {
+		return InstrReader(this->module, this->getTargetFunction()).getExtractAsmValue(expr);
+	}
+
+
+
+
+	auto InstrHandler::createAsmVoid(
+		std::string&& code,
+		evo::SmallVector<AsmArg>&& args,
+		evo::SmallVector<std::string_view>&& clobbers,
+		bool is_side_effect,
+		bool is_align_stack
+	) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+
+		const auto new_expr = Expr(
+			Expr::Kind::ASM_VOID,
+			this->module.asm_voids.emplace_back(
+				std::move(code),
+				std::move(args),
+				std::move(clobbers),
+				is_side_effect,
+				is_align_stack,
+				this->get_current_source_location()
+			)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+	auto InstrHandler::getAsmVoid(Expr expr) const -> const AsmVoid& {
+		return InstrReader(this->module, this->getTargetFunction()).getAsmVoid(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// meta
 
 	auto InstrHandler::createMetaLocalVar(std::string&& name, Expr value, meta::Type type) const -> Expr {
@@ -3730,6 +3849,9 @@ namespace pcit::pir{
 			break; case Expr::Kind::CMPXCHG_LOADED:    return;
 			break; case Expr::Kind::CMPXCHG_SUCCEEDED: return;
 			break; case Expr::Kind::ATOMIC_RMW:        this->module.atomic_rmws.erase(expr.index);
+			break; case Expr::Kind::ASM:               this->module.asms.erase(expr.index);
+			break; case Expr::Kind::EXTRACT_ASM_VALUE: return;
+			break; case Expr::Kind::ASM_VOID:          this->module.asm_voids.erase(expr.index);
 			break; case Expr::Kind::META_LOCAL_VAR:    this->module.meta_local_vars.erase(expr.index);
 			break; case Expr::Kind::META_PARAM:        this->module.meta_params.erase(expr.index);
 		}
@@ -3897,7 +4019,14 @@ namespace pcit::pir{
 					} break;
 					case Expr::Kind::CMPXCHG_LOADED:    continue;
 					case Expr::Kind::CMPXCHG_SUCCEEDED: continue;
-					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){  return true; } continue;
+					case Expr::Kind::ATOMIC_RMW:  if(this->getAtomicRMW(stmt).name == name){ return true; } continue;
+					case Expr::Kind::ASM: {
+						for(const Asm::Output& output : this->getAsm(stmt).outputs){
+							if(output.name == name){ return true; }
+						}
+					} continue;
+					case Expr::Kind::EXTRACT_ASM_VALUE: continue;
+					case Expr::Kind::ASM_VOID:          continue;
 					case Expr::Kind::META_LOCAL_VAR: 
 						if(this->getMetaLocalVar(stmt).name == name){ return true; } continue;
 					case Expr::Kind::META_PARAM:  if(this->getMetaParam(stmt).name == name){ return true; } continue;

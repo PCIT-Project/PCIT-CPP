@@ -68,6 +68,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_ERROR_DEFER: return this->parse_defer<true>();
 			case Token::Kind::KEYWORD_TRY:         return this->parse_try_stmt();
 			case Token::Kind::KEYWORD_UNSAFE:      return this->parse_unsafe();
+			case Token::Kind::KEYWORD_ASM:         return this->parse_asm<true>();
 		}
 
 		Result result = this->parse_assignment();
@@ -1616,6 +1617,209 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
+	template<bool IS_STMT>
+	auto Parser::parse_asm() -> Result {
+		const Token::ID start_token = this->reader.peek();
+
+		if constexpr(IS_STMT){
+			if(this->assert_token(Token::Kind::KEYWORD_ASM).isError()){ return Result::Code::ERROR; }
+		}else{
+			if(this->reader[start_token].kind() != Token::Kind::KEYWORD_ASM){ return Result::Code::WRONG_TYPE; }
+			this->reader.skip();
+		}
+
+
+		auto params = evo::SmallVector<AST::Asm::Param>();
+		if(this->expect_token(Token::lookupKind("("), "asm parameter block").isError()){ return Result::Code::ERROR; }
+		while(true){
+			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+				if(this->assert_token(Token::lookupKind(")")).isError()){
+					return Result::Code::ERROR;
+				}
+				break;
+			}
+
+			const Result ident = this->parse_ident();
+			if(this->check_result(ident, "identifier in asm parameter block").isError()){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token(Token::lookupKind(":"), "after identifier in asm parameter").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			const Result param_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+			if(this->check_result(param_type, "asm parameter type").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			AST::Asm::Param::Kind kind = AST::Asm::Param::Kind::READ;
+			switch(this->reader[this->reader.next()].kind()){
+				case Token::Kind::KEYWORD_READ: {
+					kind = AST::Asm::Param::Kind::READ;
+				} break;
+
+				case Token::Kind::KEYWORD_MUT: {
+					kind = AST::Asm::Param::Kind::MUT;
+				} break;
+
+				case Token::Kind::KEYWORD_IN: {
+					kind = AST::Asm::Param::Kind::IN;
+				} break;
+
+				default: {
+					this->context.emitError(
+						"Asm parameters must have an explicit kind",
+						Diagnostic::Location::get(this->reader.peek(), this->source)
+					);
+					return Result::Code::ERROR;
+				} break;
+			}
+
+
+			if(this->expect_token(Token::Kind::LITERAL_STRING, "asm parameter constraint string").isError()){
+				return Result::Code::ERROR;
+			}
+			const Token::ID param_constraint_str = this->reader.peek(-1);
+
+
+			if(this->expect_token(Token::lookupKind("="), "after asm parameter type").isError()){
+				return Result::Code::ERROR;
+			}
+
+			const Result param_arg = this->parse_expr();
+			if(this->check_result(param_arg, "argument expression in asm parameter").isError()){
+				return Result::Code::ERROR;
+			}
+
+
+			params.emplace_back(
+				ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value(), param_arg.value(), kind
+			);
+
+
+			// check if ending or should continue
+			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
+			if(after_param_next_token_kind != Token::lookupKind(",")){
+				if(after_param_next_token_kind != Token::lookupKind(")")){
+					this->expected_but_got(
+						"[,] at end of asm parameter or [)] at end of asm parameter block",
+						this->reader.peek(-1)
+					);
+					return Result::Code::ERROR;
+				}
+
+				break;
+			}
+		}
+
+
+		const Result attributes = this->parse_attribute_block();
+		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+
+		if(this->expect_token(Token::lookupKind("->"), "before asm return parameters").isError()){
+			return Result::Code::ERROR;
+		}
+
+
+		auto ret_params = evo::SmallVector<AST::Asm::RetParam>();
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::Kind::TYPE_VOID: {
+				this->reader.skip();
+			} break;
+
+			case Token::lookupKind("("): {
+				this->reader.skip();
+
+				while(true){
+					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
+						if(this->assert_token(Token::lookupKind(")")).isError()){
+							return Result::Code::ERROR;
+						}
+						break;
+					}
+
+
+					const Result ident = this->parse_ident();
+					if(this->check_result(ident, "identifier in asm parameter block").isError()){
+						return Result::Code::ERROR;
+					}
+
+					if(this->expect_token(Token::lookupKind(":"), "after identifier in asm parameter").isError()){
+						return Result::Code::ERROR;
+					}
+
+
+					const Result param_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+					if(this->check_result(param_type, "asm parameter type").isError()){
+						return Result::Code::ERROR;
+					}
+
+
+					if(this->expect_token(
+						Token::Kind::LITERAL_STRING, "asm return parameter constraint string"
+					).isError()){
+						return Result::Code::ERROR;
+					}
+					const Token::ID param_constraint_str = this->reader.peek(-1);
+
+
+					ret_params.emplace_back(
+						ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value()
+					);
+
+
+					// check if ending or should continue
+					const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
+					if(after_param_next_token_kind != Token::lookupKind(",")){
+						if(after_param_next_token_kind != Token::lookupKind(")")){
+							this->expected_but_got(
+								"[,] at end of asm return parameter or [)] at end of asm return parameter block",
+								this->reader.peek(-1)
+							);
+							return Result::Code::ERROR;
+						}
+
+						break;
+					}
+				}
+			} break;
+
+			default: {
+				this->expected_but_got("Asm return parameter block or type `Void`", this->reader.peek());
+				return Result::Code::ERROR;
+			} break;
+		}
+
+
+		// code
+		if(this->expect_token(Token::lookupKind("{"), "before asm code string").isError()){
+			return Result::Code::ERROR;
+		}
+		if(this->expect_token(Token::Kind::LITERAL_STRING, "after `{` in asm").isError()){
+			return Result::Code::ERROR;
+		}
+
+		const Token::ID asm_str = this->reader.peek(-1);
+		if(this->expect_token(Token::lookupKind("}"), "after asm code string").isError()){ return Result::Code::ERROR; }
+
+		if constexpr(IS_STMT){
+			if(this->expect_token(Token::lookupKind(";"), "at end of asm statement").isError()){
+				return Result::Code::ERROR;
+			}
+		}
+
+		return this->source.ast_buffer.createAsm(
+			start_token, asm_str, std::move(params), attributes.value(), std::move(ret_params)
+		);
+	}
+
+
+
+	// TODO(FUTURE): check EOF
 	auto Parser::parse_assignment() -> Result {
 		const Token::ID start_location = this->reader.peek();
 
@@ -1687,6 +1891,7 @@ namespace pcit::panther{
 						"Multiple-assignment statements cannot assign to 0 values",
 						Diagnostic::Location::get(this->reader.peek(-1), this->source)
 					);
+					return Result::Code::ERROR;
 				}
 
 				if(this->expect_token(Token::lookupKind("="), "in multiple-assignment").isError()){
@@ -3156,7 +3361,10 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_atom() -> Result {
-		Result result = this->parse_ident();
+		Result result = this->parse_asm<false>();
+		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
+
+		result = this->parse_ident();
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
 
 		result = this->parse_literal();

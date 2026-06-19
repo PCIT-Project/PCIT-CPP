@@ -467,6 +467,16 @@ namespace pcit::panther{
 				return this->unsafes[node._value.node_index];
 			}
 
+			[[nodiscard]] auto createAsm(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->asms.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::ASM, node_index);
+			}
+			[[nodiscard]] auto getAsm(const AST::Node& node) const -> const AST::Asm& {
+				evo::debugAssert(node.kind() == AST::Kind::ASM, "Node is not a Asm");
+				return this->asms[node._value.node_index];
+			}
+
 
 			[[nodiscard]] auto createArrayType(auto&&... args) -> AST::Node {
 				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -587,6 +597,7 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<AST::TryElse, uint32_t> try_elses{};
 			core::LinearStepAlloc<AST::Unsafe, uint32_t> unsafes{};
+			core::LinearStepAlloc<AST::Asm, uint32_t> asms{};
 
 			core::LinearStepAlloc<AST::ArrayType, uint32_t> array_types{};
 			core::LinearStepAlloc<AST::FuncType, uint32_t> func_types{};

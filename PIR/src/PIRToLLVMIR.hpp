@@ -157,6 +157,7 @@ namespace pcit::pir{
 			std::unordered_map<const GlobalVar*, llvmint::GlobalVariable> global_vars{};
 			std::unordered_map<Expr, llvmint::Value> stmt_values{};
 			std::unordered_map<const Alloca*, llvmint::Alloca> allocas{};
+			std::unordered_map<const Asm*, llvmint::CallInst> asm_exprs{};
 			evo::SmallVector<llvmint::Argument, 8> args{};
 
 			std::unordered_map<meta::File::ID, llvmint::DIBuilder::File> meta_files{};

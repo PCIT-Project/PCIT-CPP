@@ -757,6 +757,33 @@ namespace pcit::pir{
 
 
 			//////////////////////////////////////////////////////////////////////
+			// asm
+
+			[[nodiscard]] auto createAsm(
+				std::string&& code,
+				evo::SmallVector<AsmArg>&& args,
+				evo::SmallVector<Asm::Output>&& outputs,
+				evo::SmallVector<std::string_view>&& clobbers,
+				bool is_side_effect,
+				bool is_align_stack
+			) const -> Expr;
+			[[nodiscard]] auto getAsm(Expr expr) const -> const Asm&;
+
+			[[nodiscard]] auto createExtractAsmValue(const Asm& asm_expr, size_t index) const -> Expr;
+			[[nodiscard]] auto getExtractAsmValue(Expr expr) const -> const ExtractAsmValue&;
+
+			[[nodiscard]] auto createAsmVoid(
+				std::string&& code,
+				evo::SmallVector<AsmArg>&& args,
+				evo::SmallVector<std::string_view>&& clobbers,
+				bool is_side_effect,
+				bool is_align_stack
+			) const -> Expr;
+			[[nodiscard]] auto getAsmVoid(Expr expr) const -> const AsmVoid&;
+
+
+
+			//////////////////////////////////////////////////////////////////////
 			// meta
 
 			auto createMetaLocalVar(std::string&& name, Expr value, meta::Type type) const -> Expr;

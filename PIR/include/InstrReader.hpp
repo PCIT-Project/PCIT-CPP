@@ -158,6 +158,10 @@ namespace pcit::pir{
 			[[nodiscard]] static auto extractCmpXchgSucceeded(Expr) -> Expr;
 			[[nodiscard]] auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
+			[[nodiscard]] auto getAsm(Expr expr) const -> const Asm&;
+			[[nodiscard]] auto getExtractAsmValue(Expr expr) const -> const ExtractAsmValue&;
+			[[nodiscard]] auto getAsmVoid(Expr expr) const -> const AsmVoid&;
+
 			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
 			[[nodiscard]] auto getMetaParam(Expr expr) const -> const MetaParam&;
 

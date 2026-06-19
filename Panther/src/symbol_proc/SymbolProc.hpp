@@ -720,6 +720,18 @@ namespace pcit::panther{
 
 
 
+		struct AsmStmt{
+			struct Param{
+				SymbolProcTypeID type_id;
+				SymbolProcTermInfoID value;
+			};
+
+			const AST::Asm& asm_stmt;
+			evo::SmallVector<Param> params;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+		};
+
+
 
 		//////////////////
 		// misc expr
@@ -941,6 +953,19 @@ namespace pcit::panther{
 			SymbolProcTermInfoID attempt_expr;
 			SymbolProcTermInfoID except_params;
 			SymbolProcTermInfoID except_expr;
+			SymbolProcTermInfoID output;
+		};
+
+		struct AsmExpr{
+			struct Param{
+				SymbolProcTypeID type_id;
+				SymbolProcTermInfoID value;
+			};
+
+			const AST::Asm& asm_expr;
+			evo::SmallVector<Param> params;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			evo::SmallVector<SymbolProcTypeID> retTypes;
 			SymbolProcTermInfoID output;
 		};
 
@@ -1218,6 +1243,7 @@ namespace pcit::panther{
 			TRY_ELSE_END,
 			BEGIN_UNSAFE,
 			END_UNSAFE,
+			ASM_STMT,
 
 			// misc expr
 			TYPE_TO_TERM,
@@ -1272,6 +1298,7 @@ namespace pcit::panther{
 			DESIGNATED_INIT_NEW,
 			PREPARE_TRY_HANDLER,
 			TRY_ELSE_EXPR,
+			ASM_EXPR,
 			BEGIN_EXPR_BLOCK,
 			END_EXPR_BLOCK,
 			AS_CONTEXPR,

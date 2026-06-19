@@ -35,6 +35,7 @@ namespace pcit::panther::sema{
 			TRY_ELSE,
 			TRY_ELSE_INTERFACE,
 			INTERFACE_CALL,
+			ASM,
 			ASSIGN,
 			MULTI_ASSIGN,
 			RETURN,
@@ -62,6 +63,7 @@ namespace pcit::panther::sema{
 			: _kind(Kind::TRY_ELSE_INTERFACE), value{.try_else_interface_id = try_else_interface_id} {}
 		explicit Stmt(InterfaceCallID interface_call_id) 
 			: _kind(Kind::INTERFACE_CALL), value{.interface_call_id = interface_call_id} {}
+		explicit Stmt(AsmID asm_id)              : _kind(Kind::ASM),         value{.asm_id = asm_id}               {}
 		explicit Stmt(AssignID assign_id)        : _kind(Kind::ASSIGN),      value{.assign_id = assign_id}         {}
 		explicit Stmt(MultiAssignID multi_assign_id)
 			: _kind(Kind::MULTI_ASSIGN), value{.multi_assign_id = multi_assign_id} {}
@@ -114,6 +116,11 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto interfaceCallID() const -> InterfaceCallID {
 			evo::debugAssert(this->kind() == Kind::INTERFACE_CALL, "not an interface call");
 			return this->value.interface_call_id;
+		}
+
+		[[nodiscard]] auto asmID() const -> AsmID {
+			evo::debugAssert(this->kind() == Kind::ASM, "not an asm");
+			return this->value.asm_id;
 		}
 
 		[[nodiscard]] auto assignID() const -> AssignID {
@@ -220,6 +227,7 @@ namespace pcit::panther::sema{
 				TryElseID try_else_id;
 				TryElseInterfaceID try_else_interface_id;
 				InterfaceCallID interface_call_id;
+				AsmID asm_id;
 				AssignID assign_id;
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;
