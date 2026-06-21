@@ -918,6 +918,16 @@ namespace pcit::pir{
 		return this->module.asms[expr.index];
 	}
 
+	auto InstrReader::extractAsmValue(const Asm& asm_expr, size_t index) const -> Expr {
+		evo::debugAssert(this->hasTargetFunction(), "No target basic block set");
+		evo::debugAssert(index < asm_expr.outputs.size(), "Index must be a valid output");
+
+		return Expr(
+			Expr::Kind::EXTRACT_ASM_VALUE,
+			this->module.extract_asm_values_map.getExisting(ExtractAsmValue(asm_expr, index))
+		);
+	}
+
 	auto InstrReader::getExtractAsmValue(Expr expr) const -> const ExtractAsmValue& {
 		evo::debugAssert(this->hasTargetFunction(), "No target function set");
 		evo::debugAssert(expr.kind() == Expr::Kind::EXTRACT_ASM_VALUE, "Not an extract asm value");

@@ -159,6 +159,7 @@ namespace pcit::pir{
 			[[nodiscard]] auto getAtomicRMW(Expr expr) const -> const AtomicRMW&;
 
 			[[nodiscard]] auto getAsm(Expr expr) const -> const Asm&;
+			[[nodiscard]] auto extractAsmValue(const Asm& asm_expr, size_t index) const -> Expr;
 			[[nodiscard]] auto getExtractAsmValue(Expr expr) const -> const ExtractAsmValue&;
 			[[nodiscard]] auto getAsmVoid(Expr expr) const -> const AsmVoid&;
 

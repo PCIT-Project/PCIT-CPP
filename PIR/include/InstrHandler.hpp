@@ -769,7 +769,7 @@ namespace pcit::pir{
 			) const -> Expr;
 			[[nodiscard]] auto getAsm(Expr expr) const -> const Asm&;
 
-			[[nodiscard]] auto createExtractAsmValue(const Asm& asm_expr, size_t index) const -> Expr;
+			[[nodiscard]] auto extractAsmValue(const Asm& asm_expr, size_t index) const -> Expr;
 			[[nodiscard]] auto getExtractAsmValue(Expr expr) const -> const ExtractAsmValue&;
 
 			[[nodiscard]] auto createAsmVoid(

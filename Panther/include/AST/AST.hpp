@@ -500,7 +500,7 @@ namespace pcit::panther::AST{
 			};
 
 			Token::ID ident;
-			Token::ID paramConstraintString;
+			Token::ID constraint;
 			Node type;
 			Node arg;
 			Kind kind;
@@ -508,7 +508,7 @@ namespace pcit::panther::AST{
 
 		struct RetParam{
 			Token::ID ident;
-			Token::ID paramConstraintString;
+			Token::ID constraint;
 			Node type;
 		};
 

@@ -2665,7 +2665,7 @@ namespace pcit::panther{
 				const pir::Asm& asm_expr_ref = this->handler.getAsm(asm_expr);
 
 				for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
-					this->handler.createStore(output_expr, this->handler.createExtractAsmValue(asm_expr_ref, i));
+					this->handler.createStore(output_expr, this->handler.extractAsmValue(asm_expr_ref, i));
 					i += 1;
 				}
 			} break;
@@ -4453,14 +4453,14 @@ namespace pcit::panther{
 				const pir::Asm& asm_pir_expr_ref = this->handler.getAsm(asm_pir_expr);
 
 				for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
-					this->handler.createStore(output_expr, this->handler.createExtractAsmValue(asm_pir_expr_ref, i));
+					this->handler.createStore(output_expr, this->handler.extractAsmValue(asm_pir_expr_ref, i));
 					i += 1;
 				}
 
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
-					return this->handler.createExtractAsmValue(asm_pir_expr_ref, output_exprs.size());
+					return this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size());
 					
 				}else if constexpr(MODE == GetExprMode::POINTER){
 					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
@@ -4480,7 +4480,7 @@ namespace pcit::panther{
 					for(size_t i = 0; pir::Expr store_location : store_locations){
 						this->handler.createStore(
 							store_location,
-							this->handler.createExtractAsmValue(asm_pir_expr_ref, output_exprs.size() + i)
+							this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size() + i)
 						);
 
 						i += 1;

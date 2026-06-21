@@ -2662,8 +2662,48 @@ namespace pthr{
 				this->print_minor_header("Params");
 				this->printer.println();
 				this->indenter.push();
-				for(const panther::AST::Asm::Param& param : asm_expr.params){
+				for(size_t i = 0; const panther::AST::Asm::Param& param : asm_expr.params){
+					if(i + 1 < asm_expr.params.size()){
+						this->indenter.print_arrow();
+					}else{
+						this->indenter.print_end();
+					}
+					this->print_major_header(std::format("Parameter {}", i));
+
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.print(" ");
+					this->print_ident(param.ident);
 					
+					this->indenter.print_arrow();
+					this->print_minor_header("Type");
+					this->printer.print(" ");
+					this->print_type(this->source.getASTBuffer().getType(param.type));
+					this->printer.println();
+					
+					this->indenter.print_arrow();
+					this->print_minor_header("Kind");
+					switch(param.kind){
+						break; case panther::AST::Asm::Param::Kind::READ: this->printer.printMagenta(" READ\n");
+						break; case panther::AST::Asm::Param::Kind::MUT:  this->printer.printMagenta(" MUT\n");
+						break; case panther::AST::Asm::Param::Kind::IN:   this->printer.printMagenta(" IN\n");
+					}
+					
+					this->indenter.print_arrow();
+					this->print_minor_header("Constraint");
+					this->printer.print(" ");
+					this->printer.printlnMagenta("\"{}\"", this->source.getTokenBuffer()[param.constraint].getString());
+					
+					this->indenter.print_end();
+					this->print_minor_header("Argument");
+					this->printer.println();
+					this->print_expr(param.arg);
+
+					this->indenter.pop();
+
+					i += 1;
 				}
 				this->indenter.pop();
 
@@ -2677,8 +2717,37 @@ namespace pthr{
 				}else{
 					this->printer.println();
 					this->indenter.push();
-					for(const panther::AST::Asm::RetParam& ret_param : asm_expr.retParams){
+					for(size_t i = 0; const panther::AST::Asm::RetParam& ret_param : asm_expr.retParams){
+						if(i + 1 < asm_expr.params.size()){
+							this->indenter.print_arrow();
+						}else{
+							this->indenter.print_end();
+						}
+						this->print_major_header(std::format("Return Parameter {}", i));
+
+						this->indenter.push();
+
+						this->indenter.print_arrow();
+						this->print_minor_header("Identifier");
+						this->printer.print(" ");
+						this->print_ident(ret_param.ident);
 						
+						this->indenter.print_arrow();
+						this->print_minor_header("Type");
+						this->printer.print(" ");
+						this->print_type(this->source.getASTBuffer().getType(ret_param.type));
+						this->printer.println();
+
+						this->indenter.print_end();
+						this->print_minor_header("Constraint");
+						this->printer.print(" ");
+						this->printer.printlnMagenta(
+							"\"{}\"", this->source.getTokenBuffer()[ret_param.constraint].getString()
+						);
+
+						this->indenter.pop();
+
+						i += 1;
 					}
 					this->indenter.pop();
 				}

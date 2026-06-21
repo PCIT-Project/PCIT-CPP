@@ -11311,7 +11311,7 @@ namespace pcit::panther{
 				this->source.getTokenBuffer()[instr.asm_stmt.params[i].ident].getString(),
 				param_type.asTypeID(),
 				param_value.getExpr(),
-				this->source.getTokenBuffer()[instr.asm_stmt.params[i].paramConstraintString].getString(),
+				this->source.getTokenBuffer()[instr.asm_stmt.params[i].constraint].getString(),
 				is_mut
 			);
 
@@ -17695,7 +17695,7 @@ namespace pcit::panther{
 				this->source.getTokenBuffer()[instr.asm_expr.params[i].ident].getString(),
 				param_type.asTypeID(),
 				param_value.getExpr(),
-				this->source.getTokenBuffer()[instr.asm_expr.params[i].paramConstraintString].getString(),
+				this->source.getTokenBuffer()[instr.asm_expr.params[i].constraint].getString(),
 				is_mut
 			);
 
@@ -17719,7 +17719,7 @@ namespace pcit::panther{
 			ret_params.emplace_back(
 				this->source.getTokenBuffer()[instr.asm_expr.retParams[i].ident].getString(),
 				ret_type.asTypeID(),
-				this->source.getTokenBuffer()[instr.asm_expr.retParams[i].paramConstraintString].getString()
+				this->source.getTokenBuffer()[instr.asm_expr.retParams[i].constraint].getString()
 			);
 		
 			i += 1;

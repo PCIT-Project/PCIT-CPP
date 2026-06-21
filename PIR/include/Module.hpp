@@ -1278,8 +1278,12 @@ namespace pcit::pir{
 			core::StepAlloc<AtomicRMW, uint32_t> atomic_rmws{};
 
 			core::StepAlloc<Asm, uint32_t> asms{};
+			core::MapAlloc<ExtractAsmValue, uint32_t> extract_asm_values_map{};
 			core::StepAlloc<ExtractAsmValue, uint32_t> extract_asm_values{};
 			core::StepAlloc<AsmVoid, uint32_t> asm_voids{};
+
+
+
 
 			core::StepAlloc<MetaLocalVar, uint32_t> meta_local_vars{};
 			core::StepAlloc<MetaParam, uint32_t> meta_params{};

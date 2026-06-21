@@ -1009,6 +1009,10 @@ namespace pcit::pir{
 	struct ExtractAsmValue{
 		const Asm& asmExpr;
 		size_t index;
+
+		[[nodiscard]] auto operator==(const ExtractAsmValue& rhs) const -> bool {
+			return &this->asmExpr == &rhs.asmExpr && this->index == rhs.index;
+		}
 	};
 
 
@@ -1045,3 +1049,18 @@ namespace pcit::pir{
 }
 
 
+
+
+namespace std{
+	
+	template<>
+	struct hash<pcit::pir::ExtractAsmValue>{
+		auto operator()(const pcit::pir::ExtractAsmValue& extract_asm_value) const noexcept -> size_t {
+			return evo::hashCombine(
+				hash<size_t>{}(std::bit_cast<size_t>(&extract_asm_value.asmExpr)),
+				hash<size_t>{}(extract_asm_value.index)
+			);
+		};
+	};
+
+}

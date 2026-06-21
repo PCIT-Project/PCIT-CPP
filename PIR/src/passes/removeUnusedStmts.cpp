@@ -1124,7 +1124,7 @@ namespace pcit::pir::passes{
 				if(asm_expr.isSideEffect == false){
 					bool found_output = false;
 					for(size_t i = 0; i < asm_expr.outputs.size(); i+=1){
-						if(func_metadata.contains(handler.createExtractAsmValue(asm_expr, i))){
+						if(func_metadata.contains(handler.extractAsmValue(asm_expr, i))){
 							found_output = true;
 							break;
 						}

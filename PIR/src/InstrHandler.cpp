@@ -3604,6 +3604,8 @@ namespace pcit::pir{
 			#endif
 		}
 
+		const size_t num_outputs = outputs.size();
+
 		const auto new_expr = Expr(
 			Expr::Kind::ASM,
 			this->module.asms.emplace_back(
@@ -3617,6 +3619,14 @@ namespace pcit::pir{
 			)
 		);
 		this->insert_stmt(new_expr);
+
+		const Asm& new_asm_ref = this->getAsm(new_expr);
+		for(size_t i = 0; i < num_outputs; i+=1){
+			this->module.extract_asm_values_map.emplace(
+				ExtractAsmValue(new_asm_ref, i), this->module.extract_asm_values.emplace_back(new_asm_ref, i)
+			);
+		}
+
 		return new_expr;
 	}
 
@@ -3625,13 +3635,8 @@ namespace pcit::pir{
 	}
 
 
-	auto InstrHandler::createExtractAsmValue(const Asm& asm_expr, size_t index) const -> Expr {
-		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
-		evo::debugAssert(index < asm_expr.outputs.size(), "Index must be a valid output");
-		
-		return Expr(
-			Expr::Kind::EXTRACT_ASM_VALUE, this->module.extract_asm_values.emplace_back(asm_expr, index)
-		);
+	auto InstrHandler::extractAsmValue(const Asm& asm_expr, size_t index) const -> Expr {
+		return InstrReader(this->module, this->getTargetFunction()).extractAsmValue(asm_expr, index);
 	}
 
 

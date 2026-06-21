@@ -27,6 +27,11 @@ namespace pcit::core{
 			struct InternalValue{
 				std::optional<VALUE> value = std::nullopt;
 				std::atomic<bool> flag = false;
+
+				InternalValue() : value(std::nullopt), flag(false) {}
+
+				explicit InternalValue(auto&&... args)
+					: value(std::in_place, std::forward<decltype(args)>(args)...), flag(true) {}
 			};
 
 		public:
@@ -77,6 +82,26 @@ namespace pcit::core{
 					this->map.emplace(key, &new_internal_value);
 					return ValueHandle(new_internal_value, true);
 				}
+			}
+
+
+			[[nodiscard]] auto getExisting(const KEY& key) const -> const VALUE& {
+				evo::debugAssert(this->hasValue(key), "This key doesn't exist");
+
+				const auto lock = std::scoped_lock(this->spin_lock);
+				return *this->map.at(key)->value;
+			}
+
+
+			auto emplace(const KEY& key, auto&&... value_args) -> VALUE& {
+				evo::debugAssert(this->hasValue(key) == false, "This key already exist");
+
+				const auto lock = std::scoped_lock(this->spin_lock);
+
+				InternalValue& new_internal_value =
+					this->allocator.emplace_back(std::forward<decltype(value_args)>(value_args)...);
+				this->map.emplace(key, &new_internal_value);
+				return *new_internal_value.value;
 			}
 		
 			

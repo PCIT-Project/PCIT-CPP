@@ -1,11 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.324.1"></a>
+## v0.0.324.1
+
+### Panther
+- Fixed AST printing of asm expressions / statements
+
+### PIR
+- Fixed backend management of extracting values from `@asm` expressions being unique every time
+
+
+<!---------------------------------->
 <a name="v0.0.324.0"></a>
 ## v0.0.324.0
 
 ### Panther
-- Added `asm` statements / expression (inline assembly )
+- Added `@asm` statements / expression (inline assembly)
+
+### PIR
+= Added `@asm` instructions
 
 
 <!---------------------------------->

@@ -2357,7 +2357,14 @@ namespace pcit::pir{
 							asm_expr_call.setLocation(this->lower_meta_source_location(*asm_expr.sourceLocation));
 						}
 
-						this->asm_exprs.emplace(&asm_expr, asm_expr_call);
+						for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+							this->stmt_values.emplace(
+								this->reader.extractAsmValue(asm_expr, i),
+								this->builder.createExtractValue(asm_expr_call.asValue(), {uint32_t(i)}, output.name)
+							);
+						
+							i += 1;
+						}
 					} break;
 
 					case Expr::Kind::EXTRACT_ASM_VALUE: evo::debugFatalBreak("Not a valid stmt");
@@ -2843,24 +2850,12 @@ namespace pcit::pir{
 			case Expr::Kind::CMPXCHG_SUCCEEDED: {
 				return this->stmt_values.at(this->reader.extractCmpXchgSucceeded(expr));
 			} break;
-			case Expr::Kind::ATOMIC_RMW:       return this->stmt_values.at(expr);
-			case Expr::Kind::ASM:              evo::debugFatalBreak("Not a value");
-
-			case Expr::Kind::EXTRACT_ASM_VALUE: {
-				const ExtractAsmValue& extract_asm_value = this->reader.getExtractAsmValue(expr);
-
-				const llvmint::Value asm_expr = this->asm_exprs.at(&extract_asm_value.asmExpr).asValue();
-
-				if(extract_asm_value.asmExpr.outputs.size() == 1){
-					return asm_expr;
-				}else{
-					return this->builder.createExtractValue(asm_expr, {uint32_t(extract_asm_value.index)});
-				}
-			} break;
-
-			case Expr::Kind::ASM_VOID:         evo::debugFatalBreak("Not a value");
-			case Expr::Kind::META_LOCAL_VAR:   evo::debugFatalBreak("Not a value");
-			case Expr::Kind::META_PARAM:       evo::debugFatalBreak("Not a value");
+			case Expr::Kind::ATOMIC_RMW:        return this->stmt_values.at(expr);
+			case Expr::Kind::ASM:               evo::debugFatalBreak("Not a value");
+			case Expr::Kind::EXTRACT_ASM_VALUE: return this->stmt_values.at(expr);
+			case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Not a value");
+			case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Not a value");
+			case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Not a value");
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported Expr::Kind");
