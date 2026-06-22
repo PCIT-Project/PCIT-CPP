@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.325.0"></a>
+## v0.0.325.0
+
+### Panther
+- Added function attribute `#naked`
+
+### PIR
+- Fixed lowering of `@asm` 
+
+
+<!---------------------------------->
 <a name="v0.0.324.1"></a>
 ## v0.0.324.1
 
@@ -57,7 +68,7 @@
 
 <!---------------------------------->
 <a name="v0.0.321.0"></a>
-## v0.0.321.0w
+## v0.0.321.0
 
 ### Panther
 - Added function attribute `#rt`

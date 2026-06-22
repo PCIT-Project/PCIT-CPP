@@ -1910,6 +1910,7 @@ namespace pcit::panther{
 						.isRTDiff   = false,
 						.isExport   = false,
 						.isImplicit = false,
+						.isNaked    = false,
 					}
 				);
 
@@ -2085,6 +2086,7 @@ namespace pcit::panther{
 						.isRTDiff   = false,
 						.isExport   = false,
 						.isImplicit = false,
+						.isNaked    = false,
 					}
 				);
 
@@ -2276,6 +2278,7 @@ namespace pcit::panther{
 							.isRTDiff   = false,
 							.isExport   = false,
 							.isImplicit = false,
+							.isNaked    = false,
 						}
 					);
 
@@ -2487,6 +2490,7 @@ namespace pcit::panther{
 							.isRTDiff   = false,
 							.isExport   = false,
 							.isImplicit = false,
+							.isNaked    = false,
 						}
 					);
 
@@ -3644,6 +3648,7 @@ namespace pcit::panther{
 				.isRTDiff   = func_attrs.value().is_rt_diff,
 				.isExport   = func_attrs.value().is_export,
 				.isImplicit = func_attrs.value().is_implicit,
+				.isNaked    = func_attrs.value().is_naked,
 			},
 			instr.templated_func_id,
 			instr.instantiation_id
@@ -6416,6 +6421,13 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_local_var(const Instruction::LocalVar& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.var_def).isError()){ return Result::ERROR; }
 
+		if(instr.var_def.kind != AST::VarDef::Kind::DEF && this->get_current_func().attributes.isNaked){
+			this->emit_error(
+				"Variables that are const or var are not allowed in functions with attribute #naked", instr.var_def
+			);
+			return Result::ERROR;
+		}
+
 		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_def.ident].getString();
 
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_def, instr.attribute_params_info);
@@ -7456,6 +7468,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_while(const Instruction::BeginWhile& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.while_stmt).isError()){ return Result::ERROR; }
 
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("While loops are not allowed in functions with attribute #naked", instr.while_stmt);
+			return Result::ERROR;
+		}
+
 		TermInfo& cond_term_info = this->get_term_info(instr.cond_expr);
 
 		if(
@@ -7505,6 +7522,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_begin_for(const Instruction::BeginFor& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("For loops are not allowed in functions with attribute #naked", instr.for_stmt);
+			return Result::ERROR;
+		}
 
 		const bool in_comptime_func = this->func_scope_current_value_stage().requiresComptime();
 		const bool in_runtime_func = this->func_scope_current_value_stage().requiresRuntime();
@@ -7987,6 +8009,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_begin_for_unroll(const Instruction::BeginForUnroll& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.for_stmt).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("For loops are not allowed in functions with attribute #naked", instr.for_stmt);
+			return Result::ERROR;
+		}
 
 		const AST::AttributeBlock& attribute_block =
 			this->source.getASTBuffer().getAttributeBlock(instr.for_stmt.attributeBlock);
@@ -8952,6 +8979,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_stmt_block(const Instruction::BeginStmtBlock& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.stmt_block).isError()){ return Result::ERROR; }
 
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Statement blocks are not allowed in functions with attribute #naked", instr.stmt_block);
+			return Result::ERROR;
+		}
+
 		const sema::BlockScope::ID block_scope_id =
 			this->context.sema_buffer.createBlockScope(instr.stmt_block.openBrace, instr.stmt_block.closeBrace);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
@@ -8972,6 +9004,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_func_call(const Instruction::FuncCall& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.func_call).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Function calls are not allowed in functions with attribute #naked", instr.func_call);
+			return Result::ERROR;
+		}
 
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
@@ -9244,6 +9281,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_assignment(const Instruction::Assignment& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
 
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Assignment statements are not allowed in functions with attribute #naked", instr.infix);
+			return Result::ERROR;
+		}
+
 		TermInfo& lhs = this->get_term_info(instr.lhs);
 		TermInfo& rhs = this->get_term_info(instr.rhs);
 
@@ -9452,6 +9494,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_assignment_new(const Instruction::AssignmentNew& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Assignment statements are not allowed in functions with attribute #naked", instr.infix);
+			return Result::ERROR;
+		}
 
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 
@@ -10205,6 +10252,11 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_assignment_copy(const Instruction::AssignmentCopy& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
 
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Assignment statements are not allowed in functions with attribute #naked", instr.infix);
+			return Result::ERROR;
+		}
+
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 		const TermInfo& target = this->get_term_info(instr.target);
 
@@ -10389,6 +10441,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_assignment_move(const Instruction::AssignmentMove& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Move statements are not allowed in functions with attribute #naked", instr.infix);
+			return Result::ERROR;
+		}
 
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 		TermInfo& target = this->get_term_info(instr.target);
@@ -10807,6 +10864,13 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_multi_assign(const Instruction::MultiAssign& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.multi_assign).isError()){ return Result::ERROR; }
 
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error(
+				"Assignment statements are not allowed in functions with attribute #naked", instr.multi_assign
+			);
+			return Result::ERROR;
+		}
+
 		TermInfo& value = this->get_term_info(instr.value);
 
 		if(value.is_ephemeral() == false){
@@ -10914,6 +10978,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_discarding_assignment(const Instruction::DiscardingAssignment& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.infix).isError()){ return Result::ERROR; }
+
+		if(this->get_current_func().attributes.isNaked){
+			this->emit_error("Assignment statements are not allowed in functions with attribute #naked", instr.infix);
+			return Result::ERROR;
+		}
 
 		const TermInfo& rhs = this->get_term_info(instr.rhs);
 
@@ -25955,6 +26024,14 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Param::ID>()){
 				const sema::Func& current_func = this->get_current_func();
+
+				if(current_func.attributes.isNaked){
+					this->emit_error(
+						"Parameter expressions are not allowed in functions with attribute #naked", ident
+					);
+					return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+				}
+
 				const BaseType::Function& current_func_type = 
 					this->context.getTypeManager().getFunction(current_func.typeID);
 
@@ -33026,6 +33103,7 @@ namespace pcit::panther{
 		auto attr_commutative = Attribute(*this, "commutative");
 		auto attr_swapped     = Attribute(*this, "swapped");
 		auto attr_implicit    = Attribute(*this, "implicit");
+		auto attr_naked       = Attribute(*this, "naked");
 
 		auto attr_call_conv   = Attribute(*this, "callConv");
 		auto call_conv        = std::optional<uint32_t>();
@@ -33148,9 +33226,18 @@ namespace pcit::panther{
 						);
 						return evo::Unexpected(Result::ERROR);
 
-					}else if(attr_rt.is_set()){
+					}
+
+					if(attr_rt.is_set()){
 						this->emit_error(
 							"Function cannot have both attribute #ct and attribute #rt", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(attr_naked.is_set()){
+						this->emit_error(
+							"A function cannot have both attribute #ct and #naked", attribute.attribute
 						);
 						return evo::Unexpected(Result::ERROR);
 					}
@@ -33267,6 +33354,13 @@ namespace pcit::panther{
 						);
 						return evo::Unexpected(Result::ERROR);
 					}
+
+					if(attr_naked.is_set()){
+						this->emit_error(
+							"A function cannot have both attribute #rtDiff and #naked", attribute.attribute
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
 				}
 
 			}else if(attribute_str == "unsafe"){
@@ -33353,6 +33447,13 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
+				if(attr_naked.is_set()){
+					this->emit_error(
+						"A function cannot have both attribute #noReturn and #naked", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 			}else if(attribute_str == "commutative"){
 				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
 					this->emit_error(
@@ -33415,6 +33516,43 @@ namespace pcit::panther{
 
 				if(attr_implicit.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "naked"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+					this->emit_error(
+						"Attribute #naked is not a valid extern function attribute", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #naked does not accept any arguments", attribute.args.front());
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_ct.is_set()){
+					this->emit_error(
+						"A function cannot have both attribute #naked and #ct", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_rt_diff.is_set()){
+					this->emit_error(
+						"A function cannot have both attribute #naked and #rtDiff", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_entry.is_set()){
+					this->emit_error(
+						"A function cannot have both attribute #naked and #entry", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_naked.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+				attr_rt.implicitly_set(attribute.attribute, true);
+
 			}else if(attribute_str == "callConv"){
 				if(attribute_params_info[i].size() != 1){
 					if(attribute_params_info[i].size() == 0){
@@ -33470,6 +33608,7 @@ namespace pcit::panther{
 			.is_commutative = attr_commutative.is_set(),
 			.is_swapped     = attr_swapped.is_set(),
 			.is_implicit    = attr_implicit.is_set(),
+			.is_naked       = attr_naked.is_set(),
 			.call_conv      = call_conv,
 		};
 	}

@@ -692,9 +692,8 @@ namespace pcit::pir{
 		llvm_func_decl.setNoThrow();
 		llvm_func_decl.setUWTableKind();
 		llvm_func_decl.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
-		if(func.getIsNoReturn()){
-			llvm_func_decl.setNoReturn();
-		}
+		if(func.isNoReturn()){ llvm_func_decl.setNoReturn(); }
+		if(func.isNaked()){ llvm_func_decl.setNaked(); }
 
 		this->funcs.emplace(&func, llvm_func_decl);
 
@@ -721,6 +720,8 @@ namespace pcit::pir{
 		llvm_func.setNoThrow();
 		llvm_func.setUWTableKind();
 		llvm_func.setCallingConv(this->get_calling_conv(func.getCallingConvention()));
+		if(func.isNoReturn()){ llvm_func.setNoReturn(); }
+		if(func.isNaked()){ llvm_func.setNaked(); }
 
 
 		for(unsigned i = 0; const Parameter& param : func.getParameters()){
@@ -2357,13 +2358,22 @@ namespace pcit::pir{
 							asm_expr_call.setLocation(this->lower_meta_source_location(*asm_expr.sourceLocation));
 						}
 
-						for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+						if(asm_expr.outputs.size()){
 							this->stmt_values.emplace(
-								this->reader.extractAsmValue(asm_expr, i),
-								this->builder.createExtractValue(asm_expr_call.asValue(), {uint32_t(i)}, output.name)
+								this->reader.extractAsmValue(asm_expr, 0), asm_expr_call.asValue()
 							);
-						
-							i += 1;
+
+						}else{
+							for(size_t i = 0; const Asm::Output& output : asm_expr.outputs){
+								this->stmt_values.emplace(
+									this->reader.extractAsmValue(asm_expr, i),
+									this->builder.createExtractValue(
+										asm_expr_call.asValue(), {uint32_t(i)}, output.name
+									)
+								);
+							
+								i += 1;
+							}
 						}
 					} break;
 

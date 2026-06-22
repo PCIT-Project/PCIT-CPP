@@ -1114,7 +1114,7 @@ namespace pcit::pir{
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(
-			this->module.getFunction(func).getIsNoReturn() == false,
+			this->module.getFunction(func).isNoReturn() == false,
 			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -1134,7 +1134,7 @@ namespace pcit::pir{
 			"CallVoid must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(
-			this->module.getFunction(func).getIsNoReturn() == false,
+			this->module.getFunction(func).isNoReturn() == false,
 			"CallVoid cannot be noReturn (did you mean CallNoReturn?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -1237,7 +1237,7 @@ namespace pcit::pir{
 			"CallNoReturn must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(
-			this->module.getFunction(func).getIsNoReturn(),
+			this->module.getFunction(func).isNoReturn(),
 			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");
@@ -1257,7 +1257,7 @@ namespace pcit::pir{
 			"CallNoReturn must return `Void` (did you mean Call?)"
 		);
 		evo::debugAssert(
-			this->module.getFunction(func).getIsNoReturn(),
+			this->module.getFunction(func).isNoReturn(),
 			"CallNoReturn must return be noReturn (did you mean CallVoid?)"
 		);
 		evo::debugAssert(this->target_func->check_func_call_args(func, args), "Func call args don't match");

@@ -195,6 +195,7 @@ namespace pcit::pir{
 		Linkage linkage;
 		Type returnType;
 		bool isNoReturn;
+		bool isNaked;
 		std::optional<meta::Function::ID> meta_id;
 	};
 
@@ -264,9 +265,8 @@ namespace pcit::pir{
 		this->print_linkage(func_decl.linkage);
 		this->printer.print(" ");
 
-		if(func_decl.isNoReturn){
-			this->printer.printRed("#noReturn ");
-		}
+		if(func_decl.isNoReturn){ this->printer.printRed("#noReturn "); }
+		if(func_decl.isNaked){ this->printer.printRed("#naked "); }
 
 		if(func_decl.meta_id.has_value()){
 			std::string_view meta_name = this->reader.getModule().getMetaFunction(*func_decl.meta_id).metaName;
@@ -295,7 +295,8 @@ namespace pcit::pir{
 				function.getCallingConvention(),
 				function.getLinkage(),
 				function.getReturnType(),
-				function.getIsNoReturn(),
+				function.isNoReturn(),
+				function.isNaked(),
 				function.getMetaID()
 			)
 		);
@@ -334,6 +335,7 @@ namespace pcit::pir{
 				function_decl.linkage,
 				function_decl.returnType,
 				function_decl.isNoReturn,
+				false,
 				function_decl.metaID
 			)
 		);

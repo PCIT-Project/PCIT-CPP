@@ -74,6 +74,7 @@ namespace pcit::llvmint{
 			auto setNoThrow() -> void;
 			auto setUWTableKind(UWTableKind kind = UWTableKind::DEFAULT) -> void;
 			auto setNoReturn() -> void;
+			auto setNaked() -> void;
 			auto setCallingConv(CallingConv calling_conv) -> void;
 
 			auto setSubprogram(DIBuilder::Subprogram subprogram) -> void;

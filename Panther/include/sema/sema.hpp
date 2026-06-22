@@ -748,6 +748,7 @@ namespace pcit::panther::sema{
 			bool isRTDiff   = ForceInit(); // meaningless if not both comptime and runtime
 			bool isExport   = ForceInit(); // always true if is clang
 			bool isImplicit = ForceInit(); // meaningless if not member
+			bool isNaked    = ForceInit();
 		};
 		using Attributes = AttributesImpl<void>; // this trick forces all members to be initialized
 

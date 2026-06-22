@@ -100,6 +100,11 @@ namespace pcit::llvmint{
 		this->native()->setDoesNotReturn();
 	}
 
+	auto Function::setNaked() -> void {
+		this->native()->addFnAttr(llvm::Attribute::AttrKind::Naked);
+	}
+
+
 	auto Function::setCallingConv(CallingConv calling_conv) -> void {
 		this->native()->setCallingConv(evo::to_underlying(calling_conv));
 	}

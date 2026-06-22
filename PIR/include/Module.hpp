@@ -48,6 +48,7 @@ namespace pcit::pir{
 				Linkage linkage,
 				Type return_type,
 				bool is_no_return = false,
+				bool is_naked = false,
 				std::optional<meta::Function::ID> meta_id = std::nullopt
 			) -> Function::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
@@ -70,7 +71,8 @@ namespace pcit::pir{
 						return_type,
 						is_no_return,
 						meta_id
-					)
+					),
+					is_naked
 				);
 			}
 

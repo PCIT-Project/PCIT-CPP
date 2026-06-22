@@ -112,11 +112,11 @@ namespace pcit::pir{
 
 		public:
 			// Don't call this directly, go through Module
-			Function(Module& module, const ExternalFunction& declaration)
-				: parent_module(module), func_decl(declaration) {}
+			Function(Module& module, const ExternalFunction& declaration, bool is_naked = false)
+				: parent_module(module), func_decl(declaration), _is_naked(is_naked) {}
 
-			Function(Module& module, ExternalFunction&& declaration)
-				: parent_module(module), func_decl(std::move(declaration)) {}
+			Function(Module& module, ExternalFunction&& declaration, bool is_naked = false)
+				: parent_module(module), func_decl(std::move(declaration)), _is_naked(is_naked) {}
 
 			~Function() = default;
 
@@ -131,7 +131,8 @@ namespace pcit::pir{
 			[[nodiscard]] auto getLinkage() const -> const Linkage& { return this->func_decl.linkage; }
 			[[nodiscard]] auto getReturnType() const -> const Type& { return this->func_decl.returnType; }
 
-			[[nodiscard]] auto getIsNoReturn() const -> bool { return this->func_decl.isNoReturn; }
+			[[nodiscard]] auto isNoReturn() const -> bool { return this->func_decl.isNoReturn; }
+			[[nodiscard]] auto isNaked() const -> bool { return this->_is_naked; }
 
 			[[nodiscard]] auto getMetaID() const -> std::optional<meta::Function::ID> { return this->func_decl.metaID; }
 
@@ -200,6 +201,7 @@ namespace pcit::pir{
 	
 		private:
 			ExternalFunction func_decl;
+			bool _is_naked;
 			Module& parent_module;
 
 			evo::SmallVector<BasicBlock::ID> basic_blocks{};

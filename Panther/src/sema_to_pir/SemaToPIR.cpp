@@ -626,6 +626,7 @@ namespace pcit::panther{
 					linkage,
 					return_type,
 					func_type.attributes.isNoReturn,
+					func.attributes.isNaked,
 					meta_id
 				);
 
@@ -699,6 +700,7 @@ namespace pcit::panther{
 					linkage,
 					return_type,
 					func_type.attributes.isNoReturn,
+					func.attributes.isNaked,
 					meta_id
 				);
 
@@ -1400,6 +1402,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			this->module.createSignedType(32),
 			false,
+			false,
 			meta_id
 		);
 
@@ -1486,6 +1489,7 @@ namespace pcit::panther{
 					pir::Linkage::EXTERNAL,
 					this->module.createSignedType(32),
 					false,
+					false,
 					meta_id
 				);
 
@@ -1546,6 +1550,7 @@ namespace pcit::panther{
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
 			this->module.createVoidType(),
+			false,
 			false,
 			std::nullopt
 		);

@@ -1699,6 +1699,7 @@ namespace pcit::panther{
 									.isRTDiff   = false,
 									.isExport   = true,
 									.isImplicit = false,
+									.isNaked    = false,
 								}
 							);
 						}
@@ -3175,6 +3176,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3228,6 +3230,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3275,6 +3278,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3345,6 +3349,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3398,6 +3403,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3445,6 +3451,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3524,6 +3531,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3581,6 +3589,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3662,6 +3671,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3746,6 +3756,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3815,6 +3826,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3868,6 +3880,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3915,6 +3928,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -3986,6 +4000,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4039,6 +4054,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4086,6 +4102,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4165,6 +4182,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4222,6 +4240,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4305,6 +4324,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
@@ -4389,6 +4409,7 @@ namespace pcit::panther{
 					.isRTDiff   = false,
 					.isExport   = false,
 					.isImplicit = false,
+					.isNaked    = false,
 				}
 			);
 
