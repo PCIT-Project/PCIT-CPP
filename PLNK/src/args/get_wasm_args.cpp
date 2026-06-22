@@ -14,8 +14,8 @@
 namespace pcit::plnk{
 
 	
-	auto get_wasm_args(evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options) -> Args {
-		std::ignore = object_file_paths;
+	auto get_wasm_args(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> Args {
+		std::ignore = link_file_paths;
 		std::ignore = options;
 		
 		evo::debugFatalBreak("WASM target currently unsupported");

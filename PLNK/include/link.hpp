@@ -28,7 +28,7 @@ namespace pcit::plnk{
 
 
 	[[nodiscard]] auto link(
-		evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options = Options()
+		evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options = Options()
 	) -> LinkResult;
 
 

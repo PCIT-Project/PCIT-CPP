@@ -981,7 +981,19 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 			}();
 
-			const plnk::LinkResult link_result = plnk::link({object_path}, plnk_options);
+			auto link_file_paths = evo::SmallVector<std::filesystem::path>();
+			link_file_paths.reserve(1 + config.output.executableData().linkPaths.size());
+
+			link_file_paths.emplace_back(object_path);
+			for(
+				const panther::Context::PantherBuildConfig::StringRef& link_path
+				: config.output.executableData().linkPaths
+			){
+				link_file_paths.emplace_back(static_cast<std::string_view>(link_path));
+			}
+
+
+			const plnk::LinkResult link_result = plnk::link(link_file_paths, plnk_options);
 
 
 			if(link_result.messages.empty() == false){

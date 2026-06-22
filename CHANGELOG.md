@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.326.0"></a>
+## v0.0.326.0
+
+### Panther
+- Added `@build.BuildExecutableOutput.linkPaths`
+
+
+<!---------------------------------->
 <a name="v0.0.325.0"></a>
 ## v0.0.325.0
 
@@ -30,7 +38,7 @@
 - Added `@asm` statements / expression (inline assembly)
 
 ### PIR
-= Added `@asm` instructions
+- Added `@asm` instructions
 
 
 <!---------------------------------->

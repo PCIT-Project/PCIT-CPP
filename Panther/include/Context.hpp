@@ -139,9 +139,10 @@ namespace pcit::panther{
 						StringRef path;
 					};
 
-					struct ExectuableData{
+					struct ExecutableData{
 						StringRef path;
 						StringRef objectPath;
+						evo::ArrayProxy<StringRef> linkPaths;
 						bool isConsole;
 					};
 
@@ -178,7 +179,7 @@ namespace pcit::panther{
 						return this->data.object;
 					}
 
-					[[nodiscard]] auto executableData() const -> const ExectuableData& {
+					[[nodiscard]] auto executableData() const -> const ExecutableData& {
 						evo::debugAssert(this->tag == Tag::EXECUTABLE, "Not an executable output");
 						return this->data.executable;
 					}
@@ -193,7 +194,7 @@ namespace pcit::panther{
 							LLVMIRData llvmir;
 							AssemblyData assembly;
 							ObjectData object;
-							ExectuableData executable;
+							ExecutableData executable;
 						};
 
 						Data data;

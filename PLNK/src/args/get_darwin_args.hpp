@@ -21,7 +21,7 @@
 namespace pcit::plnk{
 
 	
-	auto get_darwin_args(evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options) -> Args;
+	auto get_darwin_args(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> Args;
 
 
 }

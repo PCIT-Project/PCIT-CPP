@@ -78,7 +78,7 @@ namespace pcit::plnk{
 
 
 
-	auto link(evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options) -> LinkResult {
+	auto link(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> LinkResult {
 		struct LinkData{
 			lld::Driver driver;
 			Args args;
@@ -87,16 +87,16 @@ namespace pcit::plnk{
 		LinkData link_data = [&](){
 			switch(options.getTarget()){
 				case Target::WINDOWS:
-					return LinkData(&lld::coff::link, get_windows_args(object_file_paths, options));
+					return LinkData(&lld::coff::link, get_windows_args(link_file_paths, options));
 
 				case Target::UNIX:
-					return LinkData(&lld::elf::link, get_unix_args(object_file_paths, options));
+					return LinkData(&lld::elf::link, get_unix_args(link_file_paths, options));
 
 				case Target::DARWIN:
-					return LinkData(&lld::macho::link, get_darwin_args(object_file_paths, options));
+					return LinkData(&lld::macho::link, get_darwin_args(link_file_paths, options));
 
 				case Target::WEB_ASSEMBLY:
-					return LinkData(&lld::wasm::link, get_wasm_args(object_file_paths, options));
+					return LinkData(&lld::wasm::link, get_wasm_args(link_file_paths, options));
 			}
 
 			evo::debugFatalBreak("Unknown Target");

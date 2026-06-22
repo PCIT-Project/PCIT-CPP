@@ -14,8 +14,8 @@
 namespace pcit::plnk{
 
 	
-	auto get_darwin_args(evo::ArrayProxy<std::filesystem::path> object_file_paths, const Options& options) -> Args {
-		std::ignore = object_file_paths;
+	auto get_darwin_args(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> Args {
+		std::ignore = link_file_paths;
 		std::ignore = options;
 		
 		evo::debugFatalBreak("MacOS target currently unsupported");

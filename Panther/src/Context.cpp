@@ -2246,6 +2246,26 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("linkPaths"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							this->type_manager.getOrCreateArrayRef(
+								BaseType::ArrayRef(
+									TypeManager::getTypeStringRef(),
+									evo::SmallVector<BaseType::ArrayRef::Dimension>{
+										BaseType::ArrayRef::Dimension::ptr()
+									},
+									std::nullopt,
+									false
+								)
+							)
+						)
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("isConsole"),
 					TypeManager::getTypeBool(),
 					std::nullopt,
