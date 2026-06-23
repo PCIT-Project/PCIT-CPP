@@ -78,13 +78,13 @@ namespace pcit::panther{
 
 			auto forwardDeclStruct(BaseType::Struct::ID struct_id) -> void;
 			auto lowerStruct(BaseType::Struct::ID struct_id) -> pir::Type;
-			auto lowerStructAndDepsIfNeeded(BaseType::Struct::ID struct_id) -> pir::Type; // not thread-safe for same id
+			auto lowerStructAndDepsIfNeeded(BaseType::Struct::ID struct_id) -> pir::Type;
 
 			auto lowerUnion(BaseType::Union::ID union_id) -> pir::Type;
-			auto lowerUnionAndDepsIfNeeded(BaseType::Union::ID union_id) -> pir::Type; // not thread-safe for same id
+			auto lowerUnionAndDepsIfNeeded(BaseType::Union::ID union_id) -> pir::Type;
 
 			auto lowerEnum(BaseType::Enum::ID enum_id) -> void;
-			auto lowerEnumAndDepsIfNeeded(BaseType::Enum::ID enum_id) -> void; // not thread-safe for same id
+			auto lowerEnumAndDepsIfNeeded(BaseType::Enum::ID enum_id) -> void;
 
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
@@ -125,13 +125,13 @@ namespace pcit::panther{
 
 
 		private:
-			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe for same id if true
+			template<bool MAY_LOWER_DEPENDENCY>
 			[[nodiscard]] auto lower_struct(BaseType::Struct::ID struct_id) -> pir::Type;
 
-			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe for same id if true
+			template<bool MAY_LOWER_DEPENDENCY>
 			[[nodiscard]] auto lower_union(BaseType::Union::ID union_id) -> pir::Type;
 
-			template<bool MAY_LOWER_DEPENDENCY> // not thread-safe for same id if true
+			template<bool MAY_LOWER_DEPENDENCY>
 			auto lower_enum(BaseType::Enum::ID enum_id) -> void;
 
 			// see definition for explanation

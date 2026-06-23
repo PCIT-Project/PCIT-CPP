@@ -674,8 +674,15 @@ namespace pcit::panther{
 			case Instruction::Kind::AS:
 				return this->instr_expr_as<false>(this->context.symbol_proc_manager.getAs(instr));
 
+			case Instruction::Kind::OPTIONAL_NULL_CHECK_COMPTIME:
+				return this->instr_optional_null_check<true>(
+					this->context.symbol_proc_manager.getOptionalNullCheckComptime(instr)
+				);
+
 			case Instruction::Kind::OPTIONAL_NULL_CHECK:
-				return this->instr_optional_null_check(this->context.symbol_proc_manager.getOptionalNullCheck(instr));
+				return this->instr_optional_null_check<false>(
+					this->context.symbol_proc_manager.getOptionalNullCheck(instr)
+				);
 
 			case Instruction::Kind::MATH_INFIX_COMPTIME_COMPARATIVE:
 				return this->instr_expr_math_infix<true, Instruction::MathInfixKind::COMPARATIVE>(
@@ -9140,7 +9147,7 @@ namespace pcit::panther{
 					this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
 				switch(this->context.getConfig().mode){
-					case Context::Config::Mode::COMPILE: {
+					case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
 						if(intrinsic_func_info.allowedInCompile == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
@@ -9149,16 +9156,16 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::SCRIPTING: {
+					case Context::Config::Mode::SCRIPT: {
 						if(intrinsic_func_info.allowedInScript == false){
 							this->emit_error(
-								"Calling this intrinsic is not allowed in scripting mode", instr.func_call.target
+								"Calling this intrinsic is not allowed in script mode", instr.func_call.target
 							);
 							return Result::ERROR;
 						}
 					} break;
 
-					case Context::Config::Mode::BUILD_SYSTEM: {
+					case Context::Config::Mode::BUILD: {
 						if(intrinsic_func_info.allowedInBuild == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in build mode", instr.func_call.target
@@ -11712,7 +11719,7 @@ namespace pcit::panther{
 				}
 
 				switch(this->context.getConfig().mode){
-					case Context::Config::Mode::COMPILE: {
+					case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
 						if(intrinsic_func_info.allowedInCompile == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
@@ -11721,16 +11728,16 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::SCRIPTING: {
+					case Context::Config::Mode::SCRIPT: {
 						if(intrinsic_func_info.allowedInScript == false){
 							this->emit_error(
-								"Calling this intrinsic is not allowed in scripting mode", instr.func_call.target
+								"Calling this intrinsic is not allowed in script mode", instr.func_call.target
 							);
 							return Result::ERROR;
 						}
 					} break;
 
-					case Context::Config::Mode::BUILD_SYSTEM: {
+					case Context::Config::Mode::BUILD: {
 						if(intrinsic_func_info.allowedInBuild == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in build mode", instr.func_call.target
@@ -12430,7 +12437,7 @@ namespace pcit::panther{
 				std::is_same<IDType, IntrinsicFunc::Kind>()
 				|| std::is_same<IDType, sema::TemplateIntrinsicFuncInstantiation::ID>()
 			){
-				evo::debugFatalBreak("Invalid for comptime func call run (should have already been run");
+				evo::debugFatalBreak("Invalid for comptime func call run (should have already been run)");
 
 			}else{
 				static_assert(false, "Unknown func call target");
@@ -12776,21 +12783,21 @@ namespace pcit::panther{
 
 
 		switch(this->context.getConfig().mode){
-			case Context::Config::Mode::COMPILE: {
+			case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
 					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::SCRIPTING: {
+			case Context::Config::Mode::SCRIPT: {
 				if(template_intrinsic_func_info.allowedInScript == false){
-					this->emit_error("Calling this intrinsic is not allowed in scripting mode", instr.func_call.target);
+					this->emit_error("Calling this intrinsic is not allowed in script mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::BUILD_SYSTEM: {
+			case Context::Config::Mode::BUILD: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;
@@ -13113,21 +13120,21 @@ namespace pcit::panther{
 
 
 		switch(this->context.getConfig().mode){
-			case Context::Config::Mode::COMPILE: {
+			case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
 					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::SCRIPTING: {
+			case Context::Config::Mode::SCRIPT: {
 				if(template_intrinsic_func_info.allowedInScript == false){
-					this->emit_error("Calling this intrinsic is not allowed in scripting mode", instr.func_call.target);
+					this->emit_error("Calling this intrinsic is not allowed in script mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::BUILD_SYSTEM: {
+			case Context::Config::Mode::BUILD: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;
@@ -20180,8 +20187,9 @@ namespace pcit::panther{
 	}
 
 
-
-	auto SemanticAnalyzer::instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_optional_null_check(const Instruction::OptionalNullCheck<IS_COMPTIME>& instr)
+	-> Result {
 		const TermInfo& lhs = this->get_term_info(instr.lhs);
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
@@ -20220,15 +20228,44 @@ namespace pcit::panther{
 		}
 
 		const bool is_equal = this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("==");
+
+		if constexpr(IS_COMPTIME){
+			const sema::Expr actual_lhs_expr = [&]() -> sema::Expr {
+				if(lhs.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
+					const sema::GlobalVar& global_var =
+						this->context.getSemaBuffer().getGlobalVar(lhs.getExpr().globalVarID());
+
+					return *global_var.expr.load(std::memory_order::relaxed);
+
+				}else{
+					return lhs.getExpr();
+				}
+			}();
+
+			const bool has_value = actual_lhs_expr.kind() == sema::Expr::Kind::DEFAULT_NEW;
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				true,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TypeManager::getTypeBool(),
+				sema::Expr(this->context.sema_buffer.createBoolValue(has_value ^ !is_equal, false))
+			);
+			return Result::SUCCESS;
+
+		}else{
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				lhs.isComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TypeManager::getTypeBool(),
+				sema::Expr(
+					this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_decayed_type_id, is_equal)
+				)
+			);
+			return Result::SUCCESS;
+		}
 			
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL,
-			lhs.isComptime,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			TypeManager::getTypeBool(),
-			sema::Expr(this->context.sema_buffer.createOptionalNullCheck(lhs.getExpr(), lhs_decayed_type_id, is_equal))
-		);
-		return Result::SUCCESS;
 	}
 
 

@@ -52,14 +52,30 @@ namespace pcit::panther{
 
 			struct Config{
 				enum class Mode : uint32_t {
-					COMPILE      = 0,
-					SCRIPTING    = 1,
-					BUILD_SYSTEM = 2,
+					COMPILE     = 0,
+					COMPILE_RUN = 1,
+					SCRIPT      = 2,
+					BUILD       = 3,
+				};
+
+				enum class WindowsSubsystem : uint32_t {
+					CONSOLE = 0, // console application
+					WINDOWS = 1, // application doesn't require a console
+
+					// less used
+					// BOOT_APPLICATION        = 2, // application that runs in the Windows boot environment
+					// EFI_APPLICATION         = 3, // Extensible Firmare Interface subsystem
+					// EFI_BOOT_SERVICE_DRIVER = 4, // Extensible Firmare Interface subsystem
+					// EFI_ROM                 = 5, // Extensible Firmare Interface subsystem
+					// EFI_RUNTIME_DRIVER      = 6, // Extensible Firmare Interface subsystem
+					// NATIVE                  = 7, // kernel mode drivers for Windows NT
+					// POSIX_IN_WINDOWS_NT     = 8, // application that runs with the POSIX subsystem in Windows NT
 				};
 
 				std::string title;
 				core::Target target;
 				Mode mode;
+				std::optional<WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
@@ -91,6 +107,15 @@ namespace pcit::panther{
 					}
 
 					[[nodiscard]] auto has_value() const -> bool { return this->_has_value; }
+
+
+					[[nodiscard]] operator std::optional<T>() {
+						if(this->has_value()){
+							return std::nullopt;
+						}else{
+							return std::optional<T>(this->data.value);
+						}
+					}
 
 					
 					private:
@@ -143,7 +168,6 @@ namespace pcit::panther{
 						StringRef path;
 						StringRef objectPath;
 						evo::ArrayProxy<StringRef> linkPaths;
-						bool isConsole;
 					};
 
 
@@ -335,6 +359,7 @@ namespace pcit::panther{
 				Output output;
 				core::Target::Architecture architecture;
 				core::Target::Platform platform;
+				Optional<Config::WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
 				NumThreads numThreads;
 				bool addDebugInfo;
@@ -399,8 +424,8 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto mayAddSourceFile() const -> bool {
-				return this->_config.mode == Config::Mode::SCRIPTING 
-					|| this->_config.mode == Config::Mode::BUILD_SYSTEM
+				return this->_config.mode == Config::Mode::SCRIPT
+					|| this->_config.mode == Config::Mode::BUILD
 					|| this->started_any_target == false;
 			}
 

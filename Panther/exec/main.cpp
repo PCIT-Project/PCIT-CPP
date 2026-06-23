@@ -165,13 +165,20 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		}
 	}
 
-
-
 	using ContextConfig = panther::Context::Config;
+	const ContextConfig::Mode mode = [&]() -> ContextConfig::Mode {
+		if(config.output.getTag() == panther::Context::PantherBuildConfig::Output::Tag::RUN){
+			return ContextConfig::Mode::COMPILE_RUN;
+		}else{
+			return ContextConfig::Mode::COMPILE;
+		}
+	}();
+
 	const auto context_config = ContextConfig{
 		.title                  = config.title,
 		.target                 = core::Target(config.architecture, config.platform),
-		.mode                   = ContextConfig::Mode::COMPILE,
+		.mode                   = mode,
+		.windowsSubsystem       = static_cast<std::optional<ContextConfig::WindowsSubsystem>>(config.windowsSubsystem),
 		.optMode                = config.optMode,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
@@ -911,7 +918,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			const panther::Context::EntryKind entry_kind = [&](){
-				if(config.output.executableData().isConsole){
+				if(*config.windowsSubsystem == panther::Context::Config::WindowsSubsystem::CONSOLE){
 					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
 				}else{
 					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
@@ -974,11 +981,19 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
 			plnk_options.outputFilePath = exec_path.string();
 			plnk_options.getWindowsSpecific().subsystem = [&](){
-				if(config.output.executableData().isConsole){
+				if(config.windowsSubsystem.has_value() == false){
 					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
-				}else{
-					return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
 				}
+
+				switch(*config.windowsSubsystem){
+					case panther::Context::Config::WindowsSubsystem::CONSOLE:
+						return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
+
+					case panther::Context::Config::WindowsSubsystem::WINDOWS:
+						return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
+				}
+
+				evo::unreachable();
 			}();
 
 			auto link_file_paths = evo::SmallVector<std::filesystem::path>();
@@ -1082,7 +1097,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Build-System>",
 		.target                 = core::Target::getNative(),
-		.mode                   = ContextConfig::Mode::BUILD_SYSTEM,
+		.mode                   = ContextConfig::Mode::BUILD,
+		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
@@ -1251,7 +1267,8 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Script>",
 		.target                 = core::Target::getNative(),
-		.mode                   = ContextConfig::Mode::SCRIPTING,
+		.mode                   = ContextConfig::Mode::SCRIPT,
+		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
@@ -1346,7 +1363,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		if(cmd_args_config.file.has_value()){
 			return *cmd_args_config.file;
 		}else{
-			return "run.pthr";
+			return "script.pthr";
 		}
 	}();
 
@@ -1509,7 +1526,7 @@ auto main(int argc, const char* argv[]) -> int {
 			}
 		} break;
 
-		case pthr::CmdArgsConfig::Action::RUN: {
+		case pthr::CmdArgsConfig::Action::SCRIPT: {
 			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
 				printer.printlnGray(
 					"pthr executable directory: \"{}\"", cmd_args_config.value().executablePath.string()

@@ -289,8 +289,9 @@ namespace pcit::panther{
 			) -> std::optional<Result>;
 
 
-
-			[[nodiscard]] auto instr_optional_null_check(const Instruction::OptionalNullCheck& instr) -> Result;			
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto instr_optional_null_check(const Instruction::OptionalNullCheck<IS_COMPTIME>& instr)
+				-> Result;			
 
 			template<bool IS_COMPTIME, Instruction::MathInfixKind MATH_INFIX_KIND>
 			[[nodiscard]] auto instr_expr_math_infix(const Instruction::MathInfix<IS_COMPTIME, MATH_INFIX_KIND>& instr)

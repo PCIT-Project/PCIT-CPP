@@ -29,7 +29,7 @@ namespace pthr{
 		printer.print(R"(
 Actions:
     build           run the build system (if no target file is given, defaults to "./build.pthr")
-    run             run as a script (if no target file is given, defaults to "./run.pthr")
+    script          run as a script (if no target file is given, defaults to "./script.pthr")
     version         prints the current version
     help            prints the help page
 
@@ -67,8 +67,8 @@ Options:
 				cmd_args_config.file = args[0];
 			}
 
-		}else if(action == "run"){
-			cmd_args_config.action = pthr::CmdArgsConfig::Action::RUN;
+		}else if(action == "script"){
+			cmd_args_config.action = pthr::CmdArgsConfig::Action::SCRIPT;
 
 			if(args.empty() == false && args[0][0] != '-'){
 				cmd_args_config.file = args[0];

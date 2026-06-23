@@ -748,7 +748,7 @@ namespace pcit::panther{
 		this->current_func_type = &this->context.getTypeManager().getFunction(sema_func.typeID);
 
 		const Data::FuncInfo& func_info = this->data.get_func(func_id);
-		const Data::FuncTypeInfo& func_type_info = this->data.func_type_infos.get(sema_func.typeID).getValue();
+		const Data::FuncTypeInfo& func_type_info = this->data.func_type_infos.getExisting(sema_func.typeID);
 
 		this->current_func_info = &func_info;
 		this->current_func_type_info = &func_type_info;
@@ -1600,7 +1600,7 @@ namespace pcit::panther{
 			param_i += 1;
 		}
 
-		if(func_type.hasNamedReturns || this->data.func_type_infos.get(sema_func.typeID).getValue().isImplicitRVO){
+		if(func_type.hasNamedReturns || this->data.func_type_infos.getExisting(sema_func.typeID).isImplicitRVO){
 			for(size_t i = 0; i < func_type.returnTypes.size(); i+=1){
 				const pir::Expr param_calc_ptr = this->handler.createCalcPtr(
 					this->handler.createParamExpr(0),
@@ -3340,7 +3340,7 @@ namespace pcit::panther{
 
 					const Data::FuncInfo& create_iterable_func_info = this->data.get_func(iterable.createIteratorFunc);
 					const Data::FuncTypeInfo& create_iterable_func_type_info =
-						this->data.func_type_infos.get(create_iterable_func.typeID).getValue();
+						this->data.func_type_infos.getExisting(create_iterable_func.typeID);
 
 
 
@@ -10358,6 +10358,16 @@ namespace pcit::panther{
 					);
 				} break;
 
+				case IntrinsicFunc::Kind::ENTRY: {
+					const Data::FuncInfo& func_info = this->data.get_func(*this->context.entry);
+
+					evo::debugAssert(func_call.args.empty(), "Entry doesn't accept args");
+
+					return this->handler.createCall(
+						func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{}
+					);
+				} break;
+
 				default: evo::debugFatalBreak("Unknown intrinsic expr");
 			}
 		}();
@@ -12344,7 +12354,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
 
 				const pir::Type union_pir_type =
-					this->data.unions.get(union_designated_init_new.unionTypeID).getValue();
+					this->data.unions.getExisting(union_designated_init_new.unionTypeID);
 
 				const core::GenericValue generic_value = [&]() -> core::GenericValue {
 					if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
@@ -13213,8 +13223,7 @@ namespace pcit::panther{
 
 				if constexpr(GET_META){
 					if(this->data.structs.hasValue(base_type_id.structID())){
-						const auto value_handle = this->data.structs.get(base_type_id.structID());
-						const pir::Type pir_type = value_handle.getValue();
+						const pir::Type pir_type = this->data.structs.getExisting(base_type_id.structID());
 						return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
 
 					}else{
@@ -13230,8 +13239,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const auto value_handle = this->data.structs.get(base_type_id.structID());
-					return PIRType(value_handle.getValue(), std::nullopt);
+					return PIRType(this->data.structs.getExisting(base_type_id.structID()), std::nullopt);
 				}
 			} break;
 
@@ -13243,7 +13251,7 @@ namespace pcit::panther{
 					}
 				}
 
-				const pir::Type pir_type = this->data.unions.get(base_type_id.unionID()).getValue();
+				const pir::Type pir_type = this->data.unions.getExisting(base_type_id.unionID());
 
 				if constexpr(GET_META){
 					return PIRType(pir_type, this->data.get_meta_union(base_type_id.unionID()));
@@ -13255,11 +13263,16 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ENUM: {
 				const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(base_type_id.enumID());
+
+				if constexpr(MAY_LOWER_DEPENDENCY && GET_META){
+					this->lower_enum<true>(base_type_id.enumID()); // make sure it's there
+				}
+
 				const pir::Type pir_type =
 					this->get_type<MAY_LOWER_DEPENDENCY, false>(BaseType::ID(enum_type.underlyingTypeID)).type;
 
 				if constexpr(GET_META){
-					return PIRType(pir_type, this->data.meta_enum_types.get(base_type_id.enumID()).getValue());
+					return PIRType(pir_type, this->data.meta_enum_types.getExisting(base_type_id.enumID()));
 
 				}else{
 					return PIRType(pir_type, std::nullopt);

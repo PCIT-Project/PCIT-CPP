@@ -23,7 +23,7 @@ namespace pthr{
 	struct CmdArgsConfig{
 		enum class Action{
 			BUILD,
-			RUN,
+			SCRIPT,
 			HELP,
 			VERSION,
 		};

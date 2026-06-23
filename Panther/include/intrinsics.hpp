@@ -23,6 +23,7 @@ namespace pcit::panther{
 			ABORT,
 			BREAKPOINT,
 			PANIC,
+			ENTRY,
 
 			IS_COMPTIME,
 

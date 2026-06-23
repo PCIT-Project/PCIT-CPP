@@ -2531,6 +2531,24 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// OptionalNullCheckComptime
+
+			[[nodiscard]] auto createOptionalNullCheckComptime(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::OPTIONAL_NULL_CHECK_COMPTIME,
+					this->optional_null_check_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getOptionalNullCheckComptime(Instruction instr) const
+			-> const Instruction::OptionalNullCheck<true>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::OPTIONAL_NULL_CHECK_COMPTIME, "Not a OptionalNullCheck<true>"
+				);
+				return this->optional_null_check_comptimes[instr._index];
+			}
+
 
 			//////////////////
 			// OptionalNullCheck
@@ -2542,8 +2560,11 @@ namespace pcit::panther{
 				);
 			}
 
-			[[nodiscard]] auto getOptionalNullCheck(Instruction instr) const -> const Instruction::OptionalNullCheck& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::OPTIONAL_NULL_CHECK, "Not a OptionalNullCheck");
+			[[nodiscard]] auto getOptionalNullCheck(Instruction instr) const
+			-> const Instruction::OptionalNullCheck<false>& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::OPTIONAL_NULL_CHECK, "Not a OptionalNullCheck<false>"
+				);
 				return this->optional_null_checks[instr._index];
 			}
 
@@ -3437,7 +3458,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::As<true>, uint32_t> as_contexprs{};
 			core::SyncLinearStepAlloc<Instruction::As<false>, uint32_t> ass{};
-			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck, uint32_t> optional_null_checks{};
+			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck<true>, uint32_t> optional_null_check_comptimes{};
+			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck<false>, uint32_t> optional_null_checks{};
 
 			core::SyncLinearStepAlloc<Instruction::MathInfix<true, Instruction::MathInfixKind::COMPARATIVE>, uint32_t>
 				math_infix_comptime_comparatives{};

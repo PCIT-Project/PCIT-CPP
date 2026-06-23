@@ -43,7 +43,9 @@ namespace pcit::panther{
 		intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
 			{"abort",                       Kind::ABORT},
 			{"breakpoint",                  Kind::BREAKPOINT},
-			{"panic"     ,                  Kind::PANIC},
+			{"panic",                       Kind::PANIC},
+			{"entry",                       Kind::ENTRY},
+
 			{"isComptime",                  Kind::IS_COMPTIME},
 
 			// build system

@@ -1901,7 +1901,6 @@ namespace pcit::pir{
 			|| this->getExprType(fromValue).kind() == Type::Kind::BOOL,
 			"can only convert from unsigned and Bool"
 		);
-		evo::debugAssert(toType.kind() == Type::Kind::UNSIGNED, "can only convert to unsigned");
 
 		const auto new_expr = Expr(
 			Expr::Kind::ZEXT,

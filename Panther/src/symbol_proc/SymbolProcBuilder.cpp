@@ -4033,9 +4033,21 @@ namespace pcit::panther{
 
 				if(rhs_is_null){
 					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(
-						this->context.symbol_proc_manager.createOptionalNullCheck(infix, lhs.value(), new_term_info_id)
-					);
+
+					if constexpr(IS_COMPTIME){
+						this->add_instruction(
+							this->context.symbol_proc_manager.createOptionalNullCheckComptime(
+								infix, lhs.value(), new_term_info_id
+							)
+						);
+					}else{
+						this->add_instruction(
+							this->context.symbol_proc_manager.createOptionalNullCheck(
+								infix, lhs.value(), new_term_info_id
+							)
+						);
+					}
+
 					return new_term_info_id;
 
 				}else{

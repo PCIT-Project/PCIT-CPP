@@ -708,7 +708,7 @@ namespace pcit::panther{
 
 
 	auto Context::lowerToPIR(EntryKind entry_kind) -> evo::Result<> {
-		if(this->_config.mode == Config::Mode::BUILD_SYSTEM){
+		if(this->_config.mode == Config::Mode::BUILD){
 			this->sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
 
@@ -930,8 +930,8 @@ namespace pcit::panther{
 
 	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		evo::debugAssert(
-			this->_config.mode == Config::Mode::COMPILE || this->_config.mode == Config::Mode::SCRIPTING,
-			"Must be in compile or scripting mode"
+			this->_config.mode == Config::Mode::COMPILE_RUN || this->_config.mode == Config::Mode::SCRIPT,
+			"Must be in Mode::COMPILE_RUN or Mode::SCRIPT"
 		);
 
 		if(this->entry.has_value() == false){
@@ -1026,7 +1026,7 @@ namespace pcit::panther{
 	auto Context::runBuildSystem(
 		const CreatePantherBuildCallback& create_panther_build_callback, bool allow_default_symbol_linking
 	) -> evo::Result<uint8_t> {
-		evo::debugAssert(this->_config.mode == Config::Mode::BUILD_SYSTEM, "Must be in build system mode");
+		evo::debugAssert(this->_config.mode == Config::Mode::BUILD, "Must be in build system mode");
 
 		if(this->entry.has_value() == false){
 			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
@@ -2264,13 +2264,6 @@ namespace pcit::panther{
 					std::nullopt,
 					false
 				),
-				BaseType::Struct::MemberVar(
-					AST::VarDef::Kind::VAR,
-					build_module.createString("isConsole"),
-					TypeManager::getTypeBool(),
-					std::nullopt,
-					false
-				),
 			}
 		);
 
@@ -2828,6 +2821,65 @@ namespace pcit::panther{
 			)
 		));
 
+		pthr_module.createSymbol("WindowsSubsystem", this->type_manager.createEnum(
+			BaseType::Enum(
+				BuiltinModule::ID::PTHR,
+				pthr_module.createString("WindowsSubsystem"),
+				std::nullopt,
+				evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("CONSOLE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::CONSOLE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("WINDOWS"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::WINDOWS))
+					),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("BOOT_APPLICATION"),
+					// 	core::GenericInt::create<uint32_t>(
+					// 		evo::to_underlying(Config::WindowsSubsystem::BOOT_APPLICATION)
+					// 	)
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("EFI_APPLICATION"),
+					// 	core::GenericInt::create<uint32_t>(
+					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_APPLICATION)
+					// 	)
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("EFI_BOOT_SERVICE_DRIVER"),
+					// 	core::GenericInt::create<uint32_t>(
+					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_BOOT_SERVICE_DRIVER)
+					// 	)
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("EFI_ROM"),
+					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::EFI_ROM))
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("EFI_RUNTIME_DRIVER"),
+					// 	core::GenericInt::create<uint32_t>(
+					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_RUNTIME_DRIVER)
+					// 	)
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("NATIVE"),
+					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::NATIVE))
+					// ),
+					// BaseType::Enum::Enumerator(
+					// 	pthr_module.createString("POSIX"),
+					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::POSIX))
+					// ),
+				},
+				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				nullptr,
+				nullptr,
+				true,
+				false
+			)
+		));
+
 
 		const BaseType::Struct::ID panther_build_config = this->create_builtin_struct(
 			BuiltinModule::ID::BUILD,
@@ -2865,6 +2917,18 @@ namespace pcit::panther{
 					build_module.createString("platform"),
 					this->type_manager.getOrCreateTypeInfo(
 						TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())
+					),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("windowsSubsystem"),
+					this->type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							pthr_module.getSymbol("WindowsSubsystem")->as<BaseType::ID>(),
+							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createOptional()}
+						)
 					),
 					std::nullopt,
 					false
@@ -2952,12 +3016,16 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE))
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("SCRIPTING"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SCRIPTING))
+						pthr_module.createString("COMPILE_RUN"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE_RUN))
 					),
 					BaseType::Enum::Enumerator(
-						pthr_module.createString("BUILD_SYSTEM"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::BUILD_SYSTEM))
+						pthr_module.createString("SCRIPT"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SCRIPT))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("BUILD"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::BUILD))
 					),
 				},
 				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
@@ -2967,6 +3035,8 @@ namespace pcit::panther{
 				false
 			)
 		));
+
+
 
 
 		pthr_module.createSymbol("CallingConvention", this->type_manager.createEnum(
@@ -4504,6 +4574,49 @@ namespace pcit::panther{
 			std::nullopt
 		));
 
+		{
+			const TypeInfo::ID config_windows_subsystem_type_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					pthr_module.getSymbol("WindowsSubsystem")->as<BaseType::ID>(),
+					evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createOptional()}
+				)
+			);
+
+			const sema::Expr config_windows_subsystem_expr = [&]() -> sema::Expr {
+				if(this->getConfig().windowsSubsystem.has_value()){
+					return sema::Expr(
+						this->sema_buffer.createConversionToOptional(
+							sema::Expr(
+								this->sema_buffer.createIntValue(
+									core::GenericInt::create<uint32_t>(
+										evo::to_underlying(*this->getConfig().windowsSubsystem)
+									),
+									this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+								)
+							),
+							config_windows_subsystem_type_id
+						)
+					);
+
+				}else{
+					return sema::Expr(this->sema_buffer.createDefaultNew(config_windows_subsystem_type_id, true));
+				}
+			}();
+
+			config_module.createSymbol("windowsSubsystem", this->sema_buffer.createGlobalVar(
+				AST::VarDef::Kind::DEF,
+				BuiltinModule::ID::CONFIG,
+				config_module.createString("windowsSubsystem"),
+				std::string(),
+				std::nullopt,
+				std::optional<sema::Expr>(config_windows_subsystem_expr),
+				config_windows_subsystem_type_id,
+				true,
+				false,
+				std::nullopt
+			));
+		}
+
 		config_module.createSymbol("optMode", this->sema_buffer.createGlobalVar(
 			AST::VarDef::Kind::DEF,
 			BuiltinModule::ID::CONFIG,
@@ -4618,6 +4731,19 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
 		};
 
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::ENTRY))] = 
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeUI8()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = false, .allowedInRuntime = true,
+				.allowedInCompile  = true,  .allowedInScript = false, .allowedInBuild = false,
+			};
+
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::IS_COMPTIME))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{},
@@ -4652,7 +4778,6 @@ namespace pcit::panther{
 				.allowedInCompile  = false, .allowedInScript  = false, .allowedInBuild = true,
 			};
 		}
-
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPILER_EXECUTABLE_DIRECTORY))] = 
 			IntrinsicFuncInfo{

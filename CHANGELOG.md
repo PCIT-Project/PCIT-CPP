@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.327.0"></a>
+## v0.0.327.0
+
+### Panther
+- Added `@pthr.Subsystem`
+- Added `@config.subsystem`
+- Added `@pthr.Mode.COMPILE_RUN`
+- Renamed `@pthr.Mode.SCRIPTING` to `@pthr.Mode.SCRIPT`
+- Renamed `@pthr.Mode.BUILD_SYSTEM` to `@pthr.Mode.BUILD`
+- Fixed race condition when using builtin enums
+- Fixed comptime optional null checking
+
+### pthr
+- Renamed `run` action to `script`
+	- Default file is now "./script.pthr"
+
+
+<!---------------------------------->
 <a name="v0.0.326.0"></a>
 ## v0.0.326.0
 
