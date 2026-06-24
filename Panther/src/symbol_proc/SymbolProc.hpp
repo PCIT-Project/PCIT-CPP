@@ -1383,7 +1383,7 @@ namespace pcit::panther{
 				IN_DEF_DEDUCER_IMPL_METHOD,
 				IN_QUEUE,
 				WORKING,
-				PASSED_ON_BY_WHEN_COND,
+				PASSED_ON_BY_WHEN,
 				ERRORED,
 				DONE,
 			};
@@ -1462,9 +1462,9 @@ namespace pcit::panther{
 				return this->status == Status::ERRORED;
 			}
 
-			[[nodiscard]] auto passedOnByWhenCond() const -> bool {
+			[[nodiscard]] auto passedOnByWhen() const -> bool {
 				const auto lock = std::scoped_lock(this->waiting_for_lock);
-				return this->status == Status::PASSED_ON_BY_WHEN_COND;
+				return this->status == Status::PASSED_ON_BY_WHEN;
 			}
 
 			
@@ -1506,6 +1506,8 @@ namespace pcit::panther{
 
 			auto setStatusInQueue() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
+					evo::debugAssert(this->waiting_for.empty(), "Cannot set status `IN_QUEUE` if waiting");
+
 					const Status current_status = this->status.load();
 					evo::debugAssert(
 						current_status == Status::WAITING || current_status == Status::SUSPENDED,
@@ -1572,7 +1574,19 @@ namespace pcit::panther{
 				this->status = Status::IN_DEF_DEDUCER_IMPL_METHOD;
 			}
 
-			auto setStatusPassedOnByWhenCond() -> void { this->status = Status::PASSED_ON_BY_WHEN_COND; }
+			auto setStatusPassedOnByWhen() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const Status current_status = this->status.load();
+					evo::debugAssert(
+						current_status == Status::WAITING,
+						"Can only set `PASSED_ON_BY_WHEN` if status is `WAITING` (symbol: {})",
+						this->ident
+					);
+				#endif
+
+				this->status = Status::PASSED_ON_BY_WHEN;
+			}
+
 			auto setStatusErrored() -> void { this->status = Status::ERRORED; }
 			auto setStatusDone() -> void { this->status = Status::DONE; }
 
@@ -1592,7 +1606,7 @@ namespace pcit::panther{
 				WAITING_UNSUSPEND,
 				WAITING,
 				WAS_ERRORED,
-				WAS_PASSED_ON_BY_WHEN_COND,
+				WAS_PASSED_ON_BY_WHEN,
 				CIRCULAR_DEP_DETECTED,
 			};
 

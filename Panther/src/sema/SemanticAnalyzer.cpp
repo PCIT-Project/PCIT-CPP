@@ -33,9 +33,8 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze() -> void {
-		if(this->symbol_proc.passedOnByWhenCond()){ return; }
+		if(this->symbol_proc.passedOnByWhen()){ return; }
 
-		
 		{
 			const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
 			this->symbol_proc.setStatusWorking();
@@ -1337,21 +1336,9 @@ namespace pcit::panther{
 
 			{
 				const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
-				passed_symbol.setStatusPassedOnByWhenCond();
+				passed_symbol.setStatusPassedOnByWhen();
 			}
 			this->context.symbol_proc_manager.symbol_proc_done();
-
-
-			{
-				const auto lock = std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
-
-				for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
-					this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
-				}
-				for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
-					this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
-				}
-			}
 
 
 			if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
@@ -2598,10 +2585,10 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*func_to_wait_on.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 		}
 
@@ -2910,10 +2897,10 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(member_stmt_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 		}
 
@@ -3094,10 +3081,10 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(member_stmt_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 		}
 
@@ -5484,17 +5471,10 @@ namespace pcit::panther{
 						[[fallthrough]];
 					}
 
-					case SymbolProc::WaitOnResult::WAITING:
-						any_waiting = true; break;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -5518,17 +5498,10 @@ namespace pcit::panther{
 						[[fallthrough]];
 					}
 
-					case SymbolProc::WaitOnResult::WAITING:
-						any_waiting = true; break;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -5577,26 +5550,16 @@ namespace pcit::panther{
 					dependent_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:
-						break;
-
+					case SymbolProc::WaitOnResult::NOT_NEEDED: break;
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*dependent_func.symbolProcID);
 						[[fallthrough]];
 					}
-
-					case SymbolProc::WaitOnResult::WAITING:
-						any_waiting = true; break;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 			for(
@@ -5611,26 +5574,16 @@ namespace pcit::panther{
 					dependent_var_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:
-						break;
-
+					case SymbolProc::WaitOnResult::NOT_NEEDED: break;
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*dependent_var.symbolProcID);
 						[[fallthrough]];
 					}
-
-					case SymbolProc::WaitOnResult::WAITING:
-						any_waiting = true; break;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -6363,16 +6316,16 @@ namespace pcit::panther{
 				sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:           return Result::SUCCESS;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(instr.symbol_proc_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
@@ -7811,16 +7764,16 @@ namespace pcit::panther{
 						.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 					switch(wait_on_result){
-						case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+						case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 							this->context.symbol_proc_manager.symbol_proc_unsuspended();
 							this->context.add_task_to_work_manager(*iterable_impl.symbolProc);
 							[[fallthrough]];
 						}
-						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+						case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 					}
 				}
 			}
@@ -8918,22 +8871,9 @@ namespace pcit::panther{
 
 				{
 					const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
-					passed_symbol.setStatusPassedOnByWhenCond();
+					passed_symbol.setStatusPassedOnByWhen();
 				}
 				this->context.symbol_proc_manager.symbol_proc_done();
-
-
-				{
-					const auto lock =
-						std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
-
-					for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
-						this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
-					}
-					for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
-						this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
-					}
-				}
 
 
 				if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
@@ -11459,16 +11399,16 @@ namespace pcit::panther{
 				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*current_struct_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
@@ -11487,16 +11427,16 @@ namespace pcit::panther{
 				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*current_union_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
@@ -11515,16 +11455,16 @@ namespace pcit::panther{
 				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                return Result::SUCCESS;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*current_enum_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			evo::unreachable();
@@ -11557,16 +11497,16 @@ namespace pcit::panther{
 			sub_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 		switch(wait_on_result){
-			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 				this->context.symbol_proc_manager.symbol_proc_unsuspended();
 				this->context.add_task_to_work_manager(instr.symbol_proc_id);
 				[[fallthrough]];
 			}
-			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 		}
 
 		evo::unreachable();
@@ -11596,16 +11536,16 @@ namespace pcit::panther{
 			sub_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 		switch(wait_on_result){
-			case SymbolProc::WaitOnResult::NOT_NEEDED:                 return Result::SUCCESS;
+			case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 				this->context.symbol_proc_manager.symbol_proc_unsuspended();
 				this->context.add_task_to_work_manager(instr.symbol_proc_id);
 				[[fallthrough]];
 			}
-			case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 		}
 
 		evo::unreachable();
@@ -12083,16 +12023,16 @@ namespace pcit::panther{
 				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*func_call_impl_res.value().selected_func->symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			return Result::SUCCESS;
@@ -15286,17 +15226,10 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*target_func.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:
-					return Result::NEED_TO_WAIT;
-
-				case SymbolProc::WaitOnResult::WAS_ERRORED:
-					return Result::ERROR;
-
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-					evo::debugFatalBreak("Shouldn't be possible");
-
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-					evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 
@@ -16084,16 +16017,16 @@ namespace pcit::panther{
 				.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*resultant_type_symbol_proc_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 		}
 
@@ -16445,7 +16378,7 @@ namespace pcit::panther{
 											case SymbolProc::WaitOnResult::WAS_ERRORED:
 												return Result::ERROR;
 
-											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 												evo::debugFatalBreak("Shouldn't be possible");
 
 											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
@@ -16797,7 +16730,7 @@ namespace pcit::panther{
 							case SymbolProc::WaitOnResult::WAS_ERRORED:
 								return Result::ERROR;
 
-							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 								evo::debugFatalBreak("Shouldn't be possible");
 
 							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
@@ -16926,7 +16859,7 @@ namespace pcit::panther{
 											case SymbolProc::WaitOnResult::WAS_ERRORED:
 												return Result::ERROR;
 
-											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 												evo::debugFatalBreak("Shouldn't be possible");
 
 											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
@@ -18783,26 +18716,16 @@ namespace pcit::panther{
 				instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:
-					evo::debugFatalBreak("Should never be possible");
-
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            evo::debugFatalBreak("Should never be possible");
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
 					[[fallthrough]];
 				}
-
-				case SymbolProc::WaitOnResult::WAITING:
-					break;
-
-				case SymbolProc::WaitOnResult::WAS_ERRORED:
-					evo::debugFatalBreak("Should never be possible");
-
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-					evo::debugFatalBreak("Should never be possible");
-
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-					return Result::ERROR; // not sure this is possible just in case
+				case SymbolProc::WaitOnResult::WAITING:               break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR; // just in case
 			}
 
 			this->return_struct_instantiation(
@@ -18836,9 +18759,7 @@ namespace pcit::panther{
 			SymbolProc::WaitOnResult wait_on_result =
 				instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:
-					return Result::SUCCESS;
-
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return Result::SUCCESS;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(
@@ -18846,18 +18767,10 @@ namespace pcit::panther{
 					);
 					[[fallthrough]];
 				}
-				
-				case SymbolProc::WaitOnResult::WAITING:
-					return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				
-				case SymbolProc::WaitOnResult::WAS_ERRORED:
-					return Result::ERROR;
-				
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-					evo::debugFatalBreak("Should never be possible");
-				
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-					return Result::ERROR; // not sure this is possible but just in case
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR; // just in case
 			}
 
 			evo::unreachable();
@@ -18906,16 +18819,16 @@ namespace pcit::panther{
 					.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+					case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(target_symbol_proc_id);
 						[[fallthrough]];
 					}
-					case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 				}
 			}
 
@@ -19208,26 +19121,16 @@ namespace pcit::panther{
 					selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:
-						break;
-
+					case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*selected_func.symbolProcID);
 						[[fallthrough]];
 					}
-
-					case SymbolProc::WaitOnResult::WAITING:
-						return Result::NEED_TO_WAIT;
-
-					case SymbolProc::WaitOnResult::WAS_ERRORED:
-						return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Shouldn't be possible");
-
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-						evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 				}
 
 				const evo::Result<sema::Expr> comptime_as_res = this->comptime_func_call(
@@ -22641,12 +22544,9 @@ namespace pcit::panther{
 						this->context.add_task_to_work_manager(struct_type_symbol_proc_id);
 						[[fallthrough]];
 					}
-					case SymbolProc::WaitOnResult::WAITING:     return Result::NEED_TO_WAIT;
-					case SymbolProc::WaitOnResult::WAS_ERRORED: return Result::ERROR;
-
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
-						evo::debugFatalBreak("Should be impossible");
-
+					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should be impossible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 				}
 			}
@@ -23130,7 +23030,7 @@ namespace pcit::panther{
 						}
 						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
 						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 							evo::debugFatalBreak("Should be impossible");
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
 					}
@@ -23509,16 +23409,16 @@ namespace pcit::panther{
 				target_interface_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 				
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*target_interface.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Should be impossible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should be impossible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 		}
 
@@ -23593,7 +23493,7 @@ namespace pcit::panther{
 						case SymbolProc::WaitOnResult::WAS_ERRORED:
 							return Result::ERROR;
 
-						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 							evo::debugFatalBreak("Should be impossible");
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
@@ -27254,7 +27154,7 @@ namespace pcit::panther{
 					return WaitOnSymbolProcResult::EXISTS_BUT_ERRORED;
 				} break;
 
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: {
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: {
 					// do nothing...
 				} break;
 
@@ -28528,16 +28428,16 @@ namespace pcit::panther{
 
 
 				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:                 any_waiting_or_ready = true; break;
+					case SymbolProc::WaitOnResult::NOT_NEEDED:            any_waiting_or_ready = true; break;
 					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 						this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
 						[[fallthrough]];
 					}
-					case SymbolProc::WaitOnResult::WAITING:                    any_waiting_or_ready = true; break;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(Result::ERROR);
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: break;
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return evo::Unexpected(Result::ERROR);
+					case SymbolProc::WaitOnResult::WAITING:               any_waiting_or_ready = true; break;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: break;
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
 				}
 			}
 
@@ -30194,16 +30094,16 @@ namespace pcit::panther{
 				interface_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 break;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*interface_type.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                    return evo::Unexpected(Result::NEED_TO_WAIT);
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return evo::Unexpected(Result::ERROR);
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
 			}
 		}
 
@@ -32299,16 +32199,16 @@ namespace pcit::panther{
 				method_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                break;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
 				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
 					this->context.symbol_proc_manager.symbol_proc_unsuspended();
 					this->context.add_task_to_work_manager(*method.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:                   any_waiting = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:               return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:     evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -34545,7 +34445,7 @@ namespace pcit::panther{
 											case SymbolProc::WaitOnResult::WAS_ERRORED:
 												return TypeCheckInfo::fail();
 
-											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND:
+											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
 												evo::debugFatalBreak("Shouldn't be possible");
 
 											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:

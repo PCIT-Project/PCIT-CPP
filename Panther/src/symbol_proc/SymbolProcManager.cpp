@@ -96,12 +96,12 @@ namespace pcit::panther{
 				builtin_symbol_proc.waitOnPIRDefIfNeeded(symbol_proc_id, context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
-				case SymbolProc::WaitOnResult::WAITING:                    return true;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return false;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Should never be suspended");
+				case SymbolProc::WaitOnResult::WAITING:               return true;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return false;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return false;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return false;
 			}
 		}
 
@@ -123,12 +123,12 @@ namespace pcit::panther{
 				builtin_symbol_proc.waitOnPIRDefIfNeeded(symbol_proc_id, context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:                 return false;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: evo::debugFatalBreak("Should never be suspended");
-				case SymbolProc::WaitOnResult::WAITING:                    return true;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:                return false;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND: return false;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return false;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            return false;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Should never be suspended");
+				case SymbolProc::WaitOnResult::WAITING:               return true;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return false;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return false;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return false;
 			}
 		}
 
@@ -191,7 +191,7 @@ namespace pcit::panther{
 					(
 						symbol_proc.status.load() == SymbolProc::Status::DONE
 						|| symbol_proc.status.load() == SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD
-						|| symbol_proc.status.load() == SymbolProc::Status::PASSED_ON_BY_WHEN_COND
+						|| symbol_proc.status.load() == SymbolProc::Status::PASSED_ON_BY_WHEN
 					)
 				){
 					evo::printGray("Symbol Proc {} ", i);
@@ -240,8 +240,8 @@ namespace pcit::panther{
 						break; case SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD:
 							evo::printlnGray("\tStatus: IN_DEF_DEDUCER_IMPL_METHOD");
 
-						break; case SymbolProc::Status::PASSED_ON_BY_WHEN_COND:
-							evo::printlnGray("\tStatus: PASSED_ON_BY_WHEN_COND");
+						break; case SymbolProc::Status::PASSED_ON_BY_WHEN:
+							evo::printlnGray("\tStatus: PASSED_ON_BY_WHEN");
 
 						break; default: evo::printlnRed("\tStatus: UNKNOWN MINIMIZED");
 					}
@@ -359,8 +359,8 @@ namespace pcit::panther{
 						print_field("Status", "WORKING");
 					} break;
 
-					case SymbolProc::Status::PASSED_ON_BY_WHEN_COND: {
-						print_field("Status", "PASSED_ON_BY_WHEN_COND");
+					case SymbolProc::Status::PASSED_ON_BY_WHEN: {
+						print_field("Status", "PASSED_ON_BY_WHEN");
 					} break;
 
 					case SymbolProc::Status::ERRORED: {

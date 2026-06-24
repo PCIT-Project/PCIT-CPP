@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.327.3"></a>
+## v0.0.327.3
+
+### Panther
+- Fixed race condition in non-local statements that were passed by when conditionals / when switches
+
+
+<!---------------------------------->
 <a name="v0.0.327.2"></a>
 ## v0.0.327.2
 

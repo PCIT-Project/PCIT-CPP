@@ -30,7 +30,7 @@ namespace pcit::panther{
 		
 		// TODO(PERF): is doing these checks before taking locks faster
 		if(this->decl_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == this->getID()){
@@ -51,7 +51,7 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->decl_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
@@ -66,7 +66,7 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
@@ -74,7 +74,7 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->pir_decl_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
@@ -90,7 +90,7 @@ namespace pcit::panther{
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
 		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		if(id == this->getID()){
@@ -111,7 +111,7 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->def_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
@@ -127,7 +127,7 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::NOT_NEEDED; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
@@ -135,7 +135,7 @@ namespace pcit::panther{
 		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
-		if(this->status == Status::PASSED_ON_BY_WHEN_COND){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN_COND; }
+		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
