@@ -306,6 +306,9 @@ namespace pcit::panther{
 						
 					}else if constexpr(std::is_same<ExtraInfoType, SymbolProc::WhenCondInfo>()){
 						print_field("Extra Info", "WhenCond");
+
+					}else if constexpr(std::is_same<ExtraInfoType, SymbolProc::WhenSwitchInfo>()){
+						print_field("Extra Info", "WhenSwitch");
 						
 					}else if constexpr(std::is_same<ExtraInfoType, SymbolProc::AliasInfo>()){
 						print_field("Extra Info", "Alias");

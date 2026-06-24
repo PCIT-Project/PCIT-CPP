@@ -1663,14 +1663,16 @@ namespace pcit::panther{
 			this->symbol_scopes.pop_back();
 		}
 
+
+		SymbolProcInfo& current_symbol = this->get_current_symbol();
+		current_symbol.symbol_proc.extra_info.emplace<SymbolProc::WhenSwitchInfo>(cases);
+
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWhenSwitch(
 				when_switch, std::move(attribute_params_info.value()), cond.value(), std::move(cases)
 			)
 		);
 
-
-		SymbolProcInfo& current_symbol = this->get_current_symbol();
 
 		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
 			SymbolProcInfo& parent_symbol = this->get_parent_symbol();

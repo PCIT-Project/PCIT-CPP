@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.327.1"></a>
+## v0.0.327.1
+
+### Panther
+- Fixed when switches inside a when conditional branch that isn't taken incorrectly compiling all cases
+
+
+<!---------------------------------->
 <a name="v0.0.327.0"></a>
 ## v0.0.327.0
 

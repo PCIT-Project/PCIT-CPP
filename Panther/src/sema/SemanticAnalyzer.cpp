@@ -1365,6 +1365,16 @@ namespace pcit::panther{
 				for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
 					passed_symbols.push(else_id);
 				}
+
+			}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
+				for(
+					const Instruction::WhenSwitch::Case& case_info
+					: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
+				){
+					for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
+						passed_symbols.push(case_symbol_id);
+					}
+				}
 			}
 		}
 
@@ -8936,6 +8946,16 @@ namespace pcit::panther{
 
 					for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
 						passed_symbols.push(else_id);
+					}
+
+				}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
+					for(
+						const Instruction::WhenSwitch::Case& case_info
+						: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
+					){
+						for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
+							passed_symbols.push(case_symbol_id);
+						}
 					}
 				}
 			}

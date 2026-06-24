@@ -1698,6 +1698,10 @@ namespace pcit::panther{
 				evo::SmallVector<SymbolProcID> else_ids;
 			};
 
+			struct WhenSwitchInfo{
+				evo::ArrayProxy<Instruction::WhenSwitch::Case> cases;
+			};
+
 			struct AliasInfo{
 				BaseType::Alias::ID alias_id;
 			};
@@ -1766,6 +1770,7 @@ namespace pcit::panther{
 				std::monostate,
 				NonLocalVarInfo,
 				WhenCondInfo,
+				WhenSwitchInfo,
 				AliasInfo,
 				StructInfo,
 				UnionInfo,
