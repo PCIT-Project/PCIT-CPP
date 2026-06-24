@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.327.2"></a>
+## v0.0.327.2
+
+### Panther
+- Fixed function redefinition error diagnostics
+
+
+<!---------------------------------->
 <a name="v0.0.327.1"></a>
 ## v0.0.327.1
 

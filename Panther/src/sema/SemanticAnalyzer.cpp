@@ -36054,11 +36054,27 @@ namespace pcit::panther{
 				});
 
 			}else{
-				this->error_already_defined<false>(
-					ast_node,
-					ident_str,
-					*current_scope_level.lookupIdent(ident_str)
-				);
+				if constexpr(std::is_same<std::decay_t<decltype(ast_node)>, AST::FuncDef>()){
+					const auto& first_ident_id_info = std::get<0>(
+						std::forward_as_tuple(std::forward<decltype(ident_id_info)>(ident_id_info)...)
+					);
+
+					if constexpr(std::is_same<std::decay_t<decltype(first_ident_id_info)>, sema::Func::ID>()){
+						this->error_already_defined<false>(
+							ast_node, ident_str, *current_scope_level.lookupIdent(ident_str), first_ident_id_info
+						);
+
+					}else{
+						this->error_already_defined<false>(
+							ast_node, ident_str, *current_scope_level.lookupIdent(ident_str)
+						);
+					}
+					
+				}else{
+					this->error_already_defined<false>(
+						ast_node, ident_str, *current_scope_level.lookupIdent(ident_str)
+					);
+				}
 			}
 
 			return evo::resultError;
