@@ -10359,7 +10359,9 @@ namespace pcit::panther{
 				} break;
 
 				case IntrinsicFunc::Kind::ENTRY: {
-					const Data::FuncInfo& func_info = this->data.get_func(*this->context.entry);
+					const Data::FuncInfo& func_info = this->data.get_func(
+						*this->context.entry.load(std::memory_order::relaxed)
+					);
 
 					evo::debugAssert(func_call.args.empty(), "Entry doesn't accept args");
 

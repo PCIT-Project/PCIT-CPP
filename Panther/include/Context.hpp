@@ -848,8 +848,9 @@ namespace pcit::panther{
 			SymbolProcManager symbol_proc_manager{};
 			SemaBuffer sema_buffer{};
 
-			std::optional<sema::Func::ID> entry{};
-			std::optional<sema::Func::ID> panic{};
+			std::atomic<std::optional<sema::Func::ID>> entry{};
+			std::optional<sema::Func::ID> panic{}; 
+			std::atomic<bool> expecting_entry = false;
 
 			std::array<IntrinsicFuncInfo, size_t(IntrinsicFunc::Kind::_LAST_) + 1> intrinsic_infos{};
 			std::array<

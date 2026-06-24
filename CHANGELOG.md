@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.327.4"></a>
+## v0.0.327.4
+
+### Panther
+- Fixed missing error message when using `@entry` when there's no function with attribute `#entry`
+- Fixed missing check for functionws with attribute `#entry`
+
+
+<!---------------------------------->
 <a name="v0.0.327.3"></a>
 ## v0.0.327.3
 

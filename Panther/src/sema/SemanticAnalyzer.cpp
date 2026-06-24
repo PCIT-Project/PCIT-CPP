@@ -3670,7 +3670,16 @@ namespace pcit::panther{
 			);
 
 		}else if(func_attrs.value().is_entry){
-			this->context.entry = created_func_id;
+			std::optional<sema::Func::ID> old_held_value = this->context.entry.exchange(created_func_id);
+
+			if(old_held_value.has_value()){
+				this->emit_error(
+					"Function with attribute `#entry` already exists",
+					created_func_id,
+					Diagnostic::Info("First defined here:", this->get_location(*old_held_value))
+				);
+				return Result::ERROR;
+			}
 
 		}else if(
 			this->symbol_proc.builtin_symbol_proc_kind == SymbolProcManager::constevalLookupBuiltinSymbolKind("panic")
@@ -5088,7 +5097,7 @@ namespace pcit::panther{
 		//////////////////
 		// check special functions have correct signature
 
-		if(this->context.entry == current_func_id){
+		if(this->context.entry.load() == current_func_id){
 			if(func_type.params.empty() == false){
 				this->emit_error(
 					"Functions with the [#entry] attribute cannot have parameters",
@@ -11794,6 +11803,10 @@ namespace pcit::panther{
 						);
 
 						return Result::SUCCESS;
+					} break;
+
+					case IntrinsicFunc::Kind::ENTRY: {
+						this->context.expecting_entry = true;
 					} break;
 
 					default: break;

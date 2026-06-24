@@ -712,6 +712,10 @@ namespace pcit::panther{
 			this->sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
 
+		if(this->expecting_entry && this->entry.load(std::memory_order::relaxed).has_value() == false){
+			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
@@ -722,21 +726,21 @@ namespace pcit::panther{
 			} break;
 
 			case EntryKind::CONSOLE_EXECUTABLE: {
-				if(this->entry.has_value() == false){
+				if(this->entry.load(std::memory_order::relaxed).has_value() == false){
 					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 					return evo::resultError;
 				}
 
-				sema_to_pir.createConsoleExecutableEntry(*this->entry);
+				sema_to_pir.createConsoleExecutableEntry(*this->entry.load(std::memory_order::relaxed));
 			} break;
 
 			case EntryKind::WINDOWED_EXECUTABLE: {
-				if(this->entry.has_value() == false){
+				if(this->entry.load(std::memory_order::relaxed).has_value() == false){
 					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 					return evo::resultError;
 				}
 
-				sema_to_pir.createWindowedExecutableEntry(*this->entry);
+				sema_to_pir.createWindowedExecutableEntry(*this->entry.load(std::memory_order::relaxed));
 			} break;
 		}
 
@@ -934,7 +938,7 @@ namespace pcit::panther{
 			"Must be in Mode::COMPILE_RUN or Mode::SCRIPT"
 		);
 
-		if(this->entry.has_value() == false){
+		if(this->entry.load(std::memory_order::relaxed).has_value() == false){
 			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
@@ -947,7 +951,7 @@ namespace pcit::panther{
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
-		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry);
+		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
 
 
 		///////////////////////////////////
@@ -1028,7 +1032,7 @@ namespace pcit::panther{
 	) -> evo::Result<uint8_t> {
 		evo::debugAssert(this->_config.mode == Config::Mode::BUILD, "Must be in build system mode");
 
-		if(this->entry.has_value() == false){
+		if(this->entry.load(std::memory_order::relaxed).has_value() == false){
 			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
@@ -1044,7 +1048,7 @@ namespace pcit::panther{
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
-		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry);
+		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
 
 
 		this->comptime_execution_engine.deinit();
