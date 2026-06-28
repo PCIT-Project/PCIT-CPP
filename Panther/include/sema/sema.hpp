@@ -166,6 +166,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID targetTypeID;
+		bool isComptime;
 	};
 
 

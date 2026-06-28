@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.328.0"></a>
+## v0.0.328.0
+
+### Panther
+- Removed automatic adding of executable entry function (now added to std.compiler-rt)
+- Fixed usage of comptime conversion to optional
+- Fixed comptime unwrap
+- Fixed comptime dereference
+- Fixed condition in when switch not requiring comptime
+
+### Misc
+- Updated to [Panther-std v0.0.28.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.28.0)
+
+
+<!---------------------------------->
 <a name="v0.0.327.4"></a>
 ## v0.0.327.4
 
@@ -38,8 +53,8 @@
 ## v0.0.327.0
 
 ### Panther
-- Added `@pthr.Subsystem`
-- Added `@config.subsystem`
+- Added `@pthr.WindowsSubsystem`
+- Added `@config.windowsSubsystem`
 - Added `@pthr.Mode.COMPILE_RUN`
 - Renamed `@pthr.Mode.SCRIPTING` to `@pthr.Mode.SCRIPT`
 - Renamed `@pthr.Mode.BUILD_SYSTEM` to `@pthr.Mode.BUILD`

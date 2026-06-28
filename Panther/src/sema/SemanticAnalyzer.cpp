@@ -604,11 +604,17 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getPrefixBitwiseNot(instr)
 				);
 
+			case Instruction::Kind::DEREF_COMPTIME:
+				return this->instr_deref<true>(this->context.symbol_proc_manager.getDerefComptime(instr));
+
 			case Instruction::Kind::DEREF:
-				return this->instr_deref(this->context.symbol_proc_manager.getDeref(instr));
+				return this->instr_deref<false>(this->context.symbol_proc_manager.getDeref(instr));
+
+			case Instruction::Kind::UNWRAP_COMPTIME:
+				return this->instr_unwrap<true>(this->context.symbol_proc_manager.getUnwrapComptime(instr));
 
 			case Instruction::Kind::UNWRAP:
-				return this->instr_unwrap(this->context.symbol_proc_manager.getUnwrap(instr));
+				return this->instr_unwrap<false>(this->context.symbol_proc_manager.getUnwrap(instr));
 
 			case Instruction::Kind::NEW_COMPTIME_ERRORS:
 				return this->instr_new<true, true>(this->context.symbol_proc_manager.getNewComptimeErrors(instr));
@@ -15980,8 +15986,8 @@ namespace pcit::panther{
 
 
 
-
-	auto SemanticAnalyzer::instr_deref(const Instruction::Deref& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_deref(const Instruction::Deref<IS_COMPTIME>& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(
@@ -16046,21 +16052,57 @@ namespace pcit::panther{
 
 		using ValueCategory = TermInfo::ValueCategory;
 
-		this->return_term_info(instr.output,
-			target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
-			target.isComptime,
-			target_type.qualifiers().back().isUninit
-				? TermInfo::ValueState::UNINIT
-				: TermInfo::ValueState::NOT_APPLICABLE,
-			resultant_type_id,
-			sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
-		);
+		if constexpr(IS_COMPTIME){
+			auto output_value = std::optional<sema::Expr>();
+			switch(target.getExpr().kind()){
+				case sema::Expr::Kind::UNWRAP: {
+					const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(target.getExpr().unwrapID());
 
-		return Result::SUCCESS;
+					const sema::Expr conversion_to_optional_expr = [&]() -> sema::Expr {
+						if(unwrap.expr.kind() == sema::Expr::Kind::GLOBAL_VAR){
+							const sema::GlobalVar& global_var = 
+								this->context.getSemaBuffer().getGlobalVar(unwrap.expr.globalVarID());
+
+							return *global_var.expr.load();
+
+						}else{
+							return unwrap.expr;
+						}
+					}();
+
+					output_value = this->context.getSemaBuffer().getConversionToOptional(
+						conversion_to_optional_expr.conversionToOptionalID()
+					).expr;
+				} break;
+
+				default: {
+					this->emit_fatal("Failed to dereference this comptime value", instr.postfix);
+					return Result::ERROR;
+				} break;
+			}
+
+			this->return_term_info(instr.output,
+				ValueCategory::EPHEMERAL, true, TermInfo::ValueState::NOT_APPLICABLE, resultant_type_id, *output_value
+			);
+			return Result::SUCCESS;
+
+		}else{
+			this->return_term_info(instr.output,
+				target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
+				target.isComptime,
+				target_type.qualifiers().back().isUninit
+					? TermInfo::ValueState::UNINIT
+					: TermInfo::ValueState::NOT_APPLICABLE,
+				resultant_type_id,
+				sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
+			);
+			return Result::SUCCESS;
+		}
 	}
 
 
-	auto SemanticAnalyzer::instr_unwrap(const Instruction::Unwrap& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_unwrap(const Instruction::Unwrap<IS_COMPTIME>& instr) -> Result {
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(
@@ -16096,14 +16138,55 @@ namespace pcit::panther{
 			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
 		);
 
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
-			TermInfo::ValueState::NOT_APPLICABLE,
-			resultant_type_id,
-			sema::Expr(this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>()))
-		);
-		return Result::SUCCESS;
+		if(IS_COMPTIME || target.isComptime){
+			sema::Expr target_expr = target.getExpr();
+			bool continue_looking = true;
+			while(continue_looking){
+				switch(target_expr.kind()){
+					case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
+						continue_looking = false;
+					} break;
+
+					case sema::Expr::Kind::GLOBAL_VAR: {
+						target_expr = 
+							*this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID()).expr.load();
+					} break;
+
+					case sema::Expr::Kind::DEFAULT_NEW: {
+						this->emit_fatal("This optional doesn't hold a value", instr.postfix.lhs);
+						return Result::ERROR;
+					} break;
+
+					default: {
+						this->emit_fatal("Cannot unwrap this value", instr.postfix);
+						return Result::ERROR;
+					} break;
+				}
+			}
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				true,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				resultant_type_id,
+				sema::Expr(
+					this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true)
+				)
+			);
+			return Result::SUCCESS;
+
+		}else{
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				false,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				resultant_type_id,
+				sema::Expr(
+					this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>(), false)
+				)
+			);
+			return Result::SUCCESS;
+		}
 	}
 
 

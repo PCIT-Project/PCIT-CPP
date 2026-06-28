@@ -63,7 +63,7 @@ namespace pcit::panther{
 
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
-			if(global_var.kind == AST::VarDef::Kind::DEF){ continue; }
+			if(global_var.kind != AST::VarDef::Kind::VAR){ continue; }
 
 			this->lowerGlobalDecl(global_var_id);
 
@@ -178,7 +178,7 @@ namespace pcit::panther{
 
 		const PIRType pir_type = [&]() -> PIRType {
 			if(this->data.getConfig().includeDebugInfo){
-				return this->get_type<false, true>(*sema_global_var.typeID);
+				return this->get_type<true, true>(*sema_global_var.typeID);
 			}else{
 				return this->get_type<false, false>(*sema_global_var.typeID);
 			}
@@ -1353,178 +1353,6 @@ namespace pcit::panther{
 
 		return entry_func_id;
 	}
-
-
-	auto SemaToPIR::createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
-		const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
-
-		auto meta_id = std::optional<pir::meta::Function::ID>();
-		if(this->data.config.includeDebugInfo){
-			const pir::Function& entry_func =
-				this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
-
-			const pir::meta::Function& entry_meta_func = this->module.getMetaFunction(*entry_func.getMetaID());
-
-			const pir::meta::BasicType::ID int_meta_type = 
-				this->module.createMetaBasicType("int", "int", this->module.createSignedType(32));
-
-			meta_id = this->module.createMetaFunction(
-				"main",
-				"main",
-				int_meta_type,
-				evo::SmallVector<pir::meta::Type>{
-					int_meta_type,
-					this->module.createMetaQualifiedType(
-						"const char*[]",
-						"const char*[]",
-						this->module.createMetaQualifiedType(
-							"const char*",
-							"const char*",
-							this->module.createMetaBasicType("char", "char", this->module.createSignedType(8)),
-							pir::meta::QualifiedType::Qualifier::POINTER
-						),
-						pir::meta::QualifiedType::Qualifier::MUT_POINTER 
-					)
-				},
-				entry_meta_func.fileID,
-				entry_meta_func.scopeWhereDefined,
-				0
-			);
-		}
-
-		const pir::Function::ID main_func_id = this->module.createFunction(
-			"main",
-			evo::SmallVector<pir::Parameter>{
-				pir::Parameter("argc", this->module.createSignedType(32)),
-				pir::Parameter("argv", this->module.createPtrType()),
-			},
-			pir::CallingConvention::C,
-			pir::Linkage::EXTERNAL,
-			this->module.createSignedType(32),
-			false,
-			false,
-			meta_id
-		);
-
-		pir::Function& main_func = this->module.getFunction(main_func_id);
-
-		this->handler.setTargetFunction(main_func);
-
-		this->handler.createBasicBlock();
-		this->handler.setTargetBasicBlockAtEnd();
-
-		const auto ssl = [&]() -> std::optional<pir::InstrHandler::DeferPopSourceLocation> {
-			if(this->data.config.includeDebugInfo){
-				return this->create_scoped_source_location(*meta_id, 0, 0);
-			}else{
-				return std::nullopt;
-			}
-		}();
-
-		const pir::Expr entry_call = this->handler.createCall(
-			target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {}
-		);
-
-		const pir::Expr entry_call_conv = this->handler.createBitCast(entry_call, this->module.createSignedType(8));
-		const pir::Expr sext = this->handler.createSExt(entry_call_conv, this->module.createSignedType(32));
-
-		this->handler.createRet(sext);
-
-		return main_func_id;
-	}
-
-
-	auto SemaToPIR::createWindowedExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID {
-		switch(this->context.getConfig().target.platform){
-			case core::Target::Platform::WINDOWS: {
-				const Data::FuncInfo& target_entry_func_info = this->data.get_func(target_entry_func);
-
-				auto meta_id = std::optional<pir::meta::Function::ID>();
-				if(this->data.config.includeDebugInfo){
-					const pir::Function& entry_func =
-						this->module.getFunction(target_entry_func_info.pir_ids[0].as<pir::Function::ID>());
-
-					const pir::meta::Function& entry_meta_func = this->module.getMetaFunction(*entry_func.getMetaID());
-
-					const pir::meta::BasicType::ID int_meta_type = 
-						this->module.createMetaBasicType("int", "int", this->module.createSignedType(32));
-
-					const pir::meta::QualifiedType::ID h_instance_meta_type = this->module.createMetaQualifiedType(
-						"HINSTANCE", "HINSTANCE", std::nullopt, pir::meta::QualifiedType::Qualifier::MUT_POINTER
-					);
-
-					const pir::meta::QualifiedType::ID lpstr_type = this->module.createMetaQualifiedType(
-						"LPSTR",
-						"LPSTR",
-						this->module.createMetaBasicType("char", "char", this->module.createSignedType(8)),
-						pir::meta::QualifiedType::Qualifier::MUT_POINTER
-					);
-
-					meta_id = this->module.createMetaFunction(
-						"WinMain",
-						"WinMain",
-						int_meta_type,
-						evo::SmallVector<pir::meta::Type>{
-							h_instance_meta_type,
-							h_instance_meta_type,
-							lpstr_type,
-							int_meta_type,
-						},
-						entry_meta_func.fileID,
-						entry_meta_func.scopeWhereDefined,
-						0
-					);
-				}
-
-
-				const pir::Function::ID win_main_func_id = this->module.createFunction(
-					"WinMain",
-					{
-						pir::Parameter("hInstance", this->module.createPtrType()),
-						pir::Parameter("hPrevInstance", this->module.createPtrType()),
-						pir::Parameter("lpCmdLine", this->module.createPtrType()),
-						pir::Parameter("nShowCmd", this->module.createSignedType(32)),
-					},
-					pir::CallingConvention::C,
-					pir::Linkage::EXTERNAL,
-					this->module.createSignedType(32),
-					false,
-					false,
-					meta_id
-				);
-
-				pir::Function& win_main_entry_func = this->module.getFunction(win_main_func_id);
-
-				this->handler.setTargetFunction(win_main_entry_func);
-
-				this->handler.createBasicBlock();
-				this->handler.setTargetBasicBlockAtEnd();
-
-				const auto ssl = [&]() -> std::optional<pir::InstrHandler::DeferPopSourceLocation> {
-					if(this->data.config.includeDebugInfo){
-						return this->create_scoped_source_location(*meta_id, 0, 0);
-					}else{
-						return std::nullopt;
-					}
-				}();
-
-				std::ignore = this->handler.createCall(target_entry_func_info.pir_ids[0].as<pir::Function::ID>(), {});
-
-				this->handler.createRet(
-					this->handler.createNumber(this->module.createSignedType(32), core::GenericInt::create<int32_t>(0))
-				);
-
-				return win_main_func_id;
-			} break;
-
-			case core::Target::Platform::LINUX: case core::Target::Platform::UNKNOWN: {
-				return this->createConsoleExecutableEntry(target_entry_func);
-			} break;
-		}
-
-		evo::debugFatalBreak("Unknown platform OS");
-	}
-
 
 
 
@@ -4921,6 +4749,53 @@ namespace pcit::panther{
 			case sema::Expr::Kind::UNWRAP: {
 				const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
 				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
+
+				if(unwrap.isComptime){
+					if constexpr(MODE == GetExprMode::DISCARD){
+						return std::nullopt;
+
+					}else{
+						const pir::GlobalVar::Value global_var_value = this->get_global_var_value(
+							this->context.getSemaBuffer().getConversionToOptional(
+								unwrap.expr.conversionToOptionalID()
+							).expr
+						);
+
+						const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
+							std::format("PTHR.comptimeUnwrapValue{}", this->data.get_comptime_unwrap_value_id()),
+							this->get_type<false, false>(
+								this->context.getTypeManager().getOrCreateTypeInfo(
+									target_type_info.copyWithPoppedQualifier()
+								)
+							).type,
+							pir::Linkage::PRIVATE,
+							global_var_value,
+							true
+						);
+
+						if constexpr(MODE == GetExprMode::REGISTER){
+							return this->handler.createGlobalValue(global_var);
+							
+						}else if constexpr(MODE == GetExprMode::POINTER){
+							const pir::Expr alloca_value = this->handler.createAlloca(this->module.createPtrType());
+							this->handler.createStore(alloca_value, this->handler.createGlobalValue(global_var));
+
+							return alloca_value;
+
+						}else if constexpr(MODE == GetExprMode::STORE){
+							this->handler.createMemcpy(
+								store_locations[0],
+								this->handler.createGlobalValue(global_var),
+								this->get_type<false, false>(
+									this->context.getTypeManager().getOrCreateTypeInfo(
+										target_type_info.copyWithPoppedQualifier()
+									)
+								).type
+							);
+							return std::nullopt;
+						}
+					}
+				}
 
 				if(target_type_info.isPointer()){
 					if constexpr(MODE == GetExprMode::REGISTER){
@@ -12199,6 +12074,28 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case sema::Expr::Kind::UNWRAP: {
+				const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
+				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
+
+				const sema::ConversionToOptional& conversion_to_optional = 
+					this->context.getSemaBuffer().getConversionToOptional(unwrap.expr.conversionToOptionalID());
+
+				const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
+					std::format("PTHR.comptimeUnwrapValue{}", this->data.get_comptime_unwrap_value_id()),
+					this->get_type<false, false>(
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							target_type_info.copyWithPoppedQualifier()
+						)
+					).type,
+					pir::Linkage::PRIVATE,
+					this->get_global_var_value(conversion_to_optional.expr),
+					true
+				);
+
+				return this->handler.createGlobalValue(global_var);
+			} break;
+
 			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
 				const sema::ConversionToOptional& conversion_to_optional =
 					this->context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
@@ -12414,26 +12311,26 @@ namespace pcit::panther{
 				return this->get_global_var_value(*global_var.expr.load());
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:            case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:        case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                      case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::ACCESSOR:                   case sema::Expr::Kind::UNION_ACCESSOR:
-			case sema::Expr::Kind::LOGICAL_AND:                case sema::Expr::Kind::LOGICAL_OR:
-			case sema::Expr::Kind::TRY_ELSE_EXPR:              case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                 case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:         case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:               case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                        case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                    case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                 case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                     case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:     case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                   case sema::Expr::Kind::ACCESSOR:
+			case sema::Expr::Kind::UNION_ACCESSOR:          case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:              case sema::Expr::Kind::TRY_ELSE_EXPR:
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR: case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:          case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:          case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:       case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:    case sema::Expr::Kind::ARRAY_REF_DATA:
+			case sema::Expr::Kind::UNION_TAG_CMP:           case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:                   case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:            case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:       case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:               case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

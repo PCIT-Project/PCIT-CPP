@@ -111,9 +111,9 @@ namespace pcit::panther{
 
 					[[nodiscard]] operator std::optional<T>() {
 						if(this->has_value()){
-							return std::nullopt;
-						}else{
 							return std::optional<T>(this->data.value);
+						}else{
+							return std::nullopt;
 						}
 					}
 
@@ -463,13 +463,7 @@ namespace pcit::panther{
 			//////////////////
 			// call analyzeSemantics before any of these
 
-			enum class EntryKind{
-				NONE,
-				CONSOLE_EXECUTABLE,
-				WINDOWED_EXECUTABLE,
-			};
-
-			[[nodiscard]] auto lowerToPIR(EntryKind entry_kind) -> evo::Result<>;
+			[[nodiscard]] auto lowerToPIR() -> evo::Result<>;
 
 			[[nodiscard]] auto lowerToLLVMIR() -> evo::Result<std::string>;
 			[[nodiscard]] auto lowerToAssembly() -> evo::Result<std::string>;

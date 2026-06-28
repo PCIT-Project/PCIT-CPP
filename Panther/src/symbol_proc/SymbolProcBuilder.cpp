@@ -1633,7 +1633,7 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::build_when_switch(const AST::Node& stmt) -> evo::Result<> {
 		const AST::WhenSwitch& when_switch = this->source.getASTBuffer().getWhenSwitch(stmt);
 
-		const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(when_switch.cond);
+		const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(when_switch.cond);
 		if(cond.isError()){ return evo::resultError; }
 
 		const AST::AttributeBlock& attribute_block =
@@ -4215,9 +4215,17 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					this->context.symbol_proc_manager.createDeref(postfix, target.value(), created_term_info_id)
-				);
+				if constexpr(IS_COMPTIME){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createDerefComptime(
+							postfix, target.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createDeref(postfix, target.value(), created_term_info_id)
+					);
+				}
 
 				return created_term_info_id;
 			} break;
@@ -4228,9 +4236,17 @@ namespace pcit::panther{
 				const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(postfix.lhs);
 				if(target.isError()){ return evo::resultError; }
 
-				this->add_instruction(
-					this->context.symbol_proc_manager.createUnwrap(postfix, target.value(), created_term_info_id)
-				);
+				if constexpr(IS_COMPTIME){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createUnwrapComptime(
+							postfix, target.value(), created_term_info_id
+						)
+					);
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createUnwrap(postfix, target.value(), created_term_info_id)
+					);
+				}
 
 				return created_term_info_id;
 			} break;

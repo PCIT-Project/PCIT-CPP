@@ -707,7 +707,7 @@ namespace pcit::panther{
 
 
 
-	auto Context::lowerToPIR(EntryKind entry_kind) -> evo::Result<> {
+	auto Context::lowerToPIR() -> evo::Result<> {
 		if(this->_config.mode == Config::Mode::BUILD){
 			this->sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
@@ -720,30 +720,6 @@ namespace pcit::panther{
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
 
-		switch(entry_kind){
-			case EntryKind::NONE: {
-				// do nothing
-			} break;
-
-			case EntryKind::CONSOLE_EXECUTABLE: {
-				if(this->entry.load(std::memory_order::relaxed).has_value() == false){
-					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
-					return evo::resultError;
-				}
-
-				sema_to_pir.createConsoleExecutableEntry(*this->entry.load(std::memory_order::relaxed));
-			} break;
-
-			case EntryKind::WINDOWED_EXECUTABLE: {
-				if(this->entry.load(std::memory_order::relaxed).has_value() == false){
-					this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
-					return evo::resultError;
-				}
-
-				sema_to_pir.createWindowedExecutableEntry(*this->entry.load(std::memory_order::relaxed));
-			} break;
-		}
-
 		if(this->_config.optMode != pir::OptMode::NONE){
 			unsigned num_threads = 0;
 			if(this->_config.numThreads.isMulti()){
@@ -751,7 +727,6 @@ namespace pcit::panther{
 			}
 
 			auto pass_manager = pir::PassManager(this->pir_module, num_threads);
-
 			pass_manager.addPass(pir::passes::removeUnusedStmts());
 			pass_manager.addPass(pir::passes::instCombine());
 

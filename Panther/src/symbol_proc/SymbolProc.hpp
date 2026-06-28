@@ -893,12 +893,14 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_COMPTIME>
 		struct Deref{
 			const AST::Postfix& postfix;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
 		};
 
+		template<bool IS_COMPTIME>
 		struct Unwrap{
 			const AST::Postfix& postfix;
 			SymbolProcTermInfoID target;
@@ -1285,7 +1287,9 @@ namespace pcit::panther{
 			PREFIX_NOT,
 			PREFIX_BITWISE_NOT_COMPTIME,
 			PREFIX_BITWISE_NOT,
+			DEREF_COMPTIME,
 			DEREF,
+			UNWRAP_COMPTIME,
 			UNWRAP,
 			NEW_COMPTIME_ERRORS,
 			NEW_COMPTIME,

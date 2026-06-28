@@ -2191,6 +2191,22 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// DerefComptime
+
+			[[nodiscard]] auto createDerefComptime(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::DEREF_COMPTIME,
+					this->deref_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getDerefComptime(Instruction instr) const -> const Instruction::Deref<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::DEREF_COMPTIME, "Not a DerefComptime");
+				return this->deref_comptimes[instr._index];
+			}
+
+
+			//////////////////
 			// Deref
 
 			[[nodiscard]] auto createDeref(auto&&... args) -> Instruction {
@@ -2200,9 +2216,26 @@ namespace pcit::panther{
 				);
 			}
 
-			[[nodiscard]] auto getDeref(Instruction instr) const -> const Instruction::Deref& {
+			[[nodiscard]] auto getDeref(Instruction instr) const -> const Instruction::Deref<false>& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::DEREF, "Not a Deref");
 				return this->derefs[instr._index];
+			}
+
+
+
+			//////////////////
+			// UnwrapComptime
+
+			[[nodiscard]] auto createUnwrapComptime(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::UNWRAP_COMPTIME,
+					this->unwrap_comptimes.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getUnwrapComptime(Instruction instr) const -> const Instruction::Unwrap<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::UNWRAP_COMPTIME, "Not a UnwrapComptime");
+				return this->unwrap_comptimes[instr._index];
 			}
 
 
@@ -2217,10 +2250,12 @@ namespace pcit::panther{
 				);
 			}
 
-			[[nodiscard]] auto getUnwrap(Instruction instr) const -> const Instruction::Unwrap& {
+			[[nodiscard]] auto getUnwrap(Instruction instr) const -> const Instruction::Unwrap<false>& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::UNWRAP, "Not a Unwrap");
 				return this->unwraps[instr._index];
 			}
+
+
 
 
 			//////////////////
@@ -3439,8 +3474,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::PrefixNot<false>, uint32_t> prefix_nots{};
 			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<true>, uint32_t> prefix_bitwise_not_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::PrefixBitwiseNot<false>, uint32_t> prefix_bitwise_nots{};
-			core::SyncLinearStepAlloc<Instruction::Deref, uint32_t> derefs{};
-			core::SyncLinearStepAlloc<Instruction::Unwrap, uint32_t> unwraps{};
+			core::SyncLinearStepAlloc<Instruction::Deref<true>, uint32_t> deref_comptimes{};
+			core::SyncLinearStepAlloc<Instruction::Deref<false>, uint32_t> derefs{};
+			core::SyncLinearStepAlloc<Instruction::Unwrap<true>, uint32_t> unwrap_comptimes{};
+			core::SyncLinearStepAlloc<Instruction::Unwrap<false>, uint32_t> unwraps{};
 			core::SyncLinearStepAlloc<Instruction::New<true, true>, uint32_t> new_comptime_errors{};
 			core::SyncLinearStepAlloc<Instruction::New<true, false>, uint32_t> new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::New<false, true>, uint32_t> new_errors{};

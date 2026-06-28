@@ -397,6 +397,10 @@ namespace pcit::panther{
 				return this->num_byte_arrays.fetch_add(1);
 			}
 
+			[[nodiscard]] auto get_comptime_unwrap_value_id() -> uint64_t {
+				return this->comptime_unwrap_values.fetch_add(1);
+			}
+
 			[[nodiscard]] auto get_meta_subscope_id() -> uint64_t {
 				return this->num_meta_subscopes.fetch_add(1);
 			}
@@ -469,6 +473,7 @@ namespace pcit::panther{
 
 			std::atomic<uint64_t> num_string_literals = 0;
 			std::atomic<uint64_t> num_byte_arrays = 0;
+			std::atomic<uint64_t> comptime_unwrap_values = 0;
 			std::atomic<uint64_t> num_meta_subscopes = 0;
 
 

@@ -251,8 +251,12 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_prefix_bitwise_not(const Instruction::PrefixBitwiseNot<IS_COMPTIME>& instr)
 				-> Result;
 
-			[[nodiscard]] auto instr_deref(const Instruction::Deref& instr) -> Result;
-			[[nodiscard]] auto instr_unwrap(const Instruction::Unwrap& instr) -> Result;
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto instr_deref(const Instruction::Deref<IS_COMPTIME>& instr) -> Result;
+
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto instr_unwrap(const Instruction::Unwrap<IS_COMPTIME>& instr) -> Result;
+
 
 			template<bool IS_COMPTIME, bool ERRORS>
 			[[nodiscard]] auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;

@@ -110,13 +110,9 @@ namespace pcit::panther{
 			
 
 			auto createJITEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
-			auto createConsoleExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
-			auto createWindowedExecutableEntry(sema::Func::ID target_entry_func) -> pir::Function::ID;
-
 
 			[[nodiscard]] auto createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id)
 				-> pir::Function::ID;
-
 
 
 			[[nodiscard]] auto mangleName(sema::Func::ID func_id) -> std::string {

@@ -15,7 +15,7 @@
 namespace pcit::panther::sema{
 
 
-	auto exprToGenericValue(Expr expr, const Context& context) -> core::GenericValue {
+	auto exprToGenericValue(Expr expr, Context& context) -> core::GenericValue {
 		switch(expr.kind()){
 			case sema::Expr::Kind::INT_VALUE: {
 				return core::GenericValue(context.getSemaBuffer().getIntValue(expr.intValueID()).value);
@@ -89,6 +89,33 @@ namespace pcit::panther::sema{
 
 			case sema::Expr::Kind::CHAR_VALUE: {
 				return core::GenericValue(context.getSemaBuffer().getCharValue(expr.charValueID()).value);
+			} break;
+
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
+				const sema::ConversionToOptional& conversion_to_optional =
+					context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
+
+				const TypeInfo::ID element_type_id = conversion_to_optional.targetTypeID;
+
+				const TypeInfo::ID optional_type_id = context.getTypeManager().getOrCreateTypeInfo(
+					context.getTypeManager().getTypeInfo(element_type_id).copyWithPushedQualifier(
+						TypeInfo::Qualifier::createOptional()
+					)
+				);
+
+				const size_t element_type_size = context.getTypeManager().numBytes(element_type_id);
+				const size_t optional_type_size = context.getTypeManager().numBytes(optional_type_id);
+
+				const core::GenericValue data_value = exprToGenericValue(conversion_to_optional.expr, context);
+				if(optional_type_size == element_type_size){
+					return data_value;
+				}
+
+				core::GenericValue output = core::GenericValue::createUninit(optional_type_size);
+				std::memcpy(output.writableDataRange().data(), data_value.dataRange().data(), element_type_size);
+				output.writableDataRange()[element_type_size] = std::byte(1);
+
+				return output;
 			} break;
 
 			case sema::Expr::Kind::GLOBAL_VAR: {

@@ -726,7 +726,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.isPrintingColor() && config.output.pirData().path.has_value() == false
 			);
 
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
+			if(context.lowerToPIR().isError()){ return evo::resultError; }
 			pir::printModule(context.getPIRModule(), printer_for_pir_module);
 
 
@@ -766,7 +766,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
+			if(context.lowerToPIR().isError()){ return evo::resultError; }
 
 			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR();
 			if(llvmir_string.isError()){ return evo::resultError; }
@@ -808,7 +808,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
+			if(context.lowerToPIR().isError()){ return evo::resultError; }
 
 			const evo::Result<std::string> asm_result = context.lowerToAssembly();
 			if(asm_result.isError()){
@@ -857,7 +857,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR(panther::Context::EntryKind::NONE).isError()){ return evo::resultError; }
+			if(context.lowerToPIR().isError()){ return evo::resultError; }
 
 
 			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
@@ -917,15 +917,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			const panther::Context::EntryKind entry_kind = [&](){
-				if(*config.windowsSubsystem == panther::Context::Config::WindowsSubsystem::CONSOLE){
-					return panther::Context::EntryKind::CONSOLE_EXECUTABLE;
-				}else{
-					return panther::Context::EntryKind::WINDOWED_EXECUTABLE;
-				}
-			}();
-
-			if(context.lowerToPIR(entry_kind).isError()){
+			if(context.lowerToPIR().isError()){
 				return evo::resultError;
 			}
 
@@ -1127,6 +1119,9 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 				#endif
 				.name     = "std",
 				.warn     = panther::Source::Package::Warns::all(),
+				.options  = std::unordered_map<std::string_view, panther::Source::Package::Option>{
+					{"linkingWithLibC", panther::Source::Package::Option(false)}
+				}
 			}
 		);
 
