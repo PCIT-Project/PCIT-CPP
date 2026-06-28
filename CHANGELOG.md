@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.328.2"></a>
+## v0.0.328.2
+
+### Panther
+- Fixed race condition in lowering of usage of struct debug info 
+
+
+<!---------------------------------->
 <a name="v0.0.328.1"></a>
 ## v0.0.328.1
 

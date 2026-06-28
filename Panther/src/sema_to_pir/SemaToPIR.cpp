@@ -1542,7 +1542,6 @@ namespace pcit::panther{
 			uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(struct_id)))
 		);
 
-		value_handle.emplaceValue(new_type);
 
 
 		if(this->data.config.includeDebugInfo){
@@ -1597,6 +1596,7 @@ namespace pcit::panther{
 			}
 		}
 
+		value_handle.emplaceValue(new_type);
 
 		return new_type;
 	}
