@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.328.1"></a>
+## v0.0.328.1
+
+### PCIT_core
+- Fixed race condition in `MapAlloc.getExisting()`
+
+
+<!---------------------------------->
 <a name="v0.0.328.0"></a>
 ## v0.0.328.0
 

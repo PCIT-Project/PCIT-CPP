@@ -28,6 +28,12 @@ namespace pcit::core{
 				std::optional<VALUE> value = std::nullopt;
 				std::atomic<bool> flag = false;
 
+				auto waitForValue() const -> void {
+					while(this->flag.load() == false){
+						std::this_thread::yield();
+					}
+				}
+
 				InternalValue() : value(std::nullopt), flag(false) {}
 
 				explicit InternalValue(auto&&... args)
@@ -41,9 +47,7 @@ namespace pcit::core{
 				[[nodiscard]] auto getValue() const -> VALUE& {
 					evo::debugAssert(this->needsToBeSet() == false, "Cannot get value if it needs to be set");
 
-					while(this->internal_value.flag.load() == false){
-						std::this_thread::yield();
-					}
+					this->internal_value.waitForValue();
 
 					return *this->internal_value.value;
 				}
@@ -88,8 +92,13 @@ namespace pcit::core{
 			[[nodiscard]] auto getExisting(const KEY& key) const -> const VALUE& {
 				evo::debugAssert(this->hasValue(key), "This key doesn't exist");
 
-				const auto lock = std::scoped_lock(this->spin_lock);
-				return *this->map.at(key)->value;
+				const InternalValue& internal_value = [&]() -> const InternalValue& {
+					const auto lock = std::scoped_lock(this->spin_lock);
+					return *this->map.at(key);
+				}();
+
+				internal_value.waitForValue();
+				return *internal_value.value;
 			}
 
 

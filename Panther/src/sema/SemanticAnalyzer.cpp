@@ -16138,55 +16138,59 @@ namespace pcit::panther{
 			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
 		);
 
-		if(IS_COMPTIME || target.isComptime){
-			sema::Expr target_expr = target.getExpr();
-			bool continue_looking = true;
-			while(continue_looking){
-				switch(target_expr.kind()){
-					case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
-						continue_looking = false;
-					} break;
 
-					case sema::Expr::Kind::GLOBAL_VAR: {
-						target_expr = 
-							*this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID()).expr.load();
-					} break;
-
-					case sema::Expr::Kind::DEFAULT_NEW: {
-						this->emit_fatal("This optional doesn't hold a value", instr.postfix.lhs);
-						return Result::ERROR;
-					} break;
-
-					default: {
-						this->emit_fatal("Cannot unwrap this value", instr.postfix);
-						return Result::ERROR;
-					} break;
-				}
+		if constexpr(IS_COMPTIME == false){
+			if(target.isComptime == false){
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					false,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					resultant_type_id,
+					sema::Expr(
+						this->context.sema_buffer.createUnwrap(
+							target.getExpr(), target.type_id.as<TypeInfo::ID>(), false
+						)
+					)
+				);
+				return Result::SUCCESS;
 			}
-
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				true,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				resultant_type_id,
-				sema::Expr(
-					this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true)
-				)
-			);
-			return Result::SUCCESS;
-
-		}else{
-			this->return_term_info(instr.output,
-				TermInfo::ValueCategory::EPHEMERAL,
-				false,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				resultant_type_id,
-				sema::Expr(
-					this->context.sema_buffer.createUnwrap(target.getExpr(), target.type_id.as<TypeInfo::ID>(), false)
-				)
-			);
-			return Result::SUCCESS;
 		}
+
+		sema::Expr target_expr = target.getExpr();
+		bool continue_looking = true;
+		while(continue_looking){
+			switch(target_expr.kind()){
+				case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
+					continue_looking = false;
+				} break;
+
+				case sema::Expr::Kind::GLOBAL_VAR: {
+					target_expr = 
+						*this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID()).expr.load();
+				} break;
+
+				case sema::Expr::Kind::DEFAULT_NEW: {
+					this->emit_fatal("This optional doesn't hold a value", instr.postfix.lhs);
+					return Result::ERROR;
+				} break;
+
+				default: {
+					this->emit_fatal("Cannot unwrap this value", instr.postfix);
+					return Result::ERROR;
+				} break;
+			}
+		}
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			resultant_type_id,
+			sema::Expr(
+				this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true)
+			)
+		);
+		return Result::SUCCESS;
 	}
 
 
