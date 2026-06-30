@@ -209,9 +209,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 
-	auto context = panther::Context(
-		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
-	);
+	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	using PantherBuildConfig = panther::Context::PantherBuildConfig;
@@ -1104,9 +1102,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		printer.printlnGray("Build system relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
-	auto context = panther::Context(
-		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
-	);
+	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	if(cmd_args_config.use_std_lib){
@@ -1277,9 +1273,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		printer.printlnGray("Script relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
-	auto context = panther::Context(
-		panther::createDefaultDiagnosticCallback(printer, cmd_args_config.workingDirectory), context_config
-	);
+	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	if(cmd_args_config.use_std_lib){

@@ -64,7 +64,6 @@ namespace pcit::panther{
 
 	static auto print_location(
 		core::Printer& printer,
-		const std::filesystem::path& rel_dir,
 		const std::filesystem::path& source_path,
 		const std::string& source_data,
 		DiagnosticLevel level,
@@ -79,26 +78,36 @@ namespace pcit::panther{
 			printer.print("\t");
 		}
 
-		std::error_code ec;
 
-		// clickable link in terminal: https://stackoverflow.com/a/66814614
-		printer.printGray(
-			std::format(
-				"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
-				source_path.string(),
-				std::filesystem::relative(source_path, rel_dir, ec).string(),
-				location.lineStart,
-				location.collumnStart
-			)
-		);
+		if(printer.isPrintingColor()){
+			// clickable link in terminal: https://stackoverflow.com/a/66814614
+			printer.printGray(
+				std::format(
+					"Location: \x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
+					source_path.string(),
+					source_path.string(),
+					location.lineStart,
+					location.collumnStart
+				)
+			);
 
-		evo::debugAssert(ec.value() == 0, "Error getting relative path");
+		}else{
+			printer.printGray(
+				std::format(
+					"Location: {}({}:{})\n",
+					source_path.string(),
+					location.lineStart,
+					location.collumnStart
+				)
+			);
+		}
 
-		const std::string line_number_str = std::to_string(location.lineStart);
 
 
 		///////////////////////////////////
 		// find line in the source code
+
+		const std::string line_number_str = std::to_string(location.lineStart);
 
 		size_t cursor = 0;
 		size_t current_line = 1;
@@ -226,7 +235,6 @@ namespace pcit::panther{
 
 	static auto print_info(
 		core::Printer& printer,
-		const std::filesystem::path* rel_dir,
 		const Context* context, // nullptr if not printing location
 		const Diagnostic::Info& info,
 		unsigned depth
@@ -248,7 +256,6 @@ namespace pcit::panther{
 				const Source& source = context->getSourceManager()[info.location.as<Source::Location>().sourceID];
 				print_location(
 					printer,
-					*rel_dir,
 					source.getPath(),
 					source.getData(),
 					DiagnosticLevel::INFO,
@@ -262,7 +269,6 @@ namespace pcit::panther{
 
 				print_location(
 					printer,
-					*rel_dir,
 					c_family_source.getPath(),
 					c_family_source.getData(),
 					DiagnosticLevel::INFO,
@@ -273,15 +279,15 @@ namespace pcit::panther{
 		}
 
 		for(const Diagnostic::Info& sub_info : info.subInfos){
-			print_info(printer, rel_dir, context, sub_info, depth + 1);
+			print_info(printer, context, sub_info, depth + 1);
 		}
 	}
 
 	
 
-	auto createDefaultDiagnosticCallback(core::Printer& printer_ref, const std::filesystem::path& relative_dir)
+	auto createDefaultDiagnosticCallback(core::Printer& printer_ref)
 	-> Context::DiagnosticCallback {
-		return [&printer = printer_ref, &rel_dir = relative_dir](const Context& context, const Diagnostic& diagnostic) 
+		return [&printer = printer_ref](const Context& context, const Diagnostic& diagnostic) 
 		-> void {
 			const std::string diagnostic_message = std::format(
 				"<{}> {}\n", Diagnostic::printLevel(diagnostic.level), diagnostic.message
@@ -303,7 +309,6 @@ namespace pcit::panther{
 
 				print_location(
 					printer,
-					rel_dir,
 					source.getPath(),
 					source.getData(),
 					get_diagnostic_level(diagnostic.level),
@@ -317,7 +322,6 @@ namespace pcit::panther{
 
 				print_location(
 					printer,
-					rel_dir,
 					c_family_source.getPath(),
 					c_family_source.getData(),
 					get_diagnostic_level(diagnostic.level),
@@ -337,7 +341,7 @@ namespace pcit::panther{
 			}
 
 			for(const Diagnostic::Info& info : diagnostic.infos){
-				print_info(printer, &rel_dir, &context, info, 1);
+				print_info(printer, &context, info, 1);
 			}
 		};
 	}
@@ -362,7 +366,7 @@ namespace pcit::panther{
 		);
 
 		for(const Diagnostic::Info& info : diagnostic.infos){
-			print_info(printer, nullptr, nullptr, info, 1);
+			print_info(printer, nullptr, info, 1);
 		}
 
 		if(diagnostic.level == Diagnostic::Level::FATAL){

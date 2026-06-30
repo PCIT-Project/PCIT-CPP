@@ -20,9 +20,7 @@
 namespace pcit::panther{
 
 
-	[[nodiscard]] auto createDefaultDiagnosticCallback(
-		pcit::core::Printer& printer_ref, const std::filesystem::path& relative_dir
-	) -> Context::DiagnosticCallback;
+	[[nodiscard]] auto createDefaultDiagnosticCallback(pcit::core::Printer& printer_ref) -> Context::DiagnosticCallback;
 
 
 

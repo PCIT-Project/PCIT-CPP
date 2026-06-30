@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.329.1"></a>
+## v0.0.329.1
+
+### pthr
+- Improved file paths in diagnostics to work better with external tools
+- Fixed file paths in diagnostics when using option `-noColor`
+
+### Misc
+- Updated to Evo `v1.39.3`
+
+
+<!---------------------------------->
 <a name="v0.0.329.0"></a>
 ## v0.0.329.0
 
