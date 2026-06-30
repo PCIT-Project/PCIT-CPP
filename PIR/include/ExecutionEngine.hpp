@@ -29,11 +29,13 @@ namespace pcit::pir{
 			using InitConfig = JITEngine::InitConfig;
 
 			using DebuggerFunc = std::function<
-				evo::Expected<core::GenericValue, FuncRunError::Code>(class ExecutionEngineDebuggerInterface&, Module&)
+				evo::Expected<core::GenericValue, FuncRunError::Code>(
+					class ExecutionEngineDebuggerInterface&, const Module&
+				)
 			>;
 
 		public:
-			ExecutionEngine(Module& _module, uint32_t _max_call_depth = 128);
+			ExecutionEngine(const Module& _module, uint32_t _max_call_depth = 128);
 			~ExecutionEngine();
 
 
@@ -83,6 +85,9 @@ namespace pcit::pir{
 				return lowered_global.value;
 			}
 
+
+			[[nodiscard]] auto registerExternFunc(ExternalFunction::ID extern_func_id, void* func_ptr) -> void;
+
 		
 		private:
 			using Executor = ExecutionEngineExecutor;
@@ -128,12 +133,16 @@ namespace pcit::pir{
 			}
 
 
-			auto run_debugger(Executor& executor)
+			[[nodiscard]] auto run_debugger(Executor& executor)
 				-> std::optional<evo::Expected<core::GenericValue, FuncRunError::Code>>;
 
 
+
+			[[nodiscard]] auto convert_type_from_module_to_jit_engine_module(Type module_type) -> Type;
+
+
 		private:
-			Module& module;
+			const Module& module;
 			const uint32_t max_call_depth;
 
 			evo::StepVector<Executor> executors_alloc{};
@@ -141,6 +150,9 @@ namespace pcit::pir{
 			mutable evo::SpinLock executors_lock{};
 
 			JITEngine jit_engine{};
+			Module jit_engine_module = Module("ExecutionEngineJITEngineModule", core::Target::getNative());
+			core::MapAlloc<Type, Type> type_conv_lookup{};
+
 
 			evo::StepVector<LoweredGlobal> lowered_globals{};
 			std::unordered_map<GlobalVar::ID, LoweredGlobal&> lowered_globals_map{};
@@ -151,6 +163,10 @@ namespace pcit::pir{
 
 			std::unordered_map<const void*, Function::ID> function_ptr_lookup{};
 			mutable evo::SpinLock function_ptr_lookup_lock{};
+
+			using ExternFuncPtr = void(*)(void*, void*);
+			std::unordered_map<ExternalFunction::ID, ExternFuncPtr> registered_extern_func_lookup{};
+			mutable evo::SpinLock registered_extern_func_lookup_lock{};
 
 			DebuggerFunc debugger_func{};
 			mutable evo::SpinLock debugger_lock;

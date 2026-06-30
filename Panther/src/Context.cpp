@@ -374,6 +374,7 @@ namespace pcit::panther{
 			this->type_manager.initPrimitives();
 		}
 
+		
 		this->init_intrinsic_infos();
 
 		// if(this->comptime_jit_engine.isInitialized() == false){
@@ -414,12 +415,14 @@ namespace pcit::panther{
 			}
 
 			this->comptime_execution_engine.setDebugger(
-				[&](pir::ExecutionEngineDebuggerInterface& debugger, pir::Module& module)
+				[&](pir::ExecutionEngineDebuggerInterface& debugger, const pir::Module& module)
 				-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
 					const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
 					return pir::getDefaultDebugger()(debugger, module);
 				}
 			);
+
+			this->init_comptime_execution_engine_funcs();
 		}
 
 			
@@ -2174,8 +2177,6 @@ namespace pcit::panther{
 
 
 	auto Context::init_builtin_modules() -> void {
-		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
-
 		///////////////////////////////////
 		// helper types
 
@@ -4634,6 +4635,38 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::init_comptime_execution_engine_funcs() -> void {
+		SemaToPIR::Data::ComptimeExecutionEngineFuncs& comptime_execution_engine_funcs = 
+			this->sema_to_pir_data.getComptimeExecutionEngineFuncs();
+
+
+		comptime_execution_engine_funcs.print = this->pir_module.createExternalFunction(
+			"@comptimePrint",
+			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createVoidType()
+		);
+		this->comptime_execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.print,
+			[](PantherBuildConfig::StringRef str) -> void { evo::print(static_cast<std::string_view>(str)); }
+		);
+
+
+		comptime_execution_engine_funcs.println = this->pir_module.createExternalFunction(
+			"@comptimePrintln",
+			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createVoidType()
+		);
+		this->comptime_execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.println,
+			[](PantherBuildConfig::StringRef str) -> void { evo::println(static_cast<std::string_view>(str)); }
+		);
+	}
+
+
 
 	auto Context::init_intrinsic_infos() -> void {
 		this->init_builtin_modules();
@@ -4733,6 +4766,38 @@ namespace pcit::panther{
 			),
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
+		};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINT))] = IntrinsicFuncInfo{
+			.typeID = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{
+					BaseType::Function::Param(
+						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
+					)
+				},
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
+			),
+			.allowedInComptime = true, .allowedInRuntime = false,
+			.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
+		};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINTLN))] = IntrinsicFuncInfo{
+			.typeID = create_func_type(
+				evo::SmallVector<BaseType::Function::Param>{
+					BaseType::Function::Param(
+						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
+					)
+				},
+				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+				evo::SmallVector<TypeInfo::VoidableID>{},
+				true,
+				true
+			),
+			.allowedInComptime = true, .allowedInRuntime = false,
+			.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
 		};
 
 		{

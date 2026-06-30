@@ -5462,7 +5462,19 @@ namespace pcit::panther{
 
 		if(this->func_scope_current_value_stage().requiresComptime()){
 			bool any_waiting = false;
-			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+			if(func_info.depends_on_panic){
+				const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+					SymbolProcManager::constevalLookupBuiltinSymbolKind("panic"),
+					this->symbol_proc.getID(),
+					this->context
+				);
+				if(need_to_wait){ return Result::NEED_TO_WAIT; }
+
+				func_info.dependent_funcs.emplace(*this->context.panic);
+			}
+
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
 				if(dependent_func_id == current_func_id){ continue; }
 
@@ -5516,7 +5528,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 				}
 			}
 
@@ -5574,7 +5586,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 				}
 			}
 			for(
@@ -7106,6 +7118,10 @@ namespace pcit::panther{
 		this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt::createUnreachable(instr.keyword));
 		this->get_current_scope_level().setTerminated();
 
+		// if(this->context.getConfig().useDebugUnreachables){ // TODO(FUTURE): uncomment / change if
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+		// }
+
 		return Result::SUCCESS;
 	}
 
@@ -8448,6 +8464,10 @@ namespace pcit::panther{
 				}
 
 				i += 1;
+			}
+
+			if(current_switch.kind == sema::Switch::Kind::COMPLETE && else_index.has_value()){
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 			}
 
 			const TypeInfo::ID decayed_cond_type_id =
@@ -12051,7 +12071,7 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			return Result::SUCCESS;
@@ -15248,7 +15268,7 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
 				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 
@@ -19230,7 +19250,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 				}
 
 				const evo::Result<sema::Expr> comptime_as_res = this->comptime_func_call(
@@ -22526,14 +22546,7 @@ namespace pcit::panther{
 		const std::optional<IntrinsicFunc::Kind> intrinsic_kind = IntrinsicFunc::lookupKind(intrinsic_name);
 		if(intrinsic_kind.has_value()){
 			if(*intrinsic_kind == IntrinsicFunc::Kind::PANIC){
-				const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-					SymbolProcManager::constevalLookupBuiltinSymbolKind("panic"),
-					this->symbol_proc.getID(),
-					this->context
-				);
-				if(need_to_wait){ return Result::NEED_TO_WAIT; }
-
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*this->context.panic);
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 			}
 
 			const TypeInfo::ID intrinsic_type = this->context.getIntrinsicFuncInfo(*intrinsic_kind).typeID;
@@ -25608,6 +25621,10 @@ namespace pcit::panther{
 
 				case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
 					infos.emplace_back("Cause of error: breakpoint");
+				} break;
+
+				case pir::ExecutionEngine::FuncRunError::Code::UNREGISTERED_EXTERN_FUNC: {
+					infos.emplace_back("Cause of error: unregistered external function");
 				} break;
 
 				case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {

@@ -47,6 +47,8 @@ namespace pcit::panther{
 			{"entry",                       Kind::ENTRY},
 
 			{"isComptime",                  Kind::IS_COMPTIME},
+			{"comptimePrint",               Kind::COMPTIME_PRINT},
+			{"comptimePrintln",             Kind::COMPTIME_PRINTLN},
 
 			// build system
 			{"createPantherBuild",          Kind::CREATE_PANTHER_BUILD},

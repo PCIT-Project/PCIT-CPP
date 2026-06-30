@@ -30,6 +30,7 @@ namespace pcit::pir{
 				enum class Code{
 					ABORT,
 					BREAKPOINT,
+					UNREGISTERED_EXTERN_FUNC,
 					EXCEEDED_MAX_CALL_DEPTH,
 					OUT_OF_BOUNDS_ACCESS,
 					NULLPTR_ACCESS,

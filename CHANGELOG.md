@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.329.0"></a>
+## v0.0.329.0
+
+### Panther
+- Added `@comptimePrint` and `@comptimePrintln`
+- Fixed race condition in semantic analysis of comptime functions with `unreachable` or a `switch` that's complete without an else
+
+### PIR
+- Added registering external functions to `ExecutionEngine`
+
+### Misc
+- Updated to [Panther-std v0.0.28.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.28.0)
+
+
+<!---------------------------------->
 <a name="v0.0.328.2"></a>
 ## v0.0.328.2
 

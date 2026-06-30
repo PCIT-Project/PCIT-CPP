@@ -22,7 +22,7 @@
 namespace pcit::panther{
 
 
-	auto SemaToPIRData::getInterfacePtrType(pir::Module& module, SourceManager& source_manager) -> const PIRType& {
+	auto SemaToPIRData::getInterfacePtrType(pir::Module& module) -> const PIRType& {
 		const auto lock = std::scoped_lock(this->interface_ptr_type_lock);
 
 		if(this->interface_ptr_type.has_value() == false){
@@ -34,8 +34,7 @@ namespace pcit::panther{
 
 			auto meta_type_id = std::optional<pir::meta::StructType::ID>();
 			if(this->getConfig().includeDebugInfo){
-				// pick any panther source, doesn't really matter since array references don't exactly have a decl site
-				const Source& first_source = source_manager[Source::ID(0)];
+				const pir::meta::File::ID builtin_meta_file_id = this->get_builtin_meta_file(module);
 
 				const pir::meta::QualifiedType::ID rawptr_meta_type = this->get_or_create_meta_pointer_qualified_type(
 					TypeManager::getTypeRawPtr(),
@@ -53,8 +52,8 @@ namespace pcit::panther{
 						pir::meta::StructType::Member(rawptr_meta_type, "data"),
 						pir::meta::StructType::Member(rawptr_meta_type, "methods"),
 					},
-					*first_source.getPIRMetaFileID(),
-					*first_source.getPIRMetaFileID(),
+					builtin_meta_file_id,
+					builtin_meta_file_id,
 					0
 				);
 			}
@@ -120,16 +119,15 @@ namespace pcit::panther{
 				meta_members.emplace_back(usize_meta_id, std::format("size{}", i));
 			}
 
-			// pick any panther source, doesn't really matter since array references don't exactly have a decl site
-			const Source& first_source = context.getSourceManager()[Source::ID(0)];
+			const pir::meta::File::ID builtin_meta_file_id = this->get_builtin_meta_file(module);
 
 			meta_type_id = module.createMetaStructType(
 				struct_type,
 				evo::copy(meta_name),
 				std::move(meta_name),
 				std::move(meta_members),
-				*first_source.getPIRMetaFileID(),
-				*first_source.getPIRMetaFileID(),
+				builtin_meta_file_id,
+				builtin_meta_file_id,
 				0
 			);
 		}

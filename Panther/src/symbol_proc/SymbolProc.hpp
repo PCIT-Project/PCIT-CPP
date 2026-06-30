@@ -1761,6 +1761,7 @@ namespace pcit::panther{
 				std::unordered_set<sema::Func::ID> dependent_funcs{};
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};
 				std::unordered_set<const BaseType::Interface::Impl*> dependent_impls{};
+				bool depends_on_panic = false;
 
 				bool currently_rt_diff = false;
 			};

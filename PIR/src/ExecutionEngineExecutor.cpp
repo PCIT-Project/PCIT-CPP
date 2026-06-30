@@ -218,8 +218,48 @@ namespace pcit::pir{
 					this->setup_allocas(new_stack_frame);
 					
 				}else if(call_inst.target.is<ExternalFunction::ID>()){
-					// TODO(FUTURE): 
-					evo::unimplemented("Calling external function");
+					const ExternalFunction::ID extern_func_id = call_inst.target.as<ExternalFunction::ID>();
+
+					const auto extern_func_ptr = [&]() -> std::optional<ExecutionEngine::ExternFuncPtr> {
+						const auto lock = std::scoped_lock(this->engine.registered_extern_func_lookup_lock);
+
+						const auto find = this->engine.registered_extern_func_lookup.find(extern_func_id);
+
+						if(find != this->engine.registered_extern_func_lookup.end()){ return find->second; }
+						return std::nullopt;
+					}();
+
+					if(extern_func_ptr.has_value() == false){
+						this->last_error = FuncRunError::Code::UNREGISTERED_EXTERN_FUNC;
+						break;
+					}
+
+					auto params = evo::SmallVector<std::byte*>();
+					for(const Expr arg : call_inst.args){
+						core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, stack_frame);
+
+						if(generic_value == nullptr){
+							params.emplace_back(nullptr);
+
+						}else if(stack_frame.reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+							params.emplace_back(generic_value->getPtr<std::byte*>());
+
+						}else{
+							params.emplace_back(generic_value->writableDataRange().data());
+						}
+					}
+					
+					#if defined(EVO_PLATFORM_WINDOWS)
+						__try{
+							(*extern_func_ptr)(params.data(), stack_frame.registers[expr].writableDataRange().data());
+						}__except(0x1){
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							break;
+						}
+
+					#else
+						(*extern_func_ptr)(params.data(), stack_frame.registers[expr].writableDataRange().data());
+					#endif 
 
 				}else{
 					evo::debugAssert(call_inst.target.is<PtrCall>(), "Unknown func call kind");
@@ -315,8 +355,48 @@ namespace pcit::pir{
 					this->setup_allocas(new_stack_frame);
 					
 				}else if(call_void_inst.target.is<ExternalFunction::ID>()){
-					// TODO(FUTURE): 
-					evo::unimplemented("Calling external function");
+					const ExternalFunction::ID extern_func_id = call_void_inst.target.as<ExternalFunction::ID>();
+
+					const auto extern_func_ptr = [&]() -> std::optional<ExecutionEngine::ExternFuncPtr> {
+						const auto lock = std::scoped_lock(this->engine.registered_extern_func_lookup_lock);
+
+						const auto find = this->engine.registered_extern_func_lookup.find(extern_func_id);
+
+						if(find != this->engine.registered_extern_func_lookup.end()){ return find->second; }
+						return std::nullopt;
+					}();
+
+					if(extern_func_ptr.has_value() == false){
+						this->last_error = FuncRunError::Code::UNREGISTERED_EXTERN_FUNC;
+						break;
+					}
+
+					auto params = evo::SmallVector<std::byte*>();
+					for(const Expr arg : call_void_inst.args){
+						core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, stack_frame);
+
+						if(generic_value == nullptr){
+							params.emplace_back(nullptr);
+
+						}else if(stack_frame.reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+							params.emplace_back(generic_value->getPtr<std::byte*>());
+
+						}else{
+							params.emplace_back(generic_value->writableDataRange().data());
+						}
+					}
+					
+					#if defined(EVO_PLATFORM_WINDOWS)
+						__try{
+							(*extern_func_ptr)(params.data(), nullptr);
+						}__except(0x1){
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							break;
+						}
+
+					#else
+						(*extern_func_ptr)(params.data(), nullptr);
+					#endif
 
 				}else{
 					evo::debugAssert(call_void_inst.target.is<PtrCall>(), "Unknown func call kind");
@@ -411,8 +491,48 @@ namespace pcit::pir{
 					this->setup_allocas(new_stack_frame);
 					
 				}else if(call_no_return_inst.target.is<ExternalFunction::ID>()){
-					// TODO(FUTURE): 
-					evo::unimplemented("Calling external function");
+					const ExternalFunction::ID extern_func_id = call_no_return_inst.target.as<ExternalFunction::ID>();
+
+					const auto extern_func_ptr = [&]() -> std::optional<ExecutionEngine::ExternFuncPtr> {
+						const auto lock = std::scoped_lock(this->engine.registered_extern_func_lookup_lock);
+
+						const auto find = this->engine.registered_extern_func_lookup.find(extern_func_id);
+
+						if(find != this->engine.registered_extern_func_lookup.end()){ return find->second; }
+						return std::nullopt;
+					}();
+
+					if(extern_func_ptr.has_value() == false){
+						this->last_error = FuncRunError::Code::UNREGISTERED_EXTERN_FUNC;
+						break;
+					}
+
+					auto params = evo::SmallVector<std::byte*>();
+					for(const Expr arg : call_no_return_inst.args){
+						core::GenericValue* generic_value = this->get_expr_maybe_ptr(arg, stack_frame);
+
+						if(generic_value == nullptr){
+							params.emplace_back(nullptr);
+
+						}else if(stack_frame.reader_agent.getExprType(arg).kind() == Type::Kind::PTR){
+							params.emplace_back(generic_value->getPtr<std::byte*>());
+
+						}else{
+							params.emplace_back(generic_value->writableDataRange().data());
+						}
+					}
+					
+					#if defined(EVO_PLATFORM_WINDOWS)
+						__try{
+							(*extern_func_ptr)(params.data(), nullptr);
+						}__except(0x1){
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							break;
+						}
+
+					#else
+						(*extern_func_ptr)(params.data(), nullptr);
+					#endif
 
 				}else{
 					evo::debugAssert(call_no_return_inst.target.is<PtrCall>(), "Unknown func call kind");

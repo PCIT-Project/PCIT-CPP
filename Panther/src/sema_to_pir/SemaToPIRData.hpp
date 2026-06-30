@@ -95,6 +95,11 @@ namespace pcit::panther{
 				pir::ExternalFunction::ID create_panther_build = pir::ExternalFunction::ID::dummy();
 			};
 
+			struct ComptimeExecutionEngineFuncs{
+				pir::ExternalFunction::ID print   = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID println = pir::ExternalFunction::ID::dummy();
+			};
+
 			using VTableID = SemaToPIRDataVTableID;
 
 
@@ -113,8 +118,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto getConfig() const -> const Config& { return this->config; }
 
-			[[nodiscard]] auto getInterfacePtrType(pir::Module& module, class SourceManager& source_manager)
-				-> const PIRType&;
+			[[nodiscard]] auto getInterfacePtrType(pir::Module& module) -> const PIRType&;
 
 			[[nodiscard]] auto getArrayRefType(
 				pir::Module& module,
@@ -142,6 +146,15 @@ namespace pcit::panther{
 				return std::nullopt;
 			}
 
+
+
+
+			//////////////////
+			// comptime execution engine
+
+			[[nodiscard]] auto getComptimeExecutionEngineFuncs() -> ComptimeExecutionEngineFuncs& {
+				return this->comptime_execution_engine_funcs;
+			}
 
 
 			//////////////////
@@ -455,6 +468,7 @@ namespace pcit::panther{
 			mutable evo::SpinLock func_ptr_map_lock{};
 
 			JITBuildFuncs jit_build_funcs{};
+			ComptimeExecutionEngineFuncs comptime_execution_engine_funcs{};
 
 			std::unordered_map<VTableID, pir::GlobalVar::ID> vtables{};
 			std::unordered_map<pir::GlobalVar::ID, VTableID> reverse_vtables{};

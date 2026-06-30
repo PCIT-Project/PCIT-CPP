@@ -130,6 +130,10 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
+		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
+			return WaitOnResult::CIRCULAR_DEP_DETECTED;
+		}
+
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
 		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);

@@ -387,7 +387,7 @@ namespace pcit::panther{
 					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.useDebugUnreachables = true,
+					.useDebugUnreachables = true, // TODO(FUTURE): when an option, add check in sema for `unreachable`
 				})
 			{
 				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
@@ -405,7 +405,7 @@ namespace pcit::panther{
 					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.useDebugUnreachables = true,
+					.useDebugUnreachables = true, // TODO(FUTURE): when an option, add check in sema for `unreachable`
 				})
 			{
 				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
@@ -688,6 +688,7 @@ namespace pcit::panther{
 
 
 			auto init_builtin_modules() -> void;
+			auto init_comptime_execution_engine_funcs() -> void;
 			
 			auto init_intrinsic_infos() -> void;
 

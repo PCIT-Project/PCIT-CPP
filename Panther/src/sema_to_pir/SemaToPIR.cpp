@@ -2230,8 +2230,7 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(try_else_interface.value);
-				const pir::Type interface_ptr_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
 					target_interface_ptr,
@@ -2396,8 +2395,7 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
-				const pir::Type interface_ptr_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
 					target_interface_ptr,
@@ -4689,8 +4687,7 @@ namespace pcit::panther{
 
 				}else{
 					EVO_DEFER([&](){
-						const pir::Type interface_ptr_type =
-							this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 						const pir::Expr calc_ptr = this->handler.createCalcPtr(
 							this->get_expr_pointer(optional_extract.expr),
 							interface_ptr_type,
@@ -5187,8 +5184,7 @@ namespace pcit::panther{
 					const sema::MakeInterfacePtr& make_interface_ptr =
 						this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
 
-					const pir::Type interface_ptr_type =
-						this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 
 					const pir::Expr vtable_value = [&]() -> pir::Expr {
@@ -5258,8 +5254,7 @@ namespace pcit::panther{
 					const sema::InterfacePtrExtractThis& interface_ptr_extract_this =
 						this->context.getSemaBuffer().getInterfacePtrExtractThis(expr.interfacePtrExtractThisID());
 
-					const pir::Type interface_ptr_type =
-						this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 					if constexpr(MODE == GetExprMode::REGISTER){
 						const pir::Expr ptr = this->handler.createCalcPtr(
@@ -5336,8 +5331,7 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
-				const pir::Type interface_ptr_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
 					target_interface_ptr,
@@ -6410,8 +6404,7 @@ namespace pcit::panther{
 				// get func pointer
 
 				const pir::Expr target_interface_ptr = this->get_expr_pointer(attempt_func_interface_call.value);
-				const pir::Type interface_ptr_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
 					target_interface_ptr,
@@ -11840,6 +11833,20 @@ namespace pcit::panther{
 				this->create_panic(this->get_expr_pointer(func_call.args[0]));
 			} break;
 
+			case IntrinsicFunc::Kind::COMPTIME_PRINT: {
+				this->handler.createCallVoid(
+					this->data.getComptimeExecutionEngineFuncs().print,
+					evo::SmallVector<pir::Expr>{this->get_expr_pointer(func_call.args[0])}
+				);
+			} break;
+
+			case IntrinsicFunc::Kind::COMPTIME_PRINTLN: {
+				this->handler.createCallVoid(
+					this->data.getComptimeExecutionEngineFuncs().println,
+					evo::SmallVector<pir::Expr>{this->get_expr_pointer(func_call.args[0])}
+				);
+			} break;
+
 			default: evo::debugFatalBreak("Unknown intrinsic");
 		}
 	}
@@ -12134,8 +12141,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				const pir::Type interface_ptr_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager()).pir_type;
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 
 				return this->module.createGlobalStruct(
 					interface_ptr_type,
@@ -13195,8 +13201,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				const Data::PIRType pir_type =
-					this->data.getInterfacePtrType(this->module, this->context.getSourceManager());
+				const Data::PIRType pir_type = this->data.getInterfacePtrType(this->module);
 
 				if constexpr(GET_META){
 					return PIRType(pir_type.pir_type, pir_type.meta_type_id);

@@ -42,6 +42,7 @@ Options:
         full
 
     -workDir {PATH} Sets the working directory (if not given, defaults to current)
+    
 )");
 
 	}

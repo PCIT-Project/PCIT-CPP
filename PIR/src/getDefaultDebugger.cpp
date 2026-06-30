@@ -28,7 +28,7 @@ namespace pcit::pir{
 
 	struct DefaultDebugger{
 		ExecutionEngineDebuggerInterface& debugger;
-		Module& module;
+		const Module& module;
 
 
 		std::unordered_map<std::string_view, std::function<void(evo::ArrayProxy<std::string_view>)>> runners{};
@@ -60,6 +60,9 @@ namespace pcit::pir{
 
 					break; case ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT:
 						evo::printlnBlue("Process stopped with code: BREAKPOINT");
+
+					break; case ExecutionEngineExecutor::FuncRunError::Code::UNREGISTERED_EXTERN_FUNC:
+						evo::printlnBlue("Process stopped with code: UNREGISTERED_EXTERN_FUNC");
 
 					break; case ExecutionEngineExecutor::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH:
 						evo::printlnBlue("Process stopped with code: EXCEEDED_MAX_CALL_DEPTH");
@@ -177,6 +180,9 @@ namespace pcit::pir{
 						break; case ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT:
 							evo::printBlue("Process stopped with code: BREAKPOINT\n\n");
 
+						break; case ExecutionEngineExecutor::FuncRunError::Code::UNREGISTERED_EXTERN_FUNC:
+							evo::printBlue("Process stopped with code: UNREGISTERED_EXTERN_FUNC\n\n");
+
 						break; case ExecutionEngineExecutor::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH:
 							evo::printBlue("Process stopped with code: EXCEEDED_MAX_CALL_DEPTH\n\n");
 
@@ -218,6 +224,9 @@ namespace pcit::pir{
 
 							break; case ExecutionEngineExecutor::FuncRunError::Code::BREAKPOINT:
 								evo::printBlue("Process stopped with code: BREAKPOINT\n\n");
+
+							break; case ExecutionEngineExecutor::FuncRunError::Code::UNREGISTERED_EXTERN_FUNC:
+								evo::printBlue("Process stopped with code: UNREGISTERED_EXTERN_FUNC\n\n");
 
 							break; case ExecutionEngineExecutor::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH:
 								evo::printBlue("Process stopped with code: EXCEEDED_MAX_CALL_DEPTH\n\n");
@@ -691,7 +700,7 @@ namespace pcit::pir{
 
 			FuncFrameInfo& func_frame_info = this->func_frame_infos.emplace(func_id, FuncFrameInfo()).first->second;
 
-			Function& func = this->module.getFunction(func_id);
+			const Function& func = this->module.getFunction(func_id);
 
 			auto reader = InstrReader(this->module, func);
 
@@ -909,7 +918,7 @@ namespace pcit::pir{
 
 	
 	auto getDefaultDebugger() -> ExecutionEngine::DebuggerFunc {
-		return [](ExecutionEngineDebuggerInterface& debugger, Module& module)
+		return [](ExecutionEngineDebuggerInterface& debugger, const Module& module)
 		-> evo::Expected<core::GenericValue, ExecutionEngineExecutor::FuncRunError::Code> {
 			return DefaultDebugger(debugger, module).run();
 		};

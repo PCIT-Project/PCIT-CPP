@@ -26,6 +26,8 @@ namespace pcit::panther{
 			ENTRY,
 
 			IS_COMPTIME,
+			COMPTIME_PRINT,
+			COMPTIME_PRINTLN,
 
 			// build system
 			CREATE_PANTHER_BUILD,

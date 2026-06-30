@@ -993,7 +993,8 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto InstrHandler::createCall(Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const -> Expr {
+	auto InstrHandler::createCall(Function::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunction(func).getReturnType().kind() != Type::Kind::VOID,
@@ -1012,7 +1013,8 @@ namespace pcit::pir{
 	}
 
 
-	auto InstrHandler::createCall(ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const -> Expr {
+	auto InstrHandler::createCall(ExternalFunction::ID func, evo::SmallVector<Expr>&& args, std::string&& name) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
@@ -1030,8 +1032,9 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto InstrHandler::createCall(ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name) const
-	-> Expr {
+	auto InstrHandler::createCall(
+		ExternalFunction::ID func, const evo::SmallVector<Expr>& args, std::string&& name
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getExternalFunction(func).returnType.kind() != Type::Kind::VOID,
@@ -1050,12 +1053,8 @@ namespace pcit::pir{
 	}
 
 
-	auto InstrHandler::createCall(
-		Expr func,
-		Type func_type,
-		evo::SmallVector<Expr>&& args,
-		std::string&& name
-	) const -> Expr {
+	auto InstrHandler::createCall(Expr func, Type func_type, evo::SmallVector<Expr>&& args, std::string&& name) const
+	-> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
@@ -1076,8 +1075,9 @@ namespace pcit::pir{
 		return new_expr;
 	}
 
-	auto InstrHandler::createCall(Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name) const
-	-> Expr {
+	auto InstrHandler::createCall(
+		Expr func, Type func_type, const evo::SmallVector<Expr>& args, std::string&& name
+	) const -> Expr {
 		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
 		evo::debugAssert(
 			this->module.getFunctionType(func_type).returnType.kind() != Type::Kind::VOID,
