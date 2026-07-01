@@ -7,7 +7,7 @@ function llvm_link(lib_name)
 		}
 	filter {}
 
-	filter "configurations:Optimize or Release or ReleaseDist"
+	filter "configurations:Optimize or Release"
 		links{
 			(config.location .. "/dependencies/LLVM_build/lib-release/" .. lib_name)
 		}

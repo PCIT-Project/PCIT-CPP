@@ -39,7 +39,7 @@ namespace pthr{
 
 
 	static auto setup_debug_close(bool print_color) -> void {
-		#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
+		#if !defined(PCIT_BUILD_RELASE) && defined(EVO_PLATFORM_WINDOWS)
 			if(core::windows::isDebuggerPresent()){
 				static auto at_exit_call = [print_color]() -> void {
 					// not using printer because it should always go to stdout
@@ -1108,7 +1108,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	if(cmd_args_config.use_std_lib){
 		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
 			panther::Source::Package{
-				#if defined(PCIT_BUILD_DIST)
+				#if defined(PCIT_BUILD_RELEASE)
 					.basePath = cmd_args_config.executablePath / "Panther-std/std",
 				#else
 					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",
@@ -1279,7 +1279,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 	if(cmd_args_config.use_std_lib){
 		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
 			panther::Source::Package{
-				#if defined(PCIT_BUILD_DIST)
+				#if defined(PCIT_BUILD_RELEASE)
 					.basePath = cmd_args_config.executablePath / "Panther-std/std",
 				#else
 					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",

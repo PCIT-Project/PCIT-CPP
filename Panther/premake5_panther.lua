@@ -3,7 +3,7 @@
 project "Panther"
 	kind "StaticLib"
 
-	filter "configurations:Optimize or Release or ReleaseDist"
+	filter "configurations:Optimize or Release"
 		staticruntime "On"
 	filter{}
 
@@ -45,7 +45,7 @@ project "*"
 project "pthr"
 	kind "ConsoleApp"
 	
-	filter "configurations:Optimize or Release or ReleaseDist"
+	filter "configurations:Optimize or Release"
 		staticruntime "On"
 	filter{}
 	
@@ -87,7 +87,7 @@ project "pthr"
 		buildoptions{ "/bigobj" }
 	filter {}
 
-	filter "configurations:ReleaseDist"
+	filter "configurations:Release"
 		postbuildcommands {
 			("{COPYDIR} " .. (config.location) .. "/extern/Panther-std " .. target.bin .. "/Panther-std"),
 			("{COPYDIR} " .. (config.location) .. "/extern/libc " .. target.bin .. "/libc"),

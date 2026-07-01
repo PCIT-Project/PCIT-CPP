@@ -151,7 +151,7 @@ namespace pcit::panther{
 
 
 
-	#if defined(PCIT_CONFIG_DEBUG) || defined(PCIT_BUILD_RELEASE)
+	#if defined(PCIT_CONFIG_DEBUG)
 
 		static auto print_field(core::Printer& printer, std::string_view field_name, auto&& value) -> void {
 			printer.printBlue("\t{}", field_name);

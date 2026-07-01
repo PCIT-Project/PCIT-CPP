@@ -3,7 +3,7 @@
 project "PCIT_core"
 	kind "StaticLib"
 	
-	filter "configurations:Optimize or Release or ReleaseDist"
+	filter "configurations:Optimize or Release"
 		staticruntime "On"
 	filter{}
 	

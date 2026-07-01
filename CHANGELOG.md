@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.329.3"></a>
+## v0.0.329.3
+
+### Misc
+- Renamed builds:
+	- "Release" -> "Optimize"
+	- "ReleaseDist" -> "Release"
+
+
+<!---------------------------------->
 <a name="v0.0.329.2"></a>
 ## v0.0.329.2
 

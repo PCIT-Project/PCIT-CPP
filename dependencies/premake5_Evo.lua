@@ -7,7 +7,7 @@ project "Evo"
 	exceptionhandling "Off"
 	allmodulespublic "Off"
 	
-	filter "configurations:Optimize or Release or ReleaseDist"
+	filter "configurations:Optimize or Release"
 		staticruntime "On"
 	filter{}
 
@@ -36,13 +36,6 @@ project "Evo"
 		}
 	filter {}
 
-	filter "configurations:Dev"
-		defines{
-			"EVO_CONFIG_DEBUG",
-		}
-	filter {}
-
-
 	filter "configurations:Optimize"
 		defines{
 			"EVO_CONFIG_DEBUG",
@@ -54,14 +47,5 @@ project "Evo"
 			-- none...
 		}
 	filter {}
-
-
-	filter "configurations:ReleaseDist"
-		defines{
-			-- none...
-		}
-	filter {}
-
-
 
 project "*"

@@ -5,9 +5,8 @@ workspace "PCIT-CPP"
 
 	configurations{
 		"Debug",
-		-- "Optimize",
+		"Optimize",
 		"Release",
-		"ReleaseDist",
 	}
 
 	platforms {
@@ -51,22 +50,9 @@ workspace "PCIT-CPP"
 		}
 	filter {}
 
-	-- filter "configurations:Optimize"
-	-- 	runtime "Release"
-	-- 	symbols "On"
-	-- 	optimize "Full"
-
-	-- 	defines{
-	-- 		"NDEBUG",
-	-- 	}
-
-	-- 	linktimeoptimization "On"
-	-- filter {}
-
-
-	filter "configurations:Release"
+	filter "configurations:Optimize"
 		runtime "Release"
-		symbols "Off"
+		symbols "On"
 		optimize "Full"
 
 		defines{
@@ -77,8 +63,7 @@ workspace "PCIT-CPP"
 	filter {}
 
 
-
-	filter "configurations:ReleaseDist"
+	filter "configurations:Release"
 		runtime "Release"
 		symbols "Off"
 		optimize "Full"
@@ -147,7 +132,7 @@ filter "configurations:Optimize"
 
 	defines{
 		"PCIT_BUILD_OPTIMIZE",
-		"PCIT_CONFIG_RELEASE",
+		"PCIT_CONFIG_DEBUG",
 	}
 
 filter {}
@@ -161,13 +146,6 @@ filter "configurations:Release"
 	}
 filter {}
 
-
-filter "configurations:ReleaseDist"
-	defines{
-		"PCIT_BUILD_DIST",
-		"PCIT_CONFIG_RELEASE",
-	}
-filter {}
 
 
 

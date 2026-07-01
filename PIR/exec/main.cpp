@@ -73,14 +73,12 @@ auto main(int argc, const char* argv[]) -> int {
 	#elif defined(PCIT_BUILD_OPTIMIZE)
 		printer.printlnMagenta("v{} (optimize)", pcit::core::VERSION);
 	#elif defined(PCIT_BUILD_RELEASE)
-		printer.printlnMagenta("v{} (release)", pcit::core::VERSION);
-	#elif defined(PCIT_BUILD_DIST)
 		printer.printlnMagenta("v{}", pcit::core::VERSION);
 	#else
 		#error Unknown or unsupported build
 	#endif
 
-	#if !defined(PCIT_BUILD_DIST) && defined(EVO_PLATFORM_WINDOWS)
+	#if !defined(PCIT_BUILD_RELEASE) && defined(EVO_PLATFORM_WINDOWS)
 		if(pcit::core::windows::isDebuggerPresent()){
 			static auto at_exit_call = [&]() -> void {
 				// not using printer because it should always go to stdout
