@@ -1557,19 +1557,20 @@ namespace pcit::panther{
 						union_decl.name,
 						[&]() -> CFamilySource::Symbol {
 							return this->type_manager.createUnion(
-								BaseType::Union(
-									source_c_family_source_id,
-									source_c_family_source.createDeclInfo(
+								BaseType::Union{
+									.sourceID          = source_c_family_source_id,
+									.name              = source_c_family_source.createDeclInfo(
 										union_decl.name, union_decl.declLine, union_decl.declCollumn
 									),
-									std::nullopt,
-									std::move(fields),
-									nullptr,
-									nullptr,
-									false,
-									false,
-									true
-								)
+									.parent            = std::nullopt,
+									.fields            = std::move(fields),
+									.namespacedMembers = nullptr,
+									.scopeLevel        = nullptr,
+									.isPub             = false,
+									.isPriv            = false,
+									.isUntagged        = true,
+									.defCompleted      = true,
+								}
 							);
 						}
 					);
@@ -1610,19 +1611,20 @@ namespace pcit::panther{
 						enum_decl.name,
 						[&]() -> CFamilySource::Symbol {
 							return this->type_manager.createEnum(
-								BaseType::Enum(
-									source_c_family_source_id,
-									source_c_family_source.createDeclInfo(
+								BaseType::Enum{
+									.sourceID          = source_c_family_source_id,
+									.name              = source_c_family_source.createDeclInfo(
 										enum_decl.name, enum_decl.declLine, enum_decl.declCollumn
 									),
-									std::nullopt,
-									std::move(enumerators),
-									panther_base_type_id.primitiveID(),
-									nullptr,
-									nullptr,
-									false,
-									false
-								)
+									.parent            = std::nullopt,
+									.enumerators       = std::move(enumerators),
+									.underlyingTypeID  = panther_base_type_id.primitiveID(),
+									.namespacedMembers = nullptr,
+									.scopeLevel        = nullptr,
+									.isPub             = false,
+									.isPriv            = false,
+									.defCompleted      = true,
+								}
 							);
 						}
 					);
@@ -1992,6 +1994,11 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
 				this->current_dynamic_file_load_failed.emplace(file_path, LookupSourceIDError::DOESNT_EXIST);
 			}
+
+			// TODO(FUTURE): fix this issue (somehow in a stress test it incorrectly hit this)
+			#if defined(PCIT_CONFIG_DEBUG) 
+				evo::breakpoint();
+			#endif
 
 			return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
 		}
@@ -2397,6 +2404,7 @@ namespace pcit::panther{
 					.isPub             = false,
 					.isPriv            = false,
 					.isUntagged        = false,
+					.defCompleted      = true,
 				}
 			);
 
@@ -2604,6 +2612,7 @@ namespace pcit::panther{
 				.isPub             = false,
 				.isPriv            = false,
 				.isUntagged        = false,
+				.defCompleted      = true,
 			}
 		));
 
@@ -2724,50 +2733,54 @@ namespace pcit::panther{
 
 
 		pthr_module.createSymbol("Architecture", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Architecture"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("Architecture"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("X86_64"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 		pthr_module.createSymbol("Platform", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Platform"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("Platform"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("WINDOWS"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
 		pthr_module.createSymbol("OptMode", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("OptMode"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("OptMode"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("NONE"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::NONE))
@@ -2793,20 +2806,22 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE_AGRESSIVE))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  = 
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 		pthr_module.createSymbol("WindowsSubsystem", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("WindowsSubsystem"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("WindowsSubsystem"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("CONSOLE"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::CONSOLE))
@@ -2852,12 +2867,14 @@ namespace pcit::panther{
 					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::POSIX))
 					// ),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
@@ -2986,11 +3003,11 @@ namespace pcit::panther{
 
 
 		pthr_module.createSymbol("Mode", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Mode"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("Mode"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("COMPILE"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE))
@@ -3008,23 +3025,25 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::BUILD))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
 
 
 		pthr_module.createSymbol("CallingConvention", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("CallingConvention"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("CallingConvention"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("FAST"),
 						core::GenericInt::create<uint32_t>(
@@ -3050,22 +3069,24 @@ namespace pcit::panther{
 						)
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
 
 		pthr_module.createSymbol("Language", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("Language"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("Language"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("PANTHER"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(BaseType::Function::ABI::PANTHER))
@@ -3075,23 +3096,25 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(evo::to_underlying(BaseType::Function::ABI::C))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
 
 
 		pthr_module.createSymbol("AtomicOrdering", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("AtomicOrdering"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("AtomicOrdering"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("MONOTONIC"),
 						core::GenericInt::create<uint32_t>(
@@ -3123,21 +3146,23 @@ namespace pcit::panther{
 						)
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 
 		pthr_module.createSymbol("AtomicRMWOp", this->type_manager.createEnum(
-			BaseType::Enum(
-				BuiltinModule::ID::PTHR,
-				pthr_module.createString("AtomicRMWOp"),
-				std::nullopt,
-				evo::SmallVector<BaseType::Enum::Enumerator>{
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("AtomicRMWOp"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("XCHG"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::XCHG))
@@ -3175,12 +3200,14 @@ namespace pcit::panther{
 						core::GenericInt::create<uint32_t>(evo::to_underlying(TemplateIntrinsicFunc::AtomicRMWOp::MAX))
 					),
 				},
-				this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				nullptr,
-				nullptr,
-				true,
-				false
-			)
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
 		));
 
 

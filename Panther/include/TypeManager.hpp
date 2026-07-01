@@ -933,7 +933,7 @@ namespace pcit::panther{
 			bool isPub; // meaningless not pthr type
 			bool isPriv;
 
-			std::atomic<bool> defCompleted = false;  // meaningless not pthr type
+			std::atomic<bool> defCompleted = false; // if not pthr type, should always be `true`
 
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;

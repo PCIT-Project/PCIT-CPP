@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.329.2"></a>
+## v0.0.329.2
+
+### Panther
+- Fixed race condition in semantic analysis when using an alias of a struct, union, or enum
+
+
+<!---------------------------------->
 <a name="v0.0.329.1"></a>
 ## v0.0.329.1
 

@@ -129,9 +129,6 @@ namespace pcit::panther{
 					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
 
 					this->symbol_proc.nextInstruction();
-					
-					this->context.symbol_proc_manager.symbol_proc_suspended();
-					this->symbol_proc.setStatusSuspended();
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()){
 						sema::Func& sema_func = this->context.sema_buffer.funcs[
@@ -140,6 +137,9 @@ namespace pcit::panther{
 
 						sema_func.status = sema::Func::Status::SUSPENDED;
 					}
+
+					this->context.symbol_proc_manager.symbol_proc_suspended();
+					this->symbol_proc.setStatusSuspended();
 
 					return;
 				} break;
@@ -6300,7 +6300,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
+					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
 						"Sema doesn't have completed info for decl despite SymbolProc saying it should"
 					);
 				} break;
@@ -22914,12 +22914,8 @@ namespace pcit::panther{
 			case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST:
 				evo::debugFatalBreak("Def is done, but can't find sema of symbol");
 
-			case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF:
-				evo::debugFatalBreak(
-					"Sema doesn't have completed info for def despite SymbolProc saying it should"
-				);
-
-			case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: return Result::NEED_TO_WAIT;
+			case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED:        return Result::ERROR;
 		}
 
 		evo::unreachable();
@@ -23188,7 +23184,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
+					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -23968,7 +23964,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
+					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -24197,7 +24193,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
+					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -24367,7 +24363,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak(
+					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -25788,7 +25784,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak("SymbolProc said done, sema disagreed");
+					return evo::Unexpected(Result::NEED_TO_WAIT);
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: {
@@ -26402,6 +26398,156 @@ namespace pcit::panther{
 					}
 				}
 
+				if(NEEDS_DEF){
+					const TypeInfo::ID decayed_type_id = this->context.getTypeManager().decayType<true, true>(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+					const TypeInfo& decayed_type = this->context.getTypeManager().getTypeInfo(decayed_type_id);
+
+					if(decayed_type.isPointer() == false){
+						switch(decayed_type.baseTypeID().kind()){
+							case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid Type");
+
+							case BaseType::Kind::PRIMITIVE:         break;
+							case BaseType::Kind::FUNCTION:          break;
+							case BaseType::Kind::ARRAY:             break;
+							case BaseType::Kind::ARRAY_DEDUCER:     evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::ARRAY_REF:         break;
+							case BaseType::Kind::ARRAY_REF_DEDUCER: evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::ALIAS:             evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::DISTINCT_ALIAS:    evo::debugFatalBreak("Shouldn't be possible");
+
+							case BaseType::Kind::STRUCT: {
+								const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(
+									decayed_type.baseTypeID().structID()
+								);
+
+								if(struct_type.defCompleted.load() == false){
+									SymbolProc::ID struct_type_symbol_proc_id =
+										*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+									const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+										.getSymbolProc(struct_type_symbol_proc_id)
+										.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+									switch(wait_on_result){
+										case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+										case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::WAITING:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_ERRORED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+									}
+								}
+							} break;
+
+							case BaseType::Kind::STRUCT_TEMPLATE:         evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: evo::debugFatalBreak("Shouldn't be possible");
+
+							case BaseType::Kind::UNION: {
+								const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
+									decayed_type.baseTypeID().unionID()
+								);
+
+								if(union_type.defCompleted.load() == false){
+									SymbolProc::ID struct_type_symbol_proc_id =
+										*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+									const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+										.getSymbolProc(struct_type_symbol_proc_id)
+										.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+									switch(wait_on_result){
+										case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+										case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::WAITING:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_ERRORED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+									}
+								}
+							} break;
+
+							case BaseType::Kind::ENUM: {
+								const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(
+									decayed_type.baseTypeID().enumID()
+								);
+
+								if(enum_type.defCompleted.load() == false){
+									SymbolProc::ID struct_type_symbol_proc_id =
+										*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+									const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+										.getSymbolProc(struct_type_symbol_proc_id)
+										.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+									switch(wait_on_result){
+										case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+										case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::WAITING:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_ERRORED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+									}
+								}
+							} break;
+
+							case BaseType::Kind::TYPE_DEDUCER:       evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::INTERFACE:          break;
+							case BaseType::Kind::POLY_INTERFACE_REF: break;
+							case BaseType::Kind::INTERFACE_MAP:      break;
+						}
+					}
+				}
+
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::TYPE,
@@ -26440,6 +26586,156 @@ namespace pcit::panther{
 							Diagnostic::Info("Distinct type alias defined here:", this->get_location(ident_id))
 						);
 						return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+					}
+				}
+
+				if(NEEDS_DEF){
+					const TypeInfo::ID decayed_type_id = this->context.getTypeManager().decayType<true, true>(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+					const TypeInfo& decayed_type = this->context.getTypeManager().getTypeInfo(decayed_type_id);
+
+					if(decayed_type.isPointer() == false){
+						switch(decayed_type.baseTypeID().kind()){
+							case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid Type");
+
+							case BaseType::Kind::PRIMITIVE:         break;
+							case BaseType::Kind::FUNCTION:          break;
+							case BaseType::Kind::ARRAY:             break;
+							case BaseType::Kind::ARRAY_DEDUCER:     evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::ARRAY_REF:         break;
+							case BaseType::Kind::ARRAY_REF_DEDUCER: evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::ALIAS:             evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::DISTINCT_ALIAS:    evo::debugFatalBreak("Shouldn't be possible");
+
+							case BaseType::Kind::STRUCT: {
+								const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(
+									decayed_type.baseTypeID().structID()
+								);
+
+								if(struct_type.defCompleted.load() == false){
+									SymbolProc::ID struct_type_symbol_proc_id =
+										*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+									const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+										.getSymbolProc(struct_type_symbol_proc_id)
+										.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+									switch(wait_on_result){
+										case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+										case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::WAITING:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_ERRORED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+									}
+								}
+							} break;
+
+							case BaseType::Kind::STRUCT_TEMPLATE:         evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: evo::debugFatalBreak("Shouldn't be possible");
+
+							case BaseType::Kind::UNION: {
+								const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
+									decayed_type.baseTypeID().unionID()
+								);
+
+								if(union_type.defCompleted.load() == false){
+									SymbolProc::ID struct_type_symbol_proc_id =
+										*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+									const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+										.getSymbolProc(struct_type_symbol_proc_id)
+										.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+									switch(wait_on_result){
+										case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+										case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::WAITING:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_ERRORED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+
+										case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+											evo::debugFatalBreak("Not possible");
+
+										case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+											return ReturnType(
+												evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+											);
+									}
+								}
+							} break;
+
+							case BaseType::Kind::ENUM: {
+								// const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(
+								// 	decayed_type.baseTypeID().enumID()
+								// );
+
+								// if(enum_type.defCompleted.load() == false){
+								// 	SymbolProc::ID struct_type_symbol_proc_id =
+								// 		*this->context.symbol_proc_manager.getTypeSymbolProc(decayed_type_id);
+
+								// 	const SymbolProc::WaitOnResult wait_on_result = this->context.symbol_proc_manager
+								// 		.getSymbolProc(struct_type_symbol_proc_id)
+								// 		.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+								// 	switch(wait_on_result){
+								// 		case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+								// 		case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+								// 			evo::debugFatalBreak("Not possible");
+
+								// 		case SymbolProc::WaitOnResult::WAITING:
+								// 			return ReturnType(
+								// 				evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+								// 			);
+
+								// 		case SymbolProc::WaitOnResult::WAS_ERRORED:
+								// 			return ReturnType(
+								// 				evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+								// 			);
+
+								// 		case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+								// 			evo::debugFatalBreak("Not possible");
+
+								// 		case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+								// 			return ReturnType(
+								// 				evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+								// 			);
+								// 	}
+								// }
+							} break;
+
+							case BaseType::Kind::TYPE_DEDUCER:       evo::debugFatalBreak("Shouldn't be possible");
+							case BaseType::Kind::INTERFACE:          break;
+							case BaseType::Kind::POLY_INTERFACE_REF: break;
+							case BaseType::Kind::INTERFACE_MAP:      break;
+						}
 					}
 				}
 

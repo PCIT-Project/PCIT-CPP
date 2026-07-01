@@ -1912,7 +1912,8 @@ namespace pcit::panther{
 			new_type.isPriv,
 			new_type.isOrdered,
 			new_type.isPacked,
-			new_type.alignment
+			new_type.alignment,
+			new_type.defCompleted.load(std::memory_order::relaxed)
 		);
 
 		this->structs_lock.unlock();
@@ -2009,7 +2010,8 @@ namespace pcit::panther{
 			new_type.scopeLevel,
 			new_type.isPub,
 			new_type.isPriv,
-			new_type.isUntagged
+			new_type.isUntagged,
+			new_type.defCompleted.load(std::memory_order::relaxed)
 		);
 
 		this->unions_lock.unlock();
@@ -2050,7 +2052,8 @@ namespace pcit::panther{
 			new_type.namespacedMembers,
 			new_type.scopeLevel,
 			new_type.isPub,
-			new_type.isPriv
+			new_type.isPriv,
+			new_type.defCompleted.load(std::memory_order::relaxed)
 		);
 
 		this->enums_lock.unlock();
