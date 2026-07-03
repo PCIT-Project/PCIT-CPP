@@ -19953,7 +19953,7 @@ namespace pcit::panther{
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
 								this->return_term_info(instr.output,
-									comptime_intrinsic_evaluator.iToF(
+									comptime_intrinsic_evaluator.zext(
 										target_type.asTypeID(),
 										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
 									)

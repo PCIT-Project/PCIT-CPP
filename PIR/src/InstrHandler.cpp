@@ -1872,7 +1872,6 @@ namespace pcit::pir{
 			"Cannot convert to a type of a smaller size"
 		);
 		evo::debugAssert(this->getExprType(fromValue).kind() == Type::Kind::SIGNED, "can only convert signed");
-		evo::debugAssert(toType.kind() == Type::Kind::SIGNED, "can only convert to signed");
 
 		const auto new_expr = Expr(
 			Expr::Kind::SEXT,

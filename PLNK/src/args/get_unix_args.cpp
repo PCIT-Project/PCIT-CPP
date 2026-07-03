@@ -15,10 +15,18 @@ namespace pcit::plnk{
 
 	
 	auto get_unix_args(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> Args {
-		std::ignore = link_file_paths;
-		std::ignore = options;
+		auto args = Args();
 
-		evo::debugFatalBreak("Unix target currently unsupported");
+		args.addArg("ld.lld");
+
+		args.addArg("-o");
+		args.addArg(evo::copy(options.outputFilePath));
+
+		for(const std::filesystem::path& link_file_path : link_file_paths){
+			args.addArg(link_file_path.string());
+		}
+
+		return args;
 	}
 
 

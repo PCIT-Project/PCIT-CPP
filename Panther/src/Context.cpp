@@ -2766,6 +2766,10 @@ namespace pcit::panther{
 						pthr_module.createString("WINDOWS"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
 					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("LINUX"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
+					),
 				},
 				.underlyingTypeID  =
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),

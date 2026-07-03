@@ -1672,7 +1672,7 @@ namespace pcit::panther{
 				default: {
 					this->context.emitError(
 						"Asm parameters must have an explicit kind",
-						Diagnostic::Location::get(this->reader.peek(), this->source)
+						Diagnostic::Location::get(this->reader.peek(-1), this->source)
 					);
 					return Result::Code::ERROR;
 				} break;

@@ -968,19 +968,37 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 
-			auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
-			plnk_options.outputFilePath = exec_path.string();
-			plnk_options.getWindowsSpecific().subsystem = [&](){
-				if(config.windowsSubsystem.has_value() == false){
-					return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
-				}
+			const plnk::Options plnk_options = [&]() -> plnk::Options {
+				switch(config.platform){
+					case core::Target::Platform::WINDOWS: {
+						auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
+						plnk_options.outputFilePath = exec_path.string();
+						plnk_options.getWindowsSpecific().subsystem = [&](){
+							if(config.windowsSubsystem.has_value() == false){
+								return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
+							}
 
-				switch(*config.windowsSubsystem){
-					case panther::Context::Config::WindowsSubsystem::CONSOLE:
-						return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
+							switch(*config.windowsSubsystem){
+								case panther::Context::Config::WindowsSubsystem::CONSOLE:
+									return plnk::Options::WindowsSpecific::Subsystem::CONSOLE;
 
-					case panther::Context::Config::WindowsSubsystem::WINDOWS:
-						return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
+								case panther::Context::Config::WindowsSubsystem::WINDOWS:
+									return plnk::Options::WindowsSpecific::Subsystem::WINDOWS;
+							}
+
+							evo::unreachable();
+						}();
+
+						return plnk_options;
+					} break;
+
+					case core::Target::Platform::LINUX: {
+						auto plnk_options = plnk::Options(plnk::Target::UNIX);
+						plnk_options.outputFilePath = exec_path.string();
+						return plnk_options;
+					} break;
+
+					case core::Target::Platform::UNKNOWN: evo::debugFatalBreak("Invalid platform");
 				}
 
 				evo::unreachable();

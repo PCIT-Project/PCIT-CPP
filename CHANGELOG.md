@@ -1,6 +1,25 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.330.0"></a>
+## v0.0.330.0
+
+### Panther
+- Added `@pthr.Platform.LINUX`
+- Fixed race condition in semantic analysis of type accessor
+- Fixed operator `as` for integral extension
+
+### PIR
+- Fixed lowering of `@asm` statements
+
+### plnk
+- Added basic linking for Linux
+
+### Misc
+- Updated to [Panther-std v0.0.30.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.30.0)
+
+
+<!---------------------------------->
 <a name="v0.0.329.4"></a>
 ## v0.0.329.4
 
@@ -50,7 +69,7 @@
 - Added registering external functions to `ExecutionEngine`
 
 ### Misc
-- Updated to [Panther-std v0.0.28.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.28.0)
+- Updated to [Panther-std v0.0.29.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.29.0)
 
 
 <!---------------------------------->

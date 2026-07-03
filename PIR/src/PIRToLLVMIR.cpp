@@ -2471,7 +2471,7 @@ namespace pcit::pir{
 						if(this->add_debug_info && asm_void.sourceLocation.has_value()){
 							asm_void_call.setLocation(this->lower_meta_source_location(*asm_void.sourceLocation));
 						}
-					}
+					} break;
 
 					case Expr::Kind::META_LOCAL_VAR: {
 						if(this->add_debug_info == false){ continue; }
