@@ -23576,7 +23576,10 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
-			const BaseType::Interface::Impl& interface_impl = target_interface.impls.at(*impl_instantiation_type_id);
+			const BaseType::Interface::Impl& interface_impl = [&]() -> const BaseType::Interface::Impl& {
+				const auto lock = std::scoped_lock(target_interface.implsLock);
+				return target_interface.impls.at(*impl_instantiation_type_id);
+			}();
 
 			{ // wait on instantiating symbol proc if needed
 				if(interface_impl.isDefCompleted == false){

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.329.4"></a>
+## v0.0.329.4
+
+### Panther
+- Fixed race condition in semantic analysis of interface accessors
+
+
+<!---------------------------------->
 <a name="v0.0.329.3"></a>
 ## v0.0.329.3
 

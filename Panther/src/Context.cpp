@@ -616,6 +616,7 @@ namespace pcit::panther{
 						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump(true)`"
 					);
 
+					this->symbol_proc_manager.debug_dump(false);
 					this->symbol_proc_manager.debug_dump(true);
 
 					// Prevent escape from breakpoint
