@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.330.1"></a>
+## v0.0.330.1
+
+### Panther
+- Fixed race condition of semantic analysis of accessors of expressions of type pointer of struct, enum, or union
+
+
+<!---------------------------------->
 <a name="v0.0.330.0"></a>
 ## v0.0.330.0
 

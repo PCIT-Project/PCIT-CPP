@@ -23767,6 +23767,28 @@ namespace pcit::panther{
 			decayed_lhs_type.baseTypeID().structID()
 		);
 
+		if(lhs_type_struct.defCompleted.load() == false){
+			SymbolProc::ID struct_type_symbol_proc_id = *this->context.symbol_proc_manager.getTypeSymbolProc(
+				this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(decayed_lhs_type.baseTypeID()))
+			);
+
+			SymbolProc& struct_type_symbol_proc = 
+				this->context.symbol_proc_manager.getSymbolProc(struct_type_symbol_proc_id);
+
+			const SymbolProc::WaitOnResult wait_on_result = 
+				struct_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			}
+		}
+
+
 		///////////////////////////////////
 		// member var
 
@@ -24057,6 +24079,28 @@ namespace pcit::panther{
 			decayed_lhs_type.baseTypeID().unionID()
 		);
 
+		if(lhs_type_union.defCompleted.load() == false){
+			SymbolProc::ID union_type_symbol_proc_id = *this->context.symbol_proc_manager.getTypeSymbolProc(
+				this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(decayed_lhs_type.baseTypeID()))
+			);
+
+			SymbolProc& union_type_symbol_proc = 
+				this->context.symbol_proc_manager.getSymbolProc(union_type_symbol_proc_id);
+
+			const SymbolProc::WaitOnResult wait_on_result = 
+				union_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			}
+		}
+
+
 		const Source* union_source = [&]() -> const Source* {
 			if(lhs_type_union.isCFamilyType()){
 				return nullptr;
@@ -24284,6 +24328,28 @@ namespace pcit::panther{
 		const BaseType::Enum& lhs_type_enum = this->context.getTypeManager().getEnum(
 			decayed_lhs_type.baseTypeID().enumID()
 		);
+
+		if(lhs_type_enum.defCompleted.load() == false){
+			SymbolProc::ID enum_type_symbol_proc_id = *this->context.symbol_proc_manager.getTypeSymbolProc(
+				this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(decayed_lhs_type.baseTypeID()))
+			);
+
+			SymbolProc& enum_type_symbol_proc = 
+				this->context.symbol_proc_manager.getSymbolProc(enum_type_symbol_proc_id);
+
+			const SymbolProc::WaitOnResult wait_on_result = 
+				enum_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			}
+		}
+
 
 		const Source* enum_source = [&]() -> const Source* {
 			if(lhs_type_enum.isCFamilyType()){
