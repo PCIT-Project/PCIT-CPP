@@ -5460,9 +5460,10 @@ namespace pcit::panther{
 		}
 
 
+		SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+		
 		if(this->func_scope_current_value_stage().requiresComptime()){
 			bool any_waiting = false;
-			SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
 			if(func_info.depends_on_panic){
 				const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
@@ -5473,6 +5474,8 @@ namespace pcit::panther{
 				if(need_to_wait){ return Result::NEED_TO_WAIT; }
 
 				func_info.dependent_funcs.emplace(*this->context.panic);
+
+				this->context.expecting_panic = true;
 			}
 
 			for(sema::Func::ID dependent_func_id : func_info.dependent_funcs){
@@ -5542,6 +5545,11 @@ namespace pcit::panther{
 
 			}else{
 				return Result::SUCCESS;
+			}
+
+		}else{
+			if(func_info.depends_on_panic){
+				this->context.expecting_panic = true;
 			}
 		}
 

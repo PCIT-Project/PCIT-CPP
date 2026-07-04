@@ -719,7 +719,12 @@ namespace pcit::panther{
 		}
 
 		if(this->expecting_entry && this->entry.load(std::memory_order::relaxed).has_value() == false){
-			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
+			this->emitError("No function with the `#entry` attribute found", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
+		if(this->expecting_panic && this->panic.has_value() == false){
+			this->emitError("No function with the `#builtin(\"panic\")` attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
 
