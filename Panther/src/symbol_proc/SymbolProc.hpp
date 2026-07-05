@@ -915,7 +915,7 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> args;
 		};
 
-		struct ComptimeStructNewRun{
+		struct ComptimeStructNewRunIfNeeded{
 			const AST::New& ast_new;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
@@ -1295,7 +1295,7 @@ namespace pcit::panther{
 			NEW_COMPTIME,
 			NEW_ERRORS,
 			NEW,
-			COMPTIME_STRUCT_NEW_RUN,
+			COMPTIME_STRUCT_NEW_RUN_IF_NEEDED,
 			COMPTIME_DEFAULT_NEW_RUN,
 			ARRAY_INIT_NEW_COMPTIME,
 			ARRAY_INIT_NEW,

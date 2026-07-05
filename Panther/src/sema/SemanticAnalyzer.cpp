@@ -628,9 +628,9 @@ namespace pcit::panther{
 			case Instruction::Kind::NEW:
 				return this->instr_new<false, false>(this->context.symbol_proc_manager.getNew(instr));
 
-			case Instruction::Kind::COMPTIME_STRUCT_NEW_RUN:
-				return this->instr_comptime_struct_new_run(
-					this->context.symbol_proc_manager.getComptimeStructNewRun(instr)
+			case Instruction::Kind::COMPTIME_STRUCT_NEW_RUN_IF_NEEDED:
+				return this->instr_comptime_struct_new_run_if_needed(
+					this->context.symbol_proc_manager.getComptimeStructNewRunIfNeeded(instr)
 				);
 
 			case Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN:
@@ -17031,11 +17031,18 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_comptime_struct_new_run(const Instruction::ComptimeStructNewRun& instr) -> Result {
-		const TermInfo& func_call_term = this->get_term_info(instr.target);
+	auto SemanticAnalyzer::instr_comptime_struct_new_run_if_needed(
+		const Instruction::ComptimeStructNewRunIfNeeded& instr
+	) -> Result {
+		const TermInfo& target_term = this->get_term_info(instr.target);
+
+		if(target_term.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
+			this->return_term_info(instr.output, target_term);
+			return Result::SUCCESS;
+		}
 
 		const sema::FuncCall& sema_func_call =
-			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
+			this->context.getSemaBuffer().getFuncCall(target_term.getExpr().funcCallID());
 
 		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
 			sema_func_call.target.as<sema::Func::ID>(), sema_func_call.args, this->get_location(instr.ast_new)
@@ -17048,7 +17055,7 @@ namespace pcit::panther{
 				TermInfo::ValueCategory::EPHEMERAL,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
-				func_call_term.type_id,
+				target_term.type_id,
 				func_call_result.value()
 			)
 		);
@@ -17062,10 +17069,10 @@ namespace pcit::panther{
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
-			const Instruction::ComptimeStructNewRun& comptime_struct_new_run =
-				Instruction::ComptimeStructNewRun(instr.ast_new, instr.target, instr.output);
+			const Instruction::ComptimeStructNewRunIfNeeded& comptime_struct_new_run_if_needed =
+				Instruction::ComptimeStructNewRunIfNeeded(instr.ast_new, instr.target, instr.output);
 
-			return this->instr_comptime_struct_new_run(comptime_struct_new_run);
+			return this->instr_comptime_struct_new_run_if_needed(comptime_struct_new_run_if_needed);
 		}
 
 		evo::debugAssert(

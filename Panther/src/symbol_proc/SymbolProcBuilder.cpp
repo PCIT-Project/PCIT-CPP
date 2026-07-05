@@ -4264,6 +4264,7 @@ namespace pcit::panther{
 		);
 		if(type_id.isError()){ return evo::resultError; }
 
+
 		auto args = evo::SmallVector<SymbolProc::TermInfoID>();
 		args.reserve(ast_new.args.size());
 		for(const AST::FuncCall::Arg& arg : ast_new.args){
@@ -4292,7 +4293,7 @@ namespace pcit::panther{
 
 			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 
-			if(args.empty()){
+			if(ast_new.args.empty()){
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeDefaultNewRun(
 						ast_new, new_term_info_id, comptime_res_term_info_id
@@ -4300,7 +4301,7 @@ namespace pcit::panther{
 				);
 			}else{
 				this->add_instruction(
-					this->context.symbol_proc_manager.createComptimeStructNewRun(
+					this->context.symbol_proc_manager.createComptimeStructNewRunIfNeeded(
 						ast_new, new_term_info_id, comptime_res_term_info_id
 					)
 				);

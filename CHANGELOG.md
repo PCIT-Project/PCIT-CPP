@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.330.4"></a>
+## v0.0.330.4
+
+### Panther
+- Fixed semantic analysis of not-default comptime `new`
+
+
+<!---------------------------------->
 <a name="v0.0.330.3"></a>
 ## v0.0.330.3
 

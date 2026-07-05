@@ -261,7 +261,9 @@ namespace pcit::panther{
 			template<bool IS_COMPTIME, bool ERRORS>
 			[[nodiscard]] auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;
 
-			[[nodiscard]] auto instr_comptime_struct_new_run(const Instruction::ComptimeStructNewRun& instr) -> Result;
+			[[nodiscard]] auto instr_comptime_struct_new_run_if_needed(
+				const Instruction::ComptimeStructNewRunIfNeeded& instr
+			) -> Result;
 			[[nodiscard]] auto instr_comptime_default_new_run(const Instruction::ComptimeDefaultNewRun& instr)
 				-> Result;
 			[[nodiscard]] auto instr_comptime_default_new_run_impl(TypeInfo::ID type_id, const AST::New& ast_new)
