@@ -13256,7 +13256,7 @@ namespace pcit::panther{
 		}();
 
 		return this->module.getOrCreateFunctionType(
-			std::move(param_types), pir::CallingConvention::FAST, return_type
+			std::move(param_types), func_type.attributes.callingConvention, return_type
 		);	
 	}
 

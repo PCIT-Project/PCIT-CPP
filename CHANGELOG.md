@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.330.3"></a>
+## v0.0.330.3
+
+### Panther
+- Fixed lowering of function pointer types always having the fast calling convention
+
+
+<!---------------------------------->
 <a name="v0.0.330.2"></a>
 ## v0.0.330.2
 
