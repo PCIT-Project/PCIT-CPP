@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.331.0"></a>
+## v0.0.331.0
+
+### Panther
+- Added deletion of variables
+- Fixed race condition in non-local statements that were passed by when conditionals / when switches
+	- Fixed regression in `v0.0.327.3`
+
+### Misc
+- Updated to [Panther-std v0.0.31.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.31.0)
+
+
+<!---------------------------------->
 <a name="v0.0.330.4"></a>
 ## v0.0.330.4
 

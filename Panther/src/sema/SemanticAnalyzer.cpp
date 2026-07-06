@@ -167,6 +167,11 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getNonLocalVarDeclDef(instr)
 				);
 
+			case Instruction::Kind::NON_LOCAL_VAR_DELETE:
+				return this->instr_non_local_var_delete(
+					this->context.symbol_proc_manager.getNonLocalVarDelete(instr)
+				);
+
 			case Instruction::Kind::WHEN_COND:
 				return this->instr_when_cond(this->context.symbol_proc_manager.getWhenCond(instr));
 
@@ -875,7 +880,7 @@ namespace pcit::panther{
 				instr.var_def.ident,
 				std::string(),
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				std::optional<sema::Expr>(),
+				std::monostate(),
 				got_type_info_id.asTypeID(),
 				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
@@ -1010,7 +1015,8 @@ namespace pcit::panther{
 				this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<sema::GlobalVar::ID>();
 			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
 
-			sema_var.expr = this->get_term_info(*instr.value_id).getExpr();
+			sema_var.value = this->get_term_info(*instr.value_id).getExpr();
+			sema_var.defCompleted = true;
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
@@ -1045,6 +1051,7 @@ namespace pcit::panther{
 		const evo::Expected<GlobalVarAttrs, Result> var_attrs =
 			this->analyze_global_var_attrs(instr.var_def, instr.attribute_params_info);
 		if(var_attrs.has_value() == false){ return var_attrs.error(); }
+
 
 
 		TermInfo& value_term_info = this->get_term_info(instr.value_id);
@@ -1212,11 +1219,12 @@ namespace pcit::panther{
 				instr.var_def.ident,
 				std::string(),
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				std::optional<sema::Expr>(value_term_info.getExpr()),
+				value_term_info.getExpr(),
 				type_id,
 				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
-				this->symbol_proc.getID()
+				this->symbol_proc.getID(),
+				true
 			);
 
 			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
@@ -1257,6 +1265,53 @@ namespace pcit::panther{
 			).isError()){
 				return Result::ERROR;
 			}
+		}
+
+		this->propagate_finished_decl_def();
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_non_local_var_delete(const Instruction::NonLocalVarDelete& instr) -> Result {
+		const evo::Expected<GlobalVarAttrs, Result> var_attrs =
+			this->analyze_global_var_attrs(instr.var_def, instr.attribute_params_info);
+		if(var_attrs.has_value() == false){ return var_attrs.error(); }
+
+		auto message = std::optional<std::string_view>();
+		if(instr.value_id.has_value()){
+			TermInfo& message_term_info = this->get_term_info(*instr.value_id);
+
+			if(this->type_check<true, true, true>(
+				TypeManager::getTypeStringRef(),
+				message_term_info,
+				"Message in deleted function overload",
+				this->get_location(instr.var_def)
+			).ok == false){
+				return Result::ERROR;
+			}
+
+			message = sema::extractStringFromExpr(message_term_info.getExpr(), this->context);
+		}
+
+		const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
+			instr.var_def.kind,
+			this->source.getID(),
+			instr.var_def.ident,
+			std::string(),
+			this->scope.getCurrentEncapsulatingSymbolIfExists(),
+			message,
+			std::nullopt,
+			var_attrs.value().is_pub,
+			var_attrs.value().is_priv,
+			this->symbol_proc.getID(),
+			true
+		);
+
+		const std::string_view var_ident = this->source.getTokenBuffer()[instr.var_def.ident].getString();
+
+		if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
+			return Result::ERROR;
 		}
 
 		this->propagate_finished_decl_def();
@@ -1345,6 +1400,34 @@ namespace pcit::panther{
 				passed_symbol.setStatusPassedOnByWhen();
 			}
 			this->context.symbol_proc_manager.symbol_proc_done();
+
+			{
+				const auto lock = std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					const auto pir_lock = std::scoped_lock(
+						passed_symbol.pir_decl_waited_on_lock, passed_symbol.pir_def_waited_on_lock
+					);
+
+					evo::debugAssert(passed_symbol.pir_decl_waited_on_by.empty(), "expected none (need to add)");
+					evo::debugAssert(passed_symbol.pir_def_waited_on_by.empty(), "expected none (need to add)");
+				#endif
+
+				for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
+					const SymbolProc& decl_waited_on =
+						this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
+					if(decl_waited_on.parent == &passed_symbol){ continue; }
+
+					this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+				}
+				for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
+					const SymbolProc& def_waited_on =
+						this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
+					if(def_waited_on.parent == &passed_symbol){ continue; }
+
+					this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+				}
+			}
 
 
 			if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
@@ -7451,7 +7534,7 @@ namespace pcit::panther{
 				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
 					cond.getExpr().globalVarID()
 				);
-				return global_var.expr.load()->boolValueID();
+				return global_var.value.as<sema::Expr>().boolValueID();
 			}else{
 				return cond.getExpr().boolValueID();
 			}
@@ -8827,7 +8910,9 @@ namespace pcit::panther{
 
 			const sema::Expr cond_expr = [&]() -> sema::Expr {
 				if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-					return *this->context.getSemaBuffer().getGlobalVar(cond.getExpr().globalVarID()).expr.load();
+					const sema::GlobalVar& global_var =
+						this->context.getSemaBuffer().getGlobalVar(cond.getExpr().globalVarID());
+					return global_var.value.as<sema::Expr>();
 				}else{
 					return cond.getExpr();
 				}
@@ -8917,6 +9002,35 @@ namespace pcit::panther{
 					passed_symbol.setStatusPassedOnByWhen();
 				}
 				this->context.symbol_proc_manager.symbol_proc_done();
+
+				{
+					const auto lock = 
+						std::scoped_lock(passed_symbol.decl_waited_on_lock, passed_symbol.def_waited_on_lock);
+
+					#if defined(PCIT_CONFIG_DEBUG)
+						const auto pir_lock = std::scoped_lock(
+							passed_symbol.pir_decl_waited_on_lock, passed_symbol.pir_def_waited_on_lock
+						);
+
+						evo::debugAssert(passed_symbol.pir_decl_waited_on_by.empty(), "expected none (need to add)");
+						evo::debugAssert(passed_symbol.pir_def_waited_on_by.empty(), "expected none (need to add)");
+					#endif
+
+					for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
+						const SymbolProc& decl_waited_on =
+							this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
+						if(decl_waited_on.parent == &passed_symbol){ continue; }
+
+						this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+					}
+					for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
+						const SymbolProc& def_waited_on =
+							this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
+						if(def_waited_on.parent == &passed_symbol){ continue; }
+
+						this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+					}
+				}
 
 
 				if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
@@ -15324,7 +15438,9 @@ namespace pcit::panther{
 					);
 
 				}else if(target.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-					return *this->context.getSemaBuffer().getGlobalVar(target.getExpr().globalVarID()).expr.load();
+					const sema::GlobalVar& global_var = 
+						this->context.getSemaBuffer().getGlobalVar(target.getExpr().globalVarID());
+					return global_var.value.as<sema::Expr>();
 
 				}else{
 					return target.getExpr();
@@ -16091,7 +16207,7 @@ namespace pcit::panther{
 							const sema::GlobalVar& global_var = 
 								this->context.getSemaBuffer().getGlobalVar(unwrap.expr.globalVarID());
 
-							return *global_var.expr.load();
+							return global_var.value.as<sema::Expr>();
 
 						}else{
 							return unwrap.expr;
@@ -16194,7 +16310,7 @@ namespace pcit::panther{
 
 				case sema::Expr::Kind::GLOBAL_VAR: {
 					target_expr = 
-						*this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID()).expr.load();
+						this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID()).value.as<sema::Expr>();
 				} break;
 
 				case sema::Expr::Kind::DEFAULT_NEW: {
@@ -20293,7 +20409,7 @@ namespace pcit::panther{
 					const sema::GlobalVar& global_var =
 						this->context.getSemaBuffer().getGlobalVar(lhs.getExpr().globalVarID());
 
-					return *global_var.expr.load(std::memory_order::relaxed);
+					return global_var.value.as<sema::Expr>();
 
 				}else{
 					return lhs.getExpr();
@@ -22980,7 +23096,7 @@ namespace pcit::panther{
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
-						*global_var.expr.load(std::memory_order::relaxed)
+						global_var.value.as<sema::Expr>()
 					);
 
 				}else{
@@ -26101,12 +26217,28 @@ namespace pcit::panther{
 				switch(sema_var.kind){
 					case AST::VarDef::Kind::VAR: {
 						if constexpr(NEEDS_DEF){
-							if(sema_var.expr.load(std::memory_order::relaxed).has_value() == false){
+							if(sema_var.defCompleted.load() == false){
 								return ReturnType(
 									evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
 								);
 							}
 						}
+
+						if(sema_var.value.is<sema::GlobalVar::DeletedInfo>()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							if(sema_var.value.as<sema::GlobalVar::DeletedInfo>().has_value()){
+								infos.emplace_back(
+									std::format("Message: \"{}\"", *sema_var.value.as<sema::GlobalVar::DeletedInfo>())
+								);
+							}
+
+							this->emit_error("Used deleted variable", ident, std::move(infos));
+
+							return ReturnType(
+								evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+							);
+						}
+
 
 						if(
 							this->currently_in_func() == false
@@ -26129,11 +26261,26 @@ namespace pcit::panther{
 
 					case AST::VarDef::Kind::CONST: {
 						if constexpr(NEEDS_DEF){
-							if(sema_var.expr.load(std::memory_order::relaxed).has_value() == false){
+							if(sema_var.defCompleted.load() == false){
 								return ReturnType(
 									evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
 								);
 							}
+						}
+
+						if(sema_var.value.is<sema::GlobalVar::DeletedInfo>()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							if(sema_var.value.as<sema::GlobalVar::DeletedInfo>().has_value()){
+								infos.emplace_back(
+									std::format("Message: \"{}\"", *sema_var.value.as<sema::GlobalVar::DeletedInfo>())
+								);
+							}
+
+							this->emit_error("Used deleted variable", ident, std::move(infos));
+
+							return ReturnType(
+								evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+							);
 						}
 
 
@@ -26154,13 +26301,28 @@ namespace pcit::panther{
 					} break;
 
 					case AST::VarDef::Kind::DEF: {
+						if(sema_var.value.is<sema::GlobalVar::DeletedInfo>()){
+							auto infos = evo::SmallVector<Diagnostic::Info>();
+							if(sema_var.value.as<sema::GlobalVar::DeletedInfo>().has_value()){
+								infos.emplace_back(
+									std::format("Message: \"{}\"", *sema_var.value.as<sema::GlobalVar::DeletedInfo>())
+								);
+							}
+
+							this->emit_error("Used deleted variable", ident, std::move(infos));
+
+							return ReturnType(
+								evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+							);
+						}
+
 						if(sema_var.typeID.has_value()){
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
 								true,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
-								*sema_var.expr.load(std::memory_order::relaxed)
+								sema_var.value.as<sema::Expr>()
 							));
 						}else{
 							return ReturnType(TermInfo(
@@ -26168,7 +26330,7 @@ namespace pcit::panther{
 								true,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
-								*sema_var.expr.load(std::memory_order::relaxed)
+								sema_var.value.as<sema::Expr>()
 							));
 						}
 					};
@@ -31887,7 +32049,7 @@ namespace pcit::panther{
 
 		const sema::Expr lhs_value = [&]() -> sema::Expr {
 			if(lhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
-				return *this->context.getSemaBuffer().getGlobalVar(lhs.globalVarID()).expr.load();
+				return this->context.getSemaBuffer().getGlobalVar(lhs.globalVarID()).value.as<sema::Expr>();
 			}else{
 				return lhs;
 			}
@@ -31895,7 +32057,7 @@ namespace pcit::panther{
 
 		const sema::Expr rhs_value = [&]() -> sema::Expr {
 			if(rhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
-				return *this->context.getSemaBuffer().getGlobalVar(rhs.globalVarID()).expr.load();
+				return this->context.getSemaBuffer().getGlobalVar(rhs.globalVarID()).value.as<sema::Expr>();
 			}else{
 				return rhs;
 			}

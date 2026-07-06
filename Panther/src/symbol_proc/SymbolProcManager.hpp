@@ -101,7 +101,6 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
 			// NonLocalVarDef
 
@@ -118,7 +117,6 @@ namespace pcit::panther{
 			}
 
 
-
 			//////////////////
 			// NonLocalVarDeclDef
 
@@ -133,6 +131,23 @@ namespace pcit::panther{
 			-> const Instruction::NonLocalVarDeclDef& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::NON_LOCAL_VAR_DECL_DEF, "Not a NonLocalVarDeclDef");
 				return this->non_local_var_decl_defs[instr._index];
+			}
+
+
+			//////////////////
+			// NonLocalVarDelete
+
+			[[nodiscard]] auto createNonLocalVarDelete(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::NON_LOCAL_VAR_DELETE,
+					this->non_local_var_delete.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getNonLocalVarDelete(Instruction instr) const
+			-> const Instruction::NonLocalVarDelete& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::NON_LOCAL_VAR_DELETE, "Not a NonLocalVarDelete");
+				return this->non_local_var_delete[instr._index];
 			}
 
 
@@ -3353,6 +3368,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDecl, uint32_t> non_local_var_decls{};
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDef, uint32_t> non_local_var_defs{};
 			core::SyncLinearStepAlloc<Instruction::NonLocalVarDeclDef, uint32_t> non_local_var_decl_defs{};
+			core::SyncLinearStepAlloc<Instruction::NonLocalVarDelete, uint32_t> non_local_var_delete{};
 			core::SyncLinearStepAlloc<Instruction::WhenCond, uint32_t> when_conds{};
 			core::SyncLinearStepAlloc<Instruction::Alias, uint32_t> aliases{};
 			core::SyncLinearStepAlloc<Instruction::StructDecl<true>, uint32_t> struct_decl_instantiations{};

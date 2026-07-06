@@ -187,6 +187,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID value_id;
 		};
 
+		struct NonLocalVarDelete{
+			const AST::VarDef& var_def;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			std::optional<SymbolProcTermInfoID> value_id;
+		};
+
 
 		struct WhenCond{
 			const AST::WhenConditional& when_cond;
@@ -1158,6 +1164,7 @@ namespace pcit::panther{
 			NON_LOCAL_VAR_DECL,
 			NON_LOCAL_VAR_DEF,
 			NON_LOCAL_VAR_DECL_DEF,
+			NON_LOCAL_VAR_DELETE,
 			WHEN_COND,
 			ALIAS,
 			STRUCT_DECL_INSTANTIATION,

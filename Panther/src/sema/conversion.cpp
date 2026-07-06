@@ -120,7 +120,7 @@ namespace pcit::panther::sema{
 
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const sema::GlobalVar& global_var = context.getSemaBuffer().getGlobalVar(expr.globalVarID());
-				return exprToGenericValue(*global_var.expr.load(), context);
+				return exprToGenericValue(global_var.value.as<sema::Expr>(), context);
 			} break;
 
 			case sema::Expr::Kind::DEFAULT_NEW: {
@@ -153,7 +153,7 @@ namespace pcit::panther::sema{
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const sema::GlobalVar& global_var = context.getSemaBuffer().getGlobalVar(expr.globalVarID());
 
-				return extractStringIDFromExpr(*global_var.expr.load(std::memory_order::relaxed), context);
+				return extractStringIDFromExpr(global_var.value.as<sema::Expr>(), context);
 			} break;
 
 			default: {

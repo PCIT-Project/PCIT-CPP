@@ -64,10 +64,11 @@ namespace pcit::panther{
 		for(const sema::GlobalVar::ID& global_var_id : this->context.getSemaBuffer().getGlobalVars()){
 			const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(global_var_id);
 			if(global_var.kind != AST::VarDef::Kind::VAR){ continue; }
+			if(global_var.value.is<sema::GlobalVar::DeletedInfo>()){ continue; }
 
 			this->lowerGlobalDecl(global_var_id);
 
-			if(global_var.expr.load().has_value()){
+			if(global_var.value.is<sema::Expr>()){
 				this->lowerGlobalDef(global_var_id);
 			}
 		}
@@ -201,7 +202,7 @@ namespace pcit::panther{
 		}
 
 		const pir::Linkage linkage = [&]() -> pir::Linkage {
-			if(sema_global_var.isCFamilyVar() && sema_global_var.expr.load().has_value() == false){
+			if(sema_global_var.isCFamilyVar() && sema_global_var.value.is<sema::Expr>() == false){
 				return pir::Linkage::EXTERNAL;
 			}else{
 				return pir::Linkage::INTERNAL;
@@ -229,7 +230,8 @@ namespace pcit::panther{
 		if(sema_global_var.kind == AST::VarDef::Kind::DEF){ return; }
 
 		const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(global_var_id);
-		this->module.getGlobalVar(pir_var_id).value = this->get_global_var_value(*sema_global_var.expr.load());
+		this->module.getGlobalVar(pir_var_id).value =
+			this->get_global_var_value(sema_global_var.value.as<sema::Expr>());
 	}
 
 
@@ -12314,7 +12316,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::GLOBAL_VAR: {
 				const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(expr.globalVarID());
-				return this->get_global_var_value(*global_var.expr.load());
+				return this->get_global_var_value(global_var.value.as<sema::Expr>());
 			} break;
 
 			case sema::Expr::Kind::MODULE_IDENT:            case sema::Expr::Kind::INTRINSIC_FUNC:

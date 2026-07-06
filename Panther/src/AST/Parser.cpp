@@ -115,17 +115,42 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
+
+		AST::VarDef::ValueKind value_kind = AST::VarDef::ValueKind::STRUCT_MEMBER;
 		auto value = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 			if(this->assert_token(Token::lookupKind("=")).isError()){ return Result::Code::ERROR; }
-				
-			const Result value_result = this->parse_expr();
-			// TODO(FUTURE): better messaging around block exprs missing a label
-			if(this->check_result(value_result, "expression after [=] in variable definition").isError()){
-				return Result::Code::ERROR;
-			}
 
-			value = value_result.value();
+			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
+				this->reader.skip();
+				value_kind = AST::VarDef::ValueKind::DELETE;
+
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+					this->reader.skip();
+					
+					const Result message = this->parse_expr();
+					if(this->check_result(message, "message in deleted variable").isError()){
+						return Result::Code::ERROR;
+					}
+
+					value = message.value();
+
+					if(this->expect_token(Token::lookupKind(")"), "at end of deleted variable message").isError()){
+						return Result::Code::ERROR;
+					}
+				}
+
+			}else{
+				const Result value_result = this->parse_expr();
+				// TODO(FUTURE): better messaging around block exprs missing a label
+				if(this->check_result(value_result, "expression after [=] in variable definition").isError()){
+					return Result::Code::ERROR;
+				}
+
+				value_kind = AST::VarDef::ValueKind::VALUE;
+				value = value_result.value();
+			}
+				
 		}
 
 
@@ -155,7 +180,7 @@ namespace pcit::panther{
 
 
 		return this->source.ast_buffer.createVarDef(
-			VAR_DEF_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value
+			VAR_DEF_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value_kind, value
 		);
 	}
 

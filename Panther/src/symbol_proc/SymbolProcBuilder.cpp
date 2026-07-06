@@ -618,7 +618,7 @@ namespace pcit::panther{
 			if(this->source.getASTBuffer().getType(*var_def.type).base.kind() == AST::Kind::DEDUCER){
 				decl_def_type_id = type_id_res.value();
 
-			}else if(var_def.kind != AST::VarDef::Kind::DEF){
+			}else if(var_def.kind != AST::VarDef::Kind::DEF && var_def.valueKind != AST::VarDef::ValueKind::DELETE){
 				this->add_instruction(
 					this->context.symbol_proc_manager.createNonLocalVarDecl(
 						var_def, std::move(attribute_params_info.value()), type_id_res.value()
@@ -634,7 +634,10 @@ namespace pcit::panther{
 		auto value_id = std::optional<SymbolProc::TermInfoID>();
 		if(var_def.value.has_value()){
 			const evo::Result<SymbolProc::TermInfoID> value_id_res = [&]() -> evo::Result<SymbolProc::TermInfoID> {
-				if(this->is_child_symbol()){
+				if(var_def.valueKind == AST::VarDef::ValueKind::DELETE){
+					return this->analyze_expr<true>(*var_def.value);
+					
+				}else if(this->is_child_symbol()){
 					return this->analyze_expr<false>(*var_def.value);
 					
 				}else{
@@ -642,13 +645,11 @@ namespace pcit::panther{
 				}
 			}();
 
-
-
 			if(value_id_res.isError()){ return evo::resultError; }
 
 			value_id = value_id_res.value();
 			
-		}else{
+		}else if(var_def.valueKind != AST::VarDef::ValueKind::DELETE){
 			if(var_def.kind == AST::VarDef::Kind::DEF){
 				this->emit_error("All [def] variables need to be defined with a value", var_def);
 				return evo::resultError;
@@ -662,7 +663,15 @@ namespace pcit::panther{
 
 	
 
-		if(
+
+		if(var_def.valueKind == AST::VarDef::ValueKind::DELETE){
+			this->add_instruction(
+				this->context.symbol_proc_manager.createNonLocalVarDelete(
+					var_def, std::move(attribute_params_info.value()), value_id
+				)
+			);
+
+		}else if(
 			var_def.type.has_value()
 			&& var_def.kind != AST::VarDef::Kind::DEF
 			&& decl_def_type_id.has_value() == false
@@ -2263,6 +2272,12 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_local_var(const AST::VarDef& var_def) -> evo::Result<> {
+		if(var_def.valueKind == AST::VarDef::ValueKind::DELETE){
+			this->emit_error("Local variables cannot be deleted", var_def);
+			return evo::resultError;
+		}
+
+
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock)
 		);

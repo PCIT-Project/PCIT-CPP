@@ -702,17 +702,20 @@ namespace pcit::panther::sema{
 	struct GlobalVar{
 		using ID = GlobalVarID;
 
+		using DeletedInfo = std::optional<std::string_view>;
+
 		AST::VarDef::Kind kind;
 		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
 		evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> ident;
 		std::string cFamilyMangledName; // empty if not c-family type
 		std::optional<EncapsulatingSymbolID> parent;
-		std::atomic<std::optional<Expr>> expr; // is nullopt if decl is done but not def, or if c-family type
+		evo::Variant<std::monostate, Expr, DeletedInfo> value; // is monostate if def not done, or if c-family type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
 		bool isPriv;
 		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
 
+		std::atomic<bool> defCompleted = false;
 		std::optional<pir::GlobalVar::ID> comptimePIRGlobal{};
 
 		[[nodiscard]] auto isCFamilyVar() const -> bool { return this->sourceID.is<CFamilySourceID>(); }

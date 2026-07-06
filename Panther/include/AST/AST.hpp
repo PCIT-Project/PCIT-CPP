@@ -171,11 +171,20 @@ namespace pcit::panther::AST{
 			DEF,
 		};
 
+		enum class ValueKind{
+			STRUCT_MEMBER,
+			VALUE,
+			DELETE,
+		};
+
 		Kind kind;
 		Token::ID ident;
 		std::optional<Node> type;
 		Node attributeBlock;
-		std::optional<Node> value;
+		ValueKind valueKind;
+		std::optional<Node> value; // if ValueKind::STRUCT_MEMBER, nullopt
+		                           // if ValueKind::VALUE, is expr
+		                           // if ValueKind::DELETE, is message if it has one
 	};
 
 	struct FuncDef{

@@ -1729,11 +1729,12 @@ namespace pcit::panther{
 								),
 								global_var_decl.mangled_name,
 								std::nullopt,
-								std::optional<sema::Expr>(),
+								std::monostate(),
 								panther_var_type->asTypeID(),
 								false,
 								false,
-								std::nullopt
+								std::nullopt,
+								true
 							);
 						}
 					);
@@ -1778,15 +1779,14 @@ namespace pcit::panther{
 							),
 							macro.name,
 							std::nullopt,
-							std::optional<sema::Expr>(sema::Expr(
-								this->sema_buffer.createBoolValue(
-									clang_api.macroExprBuffer.getBool(macro.value), false
-								)
-							)),
+							sema::Expr(
+								this->sema_buffer.createBoolValue(clang_api.macroExprBuffer.getBool(macro.value), false)
+							),
 							TypeManager::getTypeBool(),
 							false,
 							false,
-							std::nullopt
+							std::nullopt,
+							true
 						),
 						created_c_family_source_id,
 						true
@@ -1832,11 +1832,12 @@ namespace pcit::panther{
 							),
 							macro.name,
 							std::nullopt,
-							std::optional<sema::Expr>(expr_value),
+							expr_value,
 							int_type,
 							false,
 							false,
-							std::nullopt
+							std::nullopt,
+							true
 						),
 						created_c_family_source_id,
 						true
@@ -1882,11 +1883,12 @@ namespace pcit::panther{
 							),
 							macro.name,
 							std::nullopt,
-							std::optional<sema::Expr>(expr_value),
+							expr_value,
 							float_type,
 							false,
 							false,
-							std::nullopt
+							std::nullopt,
+							true
 						),
 						created_c_family_source_id,
 						true
@@ -4537,18 +4539,17 @@ namespace pcit::panther{
 			config_module.createString("mode"),
 			std::string(),
 			std::nullopt,
-			std::optional<sema::Expr>(
-				sema::Expr(
-					this->sema_buffer.createIntValue(
-						core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().mode)),
-						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
-					)
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().mode)),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
 			),
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Mode")->as<BaseType::ID>())),
 			true,
 			false,
-			std::nullopt
+			std::nullopt,
+			true
 		));
 
 		config_module.createSymbol("architecture", this->sema_buffer.createGlobalVar(
@@ -4557,20 +4558,19 @@ namespace pcit::panther{
 			config_module.createString("architecture"),
 			std::string(),
 			std::nullopt,
-			std::optional<sema::Expr>(
-				sema::Expr(
-					this->sema_buffer.createIntValue(
-						core::GenericInt::create<uint32_t>(
-							static_cast<uint32_t>(this->getConfig().target.architecture)
-						),
-						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
-					)
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(
+						static_cast<uint32_t>(this->getConfig().target.architecture)
+					),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
 			),
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Architecture")->as<BaseType::ID>())),
 			true,
 			false,
-			std::nullopt
+			std::nullopt,
+			true
 		));
 
 		config_module.createSymbol("platform", this->sema_buffer.createGlobalVar(
@@ -4579,18 +4579,17 @@ namespace pcit::panther{
 			config_module.createString("platform"),
 			std::string(),
 			std::nullopt,
-			std::optional<sema::Expr>(
-				sema::Expr(
-					this->sema_buffer.createIntValue(
-						core::GenericInt::create<uint32_t>(static_cast<uint32_t>(this->getConfig().target.platform)),
-						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
-					)
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(static_cast<uint32_t>(this->getConfig().target.platform)),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
 			),
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())),
 			true,
 			false,
-			std::nullopt
+			std::nullopt,
+			true
 		));
 
 		{
@@ -4628,11 +4627,12 @@ namespace pcit::panther{
 				config_module.createString("windowsSubsystem"),
 				std::string(),
 				std::nullopt,
-				std::optional<sema::Expr>(config_windows_subsystem_expr),
+				config_windows_subsystem_expr,
 				config_windows_subsystem_type_id,
 				true,
 				false,
-				std::nullopt
+				std::nullopt,
+				true
 			));
 		}
 
@@ -4642,18 +4642,17 @@ namespace pcit::panther{
 			config_module.createString("optMode"),
 			std::string(),
 			std::nullopt,
-			std::optional<sema::Expr>(
-				sema::Expr(
-					this->sema_buffer.createIntValue(
-						core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().optMode)),
-						this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
-					)
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().optMode)),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
 			),
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("OptMode")->as<BaseType::ID>())),
 			true,
 			false,
-			std::nullopt
+			std::nullopt,
+			true
 		));
 
 		config_module.createSymbol("includeDebugInfo", this->sema_buffer.createGlobalVar(
@@ -4662,13 +4661,12 @@ namespace pcit::panther{
 			config_module.createString("includeDebugInfo"),
 			std::string(),
 			std::nullopt,
-			std::optional<sema::Expr>(
-				sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo, false))
-			),
+			sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo, false)),
 			TypeManager::getTypeBool(),
 			true,
 			false,
-			std::nullopt
+			std::nullopt,
+			true
 		));
 
 	}

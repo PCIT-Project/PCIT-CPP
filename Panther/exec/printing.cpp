@@ -446,6 +446,20 @@ namespace pthr{
 					this->indenter.set_arrow();
 					this->print_attribute_block(this->ast_buffer.getAttributeBlock(var_def.attributeBlock));
 
+					this->indenter.set_arrow();
+					this->print_minor_header("Value Kind");
+					switch(var_def.valueKind){
+						break; case panther::AST::VarDef::ValueKind::STRUCT_MEMBER:
+							this->printer.printMagenta(" STRUCT_MEMBER\n");
+
+						break; case panther::AST::VarDef::ValueKind::VALUE:
+							this->printer.printMagenta(" VALUE\n");
+
+						break; case panther::AST::VarDef::ValueKind::DELETE:
+							this->printer.printMagenta(" DELETE\n");
+					}
+					
+
 					this->indenter.print_end();
 					this->print_minor_header("Value");
 					if(var_def.value.has_value()){

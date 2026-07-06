@@ -66,6 +66,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_non_local_var_decl(const Instruction::NonLocalVarDecl& instr) -> Result;
 			[[nodiscard]] auto instr_non_local_var_def(const Instruction::NonLocalVarDef& instr) -> Result;
 			[[nodiscard]] auto instr_non_local_var_decl_def(const Instruction::NonLocalVarDeclDef& instr) -> Result;
+			[[nodiscard]] auto instr_non_local_var_delete(const Instruction::NonLocalVarDelete& instr) -> Result;
 			[[nodiscard]] auto instr_when_cond(const Instruction::WhenCond& instr) -> Result;
 			[[nodiscard]] auto instr_alias(const Instruction::Alias& instr) -> Result;
 
