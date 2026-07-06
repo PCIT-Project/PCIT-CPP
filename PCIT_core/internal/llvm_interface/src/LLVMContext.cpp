@@ -28,8 +28,6 @@ namespace pcit::llvmint{
 	auto LLVMContext::init(llvm::LLVMContext* context) -> void {
 		evo::debugAssert(this->isInitialized() == false, "LLVMContext is already initialized");
 
-		if(llvmint::isInitialized() == false){ llvmint::init(); }
-
 		if(context == nullptr){
 			this->_native = new llvm::LLVMContext();
 		}else{

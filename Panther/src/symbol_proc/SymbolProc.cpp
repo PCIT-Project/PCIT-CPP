@@ -136,7 +136,7 @@ namespace pcit::panther{
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
-		const auto lock = std::scoped_lock(this->pir_decl_waited_on_lock, waiting_symbol.waiting_for_lock);
+		const auto lock = std::scoped_lock(this->pir_def_waited_on_lock, waiting_symbol.waiting_for_lock);
 
 		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }

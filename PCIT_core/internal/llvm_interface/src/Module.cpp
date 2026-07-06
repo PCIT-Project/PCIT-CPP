@@ -20,10 +20,14 @@
 namespace pcit::llvmint{
 
 	auto Module::init(std::string_view name, LLVMContext& context) -> void {
+		evo::debugAssert(this->isInitialized() == false, "Already initialized");
+
 		this->_native = new llvm::Module(llvm::StringRef(name), *context.native());
 	}
 	
 	auto Module::deinit() -> void {
+		evo::debugAssert(this->isInitialized(), "Not initialized");
+
 		delete this->_native;
 		this->_native = nullptr;
 	}

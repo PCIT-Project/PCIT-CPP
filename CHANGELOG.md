@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.331.1"></a>
+## v0.0.331.1
+
+### Misc
+- Fixed race condition in semantic analysis of using comptime functions
+- Fixed memory leak in `llvmint::LLVMContext`
+
+### Misc
+- Updated to [Panther-std v0.0.31.1](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.31.1)
+
+
+<!---------------------------------->
 <a name="v0.0.331.0"></a>
 ## v0.0.331.0
 

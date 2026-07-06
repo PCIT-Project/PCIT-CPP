@@ -506,19 +506,7 @@ namespace pcit::panther{
 					if(this->symbol_proc_manager.allProcsDone()){ break; }
 					if(this->num_errors > 0 || this->encountered_fatal){ break; }
 
-					if(work_manager_inst.isWorking()){
-						evo::log::fatal("Thought was done working, was not...");
-						evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
-						auto symbol_proc_list = std::vector<const SymbolProc*>();
-						for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
-							symbol_proc_list.emplace_back(&symbol_proc);
-						}
-
-						// Prevent escape from breakpoint
-						while(true){
-							evo::breakpoint(); // not temporary debugging
-						}
-					}
+					evo::debugAssert(work_manager_inst.isWorking() == false, "Thought was done working, was not...");
 				}
 			#endif
 
@@ -605,18 +593,11 @@ namespace pcit::panther{
 				this->emitFatal("Stall detected while compiling", Diagnostic::Location::NONE, std::move(infos));
 
 				#if defined(PCIT_CONFIG_DEBUG)
-					evo::log::debug("Collecting data to look at in the debugger (`symbol_proc_list`)...");
-					auto symbol_proc_list = std::vector<const SymbolProc*>();
-
-					for(const SymbolProc& symbol_proc : this->symbol_proc_manager.iterSymbolProcs()){
-						symbol_proc_list.emplace_back(&symbol_proc);
-					}
-
 					evo::log::debug(
 						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump(true)`"
 					);
 
-					this->symbol_proc_manager.debug_dump(false);
+					// this->symbol_proc_manager.debug_dump(false);
 					this->symbol_proc_manager.debug_dump(true);
 
 					// Prevent escape from breakpoint
@@ -1309,6 +1290,12 @@ namespace pcit::panther{
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
 			this->emitError(std::format("File \"{}\" does not exist", path.string()), Diagnostic::Location::NONE);
+
+			// TODO(FUTURE): figure out why I (incorrectly) got an empty path once (at least, nothing was printed)
+			#if defined(PCIT_CONFIG_DEBUG)
+				evo::breakpoint();
+			#endif
+
 			return evo::resultError;
 		}
 
