@@ -85,7 +85,7 @@ namespace pcit::core{
 
 
 		~GenericValue(){
-			if(this->num_bytes > 8){
+			if(this->is_small() == false){
 				std::free(this->data.buffer);
 			}
 		}

@@ -42,7 +42,7 @@ workspace "PCIT-CPP"
 
 	filter "configurations:Debug"
 		runtime "Debug"
-		symbols "On"
+		symbols "Default"
 		optimize "Off"
 
 		defines{
@@ -52,7 +52,7 @@ workspace "PCIT-CPP"
 
 	filter "configurations:Optimize"
 		runtime "Release"
-		symbols "On"
+		symbols "Default"
 		optimize "Full"
 
 		defines{

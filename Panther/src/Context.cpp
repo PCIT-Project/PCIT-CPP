@@ -372,10 +372,10 @@ namespace pcit::panther{
 
 		if(this->type_manager.primitivesInitialized() == false){
 			this->type_manager.initPrimitives();
+			this->init_intrinsic_infos();
 		}
 
 		
-		this->init_intrinsic_infos();
 
 		// if(this->comptime_jit_engine.isInitialized() == false){
 		// 	const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 

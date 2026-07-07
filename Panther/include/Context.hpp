@@ -589,14 +589,14 @@ namespace pcit::panther{
 				std::filesystem::path path;
 				Source::Package::ID package_id;
 
-				FileToLoad(const std::filesystem::path& _path, Source::Package::ID _package_id)
-					: path(_path), package_id(_package_id) { 
-					evo::debugAssert(this->path.empty() == false, "Cannot load empty path");
-				}
-				FileToLoad(std::filesystem::path&& _path, Source::Package::ID _package_id)
-					: path(std::move(_path)), package_id(_package_id) { 
-					evo::debugAssert(this->path.empty() == false, "Cannot load empty path");
-				}
+				// FileToLoad(const std::filesystem::path& _path, Source::Package::ID _package_id)
+				// 	: path(_path), package_id(_package_id) { 
+				// 	evo::debugAssert(this->path.empty() == false, "Cannot load empty path");
+				// }
+				// FileToLoad(std::filesystem::path&& _path, Source::Package::ID _package_id)
+				// 	: path(std::move(_path)), package_id(_package_id) { 
+				// 	evo::debugAssert(this->path.empty() == false, "Cannot load empty path");
+				// }
 			};
 
 			struct CHeaderToLoad{

@@ -111,7 +111,10 @@ namespace pcit::llvmint{
 
 			auto steal() -> llvm::Module* {
 				llvm::Module* holder = this->_native;
+
 				this->_native = nullptr;
+				this->deinit_target_machine();
+
 				return holder;
 			}
 
@@ -182,6 +185,8 @@ namespace pcit::llvmint{
 
 		private:
 			[[nodiscard]] auto get_clone() const -> std::unique_ptr<llvm::Module>;
+
+			auto deinit_target_machine() -> void;
 	
 
 		private:

@@ -28,6 +28,8 @@ namespace pcit::llvmint{
 	auto Module::deinit() -> void {
 		evo::debugAssert(this->isInitialized(), "Not initialized");
 
+		this->deinit_target_machine();
+
 		delete this->_native;
 		this->_native = nullptr;
 	}
@@ -421,6 +423,12 @@ namespace pcit::llvmint{
 		evo::debugAssert(this->isInitialized(), "not initialized");
 
 		return llvm::CloneModule(*this->_native);
+	}
+
+
+	auto Module::deinit_target_machine() -> void {
+		delete this->target_machine;
+		this->target_machine = nullptr;
 	}
 
 
