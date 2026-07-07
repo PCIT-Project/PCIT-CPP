@@ -258,16 +258,25 @@ _CRTIMP int __cdecl ___mb_cur_max_func(void);
   errno_t __cdecl _get_winver(unsigned int *_Value);
   errno_t __cdecl _get_winmajor(unsigned int *_Value);
   errno_t __cdecl _get_winminor(unsigned int *_Value);
+
+
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// PCIT change: the C++ version doesn't work with clang             //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
 #ifndef _countof
-#ifndef __cplusplus
+// #ifndef __cplusplus
 #define _countof(_Array) (sizeof(_Array) / sizeof(_Array[0]))
-#else
-  extern "C++" {
-    template <typename _CountofType,size_t _SizeOfArray> char (*__countof_helper(UNALIGNED _CountofType (&_Array)[_SizeOfArray]))[_SizeOfArray];
-#define _countof(_Array) sizeof(*__countof_helper(_Array))
-  }
+// #else
+//   extern "C++" {
+//     template <typename _CountofType,size_t _SizeOfArray> char (*__countof_helper(UNALIGNED _CountofType (&_Array)[_SizeOfArray]))[_SizeOfArray];
+// #define _countof(_Array) sizeof(*__countof_helper(_Array))
+//   }
+// #endif
 #endif
-#endif
+
 
 #ifndef _CRT_TERMINATE_DEFINED
 #define _CRT_TERMINATE_DEFINED

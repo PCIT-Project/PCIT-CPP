@@ -7,10 +7,18 @@
 #ifndef _INC_MINGW_SECAPI
 #define _INC_MINGW_SECAPI
 
+//////////////////////////////////////////////////////////////////////
+//                                                                  //
+// PCIT change: _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES disabled      //
+//              as it doens't work in Clang                         //
+//                                                                  //
+//////////////////////////////////////////////////////////////////////
+
+
 /* http://msdn.microsoft.com/en-us/library/ms175759%28v=VS.100%29.aspx */
 #if defined(__cplusplus)
 #ifndef _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES
-#define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES 1         /* default to 1 */
+#define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES 0         /* default to 1 */
 #endif /*_CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES*/
 #ifndef _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES_MEMORY
 #define _CRT_SECURE_CPP_OVERLOAD_SECURE_NAMES_MEMORY 0  /* default to 0 */
