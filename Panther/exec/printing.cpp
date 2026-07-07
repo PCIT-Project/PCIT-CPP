@@ -446,7 +446,7 @@ namespace pthr{
 					this->indenter.set_arrow();
 					this->print_attribute_block(this->ast_buffer.getAttributeBlock(var_def.attributeBlock));
 
-					this->indenter.set_arrow();
+					this->indenter.print_arrow();
 					this->print_minor_header("Value Kind");
 					switch(var_def.valueKind){
 						break; case panther::AST::VarDef::ValueKind::STRUCT_MEMBER:
@@ -1923,6 +1923,18 @@ namespace pthr{
 						this->printer.printMagenta(")");
 					} break;
 
+					case panther::AST::Kind::FUNC_CALL: {
+						const panther::AST::FuncCall& func_call = this->ast_buffer.getFuncCall(base_type);
+
+						this->print_base_type(func_call.target);
+						this->printer.printMagenta("(");
+						for(size_t i = 0; i < func_call.args.size(); i+=1){
+							this->printer.printGray("{EXPR}");
+							if(i + 1 < func_call.args.size()){ this->printer.printMagenta(", "); }
+						}
+						this->printer.printMagenta(")");
+					} break;
+
 					default: evo::debugFatalBreak("Unknown or unsupported base type");
 				}
 			}
@@ -2032,8 +2044,7 @@ namespace pthr{
 							} break;
 
 							case panther::Token::Kind::LITERAL_CHAR: {
-								const std::string_view str = token.getString();
-								this->printer.printMagenta("'{}'", token.getString());
+								this->printer.printMagenta("'{}'", token.getChar());
 								this->printer.printGray(" {LITERAL_CHAR}");
 							} break;
 
@@ -2632,6 +2643,7 @@ namespace pthr{
 
 
 			auto print_try_else(const panther::AST::TryElse& try_else_expr) -> void {
+				this->indenter.print();
 				this->print_major_header("Try/Else");
 
 				this->indenter.push();
@@ -2655,6 +2667,7 @@ namespace pthr{
 
 
 			auto print_unsafe(const panther::AST::Unsafe& unsafe_stmt) -> void {
+				this->indenter.print();
 				this->print_major_header("Unsafe");
 
 				this->indenter.push();
@@ -2668,6 +2681,7 @@ namespace pthr{
 
 
 			auto print_asm(const panther::AST::Asm& asm_expr) -> void {
+				this->indenter.print();
 				this->print_major_header("Asm");
 
 				this->indenter.push();
@@ -2727,7 +2741,7 @@ namespace pthr{
 				this->indenter.print_arrow();
 				this->print_minor_header("Return Parameters");
 				if(asm_expr.retParams.empty()){
-					this->printer.printlnMagenta("`Void`");
+					this->printer.printlnMagenta(" `Void`");
 				}else{
 					this->printer.println();
 					this->indenter.push();

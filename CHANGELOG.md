@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.331.2"></a>
+## v0.0.331.2
+
+### pthr
+- Fixed AST printing of:
+	- Character literals
+	- unsafe statements
+	- try/else expressions
+	- asm expressions
+	- Variable value kind
+
+
+<!---------------------------------->
 <a name="v0.0.331.1"></a>
 ## v0.0.331.1
 

@@ -600,13 +600,6 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	}
 
 
-
-	if(num_errors > 0){
-		print_num_errors(num_errors, printer);
-		return evo::resultError;
-	}
-
-
 	switch(config.output.getTag()){
 		case PantherBuildConfig::Output::Tag::TOKENS: {
 			if(context.tokenize().isError()){
