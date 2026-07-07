@@ -698,6 +698,7 @@ namespace pcit::panther{
 
 			auto init_builtin_modules() -> void;
 			auto init_comptime_execution_engine_funcs() -> void;
+			auto deinit_comptime_execution_engine_funcs() -> void;
 			
 			auto init_intrinsic_infos() -> void;
 

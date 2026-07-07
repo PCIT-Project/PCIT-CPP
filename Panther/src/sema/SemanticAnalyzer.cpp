@@ -6521,14 +6521,20 @@ namespace pcit::panther{
 		const evo::Result<VarAttrs> var_attrs = this->analyze_var_attrs(instr.var_def, instr.attribute_params_info);
 		if(var_attrs.isError()){ return Result::ERROR; }
 
-		if(var_attrs.value().is_global){
-			this->emit_error("Global variables in local scope are currently unimplemented", instr.var_def);
-			return Result::ERROR;
-		}
-
-
 		TermInfo& value_term_info = this->get_term_info(instr.value);
-		if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
+
+		if(var_attrs.value().is_global){
+			if(instr.var_def.kind == AST::VarDef::Kind::DEF){
+				this->emit_error("Global variables in local scope cannot be declared as [def]", instr.var_def);
+				return Result::ERROR;
+			}
+
+			if(value_term_info.isComptime == false){
+				this->emit_error("Global variables must be defined with a comptime value", instr.var_def);
+				return Result::ERROR;	
+			}
+
+		}else if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
 				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);
 				return Result::ERROR;
@@ -6619,7 +6625,7 @@ namespace pcit::panther{
 
 			if(value_term_info.value_category != TermInfo::ValueCategory::INITIALIZER){
 				TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
-					if(instr.var_def.kind == AST::VarDef::Kind::DEF){
+					if(instr.var_def.kind == AST::VarDef::Kind::DEF || var_attrs.value().is_global){
 						return this->type_check<true, true, true>(
 							got_type_info_id.asTypeID(),
 							value_term_info,
@@ -6671,29 +6677,63 @@ namespace pcit::panther{
 			return std::optional<TypeInfo::ID>();
 		}();
 
-		const Diagnostic::Location location = this->get_location(instr.var_def);
 
-		const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
-			instr.var_def.kind,
-			instr.var_def.ident,
-			value_term_info.getExpr(),
-			type_id,
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
-		);
-		this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
+		if(var_attrs.value().is_global){
+			const sema::GlobalVar::ID new_sema_var = this->context.sema_buffer.createGlobalVar(
+				instr.var_def.kind,
+				this->source.getID(),
+				instr.var_def.ident,
+				std::string(),
+				this->scope.getCurrentEncapsulatingSymbolIfExists(),
+				value_term_info.getExpr(),
+				type_id,
+				true,
+				false,
+				this->symbol_proc.getID()
+			);
 
-		if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){ return Result::ERROR; }
-
-		if(instr.var_def.kind != AST::VarDef::Kind::DEF){
-			if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
-				this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
-			}else{
-				this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::INIT);
+			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
+				return Result::ERROR;
 			}
 
-			if(type_id.has_value() && this->context.getTypeManager().getTypeInfo(*type_id).isUninitPointer()){
-				this->add_ident_value_state(sema::UninitPtrLocalVar(new_sema_var), sema::ScopeLevel::ValueState::UNINIT);
+
+			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+
+				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
+				sema_to_pir.lowerGlobalDef(new_sema_var);
+			}
+
+		}else{
+			const Diagnostic::Location location = this->get_location(instr.var_def);
+
+			const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
+				instr.var_def.kind,
+				instr.var_def.ident,
+				value_term_info.getExpr(),
+				type_id,
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			);
+			this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
+
+			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
+				return Result::ERROR;
+			}
+
+			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
+				if(value_term_info.value_category == TermInfo::ValueCategory::INITIALIZER){
+					this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::UNINIT);
+				}else{
+					this->add_ident_value_state(new_sema_var, sema::ScopeLevel::ValueState::INIT);
+				}
+
+				if(type_id.has_value() && this->context.getTypeManager().getTypeInfo(*type_id).isUninitPointer()){
+					this->add_ident_value_state(
+						sema::UninitPtrLocalVar(new_sema_var), sema::ScopeLevel::ValueState::UNINIT
+					);
+				}
 			}
 		}
 

@@ -104,7 +104,15 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
 			if(func_type.attributes.isRuntime == false){
-				// TODO(FUTURE): delete function
+				const Data::FuncInfo& func_info = this->data.get_func(func_id);
+
+				using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
+				for(const PIRFuncID pir_id : func_info.pir_ids){
+					if(pir_id.is<pir::Function::ID>()){
+						this->module.deleteFunction(pir_id.as<pir::Function::ID>());
+					}
+				}
+
 				continue;
 			}
 

@@ -515,7 +515,7 @@ namespace pcit::pir{
 							}
 						} break;
 
-						case SearchState::DONE: evo::unimplemented("Should have broken out of loop already");
+						case SearchState::DONE: evo::debugFatalBreak("Should have broken out of loop already");
 					}
 
 					if(search_state == SearchState::DONE){ break; }

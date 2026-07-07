@@ -731,6 +731,8 @@ namespace pcit::panther{
 			}
 		}
 
+		this->deinit_comptime_execution_engine_funcs();
+
 		return evo::Result<>();
 	}
 
@@ -4688,6 +4690,15 @@ namespace pcit::panther{
 			comptime_execution_engine_funcs.println,
 			[](PantherBuildConfig::StringRef str) -> void { evo::println(static_cast<std::string_view>(str)); }
 		);
+	}
+
+
+	auto Context::deinit_comptime_execution_engine_funcs() -> void {
+		SemaToPIR::Data::ComptimeExecutionEngineFuncs& comptime_execution_engine_funcs = 
+			this->sema_to_pir_data.getComptimeExecutionEngineFuncs();
+			
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.print);
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.println);
 	}
 
 

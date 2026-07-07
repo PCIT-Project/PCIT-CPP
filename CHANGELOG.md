@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.332.0"></a>
+## v0.0.332.0
+
+### Panther
+- Added support for local variables with attribute `#global`
+- Fixed comptime only functions and external function from being emitted
+
+
+<!---------------------------------->
 <a name="v0.0.331.3"></a>
 ## v0.0.331.3
 

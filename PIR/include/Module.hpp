@@ -84,6 +84,11 @@ namespace pcit::pir{
 				return this->functions[id];
 			}
 
+
+			auto deleteFunction(Function::ID id) -> void {
+				this->functions.erase(id);
+			}
+
 			
 			auto deleteBodyOfFunction(Function::ID id) -> void;
 
@@ -143,6 +148,11 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto getExternalFunction(ExternalFunction::ID id) -> ExternalFunction& {
 				return this->external_funcs[id];
+			}
+
+
+			auto deleteExternalFunction(ExternalFunction::ID id) -> void {
+				this->external_funcs.erase(id);
 			}
 
 
