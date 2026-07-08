@@ -305,9 +305,9 @@ namespace pcit::core{
 
 			// iteration is not thread safe
 
-			[[nodiscard]] auto begin()        ->      Iter { return Iter(ID(0), *this);      }
-			[[nodiscard]] auto begin()  const -> ConstIter { return ConstIter(ID(0), *this); }
-			[[nodiscard]] auto cbegin() const -> ConstIter { return ConstIter(ID(0), *this); }
+			[[nodiscard]] auto begin()        ->      Iter { return Iter(get_begin_id(), *this);      }
+			[[nodiscard]] auto begin()  const -> ConstIter { return ConstIter(get_begin_id(), *this); }
+			[[nodiscard]] auto cbegin() const -> ConstIter { return ConstIter(get_begin_id(), *this); }
 
 			[[nodiscard]] auto end()        ->      Iter { return Iter(ID(uint32_t(this->size())), *this);      }
 			[[nodiscard]] auto end()  const -> ConstIter { return ConstIter(ID(uint32_t(this->size())), *this); }
@@ -325,6 +325,14 @@ namespace pcit::core{
 			auto clear_without_lock() -> void {
 				std::destroy_at(this);
 				std::construct_at(this);
+			}
+
+			[[nodiscard]] auto get_begin_id() const -> ID {
+				for(uint32_t i = 0; i < uint32_t(this->linear_step_alloc.size()); i+=1){
+					if(this->linear_step_alloc[ID(i)].has_value()){ return ID(i); }
+				}
+
+				return ID(uint32_t(this->size()));
 			}
 	
 		private:

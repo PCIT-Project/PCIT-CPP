@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.332.3"></a>
+## v0.0.332.3
+
+### PCIT_core
+- Fixed iteration of `StepAlloc` when element ID 0 was erased
+
+
+<!---------------------------------->
 <a name="v0.0.332.2"></a>
 ## v0.0.332.2
 
