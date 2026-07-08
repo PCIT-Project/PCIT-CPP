@@ -52,6 +52,13 @@ namespace pcit::panther{
 
 			struct Config{
 				enum class Mode : uint32_t {
+					DEBUG = 0,
+					FAST  = 1,
+					SMALL = 2,
+					SAFE  = 3,
+				};
+
+				enum class CompilerMode : uint32_t {
 					COMPILE     = 0,
 					COMPILE_RUN = 1,
 					SCRIPT      = 2,
@@ -75,6 +82,7 @@ namespace pcit::panther{
 				std::string title;
 				core::Target target;
 				Mode mode;
+				CompilerMode compilerMode;
 				std::optional<WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
 				std::filesystem::path compilerExecutablePath;
@@ -360,6 +368,7 @@ namespace pcit::panther{
 				core::Target::Architecture architecture;
 				core::Target::Platform platform;
 				Optional<Config::WindowsSubsystem> windowsSubsystem;
+				Config::Mode mode;
 				pir::OptMode optMode;
 				NumThreads numThreads;
 				bool addDebugInfo;
@@ -424,8 +433,8 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto mayAddSourceFile() const -> bool {
-				return this->_config.mode == Config::Mode::SCRIPT
-					|| this->_config.mode == Config::Mode::BUILD
+				return this->_config.compilerMode == Config::CompilerMode::SCRIPT
+					|| this->_config.compilerMode == Config::CompilerMode::BUILD
 					|| this->started_any_target == false;
 			}
 
@@ -819,6 +828,19 @@ namespace pcit::panther{
 				std::string_view name,
 				evo::SmallVector<BaseType::Struct::MemberVar>&& members
 			) -> BaseType::Struct::ID;
+
+			[[nodiscard]] auto create_builtin_enum(
+				BuiltinModule::ID builtin_module_id,
+				std::string_view name,
+				evo::SmallVector<BaseType::Enum::Enumerator>&& enumerators
+			) -> BaseType::Enum::ID;
+
+			auto create_builtin_def_var(
+				BuiltinModule::ID builtin_module_id,
+				std::string_view name,
+				TypeInfo::ID type_id,
+				sema::Expr value
+			) -> void;
 
 	
 		private:

@@ -695,7 +695,7 @@ namespace pcit::panther{
 
 
 	auto Context::lowerToPIR() -> evo::Result<> {
-		if(this->_config.mode == Config::Mode::BUILD){
+		if(this->_config.compilerMode == Config::CompilerMode::BUILD){
 			this->sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
 		}
 
@@ -903,7 +903,8 @@ namespace pcit::panther{
 
 	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		evo::debugAssert(
-			this->_config.mode == Config::Mode::COMPILE_RUN || this->_config.mode == Config::Mode::SCRIPT,
+			this->_config.compilerMode == Config::CompilerMode::COMPILE_RUN
+			|| this->_config.compilerMode == Config::CompilerMode::SCRIPT,
 			"Must be in Mode::COMPILE_RUN or Mode::SCRIPT"
 		);
 
@@ -999,7 +1000,7 @@ namespace pcit::panther{
 	auto Context::runBuildSystem(
 		const CreatePantherBuildCallback& create_panther_build_callback, bool allow_default_symbol_linking
 	) -> evo::Result<uint8_t> {
-		evo::debugAssert(this->_config.mode == Config::Mode::BUILD, "Must be in build system mode");
+		evo::debugAssert(this->_config.compilerMode == Config::CompilerMode::BUILD, "Must be in build system mode");
 
 		if(this->entry.load(std::memory_order::relaxed).has_value() == false){
 			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
@@ -2003,7 +2004,7 @@ namespace pcit::panther{
 		}
 
 
-		if(this->_config.mode == Config::Mode::COMPILE){
+		if(this->_config.compilerMode == Config::CompilerMode::COMPILE){
 			{
 				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
 				this->current_dynamic_file_load_failed.emplace(file_path, LookupSourceIDError::NOT_ONE_OF_SOURCES);
@@ -2138,7 +2139,7 @@ namespace pcit::panther{
 		this->current_dynamic_file_load.emplace(file_path);
 
 		if(evo::fs::exists(file_path.string())){
-			if(this->_config.mode == Config::Mode::COMPILE){
+			if(this->_config.compilerMode == Config::CompilerMode::COMPILE){
 				return evo::Unexpected(LookupSourceIDError::NOT_ONE_OF_SOURCES);
 			}
 
@@ -2203,7 +2204,6 @@ namespace pcit::panther{
 
 		BuiltinModule& build_module = this->source_manager[BuiltinModule::ID::BUILD];
 
-		BuiltinModule& config_module = this->source_manager[BuiltinModule::ID::CONFIG];
 
 		const TypeInfo::ID optional_string_ref_type_id = this->type_manager.getOrCreateTypeInfo(
 			this->type_manager.getTypeInfo(TypeManager::getTypeStringRef()).copyWithPushedQualifier(
@@ -2731,154 +2731,141 @@ namespace pcit::panther{
 		);
 
 
-		pthr_module.createSymbol("Architecture", this->type_manager.createEnum(
-			BaseType::Enum{
-				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("Architecture"),
-				.parent            = std::nullopt,
-				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("X86_64"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
-					),
-				},
-				.underlyingTypeID  =
-					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				.namespacedMembers = nullptr,
-				.scopeLevel        = nullptr,
-				.isPub             = true,
-				.isPriv            = false,
-				.defCompleted      = true,
+		const BaseType::Enum::ID architecture_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"Architecture",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("X86_64"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
+				),
 			}
-		));
-
-		pthr_module.createSymbol("Platform", this->type_manager.createEnum(
-			BaseType::Enum{
-				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("Platform"),
-				.parent            = std::nullopt,
-				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("WINDOWS"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("LINUX"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
-					),
-				},
-				.underlyingTypeID  =
-					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				.namespacedMembers = nullptr,
-				.scopeLevel        = nullptr,
-				.isPub             = true,
-				.isPriv            = false,
-				.defCompleted      = true,
-			}
-		));
+		);
 
 
-		pthr_module.createSymbol("OptMode", this->type_manager.createEnum(
-			BaseType::Enum{
-				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("OptMode"),
-				.parent            = std::nullopt,
-				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("NONE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::NONE))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("SPEED_MINOR"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_MINOR))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("SPEED"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("SPEED_AGRESSIVE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_AGRESSIVE))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("SIZE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("SIZE_AGRESSIVE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE_AGRESSIVE))
-					),
-				},
-				.underlyingTypeID  = 
-					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				.namespacedMembers = nullptr,
-				.scopeLevel        = nullptr,
-				.isPub             = true,
-				.isPriv            = false,
-				.defCompleted      = true,
+		const BaseType::Enum::ID platform_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"Platform",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("WINDOWS"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("LINUX"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
+				),
 			}
-		));
+		);
 
-		pthr_module.createSymbol("WindowsSubsystem", this->type_manager.createEnum(
-			BaseType::Enum{
-				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("WindowsSubsystem"),
-				.parent            = std::nullopt,
-				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("CONSOLE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::CONSOLE))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("WINDOWS"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::WINDOWS))
-					),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("BOOT_APPLICATION"),
-					// 	core::GenericInt::create<uint32_t>(
-					// 		evo::to_underlying(Config::WindowsSubsystem::BOOT_APPLICATION)
-					// 	)
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("EFI_APPLICATION"),
-					// 	core::GenericInt::create<uint32_t>(
-					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_APPLICATION)
-					// 	)
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("EFI_BOOT_SERVICE_DRIVER"),
-					// 	core::GenericInt::create<uint32_t>(
-					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_BOOT_SERVICE_DRIVER)
-					// 	)
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("EFI_ROM"),
-					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::EFI_ROM))
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("EFI_RUNTIME_DRIVER"),
-					// 	core::GenericInt::create<uint32_t>(
-					// 		evo::to_underlying(Config::WindowsSubsystem::EFI_RUNTIME_DRIVER)
-					// 	)
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("NATIVE"),
-					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::NATIVE))
-					// ),
-					// BaseType::Enum::Enumerator(
-					// 	pthr_module.createString("POSIX"),
-					// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::POSIX))
-					// ),
-				},
-				.underlyingTypeID  =
-					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
-				.namespacedMembers = nullptr,
-				.scopeLevel        = nullptr,
-				.isPub             = true,
-				.isPriv            = false,
-				.defCompleted      = true,
+
+		const BaseType::Enum::ID mode_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"Mode",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("DEBUG"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::DEBUG))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("FAST"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::FAST))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SMALL"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SMALL))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SAFE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SAFE))
+				),
 			}
-		));
+		);
+
+
+		const BaseType::Enum::ID opt_mode_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"OptMode",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("NONE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::NONE))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SPEED_MINOR"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_MINOR))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SPEED"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SPEED_MINOR"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_MINOR))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SIZE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("SIZE_AGRESSIVE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SIZE_AGRESSIVE))
+				),
+			}
+		);
+
+
+		const BaseType::Enum::ID windows_subsystem_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"WindowsSubsystem",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("CONSOLE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::CONSOLE))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("WINDOWS"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::WINDOWS))
+				),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("BOOT_APPLICATION"),
+				// 	core::GenericInt::create<uint32_t>(
+				// 		evo::to_underlying(Config::WindowsSubsystem::BOOT_APPLICATION)
+				// 	)
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("EFI_APPLICATION"),
+				// 	core::GenericInt::create<uint32_t>(
+				// 		evo::to_underlying(Config::WindowsSubsystem::EFI_APPLICATION)
+				// 	)
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("EFI_BOOT_SERVICE_DRIVER"),
+				// 	core::GenericInt::create<uint32_t>(
+				// 		evo::to_underlying(Config::WindowsSubsystem::EFI_BOOT_SERVICE_DRIVER)
+				// 	)
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("EFI_ROM"),
+				// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::EFI_ROM))
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("EFI_RUNTIME_DRIVER"),
+				// 	core::GenericInt::create<uint32_t>(
+				// 		evo::to_underlying(Config::WindowsSubsystem::EFI_RUNTIME_DRIVER)
+				// 	)
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("NATIVE"),
+				// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::NATIVE))
+				// ),
+				// BaseType::Enum::Enumerator(
+				// 	pthr_module.createString("POSIX"),
+				// 	core::GenericInt::create<uint32_t>(evo::to_underlying(Config::WindowsSubsystem::POSIX))
+				// ),
+			}
+		);
+
 
 
 		const BaseType::Struct::ID panther_build_config = this->create_builtin_struct(
@@ -2896,9 +2883,7 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("output"),
 					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(
-							build_module.getSymbol("BuildOutput")->as<BaseType::ID>()
-						)
+						TypeInfo(build_module.getSymbol("BuildOutput")->as<BaseType::ID>())
 					),
 					std::nullopt,
 					false
@@ -2906,18 +2891,14 @@ namespace pcit::panther{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("architecture"),
-					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(pthr_module.getSymbol("Architecture")->as<BaseType::ID>())
-					),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(architecture_type))),
 					std::nullopt,
 					false
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("platform"),
-					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())
-					),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(platform_type))),
 					std::nullopt,
 					false
 				),
@@ -2926,7 +2907,7 @@ namespace pcit::panther{
 					build_module.createString("windowsSubsystem"),
 					this->type_manager.getOrCreateTypeInfo(
 						TypeInfo(
-							pthr_module.getSymbol("WindowsSubsystem")->as<BaseType::ID>(),
+							BaseType::ID(windows_subsystem_type),
 							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createOptional()}
 						)
 					),
@@ -2935,10 +2916,15 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("mode"),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(mode_type))),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("optMode"),
-					this->type_manager.getOrCreateTypeInfo(
-						TypeInfo(pthr_module.getSymbol("OptMode")->as<BaseType::ID>())
-					),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(opt_mode_type))),
 					std::nullopt,
 					false
 				),
@@ -3005,27 +2991,27 @@ namespace pcit::panther{
 
 
 
-		pthr_module.createSymbol("Mode", this->type_manager.createEnum(
+		pthr_module.createSymbol("CompilerMode", this->type_manager.createEnum(
 			BaseType::Enum{
 				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("Mode"),
+				.name              = pthr_module.createString("CompilerMode"),
 				.parent            = std::nullopt,
 				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("COMPILE"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE))
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::CompilerMode::COMPILE))
 					),
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("COMPILE_RUN"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::COMPILE_RUN))
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::CompilerMode::COMPILE_RUN))
 					),
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("SCRIPT"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::SCRIPT))
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::CompilerMode::SCRIPT))
 					),
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("BUILD"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::Mode::BUILD))
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Config::CompilerMode::BUILD))
 					),
 				},
 				.underlyingTypeID  =
@@ -4522,64 +4508,42 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// @config
 
-		config_module.createSymbol("mode", this->sema_buffer.createGlobalVar(
-			AST::VarDef::Kind::DEF,
+		this->create_builtin_def_var(
 			BuiltinModule::ID::CONFIG,
-			config_module.createString("mode"),
-			std::string(),
-			std::nullopt,
+			"compilerMode",
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("CompilerMode")->as<BaseType::ID>())),
 			sema::Expr(
 				this->sema_buffer.createIntValue(
-					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().mode)),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().compilerMode)),
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
-			),
-			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Mode")->as<BaseType::ID>())),
-			true,
-			false,
-			std::nullopt,
-			true
-		));
+			)
+		);
 
-		config_module.createSymbol("architecture", this->sema_buffer.createGlobalVar(
-			AST::VarDef::Kind::DEF,
+		this->create_builtin_def_var(
 			BuiltinModule::ID::CONFIG,
-			config_module.createString("architecture"),
-			std::string(),
-			std::nullopt,
-			sema::Expr(
-				this->sema_buffer.createIntValue(
-					core::GenericInt::create<uint32_t>(
-						static_cast<uint32_t>(this->getConfig().target.architecture)
-					),
-					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
-				)
-			),
+			"architecture",
 			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Architecture")->as<BaseType::ID>())),
-			true,
-			false,
-			std::nullopt,
-			true
-		));
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(static_cast<uint32_t>(this->getConfig().target.architecture)),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+				)
+			)
+		);
 
-		config_module.createSymbol("platform", this->sema_buffer.createGlobalVar(
-			AST::VarDef::Kind::DEF,
+		this->create_builtin_def_var(
 			BuiltinModule::ID::CONFIG,
-			config_module.createString("platform"),
-			std::string(),
-			std::nullopt,
+			"platform",
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())),
 			sema::Expr(
 				this->sema_buffer.createIntValue(
 					core::GenericInt::create<uint32_t>(static_cast<uint32_t>(this->getConfig().target.platform)),
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
-			),
-			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("Platform")->as<BaseType::ID>())),
-			true,
-			false,
-			std::nullopt,
-			true
-		));
+			)
+		);
+
 
 		{
 			const TypeInfo::ID config_windows_subsystem_type_id = this->type_manager.getOrCreateTypeInfo(
@@ -4610,53 +4574,44 @@ namespace pcit::panther{
 				}
 			}();
 
-			config_module.createSymbol("windowsSubsystem", this->sema_buffer.createGlobalVar(
-				AST::VarDef::Kind::DEF,
+			this->create_builtin_def_var(
 				BuiltinModule::ID::CONFIG,
-				config_module.createString("windowsSubsystem"),
-				std::string(),
-				std::nullopt,
-				config_windows_subsystem_expr,
+				"windowsSubsystem",
 				config_windows_subsystem_type_id,
-				true,
-				false,
-				std::nullopt,
-				true
-			));
+				config_windows_subsystem_expr
+			);
 		}
 
-		config_module.createSymbol("optMode", this->sema_buffer.createGlobalVar(
-			AST::VarDef::Kind::DEF,
+		this->create_builtin_def_var(
 			BuiltinModule::ID::CONFIG,
-			config_module.createString("optMode"),
-			std::string(),
-			std::nullopt,
+			"mode",
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(mode_type))),
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().mode)),
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
+				)
+			)
+		);
+
+		this->create_builtin_def_var(
+			BuiltinModule::ID::CONFIG,
+			"optMode",
+			this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(opt_mode_type))),
 			sema::Expr(
 				this->sema_buffer.createIntValue(
 					core::GenericInt::create<uint32_t>(evo::to_underlying(this->getConfig().optMode)),
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32)
 				)
-			),
-			this->type_manager.getOrCreateTypeInfo(TypeInfo(pthr_module.getSymbol("OptMode")->as<BaseType::ID>())),
-			true,
-			false,
-			std::nullopt,
-			true
-		));
+			)
+		);
 
-		config_module.createSymbol("includeDebugInfo", this->sema_buffer.createGlobalVar(
-			AST::VarDef::Kind::DEF,
+		this->create_builtin_def_var(
 			BuiltinModule::ID::CONFIG,
-			config_module.createString("includeDebugInfo"),
-			std::string(),
-			std::nullopt,
-			sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo, false)),
+			"includeDebugInfo",
 			TypeManager::getTypeBool(),
-			true,
-			false,
-			std::nullopt,
-			true
-		));
+			sema::Expr(this->sema_buffer.createBoolValue(this->getConfig().includeDebugInfo, false))
+		);
 
 	}
 
@@ -5703,6 +5658,8 @@ namespace pcit::panther{
 		std::string_view name,
 		evo::SmallVector<BaseType::Struct::MemberVar>&& members
 	) -> BaseType::Struct::ID {
+		BuiltinModule& builtin_module = this->source_manager[builtin_module_id];
+
 		auto members_abi =evo::SmallVector<BaseType::Struct::MemberVar*>();
 		members_abi.reserve(members.size());
 
@@ -5713,7 +5670,7 @@ namespace pcit::panther{
 		const BaseType::ID builtin_struct_type = this->type_manager.createStruct(
 			BaseType::Struct{
 				.sourceID          = builtin_module_id,
-				.name              = this->source_manager[builtin_module_id].createString(std::string(name)),
+				.name              = builtin_module.createString(std::string(name)),
 				.parent            = std::nullopt,
 				.templateID        = std::nullopt,
 				.instantiation     = std::numeric_limits<uint32_t>::max(),
@@ -5729,7 +5686,7 @@ namespace pcit::panther{
 		);
 
 
-		this->source_manager[builtin_module_id].createSymbol(name, builtin_struct_type);
+		builtin_module.createSymbol(name, builtin_struct_type);
 
 		// these must happen after construction due to how struct type is created
 		BaseType::Struct& created_struct = this->type_manager.getStruct(builtin_struct_type.structID());
@@ -5738,6 +5695,61 @@ namespace pcit::panther{
 
 
 		return builtin_struct_type.structID();		
+	}
+
+
+	auto Context::create_builtin_enum(
+		BuiltinModule::ID builtin_module_id,
+		std::string_view name,
+		evo::SmallVector<BaseType::Enum::Enumerator>&& enumerators
+	) -> BaseType::Enum::ID {
+		BuiltinModule& builtin_module = this->source_manager[builtin_module_id];
+
+		const BaseType::ID created_enum = this->type_manager.createEnum(
+			BaseType::Enum{
+				.sourceID          = builtin_module_id,
+				.name              = builtin_module.createString(std::string(name)),
+				.parent            = std::nullopt,
+				.enumerators       = std::move(enumerators),
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPub             = true,
+				.isPriv            = false,
+				.defCompleted      = true,
+			}
+		);
+
+		builtin_module.createSymbol(name, created_enum);
+
+		return created_enum.enumID();
+	}
+
+
+	auto Context::create_builtin_def_var(
+		BuiltinModule::ID builtin_module_id,
+		std::string_view name,
+		TypeInfo::ID type_id,
+		sema::Expr value
+	) -> void {
+		BuiltinModule& builtin_module = this->source_manager[builtin_module_id];
+
+		const sema::GlobalVar::ID created_global_var = this->sema_buffer.createGlobalVar(
+			AST::VarDef::Kind::DEF,
+			builtin_module_id,
+			builtin_module.createString(std::string(name)),
+			std::string(),
+			std::nullopt,
+			value,
+			type_id,
+			true,
+			false,
+			std::nullopt,
+			true
+		);
+
+		builtin_module.createSymbol(name, created_global_var);
 	}
 
 

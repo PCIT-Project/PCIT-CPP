@@ -9319,8 +9319,8 @@ namespace pcit::panther{
 				const Context::IntrinsicFuncInfo& intrinsic_func_info =
 					this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-				switch(this->context.getConfig().mode){
-					case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
+				switch(this->context.getConfig().compilerMode){
+					case Context::Config::CompilerMode::COMPILE: case Context::Config::CompilerMode::COMPILE_RUN: {
 						if(intrinsic_func_info.allowedInCompile == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
@@ -9329,7 +9329,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::SCRIPT: {
+					case Context::Config::CompilerMode::SCRIPT: {
 						if(intrinsic_func_info.allowedInScript == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in script mode", instr.func_call.target
@@ -9338,7 +9338,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::BUILD: {
+					case Context::Config::CompilerMode::BUILD: {
 						if(intrinsic_func_info.allowedInBuild == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in build mode", instr.func_call.target
@@ -11891,8 +11891,8 @@ namespace pcit::panther{
 					}
 				}
 
-				switch(this->context.getConfig().mode){
-					case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
+				switch(this->context.getConfig().compilerMode){
+					case Context::Config::CompilerMode::COMPILE: case Context::Config::CompilerMode::COMPILE_RUN: {
 						if(intrinsic_func_info.allowedInCompile == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in compile mode", instr.func_call.target
@@ -11901,7 +11901,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::SCRIPT: {
+					case Context::Config::CompilerMode::SCRIPT: {
 						if(intrinsic_func_info.allowedInScript == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in script mode", instr.func_call.target
@@ -11910,7 +11910,7 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::Mode::BUILD: {
+					case Context::Config::CompilerMode::BUILD: {
 						if(intrinsic_func_info.allowedInBuild == false){
 							this->emit_error(
 								"Calling this intrinsic is not allowed in build mode", instr.func_call.target
@@ -12959,22 +12959,22 @@ namespace pcit::panther{
 		}
 
 
-		switch(this->context.getConfig().mode){
-			case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
+		switch(this->context.getConfig().compilerMode){
+			case Context::Config::CompilerMode::COMPILE: case Context::Config::CompilerMode::COMPILE_RUN: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
 					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::SCRIPT: {
+			case Context::Config::CompilerMode::SCRIPT: {
 				if(template_intrinsic_func_info.allowedInScript == false){
 					this->emit_error("Calling this intrinsic is not allowed in script mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::BUILD: {
+			case Context::Config::CompilerMode::BUILD: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;
@@ -13296,22 +13296,22 @@ namespace pcit::panther{
 		}
 
 
-		switch(this->context.getConfig().mode){
-			case Context::Config::Mode::COMPILE: case Context::Config::Mode::COMPILE_RUN: {
+		switch(this->context.getConfig().compilerMode){
+			case Context::Config::CompilerMode::COMPILE: case Context::Config::CompilerMode::COMPILE_RUN: {
 				if(template_intrinsic_func_info.allowedInCompile == false){
 					this->emit_error("Calling this intrinsic is not allowed in compile mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::SCRIPT: {
+			case Context::Config::CompilerMode::SCRIPT: {
 				if(template_intrinsic_func_info.allowedInScript == false){
 					this->emit_error("Calling this intrinsic is not allowed in script mode", instr.func_call.target);
 					return Result::ERROR;
 				}
 			} break;
 
-			case Context::Config::Mode::BUILD: {
+			case Context::Config::CompilerMode::BUILD: {
 				if(template_intrinsic_func_info.allowedInBuild == false){
 					this->emit_error("Calling this intrinsic is not allowed in build mode", instr.func_call.target);
 					return Result::ERROR;

@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.333.0"></a>
+## v0.0.333.0
+
+### Panther
+- Renamed `@pthr.Mode` to `@pthr.CompilerMode`
+- Renamed `@config.mode` to `@config.compilerMode`
+- Added `@pthr.Mode`
+- Added `@config.mode`
+
+
+<!---------------------------------->
 <a name="v0.0.332.3"></a>
 ## v0.0.332.3
 

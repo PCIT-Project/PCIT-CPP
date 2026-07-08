@@ -149,11 +149,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	panther::Context::PantherBuildConfig& config,
 	core::Printer& printer
 ) -> evo::Result<> {
-
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::SOME){
+		printer.println();
 		printer.printlnMagenta("Running compile");
 
 	}else if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+		printer.println();
 		if(config.numThreads.isSingle()){
 			printer.printlnMagenta("Running compile single-threaded");
 		}else if(config.numThreads.getNum() == 1){
@@ -166,18 +167,19 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	}
 
 	using ContextConfig = panther::Context::Config;
-	const ContextConfig::Mode mode = [&]() -> ContextConfig::Mode {
+	const ContextConfig::CompilerMode compiler_mode = [&]() -> ContextConfig::CompilerMode {
 		if(config.output.getTag() == panther::Context::PantherBuildConfig::Output::Tag::RUN){
-			return ContextConfig::Mode::COMPILE_RUN;
+			return ContextConfig::CompilerMode::COMPILE_RUN;
 		}else{
-			return ContextConfig::Mode::COMPILE;
+			return ContextConfig::CompilerMode::COMPILE;
 		}
 	}();
 
 	const auto context_config = ContextConfig{
 		.title                  = config.title,
 		.target                 = core::Target(config.architecture, config.platform),
-		.mode                   = mode,
+		.mode                   = config.mode,
+		.compilerMode           = compiler_mode,
 		.windowsSubsystem       = static_cast<std::optional<ContextConfig::WindowsSubsystem>>(config.windowsSubsystem),
 		.optMode                = config.optMode,
 		.compilerExecutablePath = cmd_args_config.executablePath,
@@ -191,17 +193,26 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		printer.printlnGray("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
+
 	if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
-		printer.printlnMagenta("Architecture: {}", config.architecture);
-		printer.printlnMagenta("Platform: {}", config.platform);
+		printer.printlnMagenta("Architecture:       {}", config.architecture);
+		printer.printlnMagenta("Platform:           {}", config.platform);
+
+		switch(config.mode){
+			break; case panther::Context::Config::Mode::DEBUG: printer.printlnMagenta("Mode:               DEBUG");
+			break; case panther::Context::Config::Mode::FAST:  printer.printlnMagenta("Mode:               FAST");
+			break; case panther::Context::Config::Mode::SMALL: printer.printlnMagenta("Mode:               SMALL");
+			break; case panther::Context::Config::Mode::SAFE:  printer.printlnMagenta("Mode:               SAFE");
+
+		}
 
 		switch(config.optMode){
-			break; case pir::OptMode::NONE:            printer.printlnMagenta("Optimization Mode: NONE");
-			break; case pir::OptMode::SPEED_MINOR:     printer.printlnMagenta("Optimization Mode: SPEED_MINOR");
-			break; case pir::OptMode::SPEED:           printer.printlnMagenta("Optimization Mode: SPEED");
-			break; case pir::OptMode::SPEED_AGRESSIVE: printer.printlnMagenta("Optimization Mode: SPEED_AGRESSIVE");
-			break; case pir::OptMode::SIZE:            printer.printlnMagenta("Optimization Mode: SIZE");
-			break; case pir::OptMode::SIZE_AGRESSIVE:  printer.printlnMagenta("Optimization Mode: SIZE_AGRESSIVE");
+			break; case pir::OptMode::NONE:            printer.printlnMagenta("Optimization Mode:  NONE");
+			break; case pir::OptMode::SPEED_MINOR:     printer.printlnMagenta("Optimization Mode:  SPEED_MINOR");
+			break; case pir::OptMode::SPEED:           printer.printlnMagenta("Optimization Mode:  SPEED");
+			break; case pir::OptMode::SPEED_AGRESSIVE: printer.printlnMagenta("Optimization Mode:  SPEED_AGRESSIVE");
+			break; case pir::OptMode::SIZE:            printer.printlnMagenta("Optimization Mode:  SIZE");
+			break; case pir::OptMode::SIZE_AGRESSIVE:  printer.printlnMagenta("Optimization Mode:  SIZE_AGRESSIVE");
 		}
 
 		printer.printlnMagenta("Include Debug Info: {}", config.addDebugInfo);
@@ -641,6 +652,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 
 			}else{
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(printer_for_tokens.getString());
 			}
 
@@ -691,6 +703,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 
 			}else{
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(printer_for_ast.getString());
 			}
 
@@ -745,6 +758,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 
 			}else{
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(printer_for_pir_module.getString());
 			}
 
@@ -787,6 +801,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 
 			}else{
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(llvmir_string.value());
 			}
 
@@ -836,6 +851,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				}
 
 			}else{
+				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(asm_result.value());
 			}
 
@@ -1098,7 +1114,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Build-System>",
 		.target                 = core::Target::getNative(),
-		.mode                   = ContextConfig::Mode::BUILD,
+		.mode                   = ContextConfig::Mode::DEBUG,
+		.compilerMode           = ContextConfig::CompilerMode::BUILD,
 		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
@@ -1269,7 +1286,8 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Script>",
 		.target                 = core::Target::getNative(),
-		.mode                   = ContextConfig::Mode::SCRIPT,
+		.mode                   = ContextConfig::Mode::DEBUG,
+		.compilerMode           = ContextConfig::CompilerMode::SCRIPT,
 		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
 		.compilerExecutablePath = cmd_args_config.executablePath,
