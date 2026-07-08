@@ -126,9 +126,25 @@ namespace pcit::panther{
 				} break;
 
 				case Result::SUSPEND: {
-					const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
+					const auto lock = std::scoped_lock(
+						this->symbol_proc.waiting_for_lock,
+						this->symbol_proc.decl_waited_on_lock,
+						this->symbol_proc.pir_decl_waited_on_lock,
+						this->symbol_proc.def_waited_on_lock,
+						this->symbol_proc.pir_def_waited_on_lock
+					);
 
 					this->symbol_proc.nextInstruction();
+
+					if(
+						this->symbol_proc.decl_waited_on_by.empty() == false
+						|| this->symbol_proc.pir_decl_waited_on_by.empty() == false
+						|| this->symbol_proc.def_waited_on_by.empty() == false
+						|| this->symbol_proc.pir_def_waited_on_by.empty() == false
+					){
+						continue;
+					}
+
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()){
 						sema::Func& sema_func = this->context.sema_buffer.funcs[

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.332.2"></a>
+## v0.0.332.2
+
+### Panther
+- Fixed race condition in semantic analysis of instantiations of templated functions when that overload is selected
+
+
+<!---------------------------------->
 <a name="v0.0.332.1"></a>
 ## v0.0.332.1
 
