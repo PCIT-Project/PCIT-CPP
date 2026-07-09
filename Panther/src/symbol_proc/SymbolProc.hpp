@@ -547,6 +547,23 @@ namespace pcit::panther{
 		};
 
 
+		struct BeginLocalWhenSwitch{
+			struct Case{
+				evo::SmallVector<SymbolProcTermInfoID> values;
+				SymbolProcInstructionIndex index;
+			};
+
+			const AST::WhenSwitch& when_switch;
+			SymbolProcTermInfoID cond_expr;
+			evo::SmallVector<AttributeParams> attribute_params_info;
+			evo::SmallVector<Case> cases;
+			SymbolProcInstructionIndex end_index;
+		};
+
+		struct EndLocalWhenSwitch{
+			SymbolProcInstructionIndex end_index;
+		};
+
 
 
 
@@ -1225,6 +1242,8 @@ namespace pcit::panther{
 			END_COND_SET,
 			BEGIN_LOCAL_WHEN_COND,
 			END_LOCAL_WHEN_COND,
+			BEGIN_LOCAL_WHEN_SWITCH,
+			END_LOCAL_WHEN_SWITCH,
 			BEGIN_WHILE,
 			END_WHILE,
 			BEGIN_FOR,

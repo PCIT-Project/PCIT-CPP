@@ -1061,6 +1061,44 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginLocalWhenSwitch
+
+			[[nodiscard]] auto createBeginLocalWhenSwitch(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_LOCAL_WHEN_SWITCH,
+					this->begin_local_when_switches.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getBeginLocalWhenSwitch(Instruction instr) const
+			-> const Instruction::BeginLocalWhenSwitch& {
+				evo::debugAssert(
+					instr.kind() == Instruction::Kind::BEGIN_LOCAL_WHEN_SWITCH, "Not a BeginLocalWhenSwitch"
+				);
+				return this->begin_local_when_switches[instr._index];
+			}
+
+
+
+			//////////////////
+			// EndLocalWhenSwitch
+
+			[[nodiscard]] auto createEndLocalWhenSwitch(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_LOCAL_WHEN_SWITCH,
+					this->end_local_when_switches.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getEndLocalWhenSwitch(Instruction instr) const
+			-> const Instruction::EndLocalWhenSwitch& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_LOCAL_WHEN_SWITCH, "Not a EndLocalWhenSwitch");
+				return this->end_local_when_switches[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginWhile
 
 			[[nodiscard]] auto createBeginWhile(auto&&... args) -> Instruction {
@@ -3418,6 +3456,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint32_t> end_cond_sets{};
 			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint32_t> begin_local_when_conds{};
 			core::SyncLinearStepAlloc<Instruction::EndLocalWhenCond, uint32_t> end_local_when_conds{};
+			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenSwitch, uint32_t> begin_local_when_switches{};
+			core::SyncLinearStepAlloc<Instruction::EndLocalWhenSwitch, uint32_t> end_local_when_switches{};
 			core::SyncLinearStepAlloc<Instruction::BeginWhile, uint32_t> begin_whiles{};
 			core::SyncLinearStepAlloc<Instruction::EndWhile, uint32_t> end_whiles{};
 			core::SyncLinearStepAlloc<Instruction::BeginFor, uint32_t> begin_fors{};

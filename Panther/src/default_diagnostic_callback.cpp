@@ -83,7 +83,7 @@ namespace pcit::panther{
 			// clickable link in terminal: https://stackoverflow.com/a/66814614
 			printer.printGray(
 				std::format(
-					"Location: \x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
+					"\x1B]8;;file://{}\x1B\\{}\x1B]8;;\x1B\\({}:{})\n", 
 					source_path.string(),
 					source_path.string(),
 					location.lineStart,
@@ -94,7 +94,7 @@ namespace pcit::panther{
 		}else{
 			printer.printGray(
 				std::format(
-					"Location: {}({}:{})\n",
+					"{}({}:{})\n",
 					source_path.string(),
 					location.lineStart,
 					location.collumnStart

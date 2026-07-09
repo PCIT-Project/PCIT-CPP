@@ -2606,7 +2606,93 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_when_switch(const AST::WhenSwitch& when_switch_stmt) -> evo::Result<> {
-		this->emit_error("When switch in function scope is unimplemented", when_switch_stmt);
+		const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<true>(when_switch_stmt.cond);
+		if(cond.isError()){ return evo::resultError; }
+
+		const AST::AttributeBlock& attribute_block =
+			this->source.getASTBuffer().getAttributeBlock(when_switch_stmt.attributeBlock);
+		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
+			this->analyze_attributes(attribute_block);
+		if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+		//////////////////
+		// setup cases
+
+		auto cases = evo::SmallVector<Instruction::BeginLocalWhenSwitch::Case>();
+		cases.reserve(when_switch_stmt.cases.size());
+
+		for(const AST::WhenSwitch::Case& ast_case : when_switch_stmt.cases){
+			auto values = evo::SmallVector<SymbolProc::TermInfoID>();
+			values.reserve(ast_case.values.size());
+			for(AST::Node ast_value : ast_case.values){
+				const evo::Result<SymbolProc::TermInfoID> value = this->analyze_expr<true>(ast_value);
+				if(value.isError()){ return evo::resultError; }
+				values.emplace_back(value.value());
+			}
+
+			cases.emplace_back(std::move(values), SymbolProc::InstructionIndex::dummy());
+		}
+
+
+		//////////////////
+		// create begin
+
+		const Instruction begin_local_when_switch_instr = this->add_instruction(
+			this->context.symbol_proc_manager.createBeginLocalWhenSwitch(
+				when_switch_stmt,
+				cond.value(),
+				std::move(attribute_params_info.value()),
+				std::move(cases),
+				SymbolProc::InstructionIndex::dummy()
+			)
+		);
+
+		Instruction::BeginLocalWhenSwitch& begin_local_when_switch =
+			this->context.symbol_proc_manager.begin_local_when_switches[begin_local_when_switch_instr._index];
+
+
+		//////////////////
+		// case bodies and indices
+
+		auto end_when_instrs = evo::SmallVector<Instruction>();
+		end_when_instrs.reserve(when_switch_stmt.cases.size());
+
+		for(size_t i = 0; const AST::WhenSwitch::Case& ast_case : when_switch_stmt.cases){
+			begin_local_when_switch.cases[i].index = SymbolProc::InstructionIndex(
+				uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1)
+			);
+
+			const AST::Block& case_block = this->source.getASTBuffer().getBlock(ast_case.block);
+			for(const AST::Node& stmt : case_block.statements){
+				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+			}
+
+			end_when_instrs.emplace_back(
+				this->add_instruction(
+					this->context.symbol_proc_manager.createEndLocalWhenSwitch(SymbolProc::InstructionIndex::dummy())
+				)
+			);
+
+			i += 1;
+		}
+
+
+		//////////////////
+		// update instructionswith found end index
+
+		for(const Instruction& end_when_instr : end_when_instrs){
+			this->context.symbol_proc_manager.end_local_when_switches[end_when_instr._index].end_index = 
+				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
+		}
+
+		begin_local_when_switch.end_index = 
+			SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
+
+
+		//////////////////
+		// done
+		
 		return evo::Result<>();
 	}
 

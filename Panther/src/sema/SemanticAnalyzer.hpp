@@ -144,6 +144,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_end_cond_set(const Instruction::EndCondSet& instr) -> Result;
 			[[nodiscard]] auto instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result;
 			[[nodiscard]] auto instr_end_local_when_cond(const Instruction::EndLocalWhenCond& instr) -> Result;
+			[[nodiscard]] auto instr_begin_local_when_switch(const Instruction::BeginLocalWhenSwitch& instr) -> Result;
+			[[nodiscard]] auto instr_end_local_when_switch(const Instruction::EndLocalWhenSwitch& instr) -> Result;
 			[[nodiscard]] auto instr_begin_while(const Instruction::BeginWhile& instr) -> Result;
 			[[nodiscard]] auto instr_end_while(const Instruction::EndWhile& instr) -> Result;
 			[[nodiscard]] auto instr_begin_for(const Instruction::BeginFor& instr) -> Result;
