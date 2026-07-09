@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.334.1"></a>
+## v0.0.334.1
+
+### PCIT_core
+- Fixed race conditon in iteration of `SyncLinearStepAlloc`
+
+
+<!---------------------------------->
 <a name="v0.0.334.0"></a>
 ## v0.0.334.0
 

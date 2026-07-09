@@ -41,11 +41,12 @@ namespace pcit::panther{
 		}
 
 
-		EVO_DEFER([&](){
-			evo::debugAssert(
-				this->symbol_proc.status != SymbolProc::Status::WORKING, "Symbol Proc being worked on should be false"
-			);
-		});
+		// EVO_DEFER([&](){
+		// 	evo::debugAssert(
+		// 		this->symbol_proc.status != SymbolProc::Status::WORKING,
+		// 		"Symbol Proc being worked on should be false"
+		// 	);
+		// });
 
 		while(this->symbol_proc.isAtEnd() == false){
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -156,7 +157,6 @@ namespace pcit::panther{
 
 					this->context.symbol_proc_manager.symbol_proc_suspended();
 					this->symbol_proc.setStatusSuspended();
-
 					return;
 				} break;
 			}

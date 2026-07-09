@@ -1170,7 +1170,7 @@ namespace pcit::panther{
 
 	auto Context::addSourceFile(const fs::path& path, Source::Package::ID package_id) -> AddSourceResult {
 		evo::debugAssert(this->mayAddSourceFile(), "Cannot add any source files");
-
+		
 		const Source::Package& package = this->source_manager.getPackage(package_id);
 		const fs::path target_path = create_absolute_path(path, package.basePath);
 
