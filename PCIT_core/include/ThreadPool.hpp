@@ -28,85 +28,63 @@ namespace pcit::core{
 
 		public:
 			ThreadPool() = default;
+			~ThreadPool() = default;
 
-			#if defined(PCIT_CONFIG_DEBUG)
-				~ThreadPool(){
-					evo::debugAssert(
-						this->isRunning() == false,
-						"Attempted to run destructor of ThreadPool while it was still running"
-					);
+
+			auto startup(size_t num_threads) -> void {
+				evo::debugAssert(this->isRunning() == false, "Already running");
+
+				this->workers.reserve(num_threads);
+
+				for(size_t i = 0; i < num_threads; i+=1){
+					this->workers.emplace_back(*this);
 				}
-			#else
-				~ThreadPool() = default;
-			#endif
+
+				this->errored      = false;
+				this->num_stealing = 0;
+				this->num_working  = 0;
+				this->num_running  = uint32_t(num_threads);
+			}
+
+
 
 			[[nodiscard]] static auto optimalNumThreads() -> uint64_t {
 				return std::thread::hardware_concurrency();
 			}
 
-			auto startup(unsigned num_threads = optimalNumThreads()) -> void {
-				evo::debugAssert(this->isRunning() == false, "Already running");
-				
-				this->num_threads_still_running = num_threads;
+			auto work(evo::SmallVector<DATA>&& tasks, WorkFunc&& func) -> void {
+				evo::debugAssert(this->isRunning(), "Not running");
+				evo::debugAssert(this->isWorking() == false, "Already working");
+				evo::debugAssert(tasks.empty() == false, "Shouldn't give 0 tasks");
 
-				this->workers.reserve(num_threads);
-				for(size_t i = 0; i < num_threads; i+=1){
-					this->workers.emplace_back(this, i);
-				}
-			}
+				this->data = std::move(tasks);
+				this->work_func = std::move(func);
 
-			auto shutdown() -> void {
-				evo::debugAssert(this->isRunning(), "Should not shutdown if not running");
-
-				for(Worker& worker : this->workers){
-					worker.request_stop();
-				}
-
-				this->waitUntilNotRunning();
-			}
-
-
-			auto work(evo::SmallVector<DATA>&& run_data, WorkFunc&& func) -> void {
-				evo::debugAssert(this->isRunning(), "Thread Pool not running");
-				evo::debugAssert(this->isWorking() == false, "Thread Pool already working");
-
-				this->worker_failed = false;
-				this->data = std::move(run_data);
-				this->work_func = func;	
-
-
-				if(this->data.size() < this->workers.size()){
-					this->num_threads_still_working = unsigned(this->data.size());
-
+				if(this->workers.size() > this->data.size()){
 					for(size_t i = 0; i < this->data.size(); i+=1){
 						this->workers[i].start_working(i, i);
 					}
-
+					
 				}else{
-					this->num_threads_still_working = this->getNumThreads();
-
-					const size_t num_elements_per_worker = this->data.size() / this->workers.size();
-					const size_t num_workers_with_extra = this->data.size() % this->workers.size();
-
-					size_t last_end = 0;
+					const size_t num_tasks_per_thread = this->data.size() / this->workers.size();
+					const size_t num_remaining_tasks = this->data.size() % this->workers.size();
+					
+					size_t task_index = 0;
 					for(size_t i = 0; Worker& worker : this->workers){
-						const bool should_add_extra = i < num_workers_with_extra;
-						const size_t next_end = last_end + num_elements_per_worker - 1 + size_t(should_add_extra);
+						const size_t num_tasks_for_worker = num_tasks_per_thread + size_t(i < num_remaining_tasks);
+						worker.start_working(task_index, task_index + num_tasks_for_worker);
 
-						worker.start_working(last_end, next_end);
-
-						last_end = next_end + 1;
+						task_index += num_tasks_for_worker;
 					
 						i += 1;
 					}
 				}
+
+
+				this->errored      = false;
+				this->num_stealing = 0;
+				this->num_working  = uint32_t(this->workers.size());
 			}
-
-
-			[[nodiscard]] auto isWorking() const -> bool { return this->num_threads_still_working != 0; }
-			[[nodiscard]] auto isRunning() const -> bool { return this->workers.empty() == false; }
-			[[nodiscard]] auto anyTaskFailed() const -> bool { return this->worker_failed; }
-			[[nodiscard]] auto getNumThreads() const -> unsigned { return unsigned(this->workers.size()); }
 
 
 			auto waitUntilDoneWorking() -> evo::Result<> {
@@ -114,56 +92,105 @@ namespace pcit::core{
 					std::this_thread::yield();
 				}
 
-				return evo::Result<>::fromBool(!this->anyTaskFailed());
+				return evo::Result<>::fromBool(this->errored);
 			}
 
-			auto waitUntilNotRunning() -> void {
+			auto waitUntilDoneRunning() -> void {
 				while(this->isRunning()){
 					std::this_thread::yield();
 				}
 			}
 
 
+			auto shutdown() -> void {
+				evo::debugAssert(this->isRunning(), "Not running");
+
+				for(Worker& worker : this->workers){
+					worker.request_stop();
+				}
+
+				this->waitUntilDoneRunning();
+			}
+
+
+			[[nodiscard]] auto isRunning() const -> bool { return this->num_running > 0; }
+			[[nodiscard]] auto isWorking() const -> bool { return this->num_working > 0; }
+
+
 		private:
 			class Worker{
 				public:
-					enum class Mode{
-						WAITING,
-						WORKING,
-						STEALING,
-						STOPPING, // told to stop doing tasks, but not stop running
-					};
-
-				public:
-					Worker(ThreadPool* _thread_pool, size_t _id)
-						: thread_pool(_thread_pool), id(_id), thread([this](std::stop_token stop) -> void {
+					Worker(ThreadPool& _thread_pool)
+						: thread_pool(_thread_pool), mode(Mode::WAITING), thread([this](std::stop_token stop) -> void {
 							while(stop.stop_requested() == false){
-								if(this->mode == Mode::WAITING){
-									std::this_thread::yield();
-									continue;
+								switch(this->mode.load()){
+									case Mode::WAITING: {
+										std::this_thread::yield();
+									} break;
 
-								}else if(this->mode == Mode::STOPPING){
-									this->mode = Mode::WAITING;
-									this->thread_pool->signal_worker_finished_working();
-									std::this_thread::yield();
-									continue;
-								}
+									case Mode::READY_TO_START: {
+										if(this->thread_pool.isWorking()){
+											this->mode = Mode::WORKING;
+										}else{
+											std::this_thread::yield();
+										}
+									} break;
 
+									case Mode::WORKING: {
+										DATA* task = this->get_task();
+										if(task == nullptr){
+											this->mode = Mode::STEALING;
+											this->thread_pool.num_stealing += 1;
+											continue;
+										}
 
-								DATA* task = this->get_task();
-								if(task == nullptr){
-									this->mode = Mode::WAITING;
-									std::this_thread::yield();
-									continue;
-								}
+										if(this->thread_pool.work_func(*task).isError()){
+											this->task_errored();
+										}
+									} break;
 
-								const evo::Result<> task_result = this->thread_pool->work_func->operator()(*task);
-								if(task_result.isError()){
-									this->mode = Mode::STOPPING;
-									this->thread_pool->signal_worker_failed();
+									case Mode::STEALING: {
+										size_t target_worker_index = 0;
+										const uint32_t num_workers = uint32_t(this->thread_pool.workers.size());
+
+										size_t num_workers_failed_to_steal_from_in_a_row = 0;
+
+										while(this->thread_pool.num_stealing < num_workers){
+											EVO_DEFER([&](){
+												target_worker_index += 1;
+												if(target_worker_index >= num_workers){ target_worker_index = 0; }
+											});
+
+											Worker& target_worker = this->thread_pool.workers[target_worker_index];
+											if(&target_worker == this){ continue; }
+
+											DATA* task = target_worker.externally_steal_task();
+											// DATA* task = target_worker.get_task();
+											if(task == nullptr){
+												num_workers_failed_to_steal_from_in_a_row += 1;
+												if(num_workers_failed_to_steal_from_in_a_row >= num_workers){
+													this->stop_working();
+												}
+												continue;
+											}
+
+											num_workers_failed_to_steal_from_in_a_row = 0;
+
+											if(this->thread_pool.work_func(*task).isError()){
+												this->task_errored();
+											}
+										}
+
+										this->stop_working();
+									} break;
+
+									case Mode::TOLD_TO_STOP_WORKING: {
+										this->stop_working();
+									} break;
 								}
 							}
-							this->thread_pool->signal_worker_finished_running();
+
+							this->thread_pool.signal_worker_stopped_running();
 						}) 
 					{
 						this->thread.detach();
@@ -171,127 +198,119 @@ namespace pcit::core{
 
 					~Worker() = default;
 
-					Worker(const Worker&) = delete;
+					auto request_stop() -> void { this->thread.request_stop(); }
 
-
-					auto start_working(size_t new_start, size_t new_end) -> void {
-						this->mode = Mode::WORKING;
-						this->start_index = new_start;
-						this->end_index = new_end;
+					auto start_working(size_t start, size_t end) -> void {
+						evo::debugAssert(this->mode == Mode::WAITING, "Can only start working if currently waiting");
+						this->current_index = start;
+						this->end_index     = end;
+						this->mode          = Mode::READY_TO_START;
 					}
 
+					auto tell_to_stop_working() -> void {
+						Mode expected_mode = Mode::WORKING;
+						if(this->mode.compare_exchange_strong(expected_mode, Mode::TOLD_TO_STOP_WORKING)){ return; }
 
-					auto request_stop() -> void {
-						this->thread.request_stop();
+						expected_mode = Mode::STEALING;
+						this->mode.compare_exchange_strong(expected_mode, Mode::TOLD_TO_STOP_WORKING);
 					}
-
-				public:
-					Mode mode = Mode::WAITING;
 
 				private:
-					auto get_task() -> DATA* {
-						evo::debugAssert(
-							this->mode != Mode::WAITING, "Should not be getting task when in waiting mode"
-						);
+					[[nodiscard]] auto is_done_working() -> bool {
+						evo::debugAssert(this->index_lock.try_lock() == false, "Lock must be taken to call this");
+						return this->current_index >= this->end_index;
+					}
 
-						if(this->mode == Mode::WORKING){
-							this->work_lock.lock();
 
-							if(this->start_index > this->end_index){
-								this->mode = Mode::STEALING;
-								this->work_lock.unlock();
-								return this->search_for_task_to_steal();
-							}
+					auto stop_working() -> void {
+						const Mode old_mode = this->mode.exchange(Mode::WAITING);
 
-							DATA* next_task = &this->thread_pool->data[this->start_index];
-							this->start_index += 1;
-							this->work_lock.unlock();
-							return next_task;
-
-						}else if(this->mode == Mode::STOPPING){
-							return nullptr;
-
-						}else{
-							evo::debugAssert(
-								this->mode == Mode::STEALING, "Unsupported mode ({})", evo::to_underlying(this->mode)
-							);
-
-							return this->search_for_task_to_steal();
+						if(old_mode != Mode::WAITING){
+							this->thread_pool.signal_worker_stopped_working();
 						}
 					}
 
-
-					auto search_for_task_to_steal() -> DATA* {
-						evo::debugAssert(this->mode == Mode::STEALING, "Should only steal if in stealing mode");
-
-						for(size_t i = 0; i < this->thread_pool->workers.size(); i+=1){
-							if(i == this->id){ continue; }
-
-							DATA* stolen_task = this->thread_pool->workers[i].attempt_to_steal_from();
-							if(stolen_task != nullptr){ return stolen_task; }
-						}
-
-						this->mode = Mode::WAITING;
-						this->thread_pool->signal_worker_finished_working();
-						return nullptr;
+					auto task_errored() -> void { 
+						this->stop_working();
+						this->thread_pool.signal_worker_errored();
 					}
 
-					auto attempt_to_steal_from() -> DATA* {
-						const auto lock = std::lock_guard(this->work_lock);
 
-						if(this->mode != Mode::WORKING){ return nullptr; }
 
-						if(this->start_index >= this->end_index){ return nullptr; }
+					[[nodiscard]] auto get_task() -> DATA* {
+						const auto lock = std::scoped_lock(this->index_lock);
 
-						DATA* stolen_task = &this->thread_pool->data[this->end_index];
-						this->end_index -= 1;
-						return stolen_task;
+						if(this->is_done_working()){ return nullptr; }
+
+						EVO_DEFER([&](){ this->current_index += 1; });
+						return &this->thread_pool.data[this->current_index];
 					}
-					
+
+					[[nodiscard]] auto externally_steal_task() -> DATA* {
+						const auto lock = std::scoped_lock(this->index_lock);
+
+						if(this->is_done_working()){ return nullptr; }
+
+						this->end_index -= 1; // yes, decriment is done BEFORE getting index of stolen task
+						return &this->thread_pool.data[this->end_index];
+					}
+
+
+
+					enum class Mode{
+						WAITING,
+						READY_TO_START,
+						WORKING,
+						STEALING,
+						TOLD_TO_STOP_WORKING,
+					};
 			
 				private:
-					ThreadPool* thread_pool;
-					const size_t id;
+					ThreadPool& thread_pool;
+					std::atomic<Mode> mode;
 					std::jthread thread;
 
-					evo::SpinLock work_lock{}; 
-					size_t start_index = 0;
+					evo::SpinLock index_lock{};
+					size_t current_index = 0;
 					size_t end_index = 0;
 			};
 
-
-			auto signal_worker_finished_working() -> void {
-				if(this->num_threads_still_working.fetch_sub(1) == 1){
-					this->data.clear();
-					this->work_func.reset();
-				}
+			auto signal_worker_stopped_running() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					evo::debugAssert(this->num_running.fetch_sub(1) > 0, "Too many signals to stop running");
+				#else
+					this->num_running -= 1;
+				#endif
 			}
 
-			auto signal_worker_failed() -> void {
-				this->worker_failed = true;
+			auto signal_worker_stopped_working() -> void {
+				#if defined(PCIT_CONFIG_DEBUG)
+					evo::debugAssert(this->num_working.fetch_sub(1) > 0, "Too many signals to stop working");
+				#else
+					this->num_working -= 1;
+				#endif
+			}
+
+			auto signal_worker_errored() -> void {
+				if(this->errored.exchange(true)){ return; }
+
 				for(Worker& worker : this->workers){
-					if(worker.mode != Worker::Mode::WAITING){ worker.mode = Worker::Mode::STOPPING; }
+					worker.tell_to_stop_working();
 				}
 			}
 
-
-			auto signal_worker_finished_running() -> void {
-				if(this->num_threads_still_running.fetch_sub(1) == 1){
-					this->workers.clear();
-				}
-			}
 
 		private:
 			evo::SmallVector<DATA> data{};
-			std::optional<WorkFunc> work_func{};
-			bool worker_failed = false;
-
+			WorkFunc work_func{};
 			evo::UnmovableVector<Worker, false> workers{};
-			std::atomic<unsigned> num_threads_still_working = 0;
-			std::atomic<unsigned> num_threads_still_running = 0;
 
-			friend Worker;
+			std::atomic<uint32_t> num_running  = 0;
+			std::atomic<uint32_t> num_working  = 0;
+			std::atomic<uint32_t> num_stealing = 0;
+			std::atomic<bool> errored          = false;
 	};
+
 
 
 }

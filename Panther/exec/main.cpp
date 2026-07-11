@@ -487,7 +487,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				case panther::Context::AddSourceResult::DOESNT_EXIST: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						"Directory doesn't exist",
+						"Packaged directory doesn't exist",
 						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(
@@ -509,7 +509,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				case panther::Context::AddSourceResult::NOT_DIRECTORY: {
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
-						"Directory is not directory",
+						"Package directory is not directory",
 						panther::Diagnostic::Location::NONE,
 						evo::SmallVector<panther::Diagnostic::Info>{
 							panther::Diagnostic::Info(

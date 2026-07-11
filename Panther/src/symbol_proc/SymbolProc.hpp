@@ -1523,98 +1523,103 @@ namespace pcit::panther{
 
 			auto setStatusWaiting() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
+					Status old_status = Status::WORKING;
 					evo::debugAssert(
-						current_status == Status::WORKING,
+						this->status.compare_exchange_strong(old_status, Status::WAITING),
 						"Can only set `WAITING` if status is `WORKING` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::WAITING;
+				#else
+					this->status = Status::WAITING;
+				#endif
 			}
 
 			auto setStatusInQueue() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
 					evo::debugAssert(this->waiting_for.empty(), "Cannot set status `IN_QUEUE` if waiting");
 
-					const Status current_status = this->status.load();
+					const Status old_status = this->status.exchange(Status::IN_QUEUE);
 					evo::debugAssert(
-						current_status == Status::WAITING || current_status == Status::SUSPENDED,
+						old_status == Status::WAITING || old_status == Status::SUSPENDED,
 						"Can only set `IN_QUEUE` (with this method) if status is `WAITING` or `SUSPENDED` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::IN_QUEUE;
+				#else
+					this->status = Status::IN_QUEUE;
+				#endif
 			}
 
 			// returns true if should be added to queue
 			auto setStatusInQueueIfNotAlreadyDone() -> bool {
-				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
-					evo::debugAssert(
-						current_status == Status::WAITING || current_status == Status::DONE,
-						"Can only set `IN_QUEUE` (with this method) if status is `WAITING` or `DONE` (symbol: {})",
-						this->ident
-					);
-				#endif
+				Status old_status = Status::WAITING;
+				const bool was_waiting = this->status.compare_exchange_strong(old_status, Status::IN_QUEUE);
 
-				Status expected = Status::WAITING;
-				return this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
+				evo::debugAssert(
+					was_waiting || old_status == Status::DONE,
+					"Can only set `IN_QUEUE` (with this method) if status is `WAITING` or `DONE` (symbol: {})",
+					this->ident
+				);
+
+				return was_waiting;
 			}
 
 
 			auto setStatusWorking() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
+					Status old_status = Status::IN_QUEUE;
 					evo::debugAssert(
-						current_status == Status::IN_QUEUE,
+						this->status.compare_exchange_strong(old_status, Status::WORKING),
 						"Can only set `WORKING` if status is `IN_QUEUE` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::WORKING;
+				#else
+					this->status = Status::WORKING;
+				#endif
 			}
 
 			auto setStatusSuspended() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
+					Status old_status = Status::WORKING;
 					evo::debugAssert(
-						current_status == Status::WORKING,
+						this->status.compare_exchange_strong(old_status, Status::SUSPENDED),
 						"Can only set `SUSPENDED` if status is `WORKING` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::SUSPENDED;
+				#else
+					this->status = Status::SUSPENDED;
+				#endif
 			}
 
 			auto setStatusInDefDeducerImplMethod() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
+					Status old_status = Status::WAITING;
 					evo::debugAssert(
-						current_status == Status::WAITING,
+						this->status.compare_exchange_strong(old_status, Status::IN_DEF_DEDUCER_IMPL_METHOD),
 						"Can only set `IN_DEF_DEDUCER_IMPL_METHOD` if status is `WAITING` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::IN_DEF_DEDUCER_IMPL_METHOD;
+				#else
+					this->status = Status::IN_DEF_DEDUCER_IMPL_METHOD;
+				#endif
 			}
 
 			auto setStatusPassedOnByWhen() -> void {
 				#if defined(PCIT_CONFIG_DEBUG)
-					const Status current_status = this->status.load();
+					Status old_status = Status::WAITING;
 					evo::debugAssert(
-						current_status == Status::WAITING,
+						this->status.compare_exchange_strong(old_status, Status::PASSED_ON_BY_WHEN),
 						"Can only set `PASSED_ON_BY_WHEN` if status is `WAITING` (symbol: {})",
 						this->ident
 					);
-				#endif
 
-				this->status = Status::PASSED_ON_BY_WHEN;
+				#else
+					this->status = Status::PASSED_ON_BY_WHEN;
+				#endif
 			}
 
 			auto setStatusErrored() -> void { this->status = Status::ERRORED; }
@@ -1623,8 +1628,8 @@ namespace pcit::panther{
 
 			// returns `true` if unsuspended
 			auto unsuspendIfNeeded() -> bool {
-				Status expected = Status::SUSPENDED;
-				const bool was_suspended = this->status.compare_exchange_strong(expected, Status::IN_QUEUE);
+				Status old_status = Status::SUSPENDED;
+				const bool was_suspended = this->status.compare_exchange_strong(old_status, Status::IN_QUEUE);
 				return was_suspended;
 			}
 

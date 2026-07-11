@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.334.2"></a>
+## v0.0.334.2
+
+### PCIT_core
+- Fixed race conditon in and improved performance of `ThreadPool`
+
+### Misc
+- Updated to [Evo v1.40.0](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.40.0)
+
+
+<!---------------------------------->
 <a name="v0.0.334.1"></a>
 ## v0.0.334.1
 
@@ -2802,7 +2813,7 @@
 - Fixed race condition in semantic analysis when return parameters are aliases
 
 ### Misc
-- Updated to Evo `v1.39.0`
+- Updated to [Evo v1.39.0](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.39.0)
 
 
 <!---------------------------------->

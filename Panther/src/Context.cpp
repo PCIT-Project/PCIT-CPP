@@ -160,6 +160,14 @@ namespace pcit::panther{
 			local_work_manager.startup(this->_config.numThreads.getNum());
 			local_work_manager.work(std::move(tasks), worker);
 			local_work_manager.waitUntilDoneWorking();
+
+			evo::debugAssert(
+				this->files_to_load.size() == this->source_manager.size(),
+				"Wrong number of files (expected {}, got {})",
+				this->files_to_load.size(),
+				this->source_manager.size()
+			);
+
 			local_work_manager.shutdown();
 
 		}else{
@@ -377,25 +385,6 @@ namespace pcit::panther{
 
 		
 
-		// if(this->comptime_jit_engine.isInitialized() == false){
-		// 	const evo::Expected<void, evo::SmallVector<std::string>> jit_init_result = 
-		// 		this->comptime_jit_engine.init(pir::JITEngine::InitConfig{
-		// 			.allowDefaultSymbolLinking = false,
-		// 		});
-
-		// 	if(jit_init_result.has_value() == false){
-		// 		auto infos = evo::SmallVector<Diagnostic::Info>();
-		// 		for(const std::string& error : jit_init_result.error()){
-		// 			infos.emplace_back(std::format("Message from LLVM: \"{}\"", error));
-		// 		}
-
-		// 		this->emitError(
-		// 			"Error trying to initalize PIR JITEngine", Diagnostic::Location::NONE, std::move(infos)
-		// 		);
-		// 		return evo::resultError;
-		// 	}
-		// }
-
 		if(this->comptime_execution_engine.isInitialized() == false){
 			const evo::Expected<void, evo::SmallVector<std::string>> execution_engine_init_result = 
 				this->comptime_execution_engine.init(pir::ExecutionEngine::InitConfig{
@@ -508,6 +497,19 @@ namespace pcit::panther{
 
 					evo::debugAssert(work_manager_inst.isWorking() == false, "Thought was done working, was not...");
 				}
+
+			#else
+				// This just in case - there seems to be a race condition in `waitUntilDoneWorking`
+				while(
+					work_manager_inst.isWorking()
+					&& this->symbol_proc_manager.allProcsDone() == false
+					&& this->num_errors == 0
+					&& this->encountered_fatal == false
+				){
+					std::this_thread::yield();
+					work_manager_inst.waitUntilDoneWorking();
+				}
+
 			#endif
 
 			work_manager_inst.shutdown();
@@ -600,10 +602,7 @@ namespace pcit::panther{
 					// this->symbol_proc_manager.debug_dump(false);
 					this->symbol_proc_manager.debug_dump(true);
 
-					// Prevent escape from breakpoint
-					while(true){
-						evo::breakpoint(); // not temporary debugging
-					}
+					evo::breakpoint(); // not temporary debugging
 				#endif
 			}
 
@@ -654,7 +653,6 @@ namespace pcit::panther{
 		};
 
 		if(this->_config.numThreads.isMulti()){
-			auto local_work_manager = core::ThreadPool<Task>();
 
 			auto tasks = evo::SmallVector<Task>();
 			for(CHeaderToLoad& c_header_to_load : this->c_headers_to_load){
@@ -664,10 +662,14 @@ namespace pcit::panther{
 				tasks.emplace_back(std::move(cpp_header_to_load));
 			}
 
-			local_work_manager.startup(this->_config.numThreads.getNum());
-			local_work_manager.work(std::move(tasks), worker);
-			local_work_manager.waitUntilDoneWorking();
-			local_work_manager.shutdown();
+			if(tasks.empty() == false){
+				auto local_work_manager = core::ThreadPool<Task>();
+
+				local_work_manager.startup(this->_config.numThreads.getNum());
+				local_work_manager.work(std::move(tasks), worker);
+				local_work_manager.waitUntilDoneWorking();
+				local_work_manager.shutdown();
+			}
 
 		}else{
 			auto local_work_manager = core::SingleThreadedWorkQueue<Task>(worker);
@@ -1293,12 +1295,6 @@ namespace pcit::panther{
 	) -> evo::Result<Source::ID> {
 		if(std::filesystem::exists(path) == false){
 			this->emitError(std::format("File \"{}\" does not exist", path.string()), Diagnostic::Location::NONE);
-
-			// TODO(FUTURE): figure out why I (incorrectly) got an empty path once (at least, nothing was printed)
-			#if defined(PCIT_CONFIG_DEBUG)
-				evo::breakpoint();
-			#endif
-
 			return evo::resultError;
 		}
 
@@ -1333,7 +1329,8 @@ namespace pcit::panther{
 	auto Context::build_symbol_procs_impl(
 		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
-		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), package_id);
+		// TODO(FUTURE): why does moving break?
+		const evo::Result<Source::ID> new_source = this->load_source(evo::copy(path), package_id);
 		if(new_source.isError()){ return evo::resultError; }
 
 		if(panther::tokenize(*this, new_source.value()).isError()){ return evo::resultError; }
@@ -1994,11 +1991,6 @@ namespace pcit::panther{
 				const auto lock = std::scoped_lock(this->current_dynamic_file_load_failed_lock);
 				this->current_dynamic_file_load_failed.emplace(file_path, LookupSourceIDError::DOESNT_EXIST);
 			}
-
-			// TODO(FUTURE): fix this issue (somehow in a stress test it incorrectly hit this)
-			#if defined(PCIT_CONFIG_DEBUG) 
-				evo::breakpoint();
-			#endif
 
 			return evo::Unexpected(LookupSourceIDError::DOESNT_EXIST);
 		}
