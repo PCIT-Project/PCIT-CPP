@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.335.0"></a>
+## v0.0.335.0
+
+### Panther
+- Removed warning `explicitAlignSameAsImplicit`
+
+### Misc
+- Updated to [Panther-std v0.0.33.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.33.0)
+
+
+<!---------------------------------->
 <a name="v0.0.334.2"></a>
 ## v0.0.334.2
 

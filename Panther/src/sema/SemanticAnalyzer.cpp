@@ -1878,8 +1878,6 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 
-				}else if(this->get_package().warn.explicitAlignSameAsImplicit){
-					this->emit_warning("Alignment value is same as implcit alignment", location);
 				}
 			}
 		}

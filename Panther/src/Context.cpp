@@ -1329,8 +1329,7 @@ namespace pcit::panther{
 	auto Context::build_symbol_procs_impl(
 		fs::path&& path, Source::Package::ID package_id
 	) -> evo::Result<Source::ID> {
-		// TODO(FUTURE): why does moving break?
-		const evo::Result<Source::ID> new_source = this->load_source(evo::copy(path), package_id);
+		const evo::Result<Source::ID> new_source = this->load_source(std::move(path), package_id);
 		if(new_source.isError()){ return evo::resultError; }
 
 		if(panther::tokenize(*this, new_source.value()).isError()){ return evo::resultError; }
@@ -2459,15 +2458,6 @@ namespace pcit::panther{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("alreadyUnsafe"),
-					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(
-						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
-					),
-					false
-				),
-				BaseType::Struct::MemberVar(
-					AST::VarDef::Kind::VAR,
-					build_module.createString("explicitAlignSameAsImplicit"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(
 						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
