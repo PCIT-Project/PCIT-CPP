@@ -6285,19 +6285,22 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const pir::Expr return_address = [&](){
-					if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						return store_locations[0];
-					}else{
-						return this->handler.createAlloca(
-							this->get_type<false, false>(target_type.returnTypes[0]).type
-						);
+
+				auto single_return_address = std::optional<pir::Expr>();
+
+				if constexpr(MODE == GetExprMode::STORE){
+					for(pir::Expr store_location : store_locations){
+						args.emplace_back(store_location);
 					}
-				}();
+					
+				}else{
+					single_return_address = this->handler.createAlloca(
+						this->get_type<false, false>(target_type.returnTypes[0]).type
+					);
+					args.emplace_back(*single_return_address);
+				}
 
 
-				args.emplace_back(return_address);
 
 				if(target_type.errorTypes[0].isVoid() == false){
 					const pir::Expr error_value = this->handler.createAlloca(
@@ -6366,17 +6369,21 @@ namespace pcit::panther{
 				this->handler.createBranch(err_occurred, if_error_block, end_block);
 
 				this->handler.setTargetBasicBlock(if_error_block);
-				this->get_expr_store(try_else_expr.except, return_address);
+				if constexpr(MODE == GetExprMode::STORE){
+					this->get_expr_store(try_else_expr.except, store_locations);
+				}else{
+					this->get_expr_store(try_else_expr.except, *single_return_address);
+				}
 				this->handler.createJump(end_block);
 
 				this->handler.setTargetBasicBlock(end_block);
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Type return_type = this->get_type<false, false>(target_type.returnTypes[0]).type;
-					return this->handler.createLoad(return_address, return_type);
+					return this->handler.createLoad(*single_return_address, return_type);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					return return_address;
+					return *single_return_address;
 					
 				}else if constexpr(MODE == GetExprMode::STORE){
 					return std::nullopt;
@@ -6466,18 +6473,20 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				const pir::Expr return_address = [&](){
-					if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						return store_locations[0];
-					}else{
-						return this->handler.createAlloca(
-							this->get_type<false, false>(target_func_type.returnTypes[0]).type
-						);
-					}
-				}();
 
-				args.emplace_back(return_address);
+				auto single_return_address = std::optional<pir::Expr>();
+
+				if constexpr(MODE == GetExprMode::STORE){
+					for(pir::Expr store_location : store_locations){
+						args.emplace_back(store_location);
+					}
+					
+				}else{
+					single_return_address = this->handler.createAlloca(
+						this->get_type<false, false>(target_func_type.returnTypes[0]).type
+					);
+					args.emplace_back(*single_return_address);
+				}
 
 
 				if(target_func_type.errorTypes[0].isVoid() == false){
@@ -6525,17 +6534,21 @@ namespace pcit::panther{
 				this->handler.createBranch(err_occurred, if_error_block, end_block);
 
 				this->handler.setTargetBasicBlock(if_error_block);
-				this->get_expr_store(try_else_interface_expr.except, return_address);
+				if constexpr(MODE == GetExprMode::STORE){
+					this->get_expr_store(try_else_interface_expr.except, store_locations);
+				}else{
+					this->get_expr_store(try_else_interface_expr.except, *single_return_address);
+				}
 				this->handler.createJump(end_block);
 
 				this->handler.setTargetBasicBlock(end_block);
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Type return_type = this->get_type<false, false>(target_func_type.returnTypes[0]).type;
-					return this->handler.createLoad(return_address, return_type);
+					return this->handler.createLoad(*single_return_address, return_type);
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					return return_address;
+					return *single_return_address;
 					
 				}else if constexpr(MODE == GetExprMode::STORE){
 					return std::nullopt;

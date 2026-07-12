@@ -18024,13 +18024,6 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(attempt_expr.isMultiValue()){
-			this->emit_error(
-				"Attempt function call in try/else expression returns multiple values", instr.try_else.attemptExpr
-			);
-			return Result::ERROR;
-		}
-
 		if(except_expr.is_ephemeral() == false){
 			this->emit_error(
 				"Except in try/else expression is not function call", instr.try_else.exceptExpr
@@ -18038,14 +18031,38 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->type_check<true, true, false>(
-			attempt_expr.type_id.as<TypeInfo::ID>(),
-			except_expr,
-			"Except in try/else expression",
-			this->get_location(instr.try_else.exceptExpr)
-		).ok == false){
-			return Result::ERROR;
+
+		if(attempt_expr.isMultiValue()){
+			for(
+				unsigned i = 0;
+				TypeInfo::ID attempt_expr_type_id : attempt_expr.type_id.as<evo::SmallVector<TypeInfo::ID>>()
+			){
+				if(this->type_check<true, true, false>(
+					attempt_expr_type_id,
+					except_expr,
+					"Except in try/else expression",
+					this->get_location(instr.try_else.exceptExpr),
+					true,
+					i
+				).ok == false){
+					return Result::ERROR;
+				}
+				
+				i += 1;	
+			}
+
+		}else{
+			if(this->type_check<true, true, false>(
+				attempt_expr.type_id.as<TypeInfo::ID>(),
+				except_expr,
+				"Except in try/else expression",
+				this->get_location(instr.try_else.exceptExpr)
+			).ok == false){
+				return Result::ERROR;
+			}
 		}
+
+		
 
 		const TermInfo& except_params_term_info = this->get_term_info(instr.except_params);
 		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
