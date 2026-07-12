@@ -585,6 +585,7 @@ namespace pcit::panther::sema{
 			COMPLETE,
 		};
 
+		Token::ID switchToken;
 		TypeInfo::ID condTypeID;
 		Expr cond;
 		evo::SmallVector<Case> cases;

@@ -8650,6 +8650,7 @@ namespace pcit::panther{
 		}
 
 		const sema::Switch::ID created_switch_id = this->context.sema_buffer.createSwitch(
+			instr.switch_stmt.keyword,
 			cond_type_id,
 			cond.getExpr(),
 			std::move(cases),

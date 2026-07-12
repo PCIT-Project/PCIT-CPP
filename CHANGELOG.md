@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.335.3"></a>
+## v0.0.335.3
+
+### Panther
+- Fixed lowering of debug unreachables missing debug info
+- Fixed lowering of complete switch panic missing debug info
+
+
+<!---------------------------------->
 <a name="v0.0.335.2"></a>
 ## v0.0.335.2
 

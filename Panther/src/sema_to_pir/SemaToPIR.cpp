@@ -2663,7 +2663,14 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::UNREACHABLE: {
 				if(this->data.getConfig().useDebugUnreachables){
+					const Diagnostic::Location location =
+						Diagnostic::Location::get(stmt.unreachableID(), *this->current_source);
+					const auto ssl = this->create_scoped_source_location(
+						location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
+					);
+
 					this->create_panic("Attempted to execute unreachable");
+
 				}else{
 					this->handler.createUnreachable();
 				}
@@ -3522,6 +3529,14 @@ namespace pcit::panther{
 								this->handler.createBasicBlock(this->name("SWITCH.INVALID"));
 
 							this->handler.setTargetBasicBlock(invalid_block);
+
+							const Diagnostic::Location switch_token_location =
+								Diagnostic::Location::get(switch_stmt.switchToken, *this->current_source);
+
+							const auto ssl = this->create_scoped_source_location(
+								switch_token_location.as<SourceLocation>().lineStart,
+								switch_token_location.as<SourceLocation>().collumnStart
+							);
 							this->create_panic("Invalid switch value");
 
 							// probably not needed, but just in case
