@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.335.2"></a>
+## v0.0.335.2
+
+### Panther
+- Fixed using global variables from builtin modules as a runtime value
+
+
+<!---------------------------------->
 <a name="v0.0.335.1"></a>
 ## v0.0.335.1
 
