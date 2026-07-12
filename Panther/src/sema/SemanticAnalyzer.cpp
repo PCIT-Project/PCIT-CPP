@@ -9378,7 +9378,10 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(func_call_impl_res.value().is_src_func()){
+			if(
+				func_call_impl_res.value().is_src_func()
+				&& target_term_info.value_category != TermInfo::ValueCategory::POLY_INTERFACE_CALL
+			){
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 					*func_call_impl_res.value().selected_func_id
 				);

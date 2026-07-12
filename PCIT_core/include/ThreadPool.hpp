@@ -60,10 +60,16 @@ namespace pcit::core{
 				this->data = std::move(tasks);
 				this->work_func = std::move(func);
 
+				this->errored      = false;
+				this->num_stealing = 0;
+
+
 				if(this->workers.size() > this->data.size()){
 					for(size_t i = 0; i < this->data.size(); i+=1){
-						this->workers[i].start_working(i, i);
+						this->workers[i].start_working(i, i+1);
 					}
+
+					this->max_num_working = uint32_t(this->data.size());
 					
 				}else{
 					const size_t num_tasks_per_thread = this->data.size() / this->workers.size();
@@ -78,12 +84,13 @@ namespace pcit::core{
 					
 						i += 1;
 					}
+
+					this->max_num_working = uint32_t(this->workers.size());
 				}
 
-
-				this->errored      = false;
-				this->num_stealing = 0;
-				this->num_working  = uint32_t(this->workers.size());
+				// setting `this->num_working` MUST be the last line executed in this function 
+				// as it starts the workers working
+				this->num_working = this->max_num_working;
 			}
 
 
@@ -122,75 +129,7 @@ namespace pcit::core{
 				public:
 					Worker(ThreadPool& _thread_pool)
 						: thread_pool(_thread_pool), mode(Mode::WAITING), thread([this](std::stop_token stop) -> void {
-							while(stop.stop_requested() == false){
-								switch(this->mode.load()){
-									case Mode::WAITING: {
-										std::this_thread::yield();
-									} break;
-
-									case Mode::READY_TO_START: {
-										if(this->thread_pool.isWorking()){
-											this->mode = Mode::WORKING;
-										}else{
-											std::this_thread::yield();
-										}
-									} break;
-
-									case Mode::WORKING: {
-										DATA* task = this->get_task();
-										if(task == nullptr){
-											this->mode = Mode::STEALING;
-											this->thread_pool.num_stealing += 1;
-											continue;
-										}
-
-										if(this->thread_pool.work_func(*task).isError()){
-											this->task_errored();
-										}
-									} break;
-
-									case Mode::STEALING: {
-										size_t target_worker_index = 0;
-										const uint32_t num_workers = uint32_t(this->thread_pool.workers.size());
-
-										size_t num_workers_failed_to_steal_from_in_a_row = 0;
-
-										while(this->thread_pool.num_stealing < num_workers){
-											EVO_DEFER([&](){
-												target_worker_index += 1;
-												if(target_worker_index >= num_workers){ target_worker_index = 0; }
-											});
-
-											Worker& target_worker = this->thread_pool.workers[target_worker_index];
-											if(&target_worker == this){ continue; }
-
-											DATA* task = target_worker.externally_steal_task();
-											// DATA* task = target_worker.get_task();
-											if(task == nullptr){
-												num_workers_failed_to_steal_from_in_a_row += 1;
-												if(num_workers_failed_to_steal_from_in_a_row >= num_workers){
-													this->stop_working();
-												}
-												continue;
-											}
-
-											num_workers_failed_to_steal_from_in_a_row = 0;
-
-											if(this->thread_pool.work_func(*task).isError()){
-												this->task_errored();
-											}
-										}
-
-										this->stop_working();
-									} break;
-
-									case Mode::TOLD_TO_STOP_WORKING: {
-										this->stop_working();
-									} break;
-								}
-							}
-
-							this->thread_pool.signal_worker_stopped_running();
+							this->thread_func(stop);
 						}) 
 					{
 						this->thread.detach();
@@ -264,6 +203,81 @@ namespace pcit::core{
 						STEALING,
 						TOLD_TO_STOP_WORKING,
 					};
+
+
+					auto thread_func(std::stop_token stop) -> void {
+						while(stop.stop_requested() == false){
+							switch(this->mode.load()){
+								case Mode::WAITING: {
+									std::this_thread::yield();
+								} break;
+
+								case Mode::READY_TO_START: {
+									if(this->thread_pool.isWorking()){
+										this->mode = Mode::WORKING;
+									}else{
+										std::this_thread::yield();
+									}
+								} break;
+
+								case Mode::WORKING: {
+									DATA* task = this->get_task();
+									if(task == nullptr){
+										this->mode = Mode::STEALING;
+										this->thread_pool.num_stealing += 1;
+										continue;
+									}
+
+									if(this->thread_pool.work_func(*task).isError()){
+										this->task_errored();
+									}
+								} break;
+
+								case Mode::STEALING: {
+									size_t target_worker_index = 0;
+									size_t num_workers_failed_to_steal_from_in_a_row = 0;
+
+									while(this->thread_pool.num_stealing < this->thread_pool.max_num_working){
+										EVO_DEFER([&](){
+											target_worker_index += 1;
+											if(target_worker_index >= this->thread_pool.max_num_working){
+												target_worker_index = 0;
+											}
+										});
+
+										Worker& target_worker = this->thread_pool.workers[target_worker_index];
+										if(target_worker.mode != Mode::WORKING){ continue; }
+
+										DATA* task = target_worker.externally_steal_task();
+										if(task == nullptr){
+											num_workers_failed_to_steal_from_in_a_row += 1;
+											if(
+												num_workers_failed_to_steal_from_in_a_row
+												>= this->thread_pool.max_num_working
+											){
+												this->stop_working();
+											}
+											continue;
+										}
+
+										num_workers_failed_to_steal_from_in_a_row = 0;
+
+										if(this->thread_pool.work_func(*task).isError()){
+											this->task_errored();
+										}
+									}
+
+									this->stop_working();
+								} break;
+
+								case Mode::TOLD_TO_STOP_WORKING: {
+									this->stop_working();
+								} break;
+							}
+						}
+
+						this->thread_pool.signal_worker_stopped_running();
+					}
 			
 				private:
 					ThreadPool& thread_pool;
@@ -305,10 +319,13 @@ namespace pcit::core{
 			WorkFunc work_func{};
 			evo::UnmovableVector<Worker, false> workers{};
 
+			uint32_t max_num_working = 0;
+
 			std::atomic<uint32_t> num_running  = 0;
 			std::atomic<uint32_t> num_working  = 0;
 			std::atomic<uint32_t> num_stealing = 0;
 			std::atomic<bool> errored          = false;
+
 	};
 
 

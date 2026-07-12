@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.335.1"></a>
+## v0.0.335.1
+
+### Panther
+- Fixed stalling when doing semantic analysis of comptime polymorphic interface call
+
+### PCIT_core
+- Fixed `ThreadPool` never finishing working if there are fewer tasks than threads
+- Fixed `ThreadPool` not doing work when there's only 1 task and more than 1 thread
+
+
+<!---------------------------------->
 <a name="v0.0.335.0"></a>
 ## v0.0.335.0
 
