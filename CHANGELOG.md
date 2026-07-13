@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.336.1"></a>
+## v0.0.336.1
+
+### Panther
+- Fixed lowering of interfaces calls always passing parameters by pointer
+
+
+<!---------------------------------->
 <a name="v0.0.336.0"></a>
 ## v0.0.336.0
 

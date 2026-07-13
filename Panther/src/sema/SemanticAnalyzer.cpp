@@ -6161,9 +6161,13 @@ namespace pcit::panther{
 		const sema::Func::ID current_method_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 		sema::Func& current_method = this->context.sema_buffer.funcs[current_method_id];
 
+		BaseType::Function& func_type = this->context.type_manager.getFunction(current_method.typeID);
+
+		//////////////////
+		// check body
+
 		if(instr.func_def.value.has_value()){ // has default 
 			if(this->get_current_scope_level().isTerminated() == false){
-				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_method.typeID);
 
 				if(func_type.returnsVoid() == false){
 					this->emit_error(
@@ -6183,6 +6187,29 @@ namespace pcit::panther{
 		}else{
 			current_method.status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
 		}
+
+
+		//////////////////
+		// check param is copy
+
+		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+		
+		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(type_id.has_value() == false){ continue; }
+
+			if(
+				this->context.getTypeManager().isTriviallyCopyable(*type_id)
+				&& this->context.getTypeManager().isTriviallySized(*type_id)
+			){
+				func_type.params[i].shouldCopy = true;
+			}
+		}
+
+
+		//////////////////
+		// cleanup
 
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 		this->propagate_finished_def();
