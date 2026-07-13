@@ -28293,36 +28293,39 @@ namespace pcit::panther{
 
 				///////////////////////////////////
 				// check type mismatch
-				TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
-					if(is_comptime){
-						return this->type_check<false, false, true>(
-							func_info.func_type.params[arg_i].typeID,
-							arg_info.term_info,
-							"",
-							this->get_location(arg_info.ast_node)
-						);
-						
-					}else{
-						return this->type_check<false, false, false>(
-							func_info.func_type.params[arg_i].typeID,
-							arg_info.term_info,
-							"",
-							this->get_location(arg_info.ast_node)
-						);
-					}
-				}();
 
-				if(type_check_info.ok == false){
-					if(type_check_info.special_result.has_value()){
-						return evo::Unexpected(type_check_info.extractSpecialResult());
+				if(is_member_call == false || arg_i != 0){
+					TypeCheckInfo type_check_info = [&]() -> TypeCheckInfo {
+						if(is_comptime){
+							return this->type_check<false, false, true>(
+								func_info.func_type.params[arg_i].typeID,
+								arg_info.term_info,
+								"",
+								this->get_location(arg_info.ast_node)
+							);
+							
+						}else{
+							return this->type_check<false, false, false>(
+								func_info.func_type.params[arg_i].typeID,
+								arg_info.term_info,
+								"",
+								this->get_location(arg_info.ast_node)
+							);
+						}
+					}();
+
+					if(type_check_info.ok == false){
+						if(type_check_info.special_result.has_value()){
+							return evo::Unexpected(type_check_info.extractSpecialResult());
+						}
+
+						scores.emplace_back(OverloadScore::TypeMismatch(arg_i));
+						arg_checking_failed = true;
+						break;
 					}
 
-					scores.emplace_back(OverloadScore::TypeMismatch(arg_i));
-					arg_checking_failed = true;
-					break;
+					if(type_check_info.requires_implicit_conversion == false){ current_score += 1; }
 				}
-
-				if(type_check_info.requires_implicit_conversion == false){ current_score += 1; }
 
 
 				///////////////////////////////////
@@ -28862,7 +28865,10 @@ namespace pcit::panther{
 					}
 				}();
 
-				if(selected_sema_func.isMethod(this->context) == false){ continue; }
+				if(selected_sema_func.isMethod(this->context)){ 
+					i += 1;
+				}
+				continue;
 			}
 
 			is_first = false;

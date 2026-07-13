@@ -1,11 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.336.2"></a>
+## v0.0.336.2
+
+### Panther
+- Fixed static analysis of static interface calls in some cases incorrectly type checking `this`
+
+
+<!---------------------------------->
 <a name="v0.0.336.1"></a>
 ## v0.0.336.1
 
 ### Panther
-- Fixed lowering of interfaces calls always passing parameters by pointer
+- Fixed lowering of polymorphic interfaces calls always passing parameters by pointer
 
 
 <!---------------------------------->
