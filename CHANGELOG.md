@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.336.3"></a>
+## v0.0.336.3
+
+### Panther
+- Fixed semantic analysis of operator `as` of fluid values to invalid types
+- Fixed semantic analysis of operator `as` of fluid values to alias types
+
+
+<!---------------------------------->
 <a name="v0.0.336.2"></a>
 ## v0.0.336.2
 

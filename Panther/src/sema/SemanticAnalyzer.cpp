@@ -19400,9 +19400,13 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+
 		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
+			const TypeInfo::ID underlying_target_type_id =
+				this->context.getTypeManager().decayType<true, false>(target_type.asTypeID());
+
 			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
-				if(this->context.getTypeManager().isIntegral(target_type.asTypeID())){ // int to int
+				if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // int to int
 					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
 					);
@@ -19417,24 +19421,7 @@ namespace pcit::panther{
 					);
 					return Result::SUCCESS;
 
-				}else if(target_type.asTypeID() == TypeManager::getTypeChar()){ // int to char
-					const sema::IntValue& initial_val = 
-						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
-
-					const sema::CharValue::ID new_char_value = this->context.sema_buffer.createCharValue(
-						static_cast<char>(initial_val.value)
-					);
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(new_char_value)
-					);
-					return Result::SUCCESS;
-					
-				}else{ // int to float
+				}else if(this->context.getTypeManager().isFloatingPoint(underlying_target_type_id)){ // int to float
 					const sema::IntValue& initial_val = 
 						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 
@@ -19452,10 +19439,34 @@ namespace pcit::panther{
 					);
 					return Result::SUCCESS;
 
+				}else if(underlying_target_type_id == TypeManager::getTypeChar()){ // int to char
+					const sema::IntValue& initial_val = 
+						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+
+					const sema::CharValue::ID new_char_value = this->context.sema_buffer.createCharValue(
+						static_cast<char>(initial_val.value)
+					);
+
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type.asTypeID(),
+						sema::Expr(new_char_value)
+					);
+					return Result::SUCCESS;
+
+				}else{
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+					this->emit_error(
+						"Operator [as] cannot convert a fluid integral to this type", instr.infix.rhs, std::move(infos)
+					);
+					return Result::ERROR;
 				}
 
 			}else{
-				if(this->context.getTypeManager().isIntegral(target_type.asTypeID())){ // float to int
+				if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // float to int
 					const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
 					const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
 
@@ -19477,7 +19488,7 @@ namespace pcit::panther{
 
 					return Result::SUCCESS;
 
-				}else{ // float to float
+				}else if(this->context.getTypeManager().isFloatingPoint(target_type.asTypeID())){ // float to float
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
 					);
@@ -19491,6 +19502,14 @@ namespace pcit::panther{
 						expr.getExpr()
 					);
 					return Result::SUCCESS;
+
+				}else{
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+					this->emit_error(
+						"Operator [as] cannot convert an fluid float to this type", instr.infix.rhs, std::move(infos)
+					);
+					return Result::ERROR;
 				}
 			}
 		}
