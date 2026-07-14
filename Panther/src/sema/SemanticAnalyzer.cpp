@@ -18102,9 +18102,9 @@ namespace pcit::panther{
 
 
 
-
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
-
+		if(this->end_sub_scopes(this->get_location(instr.try_else.exceptExpr)).isError()){ return Result::ERROR; }
+		
 
 		const sema::Expr try_else_expr = [&](){
 			const Diagnostic::Location location = Diagnostic::Location::get(instr.try_else.attemptExpr, this->source);

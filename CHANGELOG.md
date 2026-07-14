@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.336.4"></a>
+## v0.0.336.4
+
+### Panther
+- Fixed termination determining after a `try`/`else` expressin
+
+
+<!---------------------------------->
 <a name="v0.0.336.3"></a>
 ## v0.0.336.3
 
@@ -30,7 +38,7 @@
 ## v0.0.336.0
 
 ### Panther
-- Added try/else function calls when the function returns multiple values
+- Added `try`/`else` function calls when the function returns multiple values
 
 
 <!---------------------------------->
