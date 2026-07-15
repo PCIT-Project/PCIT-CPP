@@ -6291,28 +6291,28 @@ namespace pcit::panther{
 				const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
 
 				switch(*this->symbol_proc.builtin_symbol_proc_kind){
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"): {
-						return pthr_module.getSymbol("Iterable")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"): {
+						return pthr_module.getSymbol("IIterable")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"): {
-						return pthr_module.getSymbol("IterableRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"): {
+						return pthr_module.getSymbol("IIterableRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"): {
-						return pthr_module.getSymbol("IterableRef")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"): {
+						return pthr_module.getSymbol("IIterableRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"): {
-						return pthr_module.getSymbol("IterableRefRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"): {
+						return pthr_module.getSymbol("IIterableRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"): {
-						return pthr_module.getSymbol("IterableMutRef")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"): {
+						return pthr_module.getSymbol("IIterableMutRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
-					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"): {
-						return pthr_module.getSymbol("IterableMutRefRT")->as<BaseType::ID>().interfaceID();
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
+						return pthr_module.getSymbol("IIterableMutRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					default: {
@@ -7932,19 +7932,19 @@ namespace pcit::panther{
 			};
 
 			if(in_comptime_func){
-				interface_iterable         = get_interface("Iterable");
-				interface_iterable_ref     = get_interface("IterableRef");
-				interface_iterable_mut_ref = get_interface("IterableMutRef");
-				interface_iterator         = get_interface("Iterator");
-				interface_mut_iterator     = get_interface("MutIterator");
+				interface_iterable         = get_interface("IIterable");
+				interface_iterable_ref     = get_interface("IIterableRef");
+				interface_iterable_mut_ref = get_interface("IIterableMutRef");
+				interface_iterator         = get_interface("IIterator");
+				interface_mut_iterator     = get_interface("IMutIterator");
 			}
 
 			if(in_runtime_func){
-				interface_iterable_rt         = get_interface("IterableRT");
-				interface_iterable_ref_rt     = get_interface("IterableRefRT");
-				interface_iterable_mut_ref_rt = get_interface("IterableMutRefRT");
-				interface_iterator_rt         = get_interface("IteratorRT");
-				interface_mut_iterator_rt     = get_interface("MutIteratorRT");
+				interface_iterable_rt         = get_interface("IIterableRT");
+				interface_iterable_ref_rt     = get_interface("IIterableRefRT");
+				interface_iterable_mut_ref_rt = get_interface("IIterableMutRefRT");
+				interface_iterator_rt         = get_interface("IIteratorRT");
+				interface_mut_iterator_rt     = get_interface("IMutIteratorRT");
 			}
 		}
 
@@ -31208,7 +31208,7 @@ namespace pcit::panther{
 					.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 
-				if(interface_name == "Iterable"){
+				if(interface_name == "IIterable"){
 					if(array_type.dimensions.size() != 1){
 						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
@@ -31220,14 +31220,14 @@ namespace pcit::panther{
 					}
 
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.Iterable"),
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"),
 						this->symbol_proc.getID(),
 						this->context
 					);
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
 
-				}else if(interface_name == "IterableRT"){
+				}else if(interface_name == "IIterableRT"){
 					if(array_type.dimensions.size() != 1){
 						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
 						return evo::Unexpected(Result::ERROR);
@@ -31239,7 +31239,7 @@ namespace pcit::panther{
 					}
 
 					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IterableRT"),
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"),
 						this->symbol_proc.getID(),
 						this->context
 					);
@@ -31262,7 +31262,7 @@ namespace pcit::panther{
 					.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 				if(array_ref_type.isMut){
-					if(interface_name == "IterableMutRef"){
+					if(interface_name == "IIterableMutRef"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
 								"Iteration of multi-dimension array references is currently unimplemented", location
@@ -31279,14 +31279,14 @@ namespace pcit::panther{
 
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRef"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"),
 								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
 
-					}else if(interface_name == "IterableMutRefRT"){
+					}else if(interface_name == "IIterableMutRefRT"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
 								"Iteration of multi-dimension array references is currently unimplemented", location
@@ -31304,7 +31304,7 @@ namespace pcit::panther{
 
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IterableMutRefRT"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"),
 								this->symbol_proc.getID(),
 								this->context
 							);
@@ -31315,7 +31315,7 @@ namespace pcit::panther{
 						return false;
 					}
 				}else{
-					if(interface_name == "IterableRef"){
+					if(interface_name == "IIterableRef"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
 								"Iteration of multi-dimension array references is currently unimplemented", location
@@ -31332,14 +31332,14 @@ namespace pcit::panther{
 
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRef"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"),
 								this->symbol_proc.getID(),
 								this->context
 							);
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
 
-					}else if(interface_name == "IterableRefRT"){
+					}else if(interface_name == "IIterableRefRT"){
 						if(array_ref_type.dimensions.size() != 1){
 							this->emit_error(
 								"Iteration of multi-dimension array references is currently unimplemented", location
@@ -31356,7 +31356,7 @@ namespace pcit::panther{
 
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IterableRefRT"),
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
 								this->symbol_proc.getID(),
 								this->context
 							);

@@ -1,11 +1,32 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.337.0"></a>
+## v0.0.337.0
+
+### Panther
+- Renamed builtin interfaces
+	- `Iterable`         -> `IIterable`
+	- `IterableRT`       -> `IIterableRT`
+	- `IterableRef`      -> `IIterableRef`
+	- `IterableRefRT`    -> `IIterableRefRT`
+	- `IterableMutRef`   -> `IIterableMutRef`
+	- `IterableMutRefRT` -> `IIterableMutRefRT`
+	- `Iterator`         -> `IIterator`
+	- `IteratorRT`       -> `IIteratorRT`
+	- `MutIterator`      -> `IMutIterator`
+	- `MutIteratorRT`    -> `IMutIteratorRT`
+
+### Misc
+- Updated to [Panther-std v0.0.34.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.34.0)
+
+
+<!---------------------------------->
 <a name="v0.0.336.4"></a>
 ## v0.0.336.4
 
 ### Panther
-- Fixed termination determining after a `try`/`else` expressin
+- Fixed termination determining after a `try`/`else` expression
 
 
 <!---------------------------------->
@@ -46,8 +67,8 @@
 ## v0.0.335.3
 
 ### Panther
-- Fixed lowering of debug unreachables missing debug info
-- Fixed lowering of complete switch panic missing debug info
+- Fixed lowering of debug `unreachable` missing debug info
+- Fixed lowering of complete `switch` panic missing debug info
 
 
 <!---------------------------------->
@@ -86,7 +107,7 @@
 ## v0.0.334.2
 
 ### PCIT_core
-- Fixed race conditon in and improved performance of `ThreadPool`
+- Fixed race condition in and improved performance of `ThreadPool`
 
 ### Misc
 - Updated to [Evo v1.40.0](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.40.0)

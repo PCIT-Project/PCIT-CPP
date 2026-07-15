@@ -3312,14 +3312,14 @@ namespace pcit::panther{
 			[[nodiscard]] static consteval auto constevalLookupBuiltinSymbolKind(std::string_view str)
 			-> SymbolProc::BuiltinSymbolKind {
 				if(str == "panic"){ return SymbolProc::BuiltinSymbolKind::PANIC; }
-				if(str == "array.Iterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
-				if(str == "array.IterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
-				if(str == "arrayRef.IterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
-				if(str == "arrayRef.IterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
-				if(str == "arrayMutRef.IterableMutRef"){
+				if(str == "array.IIterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
+				if(str == "array.IIterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
+				if(str == "arrayRef.IIterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
+				if(str == "arrayRef.IIterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
+				if(str == "arrayMutRef.IIterableMutRef"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF;
 				}
-				if(str == "arrayMutRef.IterableMutRefRT"){
+				if(str == "arrayMutRef.IIterableMutRefRT"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF_RT;
 				}
 
