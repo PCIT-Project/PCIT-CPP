@@ -3375,7 +3375,10 @@ namespace pcit::panther{
 
 
 			#if defined(PCIT_CONFIG_DEBUG)
-				auto debug_dump(bool minimize_done) -> void;
+				// 0: don't show done
+				// 1: minimize done
+				// 2: show all
+				auto debug_dump(unsigned verbosity_level) -> void;
 
 				[[nodiscard]] auto debug_get_symbol(uint32_t id) const -> const SymbolProc&;
 			#endif

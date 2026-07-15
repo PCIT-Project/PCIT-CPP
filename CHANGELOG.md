@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.337.1"></a>
+## v0.0.337.1
+
+### Panther
+- Fixed race condition in `when` / `when` `switch` that's in non-local scope
+
+
+<!---------------------------------->
 <a name="v0.0.337.0"></a>
 ## v0.0.337.0
 

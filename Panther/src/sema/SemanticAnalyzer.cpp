@@ -1379,6 +1379,9 @@ namespace pcit::panther{
 				);
 
 				if(encapsulating_symbol_proc != nullptr){
+					const auto lock =
+						std::scoped_lock(encapsulating_symbol_proc->waiting_for_lock, then_symbol.decl_waited_on_lock);
+
 					then_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
 					encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
 				}
@@ -1399,11 +1402,21 @@ namespace pcit::panther{
 
 				if(encapsulating_symbol_proc != nullptr){
 					if(else_symbol.getASTNode().kind() == AST::Kind::WHEN_CONDITIONAL){
+						const auto lock = std::scoped_lock(
+							encapsulating_symbol_proc->waiting_for_lock, else_symbol.def_waited_on_lock
+						);
+
 						else_symbol.def_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+						encapsulating_symbol_proc->waiting_for.emplace_back(else_id);
+
 					}else{
+						const auto lock = std::scoped_lock(
+							encapsulating_symbol_proc->waiting_for_lock, else_symbol.decl_waited_on_lock
+						);
+
 						else_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+						encapsulating_symbol_proc->waiting_for.emplace_back(else_id);
 					}
-					encapsulating_symbol_proc->waiting_for.emplace_back(else_id);
 				}
 
 				this->set_waiting_for_is_done(else_id, this->symbol_proc.getID());
@@ -9226,6 +9239,9 @@ namespace pcit::panther{
 				);
 
 				if(encapsulating_symbol_proc != nullptr){
+					const auto lock =
+						std::scoped_lock(encapsulating_symbol_proc->waiting_for_lock, symbol.decl_waited_on_lock);
+
 					symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
 					encapsulating_symbol_proc->waiting_for.emplace_back(symbol_scope_id);
 				}

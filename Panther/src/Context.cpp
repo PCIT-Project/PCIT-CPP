@@ -596,11 +596,11 @@ namespace pcit::panther{
 
 				#if defined(PCIT_CONFIG_DEBUG)
 					evo::log::debug(
-						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump(true)`"
+						"For pretty print version of info in debugger, `context.symbol_proc_manager.debug_dump(0)`"
 					);
 
 					// this->symbol_proc_manager.debug_dump(false);
-					this->symbol_proc_manager.debug_dump(true);
+					this->symbol_proc_manager.debug_dump(0);
 
 					evo::breakpoint(); // not temporary debugging
 				#endif

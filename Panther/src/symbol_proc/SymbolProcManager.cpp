@@ -168,7 +168,7 @@ namespace pcit::panther{
 
 
 
-		auto SymbolProcManager::debug_dump(bool minimize_done) -> void {
+		auto SymbolProcManager::debug_dump(unsigned verbosity_level) -> void {
 			auto printer = core::Printer::createString(true);
 
 
@@ -190,13 +190,15 @@ namespace pcit::panther{
 
 
 				if(
-					minimize_done && 
+					(verbosity_level <= 1) && 
 					(
 						symbol_proc.status.load() == SymbolProc::Status::DONE
 						|| symbol_proc.status.load() == SymbolProc::Status::IN_DEF_DEDUCER_IMPL_METHOD
 						|| symbol_proc.status.load() == SymbolProc::Status::PASSED_ON_BY_WHEN
 					)
 				){
+					if(verbosity_level == 0){ continue; }
+
 					printer.printGray("Symbol Proc {} ", i);
 					if(symbol_proc.ident.empty()){
 						printer.printlnGray("(UNNAMED):");
@@ -268,9 +270,13 @@ namespace pcit::panther{
 					print_field_gray(printer, "Parent", "(NONE)");
 				}else{
 					if(symbol_proc.parent->ident.empty()){
-						print_field(printer, "Parent", "(UNNAMED)");
+						print_field(printer, "Parent", std::format("{}: (UNNAMED)", symbol_proc.parent->getID().get()));
 					}else{
-						print_field(printer, "Parent", std::format("\"{}\"", symbol_proc.parent->ident));
+						print_field(
+							printer,
+							"Parent",
+							std::format("{}: \"{}\"", symbol_proc.parent->getID().get(), symbol_proc.parent->ident)
+						);
 					}
 				}
 
