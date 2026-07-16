@@ -7591,6 +7591,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_cond_no_else() -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		this->get_current_scope_level().addSubScope();
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
 		return Result::SUCCESS;
 	}
 

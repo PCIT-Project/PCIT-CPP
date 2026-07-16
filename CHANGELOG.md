@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.337.2"></a>
+## v0.0.337.2
+
+### Panther
+- Fixed semantic analysis of `if` without an `else`
+
+
+<!---------------------------------->
 <a name="v0.0.337.1"></a>
 ## v0.0.337.1
 
