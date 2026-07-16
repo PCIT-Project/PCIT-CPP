@@ -137,6 +137,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_continue(const Instruction::Continue& instr) -> Result;
 			[[nodiscard]] auto instr_delete(const Instruction::Delete& instr) -> Result;
 			[[nodiscard]] auto instr_begin_cond(const Instruction::BeginCond& instr) -> Result;
+			[[nodiscard]] auto instr_begin_cond_set(const Instruction::BeginCondSet& instr) -> Result;
 			[[nodiscard]] auto instr_cond_no_else() -> Result;
 			[[nodiscard]] auto instr_cond_else() -> Result;
 			[[nodiscard]] auto instr_cond_else_if() -> Result;

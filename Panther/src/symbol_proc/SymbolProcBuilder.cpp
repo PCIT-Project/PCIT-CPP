@@ -2507,6 +2507,8 @@ namespace pcit::panther{
 
 		auto close_brace = std::optional<Token::ID>();
 
+		this->add_instruction(this->context.symbol_proc_manager.createBeginCondSet(conditional_stmt));
+
 		while(true){
 			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_conditional->cond);
 			if(cond.isError()){ return evo::resultError; }

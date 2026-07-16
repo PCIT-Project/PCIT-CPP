@@ -960,6 +960,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginCondSet
+
+			[[nodiscard]] auto createBeginCondSet(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_COND_SET,
+					this->begin_cond_sets.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getBeginCondSet(Instruction instr) const -> const Instruction::BeginCondSet& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_COND_SET, "Not a BeginCondSet");
+				return this->begin_cond_sets[instr._index];
+			}
+
+
+
+			//////////////////
 			// BeginCond
 
 			[[nodiscard]] auto createBeginCond(auto&&... args) -> Instruction {
@@ -3455,6 +3472,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Break, uint32_t> breaks{};
 			core::SyncLinearStepAlloc<Instruction::Continue, uint32_t> continues{};
 			core::SyncLinearStepAlloc<Instruction::Delete, uint32_t> deletes{};
+			core::SyncLinearStepAlloc<Instruction::BeginCondSet, uint32_t> begin_cond_sets{};
 			core::SyncLinearStepAlloc<Instruction::BeginCond, uint32_t> begin_conds{};
 			core::SyncLinearStepAlloc<Instruction::EndCondSet, uint32_t> end_cond_sets{};
 			core::SyncLinearStepAlloc<Instruction::BeginLocalWhenCond, uint32_t> begin_local_when_conds{};

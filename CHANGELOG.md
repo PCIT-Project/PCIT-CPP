@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.337.3"></a>
+## v0.0.337.3
+
+### Panther
+- Fixed termination checking for `if` conditionals
+
+
+<!---------------------------------->
 <a name="v0.0.337.2"></a>
 ## v0.0.337.2
 

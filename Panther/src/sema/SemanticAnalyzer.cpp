@@ -358,6 +358,9 @@ namespace pcit::panther{
 			case Instruction::Kind::DELETE:
 				return this->instr_delete(this->context.symbol_proc_manager.getDelete(instr));
 
+			case Instruction::Kind::BEGIN_COND_SET:
+				return this->instr_begin_cond_set(this->context.symbol_proc_manager.getBeginCondSet(instr));
+
 			case Instruction::Kind::BEGIN_COND:
 				return this->instr_begin_cond(this->context.symbol_proc_manager.getBeginCond(instr));
 
@@ -7546,6 +7549,12 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_begin_cond_set(const Instruction::BeginCondSet& instr) -> Result {
+		if(this->check_scope_isnt_terminated(instr.conditional).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 

@@ -527,6 +527,10 @@ namespace pcit::panther{
 		};
 
 
+		struct BeginCondSet{
+			const AST::Conditional& conditional;
+		};
+
 		struct BeginCond{
 			const AST::Conditional& conditional;
 			SymbolProcTermInfoID cond_expr;
@@ -1234,6 +1238,7 @@ namespace pcit::panther{
 			BREAK,
 			CONTINUE,
 			DELETE,
+			BEGIN_COND_SET,
 			BEGIN_COND,
 			COND_NO_ELSE,
 			COND_ELSE,
