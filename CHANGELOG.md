@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.338.2"></a>
+## v0.0.338.2
+
+### Panther
+- Fixed lowering of vtables having the wrong linkage
+
+
+<!---------------------------------->
 <a name="v0.0.338.1"></a>
 ## v0.0.338.1
 

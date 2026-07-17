@@ -1286,7 +1286,7 @@ namespace pcit::panther{
 		const pir::GlobalVar::ID vtable = this->module.createGlobalVar(
 			std::move(vtable_name),
 			this->module.getOrCreateArrayType(this->module.createPtrType(), uint64_t(interface_type.methods.size())),
-			pir::Linkage::EXTERNAL,
+			pir::Linkage::PRIVATE,
 			this->module.createGlobalArray(this->module.createPtrType(), std::move(vtable_values)),
 			true
 		);
