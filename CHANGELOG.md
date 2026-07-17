@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.337.4"></a>
+## v0.0.337.4
+
+### Panther
+- Fixed missing `@pthr.OptMode.SPEED_AGRESSIVE`
+
+### PCIT_core
+- Fixed `ThreadPool::waitUntilDoneWorking` returning the wrong result
+
+
+<!---------------------------------->
 <a name="v0.0.337.3"></a>
 ## v0.0.337.3
 

@@ -99,7 +99,7 @@ namespace pcit::core{
 					std::this_thread::yield();
 				}
 
-				return evo::Result<>::fromBool(this->errored);
+				return evo::Result<>::fromBool(!this->errored.load());
 			}
 
 			auto waitUntilDoneRunning() -> void {

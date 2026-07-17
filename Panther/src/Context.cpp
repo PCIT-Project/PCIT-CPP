@@ -726,7 +726,10 @@ namespace pcit::panther{
 
 			if(this->_config.numThreads.isMulti()){
 				const evo::Result<> opt_result = pass_manager.run();
-				if(opt_result.isError()){ return evo::resultError; }
+				if(opt_result.isError()){
+					this->emitFatal("PIR optimization errored", Diagnostic::Location::NONE);
+					return evo::resultError;
+				}
 				
 			}else{
 				pass_manager.runSingleThreaded();
@@ -2782,8 +2785,8 @@ namespace pcit::panther{
 					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED))
 				),
 				BaseType::Enum::Enumerator(
-					pthr_module.createString("SPEED_MINOR"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_MINOR))
+					pthr_module.createString("SPEED_AGRESSIVE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(pir::OptMode::SPEED_AGRESSIVE))
 				),
 				BaseType::Enum::Enumerator(
 					pthr_module.createString("SIZE"),

@@ -771,6 +771,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+			
 			if(context.lowerToPIR().isError()){ return evo::resultError; }
 
 			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR();

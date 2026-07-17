@@ -58,7 +58,7 @@ namespace pcit::pir::passes{
 				break; case Expr::Kind::JUMP:              evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::BRANCH:            evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::UNREACHABLE:       evo::debugFatalBreak("Should never see this expr kind");
-				break; case Expr::Kind::PHI:               evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::PHI:               func_metadata.emplace(expr);
 				break; case Expr::Kind::SWITCH:            evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::ALLOCA:            func_metadata.emplace(expr);
 				break; case Expr::Kind::LOAD:              func_metadata.emplace(expr);
