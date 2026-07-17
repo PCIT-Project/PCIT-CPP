@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.340.0"></a>
+## v0.0.340.0
+
+### Panther
+- Added intrinsic function `@setNonCompileModuleName`
+- Fixed missing check for empty package name
+
+### Misc
+- Updated to [Panther-std v0.0.37.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.37.0)
+
+
+<!---------------------------------->
 <a name="v0.0.339.0"></a>
 ## v0.0.339.0
 

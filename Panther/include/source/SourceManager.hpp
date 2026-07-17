@@ -57,6 +57,10 @@ namespace pcit::panther{
 					return evo::Unexpected(CreatePackageFailReason::PATH_NOT_DIRECTORY);
 				}
 
+				if(package.name.empty()){
+					return evo::Unexpected(CreatePackageFailReason::INVALID_NAME);
+				}
+
 				for(char character : package.name){
 					if(evo::isAlphaNumeric(character) == false && character != '_' && character != '.'){
 						return evo::Unexpected(CreatePackageFailReason::INVALID_NAME);

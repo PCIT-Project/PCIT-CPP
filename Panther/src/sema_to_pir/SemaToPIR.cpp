@@ -14451,14 +14451,16 @@ namespace pcit::panther{
 		}else{
 			if(source_id.is<Source::ID>()){
 				const Source& parent_source = context.getSourceManager()[source_id.as<Source::ID>()];
-				const Source::Package& parent_package =
-					context.getSourceManager().getPackage(parent_source.getPackageID());
+				const std::optional<std::string_view> module_name = parent_source.getModuleName();
 
-				if constexpr(PIR_STMT_NAME_SAFE){
-					return std::format("{}.", parent_package.name);
-					
+				if(module_name.has_value()){
+					return std::format("{}.", *module_name);
+
 				}else{
-					return std::format("{}::", parent_package.name);
+					const Source::Package& parent_package =
+						context.getSourceManager().getPackage(parent_source.getPackageID());
+
+					return std::format("{}.", parent_package.name);
 				}
 
 			}else if(source_id.is<BuiltinModule::ID>()){

@@ -554,6 +554,9 @@ namespace pcit::panther{
 			case Instruction::Kind::COMPTIME_ASSERT:
 				return this->instr_comptime_assert(this->context.symbol_proc_manager.getComptimeAssert(instr));
 
+			case Instruction::Kind::SET_MODULE_NAME:
+				return this->instr_set_module_name(this->context.symbol_proc_manager.getSetModuleName(instr));
+
 			case Instruction::Kind::TEMPLATE_INTRINSIC_FUNC_CALL:
 				return this->instr_template_intrinsic_func_call(
 					this->context.symbol_proc_manager.getTemplateIntrinsicFuncCall(instr)
@@ -12138,6 +12141,10 @@ namespace pcit::panther{
 
 
 				switch(intrinsic_kind){
+					case IntrinsicFunc::Kind::ENTRY: {
+						this->context.expecting_entry = true;
+					} break;
+
 					case IntrinsicFunc::Kind::IS_COMPTIME: {
 						const FuncScopeValueStage func_scope_value_stage = this->func_scope_current_value_stage();
 
@@ -12223,10 +12230,6 @@ namespace pcit::panther{
 						);
 
 						return Result::SUCCESS;
-					} break;
-
-					case IntrinsicFunc::Kind::ENTRY: {
-						this->context.expecting_entry = true;
 					} break;
 
 					default: break;
@@ -13145,6 +13148,56 @@ namespace pcit::panther{
 		return Result::ERROR;
 	}
 
+
+
+
+	auto SemanticAnalyzer::instr_set_module_name(const Instruction::SetModuleName& instr)
+	-> Result {
+		const TermInfo& name_term_info = this->get_term_info(instr.name);
+		if(name_term_info.isComptime == false){
+			this->emit_error(
+				"Name in `@setModuleName` must be a comptime value", instr.func_call.args[0].value
+			);
+			return Result::ERROR;
+		}
+
+		const std::string_view module_name =
+			sema::extractStringFromExpr(name_term_info.getExpr(), this->context);
+
+		if(module_name.empty()){
+			this->emit_error("Invalid module name in `@setModuleName`", instr.func_call.args[0].value);
+			return Result::ERROR;
+		}
+
+		for(char character : module_name){
+			if(evo::isAlphaNumeric(character) == false && character != '_' && character != '.'){
+				this->emit_error("Invalid module name in `@setModuleName`", instr.func_call.args[0].value);
+				return Result::ERROR;
+			}
+		}
+
+		auto module_name_to_set = std::optional<std::string_view>();
+		if(
+			this->context.getConfig().compilerMode != Context::Config::CompilerMode::COMPILE
+			&& this->context.getConfig().compilerMode != Context::Config::CompilerMode::COMPILE_RUN
+		){
+			module_name_to_set = module_name;
+		}
+
+		const evo::Expected<void, const AST::FuncCall*> set_name_res =
+			this->source.setModuleName(module_name_to_set, instr.func_call);
+
+		if(set_name_res.has_value() == false){
+			this->emit_error(
+				"Intrinsic function `@setModuleName` was already called in this file",
+				instr.func_call,
+				Diagnostic::Info("First called here:", this->get_location(*set_name_res.error()))
+			);
+			return Result::ERROR;
+		}
+
+		return Result::SUCCESS;
+	}
 
 
 

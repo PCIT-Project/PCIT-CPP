@@ -1782,6 +1782,29 @@ namespace pcit::panther{
 
 				return evo::Result<>();
 
+			}else if(intrin_string == "setModuleName"){
+				if(func_call.args.size() != 1){
+					if(func_call.args.empty()){
+						this->emit_error("Calls to @setModuleName requires a name", intrin_tok_id);
+					}else{
+						this->emit_error(
+							"Calls to @setModuleName requires a name and no other arguments", func_call.args[1].value
+						);
+					}
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> name = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(name.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createSetModuleName(func_call, name.value())
+				);
+
+				return evo::Result<>();
+
 			}else{
 				this->emit_error("Unknown global intrinsic function", stmt);
 				return evo::resultError;
@@ -2979,6 +3002,29 @@ namespace pcit::panther{
 
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeAssert(func_call, cond.value(), message)
+				);
+
+				return evo::Result<>();
+
+			}else if(intrin_string == "setModuleName"){
+				if(func_call.args.size() != 1){
+					if(func_call.args.empty()){
+						this->emit_error("Calls to @setModuleName requires a name", intrin_tok_id);
+					}else{
+						this->emit_error(
+							"Calls to @setModuleName requires a name and no other arguments", func_call.args[1].value
+						);
+					}
+					return evo::resultError;
+				}
+
+				const evo::Result<SymbolProc::TermInfoID> name = this->analyze_expr<true>(
+					func_call.args[0].value
+				);
+				if(name.isError()){ return evo::resultError; }
+
+				this->add_instruction(
+					this->context.symbol_proc_manager.createSetModuleName(func_call, name.value())
 				);
 
 				return evo::Result<>();

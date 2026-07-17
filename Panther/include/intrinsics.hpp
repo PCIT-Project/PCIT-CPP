@@ -35,8 +35,9 @@ namespace pcit::panther{
 			// misc
 			COMPILER_EXECUTABLE_DIRECTORY,
 			COMPILE_WORKING_DIRECTORY,
+			SET_MODULE_NAME,
 
-			_LAST_ = COMPILE_WORKING_DIRECTORY,
+			_LAST_ = SET_MODULE_NAME,
 		};
 
 		[[nodiscard]] auto lookupKind(std::string_view name) -> std::optional<Kind>;

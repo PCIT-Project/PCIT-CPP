@@ -1634,11 +1634,19 @@ namespace pcit::panther{
 		}else{
 			if(source_id.is<Source::ID>()){
 				const Source& parent_source = context.getSourceManager()[source_id.as<Source::ID>()];
-				const Source::Package& parent_package =
-					context.getSourceManager().getPackage(parent_source.getPackageID());
+				const std::optional<std::string_view> module_name = parent_source.getModuleName();
 
-				output = parent_package.name;
-				output += "::";
+				if(module_name.has_value()){
+					output = *module_name;
+
+				}else{
+					const Source::Package& parent_package =
+						context.getSourceManager().getPackage(parent_source.getPackageID());
+
+					output = parent_package.name;
+				}
+
+				output += ".";
 
 			}else if(source_id.is<BuiltinModule::ID>()){
 				switch(source_id.as<BuiltinModule::ID>()){
@@ -1654,9 +1662,9 @@ namespace pcit::panther{
 				const CFamilySource& c_family_source = context.getSourceManager()[source_id.as<CFamilySource::ID>()];
 
 				if(c_family_source.isCPP()){
-					output += "{CPP}::";
+					output += "{CPP}.";
 				}else{
-					output += "{C}::";
+					output += "{C}.";
 				}
 			}
 		}

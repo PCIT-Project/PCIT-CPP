@@ -82,6 +82,26 @@ namespace pcit::panther{
 			[[nodiscard]] auto getPIRMetaFileID() const -> std::optional<pir::meta::File::ID> {
 				return this->pir_file_id;
 			}
+
+			// name is std::nullopt if in a mode where `@setNonCompileModuleName` is superseded by package name
+			[[nodiscard]] auto setModuleName(std::optional<std::string_view> name, const AST::FuncCall& func_call)
+			-> evo::Expected<void, const AST::FuncCall*> {
+				const auto lock = std::scoped_lock(this->module_name_lock);
+
+				if(this->module_name_info.has_value() == false){
+					this->module_name_info.emplace(name, &func_call);
+					return evo::Expected<void, const AST::FuncCall*>();
+				}
+
+				return evo::Unexpected(this->module_name_info->func_call);
+			}
+
+			[[nodiscard]] auto getModuleName() const -> std::optional<std::string_view> {
+				const auto lock = std::scoped_lock(this->module_name_lock);
+				
+				if(this->module_name_info.has_value()){ return this->module_name_info->name; }
+				return std::nullopt;
+			}
 			
 
 			Source(const Source&) = delete;
@@ -110,6 +130,14 @@ namespace pcit::panther{
 			SymbolProc::Namespace global_symbol_procs{};
 
 			std::optional<pir::meta::File::ID> pir_file_id;
+
+			struct ModuleNameInfo{
+				std::optional<std::string_view> name;
+				const AST::FuncCall* func_call;
+			};
+			std::optional<ModuleNameInfo> module_name_info{};
+			mutable evo::SpinLock module_name_lock{};
+
 
 			friend class SourceManager;
 			friend class Context;

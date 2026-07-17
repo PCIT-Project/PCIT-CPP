@@ -828,6 +828,11 @@ namespace pcit::panther{
 			std::optional<SymbolProcTermInfoID> message;
 		};
 
+		struct SetModuleName{
+			const AST::FuncCall& func_call;
+			SymbolProcTermInfoID name;
+		};
+
 		struct TemplateIntrinsicFuncCall{
 			const AST::FuncCall& func_call;
 			evo::SmallVector<SymbolProcTermInfoID> template_args;
@@ -1296,6 +1301,7 @@ namespace pcit::panther{
 			MAKE_INIT_PTR,
 			COMPTIME_ERROR,
 			COMPTIME_ASSERT,
+			SET_MODULE_NAME,
 			TEMPLATE_INTRINSIC_FUNC_CALL,
 			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR_COMPTIME,
 			TEMPLATE_INTRINSIC_FUNC_CALL_EXPR,

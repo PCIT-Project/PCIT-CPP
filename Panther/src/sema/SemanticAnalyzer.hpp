@@ -214,6 +214,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_make_init_ptr(const Instruction::MakeInitPtr& instr) -> Result;
 			[[nodiscard]] auto instr_comptime_error(const Instruction::ComptimeError& instr) -> Result;
 			[[nodiscard]] auto instr_comptime_assert(const Instruction::ComptimeAssert& instr) -> Result;
+			[[nodiscard]] auto instr_set_module_name(const Instruction::SetModuleName& instr) -> Result;
 
 			[[nodiscard]] auto instr_template_intrinsic_func_call(const Instruction::TemplateIntrinsicFuncCall& instr)
 				-> Result;

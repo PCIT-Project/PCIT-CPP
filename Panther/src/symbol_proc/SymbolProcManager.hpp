@@ -1869,6 +1869,23 @@ namespace pcit::panther{
 
 
 
+			//////////////////
+			// SetModuleName
+
+			[[nodiscard]] auto createSetModuleName(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::SET_MODULE_NAME,
+					this->set_module_names.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getSetModuleName(Instruction instr) const -> const Instruction::SetModuleName& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::SET_MODULE_NAME, "Not an SetModuleName");
+				return this->set_module_names[instr._index];
+			}
+
+
+
 
 			//////////////////
 			// TemplateIntrinsicFuncCall
@@ -3524,6 +3541,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MakeInitPtr, uint32_t> make_init_ptrs{};
 			core::SyncLinearStepAlloc<Instruction::ComptimeError, uint32_t> comptime_errors{};
 			core::SyncLinearStepAlloc<Instruction::ComptimeAssert, uint32_t> comptime_asserts{};
+			core::SyncLinearStepAlloc<Instruction::SetModuleName, uint32_t> set_module_names{};
 			
 			core::SyncLinearStepAlloc<Instruction::TemplateIntrinsicFuncCall, uint32_t>
 				template_intrinsic_func_calls{};
