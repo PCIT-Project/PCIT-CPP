@@ -246,7 +246,16 @@ namespace pcit::core{
 										});
 
 										Worker& target_worker = this->thread_pool.workers[target_worker_index];
-										if(target_worker.mode != Mode::WORKING){ continue; }
+										if(target_worker.mode != Mode::WORKING){
+											num_workers_failed_to_steal_from_in_a_row += 1;
+											if(
+												num_workers_failed_to_steal_from_in_a_row
+												>= this->thread_pool.max_num_working
+											){
+												break;
+											}
+											continue;
+										}
 
 										DATA* task = target_worker.externally_steal_task();
 										if(task == nullptr){
@@ -255,7 +264,7 @@ namespace pcit::core{
 												num_workers_failed_to_steal_from_in_a_row
 												>= this->thread_pool.max_num_working
 											){
-												this->stop_working();
+												break;
 											}
 											continue;
 										}
