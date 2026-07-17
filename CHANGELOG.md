@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.339.0"></a>
+## v0.0.339.0
+
+### Misc
+- Updated to [Panther-std v0.0.36.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.36.0)
+
+
+<!---------------------------------->
 <a name="v0.0.338.2"></a>
 ## v0.0.338.2
 
