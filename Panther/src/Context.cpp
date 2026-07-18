@@ -2460,6 +2460,15 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("comptimeSwitchCond"),
+					TypeManager::getTypeBool(),
+					BaseType::Struct::MemberVar::DefaultValue(
+						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
+					),
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("alreadyUnsafe"),
 					TypeManager::getTypeBool(),
 					BaseType::Struct::MemberVar::DefaultValue(

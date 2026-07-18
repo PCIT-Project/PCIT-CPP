@@ -8673,6 +8673,14 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		if(this->get_package().warn.comptimeSwitchCond && cond.isComptime){
+			this->emit_warning(
+				"Condition in [switch] conditional is comptime",
+				instr.switch_stmt.cond,
+				Diagnostic::Info("Consider converting it to a [when] [switch]")
+			);
+		}
+
 		const TypeInfo::ID cond_type_id = cond.type_id.as<TypeInfo::ID>();
 
 		if(instr.is_no_jump){
@@ -8833,7 +8841,7 @@ namespace pcit::panther{
 				i += 1;
 			}
 
-			if(current_switch.kind == sema::Switch::Kind::COMPLETE && else_index.has_value()){
+			if(current_switch.kind == sema::Switch::Kind::COMPLETE && else_index.has_value() == false){
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 			}
 

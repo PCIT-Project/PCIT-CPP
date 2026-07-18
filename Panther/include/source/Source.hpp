@@ -43,6 +43,7 @@ namespace pcit::panther{
 					bool deleteMovedFromExpr          = true;
 					bool deleteTriviallyDeletableType = true;
 					bool comptimeIfCond               = true;
+					bool comptimeSwitchCond           = true;
 					bool alreadyUnsafe                = true;
 					bool experimentalF80              = true;
 
