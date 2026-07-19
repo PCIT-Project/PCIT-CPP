@@ -2789,11 +2789,11 @@ namespace pcit::panther{
 		if(is_unroll){
 			if(for_stmt.index.has_value()){
 				this->add_instruction(
-					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, std::nullopt)
+					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, types[0])
 				);
 			}else{
 				this->add_instruction(
-					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, types[0])
+					this->context.symbol_proc_manager.createBeginForUnroll(for_stmt, iterables, std::nullopt)
 				);
 			}
 

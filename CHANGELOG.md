@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.342.2"></a>
+## v0.0.342.2
+
+### Panther
+- Fixed diagnostic message for conversion of fluid booleans
+- Fixed operator `as` for fluid booleans
+- Fixed semantic analysis of unrolled for loopes
+
+
+<!---------------------------------->
 <a name="v0.0.342.1"></a>
 ## v0.0.342.1
 

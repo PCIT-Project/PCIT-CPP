@@ -19566,7 +19566,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-			}else{
+			}else if(expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE){
 				if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // float to int
 					const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
 					const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
@@ -19608,7 +19608,32 @@ namespace pcit::panther{
 					auto infos = evo::SmallVector<Diagnostic::Info>();
 					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
 					this->emit_error(
-						"Operator [as] cannot convert an fluid float to this type", instr.infix.rhs, std::move(infos)
+						"Operator [as] cannot convert a fluid float to this type", instr.infix.rhs, std::move(infos)
+					);
+					return Result::ERROR;
+				}
+
+			}else{
+				evo::debugAssert(expr.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE, "Unknown fluid value");
+
+				if(
+					target_type.asTypeID() == TypeManager::getTypeBool()
+					|| target_type.asTypeID() == TypeManager::getTypeBool32()
+				){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type.asTypeID(),
+						expr.getExpr()
+					);
+					return Result::SUCCESS;
+					
+				}else{
+					auto infos = evo::SmallVector<Diagnostic::Info>();
+					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+					this->emit_error(
+						"Operator [as] cannot convert a fluid boolean to this type", instr.infix.rhs, std::move(infos)
 					);
 					return Result::ERROR;
 				}
@@ -37160,11 +37185,15 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<TypeID, TermInfo::FluidType>()){
 				if(term_info.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
 					return "{FLUID INTEGRAL}";
+
+				}else if(term_info.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE){
+					return "{FLUID FLOAT}";
+					
 				}else{
 					evo::debugAssert(
-						term_info.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE, "Unsupported fluid type"
+						term_info.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE, "Unsupported fluid type"
 					);
-					return "{FLUID FLOAT}";
+					return "{FLUID BOOL}";
 				}
 				
 			}else if constexpr(std::is_same<TypeID, TypeInfo::ID>()){
