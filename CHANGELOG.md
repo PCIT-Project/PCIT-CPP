@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.342.1"></a>
+## v0.0.342.1
+
+### Panther
+- Fixed semantic analysis of constructing a polymorphic interface with one method
+- Fixed lowering of calling of polymorphic interfaces with one method
+
+
+<!---------------------------------->
 <a name="v0.0.342.0"></a>
 ## v0.0.342.0
 

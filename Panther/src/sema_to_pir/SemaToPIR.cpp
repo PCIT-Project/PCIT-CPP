@@ -2252,15 +2252,25 @@ namespace pcit::panther{
 					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
 				);
 
-				const pir::Expr target_func_ptr = this->handler.createCalcPtr(
-					vtable,
-					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{try_else_interface.vtableFuncIndex},
-					this->name(".VTABLE.FUNC.PTR")
-				);
-				const pir::Expr target_func = this->handler.createLoad(
-					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
-				);
+				const pir::Expr target_func = [&]() -> pir::Expr {
+					const BaseType::Interface& interface_type =
+						this->context.getTypeManager().getInterface(try_else_interface.interfaceID);
+
+					if(interface_type.methods.size() == 1){
+						return vtable;
+
+					}else{
+						const pir::Expr target_func_ptr = this->handler.createCalcPtr(
+							vtable,
+							this->module.createPtrType(),
+							evo::SmallVector<pir::CalcPtr::Index>{try_else_interface.vtableFuncIndex},
+							this->name(".VTABLE.FUNC.PTR")
+						);
+						return this->handler.createLoad(
+							target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+						);
+					}
+				}();
 
 
 				///////////////////////////////////
@@ -2417,18 +2427,29 @@ namespace pcit::panther{
 					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
 				);
 
-				const pir::Expr target_func_ptr = this->handler.createCalcPtr(
-					vtable,
-					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
-					this->name(".VTABLE.FUNC.PTR")
-				);
-				const pir::Expr target_func = this->handler.createLoad(
-					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
-				);
+
+				const pir::Expr target_func = [&]() -> pir::Expr {
+					const BaseType::Interface& interface_type =
+						this->context.getTypeManager().getInterface(interface_call.interfaceID);
+						
+					if(interface_type.methods.size() == 1){
+						return vtable;
+
+					}else{
+						const pir::Expr target_func_ptr = this->handler.createCalcPtr(
+							vtable,
+							this->module.createPtrType(),
+							evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
+							this->name(".VTABLE.FUNC.PTR")
+						);
+
+						return this->handler.createLoad(
+							target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+						);
+					}
+				}();
 
 
-				///////////////////////////////////
 				// make call
 
 				auto args = evo::SmallVector<pir::Expr>();

@@ -6561,11 +6561,25 @@ namespace pcit::panther{
 			}();
 
 
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			const bool should_comptime_lower = [&]() -> bool {
+				if(info.target_interface.methods.size() == 1){
+					const sema::Func& func = this->context.getSemaBuffer().getFunc(info.target_interface.methods[0]);
+					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
-			sema_to_pir.lowerInterfaceVTableComptime(
-				info.target_interface_id, current_type_id, interface_impl.methods
-			);
+					return func_type.attributes.isComptime;
+
+				}else{
+					return true;
+				}
+			}();
+
+			if(should_comptime_lower){
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+
+				sema_to_pir.lowerInterfaceVTableComptime(
+					info.target_interface_id, current_type_id, interface_impl.methods
+				);
+			}
 		}
 
 		this->propagate_finished_pir_def();
