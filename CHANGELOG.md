@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.343.1"></a>
+## v0.0.343.1
+
+### Panther
+- Fixed race condition in semantic analysis of function calls where a parameter is a struct type and the argument is implicitly converted
+
+
+<!---------------------------------->
 <a name="v0.0.343.0"></a>
 ## v0.0.343.0
 

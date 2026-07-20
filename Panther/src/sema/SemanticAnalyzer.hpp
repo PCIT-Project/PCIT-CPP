@@ -611,6 +611,9 @@ namespace pcit::panther{
 				-> void;
 
 
+			[[nodiscard]] auto wait_on_type_def(TypeInfo::ID type_id) -> SymbolProc::WaitOnResult;
+
+
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
 
