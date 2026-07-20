@@ -28359,15 +28359,18 @@ namespace pcit::panther{
 			>;
 			
 			unsigned score;
+			unsigned secondary_score;
 			Reason reason;
 
-			OverloadScore(unsigned _score) : score(_score), reason(std::monostate()) {};
-			OverloadScore(Reason _reason) : score(0), reason(_reason) {};
+			OverloadScore(unsigned _score, unsigned _secondary_score) :
+				score(_score), secondary_score(_secondary_score), reason(Success{}) {};
+			OverloadScore(Reason _reason) : score(0), secondary_score(0), reason(_reason) {};
 		};
 		auto scores = evo::SmallVector<OverloadScore>();
 		scores.reserve(func_infos.size());
 
 		unsigned best_score = 0;
+		unsigned best_secondary_score = 0;
 		size_t best_score_index = 0;
 		bool found_matching_best_score = false;
 
@@ -28377,6 +28380,8 @@ namespace pcit::panther{
 			EVO_DEFER([&](){ func_i += 1; });
 
 			unsigned current_score = 0;
+			unsigned current_secondary_score = 0;
+
 
 			bool need_to_skip_this_arg = false; 
 			
@@ -28631,14 +28636,34 @@ namespace pcit::panther{
 			}
 			if(arg_checking_failed){ continue; }
 
+			if(func_info.func_id.is<sema::Func::ID>()){ // prefer non-templates over templates
+				const sema::Func& sema_func =
+					this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
+
+				if(sema_func.templated_func_id.has_value() == false){
+					current_secondary_score += 1;
+				}
+			}
+
 			current_score += 1;
-			scores.emplace_back(current_score);
+			scores.emplace_back(current_score, current_secondary_score);
+
 			if(best_score < current_score){
 				best_score = current_score;
+				best_secondary_score = current_secondary_score;
 				best_score_index = func_i;
 				found_matching_best_score = false;
+
 			}else if(best_score == current_score){
-				found_matching_best_score = true;
+				if(best_secondary_score < current_secondary_score){
+					best_score = current_score;
+					best_secondary_score = current_secondary_score;
+					best_score_index = func_i;
+					found_matching_best_score = false;
+
+				}else if(best_secondary_score == current_secondary_score){
+					found_matching_best_score = true;
+				}
 			}
 		}
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.343.0"></a>
+## v0.0.343.0
+
+### Panther
+- Improved function overload resolution by prefering non-templates over templates
+
+
+<!---------------------------------->
 <a name="v0.0.342.3"></a>
 ## v0.0.342.3
 
