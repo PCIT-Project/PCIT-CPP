@@ -274,8 +274,11 @@ namespace pcit::panther{
 
 
 		size_t num_extra_variadics = 0;
-		if(func_def.isVariadic && instantiation_param_arg_types.size() >= func_def.params.size()){
-			num_extra_variadics = instantiation_param_arg_types.size() - func_def.params.size();
+		if(func_def.isVariadic){
+			const bool is_method = types[0].has_value() == false;
+			const size_t num_non_extra_args = func_def.params.size() - size_t(is_method);
+
+			num_extra_variadics = instantiation_param_arg_types.size() - num_non_extra_args;
 		}
 
 

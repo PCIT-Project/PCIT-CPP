@@ -1,13 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.342.3"></a>
+## v0.0.342.3
+
+### Panther
+- Fixed semantic analysis of variadic methods
+
+
+<!---------------------------------->
 <a name="v0.0.342.2"></a>
 ## v0.0.342.2
 
 ### Panther
 - Fixed diagnostic message for conversion of fluid booleans
 - Fixed operator `as` for fluid booleans
-- Fixed semantic analysis of unrolled for loopes
+- Fixed semantic analysis of unrolled for loops
 
 
 <!---------------------------------->
