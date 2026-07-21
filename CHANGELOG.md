@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.344.0"></a>
+## v0.0.344.0
+
+### Panther
+- Improved function overload resolution when multiple overloads have deducers
+	- prefers fewer deducers
+	- prefers more specific deducers
+
+
+<!---------------------------------->
 <a name="v0.0.343.1"></a>
 ## v0.0.343.1
 

@@ -28186,31 +28186,50 @@ namespace pcit::panther{
 			>;
 			
 			unsigned score;
-			unsigned secondary_score;
+			unsigned deducer_count;
+			unsigned deducer_depth_count; // deducer depth = how many levels into the type needed to find the deducer
 			Reason reason;
 
-			OverloadScore(unsigned _score, unsigned _secondary_score) :
-				score(_score), secondary_score(_secondary_score), reason(Success{}) {};
-			OverloadScore(Reason _reason) : score(0), secondary_score(0), reason(_reason) {};
+			OverloadScore(unsigned _score, unsigned _deducer_count, unsigned _deducer_depth_count) :
+				score(_score),
+				deducer_count(_deducer_count),
+				deducer_depth_count(_deducer_depth_count),
+				reason(Success{})
+			{};
+			OverloadScore(Reason _reason) : score(0), deducer_count(0), deducer_depth_count(0), reason(_reason) {};
+
+			[[nodiscard]] auto operator==(const OverloadScore& rhs) const -> bool {
+				return this->score == rhs.score
+					&& this->deducer_count == rhs.deducer_count
+					&& this->deducer_depth_count == rhs.deducer_depth_count;
+			}
+
+			[[nodiscard]] auto operator<(const OverloadScore& rhs) const -> bool {
+				if(this->score != rhs.score){ return this->score < rhs.score; }
+
+				if(this->deducer_count != rhs.deducer_count){
+					return this->deducer_count > rhs.deducer_count; // `>` because higher is worse
+				}
+
+				return this->deducer_depth_count < rhs.deducer_depth_count;
+			}
 		};
 		auto scores = evo::SmallVector<OverloadScore>();
 		scores.reserve(func_infos.size());
 
-		unsigned best_score = 0;
-		unsigned best_secondary_score = 0;
-		size_t best_score_index = 0;
+		auto best_score_index = std::optional<size_t>();
 		bool found_matching_best_score = false;
-
 
 		
 		for(size_t func_i = 0; const SelectFuncOverloadFuncInfo& func_info : func_infos){
 			EVO_DEFER([&](){ func_i += 1; });
 
 			unsigned current_score = 0;
-			unsigned current_secondary_score = 0;
+			unsigned current_deducer_count = 0;
+			unsigned current_deducer_depth_count = 0;
 
 
-			bool need_to_skip_this_arg = false; 
+			bool has_this_param = false; 
 			
 
 			if(
@@ -28236,9 +28255,9 @@ namespace pcit::panther{
 					}
 				}();
 
-				need_to_skip_this_arg = is_member_call && sema_func.isMethod(this->context) == false;
+				has_this_param = is_member_call && sema_func.isMethod(this->context) == false;
 
-				const size_t num_args = arg_infos.size() - size_t(need_to_skip_this_arg);
+				const size_t num_args = arg_infos.size() - size_t(has_this_param);
 
 				if(num_args < sema_func.minNumArgs){
 					scores.emplace_back(OverloadScore::TooFewArgs(
@@ -28262,14 +28281,8 @@ namespace pcit::panther{
 			for(size_t arg_i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
 				EVO_DEFER([&](){ arg_i += 1; });
 
-				if(need_to_skip_this_arg){
-					arg_i -= 1;
-					continue;
-				}
-
-
 				///////////////////////////////////
-				// check type mismatch
+				// check type mismatch and count deducers
 
 				if(is_member_call == false || arg_i != 0){
 					const TypeInfo::ID param_type_id = func_info.func_type.params[arg_i].typeID;
@@ -28316,6 +28329,114 @@ namespace pcit::panther{
 					}
 
 					if(type_check_info.requires_implicit_conversion == false){ current_score += 1; }
+
+
+					//////////////////
+					// count deducers / deducer depth
+
+					if(func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+						const sema::TemplatedFunc::InstantiationInfo& instantiation_info = 
+							func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(
+							*instantiation_info.instantiation.funcID
+						);
+
+						const sema::TemplatedFunc& templated_func = this->context.getSemaBuffer().getTemplatedFunc(
+							*sema_func.templated_func_id
+						);
+
+						const Source& func_source = 
+							this->context.getSourceManager()[templated_func.symbolProc.getSourceID()];
+						const AST::FuncDef& ast_func =
+							func_source.getASTBuffer().getFuncDef(templated_func.symbolProc.getASTNode());
+
+						// needed to work with variadic functions
+						const size_t ast_arg_index = std::min(arg_i, ast_func.params.size() - 1);
+
+						struct DeducerInfo{
+							AST::Node node;
+							unsigned depth;
+						};
+
+						auto deducer_info_queue = std::queue<DeducerInfo>();
+						deducer_info_queue.emplace(*ast_func.params[ast_arg_index].type, 0);
+
+						while(deducer_info_queue.empty() == false){
+							const DeducerInfo deducer_info = deducer_info_queue.front();
+							deducer_info_queue.pop();
+
+							switch(deducer_info.node.kind()){
+								case AST::Kind::TYPE: {
+									const AST::Type& type = func_source.getASTBuffer().getType(deducer_info.node);
+									deducer_info_queue.emplace(type.base, deducer_info.depth + 1);
+								} break;
+
+								case AST::Kind::DEDUCER: {
+									current_deducer_count += 1;
+									current_deducer_depth_count += deducer_info.depth;
+								} break;
+
+								case AST::Kind::ARRAY_TYPE: {
+									const AST::ArrayType& array_type =
+										func_source.getASTBuffer().getArrayType(deducer_info.node);
+
+									deducer_info_queue.emplace(
+										func_source.getASTBuffer().getType(array_type.elemType).base,
+										deducer_info.depth + 1
+									);
+
+
+									for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+										if(dimension.has_value() == false){ continue; }
+										deducer_info_queue.emplace(*dimension, deducer_info.depth + 1);
+									}
+
+									if(array_type.terminator.has_value()){
+										deducer_info_queue.emplace(*array_type.terminator, deducer_info.depth + 1);
+									}
+								} break;
+
+								case AST::Kind::FUNC_TYPE: {
+									const AST::FuncType& func_type =
+										func_source.getASTBuffer().getFuncType(deducer_info.node);
+
+									for(const AST::FuncType::Param& param : func_type.params){
+										deducer_info_queue.emplace(param.type, deducer_info.depth + 1);
+									}
+
+									for(const AST::Node& ret_type : func_type.returnTypes){
+										deducer_info_queue.emplace(ret_type, deducer_info.depth + 1);
+									}
+
+									for(const AST::Node& err_type : func_type.errorTypes){
+										deducer_info_queue.emplace(err_type, deducer_info.depth + 1);
+									}
+								} break;
+
+								case AST::Kind::TEMPLATED_EXPR: {
+									const AST::TemplatedExpr& templated_expr =
+										func_source.getASTBuffer().getTemplatedExpr(deducer_info.node);
+
+									for(const AST::Node& arg : templated_expr.args){
+										deducer_info_queue.emplace(arg, deducer_info.depth + 1);
+									}
+								} break;
+
+								case AST::Kind::INTERFACE_MAP: {
+									const AST::InterfaceMap& interface_map_type =
+										func_source.getASTBuffer().getInterfaceMap(deducer_info.node);
+									if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ break; }
+
+									deducer_info_queue.emplace(
+										interface_map_type.underlyingType.as<AST::Node>(), deducer_info.depth + 1
+									);
+								} break;
+
+								default: break;
+							}
+						}
+					}
 				}
 
 
@@ -28477,38 +28598,29 @@ namespace pcit::panther{
 			}
 			if(arg_checking_failed){ continue; }
 
-			if(func_info.func_id.is<sema::Func::ID>()){ // prefer non-templates over templates
-				const sema::Func& sema_func =
-					this->context.getSemaBuffer().getFunc(func_info.func_id.as<sema::Func::ID>());
-
-				if(sema_func.templated_func_id.has_value() == false){
-					current_secondary_score += 1;
-				}
-			}
 
 			current_score += 1;
-			scores.emplace_back(current_score, current_secondary_score);
+			const OverloadScore& current_overload_score =
+				scores.emplace_back(current_score, current_deducer_count, current_deducer_depth_count);
 
-			if(best_score < current_score){
-				best_score = current_score;
-				best_secondary_score = current_secondary_score;
+
+			if(best_score_index.has_value() == false){
 				best_score_index = func_i;
-				found_matching_best_score = false;
 
-			}else if(best_score == current_score){
-				if(best_secondary_score < current_secondary_score){
-					best_score = current_score;
-					best_secondary_score = current_secondary_score;
+			}else{
+				const OverloadScore& best_score = scores[*best_score_index];
+
+				if(best_score == current_overload_score){
+					found_matching_best_score = true;
+
+				}else if(best_score < current_overload_score){
 					best_score_index = func_i;
 					found_matching_best_score = false;
-
-				}else if(best_secondary_score == current_secondary_score){
-					found_matching_best_score = true;
 				}
 			}
 		}
 
-		if(best_score == 0){ // found no matches
+		if(best_score_index.has_value() == false){ // found no matches
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 
 			for(size_t i = 0; const OverloadScore& score : scores){
@@ -28785,11 +28897,13 @@ namespace pcit::panther{
 
 
 		}else if(found_matching_best_score){ // found multiple matches
+			const OverloadScore& best_score = scores[*best_score_index];
+
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			for(size_t i = 0; const OverloadScore& score : scores){
 				EVO_DEFER([&](){ i += 1; });
 
-				if(score.score == best_score){
+				if(score.reason.is<OverloadScore::Success>() && score == best_score){
 					if(func_infos[i].func_id.is<sema::Func::ID>()){
 						infos.emplace_back(
 							"Could be this one:", this->get_location(func_infos[i].func_id.as<sema::Func::ID>())
@@ -28814,7 +28928,7 @@ namespace pcit::panther{
 		}
 
 
-		const SelectFuncOverloadFuncInfo& selected_func = func_infos[best_score_index];
+		const SelectFuncOverloadFuncInfo& selected_func = func_infos[*best_score_index];
 
 		if(selected_func.func_id.is<sema::Func::ID>()){
 			const sema::Func& selected_sema_func = 
@@ -28926,7 +29040,7 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		return best_score_index;
+		return *best_score_index;
 	}
 
 
