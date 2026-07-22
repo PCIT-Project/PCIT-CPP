@@ -13456,6 +13456,9 @@ namespace pcit::panther{
 							}else if(template_arg.is<sema::TemplatedFunc::NonDeducerVariadicArg>()){
 								output += "{VARIADIC_ARG}";
 
+							}else if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
+								output += "<EXPR>";
+
 							}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){
 								output += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
 
@@ -13808,6 +13811,9 @@ namespace pcit::panther{
 									}else if(template_arg.is<sema::TemplatedFunc::NonDeducerVariadicArg>()){
 										output += "{VARIADIC_ARG}";
 
+									}else if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
+										output += "<EXPR>";
+										
 									}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){
 										output += evo::boolStr(template_arg.as<core::GenericValue>().getBool());
 

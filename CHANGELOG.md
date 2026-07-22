@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.345.1"></a>
+## v0.0.345.1
+
+### Panther
+- Fixed lowering of template functions where the type of a template is a type template arg
+
+
+<!---------------------------------->
 <a name="v0.0.345.0"></a>
 ## v0.0.345.0
 
