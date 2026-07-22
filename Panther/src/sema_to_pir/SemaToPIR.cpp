@@ -7708,10 +7708,20 @@ namespace pcit::panther{
 					this->context.getTypeManager().getStruct(expr_type.baseTypeID().structID());
 
 				if(is_initialization){
-					for(const sema::Func::ID& new_init_overload_id : struct_type.newInitOverloads){
-						if(this->context.getSemaBuffer().getFunc(new_init_overload_id).minNumArgs > 0){ continue; }
+					for(
+						const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id
+						: struct_type.newInitOverloads
+					){
+						if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
-						const Data::FuncInfo& target_func_info = this->data.get_func(new_init_overload_id);
+						if(
+							this->context.getSemaBuffer().getFunc(
+								new_init_overload_id.as<sema::Func::ID>()
+							).minNumArgs > 0
+						){ continue; }
+
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(new_init_overload_id.as<sema::Func::ID>());
 						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
 						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
@@ -7721,10 +7731,20 @@ namespace pcit::panther{
 				}else{
 					bool found_assign_overload = false;
 
-					for(const sema::Func::ID& new_assign_overload_id : struct_type.newAssignOverloads){
-						if(this->context.getSemaBuffer().getFunc(new_assign_overload_id).minNumArgs > 0){ continue; }
+					for(
+						const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_assign_overload_id
+						: struct_type.newAssignOverloads
+					){
+						if(new_assign_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
-						const Data::FuncInfo& target_func_info = this->data.get_func(new_assign_overload_id);
+						if(
+							this->context.getSemaBuffer().getFunc(
+								new_assign_overload_id.as<sema::Func::ID>()
+							).minNumArgs > 0
+						){ continue; }
+
+						const Data::FuncInfo& target_func_info =
+							this->data.get_func(new_assign_overload_id.as<sema::Func::ID>());
 						const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
 						this->create_call_void(pir_id, evo::SmallVector<pir::Expr>{target});
@@ -7734,10 +7754,20 @@ namespace pcit::panther{
 					}
 
 					if(found_assign_overload == false){
-						for(const sema::Func::ID& new_init_overload_id : struct_type.newInitOverloads){
-							if(this->context.getSemaBuffer().getFunc(new_init_overload_id).minNumArgs > 0){ continue; }
+						for(
+							const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id
+							: struct_type.newInitOverloads
+						){
+							if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
-							const Data::FuncInfo& target_func_info = this->data.get_func(new_init_overload_id);
+							if(
+								this->context.getSemaBuffer().getFunc(
+									new_init_overload_id.as<sema::Func::ID>()
+								).minNumArgs > 0
+							){ continue; }
+
+							const Data::FuncInfo& target_func_info =
+								this->data.get_func(new_init_overload_id.as<sema::Func::ID>());
 							const pir::Function::ID pir_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
 
 							this->delete_expr(target, expr_type_id);

@@ -200,6 +200,8 @@ namespace pcit::panther::AST{
 			Kind kind;
 			Node attributeBlock;
 			std::optional<Node> defaultValue;
+
+			[[nodiscard]] auto isThis() const -> bool { return this->type.has_value() == false; }
 		};
 
 		struct Return{

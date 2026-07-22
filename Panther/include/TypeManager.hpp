@@ -733,10 +733,10 @@ namespace pcit::panther{
 
 			mutable evo::SpinLock memberVarsLock{}; // only needed before definition is completed
 
-			evo::SmallVector<sema::FuncID> newInitOverloads{};
+			evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> newInitOverloads{};
 			mutable evo::SpinLock newInitOverloadsLock{}; // only needed before def completed
 
-			evo::SmallVector<sema::FuncID> newAssignOverloads{};
+			evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> newAssignOverloads{};
 			mutable evo::SpinLock newAssignOverloadsLock{}; // only needed before def completed
 
 			std::atomic<std::optional<sema::FuncID>> deleteOverload{};

@@ -2123,12 +2123,22 @@ namespace pcit::panther{
 			}
 
 		}else{
-			for(const sema::Func::ID& new_init_overload_id : created_struct.newInitOverloads){
-				const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(new_init_overload_id);
+			// search for default `new` and analyze for struct type initialization properties
+			for(
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>& new_init_overload_id
+				: created_struct.newInitOverloads
+			){
+				if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+
+				const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(
+					new_init_overload_id.as<sema::Func::ID>()
+				);
 				const BaseType::Function& new_init_overload_func_type =
 					this->context.getTypeManager().getFunction(new_init_overload.typeID);
 
 				if(new_init_overload.minNumArgs > 0){ continue; }
+
 
 				created_struct.isDefaultInitializable = true;
 
@@ -3822,11 +3832,10 @@ namespace pcit::panther{
 
 		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
 
-		if constexpr(IS_INSTANTIATION == false){
-			const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
-
-			switch(name_token.kind()){
-				case Token::Kind::IDENT: {
+		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
+		switch(name_token.kind()){
+			case Token::Kind::IDENT: {
+				if constexpr(IS_INSTANTIATION == false){
 					if(
 						this->symbol_proc.parent == nullptr
 						|| this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>() == false
@@ -3861,9 +3870,11 @@ namespace pcit::panther{
 							}
 						}
 					}
-				} break;
+				}
+			} break;
 
-				case Token::Kind::KEYWORD_AS: {
+			case Token::Kind::KEYWORD_AS: {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -3982,122 +3993,135 @@ namespace pcit::panther{
 					}
 
 					current_struct.operatorAsOverloads.emplace(conversion_type, created_func_id);
-				} break;
+				}
+			} break;
 
 
-				case Token::Kind::KEYWORD_NEW: {
-					if(this->scope.inEncapsulatingSymbol() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
+			case Token::Kind::KEYWORD_NEW: {
+				if(this->scope.inEncapsulatingSymbol() == false){
+					this->emit_error("Operator overload cannot be a free function", instr.func_def);
+					return Result::ERROR;
+				}
+
+				if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
+					this->emit_error("Operator overload cannot be a free function", instr.func_def);
+					return Result::ERROR;
+				}
+
+				const BaseType::Function& created_func_type =
+					this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+
+				BaseType::Struct& current_struct = this->context.type_manager.getStruct(
+					this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
+				);
+
+				if(
+					created_func.params.empty() == false
+					&& this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
+						== Token::Kind::KEYWORD_THIS
+				){ // assignment
+					if(created_func_type.returnsVoid() == false){
+						this->emit_error(
+							"Assignment operator `new` cannot have any return values", instr.func_def
+						);
 						return Result::ERROR;
 					}
 
-					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
+					if(created_func.attributes.isImplicit && created_func_type.params.size() != 2){
+						this->emit_error(
+							"This function cannot have attribute #implicit", instr.func_def
+						);
 						return Result::ERROR;
 					}
 
-					const BaseType::Function& created_func_type =
-						this->context.getTypeManager().getFunction(created_func_base_type.funcID());
+					if constexpr(IS_INSTANTIATION == false){
+						const auto lock = std::scoped_lock(current_struct.newAssignOverloadsLock);
 
-					BaseType::Struct& current_struct = this->context.type_manager.getStruct(
-						this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
+						for(
+							const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_reassign_overload_id
+							: current_struct.newAssignOverloads
+						){
+							if(new_reassign_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+							const sema::Func& new_reassign_overload = this->context.getSemaBuffer().getFunc(
+								new_reassign_overload_id.as<sema::Func::ID>()
+							);
+
+							if(new_reassign_overload.isEquivalentOverload(created_func, this->context)){
+								this->emit_error(
+									"Assignment operator [new] overload has an overload "
+										"that collides with this declaration",
+									instr.func_def,
+									Diagnostic::Info(
+										"First defined here:", this->get_location(new_reassign_overload)
+									)
+								);
+								return Result::ERROR;
+							}
+						}
+
+						current_struct.newAssignOverloads.emplace_back(created_func_id);
+					}
+
+				}else{ // initialization
+					const TypeInfo::ID expected_return_type = this->context.type_manager.getOrCreateTypeInfo(
+						TypeInfo(
+							BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>())
+						)
 					);
 
 					if(
-						created_func.params.empty() == false
-						&& this->source.getTokenBuffer()[created_func.params[0].ident.as<Token::ID>()].kind()
-							== Token::Kind::KEYWORD_THIS
-					){ // assignment
-						if(created_func_type.returnsVoid() == false){
-							this->emit_error(
-								"Assignment operator `new` cannot have any return values", instr.func_def
-							);
-							return Result::ERROR;
-						}
-
-						if(created_func.attributes.isImplicit && created_func_type.params.size() != 2){
-							this->emit_error(
-								"This function cannot have attribute #implicit", instr.func_def
-							);
-							return Result::ERROR;
-						}
-
-						{
-							const auto lock = std::scoped_lock(current_struct.newAssignOverloadsLock);
-
-							for(sema::Func::ID new_reassign_overload_id : current_struct.newAssignOverloads){
-								const sema::Func& new_reassign_overload =
-									this->context.getSemaBuffer().getFunc(new_reassign_overload_id);
-
-								if(new_reassign_overload.isEquivalentOverload(created_func, this->context)){
-									this->emit_error(
-										"Assignment operator [new] overload has an overload "
-											"that collides with this declaration",
-										instr.func_def,
-										Diagnostic::Info(
-											"First defined here:", this->get_location(new_reassign_overload)
-										)
-									);
-									return Result::ERROR;
-								}
-							}
-
-							current_struct.newAssignOverloads.emplace_back(created_func_id);
-						}
-
-					}else{ // initialization
-						const TypeInfo::ID expected_return_type = this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(
-								BaseType::ID(this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>())
-							)
+						created_func_type.returnTypes.size() != 1
+						|| created_func_type.returnTypes[0] != expected_return_type
+					){
+						this->emit_error(
+							"Initialization operator `new` must return the newly created value", instr.func_def
 						);
-
-						if(
-							created_func_type.returnTypes.size() != 1
-							|| created_func_type.returnTypes[0] != expected_return_type
-						){
-							this->emit_error(
-								"Initialization operator `new` must return the newly created value", instr.func_def
-							);
-							return Result::ERROR;
-						}
-
-						if(created_func_type.hasNamedReturns == false){
-							this->emit_error("Initialization operator `new` must have a named return", instr.func_def);
-							return Result::ERROR;
-						}
-
-						if(created_func.attributes.isImplicit && created_func_type.params.size() != 1){
-							this->emit_error("This function cannot have attribute #implicit", instr.func_def);
-							return Result::ERROR;
-						}
-
-						{
-							const auto lock = std::scoped_lock(current_struct.newInitOverloadsLock);
-
-							for(sema::Func::ID new_init_overload_id : current_struct.newInitOverloads){
-								const sema::Func& new_init_overload =
-									this->context.getSemaBuffer().getFunc(new_init_overload_id);
-
-								if(new_init_overload.isEquivalentOverload(created_func, this->context)){
-									this->emit_error(
-										"Initialization operator [new] overload has an overload "
-											"that collides with this declaration",
-										instr.func_def,
-										Diagnostic::Info(
-											"First defined here:", this->get_location(new_init_overload)
-										)
-									);
-									return Result::ERROR;
-								}
-							}
-
-							current_struct.newInitOverloads.emplace_back(created_func_id);
-						}
+						return Result::ERROR;
 					}
-				} break;
 
-				case Token::Kind::KEYWORD_DELETE: {
+					if(created_func_type.hasNamedReturns == false){
+						this->emit_error("Initialization operator `new` must have a named return", instr.func_def);
+						return Result::ERROR;
+					}
+
+					if(created_func.attributes.isImplicit && created_func_type.params.size() != 1){
+						this->emit_error("This function cannot have attribute #implicit", instr.func_def);
+						return Result::ERROR;
+					}
+
+					if constexpr(IS_INSTANTIATION == false){
+						const auto lock = std::scoped_lock(current_struct.newInitOverloadsLock);
+
+						for(
+							const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id :
+							current_struct.newInitOverloads
+						){
+							if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+							const sema::Func& new_init_overload =
+								this->context.getSemaBuffer().getFunc(new_init_overload_id.as<sema::Func::ID>());
+
+							if(new_init_overload.isEquivalentOverload(created_func, this->context)){
+								this->emit_error(
+									"Initialization operator [new] overload has an overload "
+										"that collides with this declaration",
+									instr.func_def,
+									Diagnostic::Info(
+										"First defined here:", this->get_location(new_init_overload)
+									)
+								);
+								return Result::ERROR;
+							}
+						}
+
+						current_struct.newInitOverloads.emplace_back(created_func_id);
+					}
+				}
+			} break;
+
+			case Token::Kind::KEYWORD_DELETE: {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4180,9 +4204,11 @@ namespace pcit::panther{
 						);
 						return Result::ERROR;
 					}
-				} break;
+				}
+			} break;
 
-				case Token::Kind::KEYWORD_COPY: {
+			case Token::Kind::KEYWORD_COPY: {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4361,9 +4387,11 @@ namespace pcit::panther{
 							return Result::ERROR;
 						} break;
 					}
-				} break;
+				}
+			} break;
 
-				case Token::Kind::KEYWORD_MOVE: {
+			case Token::Kind::KEYWORD_MOVE: {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4543,24 +4571,26 @@ namespace pcit::panther{
 							return Result::ERROR;
 						} break;
 					}
-				} break;
+				}
+			} break;
 
-				case Token::lookupKind("+"):    case Token::lookupKind("+%"):  case Token::lookupKind("+|"):
-				case Token::lookupKind("-"):    case Token::lookupKind("-%"):  case Token::lookupKind("-|"):
-				case Token::lookupKind("*"):    case Token::lookupKind("*%"):  case Token::lookupKind("*|"):
-				case Token::lookupKind("/"):    case Token::lookupKind("%"):   case Token::lookupKind("=="):
-				case Token::lookupKind("!="):   case Token::lookupKind("<"):   case Token::lookupKind("<="):
-				case Token::lookupKind(">"):    case Token::lookupKind(">="):  case Token::lookupKind("&&"):
-				case Token::lookupKind("||"):   case Token::lookupKind("<<"):  case Token::lookupKind("<<|"):
-				case Token::lookupKind(">>"):   case Token::lookupKind("&"):   case Token::lookupKind("|"):
-				case Token::lookupKind("^"):
+			case Token::lookupKind("+"):    case Token::lookupKind("+%"):  case Token::lookupKind("+|"):
+			case Token::lookupKind("-"):    case Token::lookupKind("-%"):  case Token::lookupKind("-|"):
+			case Token::lookupKind("*"):    case Token::lookupKind("*%"):  case Token::lookupKind("*|"):
+			case Token::lookupKind("/"):    case Token::lookupKind("%"):   case Token::lookupKind("=="):
+			case Token::lookupKind("!="):   case Token::lookupKind("<"):   case Token::lookupKind("<="):
+			case Token::lookupKind(">"):    case Token::lookupKind(">="):  case Token::lookupKind("&&"):
+			case Token::lookupKind("||"):   case Token::lookupKind("<<"):  case Token::lookupKind("<<|"):
+			case Token::lookupKind(">>"):   case Token::lookupKind("&"):   case Token::lookupKind("|"):
+			case Token::lookupKind("^"):
 
-				case Token::lookupKind("+="):   case Token::lookupKind("+%="): case Token::lookupKind("+|="):
-				case Token::lookupKind("-="):   case Token::lookupKind("-%="): case Token::lookupKind("-|="):
-				case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
-				case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
-				case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
-				case Token::lookupKind("|="):   case Token::lookupKind("^="): {
+			case Token::lookupKind("+="):   case Token::lookupKind("+%="): case Token::lookupKind("+|="):
+			case Token::lookupKind("-="):   case Token::lookupKind("-%="): case Token::lookupKind("-|="):
+			case Token::lookupKind("*="):   case Token::lookupKind("*%="): case Token::lookupKind("*|="):
+			case Token::lookupKind("/="):   case Token::lookupKind("%="):  case Token::lookupKind("<<="):
+			case Token::lookupKind("<<|="): case Token::lookupKind(">>="): case Token::lookupKind("&="):
+			case Token::lookupKind("|="):   case Token::lookupKind("^="): {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4855,9 +4885,11 @@ namespace pcit::panther{
 					}else{
 						if(add_overload(current_struct, false).isError()){ return Result::ERROR; }
 					}
-				} break;
+				}
+			} break;
 
-				case Token::lookupKind("!"): case Token::lookupKind("~"): {
+			case Token::lookupKind("!"): case Token::lookupKind("~"): {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4888,9 +4920,11 @@ namespace pcit::panther{
 					).isError()){
 						return Result::ERROR;
 					}
-				} break;
+				}
+			} break;
 
-				case Token::lookupKind("["): {
+			case Token::lookupKind("["): {
+				if constexpr(IS_INSTANTIATION == false){
 					if(this->scope.inEncapsulatingSymbol() == false){
 						this->emit_error("Operator overload cannot be a free function", instr.func_def);
 						return Result::ERROR;
@@ -4967,8 +5001,8 @@ namespace pcit::panther{
 					}
 
 					current_struct.indexerOverloads.emplace_back(created_func_id);
-				} break;
-			}
+				}
+			} break;
 		}
 
 
@@ -5908,13 +5942,13 @@ namespace pcit::panther{
 
 	
 	auto SemanticAnalyzer::instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result {
+		const sema::TemplatedFunc::ID templated_func_id =
+			this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>().templated_func_id;
+
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
 		if(name_token.kind() == Token::Kind::IDENT){
 			const std::string_view ident_str = name_token.getString();
-			const sema::TemplatedFunc::ID templated_func_id =
-				this->symbol_proc.extra_info.as<SymbolProc::TemplateFuncInfo>().templated_func_id;
-
 
 			const bool include_shadow_checks = [&]() -> bool {
 				if(this->scope.inEncapsulatingSymbol() == false){ return true; }
@@ -5942,16 +5976,38 @@ namespace pcit::panther{
 			}
 
 
-			this->propagate_finished_decl_def();
-
-			return Result::SUCCESS;
-
 		}else{
 			evo::debugAssert(name_token.kind() == Token::Kind::KEYWORD_NEW);
 			
-			this->emit_error("This operator overload being a template is unimplemented", instr.func_def.name);
-			return Result::ERROR;
+			const EncapsulatingSymbolID& current_encapsulating_symbol = this->scope.getCurrentEncapsulatingSymbol();
+
+			const BaseType::Struct::ID parent_struct_id = current_encapsulating_symbol.as<BaseType::Struct::ID>();
+			BaseType::Struct& parent_struct = this->context.getTypeManager().getStruct(parent_struct_id);
+
+			const bool is_assignment = [&]() -> bool {
+				const sema::TemplatedFunc& templated_func =
+					this->context.getSemaBuffer().getTemplatedFunc(templated_func_id);
+
+				const Source& templated_func_source =
+					this->context.getSourceManager()[templated_func.symbolProc.getSourceID()];
+				const AST::FuncDef& ast_func =
+					templated_func_source.getASTBuffer().getFuncDef(templated_func.symbolProc.getASTNode());
+
+				return ast_func.params[0].isThis();
+			}(); 
+
+			if(is_assignment){
+				const auto lock = std::scoped_lock(parent_struct.newAssignOverloadsLock);
+				parent_struct.newAssignOverloads.emplace_back(templated_func_id);
+			}else{
+				const auto lock = std::scoped_lock(parent_struct.newInitOverloadsLock);
+				parent_struct.newInitOverloads.emplace_back(templated_func_id);
+			}
 		}
+
+		this->propagate_finished_decl_def();
+
+		return Result::SUCCESS;
 
 	}
 
@@ -10435,6 +10491,7 @@ namespace pcit::panther{
 					is_semantically_initialization || target_struct.newAssignOverloads.empty();
 
 
+				const evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>* new_overloads = nullptr;
 
 				if(should_run_initialization){
 					if(target_struct.newInitOverloads.empty()){
@@ -10455,30 +10512,30 @@ namespace pcit::panther{
 					}
 
 
-					overloads.reserve(target_struct.newInitOverloads.size());
-					for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
-						const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
-
-						overloads.emplace_back(
-							overload_id, this->context.getTypeManager().getFunction(overload.typeID)
-						);
-					}
+					new_overloads = &target_struct.newInitOverloads;
 
 					args.reserve(instr.args.size());
-				}else{
-					overloads.reserve(target_struct.newAssignOverloads.size());
-					for(const sema::Func::ID overload_id : target_struct.newAssignOverloads){
-						const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
 
-						overloads.emplace_back(
-							overload_id, this->context.getTypeManager().getFunction(overload.typeID)
-						);
-					}
+				}else{
+					new_overloads = &target_struct.newAssignOverloads;
 
 					args.reserve(instr.args.size() + 1);
 					args.emplace_back(this->get_term_info(instr.lhs), instr.infix.lhs, std::nullopt);
 				}
 
+
+				overloads.reserve(new_overloads->size());
+				for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> overload_id : *new_overloads){
+					if(overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+					const sema::Func& overload =
+						this->context.getSemaBuffer().getFunc(overload_id.as<sema::Func::ID>());
+
+					overloads.emplace_back(
+						overload_id.as<sema::Func::ID>(),
+						this->context.getTypeManager().getFunction(overload.typeID)
+					);
+				}
 
 
 				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
@@ -16941,9 +16998,15 @@ namespace pcit::panther{
 									const BaseType::Struct& elem_struct_type =
 										this->context.getTypeManager().getStruct(elem_type.baseTypeID().structID());
 
-									for(sema::Func::ID new_init_overload_id : elem_struct_type.newInitOverloads){
-										const sema::Func& new_init_overload =
-											this->context.getSemaBuffer().getFunc(new_init_overload_id);
+									for(
+										const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id
+										: elem_struct_type.newInitOverloads
+									){
+										if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+										const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(
+											new_init_overload_id.as<sema::Func::ID>()
+										);
 										if(new_init_overload.minNumArgs != 0){ continue; }
 
 
@@ -17173,13 +17236,68 @@ namespace pcit::panther{
 				}
 
 
+
 				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 				overloads.reserve(target_struct.newInitOverloads.size());
-				for(const sema::Func::ID overload_id : target_struct.newInitOverloads){
-					const sema::Func& overload = this->context.getSemaBuffer().getFunc(overload_id);
 
-					overloads.emplace_back(overload_id, this->context.getTypeManager().getFunction(overload.typeID));
+				auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
+				auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
+				for(
+					const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> overload_id
+					: target_struct.newInitOverloads
+				){
+					if(overload_id.is<sema::Func::ID>()){
+						const sema::Func& overload =
+							this->context.getSemaBuffer().getFunc(overload_id.as<sema::Func::ID>());
+
+						overloads.emplace_back(
+							overload_id.as<sema::Func::ID>(),
+							this->context.getTypeManager().getFunction(overload.typeID)
+						);
+						
+					}else{
+						evo::debugAssert(overload_id.is<sema::TemplatedFunc::ID>(), "Unknown overload kind");
+
+						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
+							this->get_select_func_overload_func_info_for_template(
+								overload_id.as<sema::TemplatedFunc::ID>(),
+								instr.args,
+								evo::ArrayProxy<SymbolProcTermInfoID>(),
+								false,
+								this->get_location(instr.ast_new.type)
+							);
+
+						if(template_res.has_value() == false){
+							template_overload_match_infos.emplace_back(template_res.error());
+							continue;
+						}
+						template_overload_match_infos.emplace_back(std::nullopt);
+						instantiation_infos.emplace_back(std::move(template_res.value()));
+					}
 				}
+
+
+				auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+				{
+					evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
+						this->handle_results_of_get_select_func_overload_func_info_for_template(
+							target_struct.newInitOverloads,
+							overloads,
+							instantiation_infos,
+							template_overload_match_infos,
+							instr.args,
+							std::nullopt,
+							instr.ast_new.args,
+							this->get_location(instr.ast_new.type)
+						);
+
+					if(handle_results.has_value() == false){
+						return handle_results.error();
+					}
+
+					instantiation_error_infos = std::move(handle_results.value());
+				}
+
 
 
 				auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
@@ -17192,13 +17310,37 @@ namespace pcit::panther{
 					i += 1;
 				}
 
+
 				const evo::Expected<size_t, Result> selected_overload = this->select_func_overload(
-					overloads, args, instr.ast_new, false, IS_COMPTIME, evo::SmallVector<Diagnostic::Info>()
+					overloads, args, instr.ast_new, false, IS_COMPTIME, std::move(instantiation_error_infos)
 				);
 				if(selected_overload.has_value() == false){ return selected_overload.error(); }
 
-				const sema::Func::ID selected_func_id =
-					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
+				const SelectFuncOverloadFuncInfo& selected_func_info = overloads[*selected_overload];
+
+
+				if(selected_func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+					const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
+						selected_func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>(),
+						"function",
+						this->get_location(instr.ast_new)
+					);
+
+					if(unsuspend_result.isError()){ return Result::ERROR; }
+				}
+
+				const sema::Func::ID selected_func_id = [&]() -> sema::Func::ID {
+					if(selected_func_info.func_id.is<sema::Func::ID>()){
+						return selected_func_info.func_id.as<sema::Func::ID>();
+
+					}else{
+						const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+							selected_func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+						return *instantiation_info.instantiation.funcID;
+					}
+				}();
+
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
 
 				const BaseType::Function& selected_func_type =
@@ -17422,11 +17564,17 @@ namespace pcit::panther{
 									const BaseType::Struct& sub_struct_type =
 										this->context.getTypeManager().getStruct(sub_type.baseTypeID().structID());
 
-									for(sema::Func::ID new_init_overload_id : sub_struct_type.newInitOverloads){
-										const sema::Func& new_init_overload =
-											this->context.getSemaBuffer().getFunc(new_init_overload_id);
-										if(new_init_overload.minNumArgs != 0){ continue; }
+									for(
+										const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id
+										: sub_struct_type.newInitOverloads
+									){
+										if(new_init_overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
 
+										const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(
+											new_init_overload_id.as<sema::Func::ID>()
+										);
+
+										if(new_init_overload.minNumArgs != 0){ continue; }
 
 										SymbolProc& new_init_overload_symbol_proc = 
 											this->context
@@ -17634,12 +17782,20 @@ namespace pcit::panther{
 				const BaseType::Struct& struct_type =
 					this->context.getTypeManager().getStruct(type_info.baseTypeID().structID());
 
-				for(sema::Func::ID new_init_overload_id : struct_type.newInitOverloads){
-					const sema::Func& new_init_overload = this->context.getSemaBuffer().getFunc(new_init_overload_id);
+				for(
+					const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_init_overload_id
+					: struct_type.newInitOverloads
+				){
+					if(new_init_overload_id.is<sema::Func::ID>()){ continue; }
+
+					const sema::Func& new_init_overload =
+						this->context.getSemaBuffer().getFunc(new_init_overload_id.as<sema::Func::ID>());
 					if(new_init_overload.minNumArgs != 0){ continue; }
 
 					return this->comptime_func_call(
-						new_init_overload_id, evo::SmallVector<sema::Expr>(), this->get_location(ast_new)
+						new_init_overload_id.as<sema::Func::ID>(),
+						evo::SmallVector<sema::Expr>(),
+						this->get_location(ast_new)
 					);
 				}
 
@@ -28116,6 +28272,41 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::unsuspend_template_func_if_needed(
+		const sema::TemplatedFunc::InstantiationInfo& instantiation_info,
+		std::string_view func_type_str, // "Selected _____ overload has the `#priv` attribute...";
+		Diagnostic::Location location
+	) -> evo::Result<> {
+		const SymbolProc::ID instantiation_symbol_proc_id = 
+			*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+		SymbolProc& instantiation_symbol_proc =
+			this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+
+		sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+
+		if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+			this->emit_error(
+				std::format(
+					"Selected {} overload has the `#priv` attribute, and is not accessable in this scope", func_type_str
+				),
+				location,
+				Diagnostic::Info(
+					"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
+				)
+			);
+			return evo::resultError;
+		}
+
+		if(instantiation_symbol_proc.unsuspendIfNeeded()){
+			this->context.symbol_proc_manager.symbol_proc_unsuspended();
+
+			sema_func.status = sema::Func::Status::NOT_DONE;
+
+			this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
+		}
+
+		return evo::Result<>();
+	}
 
 
 
@@ -28354,88 +28545,11 @@ namespace pcit::panther{
 						// needed to work with variadic functions
 						const size_t ast_arg_index = std::min(arg_i, ast_func.params.size() - 1);
 
-						struct DeducerInfo{
-							AST::Node node;
-							unsigned depth;
-						};
+						const DeducerCountAndDepth arg_deducer_count_and_depth =
+							calc_deducer_count_and_depth(func_source, *ast_func.params[ast_arg_index].type);
 
-						auto deducer_info_queue = std::queue<DeducerInfo>();
-						deducer_info_queue.emplace(*ast_func.params[ast_arg_index].type, 0);
-
-						while(deducer_info_queue.empty() == false){
-							const DeducerInfo deducer_info = deducer_info_queue.front();
-							deducer_info_queue.pop();
-
-							switch(deducer_info.node.kind()){
-								case AST::Kind::TYPE: {
-									const AST::Type& type = func_source.getASTBuffer().getType(deducer_info.node);
-									deducer_info_queue.emplace(type.base, deducer_info.depth + 1);
-								} break;
-
-								case AST::Kind::DEDUCER: {
-									current_deducer_count += 1;
-									current_deducer_depth_count += deducer_info.depth;
-								} break;
-
-								case AST::Kind::ARRAY_TYPE: {
-									const AST::ArrayType& array_type =
-										func_source.getASTBuffer().getArrayType(deducer_info.node);
-
-									deducer_info_queue.emplace(
-										func_source.getASTBuffer().getType(array_type.elemType).base,
-										deducer_info.depth + 1
-									);
-
-
-									for(const std::optional<AST::Node>& dimension : array_type.dimensions){
-										if(dimension.has_value() == false){ continue; }
-										deducer_info_queue.emplace(*dimension, deducer_info.depth + 1);
-									}
-
-									if(array_type.terminator.has_value()){
-										deducer_info_queue.emplace(*array_type.terminator, deducer_info.depth + 1);
-									}
-								} break;
-
-								case AST::Kind::FUNC_TYPE: {
-									const AST::FuncType& func_type =
-										func_source.getASTBuffer().getFuncType(deducer_info.node);
-
-									for(const AST::FuncType::Param& param : func_type.params){
-										deducer_info_queue.emplace(param.type, deducer_info.depth + 1);
-									}
-
-									for(const AST::Node& ret_type : func_type.returnTypes){
-										deducer_info_queue.emplace(ret_type, deducer_info.depth + 1);
-									}
-
-									for(const AST::Node& err_type : func_type.errorTypes){
-										deducer_info_queue.emplace(err_type, deducer_info.depth + 1);
-									}
-								} break;
-
-								case AST::Kind::TEMPLATED_EXPR: {
-									const AST::TemplatedExpr& templated_expr =
-										func_source.getASTBuffer().getTemplatedExpr(deducer_info.node);
-
-									for(const AST::Node& arg : templated_expr.args){
-										deducer_info_queue.emplace(arg, deducer_info.depth + 1);
-									}
-								} break;
-
-								case AST::Kind::INTERFACE_MAP: {
-									const AST::InterfaceMap& interface_map_type =
-										func_source.getASTBuffer().getInterfaceMap(deducer_info.node);
-									if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ break; }
-
-									deducer_info_queue.emplace(
-										interface_map_type.underlyingType.as<AST::Node>(), deducer_info.depth + 1
-									);
-								} break;
-
-								default: break;
-							}
-						}
+						current_deducer_count += arg_deducer_count_and_depth.count;
+						current_deducer_depth_count += arg_deducer_count_and_depth.depth;
 					}
 				}
 
@@ -29092,7 +29206,11 @@ namespace pcit::panther{
 					
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, false
+								func_overload.as<sema::TemplatedFunc::ID>(),
+								args,
+								template_args,
+								false,
+								this->get_location(func_call)
 							);
 
 						if(template_res.has_value() == false){
@@ -29120,7 +29238,11 @@ namespace pcit::panther{
 						
 						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
 							this->get_select_func_overload_func_info_for_template(
-								func_call, func_overload.as<sema::TemplatedFunc::ID>(), args, template_args, true
+								func_overload.as<sema::TemplatedFunc::ID>(),
+								args,
+								template_args,
+								true,
+								this->get_location(func_call)
 							);
 
 						if(template_res.has_value() == false){
@@ -29245,426 +29367,450 @@ namespace pcit::panther{
 		}
 
 
-		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+		// auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
 
-		if(instantiation_infos.empty()){
-			if(template_overload_match_infos.empty() == false){
+		// if(instantiation_infos.empty()){
+		// 	if(template_overload_match_infos.empty() == false){
+		// 		for(size_t i = 0; const std::optional<TemplateOverloadMatchFail>& info : template_overload_match_infos){
+		// 			EVO_DEFER([&](){ i += 1; });
 
-				for(size_t i = 0; const std::optional<TemplateOverloadMatchFail>& info : template_overload_match_infos){
-					EVO_DEFER([&](){ i += 1; });
+		// 			const auto get_func_location = [&]() -> Diagnostic::Location {
+		// 				if(target_term_info.type_id.is<TermInfo::FuncOverloadList>()){
+		// 					const TermInfo::FuncOverloadList& func_overload_list =
+		// 						target_term_info.type_id.as<TermInfo::FuncOverloadList>();
 
-					const auto get_func_location = [&]() -> Diagnostic::Location {
-						if(target_term_info.type_id.is<TermInfo::FuncOverloadList>()){
-							const TermInfo::FuncOverloadList& func_overload_list =
-								target_term_info.type_id.as<TermInfo::FuncOverloadList>();
+		// 					if(func_overload_list[i].is<sema::Func::ID>()){
+		// 						return this->get_location(func_overload_list[i].as<sema::Func::ID>());
+		// 					}else{
+		// 						return this->get_location(func_overload_list[i].as<sema::TemplatedFunc::ID>());
+		// 					}
+		// 				}else{
+		// 					return Diagnostic::Location::BUILTIN;
+		// 				}
+		// 			};
 
-							if(func_overload_list[i].is<sema::Func::ID>()){
-								return this->get_location(func_overload_list[i].as<sema::Func::ID>());
-							}else{
-								return this->get_location(func_overload_list[i].as<sema::TemplatedFunc::ID>());
-							}
-						}else{
-							return Diagnostic::Location::BUILTIN;
-						}
-					};
-
-					if(info.has_value() == false){ continue; }
+		// 			if(info.has_value() == false){ continue; }
 					
-					info->reason.visit([&](const auto& reason) -> void {
-						using ReasonT = std::decay_t<decltype(reason)>;
+		// 			info->reason.visit([&](const auto& reason) -> void {
+		// 				using ReasonT = std::decay_t<decltype(reason)>;
 
-						if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
-							return;
+		// 				if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
+		// 					return;
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewTemplateArgs>()){
-							if(reason.accepts_different_nums){
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too few template arguments (requires at least {}, got {})",
-										reason.min_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewTemplateArgs>()){
+		// 					if(reason.accepts_different_nums){
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too few template arguments (requires at least {}, got {})",
+		// 								reason.min_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
 								
-							}else{
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too few template arguments (requires {}, got {})",
-										reason.min_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
-							}
+		// 					}else{
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too few template arguments (requires {}, got {})",
+		// 								reason.min_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
+		// 					}
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyTemplateArgs>()){
-							if(reason.accepts_different_nums){
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too many template arguments (requires at most {}, got {})",
-										reason.max_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyTemplateArgs>()){
+		// 					if(reason.accepts_different_nums){
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too many template arguments (requires at most {}, got {})",
+		// 								reason.max_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
 								
-							}else{
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too many template arguments (requires {}, got {})",
-										reason.max_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
-							}
+		// 					}else{
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too many template arguments (requires {}, got {})",
+		// 								reason.max_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
+		// 					}
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateArgWrongKind>()){
-							const AST::TemplatedExpr& templated_expr =
-								this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateArgWrongKind>()){
+		// 					const AST::TemplatedExpr& templated_expr =
+		// 						this->source.getASTBuffer().getTemplatedExpr(func_call.target);
 
-							if(reason.supposed_to_be_expr){
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: template parameter (index: {}) expects an expression, "
-											"got a type",
-										reason.arg_index
-									),
-									get_func_location(),
-									evo::SmallVector<Diagnostic::Info>{
-										Diagnostic::Info(
-											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
-										),
-									}
-								);
-							}else{
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: template parameter (index: {}) expects a type, "
-											"got an expression",
-										reason.arg_index
-									),
-									get_func_location(),
-									evo::SmallVector<Diagnostic::Info>{
-										Diagnostic::Info(
-											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
-										),
-									}
-								);
-							}
+		// 					if(reason.supposed_to_be_expr){
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: template parameter (index: {}) expects an expression, "
+		// 									"got a type",
+		// 								reason.arg_index
+		// 							),
+		// 							get_func_location(),
+		// 							evo::SmallVector<Diagnostic::Info>{
+		// 								Diagnostic::Info(
+		// 									"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+		// 								),
+		// 							}
+		// 						);
+		// 					}else{
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: template parameter (index: {}) expects a type, "
+		// 									"got an expression",
+		// 								reason.arg_index
+		// 							),
+		// 							get_func_location(),
+		// 							evo::SmallVector<Diagnostic::Info>{
+		// 								Diagnostic::Info(
+		// 									"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+		// 								),
+		// 							}
+		// 						);
+		// 					}
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateWrongExprType>()){
-							const AST::TemplatedExpr& templated_expr =
-								this->source.getASTBuffer().getTemplatedExpr(func_call.target);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateWrongExprType>()){
+		// 					const AST::TemplatedExpr& templated_expr =
+		// 						this->source.getASTBuffer().getTemplatedExpr(func_call.target);
 
-							auto sub_infos = evo::SmallVector<Diagnostic::Info>();
-							sub_infos.emplace_back(
-								"This argument:", this->get_location(templated_expr.args[reason.arg_index])
-							);
-							this->diagnostic_print_type_info(
-								reason.expected_type_id, sub_infos, "Expected type:      "
-							);
-							this->diagnostic_print_type_info(
-								this->get_term_info(reason.got_term_id), std::nullopt, sub_infos, "Expression is type: "
-							);
+		// 					auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+		// 					sub_infos.emplace_back(
+		// 						"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+		// 					);
+		// 					this->diagnostic_print_type_info(
+		// 						reason.expected_type_id, sub_infos, "Expected type:      "
+		// 					);
+		// 					this->diagnostic_print_type_info(
+		// 						this->get_term_info(reason.got_term_id), std::nullopt, sub_infos, "Expression is type: "
+		// 					);
 
-							instantiation_error_infos.emplace_back(
-								std::format(
-									"Failed to match: template parameter (index: {}) expected a different "
-										"expression type",
-									reason.arg_index
-								),
-								get_func_location(),
-								std::move(sub_infos)
-							);
+		// 					instantiation_error_infos.emplace_back(
+		// 						std::format(
+		// 							"Failed to match: template parameter (index: {}) expected a different "
+		// 								"expression type",
+		// 							reason.arg_index
+		// 						),
+		// 						get_func_location(),
+		// 						std::move(sub_infos)
+		// 					);
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewArgs>()){
-							if(reason.accepts_different_nums){
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too few arguments (requires at least {}, got {})",
-										reason.min_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewArgs>()){
+		// 					if(reason.accepts_different_nums){
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too few arguments (requires at least {}, got {})",
+		// 								reason.min_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
 								
-							}else{
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too few arguments (requires {}, got {})",
-										reason.min_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
-							}
+		// 					}else{
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too few arguments (requires {}, got {})",
+		// 								reason.min_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
+		// 					}
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyArgs>()){
-							if(reason.accepts_different_nums){
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too many arguments (requires at most {}, got {})",
-										reason.max_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyArgs>()){
+		// 					if(reason.accepts_different_nums){
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too many arguments (requires at most {}, got {})",
+		// 								reason.max_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
 								
-							}else{
-								instantiation_error_infos.emplace_back(
-									std::format(
-										"Failed to match: too many arguments (requires {}, got {})",
-										reason.max_num,
-										reason.got_num
-									),
-									get_func_location()
-								);
-							}
+		// 					}else{
+		// 						instantiation_error_infos.emplace_back(
+		// 							std::format(
+		// 								"Failed to match: too many arguments (requires {}, got {})",
+		// 								reason.max_num,
+		// 								reason.got_num
+		// 							),
+		// 							get_func_location()
+		// 						);
+		// 					}
 
-						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
-							instantiation_error_infos.emplace_back(
-								std::format(
-									"Failed to match: can't deduce type from argument (index: {})",
-									reason.arg_index
-								),
-								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info(
-										"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-									),
-									Diagnostic::Info(
-										std::format(
-											"Argument type: {}",
-											this->print_term_type(this->get_term_info(args[reason.arg_index]))
-										)
-									)
-								}
-							);
+		// 				}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
+		// 					instantiation_error_infos.emplace_back(
+		// 						std::format(
+		// 							"Failed to match: can't deduce type from argument (index: {})",
+		// 							reason.arg_index
+		// 						),
+		// 						get_func_location(),
+		// 						evo::SmallVector<Diagnostic::Info>{
+		// 							Diagnostic::Info(
+		// 								"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+		// 							),
+		// 							Diagnostic::Info(
+		// 								std::format(
+		// 									"Argument type: {}",
+		// 									this->print_term_type(this->get_term_info(args[reason.arg_index]))
+		// 								)
+		// 							)
+		// 						}
+		// 					);
 							
-						}else if constexpr(
-							std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceDefaultArgType>()
-						){
-							instantiation_error_infos.emplace_back(
-								std::format(
-									"Failed to match: can't deduce type from default argument (index: {})",
-									reason.param_index
-								),
-								get_func_location(),
-								evo::SmallVector<Diagnostic::Info>{
-									Diagnostic::Info("Note: parameter type cannot be duduced on a default argument"),
-								}
-							);
+		// 				}else if constexpr(
+		// 					std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceDefaultArgType>()
+		// 				){
+		// 					instantiation_error_infos.emplace_back(
+		// 						std::format(
+		// 							"Failed to match: can't deduce type from default argument (index: {})",
+		// 							reason.param_index
+		// 						),
+		// 						get_func_location(),
+		// 						evo::SmallVector<Diagnostic::Info>{
+		// 							Diagnostic::Info("Note: parameter type cannot be duduced on a default argument"),
+		// 						}
+		// 					);
 							
-						}else{
-							static_assert(false, "Unsupported TemplateOverloadMatchFail");
-						}
-					});
-				}
+		// 				}else{
+		// 					static_assert(false, "Unsupported TemplateOverloadMatchFail");
+		// 				}
+		// 			});
+		// 		}
 
-				if(func_infos.empty()){
-					this->emit_error(
-						"No matching function overload found", func_call.target, std::move(instantiation_error_infos)
-					);
-					return evo::Unexpected(Result::ERROR);
-				}
-			}
+		// 		if(func_infos.empty()){
+		// 			this->emit_error(
+		// 				"No matching function overload found", func_call.target, std::move(instantiation_error_infos)
+		// 			);
+		// 			return evo::Unexpected(Result::ERROR);
+		// 		}
+		// 	}
 
-		}else{
-			bool any_waiting_or_ready = false;
+		// }else{
+		// 	bool any_waiting_or_ready = false;
 			
-			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
-				std::optional<SymbolProc::ID> loaded_instantiation_symbol_proc_id =
-					instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+		// 	for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
+		// 		std::optional<SymbolProc::ID> loaded_instantiation_symbol_proc_id =
+		// 			instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
 
-				while(loaded_instantiation_symbol_proc_id.has_value() == false){ // wait for it to be ready
-					std::this_thread::yield();
-					loaded_instantiation_symbol_proc_id =
-						instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
-				}
+		// 		while(loaded_instantiation_symbol_proc_id.has_value() == false){ // wait for it to be ready
+		// 			std::this_thread::yield();
+		// 			loaded_instantiation_symbol_proc_id =
+		// 				instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+		// 		}
 
-				SymbolProc& instantiation_symbol_proc =
-					this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
+		// 		SymbolProc& instantiation_symbol_proc =
+		// 			this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
 
-				SymbolProc::WaitOnResult wait_on_result = 
-					instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
+		// 		SymbolProc::WaitOnResult wait_on_result = 
+		// 			instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
 
 
-				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:            any_waiting_or_ready = true; break;
-					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-						this->context.symbol_proc_manager.symbol_proc_unsuspended();
-						this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
-						[[fallthrough]];
-					}
-					case SymbolProc::WaitOnResult::WAITING:               any_waiting_or_ready = true; break;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: break;
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
-				}
+		// 		switch(wait_on_result){
+		// 			case SymbolProc::WaitOnResult::NOT_NEEDED:            any_waiting_or_ready = true; break;
+		// 			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+		// 				this->context.symbol_proc_manager.symbol_proc_unsuspended();
+		// 				this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
+		// 				[[fallthrough]];
+		// 			}
+		// 			case SymbolProc::WaitOnResult::WAITING:               any_waiting_or_ready = true; break;
+		// 			case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
+		// 			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: break;
+		// 			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
+		// 		}
+		// 	}
+
+		// 	if(any_waiting_or_ready == false){
+		// 		this->emit_error(
+		// 			"No function overload found",
+		// 			func_call.target,
+		// 			Diagnostic::Info("All were passed by when conditionals")
+		// 		);
+		// 		return evo::Unexpected(Result::ERROR);
+		// 	}
+
+
+		// 	if(this->symbol_proc.shouldContinueRunning() == false){
+		// 		return evo::Unexpected(Result::NEED_TO_WAIT);
+		// 	}
+
+		// 	using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
+
+		// 	auto instantiation_errors = evo::SmallVector<ErroredReason>();
+
+		// 	for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
+		// 		if(instantiation_info.instantiation.errored()){
+		// 			const SymbolProc& instantiation_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+		// 				*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed)
+		// 			);
+
+		// 			const SymbolProc::FuncInfo& func_info =
+		// 				instantiation_symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+		// 			if(
+		// 				func_info.instantiation->errored() 
+		// 				&& func_info.instantiation->errored_reason
+		// 					.is<sema::TemplatedFunc::Instantiation::ErroredReasonErroredAfterDecl>() == false
+		// 			){
+		// 				instantiation_errors.emplace_back(func_info.instantiation->errored_reason);
+		// 			}else{
+		// 				return evo::Unexpected(Result::ERROR);
+		// 			}
+		// 			continue;
+		// 		}
+
+		// 		const sema::Func& instantiated_func = this->context.getSemaBuffer().getFunc(
+		// 			*instantiation_info.instantiation.funcID
+		// 		);
+
+		// 		func_infos.emplace_back(
+		// 			instantiation_info, this->context.getTypeManager().getFunction(instantiated_func.typeID)
+		// 		);
+		// 	}
+
+		// 	for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
+		// 		const auto get_func_location = [&]() -> Diagnostic::Location {
+		// 			const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+		// 				*instantiation_infos[i].instantiation.symbolProcID.load(std::memory_order::relaxed)
+		// 			);
+
+		// 			return Diagnostic::Location::get(
+		// 				symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
+		// 			);
+		// 		};
+
+
+		// 		instantiation_error.visit([&](const auto& reason) -> void {
+		// 			using ReasonT = std::decay_t<decltype(reason)>;
+
+		// 			using Instantiation = sema::TemplatedFunc::Instantiation;
+
+		// 			if constexpr(std::is_same<ReasonT, std::monostate>()){
+		// 				evo::debugAssert("Template instantiation didn't error");
+
+		// 			}else if constexpr(
+		// 				std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
+		// 			){
+		// 				instantiation_error_infos.emplace_back(
+		// 					std::format(
+		// 						"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
+		// 					),
+		// 					get_func_location(),
+		// 					evo::SmallVector<Diagnostic::Info>{
+		// 						Diagnostic::Info(
+		// 							"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+		// 						),
+		// 						Diagnostic::Info(
+		// 							std::format(
+		// 								"Argument type: {}",
+		// 								this->print_term_type(this->get_term_info(args[reason.arg_index]))
+		// 							)
+		// 						)
+		// 					}
+		// 				);
+
+
+		// 			}else if constexpr(
+		// 				std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
+		// 			){
+		// 				auto sub_infos = evo::SmallVector<Diagnostic::Info>{
+		// 					Diagnostic::Info(
+		// 						"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+		// 					)
+		// 				};
+
+		// 				this->diagnostic_print_type_info(reason.got_type_id, sub_infos, "Argument type:  ");
+		// 				this->diagnostic_print_type_info(reason.expected_type_id, sub_infos, "Parameter type: ");
+
+		// 				instantiation_error_infos.emplace_back(
+		// 					std::format(
+		// 						"Failed to match: argument (index: {}) type mismatch, "
+		// 							"and cannot be implicitly converted",
+		// 						reason.arg_index
+		// 					),
+		// 					get_func_location(),
+		// 					std::move(sub_infos)
+		// 				);
+
+		// 			}else if constexpr(
+		// 				std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
+		// 			){
+		// 				instantiation_error_infos.emplace_back(
+		// 					std::format(
+		// 						"Failed to match: type of argument (index: {}) doesn't implement the interface",
+		// 						reason.arg_index
+		// 					),
+		// 					get_func_location(),
+		// 					evo::SmallVector<Diagnostic::Info>{
+		// 						Diagnostic::Info(
+		// 							"This argument:", this->get_location(func_call.args[reason.arg_index].value)
+		// 						),
+		// 						Diagnostic::Info(
+		// 							std::format(
+		// 								"Argument type:  {}",
+		// 								this->context.getTypeManager().printType(reason.got_type_id, this->context)
+		// 							)
+		// 						),
+		// 						Diagnostic::Info(
+		// 							std::format(
+		// 								"Interface type: {}",
+		// 								this->context.getTypeManager().printType(
+		// 									reason.interface_type_id, this->context
+		// 								)
+		// 							)
+		// 						),
+		// 					}
+		// 				);
+		// 			}else if constexpr(
+		// 				std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
+		// 			){
+		// 				evo::debugAssert("Errored after decl, shouldn't get here");
+
+		// 			}else{
+		// 				static_assert(false, "Unknown errored reason");
+		// 			}
+		// 		});
+
+		// 		i += 1;
+		// 	}
+
+		// 	if(func_infos.empty()){ // if all instantiations errored
+		// 		this->emit_error("No function overload found", func_call.target, std::move(instantiation_error_infos));
+		// 		return evo::Unexpected(Result::ERROR);
+		// 	}
+		// }
+
+		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+		{
+			auto overloads = evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>();
+			if(target_term_info.type_id.is<TermInfo::FuncOverloadList>()){
+				overloads = target_term_info.type_id.as<TermInfo::FuncOverloadList>();
 			}
 
-			if(any_waiting_or_ready == false){
-				this->emit_error(
-					"No function overload found",
+			evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
+				this->handle_results_of_get_select_func_overload_func_info_for_template(
+					overloads,
+					func_infos,
+					instantiation_infos,
+					template_overload_match_infos,
+					args,
 					func_call.target,
-					Diagnostic::Info("All were passed by when conditionals")
-				);
-				return evo::Unexpected(Result::ERROR);
-			}
-
-
-			if(this->symbol_proc.shouldContinueRunning() == false){
-				return evo::Unexpected(Result::NEED_TO_WAIT);
-			}
-
-			using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
-
-			auto instantiation_errors = evo::SmallVector<ErroredReason>();
-
-			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
-				if(instantiation_info.instantiation.errored()){
-					const SymbolProc& instantiation_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
-						*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed)
-					);
-
-					const SymbolProc::FuncInfo& func_info =
-						instantiation_symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
-					if(
-						func_info.instantiation->errored() 
-						&& func_info.instantiation->errored_reason
-							.is<sema::TemplatedFunc::Instantiation::ErroredReasonErroredAfterDecl>() == false
-					){
-						instantiation_errors.emplace_back(func_info.instantiation->errored_reason);
-					}else{
-						return evo::Unexpected(Result::ERROR);
-					}
-					continue;
-				}
-
-				const sema::Func& instantiated_func = this->context.getSemaBuffer().getFunc(
-					*instantiation_info.instantiation.funcID
+					func_call.args,
+					this->get_location(func_call.target)
 				);
 
-				func_infos.emplace_back(
-					instantiation_info, this->context.getTypeManager().getFunction(instantiated_func.typeID)
-				);
+			if(handle_results.has_value() == false){
+				return evo::Unexpected(handle_results.error());
 			}
 
-			for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
-				const auto get_func_location = [&]() -> Diagnostic::Location {
-					const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
-						*instantiation_infos[i].instantiation.symbolProcID.load(std::memory_order::relaxed)
-					);
-
-					return Diagnostic::Location::get(
-						symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
-					);
-				};
-
-
-				instantiation_error.visit([&](const auto& reason) -> void {
-					using ReasonT = std::decay_t<decltype(reason)>;
-
-					using Instantiation = sema::TemplatedFunc::Instantiation;
-
-					if constexpr(std::is_same<ReasonT, std::monostate>()){
-						evo::debugAssert("Template instantiation didn't error");
-
-					}else if constexpr(
-						std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
-					){
-						instantiation_error_infos.emplace_back(
-							std::format(
-								"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
-							),
-							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Argument type: {}",
-										this->print_term_type(this->get_term_info(args[reason.arg_index]))
-									)
-								)
-							}
-						);
-
-
-					}else if constexpr(
-						std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
-					){
-						auto sub_infos = evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info(
-								"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-							)
-						};
-
-						this->diagnostic_print_type_info(reason.got_type_id, sub_infos, "Argument type:  ");
-						this->diagnostic_print_type_info(reason.expected_type_id, sub_infos, "Parameter type: ");
-
-						instantiation_error_infos.emplace_back(
-							std::format(
-								"Failed to match: argument (index: {}) type mismatch, "
-									"and cannot be implicitly converted",
-								reason.arg_index
-							),
-							get_func_location(),
-							std::move(sub_infos)
-						);
-
-					}else if constexpr(
-						std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
-					){
-						instantiation_error_infos.emplace_back(
-							std::format(
-								"Failed to match: type of argument (index: {}) doesn't implement the interface",
-								reason.arg_index
-							),
-							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(func_call.args[reason.arg_index].value)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Argument type:  {}",
-										this->context.getTypeManager().printType(reason.got_type_id, this->context)
-									)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Interface type: {}",
-										this->context.getTypeManager().printType(
-											reason.interface_type_id, this->context
-										)
-									)
-								),
-							}
-						);
-					}else if constexpr(
-						std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
-					){
-						evo::debugAssert("Errored after decl, shouldn't get here");
-
-					}else{
-						static_assert(false, "Unknown errored reason");
-					}
-				});
-
-				i += 1;
-			}
-
-			if(func_infos.empty()){ // if all instantiations errored
-				this->emit_error("No function overload found", func_call.target, std::move(instantiation_error_infos));
-				return evo::Unexpected(Result::ERROR);
-			}
+			instantiation_error_infos = std::move(handle_results.value());
 		}
-
 
 
 		auto arg_infos = evo::SmallVector<SelectFuncOverloadArgInfo>();
@@ -29961,13 +30107,31 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::get_select_func_overload_func_info_for_template(
+		sema::TemplatedFunc::ID func_id,
+		evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
+		evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
+		bool is_member_call,
+		Diagnostic::Location location
+	) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> {
+		auto args = evo::SmallVector<const TermInfo*>();
+		args.reserve(arg_ids.size());
+		for(const SymbolProc::TermInfoID arg_id : arg_ids){
+			args.emplace_back(&this->get_term_info(arg_id));
+		}
+
+		return this->get_select_func_overload_func_info_for_template(
+			func_id, args, template_args, is_member_call, location
+		);
+	}
+
 
 	auto SemanticAnalyzer::get_select_func_overload_func_info_for_template(
-		const AST::FuncCall& func_call,
 		sema::TemplatedFunc::ID func_id,
-		evo::ArrayProxy<SymbolProc::TermInfoID> args,
+		evo::ArrayProxy<const TermInfo*> args,
 		evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
-		bool is_member_call
+		bool is_member_call,
+		Diagnostic::Location location
 	) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> {
 		sema::TemplatedFunc& templated_func = this->context.sema_buffer.templated_funcs[func_id];
 
@@ -30140,15 +30304,14 @@ namespace pcit::panther{
 		{
 			size_t param_i = size_t(is_method);
 			size_t arg_i = 0;
-			for(const SymbolProc::TermInfoID arg_id : args){
+			for(const TermInfo* arg : args){
 				const bool param_is_variadic = param_i + 1 >= templated_func.paramIsDeducer.size();
 
-				const TermInfo& arg = this->get_term_info(arg_id);
-				if(arg.type_id.is<TypeInfo::ID>()){
+				if(arg->type_id.is<TypeInfo::ID>()){
 					if(param_is_variadic || templated_func.paramIsDeducer[param_i]){
-						instantiation_lookup_args.emplace_back(arg.type_id.as<TypeInfo::ID>());
+						instantiation_lookup_args.emplace_back(arg->type_id.as<TypeInfo::ID>());
 					}
-					arg_types.emplace_back(arg.type_id.as<TypeInfo::ID>());
+					arg_types.emplace_back(arg->type_id.as<TypeInfo::ID>());
 
 				}else{
 					if(templated_func.paramIsDeducer[param_i]){
@@ -30202,7 +30365,7 @@ namespace pcit::panther{
 
 			auto instantiation_locations =
 				evo::SmallVector<Diagnostic::Location>(this->symbol_proc.instantiation_locations);
-			instantiation_locations.emplace_back(this->get_location(func_call));
+			instantiation_locations.emplace_back(location);
 
 			const evo::Result<SymbolProc::ID> instantiation_symbol_proc_id = symbol_proc_builder.buildTemplateInstance(
 				templated_func.symbolProc,
@@ -30312,6 +30475,470 @@ namespace pcit::panther{
 		}else{
 			return instantiation_info;
 		}
+	}
+
+
+	auto SemanticAnalyzer::handle_results_of_get_select_func_overload_func_info_for_template(
+		evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> overloads, // empty if builtin
+		evo::SmallVector<SelectFuncOverloadFuncInfo>& func_infos,
+		evo::ArrayProxy<sema::TemplatedFunc::InstantiationInfo> instantiation_infos,
+		evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
+		evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
+		std::optional<AST::Node> func_call_target, // not needed if `new`
+		evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+		Diagnostic::Location location
+	) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> {
+		auto args = evo::SmallVector<const TermInfo*>();
+		args.reserve(arg_ids.size());
+		for(const SymbolProc::TermInfoID arg_id : arg_ids){
+			args.emplace_back(&this->get_term_info(arg_id));
+		}
+
+		return this->handle_results_of_get_select_func_overload_func_info_for_template(
+			overloads,
+			func_infos,
+			instantiation_infos,
+			template_overload_match_infos,
+			args,
+			func_call_target,
+			ast_args,
+			location
+		);
+	}
+
+
+
+	auto SemanticAnalyzer::handle_results_of_get_select_func_overload_func_info_for_template(
+		evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> overloads, // empty if builtin
+		evo::SmallVector<SelectFuncOverloadFuncInfo>& func_infos,
+		evo::ArrayProxy<sema::TemplatedFunc::InstantiationInfo> instantiation_infos,
+		evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
+		evo::ArrayProxy<const TermInfo*> args,
+		std::optional<AST::Node> func_call_target, // not needed if `new`
+		evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+		Diagnostic::Location location
+	) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> {
+		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+
+		if(instantiation_infos.empty()){
+			if(template_overload_match_infos.empty() == false){
+				for(size_t i = 0; const std::optional<TemplateOverloadMatchFail>& info : template_overload_match_infos){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(info.has_value() == false){ continue; }
+
+					const auto get_func_location = [&]() -> Diagnostic::Location {
+						if(overloads.empty() == false){
+							if(overloads[i].is<sema::Func::ID>()){
+								return this->get_location(overloads[i].as<sema::Func::ID>());
+							}else{
+								return this->get_location(overloads[i].as<sema::TemplatedFunc::ID>());
+							}
+						}else{
+							return Diagnostic::Location::BUILTIN;
+						}
+					};
+					
+					info->reason.visit([&](const auto& reason) -> void {
+						using ReasonT = std::decay_t<decltype(reason)>;
+
+						if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::Handled>()){
+							return;
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewTemplateArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few template arguments (requires at least {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few template arguments (requires {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyTemplateArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many template arguments (requires at most {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many template arguments (requires {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateArgWrongKind>()){
+							const AST::TemplatedExpr& templated_expr =
+								this->source.getASTBuffer().getTemplatedExpr(*func_call_target);
+
+							if(reason.supposed_to_be_expr){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: template parameter (index: {}) expects an expression, "
+											"got a type",
+										reason.arg_index
+									),
+									get_func_location(),
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+										),
+									}
+								);
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: template parameter (index: {}) expects a type, "
+											"got an expression",
+										reason.arg_index
+									),
+									get_func_location(),
+									evo::SmallVector<Diagnostic::Info>{
+										Diagnostic::Info(
+											"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+										),
+									}
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TemplateWrongExprType>()){
+							const AST::TemplatedExpr& templated_expr =
+								this->source.getASTBuffer().getTemplatedExpr(*func_call_target);
+
+							auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+							sub_infos.emplace_back(
+								"This argument:", this->get_location(templated_expr.args[reason.arg_index])
+							);
+							this->diagnostic_print_type_info(
+								reason.expected_type_id, sub_infos, "Expected type:      "
+							);
+							this->diagnostic_print_type_info(
+								this->get_term_info(reason.got_term_id), std::nullopt, sub_infos, "Expression is type: "
+							);
+
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: template parameter (index: {}) expected a different "
+										"expression type",
+									reason.arg_index
+								),
+								get_func_location(),
+								std::move(sub_infos)
+							);
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooFewArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few arguments (requires at least {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too few arguments (requires {}, got {})",
+										reason.min_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::TooManyArgs>()){
+							if(reason.accepts_different_nums){
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many arguments (requires at most {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+								
+							}else{
+								instantiation_error_infos.emplace_back(
+									std::format(
+										"Failed to match: too many arguments (requires {}, got {})",
+										reason.max_num,
+										reason.got_num
+									),
+									get_func_location()
+								);
+							}
+
+						}else if constexpr(std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceArgType>()){
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: can't deduce type from argument (index: {})",
+									reason.arg_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(ast_args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format("Argument type: {}", this->print_term_type(*args[reason.arg_index]))
+									)
+								}
+							);
+							
+						}else if constexpr(
+							std::is_same<ReasonT, TemplateOverloadMatchFail::CantDeduceDefaultArgType>()
+						){
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: can't deduce type from default argument (index: {})",
+									reason.param_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info("Note: parameter type cannot be duduced on a default argument"),
+								}
+							);
+							
+						}else{
+							static_assert(false, "Unsupported TemplateOverloadMatchFail");
+						}
+					});
+				}
+
+				if(func_infos.empty()){
+					this->emit_error(
+						"No matching function overload found", location, std::move(instantiation_error_infos)
+					);
+
+					return evo::Unexpected(Result::ERROR);
+				}
+			}
+
+		}else{
+			bool any_waiting_or_ready = false;
+			
+			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
+				std::optional<SymbolProc::ID> loaded_instantiation_symbol_proc_id =
+					instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+
+				while(loaded_instantiation_symbol_proc_id.has_value() == false){ // wait for it to be ready
+					std::this_thread::yield();
+					loaded_instantiation_symbol_proc_id =
+						instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+				}
+
+				SymbolProc& instantiation_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
+
+				SymbolProc::WaitOnResult wait_on_result = 
+					instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
+
+
+				switch(wait_on_result){
+					case SymbolProc::WaitOnResult::NOT_NEEDED: {
+						any_waiting_or_ready = true;
+					} break;
+
+					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+						this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
+						[[fallthrough]];
+					}
+
+					case SymbolProc::WaitOnResult::WAITING: {
+						any_waiting_or_ready = true;
+					} break;
+
+					case SymbolProc::WaitOnResult::WAS_ERRORED:
+						return evo::Unexpected(Result::ERROR);
+
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: break;
+
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+						return evo::Unexpected(Result::ERROR);
+				}
+			}
+
+			if(any_waiting_or_ready == false){
+				this->emit_error(
+					"No function overload found", location, Diagnostic::Info("All were passed by when conditionals")
+				);
+
+				return evo::Unexpected(Result::ERROR);
+			}
+
+
+			if(this->symbol_proc.shouldContinueRunning() == false){
+				return evo::Unexpected(Result::NEED_TO_WAIT);
+			}
+
+			using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
+
+			auto instantiation_errors = evo::SmallVector<ErroredReason>();
+
+			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
+				if(instantiation_info.instantiation.errored()){
+					const SymbolProc& instantiation_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+						*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed)
+					);
+
+					const SymbolProc::FuncInfo& func_info =
+						instantiation_symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+					if(
+						func_info.instantiation->errored() 
+						&& func_info.instantiation->errored_reason
+							.is<sema::TemplatedFunc::Instantiation::ErroredReasonErroredAfterDecl>() == false
+					){
+						instantiation_errors.emplace_back(func_info.instantiation->errored_reason);
+					}else{
+						return evo::Unexpected(Result::ERROR);
+					}
+					continue;
+				}
+
+				const sema::Func& instantiated_func = this->context.getSemaBuffer().getFunc(
+					*instantiation_info.instantiation.funcID
+				);
+
+				func_infos.emplace_back(
+					instantiation_info, this->context.getTypeManager().getFunction(instantiated_func.typeID)
+				);
+			}
+
+			for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
+				const auto get_func_location = [&]() -> Diagnostic::Location {
+					const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+						*instantiation_infos[i].instantiation.symbolProcID.load(std::memory_order::relaxed)
+					);
+
+					return Diagnostic::Location::get(
+						symbol_proc.ast_node, this->context.getSourceManager()[symbol_proc.source_id]
+					);
+				};
+
+				instantiation_error.visit([&](const auto& reason) -> void {
+					using ReasonT = std::decay_t<decltype(reason)>;
+
+					using Instantiation = sema::TemplatedFunc::Instantiation;
+
+					if constexpr(std::is_same<ReasonT, std::monostate>()){
+						evo::debugAssert("Template instantiation didn't error");
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
+					){
+						instantiation_error_infos.emplace_back(
+							std::format(
+								"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
+							),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(ast_args[reason.arg_index].value)
+								),
+								Diagnostic::Info(
+									std::format("Argument type: {}", this->print_term_type(*args[reason.arg_index]))
+								)
+							}
+						);
+
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
+					){
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(
+								"This argument:", this->get_location(ast_args[reason.arg_index].value)
+							)
+						};
+
+						this->diagnostic_print_type_info(reason.got_type_id, sub_infos, "Argument type:  ");
+						this->diagnostic_print_type_info(reason.expected_type_id, sub_infos, "Parameter type: ");
+
+						instantiation_error_infos.emplace_back(
+							std::format(
+								"Failed to match: argument (index: {}) type mismatch, "
+									"and cannot be implicitly converted",
+								reason.arg_index
+							),
+							get_func_location(),
+							std::move(sub_infos)
+						);
+
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
+					){
+						instantiation_error_infos.emplace_back(
+							std::format(
+								"Failed to match: type of argument (index: {}) doesn't implement the interface",
+								reason.arg_index
+							),
+							get_func_location(),
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									"This argument:", this->get_location(ast_args[reason.arg_index].value)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Argument type:  {}",
+										this->context.getTypeManager().printType(reason.got_type_id, this->context)
+									)
+								),
+								Diagnostic::Info(
+									std::format(
+										"Interface type: {}",
+										this->context.getTypeManager().printType(
+											reason.interface_type_id, this->context
+										)
+									)
+								),
+							}
+						);
+					}else if constexpr(
+						std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
+					){
+						evo::debugAssert("Errored after decl, shouldn't get here");
+
+					}else{
+						static_assert(false, "Unknown errored reason");
+					}
+				});
+
+				i += 1;
+			}
+
+			if(func_infos.empty()){ // if all instantiations errored
+				this->emit_error("No function overload found", location, std::move(instantiation_error_infos));
+				return evo::Unexpected(Result::ERROR);
+			}
+		}
+
+		return instantiation_error_infos;
 	}
 
 
@@ -35597,50 +36224,111 @@ namespace pcit::panther{
 							
 
 							if(is_initialization){
-								for(const sema::FuncID new_func_id : expected_struct.newInitOverloads){
-									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
+								auto func_match = std::optional<sema::Func::ID>();
+								auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
 
-									if(new_func.attributes.isImplicit == false){ continue; }
+								for(
+									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+									: expected_struct.newInitOverloads
+								){
+									if(new_func_id.is<sema::Func::ID>()){
+										const sema::Func& new_func =
+											this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
+
+										const BaseType::Function& new_func_type =
+											this->context.getTypeManager().getFunction(new_func.typeID);
+
+										switch(new_func_type.params[0].kind){
+											case BaseType::Function::Param::Kind::READ: {
+												// do nothing
+											} break;
+
+											case BaseType::Function::Param::Kind::MUT: {
+												if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
+													continue;
+												}
+											} break;
+
+											case BaseType::Function::Param::Kind::IN: {
+												if(got_expr.is_ephemeral() == false){ continue; }
+											} break;
+
+											case BaseType::Function::Param::Kind::C: {
+												evo::debugFatalBreak("Unsupported");
+											} break;
+										}
+
+
+										const TypeInfo::ID decayed_param_type_id = 
+											this->context.type_manager.decayType<false, false>(
+												new_func_type.params[0].typeID
+											);
+
+
+										if(decayed_param_type_id == decayed_got_type_id){
+											func_match = new_func_id.as<sema::Func::ID>();
+											break;
+										}
+
+									}else{
+										evo::Expected<
+											sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail
+										> template_res = this->get_select_func_overload_func_info_for_template(
+											new_func_id.as<sema::TemplatedFunc::ID>(),
+											evo::ArrayProxy<const TermInfo*>{&got_expr},
+											evo::ArrayProxy<SymbolProc::TermInfoID>(),
+											false,
+											location 
+										);
+
+										if(template_res.has_value() == false){ continue; }
+
+										instantiation_infos.emplace_back(*template_res);
+									}
+								}
+
+
+								if(func_match.has_value()){
+									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(*func_match);
 
 									const BaseType::Function& new_func_type =
 										this->context.getTypeManager().getFunction(new_func.typeID);
 
-									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
-										continue;
+									if(new_func.attributes.isImplicit == false){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"`new` does not have attribute `#implicit`",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(new_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
 									}
 
-									const TypeInfo::ID decayed_param_type_id = 
-										this->context.type_manager.decayType<false, false>(
-											new_func_type.params[0].typeID
-										);
-
-									if(decayed_param_type_id != decayed_got_type_id){ continue; }
-
-									switch(new_func_type.params[0].kind){
-										case BaseType::Function::Param::Kind::READ: {
-											// do nothing
-										} break;
-
-										case BaseType::Function::Param::Kind::MUT: {
-											if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
-												continue;
-											}
-										} break;
-
-										case BaseType::Function::Param::Kind::IN: {
-											if(got_expr.is_ephemeral() == false){ continue; }
-										} break;
-
-										case BaseType::Function::Param::Kind::C: {
-											evo::debugFatalBreak("Unsupported");
-										} break;
+									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"is unsafe and not currently in an unsafe scope",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(new_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
 									}
 
 									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 										got_expr.getExpr() = sema::Expr(
 											this->context.sema_buffer.createFuncCall(
-												new_func_id,
+												*func_match,
 												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
 												location.as<SourceLocation>().lineStart,
 												location.as<SourceLocation>().collumnStart
@@ -35649,7 +36337,138 @@ namespace pcit::panther{
 
 										if(this->func_scope_current_value_stage().requiresComptime()){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-												.dependent_funcs.emplace(new_func_id);
+												.dependent_funcs.emplace(*func_match);
+										}
+									}
+
+
+									return TypeCheckInfo::success(true);
+
+								}else{
+									auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+									const evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
+										this->handle_results_of_get_select_func_overload_func_info_for_template(
+											evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>(),
+											func_infos,
+											instantiation_infos,
+											evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>>(),
+											evo::ArrayProxy<const TermInfo*>{&got_expr},
+											std::nullopt,
+											evo::ArrayProxy<AST::FuncCall::Arg>(),
+											location
+										);
+
+									if(handle_results.has_value() == false){
+										return TypeCheckInfo::fail(handle_results.error());
+									}
+
+									const SelectFuncOverloadFuncInfo* selected_func_info = nullptr;
+									if(func_infos.size() > 1){
+										auto deducer_scores = evo::SmallVector<DeducerCountAndDepth, 16>();
+										deducer_scores.reserve(func_infos.size());
+
+										for(const SelectFuncOverloadFuncInfo& func_info : func_infos){
+											const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+												func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+											const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(
+												*instantiation_info.instantiation.funcID
+											);
+
+											const sema::TemplatedFunc& templated_func =
+												this->context.getSemaBuffer().getTemplatedFunc(
+													*sema_func.templated_func_id
+												);
+
+											const Source& func_source = this->context.getSourceManager()[
+												templated_func.symbolProc.getSourceID()
+											];
+											const AST::FuncDef& ast_func = func_source.getASTBuffer().getFuncDef(
+												templated_func.symbolProc.getASTNode()
+											);
+
+											deducer_scores.emplace_back(
+												calc_deducer_count_and_depth(func_source, *ast_func.params[0].type)
+											);
+										}
+
+
+										size_t best_score_index = 0;
+										bool found_duplicate_best_score = false;
+										for(size_t i = 1; i < deducer_scores.size(); i+=1){
+											const DeducerCountAndDepth& best_score = deducer_scores[best_score_index];
+											const DeducerCountAndDepth& target_score = deducer_scores[i];
+
+											if(best_score == target_score){
+												found_duplicate_best_score = true;
+
+											}else if(best_score < target_score){
+												best_score_index = i;
+												found_duplicate_best_score = false;
+											}
+										}
+
+										if(found_duplicate_best_score){
+											auto infos = evo::SmallVector<Diagnostic::Info>();
+											for(
+												size_t i = 0;
+												const DeducerCountAndDepth& deducer_score : deducer_scores
+											){
+												if(deducer_scores[best_score_index] == deducer_score){
+													const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+														func_infos[i].func_id.as<
+															sema::TemplatedFunc::InstantiationInfo
+														>();
+
+													infos.emplace_back(
+														"Could be this one:",
+														this->get_location(*instantiation_info.instantiation.funcID)
+													);
+												}	
+											
+												i += 1;
+											}
+
+											if constexpr(MAY_EMIT_ERROR){
+												this->emit_error(
+													"Multiple implicit `new` functions match",
+													location,
+													std::move(infos)
+												);
+											}
+
+											return TypeCheckInfo::fail();
+										}
+
+										selected_func_info = &func_infos[best_score_index];
+
+									}else{
+										selected_func_info = &func_infos[0];
+									}
+
+									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+										const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+											selected_func_info->func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+										const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
+											instantiation_info, "implicit `new`", location
+										);
+										if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
+
+
+										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+										got_expr.getExpr() = sema::Expr(
+											this->context.sema_buffer.createFuncCall(
+												*instantiation_info.instantiation.funcID,
+												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+												location.as<SourceLocation>().lineStart,
+												location.as<SourceLocation>().collumnStart
+											)
+										);
+
+										if(this->func_scope_current_value_stage().requiresComptime()){
+											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
+												.dependent_funcs.emplace(*instantiation_info.instantiation.funcID);
 										}
 									}
 
@@ -35657,8 +36476,14 @@ namespace pcit::panther{
 								}
 
 							}else{ // assignment
-								for(const sema::FuncID new_func_id : expected_struct.newAssignOverloads){
-									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
+								for(
+									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+									: expected_struct.newAssignOverloads
+								){
+									if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+									const sema::Func& new_func =
+										this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
 
 									if(new_func.attributes.isImplicit == false){ continue; }
 
@@ -35726,12 +36551,20 @@ namespace pcit::panther{
 										}
 									}
 
-									return TypeCheckInfo::success(TypeCheckInfo::AssignFunc(new_func_id));
+									return TypeCheckInfo::success(
+										TypeCheckInfo::AssignFunc(new_func_id.as<sema::Func::ID>())
+									);
 								}
 
 
-								for(const sema::FuncID new_func_id : expected_struct.newInitOverloads){
-									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id);
+								for(
+									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+									: expected_struct.newInitOverloads
+								){
+									if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+									const sema::Func& new_func =
+										this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
 
 									if(new_func.attributes.isImplicit == false){ continue; }
 
@@ -35800,7 +36633,9 @@ namespace pcit::panther{
 										}
 									}
 
-									return TypeCheckInfo::success(TypeCheckInfo::InitAssignFunc(new_func_id));
+									return TypeCheckInfo::success(
+										TypeCheckInfo::InitAssignFunc(new_func_id.as<sema::Func::ID>())
+									);
 								}
 							}
 						}
@@ -36598,6 +37433,95 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemanticAnalyzer::calc_deducer_count_and_depth(const Source& source, AST::Node node) -> DeducerCountAndDepth {
+		unsigned deducer_count = 0;
+		unsigned deducer_depth_count = 0;
+
+
+		struct DeducerInfo{
+			AST::Node node;
+			unsigned depth;
+		};
+
+		auto deducer_info_queue = std::queue<DeducerInfo>();
+		deducer_info_queue.emplace(node, 0);
+
+		while(deducer_info_queue.empty() == false){
+			const DeducerInfo deducer_info = deducer_info_queue.front();
+			deducer_info_queue.pop();
+
+			switch(deducer_info.node.kind()){
+				case AST::Kind::TYPE: {
+					const AST::Type& type = source.getASTBuffer().getType(deducer_info.node);
+					deducer_info_queue.emplace(type.base, deducer_info.depth + 1);
+				} break;
+
+				case AST::Kind::DEDUCER: {
+					deducer_count += 1;
+					deducer_depth_count += deducer_info.depth;
+				} break;
+
+				case AST::Kind::ARRAY_TYPE: {
+					const AST::ArrayType& array_type = source.getASTBuffer().getArrayType(deducer_info.node);
+
+					deducer_info_queue.emplace(
+						source.getASTBuffer().getType(array_type.elemType).base, deducer_info.depth + 1
+					);
+
+
+					for(const std::optional<AST::Node>& dimension : array_type.dimensions){
+						if(dimension.has_value() == false){ continue; }
+						deducer_info_queue.emplace(*dimension, deducer_info.depth + 1);
+					}
+
+					if(array_type.terminator.has_value()){
+						deducer_info_queue.emplace(*array_type.terminator, deducer_info.depth + 1);
+					}
+				} break;
+
+				case AST::Kind::FUNC_TYPE: {
+					const AST::FuncType& func_type =
+						source.getASTBuffer().getFuncType(deducer_info.node);
+
+					for(const AST::FuncType::Param& param : func_type.params){
+						deducer_info_queue.emplace(param.type, deducer_info.depth + 1);
+					}
+
+					for(const AST::Node& ret_type : func_type.returnTypes){
+						deducer_info_queue.emplace(ret_type, deducer_info.depth + 1);
+					}
+
+					for(const AST::Node& err_type : func_type.errorTypes){
+						deducer_info_queue.emplace(err_type, deducer_info.depth + 1);
+					}
+				} break;
+
+				case AST::Kind::TEMPLATED_EXPR: {
+					const AST::TemplatedExpr& templated_expr =
+						source.getASTBuffer().getTemplatedExpr(deducer_info.node);
+
+					for(const AST::Node& arg : templated_expr.args){
+						deducer_info_queue.emplace(arg, deducer_info.depth + 1);
+					}
+				} break;
+
+				case AST::Kind::INTERFACE_MAP: {
+					const AST::InterfaceMap& interface_map_type =
+						source.getASTBuffer().getInterfaceMap(deducer_info.node);
+					if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ break; }
+
+					deducer_info_queue.emplace(
+						interface_map_type.underlyingType.as<AST::Node>(), deducer_info.depth + 1
+					);
+				} break;
+
+				default: break;
+			}
+		}
+
+		return DeducerCountAndDepth(deducer_count, deducer_depth_count);
+	}
 
 
 

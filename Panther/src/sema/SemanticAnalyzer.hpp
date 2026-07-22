@@ -613,6 +613,12 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto wait_on_type_def(TypeInfo::ID type_id) -> SymbolProc::WaitOnResult;
 
+			[[nodiscard]] auto unsuspend_template_func_if_needed(
+				const sema::TemplatedFunc::InstantiationInfo& instantiation_info,
+				std::string_view func_type_str, // "Selected _____ overload has the `#priv` attribute...";
+				Diagnostic::Location location
+			) -> evo::Result<>;
+
 
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
@@ -661,8 +667,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto func_call_impl(
 				const AST::FuncCall& func_call,
 				const TermInfo& target_term_info,
-				evo::ArrayProxy<SymbolProcTermInfoID> args,
-				evo::ArrayProxy<SymbolProcTermInfoID> template_args
+				evo::ArrayProxy<SymbolProc::TermInfoID> args,
+				evo::ArrayProxy<SymbolProc::TermInfoID> template_args
 			) -> evo::Expected<FuncCallImplData, Result>;
 
 			struct TemplateOverloadMatchFail{
@@ -695,12 +701,44 @@ namespace pcit::panther{
 			};
 
 			[[nodiscard]] auto get_select_func_overload_func_info_for_template(
-				const AST::FuncCall& func_call,
 				sema::TemplatedFunc::ID func_id,
-				evo::ArrayProxy<SymbolProcTermInfoID> args,
-				evo::ArrayProxy<SymbolProcTermInfoID> template_args,
-				bool is_member_call
+				evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
+				evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
+				bool is_member_call,
+				Diagnostic::Location location
 			) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail>;
+
+			[[nodiscard]] auto get_select_func_overload_func_info_for_template(
+				sema::TemplatedFunc::ID func_id,
+				evo::ArrayProxy<const TermInfo*> args,
+				evo::ArrayProxy<SymbolProc::TermInfoID> template_args,
+				bool is_member_call,
+				Diagnostic::Location location
+			) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail>;
+
+
+				
+			[[nodiscard]] auto handle_results_of_get_select_func_overload_func_info_for_template(
+				evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> overloads, // empty if builtin
+				evo::SmallVector<SelectFuncOverloadFuncInfo>& func_infos,
+				evo::ArrayProxy<sema::TemplatedFunc::InstantiationInfo> instantiation_infos,
+				evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
+				evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
+				std::optional<AST::Node> func_call_target, // not needed if `new`
+				evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+				Diagnostic::Location location
+			) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result>;
+
+			[[nodiscard]] auto handle_results_of_get_select_func_overload_func_info_for_template(
+				evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> overloads, // empty if builtin
+				evo::SmallVector<SelectFuncOverloadFuncInfo>& func_infos,
+				evo::ArrayProxy<sema::TemplatedFunc::InstantiationInfo> instantiation_infos,
+				evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
+				evo::ArrayProxy<const TermInfo*> args,
+				std::optional<AST::Node> func_call_target, // not needed if `new`
+				evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+				Diagnostic::Location location
+			) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result>;
 
 
 			[[nodiscard]] auto type_is_valid_jump_switch_cond(TypeInfo::ID cond_type_id, const auto& ast_switch_stmt)
@@ -1188,6 +1226,23 @@ namespace pcit::panther{
 				sema::Expr value,
 				const AST::Infix& infix
 			) -> Result;
+
+
+			struct DeducerCountAndDepth{
+				unsigned count;
+				unsigned depth;
+
+				[[nodiscard]] auto operator==(const DeducerCountAndDepth& rhs) const -> bool {
+					return this->count == rhs.count && this->depth == rhs.depth;
+				}
+
+				[[nodiscard]] auto operator<(const DeducerCountAndDepth& rhs) const -> bool {
+					if(this->count != rhs.count){ return this->count > rhs.count; } // `>` is correct
+					return this->depth < rhs.depth;
+				}
+			};
+			[[nodiscard]] static auto calc_deducer_count_and_depth(const Source& source, AST::Node node)
+				-> DeducerCountAndDepth;
 
 
 			auto error_type_mismatch(
