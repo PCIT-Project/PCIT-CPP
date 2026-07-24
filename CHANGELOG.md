@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.345.3"></a>
+## v0.0.345.3
+
+### Panther
+- Fixed the underlying type of `Char` and `WChar` being considered unsigned
+
+
+<!---------------------------------->
 <a name="v0.0.345.2"></a>
 ## v0.0.345.2
 

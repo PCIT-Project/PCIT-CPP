@@ -3588,7 +3588,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_CHAR: {
 				return this->getOrCreateTypeInfo(
-					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 8))
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 8))
 				);
 			} break;
 
@@ -3605,11 +3605,11 @@ namespace pcit::panther{
 			case Token::Kind::TYPE_C_WCHAR: {
 				if(this->getTarget().platform == core::Target::Platform::WINDOWS){
 					return this->getOrCreateTypeInfo(
-						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 16))
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 16))
 					);
 				}else{
 					return this->getOrCreateTypeInfo(
-						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32))
+						TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 32))
 					);
 				}
 			} break;
