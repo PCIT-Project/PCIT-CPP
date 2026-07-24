@@ -13457,6 +13457,7 @@ namespace pcit::panther{
 								output += "{VARIADIC_ARG}";
 
 							}else if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
+								// TODO(FUTURE): figure out the type used
 								output += "<EXPR>";
 
 							}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){
@@ -13812,6 +13813,7 @@ namespace pcit::panther{
 										output += "{VARIADIC_ARG}";
 
 									}else if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
+										// TODO(FUTURE): figure out the type used
 										output += "<EXPR>";
 										
 									}else if(*templated_func.templateParams[i].typeID == TypeManager::getTypeBool()){

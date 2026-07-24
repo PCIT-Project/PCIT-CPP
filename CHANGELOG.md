@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.345.2"></a>
+## v0.0.345.2
+
+### Panther
+- Fixed implicit conversion of function template arguments
+
+
+<!---------------------------------->
 <a name="v0.0.345.1"></a>
 ## v0.0.345.1
 
