@@ -37038,7 +37038,7 @@ namespace pcit::panther{
 			switch(deducer_info.node.kind()){
 				case AST::Kind::TYPE: {
 					const AST::Type& type = source.getASTBuffer().getType(deducer_info.node);
-					deducer_info_queue.emplace(type.base, deducer_info.depth + 1);
+					deducer_info_queue.emplace(type.base, deducer_info.depth + 1 + unsigned(type.qualifiers.size()));
 				} break;
 
 				case AST::Kind::DEDUCER: {
