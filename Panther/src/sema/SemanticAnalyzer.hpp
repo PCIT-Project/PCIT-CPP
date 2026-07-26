@@ -262,6 +262,8 @@ namespace pcit::panther{
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto instr_unwrap(const Instruction::Unwrap<IS_COMPTIME>& instr) -> Result;
 
+			[[nodiscard]] auto instr_pack_expansion(const Instruction::PackExpansion& instr) -> Result;
+
 
 			template<bool IS_COMPTIME, bool ERRORS>
 			[[nodiscard]] auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;
@@ -623,6 +625,9 @@ namespace pcit::panther{
 			auto set_waiting_for_is_done(SymbolProc::ID target_id, SymbolProc::ID done_id) -> void;
 
 
+
+			[[nodiscard]] auto expand_func_call_args(evo::ArrayProxy<SymbolProc::TermInfoID> args)
+				-> evo::SmallVector<SymbolProc::TermInfoID>;
 
 			struct SelectFuncOverloadFuncInfo{
 				struct IntrinsicFlag{};

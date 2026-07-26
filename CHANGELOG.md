@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.347.0"></a>
+## v0.0.347.0
+
+### Panther
+- Added variadic parameter expansion
+- Fixed semantic analysis of member calls on non-method member functions
+
+
+<!---------------------------------->
 <a name="v0.0.346.0"></a>
 ## v0.0.346.0
 

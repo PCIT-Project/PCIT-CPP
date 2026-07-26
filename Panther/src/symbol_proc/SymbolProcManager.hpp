@@ -2343,6 +2343,21 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// PackExpansion
+
+			[[nodiscard]] auto createPackExpansion(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::PACK_EXPANSION,
+					this->pack_expansions.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getPackExpansion(Instruction instr) const -> const Instruction::PackExpansion& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::PACK_EXPANSION, "Not a PackExpansion");
+				return this->pack_expansions[instr._index];
+			}
+
 
 
 			//////////////////
@@ -3576,6 +3591,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Deref<false>, uint32_t> derefs{};
 			core::SyncLinearStepAlloc<Instruction::Unwrap<true>, uint32_t> unwrap_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::Unwrap<false>, uint32_t> unwraps{};
+			core::SyncLinearStepAlloc<Instruction::PackExpansion, uint32_t> pack_expansions{};
 			core::SyncLinearStepAlloc<Instruction::New<true, true>, uint32_t> new_comptime_errors{};
 			core::SyncLinearStepAlloc<Instruction::New<true, false>, uint32_t> new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::New<false, true>, uint32_t> new_errors{};

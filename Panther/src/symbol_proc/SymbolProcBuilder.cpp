@@ -4402,6 +4402,27 @@ namespace pcit::panther{
 
 				return created_term_info_id;
 			} break;
+
+			case Token::lookupKind("..."): {
+				if constexpr(IS_COMPTIME){
+					this->emit_error("Invalid pack expansion", postfix);
+					return evo::resultError;
+
+				}else{
+					const SymbolProc::TermInfoID created_term_info_id = this->create_term_info();
+
+					const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(postfix.lhs);
+					if(target.isError()){ return evo::resultError; }
+
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPackExpansion(
+							postfix, target.value(), created_term_info_id
+						)
+					);
+
+					return created_term_info_id;
+				}
+			} break;
 		}
 
 		evo::debugFatalBreak("Unknown or unsupported postfix operator");

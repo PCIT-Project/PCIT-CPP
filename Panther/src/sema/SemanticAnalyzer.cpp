@@ -653,6 +653,9 @@ namespace pcit::panther{
 			case Instruction::Kind::UNWRAP:
 				return this->instr_unwrap<false>(this->context.symbol_proc_manager.getUnwrap(instr));
 
+			case Instruction::Kind::PACK_EXPANSION:
+				return this->instr_pack_expansion(this->context.symbol_proc_manager.getPackExpansion(instr));
+
 			case Instruction::Kind::NEW_COMPTIME_ERRORS:
 				return this->instr_new<true, true>(this->context.symbol_proc_manager.getNewComptimeErrors(instr));
 
@@ -7714,19 +7717,6 @@ namespace pcit::panther{
 			TypeManager::getTypeBool(), cond, "Condition in [when] condtional", this->get_location(instr.when_cond.cond)
 		);
 		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
-
-
-		// const sema::BoolValue::ID bool_value_id = [&]() -> sema::BoolValue::ID {
-		// 	if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-		// 		const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
-		// 			cond.getExpr().globalVarID()
-		// 		);
-		// 		return global_var.value.as<sema::Expr>().boolValueID();
-		// 	}else{
-		// 		return cond.getExpr().boolValueID();
-		// 	}
-		// }();
-
 		const bool when_cond_value = this->context.getSemaBuffer().getBoolValue(cond.getExpr().boolValueID()).value;
 
 		if(when_cond_value == false){
@@ -7846,16 +7836,6 @@ namespace pcit::panther{
 
 			//////////////////
 			// select case
-
-			// const sema::Expr cond_expr = [&]() -> sema::Expr {
-			// 	if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-			// 		const sema::GlobalVar& global_var =
-			// 			this->context.getSemaBuffer().getGlobalVar(cond.getExpr().globalVarID());
-			// 		return global_var.value.as<sema::Expr>();
-			// 	}else{
-			// 		return cond.getExpr();
-			// 	}
-			// }();
 
 			const core::GenericInt& cond_value =
 				this->context.getSemaBuffer().getIntValue(cond.getExpr().intValueID()).value;
@@ -8479,7 +8459,15 @@ namespace pcit::panther{
 			const TermInfo& iterable = this->get_term_info(iterable_id);
 
 			if(iterable.value_category != TermInfo::ValueCategory::VARIADIC_PARAM){
-				this->emit_error("Invalid iterable in unrolled [for] loop", instr.for_stmt.iterables[i]);
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				if(iterable.value_category == TermInfo::ValueCategory::EXPANDED_PACK){
+					infos.emplace_back("Did you mean to not expand the variadic parameter?");
+				}
+
+				this->emit_error(
+					"Invalid iterable in unrolled [for] loop", instr.for_stmt.iterables[i], std::move(infos)
+				);
 				return Result::ERROR;
 			}
 
@@ -9255,16 +9243,6 @@ namespace pcit::panther{
 			//////////////////
 			// select case
 
-			// const sema::Expr cond_expr = [&]() -> sema::Expr {
-			// 	if(cond.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-			// 		const sema::GlobalVar& global_var =
-			// 			this->context.getSemaBuffer().getGlobalVar(cond.getExpr().globalVarID());
-			// 		return global_var.value.as<sema::Expr>();
-			// 	}else{
-			// 		return cond.getExpr();
-			// 	}
-			// }();
-
 			const core::GenericInt& cond_value =
 				this->context.getSemaBuffer().getIntValue(cond.getExpr().intValueID()).value;
 
@@ -9486,8 +9464,10 @@ namespace pcit::panther{
 
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
+		const evo::SmallVector<SymbolProc::TermInfoID> expanded_args = this->expand_func_call_args(instr.args);
+
 		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<false, false>(
-			instr.func_call, target_term_info, instr.args, instr.template_args
+			instr.func_call, target_term_info, expanded_args, instr.template_args
 		);
 		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
@@ -9603,7 +9583,7 @@ namespace pcit::panther{
 
 
 
-		for(const SymbolProc::TermInfoID& arg : instr.args){
+		for(SymbolProc::TermInfoID arg : expanded_args){
 			sema_args.emplace_back(this->get_term_info(arg).getExpr());
 		}
 
@@ -11504,8 +11484,11 @@ namespace pcit::panther{
 
 		const TermInfo& target_term_info = this->get_term_info(instr.func_call_target);
 
+		const evo::SmallVector<SymbolProc::TermInfoID> expanded_args =
+			this->expand_func_call_args(instr.func_call_args);
+
 		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<false, true>(
-			ast_func_call, target_term_info, instr.func_call_args, instr.func_call_template_args
+			ast_func_call, target_term_info, expanded_args, instr.func_call_template_args
 		);
 		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
@@ -11576,7 +11559,7 @@ namespace pcit::panther{
 
 
 
-		for(const SymbolProc::TermInfoID& arg : instr.func_call_args){
+		for(SymbolProc::TermInfoID arg : expanded_args){
 			const TermInfo& arg_info = this->get_term_info(arg);
 			sema_args.emplace_back(arg_info.getExpr());
 		}
@@ -12068,6 +12051,8 @@ namespace pcit::panther{
 	-> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
+		const evo::SmallVector<SymbolProc::TermInfoID> expanded_args = this->expand_func_call_args(instr.args);
+
 		const evo::Expected<FuncCallImplData, Result> func_call_impl_res = this->func_call_impl<IS_COMPTIME, ERRORS>(
 			instr.func_call, target_term_info, instr.args, instr.template_args
 		);
@@ -12147,7 +12132,7 @@ namespace pcit::panther{
 		}
 
 
-		for(const SymbolProc::TermInfoID& arg : instr.args){
+		for(SymbolProc::TermInfoID arg : expanded_args){
 			const TermInfo& arg_info = this->get_term_info(arg);
 			sema_args.emplace_back(arg_info.getExpr());
 			if(arg_info.isComptime == false){ all_args_are_comptime = false; }
@@ -13398,8 +13383,11 @@ namespace pcit::panther{
 			i += 1;
 		}
 
+
+		evo::SmallVector<SymbolProc::TermInfoID> expanded_args = this->expand_func_call_args(instr.args);
+
 		auto args = evo::SmallVector<sema::Expr>();
-		for(const SymbolProc::TermInfoID& arg_term_info_id : instr.args){
+		for(const SymbolProc::TermInfoID& arg_term_info_id : expanded_args){
 			args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
 		}
 
@@ -13574,7 +13562,7 @@ namespace pcit::panther{
 
 
 		const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<false, false>(
-			instr.func_call, target_term_info, instr.args, instr.template_args
+			instr.func_call, target_term_info, expanded_args, instr.template_args
 		);
 		if(selected_func.has_value() == false){ return selected_func.error(); }
 
@@ -13733,8 +13721,10 @@ namespace pcit::panther{
 			i += 1;
 		}
 
+		const evo::SmallVector<SymbolProc::TermInfoID> expanded_args = this->expand_func_call_args(instr.args);
+
 		auto args = evo::SmallVector<sema::Expr>();
-		for(const SymbolProc::TermInfoID& arg_term_info_id : instr.args){
+		for(SymbolProc::TermInfoID arg_term_info_id : expanded_args){
 			args.emplace_back(this->get_term_info(arg_term_info_id).getExpr());
 		}
 
@@ -13744,7 +13734,7 @@ namespace pcit::panther{
 
 		const auto create_runtime_call = [&]() -> evo::Result<> {
 			const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<IS_COMPTIME, false>(
-				instr.func_call, target_term_info, instr.args, instr.template_args
+				instr.func_call, target_term_info, expanded_args, instr.template_args
 			);
 			if(selected_func.has_value() == false){
 				evo::debugAssert(selected_func.error() == Result::ERROR, "Should never have to wait here");
@@ -15841,11 +15831,6 @@ namespace pcit::panther{
 						)
 					);
 
-				// }else if(target.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-				// 	const sema::GlobalVar& global_var = 
-				// 		this->context.getSemaBuffer().getGlobalVar(target.getExpr().globalVarID());
-				// 	return global_var.value.as<sema::Expr>();
-
 				}else{
 					return target.getExpr();
 				}
@@ -16606,18 +16591,6 @@ namespace pcit::panther{
 				case sema::Expr::Kind::UNWRAP: {
 					const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(target.getExpr().unwrapID());
 
-					// const sema::Expr conversion_to_optional_expr = [&]() -> sema::Expr {
-					// 	if(unwrap.expr.kind() == sema::Expr::Kind::GLOBAL_VAR){
-					// 		const sema::GlobalVar& global_var = 
-					// 			this->context.getSemaBuffer().getGlobalVar(unwrap.expr.globalVarID());
-
-					// 		return global_var.value.as<sema::Expr>();
-
-					// 	}else{
-					// 		return unwrap.expr;
-					// 	}
-					// }();
-
 					output_value = this->context.getSemaBuffer().getConversionToOptional(
 						unwrap.expr.conversionToOptionalID()
 					).expr;
@@ -16737,6 +16710,40 @@ namespace pcit::panther{
 			sema::Expr(
 				this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true)
 			)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_pack_expansion(const Instruction::PackExpansion& instr) -> Result {
+		const TermInfo& target = this->get_term_info(instr.target);
+
+		if(target.value_category != TermInfo::ValueCategory::VARIADIC_PARAM){
+			this->emit_error(
+				"Invalid target for pack expansion (can only expand variadic parameters)", instr.postfix.lhs
+			);
+			return Result::ERROR;
+		}
+
+
+		const sema::VariadicParam& variadic_param =
+			this->context.getSemaBuffer().getVariadicParam(target.getVariadicParam().variadicParamID());
+
+
+		const SymbolProc::FuncInfo& extra_func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+		auto exprs = evo::SmallVector<sema::Expr>();
+		exprs.reserve(size_t(variadic_param.numParams));
+		for(size_t i = 0; i < size_t(variadic_param.numParams); i+=1){
+			exprs.emplace_back(extra_func_info.actual_variadic_params[i]);
+		}
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EXPANDED_PACK,
+			false,
+			TermInfo::ExpandedPackTypes{target.type_id.as<TermInfo::VariadicParamTypes>().type_ids},
+			std::move(exprs)
 		);
 		return Result::SUCCESS;
 	}
@@ -20968,18 +20975,6 @@ namespace pcit::panther{
 		const bool is_equal = this->source.getTokenBuffer()[instr.infix.opTokenID].kind() == Token::lookupKind("==");
 
 		if constexpr(IS_COMPTIME){
-			// const sema::Expr actual_lhs_expr = [&]() -> sema::Expr {
-			// 	if(lhs.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
-			// 		const sema::GlobalVar& global_var =
-			// 			this->context.getSemaBuffer().getGlobalVar(lhs.getExpr().globalVarID());
-
-			// 		return global_var.value.as<sema::Expr>();
-
-			// 	}else{
-			// 		return lhs.getExpr();
-			// 	}
-			// }();
-
 			const bool has_value = lhs.getExpr().kind() == sema::Expr::Kind::DEFAULT_NEW;
 
 			this->return_term_info(instr.output,
@@ -26343,18 +26338,6 @@ namespace pcit::panther{
 		}
 
 
-		// args.reserve(target_func.params.size() && size_t(target_func_type.hasNamedReturns));
-		// for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : args_term_info_ids){
-		// 	const TermInfo& arg = this->get_term_info(arg_id);
-
-		// 	args.emplace_back(sema::exprToGenericValue(arg, this->context.getExpr()));
-
-		// 	i += 1;
-		// }
-
-		// for(size_t i = args.size(); i < target_func.params.size(); i+=1){
-		// 	args.emplace_back(sema::exprToGenericValue(*target_func, this->context.params[i].defaultValue));
-		// }
 
 		const bool uses_rvo = target_func_type.hasNamedReturns 
 			|| target_func_type.isImplicitRVO(this->context.getTypeManager());
@@ -28340,6 +28323,43 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::expand_func_call_args(evo::ArrayProxy<SymbolProc::TermInfoID> args)
+	-> evo::SmallVector<SymbolProc::TermInfoID> {
+		auto output = evo::SmallVector<SymbolProc::TermInfoID>();
+		output.reserve(args.size());
+
+		for(SymbolProc::TermInfoID arg_id : args){
+			const TermInfo& arg = this->get_term_info(arg_id);
+
+			if(arg.value_category != TermInfo::ValueCategory::EXPANDED_PACK){
+				output.emplace_back(arg_id);
+
+			}else{
+				const TermInfo::ExpandedPackTypes& expanded_pack_types = arg.type_id.as<TermInfo::ExpandedPackTypes>();
+
+				for(
+					size_t expanded_pack_param_i = 0;
+					expanded_pack_param_i < expanded_pack_types.type_ids.size();
+					expanded_pack_param_i += 1
+				){
+					output.emplace_back(SymbolProc::TermInfoID(uint32_t(this->symbol_proc.term_infos.size())));
+
+					this->symbol_proc.term_infos.emplace_back(
+						std::in_place,
+						TermInfo::ValueCategory::CONCRETE_CONST, // TODO(NOW): figure out correct value
+						false,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						expanded_pack_types.type_ids[expanded_pack_param_i],
+						arg.getPackExpansionExprs()[expanded_pack_param_i]
+					);
+				}
+			}
+		}
+
+
+		return output;
+	}
+
 
 	auto SemanticAnalyzer::select_func_overload(
 		evo::ArrayProxy<SelectFuncOverloadFuncInfo> func_infos,
@@ -28420,8 +28440,7 @@ namespace pcit::panther{
 			unsigned current_deducer_depth_count = 0;
 
 
-			bool has_this_param = false; 
-			
+			bool is_member_call_but_not_method = false;
 
 			if(
 				func_info.func_id.is<SelectFuncOverloadFuncInfo::IntrinsicFlag>()
@@ -28446,9 +28465,9 @@ namespace pcit::panther{
 					}
 				}();
 
-				has_this_param = is_member_call && sema_func.isMethod(this->context) == false;
+				is_member_call_but_not_method = is_member_call && sema_func.isMethod(this->context) == false;
 
-				const size_t num_args = arg_infos.size() - size_t(has_this_param);
+				const size_t num_args = arg_infos.size() - size_t(is_member_call_but_not_method);
 
 				if(num_args < sema_func.minNumArgs){
 					scores.emplace_back(OverloadScore::TooFewArgs(
@@ -28469,8 +28488,17 @@ namespace pcit::panther{
 
 
 			bool arg_checking_failed = false;
+			bool is_first_arg = true;
 			for(size_t arg_i = 0; SelectFuncOverloadArgInfo& arg_info : arg_infos){
-				EVO_DEFER([&](){ arg_i += 1; });
+				EVO_DEFER([&](){
+					arg_i += 1;
+					is_first_arg = false;
+				});
+
+				if(is_first_arg && is_member_call_but_not_method){
+					arg_i -= 1;
+					continue;
+				}
 
 				///////////////////////////////////
 				// check type mismatch and count deducers
@@ -29426,7 +29454,11 @@ namespace pcit::panther{
 			}
 
 			arg_infos.emplace_back(arg_term_info, func_call.args[i].value, func_call.args[i].label);
-			i += 1;
+
+
+			if(i + 1 < func_call.args.size()){ // handle variadics
+				i += 1;
+			}
 		}
 
 
@@ -30317,7 +30349,6 @@ namespace pcit::panther{
 					this->emit_error(
 						"No matching function overload found", location, std::move(instantiation_error_infos)
 					);
-
 					return evo::Unexpected(Result::ERROR);
 				}
 			}
@@ -32662,22 +32693,6 @@ namespace pcit::panther{
 		auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
 			this->context.type_manager, this->context.sema_buffer
 		);
-
-		// const sema::Expr lhs_value = [&]() -> sema::Expr {
-		// 	if(lhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
-		// 		return this->context.getSemaBuffer().getGlobalVar(lhs.globalVarID()).value.as<sema::Expr>();
-		// 	}else{
-		// 		return lhs;
-		// 	}
-		// }();
-
-		// const sema::Expr rhs_value = [&]() -> sema::Expr {
-		// 	if(rhs.kind() == sema::Expr::Kind::GLOBAL_VAR){
-		// 		return this->context.getSemaBuffer().getGlobalVar(rhs.globalVarID()).value.as<sema::Expr>();
-		// 	}else{
-		// 		return rhs;
-		// 	}
-		// }();
 
 		TermInfo output = [&](){
 			switch(op){
@@ -37738,6 +37753,10 @@ namespace pcit::panther{
 			}else if constexpr(std::is_same<TypeID, TermInfo::VariadicParamTypes>()){
 				// TODO(FEATURE): actual name?
 				return "{VARIADIC PARAM}";
+
+			}else if constexpr(std::is_same<TypeID, TermInfo::ExpandedPackTypes>()){
+				// TODO(FEATURE): actual name?
+				return "{EXPANDED PACK}";
 
 			}else{
 				static_assert(false, "Unsupported type id kind");

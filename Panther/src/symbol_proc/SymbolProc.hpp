@@ -939,6 +939,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+		struct PackExpansion{
+			const AST::Postfix& postfix;
+			SymbolProcTermInfoID target;
+			SymbolProcTermInfoID output;
+		};
+
 		template<bool IS_COMPTIME, bool ERRORS>
 		struct New{
 			const AST::New& ast_new;
@@ -1328,6 +1334,7 @@ namespace pcit::panther{
 			DEREF,
 			UNWRAP_COMPTIME,
 			UNWRAP,
+			PACK_EXPANSION,
 			NEW_COMPTIME_ERRORS,
 			NEW_COMPTIME,
 			NEW_ERRORS,
@@ -1713,7 +1720,7 @@ namespace pcit::panther{
 			};
 
 			// TODO(PERF): optimize the memory usage here?
-			evo::SmallVector<std::optional<TermInfo>> term_infos{};
+			evo::StepVector<std::optional<TermInfo>> term_infos{};
 			evo::SmallVector<std::optional<TypeInfo::VoidableID>> type_ids{};
 			evo::SmallVector<std::optional<StructInstantiationInfo>> struct_instantiations{};
 

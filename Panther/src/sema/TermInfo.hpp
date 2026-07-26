@@ -52,6 +52,7 @@ namespace pcit::panther{
 			EXCEPT_PARAM_PACK,
 			TAGGED_UNION_FIELD_ACCESSOR,
 			VARIADIC_PARAM,
+			EXPANDED_PACK,
 		};
 
 		enum class ValueState{
@@ -69,6 +70,7 @@ namespace pcit::panther{
 		struct TemplateDeclInstantiationType{};
 		struct ExceptParamPack{};
 		struct VariadicParamTypes{ evo::SmallVector<TypeInfo::ID> type_ids; };
+		struct ExpandedPackTypes{ evo::SmallVector<TypeInfo::ID> type_ids; };
 
 
 		using FuncOverloadList = evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>;
@@ -114,7 +116,8 @@ namespace pcit::panther{
 			sema::StructTemplateAlias::ID,  // TEMPLATE_TYPE|TEMPLATE_TYPE_PUB_REQUIRED
 			TemplateIntrinsicFunc::Kind,    // TEMPLATE_INTRINSIC_FUNC
 			TaggedUnionFieldAccessor,       // TAGGED_UNION_FIELD_ACCESSOR
-			VariadicParamTypes              // VARIADIC_PARAM
+			VariadicParamTypes,             // VARIADIC_PARAM
+			ExpandedPackTypes               // EXPANDED_PACK
 		>;
 
 		ValueCategory value_category;
@@ -217,7 +220,10 @@ namespace pcit::panther{
 			// TODO(FUTURE): remove this and move directly into `type_id` when the MSVC bug is fixed
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
 
-			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL, "multi-expr must be multi-return");
+			evo::debugAssert(
+				this->value_category == ValueCategory::EPHEMERAL,
+				"multi-expr must be multi-return or expanded pack"
+			);
 		}
 
 
@@ -225,6 +231,19 @@ namespace pcit::panther{
 			value_category(cat),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(ExceptParamPack{}),
+			isComptime(is_comptime),
+			exprs(std::move(expr_list))
+		{}
+
+		TermInfo(
+			ValueCategory cat,
+			bool is_comptime,
+			ExpandedPackTypes&& expanded_pack_types,
+			evo::SmallVector<sema::Expr>&& expr_list
+		) :
+			value_category(cat),
+			value_state(ValueState::NOT_APPLICABLE),
+			type_id(std::move(expanded_pack_types)),
 			isComptime(is_comptime),
 			exprs(std::move(expr_list))
 		{}
@@ -326,6 +345,9 @@ namespace pcit::panther{
 
 					break; case ValueCategory::VARIADIC_PARAM:
 						evo::debugAssert(this->type_id.is<VariadicParamTypes>(), "Incorrect TermInfo creation");
+
+					break; case ValueCategory::EXPANDED_PACK:
+						evo::debugFatalBreak("Incorrect TermInfo creation");
 				}
 			}
 
@@ -558,6 +580,20 @@ namespace pcit::panther{
 			evo::debugAssert(this->isVariadicParam(), "does not hold variadic param");
 			return this->exprs[0];
 		}
+
+
+		//////////////////
+		// pack expansion
+
+		[[nodiscard]] auto isPackExpansion() const -> bool {
+			return this->type_id.is<ExpandedPackTypes>();
+		}
+
+		[[nodiscard]] auto getPackExpansionExprs() const -> const evo::SmallVector<sema::Expr>& {
+			evo::debugAssert(this->isPackExpansion(), "does not hold pack expansion");
+			return this->exprs;
+		}
+
 
 
 		private:
