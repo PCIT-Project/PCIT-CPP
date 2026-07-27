@@ -2642,7 +2642,9 @@ namespace pcit::panther{
 				}
 
 
-				auto underlying_type = std::optional<evo::Variant<AST::InterfaceMap::Ptr, AST::Node>>();
+				auto underlying_type = 
+					std::optional<evo::Variant<AST::InterfaceMap::Ptr, AST::InterfaceMap::PtrDeducer, AST::Node>>();
+
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 					this->reader.skip();
 
@@ -2651,6 +2653,16 @@ namespace pcit::panther{
 						this->reader.skip();
 					}else{
 						underlying_type = AST::InterfaceMap::Ptr(false);
+					}
+
+				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("$*")){
+					this->reader.skip();
+
+					if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
+						underlying_type = AST::InterfaceMap::PtrDeducer(true);
+						this->reader.skip();
+					}else{
+						underlying_type = AST::InterfaceMap::PtrDeducer(false);
 					}
 
 				}else{

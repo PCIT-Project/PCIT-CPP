@@ -1047,6 +1047,11 @@ namespace pcit::panther{
 
 							if(interface_map.underlyingType.is<AST::Node>()){
 								terms_to_check_for_deducers.emplace(interface_map.underlyingType.as<AST::Node>());
+
+							}else if(interface_map.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){
+								this->add_instruction(
+									this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
+								);
 							}
 						} break;
 
@@ -4966,6 +4971,7 @@ namespace pcit::panther{
 			case AST::Kind::INTERFACE_MAP: {
 				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
 				if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ return false; }
+				if(interface_map_type.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){ return true; }
 				return this->is_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 
@@ -5034,6 +5040,7 @@ namespace pcit::panther{
 			case AST::Kind::INTERFACE_MAP: {
 				const AST::InterfaceMap& interface_map_type = this->source.getASTBuffer().getInterfaceMap(node);
 				if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ return false; }
+				if(interface_map_type.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){ return false; }
 				return this->is_named_deducer(interface_map_type.underlyingType.as<AST::Node>());
 			} break;
 

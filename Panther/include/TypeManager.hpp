@@ -56,6 +56,7 @@ namespace pcit::panther{
 			TYPE_DEDUCER,
 			INTERFACE,
 			POLY_INTERFACE_REF,
+			POLY_DEDUCER_INTERFACE_REF,
 			INTERFACE_MAP,
 		};
 
@@ -143,6 +144,11 @@ namespace pcit::panther{
 				return PolyInterfaceRefID(this->_id);
 			}
 
+			[[nodiscard]] auto polyDeducerInterfaceRefID() const -> PolyDeducerInterfaceRefID {
+				evo::debugAssert(this->kind() == Kind::POLY_DEDUCER_INTERFACE_REF, "not a poly deducer interface ref");
+				return PolyDeducerInterfaceRefID(this->_id);
+			}
+
 			[[nodiscard]] auto interfaceMapID() const -> InterfaceMapID {
 				evo::debugAssert(this->kind() == Kind::INTERFACE_MAP, "not an interface map");
 				return InterfaceMapID(this->_id);
@@ -157,23 +163,24 @@ namespace pcit::panther{
 			}
 
 
-			explicit ID(PrimitiveID id)             : _kind(Kind::PRIMITIVE),               _id(id.get()) {}
-			explicit ID(FunctionID id)              : _kind(Kind::FUNCTION),                _id(id.get()) {}
-			explicit ID(ArrayID id)                 : _kind(Kind::ARRAY),                   _id(id.get()) {}
-			explicit ID(ArrayDeducerID id)          : _kind(Kind::ARRAY_DEDUCER),           _id(id.get()) {}
-			explicit ID(ArrayRefID id)              : _kind(Kind::ARRAY_REF),               _id(id.get()) {}
-			explicit ID(ArrayRefDeducerID id)       : _kind(Kind::ARRAY_REF_DEDUCER),       _id(id.get()) {}
-			explicit ID(AliasID id)                 : _kind(Kind::ALIAS),                   _id(id.get()) {}
-			explicit ID(DistinctAliasID id)         : _kind(Kind::DISTINCT_ALIAS),          _id(id.get()) {}
-			explicit ID(StructID id)                : _kind(Kind::STRUCT),                  _id(id.get()) {}
-			explicit ID(StructTemplateID id)        : _kind(Kind::STRUCT_TEMPLATE),         _id(id.get()) {}
-			explicit ID(StructTemplateDeducerID id) : _kind(Kind::STRUCT_TEMPLATE_DEDUCER), _id(id.get()) {}
-			explicit ID(UnionID id)                 : _kind(Kind::UNION),                   _id(id.get()) {}
-			explicit ID(EnumID id)                  : _kind(Kind::ENUM),                    _id(id.get()) {}
-			explicit ID(TypeDeducerID id)           : _kind(Kind::TYPE_DEDUCER),            _id(id.get()) {}
-			explicit ID(InterfaceID id)             : _kind(Kind::INTERFACE),               _id(id.get()) {}
-			explicit ID(PolyInterfaceRefID id)      : _kind(Kind::POLY_INTERFACE_REF),      _id(id.get()) {}
-			explicit ID(InterfaceMapID id)          : _kind(Kind::INTERFACE_MAP),           _id(id.get()) {}
+			explicit ID(PrimitiveID id)               : _kind(Kind::PRIMITIVE),                  _id(id.get()) {}
+			explicit ID(FunctionID id)                : _kind(Kind::FUNCTION),                   _id(id.get()) {}
+			explicit ID(ArrayID id)                   : _kind(Kind::ARRAY),                      _id(id.get()) {}
+			explicit ID(ArrayDeducerID id)            : _kind(Kind::ARRAY_DEDUCER),              _id(id.get()) {}
+			explicit ID(ArrayRefID id)                : _kind(Kind::ARRAY_REF),                  _id(id.get()) {}
+			explicit ID(ArrayRefDeducerID id)         : _kind(Kind::ARRAY_REF_DEDUCER),          _id(id.get()) {}
+			explicit ID(AliasID id)                   : _kind(Kind::ALIAS),                      _id(id.get()) {}
+			explicit ID(DistinctAliasID id)           : _kind(Kind::DISTINCT_ALIAS),             _id(id.get()) {}
+			explicit ID(StructID id)                  : _kind(Kind::STRUCT),                     _id(id.get()) {}
+			explicit ID(StructTemplateID id)          : _kind(Kind::STRUCT_TEMPLATE),            _id(id.get()) {}
+			explicit ID(StructTemplateDeducerID id)   : _kind(Kind::STRUCT_TEMPLATE_DEDUCER),    _id(id.get()) {}
+			explicit ID(UnionID id)                   : _kind(Kind::UNION),                      _id(id.get()) {}
+			explicit ID(EnumID id)                    : _kind(Kind::ENUM),                       _id(id.get()) {}
+			explicit ID(TypeDeducerID id)             : _kind(Kind::TYPE_DEDUCER),               _id(id.get()) {}
+			explicit ID(InterfaceID id)               : _kind(Kind::INTERFACE),                  _id(id.get()) {}
+			explicit ID(PolyInterfaceRefID id)        : _kind(Kind::POLY_INTERFACE_REF),         _id(id.get()) {}
+			explicit ID(PolyDeducerInterfaceRefID id) : _kind(Kind::POLY_DEDUCER_INTERFACE_REF), _id(id.get()) {}
+			explicit ID(InterfaceMapID id)            : _kind(Kind::INTERFACE_MAP),              _id(id.get()) {}
 
 
 
@@ -1076,6 +1083,14 @@ namespace pcit::panther{
 			[[nodiscard]] auto operator==(const PolyInterfaceRef&) const -> bool = default;
 		};
 
+		struct PolyDeducerInterfaceRef{
+			using ID = PolyDeducerInterfaceRefID;
+			
+			Interface::ID interfaceID;
+			bool isMut;
+
+			[[nodiscard]] auto operator==(const PolyDeducerInterfaceRef&) const -> bool = default;
+		};
 
 		struct InterfaceMap{
 			using ID = InterfaceMapID;
@@ -1297,6 +1312,11 @@ namespace pcit::panther{
 			[[nodiscard]] auto getPolyInterfaceRef(BaseType::PolyInterfaceRef::ID id) const
 				-> const BaseType::PolyInterfaceRef&;
 			[[nodiscard]] auto getOrCreatePolyInterfaceRef(BaseType::PolyInterfaceRef&& lookup_type) -> BaseType::ID;
+
+			[[nodiscard]] auto getPolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef::ID id) const
+				-> const BaseType::PolyDeducerInterfaceRef&;
+			[[nodiscard]] auto getOrCreatePolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef&& lookup_type)
+				-> BaseType::ID;
 
 			[[nodiscard]] auto getInterfaceMap(BaseType::InterfaceMap::ID id) const
 				-> const BaseType::InterfaceMap&;
@@ -1716,6 +1736,10 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<BaseType::PolyInterfaceRef, BaseType::PolyInterfaceRef::ID> poly_interface_refs{};
 			mutable evo::SpinLock poly_interface_refs_lock{};
+
+			core::LinearStepAlloc<BaseType::PolyDeducerInterfaceRef, BaseType::PolyDeducerInterfaceRef::ID>	
+				poly_deducer_interface_refs{};
+			mutable evo::SpinLock poly_deducer_interface_refs_lock{};
 
 			core::LinearStepAlloc<BaseType::InterfaceMap, BaseType::InterfaceMap::ID> interface_maps{};
 			mutable evo::SpinLock interface_maps_lock{};

@@ -1250,13 +1250,13 @@ namespace pcit::panther{
 						"PTHR.vtable.i{}.u{}", interface_id.get(), type_info.baseTypeID().unionID().get()
 					);
 
-				case BaseType::Kind::DUMMY:             case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_DEDUCER:     case BaseType::Kind::ARRAY_REF:
-				case BaseType::Kind::ARRAY_REF_DEDUCER: case BaseType::Kind::ALIAS:
-				case BaseType::Kind::STRUCT_TEMPLATE:   case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-				case BaseType::Kind::TYPE_DEDUCER:      case BaseType::Kind::ENUM:
-				case BaseType::Kind::INTERFACE:         case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::INTERFACE_MAP: {
+				case BaseType::Kind::DUMMY:                      case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER:              case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ARRAY_REF_DEDUCER:          case BaseType::Kind::ALIAS:
+				case BaseType::Kind::STRUCT_TEMPLATE:            case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+				case BaseType::Kind::TYPE_DEDUCER:               case BaseType::Kind::ENUM:
+				case BaseType::Kind::INTERFACE:                  case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: case BaseType::Kind::INTERFACE_MAP: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -7307,7 +7307,8 @@ namespace pcit::panther{
 				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: 
 				case BaseType::Kind::TYPE_DEDUCER: 
 				case BaseType::Kind::INTERFACE:
-				case BaseType::Kind::POLY_INTERFACE_REF: {
+				case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 					evo::debugFatalBreak("Invalid generic value type");
 				} break;
 			}
@@ -7890,6 +7891,10 @@ namespace pcit::panther{
 			case BaseType::Kind::POLY_INTERFACE_REF: {
 				evo::debugFatalBreak("Invalid type to default initialize");
 			} break;
+
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				evo::debugFatalBreak("Invalid type to default initialize");
+			} break;
 			
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map =
@@ -8100,6 +8105,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
+			} break;
+
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 				evo::debugFatalBreak("Not non-trivially-deletable");
 			} break;
 
@@ -8564,6 +8573,10 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::POLY_INTERFACE_REF: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
+				} break;
+
+				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 
@@ -9038,6 +9051,10 @@ namespace pcit::panther{
 				} break;
 
 				case BaseType::Kind::POLY_INTERFACE_REF: {
+					evo::debugFatalBreak("Not non-trivially-movable");
+				} break;
+
+				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
@@ -10088,10 +10105,10 @@ namespace pcit::panther{
 					evo::debugFatalBreak("enum is trivially comparable");
 				} break;
 
-				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
-				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE:               case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::INTERFACE_MAP: {
+				case BaseType::Kind::ARRAY_DEDUCER:              case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:    case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::INTERFACE:                  case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: case BaseType::Kind::INTERFACE_MAP: {
 					evo::debugFatalBreak("Invalid type to compare");
 				} break;
 			}
@@ -12300,7 +12317,8 @@ namespace pcit::panther{
 					case BaseType::Kind::UNION:
 					case BaseType::Kind::TYPE_DEDUCER:
 					case BaseType::Kind::INTERFACE:
-					case BaseType::Kind::POLY_INTERFACE_REF: {
+					case BaseType::Kind::POLY_INTERFACE_REF:
+					case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 						evo::debugFatalBreak("Not default-initializable");
 					} break;
 				}
@@ -13298,6 +13316,10 @@ namespace pcit::panther{
 				}else{
 					return PIRType(pir_type.pir_type, std::nullopt);
 				}
+			} break;
+
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				evo::debugFatalBreak("Cannot get type of polymorphic deducer interface reference");
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {

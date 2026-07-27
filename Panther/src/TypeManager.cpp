@@ -1099,6 +1099,18 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				const BaseType::PolyDeducerInterfaceRef::ID poly_deducer_interface_ref_id =
+					base_type_id.polyDeducerInterfaceRefID();
+				const BaseType::PolyDeducerInterfaceRef& poly_deducer_interface_ref_info =
+					this->getPolyDeducerInterfaceRef(poly_deducer_interface_ref_id);
+					
+				return std::format(
+					"impl(${}:{})",
+					poly_deducer_interface_ref_info.isMut ? "*mut" : "*",
+					this->printType(BaseType::ID(poly_deducer_interface_ref_info.interfaceID), context)
+				);
+			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(base_type_id.interfaceMapID());
@@ -1588,7 +1600,8 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE: {
+			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE:
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 		}
@@ -2171,6 +2184,33 @@ namespace pcit::panther{
 
 
 
+	//////////////////////////////////////////////////////////////////////
+	// poly deducer interface ref
+
+	auto TypeManager::getPolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef::ID id) const
+	-> const BaseType::PolyDeducerInterfaceRef& {
+		const auto lock = std::scoped_lock(this->poly_deducer_interface_refs_lock);
+		return this->poly_deducer_interface_refs[id];
+	}
+
+
+	auto TypeManager::getOrCreatePolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef&& lookup_type)
+	-> BaseType::ID {
+		const auto lock = std::scoped_lock(this->poly_deducer_interface_refs_lock);
+
+		for(uint32_t i = 0; i < this->poly_deducer_interface_refs.size(); i+=1){
+			if(this->poly_deducer_interface_refs[BaseType::PolyDeducerInterfaceRef::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::POLY_DEDUCER_INTERFACE_REF, i);
+			}
+		}
+
+		const BaseType::PolyDeducerInterfaceRef::ID new_poly_deducer_interface_ref =
+			this->poly_deducer_interface_refs.emplace_back(std::move(lookup_type));
+		return BaseType::ID(BaseType::Kind::POLY_DEDUCER_INTERFACE_REF, new_poly_deducer_interface_ref.get());
+	}
+
+
+
 
 	//////////////////////////////////////////////////////////////////////
 	// interface map
@@ -2247,6 +2287,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
+				return true;
+			} break;
+
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 				return true;
 			} break;
 
@@ -2505,6 +2549,11 @@ namespace pcit::panther{
 				return this->numBytesOfPtr() * 2;
 			} break;
 
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of polymorphic deducer interface ref");
+			} break;
+
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->numBytes(interface_map_info.underlyingTypeID, true);
@@ -2677,6 +2726,11 @@ namespace pcit::panther{
 				return this->numBitsOfPtr() * 2;
 			} break;
 
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get size of polymorphic deducer interface ref");
+			} break;
+
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->numBits(interface_map_info.underlyingTypeID, include_end_padding);
@@ -2802,7 +2856,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of array deducer");
+				evo::debugFatalBreak("Cannot get alignment of array deducer");
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
@@ -2811,7 +2865,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of array ref deducer");
+				evo::debugFatalBreak("Cannot get alignment of array ref deducer");
 			} break;
 
 			case BaseType::Kind::ALIAS: {
@@ -2838,12 +2892,12 @@ namespace pcit::panther{
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of Struct Template");
+				evo::debugFatalBreak("Cannot get alignment of Struct Template");
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of Struct Template Deducer");
+				evo::debugFatalBreak("Cannot get alignment of Struct Template Deducer");
 			} break;
 
 			case BaseType::Kind::UNION: {
@@ -2866,16 +2920,21 @@ namespace pcit::panther{
 
 			case BaseType::Kind::TYPE_DEDUCER: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of type deducer");
+				evo::debugFatalBreak("Cannot get alignment of type deducer");
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
 				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of interface");
+				evo::debugFatalBreak("Cannot get alignment of interface");
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
 				return this->numBytesOfPtr();
+			} break;
+
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				// TODO(FUTURE): handle this better?
+				evo::debugFatalBreak("Cannot get alignment of polymorphic deducer interface ref");
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
@@ -3500,6 +3559,8 @@ namespace pcit::panther{
 			case BaseType::Kind::TYPE_DEDUCER:       evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE:          evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::POLY_INTERFACE_REF: return this->getOrCreateTypeInfo(TypeInfo(id));
+			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: 
+				evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->getUnderlyingType(interface_map_info.underlyingTypeID);

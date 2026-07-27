@@ -32,6 +32,7 @@ namespace pcit::panther{
 				ATTRIBUTE,
 				DEDUCER,
 				ANONYMOUS_DEDUCER,
+				PTR_DEDUCER,
 
 				
 				///////////////////////////////////
@@ -326,6 +327,7 @@ namespace pcit::panther{
 
 				// length 2
 				if(op_str == "$$"){ return Kind::ANONYMOUS_DEDUCER; }
+				if(op_str == "$*"){ return Kind::PTR_DEDUCER; }
 				if(op_str == "->"){ return Kind::RIGHT_ARROW; }
 
 				if(op_str == "+="){ return Kind::ASSIGN_ADD; }
@@ -412,6 +414,7 @@ namespace pcit::panther{
 					break; case Kind::ATTRIBUTE:              return "ATTRIBUTE";
 					break; case Kind::DEDUCER:                return "DEDUCER";
 					break; case Kind::ANONYMOUS_DEDUCER:      return "$$";
+					break; case Kind::PTR_DEDUCER:            return "$*";
 
 
 					///////////////////////////////////

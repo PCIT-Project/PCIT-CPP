@@ -212,6 +212,10 @@ namespace pcit::panther::BaseType{
 		using core::UniqueID<uint32_t, PolyInterfaceRefID>::UniqueID; 
 	};
 
+	struct PolyDeducerInterfaceRefID : public core::UniqueID<uint32_t, struct PolyDeducerInterfaceRefID> {
+		using core::UniqueID<uint32_t, PolyDeducerInterfaceRefID>::UniqueID; 
+	};
+
 	struct InterfaceMapID : public core::UniqueID<uint32_t, struct InterfaceMapID> {
 		using core::UniqueID<uint32_t, InterfaceMapID>::UniqueID; 
 	};
@@ -424,6 +428,19 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::BaseType::PolyInterfaceRefID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+
+
+	template<>
+	struct OptionalInterface<panther::BaseType::PolyDeducerInterfaceRefID>{
+		static constexpr auto init(panther::BaseType::PolyDeducerInterfaceRefID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::BaseType::PolyDeducerInterfaceRefID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -723,6 +740,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::BaseType::PolyInterfaceRefID>::Optional;
 			using pcit::core::Optional<pcit::panther::BaseType::PolyInterfaceRefID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::BaseType::PolyDeducerInterfaceRefID>{
+		auto operator()(const pcit::panther::BaseType::PolyDeducerInterfaceRefID& id) const noexcept -> size_t {
+			return hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::BaseType::PolyDeducerInterfaceRefID>
+		: public pcit::core::Optional<pcit::panther::BaseType::PolyDeducerInterfaceRefID>{
+
+		public:
+			using pcit::core::Optional<pcit::panther::BaseType::PolyDeducerInterfaceRefID>::Optional;
+			using pcit::core::Optional<pcit::panther::BaseType::PolyDeducerInterfaceRefID>::operator=;
 	};
 
 

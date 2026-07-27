@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.348.0"></a>
+## v0.0.348.0
+
+### Panther
+- Added polymorphic deducer interface reference
+
+
+<!---------------------------------->
 <a name="v0.0.347.0"></a>
 ## v0.0.347.0
 
