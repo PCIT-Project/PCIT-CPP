@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.348.3"></a>
+## v0.0.348.3
+
+### Panther
+- Fixed missing check for no matching operator `new` when implicitly converting
+- Fixed missing check that implicit conversion with operator `new` is implicit
+- Fixed missing check that implicit conversion with operator `new` has valid unsafe status
+- Fixed missing check that implicit conversion with operator `new` is accessible if it has attribute `#priv`
+
+
+<!---------------------------------->
 <a name="v0.0.348.2"></a>
 ## v0.0.348.2
 

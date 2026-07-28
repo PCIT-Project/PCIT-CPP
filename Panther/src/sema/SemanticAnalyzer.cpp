@@ -35966,6 +35966,24 @@ namespace pcit::panther{
 										return TypeCheckInfo::fail();
 									}
 
+									if(
+										new_func.attributes.isPriv
+										&& new_func.parent != this->scope.getCurrentTypeScopeIfExists()
+									){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"`new` has attribute `#priv` and is not accessable from this scope",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(new_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
 									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
 										if constexpr(MAY_EMIT_ERROR){
 											this->emit_error(
@@ -36002,6 +36020,17 @@ namespace pcit::panther{
 									return TypeCheckInfo::success(true);
 
 								}else{
+									if(instantiation_infos.empty()){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as it has no matching "
+													"operator `new`",
+												location
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
 									auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 									const evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
 										this->handle_results_of_get_select_func_overload_func_info_for_template(
@@ -36103,12 +36132,71 @@ namespace pcit::panther{
 										selected_func_info = &func_infos[0];
 									}
 
-									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-										const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
-											selected_func_info->func_id.as<sema::TemplatedFunc::InstantiationInfo>();
 
+									const sema::TemplatedFunc::InstantiationInfo& selected_instantiation_info =
+										selected_func_info->func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+									const sema::Func::ID selected_func_id = 
+										*selected_instantiation_info.instantiation.funcID;
+
+									const sema::Func& selected_func =
+										this->context.getSemaBuffer().getFunc(selected_func_id);
+
+									const BaseType::Function& selected_func_type =
+										this->context.getTypeManager().getFunction(selected_func.typeID);
+
+									if(selected_func.attributes.isImplicit == false){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"`new` does not have attribute `#implicit`",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(selected_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
+									if(
+										selected_func.attributes.isPriv
+										&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
+									){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"`new` has attribute `#priv` and is not accessable from this scope",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(selected_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
+									if(this->currently_in_unsafe() == false && selected_func_type.attributes.isUnsafe){
+										if constexpr(MAY_EMIT_ERROR){
+											this->emit_error(
+												"Cannot implicitly convert to this type as the selected operator "
+													"is unsafe and not currently in an unsafe scope",
+												location,
+												Diagnostic::Info(
+													"Selected operator `new` defined here:",
+													this->get_location(selected_func)
+												)
+											);
+										}
+										return TypeCheckInfo::fail();
+									}
+
+
+									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 										const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
-											instantiation_info, "implicit `new`", location
+											selected_instantiation_info, "implicit `new`", location
 										);
 										if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
 
@@ -36116,7 +36204,7 @@ namespace pcit::panther{
 										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
 										got_expr.getExpr() = sema::Expr(
 											this->context.sema_buffer.createFuncCall(
-												*instantiation_info.instantiation.funcID,
+												selected_func_id,
 												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
 												location.as<SourceLocation>().lineStart,
 												location.as<SourceLocation>().collumnStart
@@ -36125,7 +36213,7 @@ namespace pcit::panther{
 
 										if(this->func_scope_current_value_stage().requiresComptime()){
 											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-												.dependent_funcs.emplace(*instantiation_info.instantiation.funcID);
+												.dependent_funcs.emplace(selected_func_id);
 										}
 									}
 
