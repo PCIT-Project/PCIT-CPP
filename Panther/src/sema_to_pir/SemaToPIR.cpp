@@ -330,7 +330,7 @@ namespace pcit::panther{
 				}
 			}();
 
-			if(param.shouldCopy){
+			if(this->is_param_copy(param, func_type.isMethod && i == 0)){
 				params.emplace_back(std::move(param_name), param_type, std::move(attributes));
 
 				if(param.kind == BaseType::Function::Param::Kind::IN){
@@ -1073,13 +1073,8 @@ namespace pcit::panther{
 
 			const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
 
-			if(param.shouldCopy){
-				if(param.kind == BaseType::Function::Param::Kind::IN){
-					param_infos.emplace_back(std::nullopt, in_param_index);
-					in_param_index += 1;
-				}else{
-					param_infos.emplace_back(std::nullopt, std::nullopt);
-				}
+			if(this->is_param_copy(param, func_type.isMethod && i == 0)){
+				param_infos.emplace_back(std::nullopt, std::nullopt);
 
 			}else{
 				if(param.kind == BaseType::Function::Param::Kind::IN){
@@ -1174,7 +1169,7 @@ namespace pcit::panther{
 		error_return_types.reserve(interface.methods.size());
 		for(size_t i = 0; const sema::Func::ID method_id : interface.methods){
 			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-			const BaseType::Function method_type = this->context.getTypeManager().getFunction(method.typeID);
+			const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 			if(method.hasNamedErrors()){
 				auto error_return_param_types = evo::SmallVector<pir::Type>();
@@ -2219,7 +2214,7 @@ namespace pcit::panther{
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(param.shouldCopy){
+					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
 						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
@@ -2278,7 +2273,7 @@ namespace pcit::panther{
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : try_else_interface.args){
-					if(target_func_type.params[i].shouldCopy){
+					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
@@ -2393,7 +2388,7 @@ namespace pcit::panther{
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(param.shouldCopy){
+					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
 						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
@@ -2454,13 +2449,13 @@ namespace pcit::panther{
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : interface_call.args){
-					if(target_func_type.params[i].shouldCopy){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
-
-					i += 1;
 				}
 
 				if(return_type.kind() == pir::Type::Kind::VOID){
@@ -5355,7 +5350,7 @@ namespace pcit::panther{
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(param.shouldCopy){
+					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
 						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
@@ -5447,7 +5442,7 @@ namespace pcit::panther{
 					}
 
 
-					if(target_func_type.params[i].shouldCopy){
+					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
@@ -6434,7 +6429,7 @@ namespace pcit::panther{
 
 				auto param_types = evo::SmallVector<pir::Type>();
 				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(param.shouldCopy){
+					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
 						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 					}else{
 						param_types.emplace_back(this->module.createPtrType());
@@ -6485,13 +6480,13 @@ namespace pcit::panther{
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : attempt_func_interface_call.args){
-					if(target_func_type.params[i].shouldCopy){
+					EVO_DEFER([&](){ i += 1; });
+
+					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
 						args.emplace_back(this->get_expr_register(arg));
 					}else{
 						args.emplace_back(this->get_expr_pointer(arg));
 					}
-
-					i += 1;
 				}
 
 
@@ -10303,7 +10298,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = type_manager.getFunction(intrinsic_type.baseTypeID().funcID());
 
 			for(size_t i = 0; const sema::Expr& arg : func_call.args){
-				if(func_type.params[i].shouldCopy){
+				if(this->is_param_copy(func_type.params[i], func_type.isMethod && i == 0)){
 					args.emplace_back(this->get_expr_register(arg));
 				}else{
 					args.emplace_back(this->get_expr_pointer(arg));
@@ -11907,7 +11902,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = type_manager.getFunction(intrinsic_type.baseTypeID().funcID());
 
 			for(size_t i = 0; const sema::Expr& arg : func_call.args){
-				if(func_type.params[i].shouldCopy){
+				if(this->is_param_copy(func_type.params[i], func_type.isMethod && i == 0)){
 					args.emplace_back(this->get_expr_register(arg));
 				}else{
 					args.emplace_back(this->get_expr_pointer(arg));
@@ -13342,7 +13337,7 @@ namespace pcit::panther{
 	auto SemaToPIR::get_function_pir_type(const BaseType::Function& func_type) -> pir::Type {
 		auto param_types = evo::SmallVector<pir::Type>();
 		for(const BaseType::Function::Param& param : func_type.params){
-			if(param.shouldCopy){
+			if(this->is_param_copy(param, func_type.isMethod && param_types.empty())){
 				param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
 			}else{
 				param_types.emplace_back(this->module.createPtrType());
@@ -14780,6 +14775,15 @@ namespace pcit::panther{
 				this->get_current_meta_local_scope(), location.line_number, location.collumn_number
 			)
 		);
+	}
+
+
+
+
+	auto SemaToPIR::is_param_copy(const BaseType::Function::Param& func_param, bool is_this) const -> bool {
+		if(is_this){ return false; }
+		if(func_param.kind != BaseType::Function::Param::Kind::READ){ return false; }
+		return this->context.getTypeManager().isTriviallyParamReadable(func_param.typeID);
 	}
 
 

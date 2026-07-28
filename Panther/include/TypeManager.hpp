@@ -305,7 +305,6 @@ namespace pcit::panther{
 
 				TypeInfoID typeID;
 				Kind kind;
-				bool shouldCopy;
 
 				[[nodiscard]] auto operator==(const Param&) const -> bool = default;
 			};
@@ -332,6 +331,7 @@ namespace pcit::panther{
 			evo::SmallVector<TypeInfoVoidableID> returnTypes;
 			evo::SmallVector<TypeInfoVoidableID> errorTypes;
 			Attributes attributes;
+			bool isMethod;
 			bool hasNamedReturns;
 
 
@@ -340,18 +340,21 @@ namespace pcit::panther{
 				evo::SmallVector<TypeInfoVoidableID>&& return_types,
 				evo::SmallVector<TypeInfoVoidableID>&& error_types,
 				Attributes _attributes,
+				bool is_method,
 				bool has_named_returns
 			) : 
 				params(std::move(_params)),
 				returnTypes(std::move(return_types)),
 				errorTypes(std::move(error_types)),
 				attributes(_attributes),
+				isMethod(is_method),
 				hasNamedReturns(has_named_returns)
 			{
 				evo::debugAssert(
-					this->hasNamedReturns == false || this->returnsVoid() == false,
-					"Type `Void` cannot be named"
+					this->hasNamedReturns == false || this->returnsVoid() == false, "Type `Void` cannot be named"
 				);
+
+				evo::debugAssert(is_method == false || this->params.size() > 0, "Method must have at least 1 param");
 			}
 
 
@@ -1374,6 +1377,9 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallySized(BaseType::ID id) const -> bool;
+
+			[[nodiscard]] auto isTriviallyParamReadable(TypeInfo::ID id) const -> bool;
+			[[nodiscard]] auto isTriviallyParamReadable(BaseType::ID id) const -> bool;
 
 			[[nodiscard]] auto offsetOf(BaseType::Struct::ID id, size_t member_index) const -> uint64_t;
 

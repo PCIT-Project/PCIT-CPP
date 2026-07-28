@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.348.1"></a>
+## v0.0.348.1
+
+### Panther
+- Fixed checking of methods for `impl`
+
+### Misc
+- Updated to [Panther-std v0.0.38.1](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.38.1)
+
+
+<!---------------------------------->
 <a name="v0.0.348.0"></a>
 ## v0.0.348.0
 

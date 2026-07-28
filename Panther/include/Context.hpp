@@ -786,7 +786,7 @@ namespace pcit::panther{
 							}
 						});
 
-						instantiated_params.emplace_back(param_type, param.kind, false);
+						instantiated_params.emplace_back(param_type, param.kind);
 					}
 
 					auto instantiated_return_types = evo::SmallVector<TypeInfo::VoidableID>();
@@ -815,6 +815,7 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
+						false,
 						false
 					);
 				}

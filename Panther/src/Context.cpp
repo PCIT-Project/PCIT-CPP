@@ -320,7 +320,7 @@ namespace pcit::panther{
 				// TODO(FUTURE): why when including windows.h is this needed
 				if(panther_type->isVoid()){ return std::nullopt; }
 
-				params.emplace_back(panther_type->asTypeID(), BaseType::Function::Param::Kind::C, true);
+				params.emplace_back(panther_type->asTypeID(), BaseType::Function::Param::Kind::C);
 			}
 
 			const std::optional<TypeInfo::VoidableID> return_panther_type = 
@@ -342,6 +342,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::C,
 						.abi               = BaseType::Function::ABI::C,
 					},
+					false,
 					false
 				)
 			);
@@ -3222,7 +3223,7 @@ namespace pcit::panther{
 			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3234,6 +3235,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3276,7 +3278,7 @@ namespace pcit::panther{
 			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3288,6 +3290,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3324,7 +3327,7 @@ namespace pcit::panther{
 			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3336,6 +3339,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3395,7 +3399,7 @@ namespace pcit::panther{
 			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3407,6 +3411,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3449,7 +3454,7 @@ namespace pcit::panther{
 			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3461,6 +3466,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3497,7 +3503,7 @@ namespace pcit::panther{
 			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3509,6 +3515,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3567,7 +3574,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -3589,6 +3596,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3625,7 +3633,7 @@ namespace pcit::panther{
 			const BaseType::ID create_mut_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(iterable_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -3647,6 +3655,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3707,7 +3716,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_ref_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterable_ref_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -3729,6 +3738,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3790,9 +3800,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(
-							iterable_mut_ref_type_id, BaseType::Function::Param::Kind::READ, false
-						)
+						BaseType::Function::Param(iterable_mut_ref_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -3814,6 +3822,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3872,7 +3881,7 @@ namespace pcit::panther{
 			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3884,6 +3893,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3926,7 +3936,7 @@ namespace pcit::panther{
 			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3938,6 +3948,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -3974,7 +3985,7 @@ namespace pcit::panther{
 			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -3986,6 +3997,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4046,7 +4058,7 @@ namespace pcit::panther{
 			const BaseType::ID next_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -4058,6 +4070,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4100,7 +4113,7 @@ namespace pcit::panther{
 			const BaseType::ID get_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{get_return_type},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -4112,6 +4125,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4148,7 +4162,7 @@ namespace pcit::panther{
 			const BaseType::ID at_end_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(mut_iterator_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>(),
@@ -4160,6 +4174,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4218,7 +4233,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -4240,6 +4255,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4276,7 +4292,7 @@ namespace pcit::panther{
 			const BaseType::ID create_mut_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::MUT, false)
+						BaseType::Function::Param(iterable_rt_type_id, BaseType::Function::Param::Kind::MUT)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -4298,6 +4314,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4360,7 +4377,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(iterable_rt_ref_type_id, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(iterable_rt_ref_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -4382,6 +4399,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4443,9 +4461,7 @@ namespace pcit::panther{
 			const BaseType::ID create_iterator_type_id = this->type_manager.getOrCreateFunction(
 				BaseType::Function(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(
-							iterable_rt_mut_ref_type_id, BaseType::Function::Param::Kind::READ, false
-						)
+						BaseType::Function::Param(iterable_rt_mut_ref_type_id, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{
 						this->type_manager.getOrCreateTypeInfo(
@@ -4467,6 +4483,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					true,
 					false
 				)
 			);
@@ -4678,6 +4695,7 @@ namespace pcit::panther{
 						.callingConvention = pir::CallingConvention::DEFAULT,
 						.abi               = BaseType::Function::ABI::PANTHER,
 					},
+					false,
 					false
 				)
 			);
@@ -4714,9 +4732,7 @@ namespace pcit::panther{
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::PANIC))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(
-						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
-					)
+					BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ)
 				},
 				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 				evo::SmallVector<TypeInfo::VoidableID>{},
@@ -4755,9 +4771,7 @@ namespace pcit::panther{
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINT))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(
-						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
-					)
+					BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ)
 				},
 				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 				evo::SmallVector<TypeInfo::VoidableID>{},
@@ -4771,9 +4785,7 @@ namespace pcit::panther{
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINTLN))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
-					BaseType::Function::Param(
-						TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
-					)
+					BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ)
 				},
 				evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 				evo::SmallVector<TypeInfo::VoidableID>{},
@@ -4795,7 +4807,7 @@ namespace pcit::panther{
 			IntrinsicFuncInfo{
 				.typeID = create_func_type(
 					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(panther_build_config, BaseType::Function::Param::Kind::READ, false)
+						BaseType::Function::Param(panther_build_config, BaseType::Function::Param::Kind::READ)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
 					evo::SmallVector<TypeInfo::VoidableID>{},
@@ -4840,7 +4852,7 @@ namespace pcit::panther{
 				.typeID = create_func_type(
 					evo::SmallVector<BaseType::Function::Param>{
 						BaseType::Function::Param(
-							TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false
+							TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ
 						)
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},

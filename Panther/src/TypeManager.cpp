@@ -2759,6 +2759,20 @@ namespace pcit::panther{
 	}
 
 
+
+	///////////////////////////////////
+	// isTriviallyParamReadable
+
+	auto TypeManager::isTriviallyParamReadable(TypeInfo::ID id) const -> bool {
+		return this->isTriviallySized(id) && this->isTriviallyCopyable(id);
+	}
+
+	auto TypeManager::isTriviallyParamReadable(BaseType::ID id) const -> bool {
+		return this->isTriviallySized(id) && this->isTriviallyCopyable(id);
+	}
+
+
+
 	///////////////////////////////////
 	// offsetOf
 

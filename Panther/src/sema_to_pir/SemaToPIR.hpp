@@ -499,6 +499,10 @@ namespace pcit::panther{
 			[[nodiscard]] auto create_scoped_source_location(auto& thing_to_get_location_of)
 				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
 
+
+			[[nodiscard]] auto is_param_copy(const BaseType::Function::Param& func_param, bool is_this) const -> bool;
+
+
 	
 		private:
 			class Context& context;

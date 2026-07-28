@@ -2025,6 +2025,7 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
+						false,
 						true
 					)
 				);
@@ -2195,9 +2196,7 @@ namespace pcit::panther{
 				const BaseType::ID default_delete_func_type = this->context.type_manager.getOrCreateFunction(
 					BaseType::Function(
 						evo::SmallVector<BaseType::Function::Param>{
-							BaseType::Function::Param(
-								created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
-							),
+							BaseType::Function::Param(created_struct_type_id, BaseType::Function::Param::Kind::MUT),
 						},
 						evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 						evo::SmallVector<TypeInfo::VoidableID>(),
@@ -2209,6 +2208,7 @@ namespace pcit::panther{
 							.callingConvention = pir::CallingConvention::DEFAULT,
 							.abi               = BaseType::Function::ABI::PANTHER,
 						},
+						true,
 						false
 					)
 				);
@@ -2387,9 +2387,7 @@ namespace pcit::panther{
 					const BaseType::ID default_move_func_type = this->context.type_manager.getOrCreateFunction(
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>{
-								BaseType::Function::Param(
-									created_struct_type_id, BaseType::Function::Param::Kind::MUT, false
-								),
+								BaseType::Function::Param(created_struct_type_id, BaseType::Function::Param::Kind::MUT),
 							},
 							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
 							evo::SmallVector<TypeInfo::VoidableID>(),
@@ -2401,6 +2399,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							true,
 							false
 						)
 					);
@@ -2600,7 +2599,7 @@ namespace pcit::panther{
 						BaseType::Function(
 							evo::SmallVector<BaseType::Function::Param>{
 								BaseType::Function::Param(
-									created_struct_type_id, BaseType::Function::Param::Kind::READ, false
+									created_struct_type_id, BaseType::Function::Param::Kind::READ
 								),
 							},
 							evo::SmallVector<TypeInfo::VoidableID>{created_struct_type_id},
@@ -2613,6 +2612,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							true,
 							false
 						)
 					);
@@ -3499,7 +3499,7 @@ namespace pcit::panther{
 					has_in_param = true;
 				}
 
-				params.emplace_back(param_type_id, type_param_kind, false);
+				params.emplace_back(param_type_id, type_param_kind);
 
 				if(instr.default_param_values[i - size_t(has_this_param)].has_value()){
 					TermInfo default_param_value =
@@ -3575,10 +3575,10 @@ namespace pcit::panther{
 							TypeInfo(BaseType::ID(type_scope))
 						);
 
-						params.emplace_back(this_type, type_param_kind, false);
+						params.emplace_back(this_type, type_param_kind);
 
 					}else if constexpr(std::is_same<TypeScope, EncapsulatingSymbolID::InterfaceImplInfo>()){
-						params.emplace_back(type_scope.targetTypeID, type_param_kind, false);
+						params.emplace_back(type_scope.targetTypeID, type_param_kind);
 
 					}else if constexpr(std::is_same<TypeScope, sema::Func::ID>()){
 						evo::debugFatalBreak("Invalid type object scope");
@@ -3636,7 +3636,7 @@ namespace pcit::panther{
 						func_info.param_type_to_check_if_is_copy.emplace_back();
 					}
 
-					params.emplace_back(arg_type_id, type_param_kind, false);
+					params.emplace_back(arg_type_id, type_param_kind);
 					sema_params.emplace_back(ast_buffer.getIdent(variadic_param.name), std::nullopt);
 
 					min_num_args += 1;
@@ -3796,6 +3796,7 @@ namespace pcit::panther{
 					.callingConvention = calling_conv,
 					.abi               = abi,
 				},
+				has_this_param,
 				!return_param_idents.empty()
 			)
 		);
@@ -4771,6 +4772,7 @@ namespace pcit::panther{
 										evo::copy(created_func_type.returnTypes),
 										evo::copy(created_func_type.errorTypes),
 										created_func_type.attributes,
+										created_func_type.isMethod,
 										created_func_type.hasNamedReturns
 									)
 								);
@@ -5122,8 +5124,6 @@ namespace pcit::panther{
 		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
-		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-
 
 
 		//////////////////
@@ -5137,24 +5137,6 @@ namespace pcit::panther{
 
 			i += 1;
 		}
-
-
-		//////////////////
-		// check param is copy
-
-		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(type_id.has_value() == false){ continue; }
-
-			if(
-				this->context.getTypeManager().isTriviallyCopyable(*type_id)
-				&& this->context.getTypeManager().isTriviallySized(*type_id)
-			){
-				func_type.params[i].shouldCopy = true;
-			}
-		}
-
 
 
 		//////////////////
@@ -5259,34 +5241,6 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// check param is copy
-
-		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(type_id.has_value() == false){ continue; }
-
-			if(
-				this->context.getTypeManager().isTriviallyCopyable(*type_id)
-				&& this->context.getTypeManager().isTriviallySized(*type_id)
-			){
-				func_type.params[i].shouldCopy = true;
-			}
-		}
-
-
-		if(func_info.flipped_version.has_value()){
-			const sema::Func& flipped_version = this->context.getSemaBuffer().getFunc(*func_info.flipped_version);
-			BaseType::Function& flipped_version_type = this->context.type_manager.getFunction(flipped_version.typeID);
-
-			for(size_t i = 0; i < func_type.params.size(); i+=1){
-				flipped_version_type.params[func_type.params.size()-i-1].shouldCopy = func_type.params[i].shouldCopy;
-			}
-		}
-
-
-
-		//////////////////
 		// check special functions have correct signature
 
 		if(this->context.entry.load() == current_func_id){
@@ -5343,8 +5297,8 @@ namespace pcit::panther{
 			}
 
 			if(
-				func_type.params[0] !=
-				BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ, false)
+				func_type.params[0].typeID != TypeManager::getTypeStringRef()
+					|| func_type.params[0].kind != BaseType::Function::Param::Kind::READ
 			){
 				this->emit_error("Builtin panic function invaid parameter", instr.func_def);
 				return Result::ERROR;
@@ -6287,25 +6241,6 @@ namespace pcit::panther{
 
 		}else{
 			current_method.status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
-		}
-
-
-		//////////////////
-		// check param is copy
-
-		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-		
-		for(size_t i = 0; const std::optional<TypeInfo::ID>& type_id : func_info.param_type_to_check_if_is_copy){
-			EVO_DEFER([&](){ i += 1; });
-
-			if(type_id.has_value() == false){ continue; }
-
-			if(
-				this->context.getTypeManager().isTriviallyCopyable(*type_id)
-				&& this->context.getTypeManager().isTriviallySized(*type_id)
-			){
-				func_type.params[i].shouldCopy = true;
-			}
 		}
 
 
@@ -22844,30 +22779,19 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_func_type(const Instruction::FuncType& instr) -> Result {
 		auto params = evo::SmallVector<BaseType::Function::Param>();
 		for(size_t i = 0; i < instr.func_type.params.size(); i+=1){
-			bool should_copy = false;
 
 			const TypeInfo::ID param_type_id = this->get_type(instr.types[i]).asTypeID();
 
 			const BaseType::Function::Param::Kind param_kind = [&]() -> BaseType::Function::Param::Kind {
 				switch(instr.func_type.params[i].kind){
-					case AST::FuncType::Param::Kind::READ: {
-						if(
-							this->context.getTypeManager().isTriviallyCopyable(param_type_id)
-							&& this->context.getTypeManager().isTriviallySized(param_type_id)
-						){
-							should_copy = true;
-						}
-
-						return BaseType::Function::Param::Kind::READ;
-					} break;
-
+					case AST::FuncType::Param::Kind::READ: return BaseType::Function::Param::Kind::READ;
 					case AST::FuncType::Param::Kind::MUT:  return BaseType::Function::Param::Kind::MUT;
 					case AST::FuncType::Param::Kind::IN:   return BaseType::Function::Param::Kind::IN;
 				}
 				evo::debugFatalBreak("Unknown param kind");
 			}();
 
-			params.emplace_back(param_type_id, param_kind, should_copy);
+			params.emplace_back(param_type_id, param_kind);
 		}
 
 
@@ -22948,6 +22872,7 @@ namespace pcit::panther{
 					.callingConvention = calling_conv,
 					.abi               = BaseType::Function::ABI::PANTHER,
 				},
+				false,
 				instr.func_type.hasNamedReturns
 			)
 		);
@@ -24467,6 +24392,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25287,6 +25213,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25332,6 +25259,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25380,6 +25308,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25454,6 +25383,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25499,6 +25429,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -25548,6 +25479,7 @@ namespace pcit::panther{
 								.callingConvention = pir::CallingConvention::DEFAULT,
 								.abi               = BaseType::Function::ABI::PANTHER,
 							},
+							false,
 							false
 						)
 					)
@@ -26374,7 +26306,7 @@ namespace pcit::panther{
 		auto actual_args = evo::SmallVector<core::GenericValue>();
 		actual_args.reserve(args.size());
 		for(size_t i = 0; core::GenericValue& arg_value : arg_values){
-			if(target_func_type.params[i].shouldCopy){
+			if(this->context.getTypeManager().isTriviallyParamReadable(target_func_type.params[i].typeID)){
 				actual_args.emplace_back(std::move(arg_value));
 			}else{
 				actual_args.emplace_back(core::GenericValue::createPtr(arg_value.writableDataRange().data()));
@@ -33386,11 +33318,14 @@ namespace pcit::panther{
 							if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
 
 							// params
+							bool params_check_success = true;
 							for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
 								if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){
-									continue;
+									params_check_success = false;
+									break;
 								}
 							}
+							if(params_check_success == false){ continue; }
 
 							// return params
 							if(target_method_type.returnTypes != overload_sema_type.returnTypes){
