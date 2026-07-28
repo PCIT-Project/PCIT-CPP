@@ -23037,12 +23037,18 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
+				const Diagnostic::Location type_declared_location = [&]() -> Diagnostic::Location {
+					if(term_info.type_id.is<sema::TemplatedStruct::ID>()){
+						return this->get_location(term_info.type_id.as<sema::TemplatedStruct::ID>());
+					}else{
+						return this->get_location(term_info.type_id.as<sema::StructTemplateAlias::ID>());
+					}
+				}();
+
 				this->emit_error(
 					"Templated type needs to be instantiated",
 					instr.ast_type.base,
-					Diagnostic::Info(
-						"Type declared here:", this->get_location(term_info.type_id.as<sema::TemplatedStruct::ID>())
-					)
+					Diagnostic::Info("Type declared here:", type_declared_location)
 				);
 				return Result::ERROR;
 			} break;

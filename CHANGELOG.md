@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.348.2"></a>
+## v0.0.348.2
+
+### Panther
+- Fixed "Templated type needs to be instantiated" diagnostic message when the type is a struct template alias
+
+
+<!---------------------------------->
 <a name="v0.0.348.1"></a>
 ## v0.0.348.1
 
