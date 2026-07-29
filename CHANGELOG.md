@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.349.0"></a>
+## v0.0.349.0
+
+### Panther
+- Improved mutability semantics of polymorphic deducer interface references
+
+
+<!---------------------------------->
 <a name="v0.0.348.4"></a>
 ## v0.0.348.4
 
@@ -43,7 +51,7 @@
 ## v0.0.348.0
 
 ### Panther
-- Added polymorphic deducer interface reference
+- Added polymorphic deducer interface references
 
 
 <!---------------------------------->

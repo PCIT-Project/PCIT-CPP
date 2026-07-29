@@ -1106,8 +1106,7 @@ namespace pcit::panther{
 					this->getPolyDeducerInterfaceRef(poly_deducer_interface_ref_id);
 					
 				return std::format(
-					"impl(${}:{})",
-					poly_deducer_interface_ref_info.isMut ? "*mut" : "*",
+					"impl($*:{})",
 					this->printType(BaseType::ID(poly_deducer_interface_ref_info.interfaceID), context)
 				);
 			} break;

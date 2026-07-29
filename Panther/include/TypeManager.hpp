@@ -1090,7 +1090,6 @@ namespace pcit::panther{
 			using ID = PolyDeducerInterfaceRefID;
 			
 			Interface::ID interfaceID;
-			bool isMut;
 
 			[[nodiscard]] auto operator==(const PolyDeducerInterfaceRef&) const -> bool = default;
 		};

@@ -3406,30 +3406,7 @@ namespace pcit::panther{
 
 			const BaseType::Function::Param::Kind type_param_kind = [&](){
 				switch(param.kind){
-					case AST::FuncDef::Param::Kind::READ: {
-						if constexpr(IS_INSTANTIATION){ // check if `impl($*mut, SomeInterface)`
-							if(param.type.has_value() == false){ return BaseType::Function::Param::Kind::READ; }
-
-							const AST::Type& param_type = ast_buffer.getType(*param.type);
-							if(param_type.qualifiers.empty() == false){ return BaseType::Function::Param::Kind::READ; }
-
-							if(param_type.base.kind() != AST::Kind::INTERFACE_MAP){
-								return BaseType::Function::Param::Kind::READ;
-							}
-
-							const AST::InterfaceMap& interface_map = ast_buffer.getInterfaceMap(param_type.base);
-
-							if(interface_map.underlyingType.is<AST::InterfaceMap::PtrDeducer>() == false){
-								return BaseType::Function::Param::Kind::READ;
-							}
-
-							if(interface_map.underlyingType.as<AST::InterfaceMap::PtrDeducer>().isMut){
-								return BaseType::Function::Param::Kind::MUT;
-							}
-						}
-
-						return BaseType::Function::Param::Kind::READ;
-					} break;
+					case AST::FuncDef::Param::Kind::READ: return BaseType::Function::Param::Kind::READ;
 					case AST::FuncDef::Param::Kind::MUT:  return BaseType::Function::Param::Kind::MUT;
 					case AST::FuncDef::Param::Kind::IN:   return BaseType::Function::Param::Kind::IN;
 				}
@@ -22930,10 +22907,8 @@ namespace pcit::panther{
 
 
 			if(instr.interface_map.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){
-				const bool is_mut = instr.interface_map.underlyingType.as<AST::InterfaceMap::PtrDeducer>().isMut;
-
 				const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreatePolyDeducerInterfaceRef(
-					BaseType::PolyDeducerInterfaceRef(got_interface_type.baseTypeID().interfaceID(), is_mut)
+					BaseType::PolyDeducerInterfaceRef(got_interface_type.baseTypeID().interfaceID())
 				);
 
 				this->return_term_info(instr.output,
@@ -28626,9 +28601,60 @@ namespace pcit::panther{
 							}();
 
 							if(param_is_not_this){
-								scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
-								arg_checking_failed = true;
-								break;
+								const bool is_valid_mut_poly_impl_conversion = [&]() -> bool {
+									const TypeInfo::ID param_type_id = func_info.func_type.params[arg_i].typeID;
+									const TypeInfo& param_type =
+										this->context.getTypeManager().getTypeInfo(param_type_id);
+
+									if(param_type.qualifiers().empty() == false){ return false; }
+									if(param_type.baseTypeID().kind() != BaseType::Kind::POLY_INTERFACE_REF){
+										return false;
+									}
+
+									const BaseType::PolyInterfaceRef& param_poly_interface_ref_type = 
+										this->context.getTypeManager().getPolyInterfaceRef(
+											param_type.baseTypeID().polyInterfaceRefID()
+										);
+
+									if(param_poly_interface_ref_type.isMut == false){ return false; }
+
+
+									if(func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false){
+										return false;
+									}
+
+									const sema::TemplatedFunc::InstantiationInfo& instantiation_info = 
+										func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+									const SymbolProc::ID instantiation_symbol_proc_id = 
+										*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+
+									const SymbolProc& instantiation_symbol_proc = 
+										this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+
+									const Source& source =
+										this->context.getSourceManager()[instantiation_symbol_proc.getSourceID()];
+
+									const AST::FuncDef& instantiation_ast_func =
+										source.getASTBuffer().getFuncDef(instantiation_symbol_proc.getASTNode());
+
+									const AST::FuncDef::Param& ast_param = instantiation_ast_func.params[
+										std::min(arg_i, instantiation_ast_func.params.size())
+									];
+
+									const AST::Type& ast_param_type = source.getASTBuffer().getType(*ast_param.type);
+									const AST::InterfaceMap& ast_param_interface_map_type =
+										source.getASTBuffer().getInterfaceMap(ast_param_type.base);
+
+									return ast_param_interface_map_type.underlyingType
+										.is<AST::InterfaceMap::PtrDeducer>();
+								}();
+
+								if(is_valid_mut_poly_impl_conversion == false){
+									scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+									arg_checking_failed = true;
+									break;
+								}
 							}
 						}
 
@@ -32350,10 +32376,6 @@ namespace pcit::panther{
 							);
 
 						if(deducer_poly_deducer_interface_ref.interfaceID != got_poly_interface_ref_type.interfaceID){
-							return evo::resultError;
-						}
-
-						if(deducer_poly_deducer_interface_ref.isMut && got_poly_interface_ref_type.isMut == false){
 							return evo::resultError;
 						}
 

@@ -2658,11 +2658,14 @@ namespace pcit::panther{
 				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("$*")){
 					this->reader.skip();
 
+					underlying_type = AST::InterfaceMap::PtrDeducer();
+
 					if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
-						underlying_type = AST::InterfaceMap::PtrDeducer(true);
-						this->reader.skip();
-					}else{
-						underlying_type = AST::InterfaceMap::PtrDeducer(false);
+						this->context.emitError(
+							"The mutablility of polymorphic deducer interface maps is not defined in the type",
+							Diagnostic::Location::get(this->reader.peek(), this->source)
+						);
+						return Result(Result::Code::ERROR);
 					}
 
 				}else{

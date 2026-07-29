@@ -1905,11 +1905,7 @@ namespace pthr{
 							}
 
 						}else if(interface_map.underlyingType.is<panther::AST::InterfaceMap::PtrDeducer>()){
-							if(interface_map.underlyingType.as<panther::AST::InterfaceMap::PtrDeducer>().isMut){
-								this->printer.printMagenta("$*mut");
-							}else{
-								this->printer.printMagenta("$*");
-							}
+							this->printer.printMagenta("$*");
 
 						}else{
 							this->print_type(

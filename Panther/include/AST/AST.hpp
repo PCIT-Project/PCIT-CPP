@@ -561,7 +561,7 @@ namespace pcit::panther::AST{
 
 	struct InterfaceMap{
 		struct Ptr{ bool isMut; };
-		struct PtrDeducer{ bool isMut; };
+		struct PtrDeducer{};
 
 		evo::Variant<Ptr, PtrDeducer, Node> underlyingType;
 		Token::ID colonToken;
