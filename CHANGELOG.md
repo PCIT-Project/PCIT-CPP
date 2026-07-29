@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.348.4"></a>
+## v0.0.348.4
+
+### Panther
+- Fixed diagnostics of failing to match function overload if some overloads fail template instantiation while others pass or aren't template
+
+
+<!---------------------------------->
 <a name="v0.0.348.3"></a>
 ## v0.0.348.3
 

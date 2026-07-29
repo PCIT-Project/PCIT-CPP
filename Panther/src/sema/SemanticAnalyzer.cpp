@@ -30415,7 +30415,7 @@ namespace pcit::panther{
 
 			using ErroredReason = sema::TemplatedFunc::Instantiation::ErroredReason;
 
-			auto instantiation_errors = evo::SmallVector<ErroredReason>();
+			auto instantiation_errors = evo::SmallVector<std::optional<ErroredReason>>();
 
 			for(const sema::TemplatedFunc::InstantiationInfo& instantiation_info : instantiation_infos){
 				if(instantiation_info.instantiation.errored()){
@@ -30438,6 +30438,8 @@ namespace pcit::panther{
 					continue;
 				}
 
+				instantiation_errors.emplace_back(std::nullopt);
+
 				const sema::Func& instantiated_func = this->context.getSemaBuffer().getFunc(
 					*instantiation_info.instantiation.funcID
 				);
@@ -30447,7 +30449,11 @@ namespace pcit::panther{
 				);
 			}
 
-			for(size_t i = 0; const ErroredReason& instantiation_error : instantiation_errors){
+			for(size_t i = 0; const std::optional<ErroredReason>& instantiation_error : instantiation_errors){
+				EVO_DEFER([&](){ i += 1; });
+
+				if(instantiation_error.has_value() == false){ continue; }
+
 				const auto get_func_location = [&]() -> Diagnostic::Location {
 					const SymbolProc& symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
 						*instantiation_infos[i].instantiation.symbolProcID.load(std::memory_order::relaxed)
@@ -30458,7 +30464,7 @@ namespace pcit::panther{
 					);
 				};
 
-				instantiation_error.visit([&](const auto& reason) -> void {
+				instantiation_error->visit([&](const auto& reason) -> void {
 					using ReasonT = std::decay_t<decltype(reason)>;
 
 					using Instantiation = sema::TemplatedFunc::Instantiation;
@@ -30545,8 +30551,6 @@ namespace pcit::panther{
 						static_assert(false, "Unknown errored reason");
 					}
 				});
-
-				i += 1;
 			}
 
 			if(func_infos.empty()){ // if all instantiations errored
