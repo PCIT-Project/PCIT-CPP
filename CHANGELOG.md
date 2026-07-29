@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.349.1"></a>
+## v0.0.349.1
+
+### PIR
+- Fixed lowering of metadata when a subscope metadata points to a function metadata that is not associated with a function
+
+
+<!---------------------------------->
 <a name="v0.0.349.0"></a>
 ## v0.0.349.0
 

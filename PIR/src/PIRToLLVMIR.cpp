@@ -138,8 +138,30 @@ namespace pcit::pir{
 	auto PIRToLLVMIR::lower_meta_subscope(meta::Subscope::ID meta_subscope_id) -> void {
 		const meta::Subscope& meta_subscope = this->module.getMetaSubscope(meta_subscope_id);
 
+		const std::optional<llvmint::DIBuilder::LocalScope> parent_scope = meta_subscope.parentScope.visit(
+			[&](const auto& id) -> std::optional<llvmint::DIBuilder::LocalScope> {
+				using IDType = std::decay_t<decltype(id)>;
+			
+				if constexpr(std::is_same<IDType, meta::Function::ID>()){
+					const auto find = this->meta_functions.find(id);
+					if(find == this->meta_functions.end()){ return std::nullopt; }
+					return find->second.asLocalScope();
+
+				}else if constexpr(std::is_same<IDType, meta::Subscope::ID>()){
+					const auto find = this->meta_subscopes.find(id);
+					if(find == this->meta_subscopes.end()){ return std::nullopt; }
+					return find->second;
+
+				}else{
+					static_assert(false, "Unknown scope id");
+				}
+			}
+		);
+
+		if(parent_scope.has_value() == false){ return; }
+
 		const llvmint::DIBuilder::LocalScope di_subscope = this->di_builder.createLexicalBlock(
-			this->get_meta_local_scope(meta_subscope.parentScope),
+			*parent_scope,
 			this->meta_files.at(meta_subscope.file),
 			meta_subscope.line,
 			meta_subscope.collumn
