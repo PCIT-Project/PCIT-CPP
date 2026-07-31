@@ -11557,10 +11557,17 @@ namespace pcit::panther{
 
 		const BaseType::Function& selected_func_type = func_call_impl_res.value().selected_func_type;
 
-		if(
-			instr.try_else.exceptParams.size() != selected_func_type.errorTypes.size()
-			&& selected_func_type.errorTypes[0].isVoid() == false
-		){
+		if(selected_func_type.errorTypes[0].isVoid()){
+			if(instr.try_else.exceptParams.size() != 0){
+				this->emit_error(
+					"Number of except parameters does not match attempt function call",
+					instr.try_else.elseTokenID,
+					Diagnostic::Info(std::format("Expected 0, got {}", instr.try_else.exceptParams.size()))
+				);
+				return Result::ERROR;
+			}
+
+		}else if(selected_func_type.errorTypes.size() != instr.try_else.exceptParams.size()){
 			this->emit_error(
 				"Number of except parameters does not match attempt function call",
 				instr.try_else.elseTokenID,
@@ -11572,6 +11579,11 @@ namespace pcit::panther{
 			);
 			return Result::ERROR;
 		}
+
+
+
+
+
 
 
 		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
@@ -18219,7 +18231,17 @@ namespace pcit::panther{
 		}();
 
 		
-		if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
+		if(attempt_func_type.errorTypes[0].isVoid()){
+			if(instr.except_params.size() != 0){
+				this->emit_error(
+					"Number of except parameters does not match attempt function call",
+					instr.handler_kind_token_id,
+					Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
+				);
+				return Result::ERROR;
+			}
+
+		}else if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
 			this->emit_error(
 				"Number of except parameters does not match attempt function call",
 				instr.handler_kind_token_id,
@@ -18228,14 +18250,6 @@ namespace pcit::panther{
 						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size()
 					)
 				)
-			);
-			return Result::ERROR;
-					
-		}else if(attempt_func_type.errorTypes[0].isVoid() && instr.except_params.size() != 0){
-			this->emit_error(
-				"Number of except parameters does not match attempt function call",
-				instr.handler_kind_token_id,
-				Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
 			);
 			return Result::ERROR;
 		}

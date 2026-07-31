@@ -3653,6 +3653,15 @@ namespace pcit::panther{
 							this->get_current_scope_level().value_states[pir_target_expr] = true;
 						} break;
 
+						case sema::Expr::Kind::RETURN_PARAM: {
+							const sema::ReturnParam& ret_param = 
+								this->context.getSemaBuffer().getReturnParam(target_expr.returnParamID());
+
+							this->get_current_scope_level().value_states[
+								this->current_func_type_info->return_params[ret_param.index].expr
+							] = true;
+						} break;
+
 						default: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 
@@ -3687,6 +3696,15 @@ namespace pcit::panther{
 						case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
 							const pir::Expr pir_target_expr = this->get_expr_pointer(target_expr);
 							this->get_current_scope_level().value_states[pir_target_expr] = false;
+						} break;
+
+						case sema::Expr::Kind::RETURN_PARAM: {
+							const sema::ReturnParam& ret_param = 
+								this->context.getSemaBuffer().getReturnParam(target_expr.returnParamID());
+
+							this->get_current_scope_level().value_states[
+								this->current_func_type_info->return_params[ret_param.index].expr
+							] = false;
 						} break;
 
 						default: {

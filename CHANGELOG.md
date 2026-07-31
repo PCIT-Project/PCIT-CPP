@@ -1,11 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.351.1"></a>
+## v0.0.351.1
+
+### Panther
+- Fixed automatic deletion of output parameters on `error`
+- Fixed lowering of functions with output parameters having unused loads of the output parameters
+- Fixed checking of correct number of except parameters in `try`/`else` expression
+
+
+<!---------------------------------->
 <a name="v0.0.351.0"></a>
 ## v0.0.351.0
 
 ### Panther
-- Added default initialization of struct members in initializer operators
+- Added default initialization of struct members with explicit default values in initializer operators
 
 
 <!---------------------------------->
