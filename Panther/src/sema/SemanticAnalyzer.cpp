@@ -5447,6 +5447,11 @@ namespace pcit::panther{
 						const BaseType::Struct& return_struct_type =
 							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
 
+						SymbolProc::FuncInfo& func_info_mut =
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+						func_info_mut.constructor_ret_param = created_return_param_id;
+
 						if(return_struct_type.memberVars.empty()) [[unlikely]] {
 							// mark the output param already initialized if has no members
 							this->add_ident_value_state(
@@ -5459,17 +5464,22 @@ namespace pcit::panther{
 							);
 
 							for(uint32_t j = 0; j < return_struct_type.memberVars.size(); j+=1){
-								this->add_ident_value_state(
-									sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
-									sema::ScopeLevel::ValueState::UNINIT
-								);
+								if(return_struct_type.memberVars[j].defaultValue.has_value()){
+									this->add_ident_value_state(
+										sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
+										sema::ScopeLevel::ValueState::UNINIT_WITH_DEFAULT
+									);
+									
+								}else{
+									this->add_ident_value_state(
+										sema::ReturnParamAccessorValueStateID(created_return_param_id, j),
+										sema::ScopeLevel::ValueState::UNINIT
+									);
+								}
 							}
 
-							SymbolProc::FuncInfo& func_info_mut =
-								this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 							func_info_mut.num_members_of_initializing_are_uninit = return_struct_type.memberVars.size();
 						}
-
 					} break;
 
 					default: {
@@ -7023,25 +7033,62 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-			if(func_info.num_members_of_initializing_are_uninit != 0){
-				if(func_info.num_members_of_initializing_are_uninit == 1){
-					this->emit_error(
-						"Not all members of the output are initialized",
-						instr.return_stmt,
-						Diagnostic::Info("Missing 1 member")
-					);
+			{
+				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+				if(func_info.num_members_of_initializing_are_uninit != 0){
+					const TypeInfo& return_type = 
+						this->context.getTypeManager().getTypeInfo(current_func_type.returnTypes[0].asTypeID());
+					const BaseType::Struct& return_struct_type =
+						this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
 
-				}else{
-					this->emit_error(
-						"Not all members of the output are initialized",
-						instr.return_stmt,
-						Diagnostic::Info(
-							std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
-						)
-					);	
+					const Diagnostic::Location location = this->get_location(instr.return_stmt);
+
+					for(size_t member_i = 0; member_i < return_struct_type.memberVars.size(); member_i+=1){
+						if(this->ident_value_state_is_uninit_with_default(
+							sema::ReturnParamAccessorValueStateID(*func_info.constructor_ret_param, uint32_t(member_i))
+						)){
+							func_info.num_members_of_initializing_are_uninit -= 1;
+
+							const sema::Assign::ID assign_default_value = this->context.sema_buffer.createAssign(
+								this->context.sema_buffer.createAccessor(
+									sema::Expr(*func_info.constructor_ret_param),
+									current_func_type.returnTypes[0].asTypeID(),
+									uint32_t(member_i)
+								),
+								sema::Expr(return_struct_type.memberVars[member_i].defaultValue->value),
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
+							);
+
+							this->get_current_scope_level().stmtBlock().emplace_back(assign_default_value);
+						}
+					}
+
+					if(func_info.num_members_of_initializing_are_uninit == 0){
+						this->set_ident_value_state(
+							*func_info.constructor_ret_param, sema::ScopeLevel::ValueState::INIT
+						);
+						
+					}else{
+						if(func_info.num_members_of_initializing_are_uninit == 1){
+							this->emit_error(
+								"Not all members of the output are initialized",
+								instr.return_stmt,
+								Diagnostic::Info("Missing 1 member")
+							);
+
+						}else if(func_info.num_members_of_initializing_are_uninit > 1){
+							this->emit_error(
+								"Not all members of the output are initialized",
+								instr.return_stmt,
+								Diagnostic::Info(
+									std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
+								)
+							);
+						}
+						return Result::ERROR;
+					}
 				}
-				return Result::ERROR;
 			}
 
 			// check that all named returns are initialized
@@ -27642,14 +27689,14 @@ namespace pcit::panther{
 			}
 		}
 
-
 		current_scope_level.resetSubScopes();
 		return evo::Result<>();
 	}
 
 
 
-	auto SemanticAnalyzer::get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id) -> TermInfo::ValueState{
+	auto SemanticAnalyzer::get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
+	-> TermInfo::ValueState {
 		for(const sema::ScopeLevel::ID scope_id : this->scope){
 			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_id);
 
@@ -27658,16 +27705,42 @@ namespace pcit::panther{
 
 			if(value_state.has_value()){
 				switch(*value_state){
-					case sema::ScopeLevel::ValueState::INIT:         return TermInfo::ValueState::INIT;
-					case sema::ScopeLevel::ValueState::INITIALIZING: return TermInfo::ValueState::INITIALIZING;
-					case sema::ScopeLevel::ValueState::UNINIT:       return TermInfo::ValueState::UNINIT;
-					case sema::ScopeLevel::ValueState::MOVED_FROM:   return TermInfo::ValueState::MOVED_FROM;
+					case sema::ScopeLevel::ValueState::INIT:                return TermInfo::ValueState::INIT;
+					case sema::ScopeLevel::ValueState::INITIALIZING:        return TermInfo::ValueState::INITIALIZING;
+					case sema::ScopeLevel::ValueState::UNINIT:              return TermInfo::ValueState::UNINIT;
+					case sema::ScopeLevel::ValueState::UNINIT_WITH_DEFAULT: return TermInfo::ValueState::UNINIT;
+					case sema::ScopeLevel::ValueState::MOVED_FROM:          return TermInfo::ValueState::MOVED_FROM;
 				}
 				evo::debugFatalBreak("unknown value state");
 			}
 		}
 
 		return TermInfo::ValueState::NOT_APPLICABLE;
+	}
+
+
+
+	auto SemanticAnalyzer::ident_value_state_is_uninit_with_default(sema::ScopeLevel::ValueStateID value_state_id)
+	-> bool {
+		for(const sema::ScopeLevel::ID scope_id : this->scope){
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_id);
+
+			const std::optional<sema::ScopeLevel::ValueState> value_state =
+				scope_level.getIdentValueState(value_state_id);
+
+			if(value_state.has_value()){
+				switch(*value_state){
+					case sema::ScopeLevel::ValueState::INIT:                return false;
+					case sema::ScopeLevel::ValueState::INITIALIZING:        return false;
+					case sema::ScopeLevel::ValueState::UNINIT:              return false;
+					case sema::ScopeLevel::ValueState::UNINIT_WITH_DEFAULT: return true;
+					case sema::ScopeLevel::ValueState::MOVED_FROM:          return false;
+				}
+				evo::debugFatalBreak("unknown value state");
+			}
+		}
+
+		return false;
 	}
 
 
@@ -27736,7 +27809,7 @@ namespace pcit::panther{
 
 
 				switch(value_state){
-					case sema::ScopeLevel::ValueState::UNINIT: {
+					case sema::ScopeLevel::ValueState::UNINIT: case sema::ScopeLevel::ValueState::UNINIT_WITH_DEFAULT: {
 						// do nothing...
 					} break;
 

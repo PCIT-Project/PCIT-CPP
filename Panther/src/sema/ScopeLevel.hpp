@@ -216,6 +216,7 @@ namespace pcit::panther::sema{
 			>;
 			enum class ValueState{
 				UNINIT,
+				UNINIT_WITH_DEFAULT,
 				INIT,
 				INITIALIZING,
 				MOVED_FROM,

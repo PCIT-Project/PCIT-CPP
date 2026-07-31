@@ -488,6 +488,11 @@ namespace pcit::panther::sema{
 
 
 	auto ScopeLevel::addIdentValueState(ValueStateID value_state_id, ValueState state) -> void {
+		evo::debugAssert(
+			state != ValueState::UNINIT_WITH_DEFAULT || value_state_id.is<ReturnParamAccessorValueStateID>(),
+			"Can only set ValueState::UNINIT_WITH_DEFAULT to a return param accessor value"
+		);
+
 		const auto lock = std::scoped_lock(this->value_states_lock);
 		this->value_states.emplace(
 			value_state_id, ValueStateInfo(state, ValueStateInfo::DeclInfo(), this->value_states.size())

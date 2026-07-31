@@ -1806,6 +1806,8 @@ namespace pcit::panther{
 
 				std::optional<sema::Func::ID> flipped_version{};
 
+				std::optional<sema::ReturnParam::ID> constructor_ret_param{};
+
 				// Only needed if the func is comptime
 				std::unordered_set<sema::Func::ID> dependent_funcs{};
 				std::unordered_set<sema::GlobalVar::ID> dependent_vars{};

@@ -544,6 +544,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
 				-> TermInfo::ValueState;
 
+			[[nodiscard]] auto ident_value_state_is_uninit_with_default(sema::ScopeLevel::ValueStateID value_state_id)
+				-> bool;
+
 			auto set_ident_value_state(
 				sema::ScopeLevel::ValueStateID value_state_id, sema::ScopeLevel::ValueState value_state
 			) -> void;

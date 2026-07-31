@@ -1,9 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.351.0"></a>
+## v0.0.351.0
+
+### Panther
+- Added default initialization of struct members in initializer operators
+
+
+<!---------------------------------->
 <a name="v0.0.350.1"></a>
 ## v0.0.350.1
 
+### Panther
 - Fixed name mangling of PIR meta type names
 
 
