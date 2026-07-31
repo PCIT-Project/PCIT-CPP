@@ -325,12 +325,18 @@ namespace pcit::panther{
 			[[nodiscard]] auto get_unmangled_struct_name(BaseType::Struct::ID struct_id) const -> std::string;
 			[[nodiscard]] auto get_unmangled_union_name(BaseType::Union::ID union_id) const -> std::string;
 
-			
+
+			template<bool PIR_STMT_NAME_SAFE = false>
+			[[nodiscard]] auto mangle_type(TypeInfo::ID) const -> std::string;
+
 			template<bool PIR_STMT_NAME_SAFE = false>
 			[[nodiscard]] auto mangle_name(BaseType::Struct::ID struct_id) const -> std::string;
 			
 			template<bool PIR_STMT_NAME_SAFE = false>
 			[[nodiscard]] auto mangle_name(BaseType::Union::ID union_id) const -> std::string;
+
+			template<bool PIR_STMT_NAME_SAFE = false>
+			[[nodiscard]] auto mangle_name(BaseType::Enum::ID enum_id) const -> std::string;
 			
 			template<bool PIR_STMT_NAME_SAFE = false>
 			[[nodiscard]] auto mangle_name(BaseType::Interface::ID interface_id) const -> std::string;

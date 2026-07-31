@@ -908,10 +908,7 @@ namespace pcit::panther{
 							return this->data.get_or_create_meta_reference_qualified_type(
 								func_type.params[i].typeID,
 								module,
-								std::format(
-									"{}&",
-									this->context.getTypeManager().printType(func_type.params[i].typeID, this->context)
-								),
+								std::format("{}&", this->mangle_type(func_type.params[i].typeID)),
 								param_semantic_meta_type,
 								pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
 							);
@@ -952,10 +949,7 @@ namespace pcit::panther{
 					const pir::meta::Type param_meta_type = this->data.get_or_create_meta_reference_qualified_type(
 						func_type.returnTypes[i].asTypeID(),
 						module,
-						std::format(
-							"{}&",
-							this->context.getTypeManager().printType(func_type.returnTypes[i].asTypeID(), this->context)
-						),
+						std::format("{}&", this->mangle_type(func_type.returnTypes[i].asTypeID())),
 						param_semantic_meta_type,
 						pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
 					);
@@ -1581,12 +1575,10 @@ namespace pcit::panther{
 			}
 
 
-			std::string unmangled_struct_name = this->get_unmangled_struct_name(struct_id);
-
 			const pir::meta::StructType::ID meta_struct_id = this->module.createMetaStructType(
 				new_type,
-				evo::copy(unmangled_struct_name),
-				std::move(unmangled_struct_name),
+				this->mangle_name(struct_id),
+				this->get_unmangled_struct_name(struct_id),
 				std::move(debug_members),
 				location.meta_file_id,
 				location.meta_file_id,
@@ -1706,12 +1698,13 @@ namespace pcit::panther{
 				);
 			}
 
+			std::string mangled_union_name = this->mangle_name(union_id);
 			std::string unmangled_union_name = this->get_unmangled_union_name(union_id);
 
 			if(union_type.isUntagged){
 				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
 					underlying_data_type,
-					evo::copy(unmangled_union_name),
+					std::move(mangled_union_name),
 					std::move(unmangled_union_name),
 					std::move(fields),
 					location.meta_file_id,
@@ -1724,7 +1717,7 @@ namespace pcit::panther{
 			}else{
 				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
 					underlying_data_type,
-					unmangled_union_name + "-data",
+					mangled_union_name + "-data",
 					unmangled_union_name + "-data",
 					std::move(fields),
 					location.meta_file_id,
@@ -1763,7 +1756,7 @@ namespace pcit::panther{
 				);
 
 				const pir::meta::EnumType::ID tag_enum_id = this->module.createMetaEnumType(
-					unmangled_union_name + "-tag",
+					mangled_union_name + "-tag",
 					unmangled_union_name + "-tag",
 					tag_meta_type,
 					std::move(enumerators),
@@ -1783,7 +1776,7 @@ namespace pcit::panther{
 
 				const pir::meta::StructType::ID meta_tagged_union_id = this->module.createMetaStructType(
 					union_pir_type,
-					evo::copy(unmangled_union_name),
+					std::move(mangled_union_name),
 					std::move(unmangled_union_name),
 					std::move(debug_members),
 					location.meta_file_id,
@@ -1850,7 +1843,7 @@ namespace pcit::panther{
 		const Location location = this->get_location(Diagnostic::Location::get(enum_type, this->context));
 		
 		const pir::meta::EnumType::ID meta_enum_type_id = this->module.createMetaEnumType(
-			this->context.getTypeManager().printType(BaseType::ID(enum_id), this->context),
+			this->mangle_name(enum_id),
 			this->context.getTypeManager().printType(BaseType::ID(enum_id), this->context),
 			*this->get_type<false, true>(BaseType::ID(enum_type.underlyingTypeID)).meta_type_id,
 			std::move(enumerators),
@@ -3311,7 +3304,7 @@ namespace pcit::panther{
 							this->data.get_or_create_meta_reference_qualified_type(
 								param.typeID,
 								this->module,
-								this->context.getTypeManager().printType(param.typeID, this->context) + "&",
+								this->mangle_type(param.typeID) + "&",
 								*this->get_type<false, true>(param.typeID).meta_type_id,
 								pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
 							)
@@ -13137,7 +13130,7 @@ namespace pcit::panther{
 						this->data.get_or_create_meta_pointer_qualified_type(
 							type_id,
 							this->module,
-							this->context.getTypeManager().printType(type_id, this->context),
+							this->mangle_type(type_id),
 							std::nullopt,
 							pir::meta::QualifiedType::Qualifier::POINTER
 						)
@@ -13636,6 +13629,22 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// name mangling
 
+
+	template<bool PIR_STMT_NAME_SAFE>
+	auto SemaToPIR::mangle_type(TypeInfo::ID type_id) const -> std::string {
+		if constexpr(PIR_STMT_NAME_SAFE){
+			return std::format("PTHR.t{}", type_id.get());
+			
+		}else{
+			return std::format(
+				"PTHR.t{}.{}", type_id.get(), this->context.getTypeManager().printType(type_id, this->context)
+			);
+		}
+	}
+
+
+
+
 	template<bool PIR_STMT_NAME_SAFE>
 	auto SemaToPIR::mangle_name(BaseType::Struct::ID struct_id) const -> std::string {
 		if(this->data.getConfig().useReadableNames){
@@ -13693,6 +13702,36 @@ namespace pcit::panther{
 			
 		}else{
 			return std::format("PTHR.u{}", union_id.get());
+		}
+	}
+
+
+	template<bool PIR_STMT_NAME_SAFE>
+	auto SemaToPIR::mangle_name(BaseType::Enum::ID enum_id) const -> std::string {
+		const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(enum_id);
+
+		if(enum_type.isCFamilyType()){
+			return std::format("enum.{}", enum_type.getName(this->context.getSourceManager()));
+			
+		}else if(this->data.getConfig().useReadableNames){
+			if constexpr(PIR_STMT_NAME_SAFE){
+				return std::format(
+					"PTHR.e{}.{}{}",
+					enum_id.get(),
+					this->get_parent_name<true>(enum_type.parent, enum_type.sourceID),
+					enum_type.getName(this->context.getSourceManager())
+				);
+				
+			}else{
+				return std::format(
+					"PTHR.e{}-{}",
+					enum_id.get(),
+					this->context.getTypeManager().printType(BaseType::ID(enum_id), this->context)
+				);
+			}
+			
+		}else{
+			return std::format("PTHR.e{}", enum_id.get());
 		}
 	}
 
