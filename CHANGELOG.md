@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.351.3"></a>
+## v0.0.351.3
+
+### Panther
+- Fixed calling a function where a parameter is a struct template instantiation with an argument being an anonymous deducer
+
+
+<!---------------------------------->
 <a name="v0.0.351.2"></a>
 ## v0.0.351.2
 

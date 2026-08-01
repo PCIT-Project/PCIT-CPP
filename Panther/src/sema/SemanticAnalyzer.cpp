@@ -272,7 +272,7 @@ namespace pcit::panther{
 				return this->instr_template_func_begin(this->context.symbol_proc_manager.getTemplateFuncBegin(instr));
 
 			case Instruction::Kind::TEMPLATE_FUNC_SET_PARAM_IS_DEDUCER:
-				return this->instr_template_set_param_is_deducer(
+				return this->instr_template_func_set_param_is_deducer(
 					this->context.symbol_proc_manager.getTemplateFuncSetParamIsDeducer(instr)
 				);
 
@@ -5897,7 +5897,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_template_set_param_is_deducer(
+	auto SemanticAnalyzer::instr_template_func_set_param_is_deducer(
 		const Instruction::TemplateFuncSetParamIsDeducer& instr
 	) -> Result {
 		SymbolProc::TemplateFuncInfo& template_func_info = 

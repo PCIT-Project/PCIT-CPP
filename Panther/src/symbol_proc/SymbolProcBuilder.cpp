@@ -996,17 +996,11 @@ namespace pcit::panther{
 						} break;
 
 						case AST::Kind::TEMPLATED_EXPR: {
-							const evo::SmallVector<std::string_view> type_deducer_names =
-								this->extract_deducer_names(param_type.base);
+							const AST::TemplatedExpr& templated_expr =
+								this->source.getASTBuffer().getTemplatedExpr(target_term);
 
-							if(type_deducer_names.size() > 0){
-								this->add_instruction(
-									this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
-								);
-								
-								for(const std::string_view& type_deducer_name : type_deducer_names){
-									template_names.emplace(type_deducer_name);
-								}
+							for(const AST::Node arg : templated_expr.args){
+								terms_to_check_for_deducers.emplace(arg);
 							}
 						} break;
 

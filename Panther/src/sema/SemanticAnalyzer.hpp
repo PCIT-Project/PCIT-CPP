@@ -100,7 +100,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_func_rt_diff(const Instruction::FuncRTDiff& instr) -> Result;
 
 			[[nodiscard]] auto instr_template_func_begin(const Instruction::TemplateFuncBegin& instr) -> Result;
-			[[nodiscard]] auto instr_template_set_param_is_deducer(
+			[[nodiscard]] auto instr_template_func_set_param_is_deducer(
 				const Instruction::TemplateFuncSetParamIsDeducer& instr
 			) -> Result;
 			[[nodiscard]] auto instr_template_func_end(const Instruction::TemplateFuncEnd& instr) -> Result;
