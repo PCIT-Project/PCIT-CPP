@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.351.4"></a>
+## v0.0.351.4
+
+### Panther
+- Fixed missing check in parsing that a statement is a valid kind
+
+
+<!---------------------------------->
 <a name="v0.0.351.3"></a>
 ## v0.0.351.3
 

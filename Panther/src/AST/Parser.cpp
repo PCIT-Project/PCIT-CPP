@@ -75,7 +75,33 @@ namespace pcit::panther{
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
 
 		result = this->parse_term_stmt();
-		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
+		switch(result.code()){
+			case Result::Code::SUCCESS: {
+				switch(result.value().kind()){
+					case AST::Kind::NEW:            case AST::Kind::INTERFACE_IMPL: case AST::Kind::INDEXER:
+					case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:         case AST::Kind::POSTFIX:
+					case AST::Kind::IDENT:          case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:
+					case AST::Kind::LITERAL:        case AST::Kind::THIS: {
+						this->context.emitError(
+							"Invalid statement", Diagnostic::Location::get(result.value(), this->source)
+						);
+						return Result::Code::ERROR;
+					} break;
+
+					default: {
+						return result;
+					} break;
+				}
+			} break;
+
+			case Result::Code::WRONG_TYPE: {
+				break;
+			} break;
+
+			case Result::Code::ERROR: {
+				return Result::Code::ERROR;
+			} break;
+		}
 
 		return this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 	}

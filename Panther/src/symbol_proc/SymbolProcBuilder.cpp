@@ -2287,6 +2287,7 @@ namespace pcit::panther{
 			case AST::Kind::TEMPLATED_EXPR: case AST::Kind::PREFIX:         case AST::Kind::POSTFIX:
 			case AST::Kind::IDENT:          case AST::Kind::TYPE_THIS:      case AST::Kind::INTRINSIC:
 			case AST::Kind::LITERAL:        case AST::Kind::THIS: {
+				this->emit_fatal("Invalid local statement", stmt);
 				return evo::resultError;
 			} break;
 		}
