@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.351.2"></a>
+## v0.0.351.2
+
+### Panther
+- Fixed emitting error diagnostic that a struct needs to be instantiated when the struct is defines in a different file
+- Fixed emitting error diagnostic that a struct needs to be instantiated when the struct is a struct alias
+
+
+<!---------------------------------->
 <a name="v0.0.351.1"></a>
 ## v0.0.351.1
 

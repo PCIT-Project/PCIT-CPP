@@ -19200,7 +19200,9 @@ namespace pcit::panther{
 
 
 					if(struct_template.params[i].isExpr()){
-						const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+						const Source& templated_struct_source = 
+							this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
+						const ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
 						const AST::StructDef& ast_struct =
 							ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 						const AST::TemplatePack& ast_template_pack =
@@ -19225,7 +19227,9 @@ namespace pcit::panther{
 				}
 
 				if(struct_template.params[i].isType()){
-					const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+					const Source& templated_struct_source = 
+						this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
+					const ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
 					const AST::StructDef& ast_struct =
 						ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
@@ -19234,13 +19238,18 @@ namespace pcit::panther{
 						arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
 						|| arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
 					){
+						const Diagnostic::Location declared_location = [&]() -> Diagnostic::Location {
+							if(arg_term_info.type_id.is<sema::TemplatedStruct::ID>()){
+								return this->get_location(arg_term_info.type_id.as<sema::TemplatedStruct::ID>());
+							}else{
+								return this->get_location(arg_term_info.type_id.as<sema::StructTemplateAlias::ID>());
+							}
+						}();
+
 						this->emit_error(
 							"Templated type needs to be instantiated",
 							instr.templated_expr.args[i],
-							Diagnostic::Info(
-								"Type declared here:",
-								this->get_location(arg_term_info.type_id.as<sema::TemplatedStruct::ID>())
-							)
+							Diagnostic::Info("Type declared here:", declared_location)
 						);
 					}else{
 						this->emit_error(
