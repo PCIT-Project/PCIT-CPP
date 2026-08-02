@@ -11474,10 +11474,6 @@ namespace pcit::panther{
 		);
 		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
-		evo::debugAssert(
-			target_term_info.getExpr().kind() != sema::Expr::Kind::INTRINSIC_FUNC, "intrinsics shouldn't error return"
-		);
-
 
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		switch(target_term_info.value_category){
@@ -11534,6 +11530,10 @@ namespace pcit::panther{
 						sema::Expr(this->context.sema_buffer.createDeref(extract_this, TypeManager::getTypeRawPtr()))
 					);
 				}
+			} break;
+
+			case TermInfo::ValueCategory::INTRINSIC_FUNC: {
+				evo::debugFatalBreak("Can never error");
 			} break;
 
 			default: break;

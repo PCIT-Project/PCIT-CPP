@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.0"></a>
+## v0.0.353.0
+
+### Panther
+- Fixed assert in semantic analysis of `try`/`else` statement
+
+### Misc
+- Updated to [Panther-std v0.0.41.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.41.0)
+
+
+
+<!---------------------------------->
 <a name="v0.0.352.0"></a>
 ## v0.0.352.0
 
