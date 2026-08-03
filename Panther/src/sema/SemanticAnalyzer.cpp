@@ -2273,7 +2273,7 @@ namespace pcit::panther{
 						evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
 					}
 					created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createDelete(member_var_expr, member_var.typeID)
+						this->context.sema_buffer.createDelete(member_var_expr, member_var.typeID, 0, 0)
 					);
 
 				}
@@ -7597,8 +7597,16 @@ namespace pcit::panther{
 		).isError()){
 			return Result::ERROR;
 		}
+
+		const Diagnostic::Location location = this->get_location(instr.delete_stmt);
+
 		this->get_current_scope_level().stmtBlock().emplace_back(
-			this->context.sema_buffer.createDelete(target.getExpr(), target.type_id.as<TypeInfo::ID>())
+			this->context.sema_buffer.createDelete(
+				target.getExpr(),
+				target.type_id.as<TypeInfo::ID>(),
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			)
 		);
 
 		if(this->set_ident_value_state_if_needed(
@@ -10562,6 +10570,8 @@ namespace pcit::panther{
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 
 				if(should_run_initialization){
+					const auto assign_location = this->get_location(instr.infix);
+
 					if(
 						is_semantically_initialization == false
 						&& this->context.getTypeManager().isTriviallyDeletable(decayed_target_type_info.baseTypeID())
@@ -10576,12 +10586,15 @@ namespace pcit::panther{
 						}
 
 						this->get_current_scope_level().stmtBlock().emplace_back(
-							this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
+							this->context.sema_buffer.createDelete(
+								lhs.getExpr(),
+								lhs.type_id.as<TypeInfo::ID>(),
+								assign_location.as<SourceLocation>().lineStart,
+								assign_location.as<SourceLocation>().collumnStart
+							)
 						);
 					}
 
-
-					const auto assign_location = this->get_location(instr.infix);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
@@ -11392,8 +11405,16 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
+
+					const Diagnostic::Location location = this->get_location(instr.multi_assign.assigns[i]);
+
 					this->get_current_scope_level().stmtBlock().emplace_back(
-						this->context.sema_buffer.createDelete(target.getExpr(), target.type_id.as<TypeInfo::ID>())
+						this->context.sema_buffer.createDelete(
+							target.getExpr(),
+							target.type_id.as<TypeInfo::ID>(),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
+						)
 					);
 				}
 			}
@@ -37249,8 +37270,13 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				this->get_current_scope_level().stmtBlock().emplace_back(
-					this->context.sema_buffer.createDelete(lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>())
+				this->get_current_scope_level().stmtBlock().emplace_back( 
+					this->context.sema_buffer.createDelete(
+						lhs.getExpr(),
+						lhs.type_id.as<TypeInfo::ID>(),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
+					)
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(

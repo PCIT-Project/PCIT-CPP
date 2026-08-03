@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.3"></a>
+## v0.0.353.3
+
+### Panther
+- Fixed missing source location meta for calling operator `delete`
+
+
+<!---------------------------------->
 <a name="v0.0.353.2"></a>
 ## v0.0.353.2
 

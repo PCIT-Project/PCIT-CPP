@@ -2791,6 +2791,7 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::DELETE: {
 				const sema::Delete& delete_stmt = this->context.getSemaBuffer().getDelete(stmt.deleteID());
+				const auto ssl = this->create_scoped_source_location(delete_stmt.line, delete_stmt.collumn);
 				this->delete_expr(delete_stmt.expr, delete_stmt.exprTypeID);
 			} break;
 

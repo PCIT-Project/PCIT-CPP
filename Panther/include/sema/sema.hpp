@@ -508,6 +508,8 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
 	struct BlockScope{
