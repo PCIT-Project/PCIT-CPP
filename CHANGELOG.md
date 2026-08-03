@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.1"></a>
+## v0.0.353.1
+
+### Panther
+- Fixed parsing of template arguments in some contexts considering some expressions as types
+
+
+<!---------------------------------->
 <a name="v0.0.353.0"></a>
 ## v0.0.353.0
 
@@ -9,7 +17,6 @@
 
 ### Misc
 - Updated to [Panther-std v0.0.41.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.41.0)
-
 
 
 <!---------------------------------->

@@ -2820,7 +2820,12 @@ namespace pcit::panther{
 		}
 
 
-		if constexpr(KIND == TypeKind::AS_TYPE || KIND == TypeKind::TEMPLATE_ARG){
+		if constexpr(
+			KIND == TypeKind::AS_TYPE
+			|| KIND == TypeKind::TEMPLATE_ARG
+			|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+			|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER
+		){
 			// make sure exprs like `a as Int * b` gets parsed like `(a as Int) * b`
 			if(qualifiers.empty() == false && qualifiers.back().isOptional == false){
 				switch(this->reader[this->reader.peek()].kind()){
@@ -2840,7 +2845,11 @@ namespace pcit::panther{
 			}
 
 			// just an ident or infix
-			if constexpr(KIND == TypeKind::TEMPLATE_ARG){
+			if constexpr(
+				KIND == TypeKind::TEMPLATE_ARG
+				|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+				|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER
+			){
 				if(
 					qualifiers.empty()
 					&& (
