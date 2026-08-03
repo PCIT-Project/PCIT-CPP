@@ -3064,59 +3064,132 @@ namespace pcit::pir{
 
 
 	auto PIRToLLVMIR::get_meta_type(meta::Type type) -> llvmint::DIBuilder::Type {
-		return type.visit([&](const auto& meta_type) -> llvmint::DIBuilder::Type {
+		for(GetMetaTypeInfo& get_meta_type_info : this->get_meta_type_infos){
+			if(get_meta_type_info.meta_type == type){
+				if(get_meta_type_info.forward_decl.has_value() == false){
+					const std::optional<llvmint::DIBuilder::Type> forward_decl = this->get_meta_forward_decl_type(type);
+
+					if(forward_decl.has_value()){
+						get_meta_type_info.forward_decl = *forward_decl;
+						return *forward_decl;
+					}
+
+				}else{
+					return *get_meta_type_info.forward_decl;
+				}
+			}
+		}
+
+		this->get_meta_type_infos.emplace_back(type);
+
+		const llvmint::DIBuilder::Type llvmint_meta_type = 
+			type.visit([&](const auto& meta_type) -> llvmint::DIBuilder::Type {
+				using ValueType = std::decay_t<decltype(meta_type)>;
+			
+				if constexpr(std::is_same<ValueType, meta::BasicType::ID>()){
+					return this->meta_basic_types.at(meta_type).asType();
+			
+				}else if constexpr(std::is_same<ValueType, meta::QualifiedType::ID>()){
+					const auto find = this->meta_qualified_types.find(meta_type);
+
+					if(find != this->meta_qualified_types.end()){
+						return find->second.asType();
+					}else{
+						return this->lower_meta_qualified_type(meta_type).asType();
+					}
+
+				}else if constexpr(std::is_same<ValueType, meta::StructType::ID>()){
+					const auto find = this->meta_struct_types.find(meta_type);
+
+					if(find != this->meta_struct_types.end()){
+						return find->second.asType();
+					}else{
+						return this->lower_meta_struct_type(meta_type).asType();
+					}
+
+				}else if constexpr(std::is_same<ValueType, meta::UnionType::ID>()){
+					const auto find = this->meta_union_types.find(meta_type);
+
+					if(find != this->meta_union_types.end()){
+						return find->second.asType();
+					}else{
+						return this->lower_meta_union_type(meta_type).asType();
+					}
+
+				}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){
+					const auto find = this->meta_array_types.find(meta_type);
+
+					if(find != this->meta_array_types.end()){
+						return find->second.asType();
+					}else{
+						return this->lower_meta_array_type(meta_type).asType();
+					}
+
+				}else if constexpr(std::is_same<ValueType, meta::EnumType::ID>()){
+					const auto find = this->meta_enum_types.find(meta_type);
+
+					if(find != this->meta_enum_types.end()){
+						return find->second.asType();
+					}else{
+						return this->lower_meta_enum_type(meta_type).asType();
+					}
+
+				}else if constexpr(std::is_same<ValueType, meta::ForwardDeclType::ID>()){
+					return this->get_meta_type(*this->module.getMetaForwardDeclType(meta_type).resolvedType);
+			
+				}else{
+					static_assert(false, "Unknown meta type");
+				}
+			});
+
+
+		// const GetMetaTypeInfo& current_meta_type_info = this->get_meta_type_infos.back();
+		// if(current_meta_type_info.forward_decl.has_value()){
+		// 	// TODO(NOW): forward decl
+		// 	evo::unimplemented();
+		// }
+
+		this->get_meta_type_infos.pop_back();
+		return llvmint_meta_type;
+	}
+
+
+	auto PIRToLLVMIR::get_meta_forward_decl_type(meta::Type type) -> std::optional<llvmint::DIBuilder::Type> {
+		return type.visit([&](const auto& meta_type) -> std::optional<llvmint::DIBuilder::Type> {
 			using ValueType = std::decay_t<decltype(meta_type)>;
 		
 			if constexpr(std::is_same<ValueType, meta::BasicType::ID>()){
-				return this->meta_basic_types.at(meta_type).asType();
+				evo::debugFatalBreak("Should never forward decl basic type");
 		
 			}else if constexpr(std::is_same<ValueType, meta::QualifiedType::ID>()){
-				const auto find = this->meta_qualified_types.find(meta_type);
-
-				if(find != this->meta_qualified_types.end()){
-					return find->second.asType();
-				}else{
-					return this->lower_meta_qualified_type(meta_type).asType();
-				}
+				return std::nullopt;
 
 			}else if constexpr(std::is_same<ValueType, meta::StructType::ID>()){
-				const auto find = this->meta_struct_types.find(meta_type);
+				const meta::StructType& meta_struct_type = this->module.getMetaStructType(meta_type);
 
-				if(find != this->meta_struct_types.end()){
-					return find->second.asType();
-				}else{
-					return this->lower_meta_struct_type(meta_type).asType();
-				}
+				llvmint::DIBuilder::Scope scope_where_defined = 
+					this->get_meta_scope(meta_struct_type.scopeWhereDefined);
+				llvmint::DIBuilder::File file = this->meta_files.at(meta_struct_type.fileID);
+
+				return this->di_builder.createForwardDecl(
+					scope_where_defined,
+					meta_struct_type.typeName,
+					file,
+					meta_struct_type.lineNumber
+				).asType();
 
 			}else if constexpr(std::is_same<ValueType, meta::UnionType::ID>()){
-				const auto find = this->meta_union_types.find(meta_type);
-
-				if(find != this->meta_union_types.end()){
-					return find->second.asType();
-				}else{
-					return this->lower_meta_union_type(meta_type).asType();
-				}
+				return std::nullopt; // TODO(FUTURE): keep this, or handle?
 
 			}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){
-				const auto find = this->meta_array_types.find(meta_type);
-
-				if(find != this->meta_array_types.end()){
-					return find->second.asType();
-				}else{
-					return this->lower_meta_array_type(meta_type).asType();
-				}
+				return std::nullopt;
 
 			}else if constexpr(std::is_same<ValueType, meta::EnumType::ID>()){
-				const auto find = this->meta_enum_types.find(meta_type);
-
-				if(find != this->meta_enum_types.end()){
-					return find->second.asType();
-				}else{
-					return this->lower_meta_enum_type(meta_type).asType();
-				}
+				evo::debugFatalBreak("Should never forward decl enum type");
 
 			}else if constexpr(std::is_same<ValueType, meta::ForwardDeclType::ID>()){
-				return this->get_meta_type(*this->module.getMetaForwardDeclType(meta_type).resolvedType);
+				const meta::ForwardDeclType& meta_forward_decl_type = this->module.getMetaForwardDeclType(meta_type);
+				return *this->get_meta_forward_decl_type(*meta_forward_decl_type.resolvedType);
 		
 			}else{
 				static_assert(false, "Unknown meta type");

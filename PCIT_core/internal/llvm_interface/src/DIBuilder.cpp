@@ -234,6 +234,29 @@ namespace pcit::llvmint{
 	}
 
 
+	auto DIBuilder::createForwardDecl(
+		Scope scope,
+		std::string_view name,
+		File file,
+		uint32_t line_number,
+		uint64_t size_in_bits,
+		uint32_t align_in_bits
+	) -> CompositeType {
+		return CompositeType(
+			this->builder->createForwardDecl(
+				llvm::dwarf::Tag::DW_TAG_class_type,
+				name,
+				scope.scope,
+				file.file,
+				line_number,
+				0,
+				size_in_bits,
+				align_in_bits
+			)
+		);
+	}
+
+
 	auto DIBuilder::createMemberType(
 		Scope scope,
 		std::string_view name,

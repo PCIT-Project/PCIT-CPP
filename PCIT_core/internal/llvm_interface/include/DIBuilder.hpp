@@ -179,6 +179,15 @@ namespace pcit::llvmint{
 				evo::ArrayProxy<DerivedType> members
 			) -> CompositeType;
 
+			[[nodiscard]] auto createForwardDecl(
+				Scope scope,
+				std::string_view name,
+				File file,
+				uint32_t line_number,
+				uint64_t size_in_bits = 0,
+				uint32_t align_in_bits = 0
+			) -> CompositeType;
+
 			[[nodiscard]] auto createMemberType(
 				Scope scope,
 				std::string_view name,

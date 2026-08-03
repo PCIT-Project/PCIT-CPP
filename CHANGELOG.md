@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.2"></a>
+## v0.0.353.2
+
+### PIR
+- Fixed stack overflow in lowering meta types with circular dependency
+
+
+<!---------------------------------->
 <a name="v0.0.353.1"></a>
 ## v0.0.353.1
 

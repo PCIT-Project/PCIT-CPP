@@ -132,6 +132,10 @@ namespace pcit::pir{
 			[[nodiscard]] auto get_meta_local_scope(meta::LocalScope local_scope) -> llvmint::DIBuilder::LocalScope;
 			[[nodiscard]] auto get_meta_type(meta::Type type) -> llvmint::DIBuilder::Type;
 
+			// nullopt means forward decl should not be done on this type
+			[[nodiscard]] auto get_meta_forward_decl_type(meta::Type type) -> std::optional<llvmint::DIBuilder::Type>;
+
+
 
 			[[nodiscard]] static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			[[nodiscard]] auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
@@ -170,6 +174,12 @@ namespace pcit::pir{
 			std::unordered_map<meta::ArrayType::ID, llvmint::DIBuilder::CompositeType> meta_array_types{};
 			std::unordered_map<meta::EnumType::ID, llvmint::DIBuilder::CompositeType> meta_enum_types{};
 			bool added_compile_unit = false;
+
+			struct GetMetaTypeInfo{
+				meta::Type meta_type;
+				std::optional<llvmint::DIBuilder::Type> forward_decl = std::nullopt;
+			};
+			evo::SmallVector<GetMetaTypeInfo, 8> get_meta_type_infos{};
 	};
 
 }
