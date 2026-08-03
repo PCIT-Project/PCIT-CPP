@@ -561,6 +561,10 @@ namespace pcit::panther{
 			}
 
 
+			[[nodiscard]] auto set_assigment_value_state(const TermInfo& lhs, const AST::Infix& ast_infix)
+				-> evo::Result<>;
+
+
 
 			///////////////////////////////////T
 			// misc

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.4"></a>
+## v0.0.353.4
+
+### Panther
+- Fixed tracking of uninitialized qualified pointers for some methods of initialization
+
+
+<!---------------------------------->
 <a name="v0.0.353.3"></a>
 ## v0.0.353.3
 

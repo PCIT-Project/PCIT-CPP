@@ -9783,64 +9783,7 @@ namespace pcit::panther{
 			}
 
 
-			switch(lhs.getExpr().kind()){
-				case sema::Expr::Kind::VAR: {
-					// safe, do nothing
-				} break;
-
-				case sema::Expr::Kind::DEREF: {
-					if(lhs.value_state != TermInfo::ValueState::UNINIT){ break; }
-
-					const sema::Deref& sema_deref = this->context.getSemaBuffer().getDeref(lhs.getExpr().derefID());
-
-					switch(sema_deref.expr.kind()){
-						case sema::Expr::Kind::VAR: {
-							if(
-								this->get_ident_value_state(sema::UninitPtrLocalVar(sema_deref.expr.varID()))
-									== TermInfo::ValueState::INIT
-							){
-								this->emit_error("The pointee was already initialized", instr.infix.lhs);
-								return Result::ERROR;
-							}
-
-							this->set_ident_value_state(
-								sema::UninitPtrLocalVar(sema_deref.expr.varID()), sema::ScopeLevel::ValueState::INIT
-							);
-						} break;
-
-						case sema::Expr::Kind::FUNC_CALL: {
-							// safe, do nothing
-						} break;
-
-						default: {
-							if(this->currently_in_unsafe() == false){
-								this->emit_error("Unsafe assignment while not in an unsafe scope", instr.infix);
-								return Result::ERROR;
-							}
-						} break;
-					}
-				} break;
-
-				default: {
-					if(
-						this->currently_in_unsafe() == false
-						&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
-					){
-						this->emit_error("Unsafe assignment while not in an unsafe scope", instr.infix);
-						return Result::ERROR;
-					}
-				} break;
-			}
-
-
-			if(lhs.isUninitialized()){
-				if(this->set_ident_value_state_if_needed(
-					lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-				).isError()){
-					return Result::ERROR;
-				}
-			}
-
+			if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 			const auto location = this->get_location(instr.infix);
 
@@ -10024,13 +9967,8 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 
-						if(lhs.isUninitialized()){
-							if(this->set_ident_value_state_if_needed(
-								lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-							).isError()){
-								return Result::ERROR;
-							}
-						}
+
+						if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 						const auto location = this->get_location(instr.infix);
 
@@ -10055,13 +9993,7 @@ namespace pcit::panther{
 		if(decayed_target_type_info.qualifiers().empty() == false){
 			if(decayed_target_type_info.isOptional()){
 				if(instr.args.empty()){
-					if(lhs.isUninitialized()){
-						if(this->set_ident_value_state_if_needed(
-							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-						).isError()){
-							return Result::ERROR;
-						}
-					}
+					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 					const auto location = this->get_location(instr.infix);
 
@@ -10093,14 +10025,8 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(lhs.isUninitialized()){
-						if(this->set_ident_value_state_if_needed(
-							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-						).isError()){
-							return Result::ERROR;
-						}
-					}
 
+					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 					const auto location = this->get_location(instr.infix);
 
@@ -10190,13 +10116,7 @@ namespace pcit::panther{
 					}
 
 
-					if(lhs.isUninitialized()){
-						if(this->set_ident_value_state_if_needed(
-							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-						).isError()){
-							return Result::ERROR;
-						}
-					}
+					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
 					const auto location = this->get_location(instr.infix);
@@ -10231,14 +10151,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(lhs.isUninitialized()){
-						if(this->set_ident_value_state_if_needed(
-							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-						).isError()){
-							return Result::ERROR;
-						}
-					}
-
+					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 					const auto location = this->get_location(instr.infix);
 
@@ -10287,14 +10200,7 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.isUninitialized()){
-					if(this->set_ident_value_state_if_needed(
-						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-					).isError()){
-						return Result::ERROR;
-					}
-				}
-
+				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 				const auto location = this->get_location(instr.infix);
 
@@ -10312,14 +10218,7 @@ namespace pcit::panther{
 
 			case BaseType::Kind::ARRAY_REF: {
 				if(instr.args.empty()){
-					if(lhs.isUninitialized()){
-						if(this->set_ident_value_state_if_needed(
-							lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-						).isError()){
-							return Result::ERROR;
-						}
-					}
-
+					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 					const auto location = this->get_location(instr.infix);
 
@@ -10421,14 +10320,7 @@ namespace pcit::panther{
 					i += 1;
 				}
 
-				if(lhs.isUninitialized()){
-					if(this->set_ident_value_state_if_needed(
-						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-					).isError()){
-						return Result::ERROR;
-					}
-				}
-
+				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 				const auto location = this->get_location(instr.infix);
 
@@ -10550,13 +10442,7 @@ namespace pcit::panther{
 				}
 
 
-				if(lhs.isUninitialized()){
-					if(this->set_ident_value_state_if_needed(
-						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-					).isError()){
-						return Result::ERROR;
-					}
-				}
+				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 				const Diagnostic::Location call_location = Diagnostic::Location::get(instr.infix.rhs, this->source);
 
@@ -10629,13 +10515,7 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.isUninitialized()){
-					if(this->set_ident_value_state_if_needed(
-						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-					).isError()){
-						return Result::ERROR;
-					}
-				}
+				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
 				const auto location = this->get_location(instr.infix);
@@ -10670,13 +10550,7 @@ namespace pcit::panther{
 					return Result::ERROR;	
 				}
 
-				if(lhs.isUninitialized()){
-					if(this->set_ident_value_state_if_needed(
-						lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-					).isError()){
-						return Result::ERROR;
-					}
-				}
+				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
 				const auto location = this->get_location(instr.infix);
@@ -10859,11 +10733,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->set_ident_value_state_if_needed(
-				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
-			).isError()){
-				return Result::ERROR;
-			}
+			if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 		}else{
 			if(this->get_special_member_call_dependents<SpecialMemberKind::COPY_ASSIGN, true>(
@@ -11080,11 +10950,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->set_ident_value_state_if_needed(
-				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.lhs
-			).isError()){
-				return Result::ERROR;
-			}
+			if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 		}else{
 			if(this->get_special_member_call_dependents<SpecialMemberKind::MOVE_ASSIGN, true>(
@@ -28141,6 +28007,70 @@ namespace pcit::panther{
 		}
 
 		evo::debugFatalBreak("Unknown sema expr kind");
+	}
+
+
+	auto SemanticAnalyzer::set_assigment_value_state(const TermInfo& lhs, const AST::Infix& ast_infix)
+	-> evo::Result<> {
+		switch(lhs.getExpr().kind()){
+			case sema::Expr::Kind::VAR: {
+				// safe, do nothing
+			} break;
+
+			case sema::Expr::Kind::DEREF: {
+				if(lhs.value_state != TermInfo::ValueState::UNINIT){ break; }
+
+				const sema::Deref& sema_deref = this->context.getSemaBuffer().getDeref(lhs.getExpr().derefID());
+
+				switch(sema_deref.expr.kind()){
+					case sema::Expr::Kind::VAR: {
+						if(
+							this->get_ident_value_state(sema::UninitPtrLocalVar(sema_deref.expr.varID()))
+								== TermInfo::ValueState::INIT
+						){
+							this->emit_error("The pointee was already initialized", ast_infix.lhs);
+							return evo::resultError;
+						}
+
+						this->set_ident_value_state(
+							sema::UninitPtrLocalVar(sema_deref.expr.varID()), sema::ScopeLevel::ValueState::INIT
+						);
+					} break;
+
+					case sema::Expr::Kind::FUNC_CALL: {
+						// safe, do nothing
+					} break;
+
+					default: {
+						if(this->currently_in_unsafe() == false){
+							this->emit_error("Unsafe assignment while not in an unsafe scope", ast_infix);
+							return evo::resultError;
+						}
+					} break;
+				}
+			} break;
+
+			default: {
+				if(
+					this->currently_in_unsafe() == false
+					&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>()).isUninitPointer()
+				){
+					this->emit_error("Unsafe assignment while not in an unsafe scope", ast_infix);
+					return evo::resultError;
+				}
+			} break;
+		}
+
+
+		if(lhs.isUninitialized()){
+			if(this->set_ident_value_state_if_needed(
+				lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, ast_infix.rhs
+			).isError()){
+				return evo::resultError;
+			}
+		}
+
+		return evo::Result<>();
 	}
 
 
