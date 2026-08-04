@@ -640,7 +640,7 @@ namespace pcit::panther{
 				if(var_def.valueKind == AST::VarDef::ValueKind::DELETE){
 					return this->analyze_expr<true>(*var_def.value);
 					
-				}else if(this->is_child_symbol()){
+				}else if(this->is_child_symbol() && var_def.kind != AST::VarDef::Kind::DEF){
 					return this->analyze_expr<false>(*var_def.value);
 					
 				}else{

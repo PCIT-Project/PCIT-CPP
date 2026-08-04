@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.5"></a>
+## v0.0.353.5
+
+### Panther
+- Fixed semantic analysis of the values `def` variables that don't have encapsulating symbols
+
+
+<!---------------------------------->
 <a name="v0.0.353.4"></a>
 ## v0.0.353.4
 
