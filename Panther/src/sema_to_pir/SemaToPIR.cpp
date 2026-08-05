@@ -3836,230 +3836,13 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::INT_VALUE: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
-					const pir::Type value_type = this->get_type<false, false>(*int_value.typeID).type;
-					const pir::Expr number = this->handler.createNumber(value_type, int_value.value);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return number;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
-						this->handler.createStore(alloca, number);
-						return alloca;
-
-					}else{
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						this->handler.createStore(store_locations[0], number);
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::FLOAT_VALUE: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::FloatValue& float_value =
-						this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
-					const pir::Type value_type = this->get_type<false, false>(*float_value.typeID).type;
-					const pir::Expr number = this->handler.createNumber(value_type, float_value.value);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return number;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
-						this->handler.createStore(alloca, number);
-						return alloca;
-
-					}else{
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						this->handler.createStore(store_locations[0], number);
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::BOOL_VALUE: {
-				const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
-
-				const pir::Expr boolean = [&]() -> pir::Expr {
-					if(bool_value.isBool32){
-						return this->handler.createBoolean32(bool_value.value);
-					}else{
-						return this->handler.createBoolean(bool_value.value);
-					}
-				}();
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return boolean;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Type bool_type = [&]() -> pir::Type {
-						if(bool_value.isBool32){
-							return this->module.createBool32Type();
-						}else{
-							return this->module.createBoolType();	
-						}
-					}();
-
-					const pir::Expr alloca = this->handler.createAlloca(bool_type, this->name(".BOOLEAN.ALLOCA"));
-					this->handler.createStore(alloca, boolean);
-					return alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations[0], boolean);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::STRING_VALUE: {
-				const sema::StringValue& string_value =
-					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
-
-				const pir::GlobalVar::String::ID string_value_id = 
-					this->module.createGlobalString(string_value.value + '\0');
-
-				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
-					std::format("PTHR.str{}", this->data.get_string_literal_id()),
-					this->module.getGlobalString(string_value_id).type,
-					pir::Linkage::PRIVATE,
-					string_value_id,
-					true
-				);
-
-				this->data.create_global_string(expr.stringValueID(), string_id);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createGlobalValue(string_id);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(
-						this->module.getGlobalString(string_value_id).type, this->name(".STR.ALLOCA")
-					);
-					this->handler.createStore(alloca, this->handler.createGlobalValue(string_id));
-					return alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations[0], this->handler.createGlobalValue(string_id));
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::AGGREGATE_VALUE: {
-				const sema::AggregateValue& aggregate =
-					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
-
-
-				if constexpr(MODE != GetExprMode::DISCARD){
-					const pir::Type pir_type = this->get_type<false, false>(aggregate.typeID).type;
-
-					const pir::Expr initialization_target = [&](){
-						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
-							return this->handler.createAlloca(pir_type, ".AGGREGATE");
-						}else{
-							evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-							return store_locations[0];
-						}
-					}();
-
-
-					if(aggregate.typeID.kind() == BaseType::Kind::STRUCT){
-						const BaseType::Struct& struct_info =
-							this->context.getTypeManager().getStruct(aggregate.typeID.structID());
-
-
-						const std::string_view struct_name = struct_info.getName(this->context.getSourceManager());
-
-						for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
-							const std::string_view memebr_name = struct_info.getMemberName(
-								*struct_info.memberVarsABI[i], this->context.getSourceManager()
-							);
-
-							const pir::Expr calc_ptr = this->handler.createCalcPtr(
-								initialization_target,
-								pir_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, i},
-								this->name(".NEW.{}.{}", struct_name, memebr_name)
-							);
-
-							this->get_expr_store(value, calc_ptr);
-
-							i += 1;
-						}
-
-					}else{
-						for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
-							const pir::Expr calc_ptr = this->handler.createCalcPtr(
-								initialization_target, pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
-							);
-
-							this->get_expr_store(value, calc_ptr);
-
-							i += 1;
-						}
-					}
-					
-
-
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(initialization_target, pir_type);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return initialization_target;
-
-					}else{
-						return std::nullopt;
-					}
-
-				}else{
-					for(const sema::Expr& value : aggregate.values){
-						this->get_expr_discard(value);
-					}
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::CHAR_VALUE: {
-				const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
-				const pir::Type value_type = this->module.createSignedType(8);
-				const pir::Expr number = this->handler.createNumber(
-					value_type, core::GenericInt(8, uint64_t(char_value.value))
-				);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return number;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
-					this->handler.createStore(alloca, number);
-					return alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations[0], number);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
+			case sema::Expr::Kind::INT_VALUE:    return this->get_expr_impl_int_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::FLOAT_VALUE:  return this->get_expr_impl_float_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::BOOL_VALUE:   return this->get_expr_impl_bool_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::STRING_VALUE: return this->get_expr_impl_string_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::AGGREGATE_VALUE:
+				return this->get_expr_impl_aggregate_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::CHAR_VALUE:   return this->get_expr_impl_char_value<MODE>(expr, store_locations);
 
 			case sema::Expr::Kind::INTRINSIC_FUNC: {
 				evo::debugFatalBreak("sema::Expr::Kind::INTRINSIC_FUNC should be target of func call");
@@ -4113,1476 +3896,45 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::FUNC_CALL: {
-				const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
+			case sema::Expr::Kind::FUNC_CALL: return this->get_expr_impl_func_call<MODE>(expr, store_locations);
+			case sema::Expr::Kind::ASM:       return this->get_expr_impl_asm<MODE>(expr, store_locations);
+			case sema::Expr::Kind::FUNC_PTR:  return this->get_expr_impl_func_ptr<MODE>(expr, store_locations);
+			case sema::Expr::Kind::ADDR_OF:   return this->get_expr_impl_addr_of<MODE>(expr, store_locations);
 
-				if(func_call.target.is<IntrinsicFunc::Kind>()){
-					return this->intrinsic_func_call_expr<MODE>(func_call, store_locations);
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:
+				return this->get_expr_impl_conversion_to_optional<MODE>(expr, store_locations);
 
-				}else if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
-					return this->template_intrinsic_func_call_expr<MODE>(func_call, store_locations);
-				}
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+				return this->get_expr_impl_optional_null_check<MODE>(expr, store_locations);
 
-				const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:
+				return this->get_expr_impl_optional_extract<MODE>(expr, store_locations);
 
-				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
-					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
-						return func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
-					}else{
-						return this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID;
-					}
-				}();
+			case sema::Expr::Kind::DEREF:       return this->get_expr_impl_deref<MODE>(expr, store_locations);
+			case sema::Expr::Kind::UNWRAP:      return this->get_expr_impl_unwrap<MODE>(expr, store_locations);
+			case sema::Expr::Kind::ACCESSOR:    return this->get_expr_impl_accessor<MODE>(expr, store_locations);
+			case sema::Expr::Kind::LOGICAL_AND: return this->get_expr_impl_logical_and<MODE>(expr, store_locations);
+			case sema::Expr::Kind::LOGICAL_OR:  return this->get_expr_impl_logical_or<MODE>(expr, store_locations);
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+			case sema::Expr::Kind::UNION_ACCESSOR:
+				return this->get_expr_impl_union_accessor<MODE>(expr, store_locations);
 
-				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
-
-				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
-
-				const auto target = [&]() -> CallTarget {
-					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
-						return PtrCallTarget{
-							.target   = this->get_expr_register(func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr),
-							.funcType = this->get_function_pir_type(target_type),
-						};
-
-					}else{
-						const Data::FuncInfo& target_func_info =
-							this->data.get_func(func_call.target.as<sema::Func::ID>());
-						return target_func_info.pir_ids[target_in_param_bitmap].visit(
-							[&](const auto& id) -> CallTarget {
-								using IDType = std::decay_t<decltype(id)>;
-
-								if constexpr(std::is_same<IDType, std::monostate>()){
-									evo::debugFatalBreak("target deleted by compiler");
-								}else{
-									return id;
-								}
-							}
-						);
-					}
-				}();
-
-				auto args = evo::SmallVector<pir::Expr>();
-				for(size_t i = 0; const sema::Expr& arg : func_call.args){
-					if(target_func_type_info.params[i].is_copy()){
-						args.emplace_back(this->get_expr_register(arg));
-
-					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
-						if(arg.kind() == sema::Expr::Kind::COPY){
-							args.emplace_back(
-								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
-							);
-
-						}else if(arg.kind() == sema::Expr::Kind::MOVE){
-							args.emplace_back(
-								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
-							);
-							
-						}else{
-							args.emplace_back(this->get_expr_pointer(arg));
-						}
-
-					}else{
-						args.emplace_back(this->get_expr_pointer(arg));
-					}
-
-					i += 1;
-				}
-
-
-
-				if(target_type.hasNamedReturns || target_func_type_info.isImplicitRVO){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Type return_type =
-							this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
-
-						const pir::Expr return_alloc = this->handler.createAlloca(return_type);
-						args.emplace_back(return_alloc);
-						this->create_call_void(target, std::move(args));
-
-						return this->handler.createLoad(return_alloc, return_type);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Type return_type =
-							this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
-						
-						const pir::Expr return_alloc = this->handler.createAlloca(return_type);
-						args.emplace_back(return_alloc);
-						this->create_call_void(target, std::move(args));
-
-						this->end_of_stmt_deletes.emplace_back(return_alloc, target_type.returnTypes[0].asTypeID());
-
-						return return_alloc;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						for(pir::Expr store_location : store_locations){
-							args.emplace_back(store_location);
-						}
-						this->create_call_void(target, std::move(args));
-						return std::nullopt;
-
-					}else{
-						for(size_t i = 0; i < target_func_type_info.return_params.size(); i+=1){
-							const pir::Expr ret_alloca = this->handler.createAlloca(
-								target_func_type_info.return_params[i].reference_type, this->name(".DISCARD")
-							);
-							args.emplace_back(ret_alloca);
-
-							this->add_auto_delete_target(
-								ret_alloca, target_type.returnTypes[i].asTypeID()
-							);
-						}
-
-						this->create_call_void(target, std::move(args));
-						return std::nullopt;
-					}
-
-				}else{
-					std::string call_name = [&]() -> std::string {
-						if(func_call.target.is<sema::Func::ID>()){
-							return this->name(
-								"CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>())
-							);
-						}else{
-							return this->name("CALL.ptr");
-						}
-					}();
-
-					const pir::Expr call_return = this->create_call(
-						target,
-						std::move(args),
-						std::move(call_name)
-					);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return call_return;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr return_alloca = this->handler.createAlloca(target_func_type_info.return_type);
-						this->handler.createStore(return_alloca, call_return);
-						this->end_of_stmt_deletes.emplace_back(return_alloca, target_type.returnTypes[0].asTypeID());
-						return return_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						this->handler.createStore(store_locations.front(), call_return);
-						return std::nullopt;
-
-					}else{
-						const pir::Expr discard_alloca =
-							this->handler.createAlloca(target_func_type_info.return_type, this->name(".DISCARD"));
-						this->handler.createStore(discard_alloca, call_return);
-
-						this->add_auto_delete_target(discard_alloca, target_type.returnTypes[0].asTypeID());
-
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::ASM: {
-				const sema::Asm& asm_expr = this->context.getSemaBuffer().getAsm(expr.asmID());
-
-				evo::debugAssert(asm_expr.retParams.empty() == false, "asm expr must have ret params");
-
-				const auto ssl = this->create_scoped_source_location(asm_expr.line, asm_expr.collumn);
-
-
-				auto args = evo::SmallVector<pir::AsmArg>();
-				auto outputs = evo::SmallVector<pir::Asm::Output>();
-				auto output_exprs = evo::SmallVector<pir::Expr>();
-				for(const sema::Asm::Param& param : asm_expr.params){
-					const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
-
-					const pir::Expr param_expr = [&]() -> pir::Expr {
-						if(param.isMut){
-							return this->get_expr_pointer(param.value);
-						}else{
-							return this->get_expr_register(param.value);	
-						}
-					}();
-
-					args.emplace_back(std::string(param.name), param_type, param_expr, std::string(param.constraint));
-
-					if(param.isMut){
-						outputs.emplace_back(
-							this->name(".ASM_OUTPUT_{}", outputs.size()),
-							std::string(),
-							std::string(param.name),
-							param_type
-						);
-						output_exprs.emplace_back(param_expr);
-					}
-				}
-
-				for(const sema::Asm::RetParam& ret_param : asm_expr.retParams){
-					outputs.emplace_back(
-						this->name(".ASM_OUTPUT_{}", outputs.size()),
-						std::string(ret_param.name),
-						std::string(ret_param.constraint),
-						this->get_type<false, false>(ret_param.typeID).type
-					);
-				}
-
-
-				const pir::Expr asm_pir_expr = this->handler.createAsm(
-					std::string(asm_expr.code),
-					std::move(args),
-					std::move(outputs),
-					evo::copy(asm_expr.clobbers),
-					asm_expr.isSideEffect,
-					asm_expr.isAlignStack
-				);
-				const pir::Asm& asm_pir_expr_ref = this->handler.getAsm(asm_pir_expr);
-
-				for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
-					this->handler.createStore(output_expr, this->handler.extractAsmValue(asm_pir_expr_ref, i));
-					i += 1;
-				}
-
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
-					return this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size());
-					
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
-
-					const pir::Expr pointer_alloca = this->handler.createAlloca(
-						this->handler.getExprType(asm_pir_expr), this->name("ASM_OUTPUT")
-					);
-
-					this->handler.createStore(pointer_alloca, asm_pir_expr);
-					return pointer_alloca;
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(
-						asm_expr.retParams.size() == store_locations.size(), "wrong number of store location"
-					);
-
-					for(size_t i = 0; pir::Expr store_location : store_locations){
-						this->handler.createStore(
-							store_location,
-							this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size() + i)
-						);
-
-						i += 1;
-					}
-
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::FUNC_PTR: {
-				const sema::FuncPtr& func_ptr = this->context.getSemaBuffer().getFuncPtr(expr.funcPtrID());
-
-				const Data::FuncInfo& target_func_info = this->data.get_func(func_ptr.targetFuncID);
-
-				evo::debugAssert(target_func_info.pir_ids.size() == 1, "Cannot get func pointer of this func");
-				const pir::Function::ID target_pir_func_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
-
-				this->data.add_func_ptr(target_pir_func_id, func_ptr.targetFuncID);
-
-				const pir::Expr func_ptr_value = this->handler.createFunctionPointer(target_pir_func_id);
-
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return func_ptr_value;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(this->module.createPtrType());
-					this->handler.createStore(alloca, func_ptr_value);
-					return alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations.front(), func_ptr_value);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::ADDR_OF: {
-				const sema::Expr& target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
-
-				const pir::Expr address = [&]() -> pir::Expr {
-					if(target.kind() == sema::Expr::Kind::STRING_VALUE){
-						return this->get_expr_register(target);
-					}else{
-						return this->get_expr_pointer(target);
-					}
-				}();;
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return address;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(this->module.createPtrType());
-					this->handler.createStore(alloca, address);
-					return alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations.front(), address);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
-				const sema::ConversionToOptional& conversion_to_optional = 
-					this->context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
-
-				const TypeInfo& target_type =
-					this->context.getTypeManager().getTypeInfo(conversion_to_optional.targetTypeID);
-
-				if(target_type.isPointer()){
-					return this->get_expr_impl<MODE>(conversion_to_optional.expr, store_locations);
-				}
-
-
-				const pir::Type target_pir_type =
-					this->get_type<false, false>(conversion_to_optional.targetTypeID).type;
-
-
-				const pir::Expr target = [&](){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createAlloca(target_pir_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->handler.createAlloca(target_pir_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						return store_locations[0];
-
-					}else{
-						return this->handler.createAlloca(target_pir_type, ".DISCARD.CONVERSION_TO_OPTIONAL.ALLOCA");
-					}
-				}();
-
-
-				const pir::Expr value_calc_ptr = this->handler.createCalcPtr(
-					target,
-					target_pir_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".CONVERSION_TO_OPTIONAL.value_ptr")
-				);
-
-				const pir::Expr flag_calc_ptr = this->handler.createCalcPtr(
-					target,
-					target_pir_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".CONVERSION_TO_OPTIONAL.flag_ptr")
-				);
-
-
-				const auto create_copy_expr = [&](
-					const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
-				) -> void {
-					if(is_initialization){
-						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
-					}else{
-						const pir::BasicBlock::ID init_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
-
-						const pir::BasicBlock::ID assign_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
-
-						const pir::BasicBlock::ID end_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
-
-						const pir::Expr flag_value = this->handler.createLoad(
-							flag_calc_ptr,
-							this->module.createBoolType(),
-							this->name("CONVERSION_TO_OPTIONAL.flag")
-						);
-
-						this->handler.createBranch(flag_value, assign_block, init_block);
-
-						this->handler.setTargetBasicBlock(init_block);
-						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
-						this->handler.createJump(end_block);
-
-						this->handler.setTargetBasicBlock(assign_block);
-						std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
-						this->handler.createJump(end_block);
-
-						this->handler.setTargetBasicBlock(end_block);
-					}
-				};
-
-
-				const auto create_move_expr = [&](
-					const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
-				) -> void {
-					if(is_initialization){
-						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
-					}else{
-						const pir::BasicBlock::ID init_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
-
-						const pir::BasicBlock::ID assign_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
-
-						const pir::BasicBlock::ID end_block =
-							this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
-
-						const pir::Expr flag_value = this->handler.createLoad(
-							flag_calc_ptr,
-							this->module.createBoolType(),
-							this->name("CONVERSION_TO_OPTIONAL.flag")
-						);
-
-						this->handler.createBranch(flag_value, assign_block, init_block);
-
-						this->handler.setTargetBasicBlock(init_block);
-						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
-						this->handler.createJump(end_block);
-
-						this->handler.setTargetBasicBlock(assign_block);
-						std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
-						this->handler.createJump(end_block);
-
-						this->handler.setTargetBasicBlock(end_block);
-					}
-				};
-
-
-				switch(conversion_to_optional.expr.kind()){
-					case sema::Expr::Kind::COPY: {
-						const sema::Copy& copy_expr =
-							this->context.getSemaBuffer().getCopy(conversion_to_optional.expr.copyID());
-
-						create_copy_expr(copy_expr.expr, copy_expr.exprTypeID, copy_expr.isInitialization);
-					} break;
-
-					case sema::Expr::Kind::MOVE: {
-						const sema::Move& move_expr =
-							this->context.getSemaBuffer().getMove(conversion_to_optional.expr.moveID());
-
-						create_move_expr(move_expr.expr, move_expr.exprTypeID, move_expr.isInitialization);
-					} break;
-
-					case sema::Expr::Kind::FORWARD: {
-						const sema::Forward& forward_expr =
-							this->context.getSemaBuffer().getForward(conversion_to_optional.expr.forwardID());
-
-						const sema::Param& target_param = 
-							this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
-						const uint32_t in_param_index =
-							*this->current_func_type_info->params[target_param.index].in_param_index;
-						const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
-
-						if(param_is_copy){
-							create_copy_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
-						}else{
-							create_move_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
-						}
-					} break;
-					
-					default: {
-						this->get_expr_store(conversion_to_optional.expr, value_calc_ptr);
-					} break;
-				}
-
-				this->handler.createStore(flag_calc_ptr, this->handler.createBoolean(true));
-
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createLoad(target, target_pir_type, this->name("CONVERSION_TO_OPTIONAL"));
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return target;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK: {
-				const sema::OptionalNullCheck& optional_null_check = 
-					this->context.getSemaBuffer().getOptionalNullCheck(expr.optionalNullCheckID());
-
-				const pir::Expr cmp = [&]() -> pir::Expr {
-					const TypeInfo& target_type_info =
-						this->context.getTypeManager().getTypeInfo(optional_null_check.targetTypeID);
-
-					bool is_pointer = target_type_info.isPointer();
-					if(is_pointer == false){
-						const BaseType::Primitive target_type_primitive = 
-							this->context.getTypeManager().getPrimitive(target_type_info.baseTypeID().primitiveID());
-						is_pointer = target_type_primitive.kind() == Token::Kind::TYPE_RAWPTR;
-					}
-
-					if(is_pointer){
-						const pir::Expr lhs = this->get_expr_register(optional_null_check.expr);
-
-						if(optional_null_check.equal){
-							return this->handler.createIEq(
-								lhs, this->handler.createNullptr(), this->name("OPT_IS_NULL")
-							);
-						}else{
-							return this->handler.createINeq(
-								lhs, this->handler.createNullptr(), this->name("OPT_ISNT_NULL")
-							);
-						}
-
-					}else{
-						evo::debugAssert(target_type_info.isOptionalNotPointer(), "Unknown expr to opt null check");
-
-						const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
-
-						const pir::Type target_type =
-							this->get_type<false, false>(optional_null_check.targetTypeID).type;
-						const pir::Expr calc_ptr = this->handler.createCalcPtr(
-							lhs,
-							target_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-							this->name(".OPT_NULL_CHECK.flag_ptr")
-						);
-						const pir::Expr flag = this->handler.createLoad(
-							calc_ptr, this->module.createBoolType(), this->name(".OPT_NULL_CHECK.flag")
-						);
-
-						if(optional_null_check.equal){
-							return this->handler.createIEq(
-								flag, this->handler.createBoolean(false), this->name("OPT_IS_NULL")
-							);
-						}else{
-							return this->handler.createINeq(
-								flag, this->handler.createBoolean(false), this->name("OPT_ISNT_NULL")
-							);
-						}
-
-					}
-				}();
+			case sema::Expr::Kind::BLOCK_EXPR: return this->get_expr_impl_block_expr<MODE>(expr, store_locations);
 				
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return cmp;
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr alloca = this->handler.createAlloca(this->module.createBoolType());
-					this->handler.createStore(alloca, cmp);
-					return alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-					this->handler.createStore(store_locations[0], cmp);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::OPTIONAL_EXTRACT: {
-				const sema::OptionalExtract& optional_extract =
-					this->context.getSemaBuffer().getOptionalExtract(expr.optionalExtractID());
-
-				const TypeInfo& target_type_info =
-					this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID);
-
-				if(target_type_info.isPointer()){
-					EVO_DEFER([&](){
-						this->handler.createStore(
-							this->get_expr_pointer(optional_extract.expr), this->handler.createNullptr()
-						);
-					});
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->get_expr_register(optional_extract.expr);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr pointer_alloca = this->handler.createAlloca(this->module.createPtrType());
-						this->get_expr_store(optional_extract.expr, pointer_alloca);
-						return pointer_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->get_expr_store(optional_extract.expr, store_locations[0]);
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-
-				}else if(target_type_info.isOptionalNotPointer()){
-					const pir::Expr lhs = this->get_expr_pointer(optional_extract.expr);
-					const pir::Type target_type = this->get_type<false, false>(optional_extract.targetTypeID).type;
-
-					const pir::Expr held_value = this->handler.createCalcPtr(
-						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".EXTRACT_OPT.value")
-					);
-					const pir::Expr flag = this->handler.createCalcPtr(
-						lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".EXTRACT_OPT.flag")
-					);
-
-					const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID)
-							.copyWithPoppedQualifier()
-					);
-					const std::optional<pir::Expr> output = 
-						this->expr_move<MODE>(held_value, held_type_id, true, store_locations);
-
-					this->handler.createStore(flag, this->handler.createBoolean(false));
-
-					return output;
-
-				}else{
-					EVO_DEFER([&](){
-						const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
-						const pir::Expr calc_ptr = this->handler.createCalcPtr(
-							this->get_expr_pointer(optional_extract.expr),
-							interface_ptr_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".EXTRACT_OPT.interface_pointer")
-						);
-						this->handler.createStore(calc_ptr, this->handler.createNullptr());
-					});
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->get_expr_register(optional_extract.expr);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr pointer_alloca = this->handler.createAlloca(this->module.createPtrType());
-						this->get_expr_store(optional_extract.expr, pointer_alloca);
-						return pointer_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->get_expr_store(optional_extract.expr, store_locations[0]);
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::DEREF: {
-				const sema::Deref& deref = this->context.getSemaBuffer().getDeref(expr.derefID());
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createLoad(
-						this->get_expr_register(deref.expr),
-						this->get_type<false, false>(deref.targetTypeID).type,
-						"DEREF"
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->get_expr_register(deref.expr);
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					this->handler.createMemcpy(
-						store_locations.front(),
-						this->get_expr_register(deref.expr),
-						this->get_type<false, false>(deref.targetTypeID).type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::UNWRAP: {
-				const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
-				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
-
-				if(unwrap.isComptime){
-					if constexpr(MODE == GetExprMode::DISCARD){
-						return std::nullopt;
-
-					}else{
-						const pir::GlobalVar::Value global_var_value = this->get_global_var_value(
-							this->context.getSemaBuffer().getConversionToOptional(
-								unwrap.expr.conversionToOptionalID()
-							).expr
-						);
-
-						const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
-							std::format("PTHR.comptimeUnwrapValue{}", this->data.get_comptime_unwrap_value_id()),
-							this->get_type<false, false>(
-								this->context.getTypeManager().getOrCreateTypeInfo(
-									target_type_info.copyWithPoppedQualifier()
-								)
-							).type,
-							pir::Linkage::PRIVATE,
-							global_var_value,
-							true
-						);
-
-						if constexpr(MODE == GetExprMode::REGISTER){
-							return this->handler.createGlobalValue(global_var);
-							
-						}else if constexpr(MODE == GetExprMode::POINTER){
-							const pir::Expr alloca_value = this->handler.createAlloca(this->module.createPtrType());
-							this->handler.createStore(alloca_value, this->handler.createGlobalValue(global_var));
-
-							return alloca_value;
-
-						}else if constexpr(MODE == GetExprMode::STORE){
-							this->handler.createMemcpy(
-								store_locations[0],
-								this->handler.createGlobalValue(global_var),
-								this->get_type<false, false>(
-									this->context.getTypeManager().getOrCreateTypeInfo(
-										target_type_info.copyWithPoppedQualifier()
-									)
-								).type
-							);
-							return std::nullopt;
-						}
-					}
-				}
-
-				if(target_type_info.isPointer()){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->get_expr_register(unwrap.expr);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->get_expr_pointer(unwrap.expr);
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->get_expr_store(unwrap.expr, store_locations);
-						return std::nullopt;
-
-					}else{
-						this->get_expr_discard(unwrap.expr);
-						return std::nullopt;
-					}
-
-				}else{
-					const pir::Type target_pir_type = this->get_type<false, false>(unwrap.targetTypeID).type;
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createCalcPtr(
-							this->get_expr_pointer(unwrap.expr),
-							target_pir_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name("UNWRAP")
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr unwrap_alloca = this->handler.createAlloca(this->module.createPtrType());
-
-						const pir::Expr calc_ptr = this->handler.createCalcPtr(
-							this->get_expr_pointer(unwrap.expr),
-							target_pir_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".UNWRAP")
-						);
-
-						this->handler.createStore(unwrap_alloca, calc_ptr);
-						return unwrap_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr calc_ptr = this->handler.createCalcPtr(
-							this->get_expr_pointer(unwrap.expr),
-							target_pir_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".UNWRAP")
-						);
-
-						this->handler.createStore(store_locations[0], calc_ptr);
-						return std::nullopt;
-
-					}else{
-						this->get_expr_discard(unwrap.expr);
-						return std::nullopt;
-					}
-				} 
-			} break;
-
-			case sema::Expr::Kind::ACCESSOR: {
-				const sema::Accessor& accessor = this->context.getSemaBuffer().getAccessor(expr.accessorID());
-
-				const pir::Type target_pir_type = this->get_type<false, false>(accessor.targetTypeID).type;
-
-				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(accessor.targetTypeID);
-				const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
-					target_type.baseTypeID().structID()
-				);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						this->get_expr_pointer(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
-					);
-
-					return this->handler.createLoad(
-						calc_ptr,
-						this->get_type<false, false>(
-							target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
-						).type
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->handler.createCalcPtr(
-						this->get_expr_pointer(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name("ACCESSOR")
-					);
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						this->get_expr_pointer(accessor.target),
-						target_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
-						this->name(".ACCESSOR")
-					);
-
-					this->handler.createMemcpy(
-						store_locations[0],
-						calc_ptr,
-						this->get_type<false, false>(
-							target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
-						).type
-					);
-					return std::nullopt;
-
-				}else{
-					this->get_expr_discard(accessor.target);
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::LOGICAL_AND: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::LogicalAnd& logical_and =
-						this->context.getSemaBuffer().getLogicalAnd(expr.logicalAndID());
-
-
-					const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_AND.END");
-					const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_AND.RHS");
-
-					const pir::Expr lhs_expr = this->get_expr_register(logical_and.lhs);
-					const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
-					this->handler.createBranch(lhs_expr, rhs_block, end_block);
-
-					this->handler.setTargetBasicBlock(rhs_block);
-					const pir::Expr rhs_expr = this->get_expr_register(logical_and.rhs);
-					const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
-					this->handler.createJump(end_block);
-
-					this->handler.setTargetBasicBlock(end_block);
-
-
-					std::string output_expr_name = [&](){
-						if constexpr(MODE == GetExprMode::STORE){
-							return this->name(".LOGICAL_AND");
-						}else{
-							return this->name("LOGICAL_AND");
-						}
-					}();
-					const pir::Expr output_expr = this->handler.createPhi(
-						evo::SmallVector<pir::Phi::Predecessor>{
-							pir::Phi::Predecessor(lhs_end_block, this->handler.createBoolean(false)),
-							pir::Phi::Predecessor(rhs_end_block, rhs_expr)
-						},
-						std::move(output_expr_name)
-					);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return output_expr;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr output_alloca =
-							this->handler.createAlloca(this->module.createBoolType(), this->name("LOGICAL_AND"));
-						this->handler.createStore(output_alloca, output_expr);
-						return output_alloca;
-						
-					}else{
-						this->handler.createStore(store_locations[0], output_expr);
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::LOGICAL_OR: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::LogicalOr& logical_or =
-						this->context.getSemaBuffer().getLogicalOr(expr.logicalOrID());
-
-					const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_OR.END");
-					const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_OR.RHS");
-
-					const pir::Expr lhs_expr = this->get_expr_register(logical_or.lhs);
-					const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
-					this->handler.createBranch(lhs_expr, end_block, rhs_block);
-
-					this->handler.setTargetBasicBlock(rhs_block);
-					const pir::Expr rhs_expr = this->get_expr_register(logical_or.rhs);
-					const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
-					this->handler.createJump(end_block);
-
-					this->handler.setTargetBasicBlock(end_block);
-
-					this->handler.setTargetBasicBlock(end_block);
-					std::string output_expr_name = [&](){
-						if constexpr(MODE == GetExprMode::STORE){
-							return this->name(".LOGICAL_OR");
-						}else{
-							return this->name("LOGICAL_OR");
-						}
-					}();
-					const pir::Expr output_expr = this->handler.createPhi(
-						evo::SmallVector<pir::Phi::Predecessor>{
-							pir::Phi::Predecessor(lhs_end_block, this->handler.createBoolean(true)),
-							pir::Phi::Predecessor(rhs_end_block, rhs_expr)
-						},
-						std::move(output_expr_name)
-					);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return output_expr;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr output_alloca = 
-							this->handler.createAlloca(this->module.createBoolType(), this->name("LOGICAL_OR"));
-						this->handler.createStore(output_alloca, output_expr);
-						return output_alloca;
-						
-					}else{
-						this->handler.createStore(store_locations[0], output_expr);
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::UNION_ACCESSOR: {
-				const sema::UnionAccessor& union_accessor = 
-					this->context.getSemaBuffer().getUnionAccessor(expr.unionAccessorID());
-
-				if constexpr(MODE == GetExprMode::DISCARD){
-					this->get_expr_discard(union_accessor.target);
-					return std::nullopt;
-
-				}else{
-					const TypeInfo& target_type = 
-						this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
-
-					const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
-						target_type.baseTypeID().unionID()
-					);
-
-
-					const pir::Expr data_ptr = [&](){
-						if(target_union_type.isUntagged){
-							return this->get_expr_pointer(union_accessor.target);
-
-						}else{
-							return this->handler.createCalcPtr(
-								this->get_expr_pointer(union_accessor.target),
-								this->get_type<false, false>(target_type.baseTypeID()).type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-								this->name(".UNION_DATA")
-							);
-						}
-					}();
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(
-							data_ptr,
-							this->get_type<false, false>(
-								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
-							).type,
-							this->name("UNION_ACCESSOR")
-						);
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return data_ptr;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						return this->handler.createMemcpy(
-							store_locations[0],
-							data_ptr,
-							this->get_type<false, false>(
-								target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
-							).type
-						);
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::BLOCK_EXPR: {
-				const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(expr.blockExprID());
-
-				const std::string_view label = this->current_source->getTokenBuffer()[block_expr.label].getString();
-
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("BLOCK_EXPR.END");
-
-
-				if(this->data.getConfig().includeDebugInfo){
-					const Location location =
-						this->get_location(Diagnostic::Location::get(block_expr.label, *this->current_source));
-
-					const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
-						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
-						this->get_current_meta_local_scope(),
-						*this->current_source->getPIRMetaFileID(),
-						location.line_number,
-						location.collumn_number
-					);
-
-					this->local_scopes.emplace(block_meta_subscope);
-				}
-
-				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
-					auto label_output_locations = evo::SmallVector<pir::Expr>();
-					const pir::Type output_type = this->get_type<false, false>(block_expr.outputs[0].typeID).type;
-					label_output_locations.emplace_back(
-						this->handler.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
-					);
-
-					this->get_current_scope_level().defers.emplace_back(
-						AutoDeleteManagedLifetimeTarget(label_output_locations[0], block_expr.outputs[0].typeID),
-						DeferItem::Targets{
-							.on_scope_end = false,
-							.on_return    = true,
-							.on_error     = true,
-							.on_continue  = false,
-							.on_break     = false,
-						}
-					);
-
-					this->push_scope_level(label, std::move(label_output_locations), std::nullopt, end_block, false);
-
-				}else{
-					this->push_scope_level(
-						label,
-						evo::SmallVector<pir::Expr>(store_locations.begin(), store_locations.end()),
-						std::nullopt,
-						end_block,
-						false
-					);
-
-					for(size_t i = 0; const pir::Expr store_location : store_locations){
-						this->get_current_scope_level().defers.emplace_back(
-							AutoDeleteManagedLifetimeTarget(store_location, block_expr.outputs[i].typeID),
-							DeferItem::Targets{
-								.on_scope_end = false,
-								.on_return    = true,
-								.on_error     = true,
-								.on_continue  = false,
-								.on_break     = false,
-							}
-						);
-					
-						i += 1;
-					}
-				}
-				
-
-				for(const sema::Stmt& stmt : block_expr.block){
-					this->lower_stmt(stmt);
-				}
-
-				this->handler.setTargetBasicBlock(end_block);
-
-				if(this->data.getConfig().includeDebugInfo){
-					this->local_scopes.pop();
-				}
-
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
-					this->pop_scope_level();
-					return this->handler.createLoad(
-						output, this->handler.getAlloca(output).type, this->name("BLOCK_EXPR.OUTPUT")
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
-					this->pop_scope_level();
-					return output;
-
-				}else{
-					this->pop_scope_level();
-					return std::nullopt;
-				}
-			} break;
-
 			case sema::Expr::Kind::FAKE_TERM_INFO: {
 				evo::debugFatalBreak("Should never lower fake term info");
 			} break;
 
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-					
-				}else{
-					const sema::MakeInterfacePtr& make_interface_ptr =
-						this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
-
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
-
-
-					const pir::Expr vtable_value = [&]() -> pir::Expr {
-						const BaseType::Interface& interface_type =
-							this->context.getTypeManager().getInterface(make_interface_ptr.interfaceID);
-						
-
-						if(interface_type.methods.size() == 1){
-							const pir::Function::ID vtable_method = this->data.get_single_method_vtable(
-								Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
-							);
-
-							return this->handler.createFunctionPointer(vtable_method);
-
-						}else{
-							const pir::GlobalVar::ID vtable = this->data.get_vtable(
-								Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
-							);
-
-							return this->handler.createGlobalValue(vtable);
-						}
-					}();
-
-
-					const pir::Expr target = [&](){
-						if constexpr(MODE == GetExprMode::STORE){
-							return store_locations[0];
-						}else{
-							return this->handler.createAlloca(interface_ptr_type);
-						}
-					}();
-
-
-					const pir::Expr value_ptr = this->handler.createCalcPtr(
-						target,
-						interface_ptr_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-						this->name(".MAKE_INTERFACE_PTR.VALUE")
-					);
-					this->handler.createStore(value_ptr, this->get_expr_pointer(make_interface_ptr.expr));
-
-					const pir::Expr vtable_ptr = this->handler.createCalcPtr(
-						target,
-						interface_ptr_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-						this->name(".MAKE_INTERFACE_PTR.VTABLE")
-					);
-					this->handler.createStore(vtable_ptr, vtable_value);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(target, interface_ptr_type);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return target;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::InterfacePtrExtractThis& interface_ptr_extract_this =
-						this->context.getSemaBuffer().getInterfacePtrExtractThis(expr.interfacePtrExtractThisID());
-
-					const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr ptr = this->handler.createCalcPtr(
-							this->get_expr_pointer(interface_ptr_extract_this.expr),
-							interface_ptr_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".INTERFACE_PTR.this")
-						);
-
-						return this->handler.createLoad(
-							ptr, this->module.createPtrType(), this->name("INTERFACE_PTR.this")
-						);
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->handler.createCalcPtr(
-							this->get_expr_pointer(interface_ptr_extract_this.expr),
-							interface_ptr_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name("INTERFACE_PTR.this")
-						);
-
-					}else{
-						const pir::Expr ptr = this->handler.createCalcPtr(
-							this->get_expr_pointer(interface_ptr_extract_this.expr),
-							interface_ptr_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".INTERFACE_PTR.this")
-						);
-
-						this->handler.createMemcpy(store_locations[0], ptr, this->module.createPtrType());
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::INTERFACE_CALL: {
-				const sema::InterfaceCall& interface_call =
-					this->context.getSemaBuffer().getInterfaceCall(expr.interfaceCallID());
-
-
-				///////////////////////////////////
-				// create target func type
-
-				const BaseType::Function& target_func_type =
-					this->context.getTypeManager().getFunction(interface_call.funcTypeID);
-
-				const pir::Type return_type = [&](){
-					if(target_func_type.hasNamedReturns){ return this->module.createVoidType(); }
-
-					return this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
-				}();
-
-				auto param_types = evo::SmallVector<pir::Type>();
-				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
-						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
-					}else{
-						param_types.emplace_back(this->module.createPtrType());
-					}
-				}
-				if(target_func_type.hasNamedReturns){
-					for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
-						param_types.emplace_back(this->module.createPtrType());
-					}
-				}
-
-
-				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types), pir::CallingConvention::FAST, return_type
-				);
-
-
-				///////////////////////////////////
-				// get func pointer
-
-				const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
-
-				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
-					target_interface_ptr,
-					interface_ptr_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".VTABLE.PTR")
-				);
-				const pir::Expr vtable = this->handler.createLoad(
-					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
-				);
-
-
-				const pir::Expr target_func = [&]() -> pir::Expr {
-					const BaseType::Interface& interface_type =
-						this->context.getTypeManager().getInterface(interface_call.interfaceID);
-
-					if(interface_type.methods.size() == 1){
-						return vtable;
-
-					}else{
-						const pir::Expr target_func_ptr = this->handler.createCalcPtr(
-							vtable,
-							this->module.createPtrType(),
-							evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
-							this->name(".VTABLE.FUNC.PTR")
-						);
-						return this->handler.createLoad(
-							target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
-						);
-					}
-				}();
-
-
-				///////////////////////////////////
-				// make call
-
-				auto args = evo::SmallVector<pir::Expr>();
-				for(size_t i = 0; const sema::Expr& arg : interface_call.args){
-					EVO_DEFER([&](){ i += 1; });
-
-					if(i == 0 && arg.kind() == sema::Expr::Kind::DEREF){
-						const sema::Deref& deref = this->context.getSemaBuffer().getDeref(arg.derefID());
-
-						if(deref.expr.kind() == sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS){
-							const sema::InterfacePtrExtractThis& interface_ptr_extract_this = 
-								this->context
-									.getSemaBuffer()
-									.getInterfacePtrExtractThis(deref.expr.interfacePtrExtractThisID());
-
-							if(interface_ptr_extract_this.expr == interface_call.value){
-								const pir::Expr this_ptr = this->handler.createCalcPtr(
-									target_interface_ptr,
-									interface_ptr_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-									this->name(".INTERFACE_PTR.this_ptr")
-								);
-
-								args.emplace_back(
-									this->handler.createLoad(
-										this_ptr, this->module.createPtrType(), this->name(".INTERFACE_PTR.this")
-									)
-								);
-
-								continue;
-							}
-						}
-					}
-
-
-					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
-						args.emplace_back(this->get_expr_register(arg));
-					}else{
-						args.emplace_back(this->get_expr_pointer(arg));
-					}
-				}
-
-
-				if(target_func_type.hasNamedReturns){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Type actual_return_type =
-							this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
-
-						const pir::Expr return_alloc = this->handler.createAlloca(
-							actual_return_type, this->name(".INTERFACE_CALL.ALLOCA")
-						);
-						args.emplace_back(return_alloc);
-						this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
-
-						return this->handler.createLoad(return_alloc, actual_return_type, this->name("INTERFACE_CALL"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Type actual_return_type =
-							this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
-
-						const pir::Expr return_alloc = this->handler.createAlloca(
-							actual_return_type, this->name("INTERFACE_CALL.ALLOCA")
-						);
-						args.emplace_back(return_alloc);
-						this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
-
-						return return_alloc;
-						
-					}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
-						for(pir::Expr store_location : store_locations){
-							args.emplace_back(store_location);
-						}
-						this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
-						return std::nullopt;
-					}
-
-				}else{
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createCall(
-							target_func, func_pir_type, std::move(args), this->name("INTERFACE_CALL")
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr call_return = this->handler.createCall(
-							target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
-						);
-
-						const pir::Expr alloca = this->handler.createAlloca(
-							return_type, this->name("INTERFACE_CALL.ALLOCA")
-						);
-						this->handler.createStore(alloca, call_return);
-						return alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-						const pir::Expr call_return = this->handler.createCall(
-							target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
-						);
-						this->handler.createStore(store_locations.front(), call_return);
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::INDEXER: {
-				const sema::Indexer& indexer = this->context.getSemaBuffer().getIndexer(expr.indexerID());
-
-				const pir::Expr target = this->get_expr_pointer(indexer.target);
-
-				const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
-
-				auto indices = evo::SmallVector<pir::CalcPtr::Index>();
-				indices.reserve(indexer.indices.size() + 1);
-				indices.emplace_back(
-					pir::CalcPtr::Index(this->handler.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
-				);
-				for(const sema::Expr& index : indexer.indices){
-					indices.emplace_back(this->get_expr_register(index));
-				}
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(indexer.targetTypeID).type,
-						std::move(indices),
-						this->name("INDEXER")
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr indexer_alloca = this->handler.createAlloca(
-						this->module.createPtrType(), this->name(".INDEXER.ALLOCA")
-					);
-
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(indexer.targetTypeID).type,
-						std::move(indices),
-						this->name(".INDEXER")
-					);
-					this->handler.createStore(indexer_alloca, calc_ptr);
-
-					return indexer_alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(indexer.targetTypeID).type,
-						std::move(indices),
-						this->name(".INDEXER")
-					);
-
-					this->handler.createStore(store_locations[0], calc_ptr);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-
-			} break;
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+				return this->get_expr_impl_make_interface_ptr<MODE>(expr, store_locations);
+				
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+				return this->get_expr_impl_interface_ptr_extract_this<MODE>(expr, store_locations);
+				
+			case sema::Expr::Kind::INTERFACE_CALL:
+				return this->get_expr_impl_interface_call<MODE>(expr, store_locations);
+
+			case sema::Expr::Kind::INDEXER: return this->get_expr_impl_indexer<MODE>(expr, store_locations);
 
 			case sema::Expr::Kind::DEFAULT_NEW: {
 				const sema::DefaultNew& default_new =
@@ -5593,666 +3945,25 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::INIT_ARRAY_REF: {
-				const sema::InitArrayRef& init_array_ref = 
-					this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+			case sema::Expr::Kind::INIT_ARRAY_REF:
+				return this->get_expr_impl_init_array_ref<MODE>(expr, store_locations);
 
+			case sema::Expr::Kind::ARRAY_REF_INDEXER: 
+				return this->get_expr_impl_array_ref_indexer<MODE>(expr, store_locations);
 
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
+			case sema::Expr::Kind::ARRAY_REF_SIZE:
+				return this->get_expr_impl_array_ref_size<MODE>(expr, store_locations);
 
-				}else{
-					const uint64_t num_bits_ptr = this->context.getTypeManager().numBitsOfPtr();
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+				return this->get_expr_impl_array_ref_dimensions<MODE>(expr, store_locations);
 
-					const pir::Type array_ref_type = this->data.getArrayRefType(
-						this->module,
-						this->context,
-						init_array_ref.targetTypeID,
-						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
-					).pir_type;
+			case sema::Expr::Kind::ARRAY_REF_DATA:
+				return this->get_expr_impl_array_ref_data<MODE>(expr, store_locations);
 
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr array_ref_alloca =
-							this->handler.createAlloca(array_ref_type, this->name(".ARRAY_REF.ALLOCA"));
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+				return this->get_expr_impl_union_designated_init_new<MODE>(expr, store_locations);
 
-						const pir::Expr data_ptr = this->handler.createCalcPtr(
-							array_ref_alloca,
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(init_array_ref.expr, data_ptr);
-
-
-						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
-							if(dimension.is<uint64_t>()){
-								const pir::Expr dimension_expr = this->handler.createNumber(
-									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
-									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
-								);
-
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									array_ref_alloca,
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->handler.createStore(dimension_ptr, dimension_expr);
-
-							}else{
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									array_ref_alloca,
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
-							}
-
-							i += 1;
-						}
-
-						return this->handler.createLoad(array_ref_alloca, array_ref_type, this->name("ARRAY_REF"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr array_ref_alloca =
-							this->handler.createAlloca(array_ref_type, this->name("ARRAY_REF"));
-
-						const pir::Expr data_ptr = this->handler.createCalcPtr(
-							array_ref_alloca,
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(init_array_ref.expr, data_ptr);
-
-
-						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
-							if(dimension.is<uint64_t>()){
-								const pir::Expr dimension_expr = this->handler.createNumber(
-									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
-									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
-								);
-
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									array_ref_alloca,
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->handler.createStore(dimension_ptr, dimension_expr);
-
-
-							}else{
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									array_ref_alloca,
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
-							}
-
-							i += 1;
-						}
-
-						return array_ref_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr data_ptr = this->handler.createCalcPtr(
-							store_locations[0],
-							array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF.ARRAY_PTR")
-						);
-						this->get_expr_store(init_array_ref.expr, data_ptr);
-
-						for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
-							if(dimension.is<uint64_t>()){
-								const pir::Expr dimension_expr = this->handler.createNumber(
-									this->module.createUnsignedType(uint32_t(num_bits_ptr)),
-									core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
-								);
-
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									store_locations[0],
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->handler.createStore(dimension_ptr, dimension_expr);
-
-							}else{
-								const pir::Expr dimension_ptr = this->handler.createCalcPtr(
-									store_locations[0],
-									array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, i},
-									this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
-								);
-								this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
-							}
-
-							i += 1;
-						}
-
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::ARRAY_REF_INDEXER: {
-				const sema::ArrayRefIndexer& array_ref_indexer =
-					this->context.getSemaBuffer().getArrayRefIndexer(expr.arrayRefIndexerID());
-
-				const BaseType::ArrayRef& array_ref_type =
-					this->context.getTypeManager().getArrayRef(array_ref_indexer.targetTypeID);
-
-
-				const pir::Type pir_array_ref_type = this->data.getArrayRefType(
-					this->module,
-					this->context,
-					array_ref_indexer.targetTypeID,
-					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
-				).pir_type;
-
-				const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_indexer.target);
-
-				const pir::Expr get_arr_calc_ptr = this->handler.createCalcPtr(
-					target_array_ref,
-					pir_array_ref_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".ARRAY_REF.PTR_CALC")
-				);
-
-				const pir::Expr target = this->handler.createLoad(
-					get_arr_calc_ptr, this->module.createPtrType(), this->name(".ARRAY_REF.PTR")
-				);
-
-				const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
-
-
-				uint32_t ref_length_index = uint32_t(array_ref_type.getNumRefPtrs());
-
-				pir::Expr index = this->get_expr_register(array_ref_indexer.indices.back());
-				auto sub_array_width = std::optional<pir::Expr>();
-
-				for(size_t i = array_ref_indexer.indices.size() - 1; i >= 1; i-=1){
-					const pir::Expr length_num = [&](){
-						if(array_ref_type.dimensions[i].isPtr()){
-							const pir::Expr length_load = this->handler.createLoad(
-								this->handler.createCalcPtr(
-									target_array_ref,
-									pir_array_ref_type,
-									evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index}
-								),
-								type_usize
-							);
-
-							ref_length_index -= 1;
-
-							return length_load;
-
-						}else{
-							return this->handler.createNumber(
-								type_usize,
-								core::GenericInt(
-									unsigned(this->context.getTypeManager().numBitsOfPtr()),
-									array_ref_type.dimensions[i].length()
-								)
-							);
-						}
-					}();
-
-
-					if(sub_array_width.has_value()){
-						sub_array_width = this->handler.createMul(*sub_array_width, length_num, false, true);
-					}else{
-						sub_array_width = length_num;
-					}
-
-					index = this->handler.createAdd(
-						index,
-						this->handler.createMul(
-							*sub_array_width,
-							this->get_expr_register(array_ref_indexer.indices[i - 1]),
-							false,
-							true
-						),
-						false,
-						true
-					);
-				}
-
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(array_ref_type.elementTypeID).type,
-						evo::SmallVector<pir::CalcPtr::Index>{index},
-						this->name("ARRAY_REF_INDEXER")
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr array_ref_indexer_alloca = this->handler.createAlloca(
-						this->module.createPtrType(), this->name(".ARRAY_REF_INDEXER.ALLOCA")
-					);
-
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(array_ref_type.elementTypeID).type,
-						evo::SmallVector<pir::CalcPtr::Index>{index},
-						this->name(".ARRAY_REF_INDEXER")
-					);
-					this->handler.createStore(array_ref_indexer_alloca, calc_ptr);
-
-					return array_ref_indexer_alloca;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Expr calc_ptr = this->handler.createCalcPtr(
-						target,
-						this->get_type<false, false>(array_ref_type.elementTypeID).type,
-						evo::SmallVector<pir::CalcPtr::Index>{index},
-						this->name(".ARRAY_REF_INDEXER")
-					);
-
-					this->handler.createStore(store_locations[0], calc_ptr);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::ARRAY_REF_SIZE: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::ArrayRefSize& array_ref_size =
-						this->context.getSemaBuffer().getArrayRefSize(expr.arrayRefSizeID());
-
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(array_ref_size.targetTypeID);
-
-
-					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
-						this->module,
-						this->context,
-						array_ref_size.targetTypeID,
-						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
-					).pir_type;
-
-
-					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_size.target);
-
-					const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
-
-
-					uint32_t ref_length_index = 0;
-					auto size_expr = std::optional<pir::Expr>();
-
-					for(const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
-						const pir::Expr length_num = [&](){
-							if(dimension.isPtr()){
-								const pir::Expr length_load = this->handler.createLoad(
-									this->handler.createCalcPtr(
-										target_array_ref,
-										pir_array_ref_type,
-										evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
-									),
-									type_usize
-								);
-
-								ref_length_index += 1;
-
-								return length_load;
-
-							}else{
-								return this->handler.createNumber(
-									type_usize,
-									core::GenericInt(
-										unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
-									)
-								);
-							}
-						}();
-
-						if(size_expr.has_value()){
-							*size_expr = this->handler.createMul(*size_expr, length_num, true, false);
-						}else{
-							size_expr = length_num;
-						}
-					}
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return *size_expr;
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr size_alloca = 
-							this->handler.createAlloca(type_usize, this->name("ARRAY_REF_SIZE"));
-						this->handler.createStore(size_alloca, *size_expr);
-						return size_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						this->handler.createStore(store_locations[0], *size_expr);
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-				}else{
-					const sema::ArrayRefDimensions& array_ref_dimensions =
-						this->context.getSemaBuffer().getArrayRefDimensions(expr.arrayRefDimensionsID());
-
-					const BaseType::ArrayRef& array_ref_type =
-						this->context.getTypeManager().getArrayRef(array_ref_dimensions.targetTypeID);
-
-					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
-						this->module,
-						this->context,
-						array_ref_dimensions.targetTypeID,
-						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
-					).pir_type;
-
-
-					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_dimensions.target);
-
-					const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
-
-					const pir::Type return_type =
-						this->module.getOrCreateArrayType(type_usize, array_ref_type.dimensions.size());
-
-
-					const pir::Expr output_memory = [&](){
-						if constexpr(MODE == GetExprMode::REGISTER){
-							return this->handler.createAlloca(return_type, this->name(".ARRAY_REF_DIMENSIONS.ALLOCA"));
-
-						}else if constexpr(MODE == GetExprMode::POINTER){
-							return this->handler.createAlloca(return_type, this->name("ARRAY_REF_DIMENSIONS"));
-
-						}else{
-							return store_locations[0];
-						}
-					}();
-
-					uint32_t ref_length_index = 0;
-					for(uint32_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
-						const pir::Expr length_num = [&](){
-							if(dimension.isPtr()){
-								const pir::Expr length_load = this->handler.createLoad(
-									this->handler.createCalcPtr(
-										target_array_ref,
-										pir_array_ref_type,
-										evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
-									),
-									type_usize
-								);
-
-								ref_length_index += 1;
-
-								return length_load;
-
-							}else{
-								return this->handler.createNumber(
-									type_usize,
-									core::GenericInt(
-										unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
-									)
-								);
-							}
-						}();
-
-						const pir::Expr calc_ptr = this->handler.createCalcPtr(
-							output_memory, return_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
-						);
-
-						this->handler.createStore(calc_ptr, length_num);
-
-						i += 1;
-					}
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(output_memory, return_type, this->name("ARRAY_REF_DIMENSIONS"));
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return output_memory;
-
-					}else{
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::ARRAY_REF_DATA: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-
-				}else{
-					const sema::ArrayRefData& array_ref_data =
-						this->context.getSemaBuffer().getArrayRefData(expr.arrayRefDataID());
-
-
-					const pir::Type pir_array_ref_type = this->data.getArrayRefType(
-						this->module,
-						this->context,
-						array_ref_data.targetTypeID,
-						[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
-					).pir_type;
-
-
-					const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_data.target);
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Expr data_value = this->handler.createCalcPtr(
-							target_array_ref,
-							pir_array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF_DATA")
-						);
-
-						return this->handler.createLoad(
-							data_value, this->module.createPtrType(), this->name("ARRAY_REF_DATA")
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->handler.createCalcPtr(
-							target_array_ref,
-							pir_array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name("ARRAY_REF_DATA")
-						);
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						const pir::Expr data_value = this->handler.createCalcPtr(
-							target_array_ref,
-							pir_array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-							this->name(".ARRAY_REF_DATA")
-						);
-
-						this->handler.createMemcpy(store_locations[0], data_value, this->module.createPtrType());
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: {
-				const sema::UnionDesignatedInitNew& union_designated_init_new = 
-					this->context.getSemaBuffer().getUnionDesignatedInitNew(expr.unionDesignatedInitNewID());
-
-				const BaseType::Union& union_info =
-					this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
-
-				if(union_info.isUntagged){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						const pir::Type union_pir_type =
-							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
-
-						const pir::Expr storage_alloca =
-							this->handler.createAlloca(union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW"));
-
-						this->get_expr_store(union_designated_init_new.value, storage_alloca);
-
-						return this->handler.createLoad(
-							storage_alloca, union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Type union_pir_type =
-							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
-
-						const pir::Expr storage_alloca =
-							this->handler.createAlloca(union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW"));
-
-						this->get_expr_store(union_designated_init_new.value, storage_alloca);
-
-						return storage_alloca;
-
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->get_expr_store(union_designated_init_new.value, store_locations);
-						return std::nullopt;
-
-					}else{
-						this->get_expr_discard(union_designated_init_new.value);
-						return std::nullopt;
-					}
-
-				}else{
-					if constexpr(MODE == GetExprMode::DISCARD){
-						this->get_expr_discard(union_designated_init_new.value);
-						return std::nullopt;
-
-					}else{
-						const pir::Type union_pir_type =
-							this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
-
-						const pir::Expr target = [&](){
-							if constexpr(MODE == GetExprMode::REGISTER){
-								return this->handler.createAlloca(
-									union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW")
-								);
-
-							}else if constexpr(MODE == GetExprMode::POINTER){
-								return this->handler.createAlloca(
-									union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
-								);
-
-							}else{
-								return store_locations[0];
-							}
-						}();
-
-						if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
-							const pir::Expr data_ptr = this->handler.createCalcPtr(
-								target,
-								union_pir_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-								this->name(".UNION_DESIGNATED_INIT_NEW.data")
-							);
-
-							const pir::Expr tag_ptr = this->handler.createCalcPtr(
-								target,
-								union_pir_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-								this->name(".UNION_DESIGNATED_INIT_NEW.tag")
-							);
-
-
-							this->get_expr_store(union_designated_init_new.value, data_ptr);
-
-							const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
-							const pir::Expr tag_value = this->handler.createNumber(
-								tag_type,
-								core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
-							);
-							this->handler.createStore(tag_ptr, tag_value);
-
-						}else{
-							const pir::Expr tag_ptr = this->handler.createCalcPtr(
-								target,
-								union_pir_type,
-								evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-								this->name(".UNION_DESIGNATED_INIT_NEW.tag")
-							);
-
-
-							const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
-							const pir::Expr tag_value = this->handler.createNumber(
-								tag_type,
-								core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
-							);
-							this->handler.createStore(tag_ptr, tag_value);
-						}
-
-						if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
-							return target;
-						}else{
-							return std::nullopt;
-						}
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::UNION_TAG_CMP: {
-				if constexpr(MODE == GetExprMode::DISCARD){
-					return std::nullopt;
-				}else{
-					const sema::UnionTagCmp& union_tag_cmp =
-						this->context.getSemaBuffer().getUnionTagCmp(expr.unionTagCmpID());
-					
-					const pir::Type union_pir_type =
-						this->get_type<false, false>(BaseType::ID(union_tag_cmp.unionTypeID)).type;
-					const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
-
-					const pir::Expr tag_ptr = this->handler.createCalcPtr(
-						this->get_expr_pointer(union_tag_cmp.value),
-						union_pir_type,
-						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-						this->name(".UNION_TAG_CMP.tag_ptr")
-					);
-
-					const pir::Expr tag = this->handler.createLoad(tag_ptr, tag_type, this->name(".UNION_TAG_CMP.tag"));
-
-					const pir::Expr tag_cmp_value = this->handler.createNumber(
-						tag_type, core::GenericInt(unsigned(tag_type.getWidth()), union_tag_cmp.fieldIndex)
-					);
-
-					const pir::Expr cmp_result = [&](){
-						if(union_tag_cmp.isEqual){
-							return this->handler.createIEq(tag, tag_cmp_value);
-						}else{
-							return this->handler.createINeq(tag, tag_cmp_value);
-						}
-					}();
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return cmp_result;
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						const pir::Expr cmp_result_alloca =
-							this->handler.createAlloca(tag_type, this->name("UNION_TAG_CMP"));
-
-						this->handler.createStore(cmp_result_alloca, cmp_result);
-
-						return cmp_result_alloca;
-
-					}else{
-						this->handler.createStore(store_locations[0], cmp_result);
-						return std::nullopt;
-					}
-				}
-			} break;
+			case sema::Expr::Kind::UNION_TAG_CMP: return this->get_expr_impl_union_tag_cmp<MODE>(expr, store_locations);
 
 			case sema::Expr::Kind::SAME_TYPE_CMP: {
 				const sema::SameTypeCmp& same_type_cmp =
@@ -6263,652 +3974,24 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case sema::Expr::Kind::TRY_ELSE_EXPR: {
-				const sema::TryElseExpr& try_else_expr =
-					this->context.getSemaBuffer().getTryElseExpr(expr.tryElseExprID());
-				
-				const auto ssl = this->create_scoped_source_location(try_else_expr.line, try_else_expr.collumn);
+			case sema::Expr::Kind::TRY_ELSE_EXPR: return this->get_expr_impl_try_else_expr<MODE>(expr, store_locations);
 
-				const sema::FuncCall& attempt_func_call =
-					this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
+			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:
+				return this->get_expr_impl_try_else_interface_expr<MODE>(expr, store_locations);
 
-				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
-					if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
-						return attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
-					}else{
-						return this->context.getSemaBuffer().getFunc(
-							attempt_func_call.target.as<sema::Func::ID>()
-						).typeID;
-					}
-				}();
+			case sema::Expr::Kind::PARAM:        return this->get_expr_impl_param<MODE>(expr, store_locations);
+			case sema::Expr::Kind::RETURN_PARAM: return this->get_expr_impl_return_param<MODE>(expr, store_locations);
 
-				const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+			case sema::Expr::Kind::ERROR_RETURN_PARAM: 
+				return this->get_expr_impl_error_return_param<MODE>(expr, store_locations);
 
-				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+				return this->get_expr_impl_block_expr_output<MODE>(expr, store_locations);
 
-				auto args = evo::SmallVector<pir::Expr>();
-				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
-					if(target_func_type_info.params[i].is_copy()){
-						args.emplace_back(this->get_expr_register(arg));
-
-					}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
-						if(arg.kind() == sema::Expr::Kind::COPY){
-							args.emplace_back(
-								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
-							);
-
-						}else if(arg.kind() == sema::Expr::Kind::MOVE){
-							args.emplace_back(
-								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
-							);
-							
-						}else{
-							args.emplace_back(this->get_expr_pointer(arg));
-						}
-
-					}else{
-						args.emplace_back(this->get_expr_pointer(arg));
-					}
-
-					i += 1;
-				}
-
-
-				auto single_return_address = std::optional<pir::Expr>();
-
-				if constexpr(MODE == GetExprMode::STORE){
-					for(pir::Expr store_location : store_locations){
-						args.emplace_back(store_location);
-					}
-					
-				}else{
-					single_return_address = this->handler.createAlloca(
-						this->get_type<false, false>(target_type.returnTypes[0]).type
-					);
-					args.emplace_back(*single_return_address);
-				}
-
-
-
-				if(target_type.errorTypes[0].isVoid() == false){
-					const pir::Expr error_value = this->handler.createAlloca(
-						*target_func_type_info.error_return_type, this->name("ERR.ALLOCA")
-					);
-
-					for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
-						const sema::ExceptParam& except_param =
-							this->context.getSemaBuffer().getExceptParam(except_param_id);
-
-						const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
-							error_value,
-							*target_func_type_info.error_return_type,
-							evo::SmallVector<pir::CalcPtr::Index>{
-								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
-							},
-							this->name(
-								"EXCEPT_PARAM.{}",
-								this->current_source->getTokenBuffer()[
-									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
-								].getString()
-							)
-						);
-						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
-					}
-
-					args.emplace_back(error_value);
-				}
-
-				const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
-
-
-
-				const auto target = [&]() -> CallTarget {
-					if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
-						return PtrCallTarget{
-							.target   = this->get_expr_register(
-								attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr
-							),
-							.funcType = this->get_function_pir_type(target_type),
-						};
-
-					}else{
-						const Data::FuncInfo& target_func_info =
-							this->data.get_func(attempt_func_call.target.as<sema::Func::ID>());
-						return target_func_info.pir_ids[target_in_param_bitmap].visit(
-							[&](const auto& id) -> CallTarget {
-								using IDType = std::decay_t<decltype(id)>;
-
-								if constexpr(std::is_same<IDType, std::monostate>()){
-									evo::debugFatalBreak("target deleted by compiler");
-								}else{
-									return id;
-								}
-							}
-						);
-					}
-				}();
-
-
-				const pir::Expr err_occurred = this->create_call(target, std::move(args));
-
-				const pir::BasicBlock::ID if_error_block = this->handler.createBasicBlock(this->name("TRY.ERROR"));
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("TRY.END"));
-
-				this->handler.createBranch(err_occurred, if_error_block, end_block);
-
-				this->handler.setTargetBasicBlock(if_error_block);
-				if constexpr(MODE == GetExprMode::STORE){
-					this->get_expr_store(try_else_expr.except, store_locations);
-				}else{
-					this->get_expr_store(try_else_expr.except, *single_return_address);
-				}
-				this->handler.createJump(end_block);
-
-				this->handler.setTargetBasicBlock(end_block);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Type return_type = this->get_type<false, false>(target_type.returnTypes[0]).type;
-					return this->handler.createLoad(*single_return_address, return_type);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return *single_return_address;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR: {
-				const sema::TryElseInterfaceExpr& try_else_interface_expr =
-					this->context.getSemaBuffer().getTryElseInterfaceExpr(expr.tryElseInterfaceExprID());
-				
-				const sema::InterfaceCall& attempt_func_interface_call =
-					this->context.getSemaBuffer().getInterfaceCall(try_else_interface_expr.attempt.interfaceCallID());
-
-
-				const auto ssl =
-					this->create_scoped_source_location(try_else_interface_expr.line, try_else_interface_expr.collumn);
-
-
-				///////////////////////////////////
-				// create target func type
-
-				const BaseType::Function& target_func_type =
-					this->context.getTypeManager().getFunction(attempt_func_interface_call.funcTypeID);
-
-				auto param_types = evo::SmallVector<pir::Type>();
-				for(const BaseType::Function::Param& param : target_func_type.params){
-					if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
-						param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
-					}else{
-						param_types.emplace_back(this->module.createPtrType());
-					}
-				}
-				for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
-					param_types.emplace_back(this->module.createPtrType());
-				}
-				if(target_func_type.hasErrorReturnValue()){
-					param_types.emplace_back(this->module.createPtrType());
-				}
-
-
-				const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
-					std::move(param_types), pir::CallingConvention::FAST, this->module.createBoolType()
-				);
-
-
-				///////////////////////////////////
-				// get func pointer
-
-				const pir::Expr target_interface_ptr = this->get_expr_pointer(attempt_func_interface_call.value);
-				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
-
-				const pir::Expr vtable_ptr = this->handler.createCalcPtr(
-					target_interface_ptr,
-					interface_ptr_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".VTABLE.PTR")
-				);
-				const pir::Expr vtable = this->handler.createLoad(
-					vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
-				);
-
-				const pir::Expr target_func_ptr = this->handler.createCalcPtr(
-					vtable,
-					this->module.createPtrType(),
-					evo::SmallVector<pir::CalcPtr::Index>{attempt_func_interface_call.vtableFuncIndex},
-					this->name(".VTABLE.FUNC.PTR")
-				);
-				const pir::Expr target_func = this->handler.createLoad(
-					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
-				);
-
-
-				///////////////////////////////////
-				// make call
-
-				auto args = evo::SmallVector<pir::Expr>();
-				for(size_t i = 0; const sema::Expr& arg : attempt_func_interface_call.args){
-					EVO_DEFER([&](){ i += 1; });
-
-					if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
-						args.emplace_back(this->get_expr_register(arg));
-					}else{
-						args.emplace_back(this->get_expr_pointer(arg));
-					}
-				}
-
-
-				auto single_return_address = std::optional<pir::Expr>();
-
-				if constexpr(MODE == GetExprMode::STORE){
-					for(pir::Expr store_location : store_locations){
-						args.emplace_back(store_location);
-					}
-					
-				}else{
-					single_return_address = this->handler.createAlloca(
-						this->get_type<false, false>(target_func_type.returnTypes[0]).type
-					);
-					args.emplace_back(*single_return_address);
-				}
-
-
-				if(target_func_type.errorTypes[0].isVoid() == false){
-					const Data::InterfaceInfo& interface_info =
-						this->data.get_interface(attempt_func_interface_call.interfaceID);
-
-					const pir::Type error_return_type =
-						*interface_info.error_return_types[attempt_func_interface_call.vtableFuncIndex];
-
-					const pir::Expr error_value =
-						this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
-
-					for(const sema::ExceptParam::ID except_param_id : try_else_interface_expr.exceptParams){
-						const sema::ExceptParam& except_param =
-							this->context.getSemaBuffer().getExceptParam(except_param_id);
-
-						const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
-							error_value,
-							error_return_type,
-							evo::SmallVector<pir::CalcPtr::Index>{
-								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
-							},
-							this->name(
-								"EXCEPT_PARAM.{}",
-								this->current_source->getTokenBuffer()[
-									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
-								].getString()
-							)
-						);
-						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
-					}
-
-					args.emplace_back(error_value);
-				}
-
-
-
-				const pir::Expr err_occurred = this->handler.createCall(
-					target_func, func_pir_type, std::move(args), this->name(".TRY.ERRORED")
-				);
-
-				const pir::BasicBlock::ID if_error_block = this->handler.createBasicBlock(this->name("TRY.ERROR"));
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("TRY.END"));
-
-				this->handler.createBranch(err_occurred, if_error_block, end_block);
-
-				this->handler.setTargetBasicBlock(if_error_block);
-				if constexpr(MODE == GetExprMode::STORE){
-					this->get_expr_store(try_else_interface_expr.except, store_locations);
-				}else{
-					this->get_expr_store(try_else_interface_expr.except, *single_return_address);
-				}
-				this->handler.createJump(end_block);
-
-				this->handler.setTargetBasicBlock(end_block);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Type return_type = this->get_type<false, false>(target_func_type.returnTypes[0]).type;
-					return this->handler.createLoad(*single_return_address, return_type);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return *single_return_address;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::PARAM: {
-				const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
-
-				const pir::Expr param_alloca = this->param_allocas[sema_param.abiIndex];
-
-				if(this->current_func_type_info->params[sema_param.abiIndex].is_copy()){
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return param_alloca;
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->handler.createMemcpy(
-							store_locations[0], param_alloca, this->handler.getAlloca(param_alloca).type
-						);
-						return std::nullopt;
-						
-					}else{
-						return std::nullopt;
-					}
-
-				}else{
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(
-							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
-							*this->current_func_type_info->params[sema_param.index].reference_type
-						);
-						
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						this->handler.createMemcpy(
-							store_locations[0],
-							this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
-							*this->current_func_type_info->params[sema_param.index].reference_type
-						);
-						return std::nullopt;
-						
-					}else{
-						return std::nullopt;
-					}
-				}
-			} break;
-
-			case sema::Expr::Kind::RETURN_PARAM: {
-				const sema::ReturnParam& sema_return_param =
-					this->context.getSemaBuffer().getReturnParam(expr.returnParamID());
-
-				const pir::Expr return_param_alloca = this->param_allocas[sema_return_param.abiIndex];
-				const pir::Expr return_param_ptr =
-					this->handler.createLoad(return_param_alloca, this->module.createPtrType());
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createLoad(
-						return_param_ptr,
-						this->current_func_type_info->return_params[sema_return_param.index].reference_type
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return return_param_ptr;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Function& current_func = 
-						this->module.getFunction(this->current_func_info->pir_ids[0].as<pir::Function::ID>());
-
-					this->handler.createMemcpy(
-						store_locations[0],
-						return_param_ptr,
-						this->current_func_type_info->return_params[sema_return_param.index].reference_type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-
-			case sema::Expr::Kind::ERROR_RETURN_PARAM: {
-				const sema::ErrorReturnParam& sema_error_param =
-					this->context.getSemaBuffer().getErrorReturnParam(expr.errorReturnParamID());
-
-				const pir::Expr calc_ptr = this->handler.createCalcPtr(
-					this->handler.createLoad(
-						this->param_allocas[sema_error_param.abiIndex], this->module.createPtrType()
-					),
-					*this->current_func_type_info->error_return_type,
-					evo::SmallVector<pir::CalcPtr::Index>{
-						pir::CalcPtr::Index(0),
-						pir::CalcPtr::Index(sema_error_param.index)
-					}
-				);
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createLoad(
-						calc_ptr,
-						this->get_type<false, false>(
-							this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
-						).type
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return calc_ptr;
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					this->handler.createMemcpy(
-						store_locations[0],
-						calc_ptr,
-						this->get_type<false, false>(
-							this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
-						).type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT: {
-				const sema::BlockExprOutput& block_expr_output_param =
-					this->context.getSemaBuffer().getBlockExprOutput(expr.blockExprOutputID());
-
-				const std::string_view label_str =
-					this->current_source->getTokenBuffer()[block_expr_output_param.label].getString();
-
-				for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-					if(scope_level.label != label_str){ continue; }
-
-					if constexpr(MODE == GetExprMode::REGISTER){
-						return this->handler.createLoad(
-							scope_level.label_output_locations[block_expr_output_param.index],
-							this->get_type<false, false>(block_expr_output_param.typeID).type,
-							"LOAD.BLOCK_EXPR_OUTPUT"
-						);
-
-					}else if constexpr(MODE == GetExprMode::POINTER){
-						return scope_level.label_output_locations[block_expr_output_param.index];
-						
-					}else if constexpr(MODE == GetExprMode::STORE){
-						evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-						this->handler.createMemcpy(
-							store_locations[0],
-							scope_level.label_output_locations[block_expr_output_param.index],
-							this->get_type<false, false>(block_expr_output_param.typeID).type
-						);
-						return std::nullopt;
-
-					}else{
-						return std::nullopt;
-					}
-
-					break;
-				}
-			} break;
-
-
-			case sema::Expr::Kind::EXCEPT_PARAM: {
-				if constexpr(MODE == GetExprMode::REGISTER){
-					return this->handler.createLoad(
-						this->local_func_exprs.at(expr),
-						this->get_type<false, false>(
-							this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
-						).type
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->local_func_exprs.at(expr);
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					this->handler.createMemcpy(
-						store_locations[0],
-						this->local_func_exprs.at(expr),
-						this->get_type<false, false>(
-							this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
-						).type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::FOR_PARAM: {
-				const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(expr.forParamID());
-
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
-					const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
-
-					if(for_param.isIndex){
-						return this->handler.createLoad(
-							for_param_expr,
-							for_param_alloca.type,
-							this->name(remove_alloca_from_name(for_param_alloca.name))
-						);
-
-					}else{
-						const pir::Expr for_param_load = this->handler.createLoad(
-							for_param_expr,
-							this->module.createPtrType(),
-							this->name("." + remove_alloca_from_name(for_param_alloca.name))
-						);
-
-						return this->handler.createLoad(
-							for_param_load,
-							this->get_type<false, false>(for_param.typeID).type,
-							this->name(remove_alloca_from_name(for_param_alloca.name) + ".LOAD")
-						);
-					}
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
-					const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
-
-					if(for_param.isIndex){
-						return for_param_expr;
-					}else{
-						return this->handler.createLoad(
-							for_param_expr,
-							this->module.createPtrType(),
-							this->name(remove_alloca_from_name(for_param_alloca.name))
-						);
-					}
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
-					const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
-
-					if(for_param.isIndex){
-						this->handler.createMemcpy(store_locations[0], for_param_expr, for_param_alloca.type);
-					}else{
-						const pir::Expr for_param_load = this->handler.createLoad(
-							for_param_expr,
-							this->module.createPtrType(),
-							this->name("." + remove_alloca_from_name(for_param_alloca.name))
-						);
-
-						this->handler.createMemcpy(
-							store_locations[0], for_param_load, this->get_type<false, false>(for_param.typeID).type
-						);
-					}
-
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::VAR: {
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
-
-					if(this->data.getConfig().useReadableNames){
-						const pir::Alloca& var_actual_alloca = this->handler.getAlloca(var_alloca);
-
-						return this->handler.createLoad(
-							var_alloca,
-							this->handler.getAlloca(var_alloca).type,
-							remove_alloca_from_name(var_actual_alloca.name)
-						);
-
-					}else{
-						return this->handler.createLoad(var_alloca, this->handler.getAlloca(var_alloca).type);	
-					}
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->local_func_exprs.at(expr);
-
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::Expr var_alloca = this->local_func_exprs.at(expr);
-					this->handler.createMemcpy(
-						store_locations[0], var_alloca, this->handler.getAlloca(var_alloca).type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
-
-			case sema::Expr::Kind::GLOBAL_VAR: {
-				const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(expr.globalVarID());
-				
-				if constexpr(MODE == GetExprMode::REGISTER){
-					const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
-					return this->handler.createLoad(
-						this->handler.createGlobalValue(pir_var_id),
-						pir_var.type,
-						this->name("{}.LOAD", this->mangle_name<true>(expr.globalVarID()))
-					);
-
-				}else if constexpr(MODE == GetExprMode::POINTER){
-					return this->handler.createGlobalValue(pir_var_id);
-					
-				}else if constexpr(MODE == GetExprMode::STORE){
-					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
-
-					const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
-					this->handler.createMemcpy(
-						store_locations[0], this->handler.createGlobalValue(pir_var_id), pir_var.type
-					);
-					return std::nullopt;
-
-				}else{
-					return std::nullopt;
-				}
-			} break;
+			case sema::Expr::Kind::EXCEPT_PARAM: return this->get_expr_impl_except_param<MODE>(expr, store_locations);
+			case sema::Expr::Kind::FOR_PARAM:    return this->get_expr_impl_for_param<MODE>(expr, store_locations);
+			case sema::Expr::Kind::VAR:          return this->get_expr_impl_var<MODE>(expr, store_locations);
+			case sema::Expr::Kind::GLOBAL_VAR:   return this->get_expr_impl_global_var<MODE>(expr, store_locations);
 
 			case sema::Expr::Kind::FUNC: {
 				evo::unimplemented("lower sema::Expr::Kind::FUNC");
@@ -6917,6 +4000,3126 @@ namespace pcit::panther{
 
 		evo::unreachable();
 	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_int_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::IntValue& int_value = this->context.getSemaBuffer().getIntValue(expr.intValueID());
+			const pir::Type value_type = this->get_type<false, false>(*int_value.typeID).type;
+			const pir::Expr number = this->handler.createNumber(value_type, int_value.value);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return number;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+				this->handler.createStore(alloca, number);
+				return alloca;
+
+			}else{
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+				this->handler.createStore(store_locations[0], number);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_float_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::FloatValue& float_value =
+				this->context.getSemaBuffer().getFloatValue(expr.floatValueID());
+			const pir::Type value_type = this->get_type<false, false>(*float_value.typeID).type;
+			const pir::Expr number = this->handler.createNumber(value_type, float_value.value);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return number;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+				this->handler.createStore(alloca, number);
+				return alloca;
+
+			}else{
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+				this->handler.createStore(store_locations[0], number);
+				return std::nullopt;
+			}
+		}
+	}
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_bool_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::BoolValue& bool_value = this->context.getSemaBuffer().getBoolValue(expr.boolValueID());
+
+		const pir::Expr boolean = [&]() -> pir::Expr {
+			if(bool_value.isBool32){
+				return this->handler.createBoolean32(bool_value.value);
+			}else{
+				return this->handler.createBoolean(bool_value.value);
+			}
+		}();
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return boolean;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Type bool_type = [&]() -> pir::Type {
+				if(bool_value.isBool32){
+					return this->module.createBool32Type();
+				}else{
+					return this->module.createBoolType();	
+				}
+			}();
+
+			const pir::Expr alloca = this->handler.createAlloca(bool_type, this->name(".BOOLEAN.ALLOCA"));
+			this->handler.createStore(alloca, boolean);
+			return alloca;
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations[0], boolean);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_string_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::StringValue& string_value =
+			this->context.getSemaBuffer().getStringValue(expr.stringValueID());
+
+		const pir::GlobalVar::String::ID string_value_id = 
+			this->module.createGlobalString(string_value.value + '\0');
+
+		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+			std::format("PTHR.str{}", this->data.get_string_literal_id()),
+			this->module.getGlobalString(string_value_id).type,
+			pir::Linkage::PRIVATE,
+			string_value_id,
+			true
+		);
+
+		this->data.create_global_string(expr.stringValueID(), string_id);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createGlobalValue(string_id);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(
+				this->module.getGlobalString(string_value_id).type, this->name(".STR.ALLOCA")
+			);
+			this->handler.createStore(alloca, this->handler.createGlobalValue(string_id));
+			return alloca;
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations[0], this->handler.createGlobalValue(string_id));
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_aggregate_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::AggregateValue& aggregate =
+			this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
+
+
+		if constexpr(MODE != GetExprMode::DISCARD){
+			const pir::Type pir_type = this->get_type<false, false>(aggregate.typeID).type;
+
+			const pir::Expr initialization_target = [&](){
+				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+					return this->handler.createAlloca(pir_type, ".AGGREGATE");
+				}else{
+					evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+					return store_locations[0];
+				}
+			}();
+
+
+			if(aggregate.typeID.kind() == BaseType::Kind::STRUCT){
+				const BaseType::Struct& struct_info =
+					this->context.getTypeManager().getStruct(aggregate.typeID.structID());
+
+
+				const std::string_view struct_name = struct_info.getName(this->context.getSourceManager());
+
+				for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
+					const std::string_view memebr_name = struct_info.getMemberName(
+						*struct_info.memberVarsABI[i], this->context.getSourceManager()
+					);
+
+					const pir::Expr calc_ptr = this->handler.createCalcPtr(
+						initialization_target,
+						pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, i},
+						this->name(".NEW.{}.{}", struct_name, memebr_name)
+					);
+
+					this->get_expr_store(value, calc_ptr);
+
+					i += 1;
+				}
+
+			}else{
+				for(uint32_t i = 0; const sema::Expr& value : aggregate.values){
+					const pir::Expr calc_ptr = this->handler.createCalcPtr(
+						initialization_target, pir_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+					);
+
+					this->get_expr_store(value, calc_ptr);
+
+					i += 1;
+				}
+			}
+			
+
+
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(initialization_target, pir_type);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return initialization_target;
+
+			}else{
+				return std::nullopt;
+			}
+
+		}else{
+			for(const sema::Expr& value : aggregate.values){
+				this->get_expr_discard(value);
+			}
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_char_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::CharValue& char_value = this->context.getSemaBuffer().getCharValue(expr.charValueID());
+		const pir::Type value_type = this->module.createSignedType(8);
+		const pir::Expr number = this->handler.createNumber(
+			value_type, core::GenericInt(8, uint64_t(char_value.value))
+		);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return number;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+			this->handler.createStore(alloca, number);
+			return alloca;
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations[0], number);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_func_call(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::FuncCall& func_call = this->context.getSemaBuffer().getFuncCall(expr.funcCallID());
+
+		if(func_call.target.is<IntrinsicFunc::Kind>()){
+			return this->intrinsic_func_call_expr<MODE>(func_call, store_locations);
+
+		}else if(func_call.target.is<sema::TemplateIntrinsicFuncInstantiation::ID>()){
+			return this->template_intrinsic_func_call_expr<MODE>(func_call, store_locations);
+		}
+
+		const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
+
+		const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+			if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+				return func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+			}else{
+				return this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>()).typeID;
+			}
+		}();
+
+		const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+
+		const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
+
+		const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, func_call.args);
+
+		const auto target = [&]() -> CallTarget {
+			if(func_call.target.is<sema::FuncCall::FuncPtr>()){
+				return PtrCallTarget{
+					.target   = this->get_expr_register(func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr),
+					.funcType = this->get_function_pir_type(target_type),
+				};
+
+			}else{
+				const Data::FuncInfo& target_func_info =
+					this->data.get_func(func_call.target.as<sema::Func::ID>());
+				return target_func_info.pir_ids[target_in_param_bitmap].visit(
+					[&](const auto& id) -> CallTarget {
+						using IDType = std::decay_t<decltype(id)>;
+
+						if constexpr(std::is_same<IDType, std::monostate>()){
+							evo::debugFatalBreak("target deleted by compiler");
+						}else{
+							return id;
+						}
+					}
+				);
+			}
+		}();
+
+		auto args = evo::SmallVector<pir::Expr>();
+		for(size_t i = 0; const sema::Expr& arg : func_call.args){
+			if(target_func_type_info.params[i].is_copy()){
+				args.emplace_back(this->get_expr_register(arg));
+
+			}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
+				if(arg.kind() == sema::Expr::Kind::COPY){
+					args.emplace_back(
+						this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+					);
+
+				}else if(arg.kind() == sema::Expr::Kind::MOVE){
+					args.emplace_back(
+						this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+					);
+					
+				}else{
+					args.emplace_back(this->get_expr_pointer(arg));
+				}
+
+			}else{
+				args.emplace_back(this->get_expr_pointer(arg));
+			}
+
+			i += 1;
+		}
+
+
+
+		if(target_type.hasNamedReturns || target_func_type_info.isImplicitRVO){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Type return_type =
+					this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
+
+				const pir::Expr return_alloc = this->handler.createAlloca(return_type);
+				args.emplace_back(return_alloc);
+				this->create_call_void(target, std::move(args));
+
+				return this->handler.createLoad(return_alloc, return_type);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Type return_type =
+					this->get_type<false, false>(target_type.returnTypes[0].asTypeID()).type;
+				
+				const pir::Expr return_alloc = this->handler.createAlloca(return_type);
+				args.emplace_back(return_alloc);
+				this->create_call_void(target, std::move(args));
+
+				this->end_of_stmt_deletes.emplace_back(return_alloc, target_type.returnTypes[0].asTypeID());
+
+				return return_alloc;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				for(pir::Expr store_location : store_locations){
+					args.emplace_back(store_location);
+				}
+				this->create_call_void(target, std::move(args));
+				return std::nullopt;
+
+			}else{
+				for(size_t i = 0; i < target_func_type_info.return_params.size(); i+=1){
+					const pir::Expr ret_alloca = this->handler.createAlloca(
+						target_func_type_info.return_params[i].reference_type, this->name(".DISCARD")
+					);
+					args.emplace_back(ret_alloca);
+
+					this->add_auto_delete_target(
+						ret_alloca, target_type.returnTypes[i].asTypeID()
+					);
+				}
+
+				this->create_call_void(target, std::move(args));
+				return std::nullopt;
+			}
+
+		}else{
+			std::string call_name = [&]() -> std::string {
+				if(func_call.target.is<sema::Func::ID>()){
+					return this->name(
+						"CALL.{}", this->mangle_name<true>(func_call.target.as<sema::Func::ID>())
+					);
+				}else{
+					return this->name("CALL.ptr");
+				}
+			}();
+
+			const pir::Expr call_return = this->create_call(
+				target,
+				std::move(args),
+				std::move(call_name)
+			);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return call_return;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr return_alloca = this->handler.createAlloca(target_func_type_info.return_type);
+				this->handler.createStore(return_alloca, call_return);
+				this->end_of_stmt_deletes.emplace_back(return_alloca, target_type.returnTypes[0].asTypeID());
+				return return_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+				this->handler.createStore(store_locations.front(), call_return);
+				return std::nullopt;
+
+			}else{
+				const pir::Expr discard_alloca =
+					this->handler.createAlloca(target_func_type_info.return_type, this->name(".DISCARD"));
+				this->handler.createStore(discard_alloca, call_return);
+
+				this->add_auto_delete_target(discard_alloca, target_type.returnTypes[0].asTypeID());
+
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_asm(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Asm& asm_expr = this->context.getSemaBuffer().getAsm(expr.asmID());
+
+		evo::debugAssert(asm_expr.retParams.empty() == false, "asm expr must have ret params");
+
+		const auto ssl = this->create_scoped_source_location(asm_expr.line, asm_expr.collumn);
+
+
+		auto args = evo::SmallVector<pir::AsmArg>();
+		auto outputs = evo::SmallVector<pir::Asm::Output>();
+		auto output_exprs = evo::SmallVector<pir::Expr>();
+		for(const sema::Asm::Param& param : asm_expr.params){
+			const pir::Type param_type = this->get_type<false, false>(param.typeID).type;
+
+			const pir::Expr param_expr = [&]() -> pir::Expr {
+				if(param.isMut){
+					return this->get_expr_pointer(param.value);
+				}else{
+					return this->get_expr_register(param.value);	
+				}
+			}();
+
+			args.emplace_back(std::string(param.name), param_type, param_expr, std::string(param.constraint));
+
+			if(param.isMut){
+				outputs.emplace_back(
+					this->name(".ASM_OUTPUT_{}", outputs.size()),
+					std::string(),
+					std::string(param.name),
+					param_type
+				);
+				output_exprs.emplace_back(param_expr);
+			}
+		}
+
+		for(const sema::Asm::RetParam& ret_param : asm_expr.retParams){
+			outputs.emplace_back(
+				this->name(".ASM_OUTPUT_{}", outputs.size()),
+				std::string(ret_param.name),
+				std::string(ret_param.constraint),
+				this->get_type<false, false>(ret_param.typeID).type
+			);
+		}
+
+
+		const pir::Expr asm_pir_expr = this->handler.createAsm(
+			std::string(asm_expr.code),
+			std::move(args),
+			std::move(outputs),
+			evo::copy(asm_expr.clobbers),
+			asm_expr.isSideEffect,
+			asm_expr.isAlignStack
+		);
+		const pir::Asm& asm_pir_expr_ref = this->handler.getAsm(asm_pir_expr);
+
+		for(size_t i = 0; const pir::Expr& output_expr : output_exprs){
+			this->handler.createStore(output_expr, this->handler.extractAsmValue(asm_pir_expr_ref, i));
+			i += 1;
+		}
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
+			return this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size());
+			
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			evo::debugAssert(asm_expr.retParams.size() == 1, "Cannot return single value");
+
+			const pir::Expr pointer_alloca = this->handler.createAlloca(
+				this->handler.getExprType(asm_pir_expr), this->name("ASM_OUTPUT")
+			);
+
+			this->handler.createStore(pointer_alloca, asm_pir_expr);
+			return pointer_alloca;
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(
+				asm_expr.retParams.size() == store_locations.size(), "wrong number of store location"
+			);
+
+			for(size_t i = 0; pir::Expr store_location : store_locations){
+				this->handler.createStore(
+					store_location,
+					this->handler.extractAsmValue(asm_pir_expr_ref, output_exprs.size() + i)
+				);
+
+				i += 1;
+			}
+
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_func_ptr(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::FuncPtr& func_ptr = this->context.getSemaBuffer().getFuncPtr(expr.funcPtrID());
+
+		const Data::FuncInfo& target_func_info = this->data.get_func(func_ptr.targetFuncID);
+
+		evo::debugAssert(target_func_info.pir_ids.size() == 1, "Cannot get func pointer of this func");
+		const pir::Function::ID target_pir_func_id = target_func_info.pir_ids[0].as<pir::Function::ID>();
+
+		this->data.add_func_ptr(target_pir_func_id, func_ptr.targetFuncID);
+
+		const pir::Expr func_ptr_value = this->handler.createFunctionPointer(target_pir_func_id);
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return func_ptr_value;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(this->module.createPtrType());
+			this->handler.createStore(alloca, func_ptr_value);
+			return alloca;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations.front(), func_ptr_value);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_addr_of(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Expr& target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
+
+		const pir::Expr address = [&]() -> pir::Expr {
+			if(target.kind() == sema::Expr::Kind::STRING_VALUE){
+				return this->get_expr_register(target);
+			}else{
+				return this->get_expr_pointer(target);
+			}
+		}();
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return address;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(this->module.createPtrType());
+			this->handler.createStore(alloca, address);
+			return alloca;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations.front(), address);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_conversion_to_optional(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ConversionToOptional& conversion_to_optional = 
+			this->context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
+
+		const TypeInfo& target_type =
+			this->context.getTypeManager().getTypeInfo(conversion_to_optional.targetTypeID);
+
+		if(target_type.isPointer()){
+			return this->get_expr_impl<MODE>(conversion_to_optional.expr, store_locations);
+		}
+
+
+		const pir::Type target_pir_type =
+			this->get_type<false, false>(conversion_to_optional.targetTypeID).type;
+
+
+		const pir::Expr target = [&](){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createAlloca(target_pir_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->handler.createAlloca(target_pir_type, ".CONVERSION_TO_OPTIONAL.ALLOCA");
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return store_locations[0];
+
+			}else{
+				return this->handler.createAlloca(target_pir_type, ".DISCARD.CONVERSION_TO_OPTIONAL.ALLOCA");
+			}
+		}();
+
+
+		const pir::Expr value_calc_ptr = this->handler.createCalcPtr(
+			target,
+			target_pir_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+			this->name(".CONVERSION_TO_OPTIONAL.value_ptr")
+		);
+
+		const pir::Expr flag_calc_ptr = this->handler.createCalcPtr(
+			target,
+			target_pir_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+			this->name(".CONVERSION_TO_OPTIONAL.flag_ptr")
+		);
+
+
+		const auto create_copy_expr = [&](
+			const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
+		) -> void {
+			if(is_initialization){
+				std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+			}else{
+				const pir::BasicBlock::ID init_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
+
+				const pir::BasicBlock::ID assign_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
+
+				const pir::BasicBlock::ID end_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
+
+				const pir::Expr flag_value = this->handler.createLoad(
+					flag_calc_ptr,
+					this->module.createBoolType(),
+					this->name("CONVERSION_TO_OPTIONAL.flag")
+				);
+
+				this->handler.createBranch(flag_value, assign_block, init_block);
+
+				this->handler.setTargetBasicBlock(init_block);
+				std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+				this->handler.createJump(end_block);
+
+				this->handler.setTargetBasicBlock(assign_block);
+				std::ignore = this->expr_copy<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
+				this->handler.createJump(end_block);
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+		};
+
+
+		const auto create_move_expr = [&](
+			const sema::Expr& expr, TypeInfo::ID expr_type_id, bool is_initialization
+		) -> void {
+			if(is_initialization){
+				std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+			}else{
+				const pir::BasicBlock::ID init_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.INIT"));
+
+				const pir::BasicBlock::ID assign_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.ASSIGN"));
+
+				const pir::BasicBlock::ID end_block =
+					this->handler.createBasicBlock(this->name("CONVERSION_TO_OPTIONAL.END"));
+
+				const pir::Expr flag_value = this->handler.createLoad(
+					flag_calc_ptr,
+					this->module.createBoolType(),
+					this->name("CONVERSION_TO_OPTIONAL.flag")
+				);
+
+				this->handler.createBranch(flag_value, assign_block, init_block);
+
+				this->handler.setTargetBasicBlock(init_block);
+				std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, true, value_calc_ptr);
+				this->handler.createJump(end_block);
+
+				this->handler.setTargetBasicBlock(assign_block);
+				std::ignore = this->expr_move<GetExprMode::STORE>(expr, expr_type_id, false, value_calc_ptr);
+				this->handler.createJump(end_block);
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+		};
+
+
+		switch(conversion_to_optional.expr.kind()){
+			case sema::Expr::Kind::COPY: {
+				const sema::Copy& copy_expr =
+					this->context.getSemaBuffer().getCopy(conversion_to_optional.expr.copyID());
+
+				create_copy_expr(copy_expr.expr, copy_expr.exprTypeID, copy_expr.isInitialization);
+			} break;
+
+			case sema::Expr::Kind::MOVE: {
+				const sema::Move& move_expr =
+					this->context.getSemaBuffer().getMove(conversion_to_optional.expr.moveID());
+
+				create_move_expr(move_expr.expr, move_expr.exprTypeID, move_expr.isInitialization);
+			} break;
+
+			case sema::Expr::Kind::FORWARD: {
+				const sema::Forward& forward_expr =
+					this->context.getSemaBuffer().getForward(conversion_to_optional.expr.forwardID());
+
+				const sema::Param& target_param = 
+					this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
+				const uint32_t in_param_index =
+					*this->current_func_type_info->params[target_param.index].in_param_index;
+				const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
+
+				if(param_is_copy){
+					create_copy_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
+				}else{
+					create_move_expr(forward_expr.expr, forward_expr.exprTypeID, forward_expr.isInitialization);
+				}
+			} break;
+			
+			default: {
+				this->get_expr_store(conversion_to_optional.expr, value_calc_ptr);
+			} break;
+		}
+
+		this->handler.createStore(flag_calc_ptr, this->handler.createBoolean(true));
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createLoad(target, target_pir_type, this->name("CONVERSION_TO_OPTIONAL"));
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return target;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_optional_null_check(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::OptionalNullCheck& optional_null_check = 
+			this->context.getSemaBuffer().getOptionalNullCheck(expr.optionalNullCheckID());
+
+		const pir::Expr cmp = [&]() -> pir::Expr {
+			const TypeInfo& target_type_info =
+				this->context.getTypeManager().getTypeInfo(optional_null_check.targetTypeID);
+
+			bool is_pointer = target_type_info.isPointer();
+			if(is_pointer == false){
+				const BaseType::Primitive target_type_primitive = 
+					this->context.getTypeManager().getPrimitive(target_type_info.baseTypeID().primitiveID());
+				is_pointer = target_type_primitive.kind() == Token::Kind::TYPE_RAWPTR;
+			}
+
+			if(is_pointer){
+				const pir::Expr lhs = this->get_expr_register(optional_null_check.expr);
+
+				if(optional_null_check.equal){
+					return this->handler.createIEq(
+						lhs, this->handler.createNullptr(), this->name("OPT_IS_NULL")
+					);
+				}else{
+					return this->handler.createINeq(
+						lhs, this->handler.createNullptr(), this->name("OPT_ISNT_NULL")
+					);
+				}
+
+			}else{
+				evo::debugAssert(target_type_info.isOptionalNotPointer(), "Unknown expr to opt null check");
+
+				const pir::Expr lhs = this->get_expr_pointer(optional_null_check.expr);
+
+				const pir::Type target_type =
+					this->get_type<false, false>(optional_null_check.targetTypeID).type;
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					lhs,
+					target_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".OPT_NULL_CHECK.flag_ptr")
+				);
+				const pir::Expr flag = this->handler.createLoad(
+					calc_ptr, this->module.createBoolType(), this->name(".OPT_NULL_CHECK.flag")
+				);
+
+				if(optional_null_check.equal){
+					return this->handler.createIEq(
+						flag, this->handler.createBoolean(false), this->name("OPT_IS_NULL")
+					);
+				}else{
+					return this->handler.createINeq(
+						flag, this->handler.createBoolean(false), this->name("OPT_ISNT_NULL")
+					);
+				}
+
+			}
+		}();
+		
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return cmp;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(this->module.createBoolType());
+			this->handler.createStore(alloca, cmp);
+			return alloca;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations[0], cmp);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_optional_extract(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::OptionalExtract& optional_extract =
+			this->context.getSemaBuffer().getOptionalExtract(expr.optionalExtractID());
+
+		const TypeInfo& target_type_info =
+			this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID);
+
+		if(target_type_info.isPointer()){
+			EVO_DEFER([&](){
+				this->handler.createStore(
+					this->get_expr_pointer(optional_extract.expr), this->handler.createNullptr()
+				);
+			});
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->get_expr_register(optional_extract.expr);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr pointer_alloca = this->handler.createAlloca(this->module.createPtrType());
+				this->get_expr_store(optional_extract.expr, pointer_alloca);
+				return pointer_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(optional_extract.expr, store_locations[0]);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+
+		}else if(target_type_info.isOptionalNotPointer()){
+			const pir::Expr lhs = this->get_expr_pointer(optional_extract.expr);
+			const pir::Type target_type = this->get_type<false, false>(optional_extract.targetTypeID).type;
+
+			const pir::Expr held_value = this->handler.createCalcPtr(
+				lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".EXTRACT_OPT.value")
+			);
+			const pir::Expr flag = this->handler.createCalcPtr(
+				lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".EXTRACT_OPT.flag")
+			);
+
+			const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
+				this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID)
+					.copyWithPoppedQualifier()
+			);
+			const std::optional<pir::Expr> output = 
+				this->expr_move<MODE>(held_value, held_type_id, true, store_locations);
+
+			this->handler.createStore(flag, this->handler.createBoolean(false));
+
+			return output;
+
+		}else{
+			EVO_DEFER([&](){
+				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(optional_extract.expr),
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".EXTRACT_OPT.interface_pointer")
+				);
+				this->handler.createStore(calc_ptr, this->handler.createNullptr());
+			});
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->get_expr_register(optional_extract.expr);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr pointer_alloca = this->handler.createAlloca(this->module.createPtrType());
+				this->get_expr_store(optional_extract.expr, pointer_alloca);
+				return pointer_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(optional_extract.expr, store_locations[0]);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_deref(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Deref& deref = this->context.getSemaBuffer().getDeref(expr.derefID());
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createLoad(
+				this->get_expr_register(deref.expr),
+				this->get_type<false, false>(deref.targetTypeID).type,
+				"DEREF"
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return this->get_expr_register(deref.expr);
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			this->handler.createMemcpy(
+				store_locations.front(),
+				this->get_expr_register(deref.expr),
+				this->get_type<false, false>(deref.targetTypeID).type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_unwrap(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
+
+		if(unwrap.isComptime){
+			if constexpr(MODE == GetExprMode::DISCARD){
+				return std::nullopt;
+
+			}else{
+				const pir::GlobalVar::Value global_var_value = this->get_global_var_value(
+					this->context.getSemaBuffer().getConversionToOptional(
+						unwrap.expr.conversionToOptionalID()
+					).expr
+				);
+
+				const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
+					std::format("PTHR.comptimeUnwrapValue{}", this->data.get_comptime_unwrap_value_id()),
+					this->get_type<false, false>(
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							target_type_info.copyWithPoppedQualifier()
+						)
+					).type,
+					pir::Linkage::PRIVATE,
+					global_var_value,
+					true
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->handler.createGlobalValue(global_var);
+					
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr alloca_value = this->handler.createAlloca(this->module.createPtrType());
+					this->handler.createStore(alloca_value, this->handler.createGlobalValue(global_var));
+
+					return alloca_value;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->handler.createMemcpy(
+						store_locations[0],
+						this->handler.createGlobalValue(global_var),
+						this->get_type<false, false>(
+							this->context.getTypeManager().getOrCreateTypeInfo(
+								target_type_info.copyWithPoppedQualifier()
+							)
+						).type
+					);
+					return std::nullopt;
+				}
+			}
+		}
+
+		if(target_type_info.isPointer()){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->get_expr_register(unwrap.expr);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->get_expr_pointer(unwrap.expr);
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(unwrap.expr, store_locations);
+				return std::nullopt;
+
+			}else{
+				this->get_expr_discard(unwrap.expr);
+				return std::nullopt;
+			}
+
+		}else{
+			const pir::Type target_pir_type = this->get_type<false, false>(unwrap.targetTypeID).type;
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createCalcPtr(
+					this->get_expr_pointer(unwrap.expr),
+					target_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name("UNWRAP")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr unwrap_alloca = this->handler.createAlloca(this->module.createPtrType());
+
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(unwrap.expr),
+					target_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".UNWRAP")
+				);
+
+				this->handler.createStore(unwrap_alloca, calc_ptr);
+				return unwrap_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(unwrap.expr),
+					target_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".UNWRAP")
+				);
+
+				this->handler.createStore(store_locations[0], calc_ptr);
+				return std::nullopt;
+
+			}else{
+				this->get_expr_discard(unwrap.expr);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_accessor(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Accessor& accessor = this->context.getSemaBuffer().getAccessor(expr.accessorID());
+
+		const pir::Type target_pir_type = this->get_type<false, false>(accessor.targetTypeID).type;
+
+		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(accessor.targetTypeID);
+		const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
+			target_type.baseTypeID().structID()
+		);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				this->get_expr_pointer(accessor.target),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+				this->name("ACCESSOR")
+			);
+
+			return this->handler.createLoad(
+				calc_ptr,
+				this->get_type<false, false>(
+					target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
+				).type
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return this->handler.createCalcPtr(
+				this->get_expr_pointer(accessor.target),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+				this->name("ACCESSOR")
+			);
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				this->get_expr_pointer(accessor.target),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, int64_t(accessor.memberABIIndex)},
+				this->name(".ACCESSOR")
+			);
+
+			this->handler.createMemcpy(
+				store_locations[0],
+				calc_ptr,
+				this->get_type<false, false>(
+					target_struct_type.memberVars[size_t(accessor.memberABIIndex)].typeID
+				).type
+			);
+			return std::nullopt;
+
+		}else{
+			this->get_expr_discard(accessor.target);
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_logical_and(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::LogicalAnd& logical_and =
+				this->context.getSemaBuffer().getLogicalAnd(expr.logicalAndID());
+
+
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_AND.END");
+			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_AND.RHS");
+
+			const pir::Expr lhs_expr = this->get_expr_register(logical_and.lhs);
+			const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
+			this->handler.createBranch(lhs_expr, rhs_block, end_block);
+
+			this->handler.setTargetBasicBlock(rhs_block);
+			const pir::Expr rhs_expr = this->get_expr_register(logical_and.rhs);
+			const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
+			this->handler.createJump(end_block);
+
+			this->handler.setTargetBasicBlock(end_block);
+
+
+			std::string output_expr_name = [&](){
+				if constexpr(MODE == GetExprMode::STORE){
+					return this->name(".LOGICAL_AND");
+				}else{
+					return this->name("LOGICAL_AND");
+				}
+			}();
+			const pir::Expr output_expr = this->handler.createPhi(
+				evo::SmallVector<pir::Phi::Predecessor>{
+					pir::Phi::Predecessor(lhs_end_block, this->handler.createBoolean(false)),
+					pir::Phi::Predecessor(rhs_end_block, rhs_expr)
+				},
+				std::move(output_expr_name)
+			);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return output_expr;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr output_alloca =
+					this->handler.createAlloca(this->module.createBoolType(), this->name("LOGICAL_AND"));
+				this->handler.createStore(output_alloca, output_expr);
+				return output_alloca;
+				
+			}else{
+				this->handler.createStore(store_locations[0], output_expr);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_logical_or(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::LogicalOr& logical_or =
+				this->context.getSemaBuffer().getLogicalOr(expr.logicalOrID());
+
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_OR.END");
+			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_OR.RHS");
+
+			const pir::Expr lhs_expr = this->get_expr_register(logical_or.lhs);
+			const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
+			this->handler.createBranch(lhs_expr, end_block, rhs_block);
+
+			this->handler.setTargetBasicBlock(rhs_block);
+			const pir::Expr rhs_expr = this->get_expr_register(logical_or.rhs);
+			const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
+			this->handler.createJump(end_block);
+
+			this->handler.setTargetBasicBlock(end_block);
+
+			this->handler.setTargetBasicBlock(end_block);
+			std::string output_expr_name = [&](){
+				if constexpr(MODE == GetExprMode::STORE){
+					return this->name(".LOGICAL_OR");
+				}else{
+					return this->name("LOGICAL_OR");
+				}
+			}();
+			const pir::Expr output_expr = this->handler.createPhi(
+				evo::SmallVector<pir::Phi::Predecessor>{
+					pir::Phi::Predecessor(lhs_end_block, this->handler.createBoolean(true)),
+					pir::Phi::Predecessor(rhs_end_block, rhs_expr)
+				},
+				std::move(output_expr_name)
+			);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return output_expr;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr output_alloca = 
+					this->handler.createAlloca(this->module.createBoolType(), this->name("LOGICAL_OR"));
+				this->handler.createStore(output_alloca, output_expr);
+				return output_alloca;
+				
+			}else{
+				this->handler.createStore(store_locations[0], output_expr);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_union_accessor(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::UnionAccessor& union_accessor = 
+			this->context.getSemaBuffer().getUnionAccessor(expr.unionAccessorID());
+
+		if constexpr(MODE == GetExprMode::DISCARD){
+			this->get_expr_discard(union_accessor.target);
+			return std::nullopt;
+
+		}else{
+			const TypeInfo& target_type = 
+				this->context.getTypeManager().getTypeInfo(union_accessor.targetTypeID);
+
+			const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
+				target_type.baseTypeID().unionID()
+			);
+
+
+			const pir::Expr data_ptr = [&](){
+				if(target_union_type.isUntagged){
+					return this->get_expr_pointer(union_accessor.target);
+
+				}else{
+					return this->handler.createCalcPtr(
+						this->get_expr_pointer(union_accessor.target),
+						this->get_type<false, false>(target_type.baseTypeID()).type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_DATA")
+					);
+				}
+			}();
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(
+					data_ptr,
+					this->get_type<false, false>(
+						target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
+					).type,
+					this->name("UNION_ACCESSOR")
+				);
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return data_ptr;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return this->handler.createMemcpy(
+					store_locations[0],
+					data_ptr,
+					this->get_type<false, false>(
+						target_union_type.fields[union_accessor.fieldIndex].typeID.asTypeID()
+					).type
+				);
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_block_expr(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::BlockExpr& block_expr = this->context.getSemaBuffer().getBlockExpr(expr.blockExprID());
+
+		const std::string_view label = this->current_source->getTokenBuffer()[block_expr.label].getString();
+
+		const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("BLOCK_EXPR.END");
+
+
+		if(this->data.getConfig().includeDebugInfo){
+			const Location location =
+				this->get_location(Diagnostic::Location::get(block_expr.label, *this->current_source));
+
+			const pir::meta::Subscope::ID block_meta_subscope = this->module.createMetaSubscope(
+				std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
+				this->get_current_meta_local_scope(),
+				*this->current_source->getPIRMetaFileID(),
+				location.line_number,
+				location.collumn_number
+			);
+
+			this->local_scopes.emplace(block_meta_subscope);
+		}
+
+		if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+			auto label_output_locations = evo::SmallVector<pir::Expr>();
+			const pir::Type output_type = this->get_type<false, false>(block_expr.outputs[0].typeID).type;
+			label_output_locations.emplace_back(
+				this->handler.createAlloca(output_type, this->name(".BLOCK_EXPR.OUTPUT.ALLOCA"))
+			);
+
+			this->get_current_scope_level().defers.emplace_back(
+				AutoDeleteManagedLifetimeTarget(label_output_locations[0], block_expr.outputs[0].typeID),
+				DeferItem::Targets{
+					.on_scope_end = false,
+					.on_return    = true,
+					.on_error     = true,
+					.on_continue  = false,
+					.on_break     = false,
+				}
+			);
+
+			this->push_scope_level(label, std::move(label_output_locations), std::nullopt, end_block, false);
+
+		}else{
+			this->push_scope_level(
+				label,
+				evo::SmallVector<pir::Expr>(store_locations.begin(), store_locations.end()),
+				std::nullopt,
+				end_block,
+				false
+			);
+
+			for(size_t i = 0; const pir::Expr store_location : store_locations){
+				this->get_current_scope_level().defers.emplace_back(
+					AutoDeleteManagedLifetimeTarget(store_location, block_expr.outputs[i].typeID),
+					DeferItem::Targets{
+						.on_scope_end = false,
+						.on_return    = true,
+						.on_error     = true,
+						.on_continue  = false,
+						.on_break     = false,
+					}
+				);
+			
+				i += 1;
+			}
+		}
+		
+
+		for(const sema::Stmt& stmt : block_expr.block){
+			this->lower_stmt(stmt);
+		}
+
+		this->handler.setTargetBasicBlock(end_block);
+
+		if(this->data.getConfig().includeDebugInfo){
+			this->local_scopes.pop();
+		}
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
+			this->pop_scope_level();
+			return this->handler.createLoad(
+				output, this->handler.getAlloca(output).type, this->name("BLOCK_EXPR.OUTPUT")
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr output = this->get_current_scope_level().label_output_locations[0];
+			this->pop_scope_level();
+			return output;
+
+		}else{
+			this->pop_scope_level();
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_make_interface_ptr(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+			
+		}else{
+			const sema::MakeInterfacePtr& make_interface_ptr =
+				this->context.getSemaBuffer().getMakeInterfacePtr(expr.makeInterfacePtrID());
+
+			const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
+
+
+			const pir::Expr vtable_value = [&]() -> pir::Expr {
+				const BaseType::Interface& interface_type =
+					this->context.getTypeManager().getInterface(make_interface_ptr.interfaceID);
+				
+
+				if(interface_type.methods.size() == 1){
+					const pir::Function::ID vtable_method = this->data.get_single_method_vtable(
+						Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+					);
+
+					return this->handler.createFunctionPointer(vtable_method);
+
+				}else{
+					const pir::GlobalVar::ID vtable = this->data.get_vtable(
+						Data::VTableID(make_interface_ptr.interfaceID, make_interface_ptr.implTypeID)
+					);
+
+					return this->handler.createGlobalValue(vtable);
+				}
+			}();
+
+
+			const pir::Expr target = [&](){
+				if constexpr(MODE == GetExprMode::STORE){
+					return store_locations[0];
+				}else{
+					return this->handler.createAlloca(interface_ptr_type);
+				}
+			}();
+
+
+			const pir::Expr value_ptr = this->handler.createCalcPtr(
+				target,
+				interface_ptr_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+				this->name(".MAKE_INTERFACE_PTR.VALUE")
+			);
+			this->handler.createStore(value_ptr, this->get_expr_pointer(make_interface_ptr.expr));
+
+			const pir::Expr vtable_ptr = this->handler.createCalcPtr(
+				target,
+				interface_ptr_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+				this->name(".MAKE_INTERFACE_PTR.VTABLE")
+			);
+			this->handler.createStore(vtable_ptr, vtable_value);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(target, interface_ptr_type);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return target;
+
+			}else if constexpr(MODE == GetExprMode::STORE){
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_interface_ptr_extract_this(
+		sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+	) -> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::InterfacePtrExtractThis& interface_ptr_extract_this =
+				this->context.getSemaBuffer().getInterfacePtrExtractThis(expr.interfacePtrExtractThisID());
+
+			const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(interface_ptr_extract_this.expr),
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".INTERFACE_PTR.this")
+				);
+
+				return this->handler.createLoad(
+					ptr, this->module.createPtrType(), this->name("INTERFACE_PTR.this")
+				);
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->handler.createCalcPtr(
+					this->get_expr_pointer(interface_ptr_extract_this.expr),
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name("INTERFACE_PTR.this")
+				);
+
+			}else{
+				const pir::Expr ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(interface_ptr_extract_this.expr),
+					interface_ptr_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".INTERFACE_PTR.this")
+				);
+
+				this->handler.createMemcpy(store_locations[0], ptr, this->module.createPtrType());
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_interface_call(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::InterfaceCall& interface_call =
+			this->context.getSemaBuffer().getInterfaceCall(expr.interfaceCallID());
+
+
+		///////////////////////////////////
+		// create target func type
+
+		const BaseType::Function& target_func_type =
+			this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+
+		const pir::Type return_type = [&](){
+			if(target_func_type.hasNamedReturns){ return this->module.createVoidType(); }
+
+			return this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
+		}();
+
+		auto param_types = evo::SmallVector<pir::Type>();
+		for(const BaseType::Function::Param& param : target_func_type.params){
+			if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
+				param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
+			}else{
+				param_types.emplace_back(this->module.createPtrType());
+			}
+		}
+		if(target_func_type.hasNamedReturns){
+			for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
+				param_types.emplace_back(this->module.createPtrType());
+			}
+		}
+
+
+		const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
+			std::move(param_types), pir::CallingConvention::FAST, return_type
+		);
+
+
+		///////////////////////////////////
+		// get func pointer
+
+		const pir::Expr target_interface_ptr = this->get_expr_pointer(interface_call.value);
+		const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
+
+		const pir::Expr vtable_ptr = this->handler.createCalcPtr(
+			target_interface_ptr,
+			interface_ptr_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+			this->name(".VTABLE.PTR")
+		);
+		const pir::Expr vtable = this->handler.createLoad(
+			vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
+		);
+
+
+		const pir::Expr target_func = [&]() -> pir::Expr {
+			const BaseType::Interface& interface_type =
+				this->context.getTypeManager().getInterface(interface_call.interfaceID);
+
+			if(interface_type.methods.size() == 1){
+				return vtable;
+
+			}else{
+				const pir::Expr target_func_ptr = this->handler.createCalcPtr(
+					vtable,
+					this->module.createPtrType(),
+					evo::SmallVector<pir::CalcPtr::Index>{interface_call.vtableFuncIndex},
+					this->name(".VTABLE.FUNC.PTR")
+				);
+				return this->handler.createLoad(
+					target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+				);
+			}
+		}();
+
+
+		///////////////////////////////////
+		// make call
+
+		auto args = evo::SmallVector<pir::Expr>();
+		for(size_t i = 0; const sema::Expr& arg : interface_call.args){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(i == 0 && arg.kind() == sema::Expr::Kind::DEREF){
+				const sema::Deref& deref = this->context.getSemaBuffer().getDeref(arg.derefID());
+
+				if(deref.expr.kind() == sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS){
+					const sema::InterfacePtrExtractThis& interface_ptr_extract_this = 
+						this->context
+							.getSemaBuffer()
+							.getInterfacePtrExtractThis(deref.expr.interfacePtrExtractThisID());
+
+					if(interface_ptr_extract_this.expr == interface_call.value){
+						const pir::Expr this_ptr = this->handler.createCalcPtr(
+							target_interface_ptr,
+							interface_ptr_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+							this->name(".INTERFACE_PTR.this_ptr")
+						);
+
+						args.emplace_back(
+							this->handler.createLoad(
+								this_ptr, this->module.createPtrType(), this->name(".INTERFACE_PTR.this")
+							)
+						);
+
+						continue;
+					}
+				}
+			}
+
+
+			if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
+				args.emplace_back(this->get_expr_register(arg));
+			}else{
+				args.emplace_back(this->get_expr_pointer(arg));
+			}
+		}
+
+
+		if(target_func_type.hasNamedReturns){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Type actual_return_type =
+					this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
+
+				const pir::Expr return_alloc = this->handler.createAlloca(
+					actual_return_type, this->name(".INTERFACE_CALL.ALLOCA")
+				);
+				args.emplace_back(return_alloc);
+				this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
+
+				return this->handler.createLoad(return_alloc, actual_return_type, this->name("INTERFACE_CALL"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Type actual_return_type =
+					this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
+
+				const pir::Expr return_alloc = this->handler.createAlloca(
+					actual_return_type, this->name("INTERFACE_CALL.ALLOCA")
+				);
+				args.emplace_back(return_alloc);
+				this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
+
+				return return_alloc;
+				
+			}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+				for(pir::Expr store_location : store_locations){
+					args.emplace_back(store_location);
+				}
+				this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
+				return std::nullopt;
+			}
+
+		}else{
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createCall(
+					target_func, func_pir_type, std::move(args), this->name("INTERFACE_CALL")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr call_return = this->handler.createCall(
+					target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
+				);
+
+				const pir::Expr alloca = this->handler.createAlloca(
+					return_type, this->name("INTERFACE_CALL.ALLOCA")
+				);
+				this->handler.createStore(alloca, call_return);
+				return alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+				const pir::Expr call_return = this->handler.createCall(
+					target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL")
+				);
+				this->handler.createStore(store_locations.front(), call_return);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_indexer(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Indexer& indexer = this->context.getSemaBuffer().getIndexer(expr.indexerID());
+
+		const pir::Expr target = this->get_expr_pointer(indexer.target);
+
+		const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
+
+		auto indices = evo::SmallVector<pir::CalcPtr::Index>();
+		indices.reserve(indexer.indices.size() + 1);
+		indices.emplace_back(
+			pir::CalcPtr::Index(this->handler.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
+		);
+		for(const sema::Expr& index : indexer.indices){
+			indices.emplace_back(this->get_expr_register(index));
+		}
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(indexer.targetTypeID).type,
+				std::move(indices),
+				this->name("INDEXER")
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr indexer_alloca = this->handler.createAlloca(
+				this->module.createPtrType(), this->name(".INDEXER.ALLOCA")
+			);
+
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(indexer.targetTypeID).type,
+				std::move(indices),
+				this->name(".INDEXER")
+			);
+			this->handler.createStore(indexer_alloca, calc_ptr);
+
+			return indexer_alloca;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(indexer.targetTypeID).type,
+				std::move(indices),
+				this->name(".INDEXER")
+			);
+
+			this->handler.createStore(store_locations[0], calc_ptr);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_init_array_ref(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::InitArrayRef& init_array_ref = 
+			this->context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+
+
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const uint64_t num_bits_ptr = this->context.getTypeManager().numBitsOfPtr();
+
+			const pir::Type array_ref_type = this->data.getArrayRefType(
+				this->module,
+				this->context,
+				init_array_ref.targetTypeID,
+				[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+			).pir_type;
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr array_ref_alloca =
+					this->handler.createAlloca(array_ref_type, this->name(".ARRAY_REF.ALLOCA"));
+
+				const pir::Expr data_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF.ARRAY_PTR")
+				);
+				this->get_expr_store(init_array_ref.expr, data_ptr);
+
+
+				for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+					if(dimension.is<uint64_t>()){
+						const pir::Expr dimension_expr = this->handler.createNumber(
+							this->module.createUnsignedType(uint32_t(num_bits_ptr)),
+							core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+						);
+
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->handler.createStore(dimension_ptr, dimension_expr);
+
+					}else{
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+					}
+
+					i += 1;
+				}
+
+				return this->handler.createLoad(array_ref_alloca, array_ref_type, this->name("ARRAY_REF"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr array_ref_alloca =
+					this->handler.createAlloca(array_ref_type, this->name("ARRAY_REF"));
+
+				const pir::Expr data_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF.ARRAY_PTR")
+				);
+				this->get_expr_store(init_array_ref.expr, data_ptr);
+
+
+				for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+					if(dimension.is<uint64_t>()){
+						const pir::Expr dimension_expr = this->handler.createNumber(
+							this->module.createUnsignedType(uint32_t(num_bits_ptr)),
+							core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+						);
+
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->handler.createStore(dimension_ptr, dimension_expr);
+
+
+					}else{
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							array_ref_alloca,
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+					}
+
+					i += 1;
+				}
+
+				return array_ref_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+				const pir::Expr data_ptr = this->handler.createCalcPtr(
+					store_locations[0],
+					array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF.ARRAY_PTR")
+				);
+				this->get_expr_store(init_array_ref.expr, data_ptr);
+
+				for(uint32_t i = 1; evo::Variant<uint64_t, sema::Expr> dimension : init_array_ref.dimensions){
+					if(dimension.is<uint64_t>()){
+						const pir::Expr dimension_expr = this->handler.createNumber(
+							this->module.createUnsignedType(uint32_t(num_bits_ptr)),
+							core::GenericInt(unsigned(num_bits_ptr), dimension.as<uint64_t>())
+						);
+
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							store_locations[0],
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->handler.createStore(dimension_ptr, dimension_expr);
+
+					}else{
+						const pir::Expr dimension_ptr = this->handler.createCalcPtr(
+							store_locations[0],
+							array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, i},
+							this->name(".ARRAY_REF.DIMENSION_{}", i - 1)
+						);
+						this->get_expr_store(dimension.as<sema::Expr>(), dimension_ptr);
+					}
+
+					i += 1;
+				}
+
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_array_ref_indexer(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ArrayRefIndexer& array_ref_indexer =
+			this->context.getSemaBuffer().getArrayRefIndexer(expr.arrayRefIndexerID());
+
+		const BaseType::ArrayRef& array_ref_type =
+			this->context.getTypeManager().getArrayRef(array_ref_indexer.targetTypeID);
+
+
+		const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+			this->module,
+			this->context,
+			array_ref_indexer.targetTypeID,
+			[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+		).pir_type;
+
+		const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_indexer.target);
+
+		const pir::Expr get_arr_calc_ptr = this->handler.createCalcPtr(
+			target_array_ref,
+			pir_array_ref_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+			this->name(".ARRAY_REF.PTR_CALC")
+		);
+
+		const pir::Expr target = this->handler.createLoad(
+			get_arr_calc_ptr, this->module.createPtrType(), this->name(".ARRAY_REF.PTR")
+		);
+
+		const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
+
+
+		uint32_t ref_length_index = uint32_t(array_ref_type.getNumRefPtrs());
+
+		pir::Expr index = this->get_expr_register(array_ref_indexer.indices.back());
+		auto sub_array_width = std::optional<pir::Expr>();
+
+		for(size_t i = array_ref_indexer.indices.size() - 1; i >= 1; i-=1){
+			const pir::Expr length_num = [&](){
+				if(array_ref_type.dimensions[i].isPtr()){
+					const pir::Expr length_load = this->handler.createLoad(
+						this->handler.createCalcPtr(
+							target_array_ref,
+							pir_array_ref_type,
+							evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index}
+						),
+						type_usize
+					);
+
+					ref_length_index -= 1;
+
+					return length_load;
+
+				}else{
+					return this->handler.createNumber(
+						type_usize,
+						core::GenericInt(
+							unsigned(this->context.getTypeManager().numBitsOfPtr()),
+							array_ref_type.dimensions[i].length()
+						)
+					);
+				}
+			}();
+
+
+			if(sub_array_width.has_value()){
+				sub_array_width = this->handler.createMul(*sub_array_width, length_num, false, true);
+			}else{
+				sub_array_width = length_num;
+			}
+
+			index = this->handler.createAdd(
+				index,
+				this->handler.createMul(
+					*sub_array_width,
+					this->get_expr_register(array_ref_indexer.indices[i - 1]),
+					false,
+					true
+				),
+				false,
+				true
+			);
+		}
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(array_ref_type.elementTypeID).type,
+				evo::SmallVector<pir::CalcPtr::Index>{index},
+				this->name("ARRAY_REF_INDEXER")
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr array_ref_indexer_alloca = this->handler.createAlloca(
+				this->module.createPtrType(), this->name(".ARRAY_REF_INDEXER.ALLOCA")
+			);
+
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(array_ref_type.elementTypeID).type,
+				evo::SmallVector<pir::CalcPtr::Index>{index},
+				this->name(".ARRAY_REF_INDEXER")
+			);
+			this->handler.createStore(array_ref_indexer_alloca, calc_ptr);
+
+			return array_ref_indexer_alloca;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			const pir::Expr calc_ptr = this->handler.createCalcPtr(
+				target,
+				this->get_type<false, false>(array_ref_type.elementTypeID).type,
+				evo::SmallVector<pir::CalcPtr::Index>{index},
+				this->name(".ARRAY_REF_INDEXER")
+			);
+
+			this->handler.createStore(store_locations[0], calc_ptr);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_array_ref_size(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::ArrayRefSize& array_ref_size =
+				this->context.getSemaBuffer().getArrayRefSize(expr.arrayRefSizeID());
+
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(array_ref_size.targetTypeID);
+
+
+			const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+				this->module,
+				this->context,
+				array_ref_size.targetTypeID,
+				[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+			).pir_type;
+
+
+			const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_size.target);
+
+			const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
+
+
+			uint32_t ref_length_index = 0;
+			auto size_expr = std::optional<pir::Expr>();
+
+			for(const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+				const pir::Expr length_num = [&](){
+					if(dimension.isPtr()){
+						const pir::Expr length_load = this->handler.createLoad(
+							this->handler.createCalcPtr(
+								target_array_ref,
+								pir_array_ref_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
+							),
+							type_usize
+						);
+
+						ref_length_index += 1;
+
+						return length_load;
+
+					}else{
+						return this->handler.createNumber(
+							type_usize,
+							core::GenericInt(
+								unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
+							)
+						);
+					}
+				}();
+
+				if(size_expr.has_value()){
+					*size_expr = this->handler.createMul(*size_expr, length_num, true, false);
+				}else{
+					size_expr = length_num;
+				}
+			}
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return *size_expr;
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr size_alloca = 
+					this->handler.createAlloca(type_usize, this->name("ARRAY_REF_SIZE"));
+				this->handler.createStore(size_alloca, *size_expr);
+				return size_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+				this->handler.createStore(store_locations[0], *size_expr);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_array_ref_dimensions(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+		}else{
+			const sema::ArrayRefDimensions& array_ref_dimensions =
+				this->context.getSemaBuffer().getArrayRefDimensions(expr.arrayRefDimensionsID());
+
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(array_ref_dimensions.targetTypeID);
+
+			const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+				this->module,
+				this->context,
+				array_ref_dimensions.targetTypeID,
+				[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+			).pir_type;
+
+
+			const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_dimensions.target);
+
+			const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
+
+			const pir::Type return_type =
+				this->module.getOrCreateArrayType(type_usize, array_ref_type.dimensions.size());
+
+
+			const pir::Expr output_memory = [&](){
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->handler.createAlloca(return_type, this->name(".ARRAY_REF_DIMENSIONS.ALLOCA"));
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->handler.createAlloca(return_type, this->name("ARRAY_REF_DIMENSIONS"));
+
+				}else{
+					return store_locations[0];
+				}
+			}();
+
+			uint32_t ref_length_index = 0;
+			for(uint32_t i = 0; const BaseType::ArrayRef::Dimension& dimension : array_ref_type.dimensions){
+				const pir::Expr length_num = [&](){
+					if(dimension.isPtr()){
+						const pir::Expr length_load = this->handler.createLoad(
+							this->handler.createCalcPtr(
+								target_array_ref,
+								pir_array_ref_type,
+								evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index + 1}
+							),
+							type_usize
+						);
+
+						ref_length_index += 1;
+
+						return length_load;
+
+					}else{
+						return this->handler.createNumber(
+							type_usize,
+							core::GenericInt(
+								unsigned(this->context.getTypeManager().numBitsOfPtr()), dimension.length()
+							)
+						);
+					}
+				}();
+
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					output_memory, return_type, evo::SmallVector<pir::CalcPtr::Index>{0, i}
+				);
+
+				this->handler.createStore(calc_ptr, length_num);
+
+				i += 1;
+			}
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(output_memory, return_type, this->name("ARRAY_REF_DIMENSIONS"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return output_memory;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_array_ref_data(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+
+		}else{
+			const sema::ArrayRefData& array_ref_data =
+				this->context.getSemaBuffer().getArrayRefData(expr.arrayRefDataID());
+
+
+			const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+				this->module,
+				this->context,
+				array_ref_data.targetTypeID,
+				[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+			).pir_type;
+
+
+			const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_data.target);
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr data_value = this->handler.createCalcPtr(
+					target_array_ref,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF_DATA")
+				);
+
+				return this->handler.createLoad(
+					data_value, this->module.createPtrType(), this->name("ARRAY_REF_DATA")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->handler.createCalcPtr(
+					target_array_ref,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name("ARRAY_REF_DATA")
+				);
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+				const pir::Expr data_value = this->handler.createCalcPtr(
+					target_array_ref,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF_DATA")
+				);
+
+				this->handler.createMemcpy(store_locations[0], data_value, this->module.createPtrType());
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_union_designated_init_new(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::UnionDesignatedInitNew& union_designated_init_new = 
+			this->context.getSemaBuffer().getUnionDesignatedInitNew(expr.unionDesignatedInitNewID());
+
+		const BaseType::Union& union_info =
+			this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
+
+		if(union_info.isUntagged){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Type union_pir_type =
+					this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
+
+				const pir::Expr storage_alloca =
+					this->handler.createAlloca(union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW"));
+
+				this->get_expr_store(union_designated_init_new.value, storage_alloca);
+
+				return this->handler.createLoad(
+					storage_alloca, union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Type union_pir_type =
+					this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
+
+				const pir::Expr storage_alloca =
+					this->handler.createAlloca(union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW"));
+
+				this->get_expr_store(union_designated_init_new.value, storage_alloca);
+
+				return storage_alloca;
+
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->get_expr_store(union_designated_init_new.value, store_locations);
+				return std::nullopt;
+
+			}else{
+				this->get_expr_discard(union_designated_init_new.value);
+				return std::nullopt;
+			}
+
+		}else{
+			if constexpr(MODE == GetExprMode::DISCARD){
+				this->get_expr_discard(union_designated_init_new.value);
+				return std::nullopt;
+
+			}else{
+				const pir::Type union_pir_type =
+					this->get_type<false, false>(BaseType::ID(union_designated_init_new.unionTypeID)).type;
+
+				const pir::Expr target = [&](){
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->handler.createAlloca(
+							union_pir_type, this->name(".UNION_DESIGNATED_INIT_NEW")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->handler.createAlloca(
+							union_pir_type, this->name("UNION_DESIGNATED_INIT_NEW")
+						);
+
+					}else{
+						return store_locations[0];
+					}
+				}();
+
+				if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
+					const pir::Expr data_ptr = this->handler.createCalcPtr(
+						target,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+						this->name(".UNION_DESIGNATED_INIT_NEW.data")
+					);
+
+					const pir::Expr tag_ptr = this->handler.createCalcPtr(
+						target,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_DESIGNATED_INIT_NEW.tag")
+					);
+
+
+					this->get_expr_store(union_designated_init_new.value, data_ptr);
+
+					const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+					const pir::Expr tag_value = this->handler.createNumber(
+						tag_type,
+						core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+					);
+					this->handler.createStore(tag_ptr, tag_value);
+
+				}else{
+					const pir::Expr tag_ptr = this->handler.createCalcPtr(
+						target,
+						union_pir_type,
+						evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+						this->name(".UNION_DESIGNATED_INIT_NEW.tag")
+					);
+
+
+					const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+					const pir::Expr tag_value = this->handler.createNumber(
+						tag_type,
+						core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+					);
+					this->handler.createStore(tag_ptr, tag_value);
+				}
+
+				if constexpr(MODE == GetExprMode::REGISTER || MODE == GetExprMode::POINTER){
+					return target;
+				}else{
+					return std::nullopt;
+				}
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_union_tag_cmp(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::DISCARD){
+			return std::nullopt;
+		}else{
+			const sema::UnionTagCmp& union_tag_cmp =
+				this->context.getSemaBuffer().getUnionTagCmp(expr.unionTagCmpID());
+			
+			const pir::Type union_pir_type =
+				this->get_type<false, false>(BaseType::ID(union_tag_cmp.unionTypeID)).type;
+			const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
+
+			const pir::Expr tag_ptr = this->handler.createCalcPtr(
+				this->get_expr_pointer(union_tag_cmp.value),
+				union_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+				this->name(".UNION_TAG_CMP.tag_ptr")
+			);
+
+			const pir::Expr tag = this->handler.createLoad(tag_ptr, tag_type, this->name(".UNION_TAG_CMP.tag"));
+
+			const pir::Expr tag_cmp_value = this->handler.createNumber(
+				tag_type, core::GenericInt(unsigned(tag_type.getWidth()), union_tag_cmp.fieldIndex)
+			);
+
+			const pir::Expr cmp_result = [&](){
+				if(union_tag_cmp.isEqual){
+					return this->handler.createIEq(tag, tag_cmp_value);
+				}else{
+					return this->handler.createINeq(tag, tag_cmp_value);
+				}
+			}();
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return cmp_result;
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr cmp_result_alloca =
+					this->handler.createAlloca(tag_type, this->name("UNION_TAG_CMP"));
+
+				this->handler.createStore(cmp_result_alloca, cmp_result);
+
+				return cmp_result_alloca;
+
+			}else{
+				this->handler.createStore(store_locations[0], cmp_result);
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_try_else_expr(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::TryElseExpr& try_else_expr =
+			this->context.getSemaBuffer().getTryElseExpr(expr.tryElseExprID());
+		
+		const auto ssl = this->create_scoped_source_location(try_else_expr.line, try_else_expr.collumn);
+
+		const sema::FuncCall& attempt_func_call =
+			this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
+
+		const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+			if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+				return attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+			}else{
+				return this->context.getSemaBuffer().getFunc(
+					attempt_func_call.target.as<sema::Func::ID>()
+				).typeID;
+			}
+		}();
+
+		const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
+
+		const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
+
+		auto args = evo::SmallVector<pir::Expr>();
+		for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
+			if(target_func_type_info.params[i].is_copy()){
+				args.emplace_back(this->get_expr_register(arg));
+
+			}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
+				if(arg.kind() == sema::Expr::Kind::COPY){
+					args.emplace_back(
+						this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+					);
+
+				}else if(arg.kind() == sema::Expr::Kind::MOVE){
+					args.emplace_back(
+						this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+					);
+					
+				}else{
+					args.emplace_back(this->get_expr_pointer(arg));
+				}
+
+			}else{
+				args.emplace_back(this->get_expr_pointer(arg));
+			}
+
+			i += 1;
+		}
+
+
+		auto single_return_address = std::optional<pir::Expr>();
+
+		if constexpr(MODE == GetExprMode::STORE){
+			for(pir::Expr store_location : store_locations){
+				args.emplace_back(store_location);
+			}
+			
+		}else{
+			single_return_address = this->handler.createAlloca(
+				this->get_type<false, false>(target_type.returnTypes[0]).type
+			);
+			args.emplace_back(*single_return_address);
+		}
+
+
+
+		if(target_type.errorTypes[0].isVoid() == false){
+			const pir::Expr error_value = this->handler.createAlloca(
+				*target_func_type_info.error_return_type, this->name("ERR.ALLOCA")
+			);
+
+			for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
+				const sema::ExceptParam& except_param =
+					this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+				const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
+					error_value,
+					*target_func_type_info.error_return_type,
+					evo::SmallVector<pir::CalcPtr::Index>{
+						pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+					},
+					this->name(
+						"EXCEPT_PARAM.{}",
+						this->current_source->getTokenBuffer()[
+							this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+						].getString()
+					)
+				);
+				this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+			}
+
+			args.emplace_back(error_value);
+		}
+
+		const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
+
+
+
+		const auto target = [&]() -> CallTarget {
+			if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+				return PtrCallTarget{
+					.target   = this->get_expr_register(
+						attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr
+					),
+					.funcType = this->get_function_pir_type(target_type),
+				};
+
+			}else{
+				const Data::FuncInfo& target_func_info =
+					this->data.get_func(attempt_func_call.target.as<sema::Func::ID>());
+				return target_func_info.pir_ids[target_in_param_bitmap].visit(
+					[&](const auto& id) -> CallTarget {
+						using IDType = std::decay_t<decltype(id)>;
+
+						if constexpr(std::is_same<IDType, std::monostate>()){
+							evo::debugFatalBreak("target deleted by compiler");
+						}else{
+							return id;
+						}
+					}
+				);
+			}
+		}();
+
+
+		const pir::Expr err_occurred = this->create_call(target, std::move(args));
+
+		const pir::BasicBlock::ID if_error_block = this->handler.createBasicBlock(this->name("TRY.ERROR"));
+		const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("TRY.END"));
+
+		this->handler.createBranch(err_occurred, if_error_block, end_block);
+
+		this->handler.setTargetBasicBlock(if_error_block);
+		if constexpr(MODE == GetExprMode::STORE){
+			this->get_expr_store(try_else_expr.except, store_locations);
+		}else{
+			this->get_expr_store(try_else_expr.except, *single_return_address);
+		}
+		this->handler.createJump(end_block);
+
+		this->handler.setTargetBasicBlock(end_block);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Type return_type = this->get_type<false, false>(target_type.returnTypes[0]).type;
+			return this->handler.createLoad(*single_return_address, return_type);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return *single_return_address;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_try_else_interface_expr(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::TryElseInterfaceExpr& try_else_interface_expr =
+			this->context.getSemaBuffer().getTryElseInterfaceExpr(expr.tryElseInterfaceExprID());
+		
+		const sema::InterfaceCall& attempt_func_interface_call =
+			this->context.getSemaBuffer().getInterfaceCall(try_else_interface_expr.attempt.interfaceCallID());
+
+
+		const auto ssl =
+			this->create_scoped_source_location(try_else_interface_expr.line, try_else_interface_expr.collumn);
+
+
+		///////////////////////////////////
+		// create target func type
+
+		const BaseType::Function& target_func_type =
+			this->context.getTypeManager().getFunction(attempt_func_interface_call.funcTypeID);
+
+		auto param_types = evo::SmallVector<pir::Type>();
+		for(const BaseType::Function::Param& param : target_func_type.params){
+			if(this->is_param_copy(param, target_func_type.isMethod && param_types.empty())){
+				param_types.emplace_back(this->get_type<false, false>(param.typeID).type);
+			}else{
+				param_types.emplace_back(this->module.createPtrType());
+			}
+		}
+		for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
+			param_types.emplace_back(this->module.createPtrType());
+		}
+		if(target_func_type.hasErrorReturnValue()){
+			param_types.emplace_back(this->module.createPtrType());
+		}
+
+
+		const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
+			std::move(param_types), pir::CallingConvention::FAST, this->module.createBoolType()
+		);
+
+
+		///////////////////////////////////
+		// get func pointer
+
+		const pir::Expr target_interface_ptr = this->get_expr_pointer(attempt_func_interface_call.value);
+		const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
+
+		const pir::Expr vtable_ptr = this->handler.createCalcPtr(
+			target_interface_ptr,
+			interface_ptr_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+			this->name(".VTABLE.PTR")
+		);
+		const pir::Expr vtable = this->handler.createLoad(
+			vtable_ptr, this->module.createPtrType(), this->name(".VTABLE")
+		);
+
+		const pir::Expr target_func_ptr = this->handler.createCalcPtr(
+			vtable,
+			this->module.createPtrType(),
+			evo::SmallVector<pir::CalcPtr::Index>{attempt_func_interface_call.vtableFuncIndex},
+			this->name(".VTABLE.FUNC.PTR")
+		);
+		const pir::Expr target_func = this->handler.createLoad(
+			target_func_ptr, this->module.createPtrType(), this->name(".VTABLE.FUNC")
+		);
+
+
+		///////////////////////////////////
+		// make call
+
+		auto args = evo::SmallVector<pir::Expr>();
+		for(size_t i = 0; const sema::Expr& arg : attempt_func_interface_call.args){
+			EVO_DEFER([&](){ i += 1; });
+
+			if(this->is_param_copy(target_func_type.params[i], target_func_type.isMethod && i == 0)){
+				args.emplace_back(this->get_expr_register(arg));
+			}else{
+				args.emplace_back(this->get_expr_pointer(arg));
+			}
+		}
+
+
+		auto single_return_address = std::optional<pir::Expr>();
+
+		if constexpr(MODE == GetExprMode::STORE){
+			for(pir::Expr store_location : store_locations){
+				args.emplace_back(store_location);
+			}
+			
+		}else{
+			single_return_address = this->handler.createAlloca(
+				this->get_type<false, false>(target_func_type.returnTypes[0]).type
+			);
+			args.emplace_back(*single_return_address);
+		}
+
+
+		if(target_func_type.errorTypes[0].isVoid() == false){
+			const Data::InterfaceInfo& interface_info =
+				this->data.get_interface(attempt_func_interface_call.interfaceID);
+
+			const pir::Type error_return_type =
+				*interface_info.error_return_types[attempt_func_interface_call.vtableFuncIndex];
+
+			const pir::Expr error_value =
+				this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+
+			for(const sema::ExceptParam::ID except_param_id : try_else_interface_expr.exceptParams){
+				const sema::ExceptParam& except_param =
+					this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+				const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
+					error_value,
+					error_return_type,
+					evo::SmallVector<pir::CalcPtr::Index>{
+						pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+					},
+					this->name(
+						"EXCEPT_PARAM.{}",
+						this->current_source->getTokenBuffer()[
+							this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+						].getString()
+					)
+				);
+				this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+			}
+
+			args.emplace_back(error_value);
+		}
+
+
+
+		const pir::Expr err_occurred = this->handler.createCall(
+			target_func, func_pir_type, std::move(args), this->name(".TRY.ERRORED")
+		);
+
+		const pir::BasicBlock::ID if_error_block = this->handler.createBasicBlock(this->name("TRY.ERROR"));
+		const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("TRY.END"));
+
+		this->handler.createBranch(err_occurred, if_error_block, end_block);
+
+		this->handler.setTargetBasicBlock(if_error_block);
+		if constexpr(MODE == GetExprMode::STORE){
+			this->get_expr_store(try_else_interface_expr.except, store_locations);
+		}else{
+			this->get_expr_store(try_else_interface_expr.except, *single_return_address);
+		}
+		this->handler.createJump(end_block);
+
+		this->handler.setTargetBasicBlock(end_block);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Type return_type = this->get_type<false, false>(target_func_type.returnTypes[0]).type;
+			return this->handler.createLoad(*single_return_address, return_type);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return *single_return_address;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_param(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::Param& sema_param = this->context.getSemaBuffer().getParam(expr.paramID());
+
+		const pir::Expr param_alloca = this->param_allocas[sema_param.abiIndex];
+
+		if(this->current_func_type_info->params[sema_param.abiIndex].is_copy()){
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return param_alloca;
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->handler.createMemcpy(
+					store_locations[0], param_alloca, this->handler.getAlloca(param_alloca).type
+				);
+				return std::nullopt;
+				
+			}else{
+				return std::nullopt;
+			}
+
+		}else{
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(
+					this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
+					*this->current_func_type_info->params[sema_param.index].reference_type
+				);
+				
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type);
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->handler.createMemcpy(
+					store_locations[0],
+					this->handler.createLoad(param_alloca, this->handler.getAlloca(param_alloca).type),
+					*this->current_func_type_info->params[sema_param.index].reference_type
+				);
+				return std::nullopt;
+				
+			}else{
+				return std::nullopt;
+			}
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_return_param(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ReturnParam& sema_return_param =
+			this->context.getSemaBuffer().getReturnParam(expr.returnParamID());
+
+		const pir::Expr return_param_alloca = this->param_allocas[sema_return_param.abiIndex];
+		const pir::Expr return_param_ptr =
+			this->handler.createLoad(return_param_alloca, this->module.createPtrType());
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createLoad(
+				return_param_ptr,
+				this->current_func_type_info->return_params[sema_return_param.index].reference_type
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return return_param_ptr;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			this->handler.createMemcpy(
+				store_locations[0],
+				return_param_ptr,
+				this->current_func_type_info->return_params[sema_return_param.index].reference_type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_error_return_param(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ErrorReturnParam& sema_error_param =
+			this->context.getSemaBuffer().getErrorReturnParam(expr.errorReturnParamID());
+
+		const pir::Expr calc_ptr = this->handler.createCalcPtr(
+			this->handler.createLoad(
+				this->param_allocas[sema_error_param.abiIndex], this->module.createPtrType()
+			),
+			*this->current_func_type_info->error_return_type,
+			evo::SmallVector<pir::CalcPtr::Index>{
+				pir::CalcPtr::Index(0),
+				pir::CalcPtr::Index(sema_error_param.index)
+			}
+		);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createLoad(
+				calc_ptr,
+				this->get_type<false, false>(
+					this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
+				).type
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return calc_ptr;
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			this->handler.createMemcpy(
+				store_locations[0],
+				calc_ptr,
+				this->get_type<false, false>(
+					this->current_func_type->errorTypes[sema_error_param.index].asTypeID()
+				).type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_block_expr_output(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::BlockExprOutput& block_expr_output_param =
+			this->context.getSemaBuffer().getBlockExprOutput(expr.blockExprOutputID());
+
+		const std::string_view label_str =
+			this->current_source->getTokenBuffer()[block_expr_output_param.label].getString();
+
+		for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+			if(scope_level.label != label_str){ continue; }
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				return this->handler.createLoad(
+					scope_level.label_output_locations[block_expr_output_param.index],
+					this->get_type<false, false>(block_expr_output_param.typeID).type,
+					"LOAD.BLOCK_EXPR_OUTPUT"
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				return scope_level.label_output_locations[block_expr_output_param.index];
+				
+			}else if constexpr(MODE == GetExprMode::STORE){
+				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+				this->handler.createMemcpy(
+					store_locations[0],
+					scope_level.label_output_locations[block_expr_output_param.index],
+					this->get_type<false, false>(block_expr_output_param.typeID).type
+				);
+				return std::nullopt;
+
+			}else{
+				return std::nullopt;
+			}
+		}
+
+		evo::debugFatalBreak("Didn't find scope with that label");
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_except_param(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return this->handler.createLoad(
+				this->local_func_exprs.at(expr),
+				this->get_type<false, false>(
+					this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
+				).type
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return this->local_func_exprs.at(expr);
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			this->handler.createMemcpy(
+				store_locations[0],
+				this->local_func_exprs.at(expr),
+				this->get_type<false, false>(
+					this->context.getSemaBuffer().getExceptParam(expr.exceptParamID()).typeID
+				).type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_for_param(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ForParam& for_param = this->context.getSemaBuffer().getForParam(expr.forParamID());
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+			const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
+
+			if(for_param.isIndex){
+				return this->handler.createLoad(
+					for_param_expr,
+					for_param_alloca.type,
+					this->name(remove_alloca_from_name(for_param_alloca.name))
+				);
+
+			}else{
+				const pir::Expr for_param_load = this->handler.createLoad(
+					for_param_expr,
+					this->module.createPtrType(),
+					this->name("." + remove_alloca_from_name(for_param_alloca.name))
+				);
+
+				return this->handler.createLoad(
+					for_param_load,
+					this->get_type<false, false>(for_param.typeID).type,
+					this->name(remove_alloca_from_name(for_param_alloca.name) + ".LOAD")
+				);
+			}
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+			const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
+
+			if(for_param.isIndex){
+				return for_param_expr;
+			}else{
+				return this->handler.createLoad(
+					for_param_expr,
+					this->module.createPtrType(),
+					this->name(remove_alloca_from_name(for_param_alloca.name))
+				);
+			}
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			const pir::Expr for_param_expr = this->local_func_exprs.at(expr);
+			const pir::Alloca& for_param_alloca = this->handler.getAlloca(for_param_expr);
+
+			if(for_param.isIndex){
+				this->handler.createMemcpy(store_locations[0], for_param_expr, for_param_alloca.type);
+			}else{
+				const pir::Expr for_param_load = this->handler.createLoad(
+					for_param_expr,
+					this->module.createPtrType(),
+					this->name("." + remove_alloca_from_name(for_param_alloca.name))
+				);
+
+				this->handler.createMemcpy(
+					store_locations[0], for_param_load, this->get_type<false, false>(for_param.typeID).type
+				);
+			}
+
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_var(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Expr var_alloca = this->local_func_exprs.at(expr);
+
+			if(this->data.getConfig().useReadableNames){
+				const pir::Alloca& var_actual_alloca = this->handler.getAlloca(var_alloca);
+
+				return this->handler.createLoad(
+					var_alloca,
+					this->handler.getAlloca(var_alloca).type,
+					remove_alloca_from_name(var_actual_alloca.name)
+				);
+
+			}else{
+				return this->handler.createLoad(var_alloca, this->handler.getAlloca(var_alloca).type);	
+			}
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return this->local_func_exprs.at(expr);
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			const pir::Expr var_alloca = this->local_func_exprs.at(expr);
+			this->handler.createMemcpy(
+				store_locations[0], var_alloca, this->handler.getAlloca(var_alloca).type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_global_var(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const pir::GlobalVar::ID pir_var_id = this->data.get_global_var(expr.globalVarID());
+		
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
+			return this->handler.createLoad(
+				this->handler.createGlobalValue(pir_var_id),
+				pir_var.type,
+				this->name("{}.LOAD", this->mangle_name<true>(expr.globalVarID()))
+			);
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			return this->handler.createGlobalValue(pir_var_id);
+			
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+
+			const pir::GlobalVar& pir_var = this->module.getGlobalVar(pir_var_id);
+			this->handler.createMemcpy(
+				store_locations[0], this->handler.createGlobalValue(pir_var_id), pir_var.type
+			);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
 
 
 	template<SemaToPIR::GetExprMode MODE>

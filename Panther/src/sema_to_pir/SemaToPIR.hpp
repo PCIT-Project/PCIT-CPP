@@ -163,6 +163,219 @@ namespace pcit::panther{
 			auto get_expr_impl(const sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 				-> std::optional<pir::Expr>;
 
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_int_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_float_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_bool_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_string_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_aggregate_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_char_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_func_call(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_asm(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_func_ptr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_addr_of(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_conversion_to_optional(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_optional_null_check(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_optional_extract(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_deref(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_unwrap(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_accessor(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_logical_and(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_logical_or(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_union_accessor(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_block_expr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_make_interface_ptr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_interface_ptr_extract_this(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_interface_call(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_indexer(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_init_array_ref(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_array_ref_indexer(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_array_ref_size(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_array_ref_dimensions(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_array_ref_data(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_union_designated_init_new(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_union_tag_cmp(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_try_else_expr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_try_interface_expr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_param(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_return_param(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_error_return_param(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_block_expr_output(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_except_param(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_try_else_interface_expr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_for_param(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_var(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_global_var(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+
+
+
 
 			template<GetExprMode MODE>
 			auto get_expr_from_generic_value(

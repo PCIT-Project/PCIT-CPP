@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.353.6"></a>
+## v0.0.353.6
+
+### Panther
+- Fixed stack overflow in debug build in lowering
+
+
+<!---------------------------------->
 <a name="v0.0.353.5"></a>
 ## v0.0.353.5
 

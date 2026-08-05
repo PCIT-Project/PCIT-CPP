@@ -220,7 +220,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 
-	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
+	std::unique_ptr<panther::Context> context = 
+		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	using PantherBuildConfig = panther::Context::PantherBuildConfig;
@@ -333,7 +334,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		}
 
 
-		const CreatePantherPackageResult create_package_res = context.getSourceManager().createPackage(
+		const CreatePantherPackageResult create_package_res = context->getSourceManager().createPackage(
 			panther::Source::Package(
 				normalized_package_path,
 				static_cast<std::string>(package.name),
@@ -414,13 +415,13 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		}
 
 		if(static_cast<std::string_view>(package.name) == "std"){
-			context.addStdLib(create_package_res.value());
+			context->addStdLib(create_package_res.value());
 		}
 
 
 		for(const panther::Context::PantherBuildConfig::StringRef& source_file_path : package.sourceFiles){
 			const panther::Context::AddSourceResult result =
-				context.addSourceFile(static_cast<std::string_view>(source_file_path), create_package_res.value());
+				context->addSourceFile(static_cast<std::string_view>(source_file_path), create_package_res.value());
 
 			switch(result){
 				case panther::Context::AddSourceResult::SUCCESS: break;
@@ -471,11 +472,11 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		for(const PackageDirectory& source_directory : package.sourceDirectories){
 			const panther::Context::AddSourceResult result = [&]() -> panther::Context::AddSourceResult {
 				if(source_directory.isRecursive){
-					return context.addSourceDirectoryRecursive(
+					return context->addSourceDirectoryRecursive(
 						static_cast<std::string_view>(source_directory.path), create_package_res.value()
 					);
 				}else{
-					return context.addSourceDirectory(
+					return context->addSourceDirectory(
 						static_cast<std::string_view>(source_directory.path), create_package_res.value()
 					);
 				}
@@ -550,14 +551,14 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		const panther::Context::AddSourceResult result = [&](){
 			if(c_family_header.isCPP){
-				return context.addCPPHeaderFile(
+				return context->addCPPHeaderFile(
 					normalized_header_path,
 					std::move(system_include_directories),
 					std::move(include_directories),
 					c_family_header.addIncludesToPubApi
 				);
 			}else{
-				return context.addCHeaderFile(
+				return context->addCHeaderFile(
 					normalized_header_path,
 					std::move(system_include_directories),
 					std::move(include_directories),
@@ -613,8 +614,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 	switch(config.output.getTag()){
 		case PantherBuildConfig::Output::Tag::TOKENS: {
-			if(context.tokenize().isError()){
-				print_num_context_errors(context, printer);
+			if(context->tokenize().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
@@ -622,9 +623,9 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.isPrintingColor() && config.output.tokensData().path.has_value() == false
 			);
 
-			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
+			for(const panther::Source::ID source_id : context->getSourceManager().getSourceIDRange()){
 				pthr::print_tokens(
-					printer_for_tokens, context.getSourceManager()[source_id], cmd_args_config.workingDirectory
+					printer_for_tokens, context->getSourceManager()[source_id], cmd_args_config.workingDirectory
 				);
 			}
 
@@ -660,8 +661,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::AST: {
-			if(context.parse().isError()){
-				print_num_context_errors(context, printer);
+			if(context->parse().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
@@ -669,10 +670,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.isPrintingColor() && config.output.astData().path.has_value() == false
 			);
 
-			for(const panther::Source::ID source_id : context.getSourceManager().getSourceIDRange()){
+			for(const panther::Source::ID source_id : context->getSourceManager().getSourceIDRange()){
 				pthr::print_ast(
 					printer_for_ast,
-					context.getSourceManager()[source_id],
+					context->getSourceManager()[source_id],
 					cmd_args_config.workingDirectory,
 					false
 				);
@@ -711,8 +712,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::SEMANTIC_ANALYSIS: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
@@ -720,8 +721,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::PIR: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
@@ -730,8 +731,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.isPrintingColor() && config.output.pirData().path.has_value() == false
 			);
 
-			if(context.lowerToPIR().isError()){ return evo::resultError; }
-			pir::printModule(context.getPIRModule(), printer_for_pir_module);
+			if(context->lowerToPIR().isError()){ return evo::resultError; }
+			pir::printModule(context->getPIRModule(), printer_for_pir_module);
 
 
 			if(config.output.pirData().path.has_value()){
@@ -766,15 +767,15 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::LLVMIR: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
 			
-			if(context.lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){ return evo::resultError; }
 
-			const evo::Result<std::string> llvmir_string = context.lowerToLLVMIR();
+			const evo::Result<std::string> llvmir_string = context->lowerToLLVMIR();
 			if(llvmir_string.isError()){ return evo::resultError; }
 
 
@@ -810,14 +811,14 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::ASSEMBLY: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){ return evo::resultError; }
 
-			const evo::Result<std::string> asm_result = context.lowerToAssembly();
+			const evo::Result<std::string> asm_result = context->lowerToAssembly();
 			if(asm_result.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -860,15 +861,15 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::OBJECT: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){ return evo::resultError; }
 
 
-			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
+			const evo::Result<std::vector<evo::byte>> object_data = context->lowerToObject();
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -908,28 +909,28 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 
 		case PantherBuildConfig::Output::Tag::RUN: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
-			const evo::Result<uint8_t> entry_res = context.runEntry(true);
+			const evo::Result<uint8_t> entry_res = context->runEntry(true);
 			if(entry_res.isError()){ return evo::resultError; }
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
 			return evo::Result<>();
 		} break;
 
 		case PantherBuildConfig::Output::Tag::EXECUTABLE: {
-			if(context.analyzeSemantics().isError()){
-				print_num_context_errors(context, printer);
+			if(context->analyzeSemantics().isError()){
+				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
-			if(context.lowerToPIR().isError()){
+			if(context->lowerToPIR().isError()){
 				return evo::resultError;
 			}
 
-			const evo::Result<std::vector<evo::byte>> object_data = context.lowerToObject();
+			const evo::Result<std::vector<evo::byte>> object_data = context->lowerToObject();
 			if(object_data.isError()){
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
@@ -1101,7 +1102,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		} break;
 	}
 
-	context.emitFatal(
+	context->emitFatal(
 		panther::Diagnostic::createFatalMessage("Unknown compile output recieved"), panther::Diagnostic::Location::NONE
 	);
 	return evo::resultError;
@@ -1131,11 +1132,12 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		printer.printlnGray("Build system relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
-	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
+	std::unique_ptr<panther::Context> context = 
+		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	if(cmd_args_config.use_std_lib){
-		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
+		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
 				#if defined(PCIT_BUILD_RELEASE)
 					.basePath = cmd_args_config.executablePath / "Panther-std/std",
@@ -1156,15 +1158,15 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		}
 
 		const panther::Context::AddSourceResult add_dir_result = 
-			context.addSourceDirectoryRecursive("./", *std_package_id);
+			context->addSourceDirectoryRecursive("./", *std_package_id);
 
 		evo::debugAssert(add_dir_result == panther::Context::AddSourceResult::SUCCESS, "This should never fail");
 
-		context.addStdLib(*std_package_id);
+		context->addStdLib(*std_package_id);
 	}
 
 
-	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
+	const CreatePantherPackageResult package_res = context->getSourceManager().createPackage(
 		panther::Source::Package{
 			.basePath = cmd_args_config.workingDirectory,
 			.name     = "build",
@@ -1217,7 +1219,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		}
 	}();
 
-	switch(context.addSourceFile(build_file_path, *package_res)){
+	switch(context->addSourceFile(build_file_path, *package_res)){
 		case panther::Context::AddSourceResult::SUCCESS: {
 			// do nothing
 		} break;
@@ -1261,8 +1263,8 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		} break;
 	}
 
-	if(context.analyzeSemantics().isError()){
-		print_num_context_errors(context, printer);
+	if(context->analyzeSemantics().isError()){
+		print_num_context_errors(*context, printer);
 		return evo::resultError;
 	}
 
@@ -1270,7 +1272,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		printer.printlnGray("Executing build system");
 	}
 
-	return context.runBuildSystem(
+	return context->runBuildSystem(
 		[&](panther::Context::PantherBuildConfig& panther_build_config) -> evo::Result<> {
 			return run_compile(cmd_args_config, panther_build_config, printer);
 		},
@@ -1303,11 +1305,12 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		printer.printlnGray("Script relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
 	}
 
-	auto context = panther::Context(panther::createDefaultDiagnosticCallback(printer), context_config);
+	std::unique_ptr<panther::Context> context = 
+		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
 	if(cmd_args_config.use_std_lib){
-		const CreatePantherPackageResult std_package_id = context.getSourceManager().createPackage(
+		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
 				#if defined(PCIT_BUILD_RELEASE)
 					.basePath = cmd_args_config.executablePath / "Panther-std/std",
@@ -1325,15 +1328,15 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		}
 
 		const panther::Context::AddSourceResult add_dir_result = 
-			context.addSourceDirectoryRecursive("./", *std_package_id);
+			context->addSourceDirectoryRecursive("./", *std_package_id);
 
 		evo::debugAssert(add_dir_result == panther::Context::AddSourceResult::SUCCESS, "This should never fail");
 
-		context.addStdLib(*std_package_id);
+		context->addStdLib(*std_package_id);
 	}
 
 
-	const CreatePantherPackageResult package_res = context.getSourceManager().createPackage(
+	const CreatePantherPackageResult package_res = context->getSourceManager().createPackage(
 		panther::Source::Package{
 			.basePath = cmd_args_config.workingDirectory,
 			.name     = "script",
@@ -1386,7 +1389,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		}
 	}();
 
-	switch(context.addSourceFile(build_file_path, *package_res)){
+	switch(context->addSourceFile(build_file_path, *package_res)){
 		case panther::Context::AddSourceResult::SUCCESS: {
 			// do nothing
 		} break;
@@ -1430,8 +1433,8 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		} break;
 	}
 
-	if(context.analyzeSemantics().isError()){
-		print_num_context_errors(context, printer);
+	if(context->analyzeSemantics().isError()){
+		print_num_context_errors(*context, printer);
 		return evo::resultError;
 	}
 
@@ -1439,7 +1442,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		printer.printlnGray("Executing run script");
 	}
 
-	return context.runEntry(true);
+	return context->runEntry(true);
 }
 
 

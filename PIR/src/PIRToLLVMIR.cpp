@@ -3143,12 +3143,6 @@ namespace pcit::pir{
 			});
 
 
-		// const GetMetaTypeInfo& current_meta_type_info = this->get_meta_type_infos.back();
-		// if(current_meta_type_info.forward_decl.has_value()){
-		// 	// TODO(NOW): forward decl
-		// 	evo::unimplemented();
-		// }
-
 		this->get_meta_type_infos.pop_back();
 		return llvmint_meta_type;
 	}

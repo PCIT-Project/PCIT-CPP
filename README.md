@@ -38,11 +38,20 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 	- Small Panther standard library
 	- PLNK C++ library
 	- PIR C++ library
+	- Website generator and site search is written completely in Panther
+	- Support for Windows, Linux, WASM
+	- Support for x64
 - 0.2:
 	- More C++ support
 	- Richer Panther standard library
 	- Vectors
 	- Bitpacked
+	- SPIR-V support
+- 0.3:
+	- `PCIT`: Self hosted (written in Panther) compiler with superset of `PCIT-CPP`
+- 0.4:
+	- `PTHR-bootstrap`: a full rewrite of `PCIT-CPP` with only the features necessary to compile `PCIT`
+	- Deprication of `PCIT-CPP`
 - *in-between*:
 	- TBD
 - 1.0:
