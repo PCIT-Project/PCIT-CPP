@@ -954,32 +954,27 @@ namespace pcit::panther{
 				auto terms_to_check_for_deducers = std::stack<AST::Node, evo::SmallVector<AST::Node, 8>>();
 				terms_to_check_for_deducers.emplace(param_type.base);
 
+				bool is_deducer = false;
+				bool uses_template_param = false;
+
 				while(terms_to_check_for_deducers.empty() == false){
 					const AST::Node target_term = terms_to_check_for_deducers.top();
 					terms_to_check_for_deducers.pop();
 
 					switch(target_term.kind()){
 						case AST::Kind::IDENT: {
-							if(param_type.qualifiers.empty() == false){ continue; }
-
 							const std::string_view ident_name = this->source.getTokenBuffer()[
 								this->source.getASTBuffer().getIdent(target_term)
 							].getString();
 
-							if(template_names.contains(ident_name) == false){
-								const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
-									this->analyze_type<false>(param_type);
-								if(symbol_proc_type_id.isError()){ return evo::resultError; }
+							if(template_names.contains(ident_name)){
+								uses_template_param = true;
 							}
-
 						} break;
 
 						case AST::Kind::INFIX: {
-							if(param_type.qualifiers.empty() == false){ continue; }
-
-							const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
-								this->analyze_type<false>(param_type);
-							if(symbol_proc_type_id.isError()){ return evo::resultError; }
+							const AST::Infix& infix = this->source.getASTBuffer().getInfix(target_term);
+							terms_to_check_for_deducers.emplace(infix.lhs);
 						} break;
 
 						case AST::Kind::DEDUCER: {
@@ -993,6 +988,8 @@ namespace pcit::panther{
 							if(deducer_token.kind() == Token::Kind::DEDUCER){
 								template_names.emplace(deducer_token.getString());
 							}
+
+							is_deducer = true;
 						} break;
 
 						case AST::Kind::TEMPLATED_EXPR: {
@@ -1046,9 +1043,10 @@ namespace pcit::panther{
 								this->add_instruction(
 									this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
 								);
+
+								is_deducer = true;
 							}
 						} break;
-
 
 						case AST::Kind::TYPE: {
 							const AST::Type& ast_type = this->source.getASTBuffer().getType(target_term);
@@ -1057,6 +1055,14 @@ namespace pcit::panther{
 
 						default: break;
 					}
+				}
+
+				// Checking of validity of param type if is valid before instantiation
+				// TODO(FUTURE): make more granular (checking only parts of the type)
+				if(is_deducer == false && uses_template_param == false){
+					const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
+						this->analyze_type<false>(param_type);
+					if(symbol_proc_type_id.isError()){ return evo::resultError; }
 				}
 			}
 

@@ -1,6 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.354.0"></a>
+## v0.0.354.0
+
+### Misc
+- Updated to [Panther-std v0.0.42.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.42.0)
+
+
+<!---------------------------------->
+<a name="v0.0.353.7"></a>
+## v0.0.353.7
+
+### Panther
+- Fixed semantic analysis of template functions that have parameter types that use the template type parameters in some cases
+- Fixed lowering of `@numAlignBytes`
+
+
+<!---------------------------------->
 <a name="v0.0.353.6"></a>
 ## v0.0.353.6
 

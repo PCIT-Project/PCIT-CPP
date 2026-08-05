@@ -108,7 +108,7 @@ namespace pcit::panther{
 					unsigned(32), uint64_t(this->type_manager.alignmentOf(type_id))
 
 				),
-				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+				this->type_manager.getTypeInfo(TypeManager::getTypeUI32()).baseTypeID()
 			))
 		);
 	}
