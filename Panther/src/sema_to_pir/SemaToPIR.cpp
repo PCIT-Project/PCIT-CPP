@@ -5530,11 +5530,15 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create target func type
 
+
 		const BaseType::Function& target_func_type =
 			this->context.getTypeManager().getFunction(interface_call.funcTypeID);
 
+		const bool uses_rvo =
+			target_func_type.hasNamedReturns || target_func_type.isImplicitRVO(this->context.getTypeManager());
+
 		const pir::Type return_type = [&](){
-			if(target_func_type.hasNamedReturns){ return this->module.createVoidType(); }
+			if(uses_rvo){ return this->module.createVoidType(); }
 
 			return this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
 		}();
@@ -5547,12 +5551,11 @@ namespace pcit::panther{
 				param_types.emplace_back(this->module.createPtrType());
 			}
 		}
-		if(target_func_type.hasNamedReturns){
+		if(uses_rvo){
 			for(size_t i = 0; i < target_func_type.returnTypes.size(); i+=1){
 				param_types.emplace_back(this->module.createPtrType());
 			}
 		}
-
 
 		const pir::Type func_pir_type = this->module.getOrCreateFunctionType(
 			std::move(param_types), pir::CallingConvention::FAST, return_type
@@ -5641,7 +5644,7 @@ namespace pcit::panther{
 		}
 
 
-		if(target_func_type.hasNamedReturns){
+		if(uses_rvo){
 			if constexpr(MODE == GetExprMode::REGISTER){
 				const pir::Type actual_return_type =
 					this->get_type<false, false>(target_func_type.returnTypes[0].asTypeID()).type;
@@ -5666,10 +5669,22 @@ namespace pcit::panther{
 
 				return return_alloc;
 				
-			}else if constexpr(MODE == GetExprMode::STORE || MODE == GetExprMode::DISCARD){
+			}else if constexpr(MODE == GetExprMode::STORE){
 				for(pir::Expr store_location : store_locations){
 					args.emplace_back(store_location);
 				}
+				this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
+				return std::nullopt;
+
+			}else if constexpr(MODE == GetExprMode::DISCARD){
+				for(size_t i = 0; const TypeInfo::VoidableID return_type_id : target_func_type.returnTypes){
+					const pir::Type pir_return_type = this->get_type<false, false>(return_type_id.asTypeID()).type;
+					args.emplace_back(
+						this->handler.createAlloca(pir_return_type, this->name(".INTERFACE_CALL.DISCARD_{}", i))
+					);
+					i += 1;
+				}
+
 				this->handler.createCallVoid(target_func, func_pir_type, std::move(args));
 				return std::nullopt;
 			}
@@ -5700,6 +5715,10 @@ namespace pcit::panther{
 				return std::nullopt;
 
 			}else{
+				std::ignore = this->handler.createCall(
+					target_func, func_pir_type, std::move(args), this->name(".INTERFACE_CALL.DISCARD")
+				);
+
 				return std::nullopt;
 			}
 		}

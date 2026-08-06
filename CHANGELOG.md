@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.354.1"></a>
+## v0.0.354.1
+
+### Panther
+- Fixed lowering of interface call expressions with implicit RVO
+- Fixed lowering of discarding value of interface function call expression
+
+
+<!---------------------------------->
 <a name="v0.0.354.0"></a>
 ## v0.0.354.0
 
