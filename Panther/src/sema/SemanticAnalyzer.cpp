@@ -11508,8 +11508,11 @@ namespace pcit::panther{
 			);
 
 			const TypeInfo& expr_type_info = this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
+			
+			const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
+				this->context.getTypeManager().getPolyInterfaceRef(expr_type_info.baseTypeID().polyInterfaceRefID());
 			const BaseType::Interface& target_interface =
-				this->context.getTypeManager().getInterface(expr_type_info.baseTypeID().interfaceID());
+				this->context.getTypeManager().getInterface(target_poly_interface_ref.interfaceID);
 
 			const sema::Func& selected_func =
 				this->context.getSemaBuffer().getFunc(*func_call_impl_res.value().selected_func_id);
@@ -11522,7 +11525,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createTryElseInterface(
 							fake_term_info.expr,
 							selected_func.typeID,
-							expr_type_info.baseTypeID().interfaceID(),
+							target_poly_interface_ref.interfaceID,
 							uint32_t(i),
 							std::move(sema_args),
 							std::move(except_params),

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.354.2"></a>
+## v0.0.354.2
+
+### Panther
+- Fixed semantic analysis of polymorphic interface reference function call `try`/`else` statement
+- Fixed lowering of optional null check when wrapped type is not a pointer and not a primitive type
+- Fixed lowering of `try`/`else` statements when the `else` block is terminated
+
+
+<!---------------------------------->
 <a name="v0.0.354.1"></a>
 ## v0.0.354.1
 

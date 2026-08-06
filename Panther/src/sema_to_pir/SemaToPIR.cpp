@@ -2356,8 +2356,10 @@ namespace pcit::panther{
 				this->handler.setTargetBasicBlock(start_block);
 				this->handler.createBranch(err_occurred, if_error_block, end_block);
 
-				this->handler.setTargetBasicBlock(if_error_block_end);
-				this->handler.createJump(end_block);
+				if(try_else_interface.elseBlock.isTerminated() == false){
+					this->handler.setTargetBasicBlock(if_error_block_end);
+					this->handler.createJump(end_block);
+				}
 
 				this->handler.setTargetBasicBlock(end_block);
 			} break;
@@ -4768,7 +4770,7 @@ namespace pcit::panther{
 				this->context.getTypeManager().getTypeInfo(optional_null_check.targetTypeID);
 
 			bool is_pointer = target_type_info.isPointer();
-			if(is_pointer == false){
+			if(is_pointer == false && target_type_info.baseTypeID().kind() == BaseType::Kind::PRIMITIVE){
 				const BaseType::Primitive target_type_primitive = 
 					this->context.getTypeManager().getPrimitive(target_type_info.baseTypeID().primitiveID());
 				is_pointer = target_type_primitive.kind() == Token::Kind::TYPE_RAWPTR;
