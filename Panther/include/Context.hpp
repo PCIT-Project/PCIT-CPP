@@ -824,6 +824,16 @@ namespace pcit::panther{
 				-> TemplateIntrinsicFuncInfo&;
 
 
+			[[nodiscard]] auto create_builtin_interface_method(
+				BuiltinModule::ID builtin_module_id,
+				std::string_view name,
+				evo::SmallVector<BaseType::Function::Param>&& type_params,
+				evo::SmallVector<TypeInfo::VoidableID>&& ret_params,
+				evo::SmallVector<sema::Func::Param>&& sema_params,
+				bool is_comptime,
+				bool is_runtime
+			) -> sema::Func::ID;
+
 			[[nodiscard]] auto create_builtin_struct(
 				BuiltinModule::ID builtin_module_id,
 				std::string_view name,

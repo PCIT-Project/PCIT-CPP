@@ -3363,13 +3363,18 @@ namespace pcit::panther{
 				if(str == "panic"){ return SymbolProc::BuiltinSymbolKind::PANIC; }
 				if(str == "array.IIterable"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE; }
 				if(str == "array.IIterableRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_RT; }
+				if(str == "array.IIterableCT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_ITERABLE_CT; }
 				if(str == "arrayRef.IIterableRef"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF; }
 				if(str == "arrayRef.IIterableRefRT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_RT; }
+				if(str == "arrayRef.IIterableRefCT"){ return SymbolProc::BuiltinSymbolKind::ARRAY_REF_ITERABLE_REF_CT; }
 				if(str == "arrayMutRef.IIterableMutRef"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF;
 				}
 				if(str == "arrayMutRef.IIterableMutRefRT"){
 					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF_RT;
+				}
+				if(str == "arrayMutRef.IIterableMutRefCT"){
+					return SymbolProc::BuiltinSymbolKind::ARRAY_MUT_REF_ITERABLE_MUT_REF_CT;
 				}
 
 				evo::debugFatalBreak("Unknown or unsupported builtin symbol str ({})", str);

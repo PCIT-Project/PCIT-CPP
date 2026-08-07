@@ -1524,10 +1524,13 @@ namespace pcit::panther{
 			switch(*current_symbol_proc.builtin_symbol_proc_kind){
 				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"):
 				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"):
 				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"):
 				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"):
 				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"):
-				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"):
+				case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"): {
 					in_def = true;
 				} break;
 

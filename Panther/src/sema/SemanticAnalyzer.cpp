@@ -6322,6 +6322,10 @@ namespace pcit::panther{
 						return pthr_module.getSymbol("IIterableRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"): {
+						return pthr_module.getSymbol("IIterableCT")->as<BaseType::ID>().interfaceID();
+					} break;
+
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"): {
 						return pthr_module.getSymbol("IIterableRef")->as<BaseType::ID>().interfaceID();
 					} break;
@@ -6330,12 +6334,20 @@ namespace pcit::panther{
 						return pthr_module.getSymbol("IIterableRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"): {
+						return pthr_module.getSymbol("IIterableRefCT")->as<BaseType::ID>().interfaceID();
+					} break;
+
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"): {
 						return pthr_module.getSymbol("IIterableMutRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
 						return pthr_module.getSymbol("IIterableMutRefRT")->as<BaseType::ID>().interfaceID();
+					} break;
+
+					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"): {
+						return pthr_module.getSymbol("IIterableMutRefCT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					default: {
@@ -7976,11 +7988,19 @@ namespace pcit::panther{
 		BaseType::Interface* interface_iterable_mut_ref    = nullptr;
 		BaseType::Interface* interface_iterator            = nullptr;
 		BaseType::Interface* interface_mut_iterator        = nullptr;
+
 		BaseType::Interface* interface_iterable_rt         = nullptr;
 		BaseType::Interface* interface_iterable_ref_rt     = nullptr;
 		BaseType::Interface* interface_iterable_mut_ref_rt = nullptr;
 		BaseType::Interface* interface_iterator_rt         = nullptr;
 		BaseType::Interface* interface_mut_iterator_rt     = nullptr;
+
+		BaseType::Interface* interface_iterable_ct         = nullptr;
+		BaseType::Interface* interface_iterable_ref_ct     = nullptr;
+		BaseType::Interface* interface_iterable_mut_ref_ct = nullptr;
+		BaseType::Interface* interface_iterator_ct         = nullptr;
+		BaseType::Interface* interface_mut_iterator_ct     = nullptr;
+
 		{
 			const BuiltinModule& pthr_module = this->context.getSourceManager()[BuiltinModule::ID::PTHR];
 
@@ -7998,14 +8018,22 @@ namespace pcit::panther{
 			};
 
 			if(in_comptime_func){
-				interface_iterable         = get_interface("IIterable");
-				interface_iterable_ref     = get_interface("IIterableRef");
-				interface_iterable_mut_ref = get_interface("IIterableMutRef");
-				interface_iterator         = get_interface("IIterator");
-				interface_mut_iterator     = get_interface("IMutIterator");
-			}
+				if(in_runtime_func){
+					interface_iterable         = get_interface("IIterable");
+					interface_iterable_ref     = get_interface("IIterableRef");
+					interface_iterable_mut_ref = get_interface("IIterableMutRef");
+					interface_iterator         = get_interface("IIterator");
+					interface_mut_iterator     = get_interface("IMutIterator");
 
-			if(in_runtime_func){
+				}else{
+					interface_iterable_ct         = get_interface("IIterableCT");
+					interface_iterable_ref_ct     = get_interface("IIterableRefCT");
+					interface_iterable_mut_ref_ct = get_interface("IIterableMutRefCT");
+					interface_iterator_ct         = get_interface("IIteratorCT");
+					interface_mut_iterator_ct     = get_interface("IMutIteratorCT");
+				}
+
+			}else{
 				interface_iterable_rt         = get_interface("IIterableRT");
 				interface_iterable_ref_rt     = get_interface("IIterableRefRT");
 				interface_iterable_mut_ref_rt = get_interface("IIterableMutRefRT");
@@ -8061,62 +8089,94 @@ namespace pcit::panther{
 			}
 
 
-			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 6>();
+			auto interfaces_to_check = evo::StaticVector<InterfaceToCheck, 3>();
 
 			if(instr.for_stmt.values[i].isMut){
 				if(in_comptime_func){
-					interfaces_to_check.emplace_back(
-						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
-					);
+					if(in_runtime_func){
+						interfaces_to_check.emplace_back(
+							*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_mut_ref,
+							*interface_mut_iterator,
+							nullptr,
+							InterfaceKind::ITERABLE_MUT_REF
+						);
+					}else{
+						interfaces_to_check.emplace_back(
+							*interface_iterable_ct,
+							*interface_iterator_ct,
+							interface_mut_iterator_ct,
+							InterfaceKind::ITERABLE
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_mut_ref_ct,
+							*interface_mut_iterator_ct,
+							nullptr,
+							InterfaceKind::ITERABLE_MUT_REF
+						);
+					}
 
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
-					);
-				}
-
-				if(in_runtime_func){
+				}else{
 					interfaces_to_check.emplace_back(
 						*interface_iterable_rt,
 						*interface_iterator_rt,
 						interface_mut_iterator_rt,
 						InterfaceKind::ITERABLE
 					);
-
-					interfaces_to_check.emplace_back( 
+					interfaces_to_check.emplace_back(
 						*interface_iterable_mut_ref_rt,
 						*interface_mut_iterator_rt,
 						nullptr,
 						InterfaceKind::ITERABLE_MUT_REF
 					);
 				}
+
 			}else{
 				if(in_comptime_func){
-					interfaces_to_check.emplace_back(
-						*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
-					);
+					if(in_runtime_func){
+						interfaces_to_check.emplace_back(
+							*interface_iterable, *interface_iterator, interface_mut_iterator, InterfaceKind::ITERABLE
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_ref, *interface_iterator, nullptr, InterfaceKind::ITERABLE_REF
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_mut_ref,
+							*interface_mut_iterator,
+							nullptr,
+							InterfaceKind::ITERABLE_MUT_REF
+						);
+					}else{
+						interfaces_to_check.emplace_back(
+							*interface_iterable_ct,
+							*interface_iterator_ct,
+							interface_mut_iterator_ct,
+							InterfaceKind::ITERABLE
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_ref_ct, *interface_iterator_ct, nullptr, InterfaceKind::ITERABLE_REF
+						);
+						interfaces_to_check.emplace_back(
+							*interface_iterable_mut_ref_ct,
+							*interface_mut_iterator_ct,
+							nullptr,
+							InterfaceKind::ITERABLE_MUT_REF
+						);
+					}
 
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_ref, *interface_iterator, nullptr, InterfaceKind::ITERABLE_REF
-					);
-
-					interfaces_to_check.emplace_back( 
-						*interface_iterable_mut_ref, *interface_mut_iterator, nullptr, InterfaceKind::ITERABLE_MUT_REF
-					);
-				}
-
-				if(in_runtime_func){
+				}else{
 					interfaces_to_check.emplace_back(
 						*interface_iterable_rt,
 						*interface_iterator_rt,
 						interface_mut_iterator_rt,
 						InterfaceKind::ITERABLE
 					);
-
-					interfaces_to_check.emplace_back( 
+					interfaces_to_check.emplace_back(
 						*interface_iterable_ref_rt, *interface_iterator_rt, nullptr, InterfaceKind::ITERABLE_REF
 					);
-
-					interfaces_to_check.emplace_back( 
+					interfaces_to_check.emplace_back(
 						*interface_iterable_mut_ref_rt,
 						*interface_mut_iterator_rt,
 						nullptr,
@@ -31680,6 +31740,25 @@ namespace pcit::panther{
 					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 					return true;
 
+				}else if(interface_name == "IIterableCT"){
+					if(array_type.dimensions.size() != 1){
+						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					if(array_type.terminator.has_value()){
+						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"),
+						this->symbol_proc.getID(),
+						this->context
+					);
+					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+					return true;
+
 				}else{
 					return false;
 				}
@@ -31745,6 +31824,31 @@ namespace pcit::panther{
 						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
 						return true;
 
+					}else if(interface_name == "IIterableMutRefCT"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								"Iteration of multi-dimension array references is currently unimplemented", location
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								"Iteration of array references with terminators is currently unimplemented", location
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"),
+								this->symbol_proc.getID(),
+								this->context
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
 					}else{
 						return false;
 					}
@@ -31791,6 +31895,30 @@ namespace pcit::panther{
 						const bool need_to_wait =
 							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
 								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
+								this->symbol_proc.getID(),
+								this->context
+							);
+						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+						return true;
+
+					}else if(interface_name == "IIterableRefCT"){
+						if(array_ref_type.dimensions.size() != 1){
+							this->emit_error(
+								"Iteration of multi-dimension array references is currently unimplemented", location
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						
+						if(array_ref_type.terminator.has_value()){
+							this->emit_error(
+								"Iteration of array references with terminators is currently unimplemented", location
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+						const bool need_to_wait =
+							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"),
 								this->symbol_proc.getID(),
 								this->context
 							);

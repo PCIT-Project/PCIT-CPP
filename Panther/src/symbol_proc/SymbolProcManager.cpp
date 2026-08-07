@@ -33,16 +33,25 @@ namespace pcit::panther{
 			"array.IIterableRT", constevalLookupBuiltinSymbolKind("array.IIterableRT")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
+			"array.IIterableCT", constevalLookupBuiltinSymbolKind("array.IIterableCT")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
 			"arrayRef.IIterableRef", constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
 			"arrayRef.IIterableRefRT", constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
+			"arrayRef.IIterableRefCT", constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
 			"arrayMutRef.IIterableMutRef", constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef")
 		);
 		this->builtin_symbol_kind_lookup.emplace(
 			"arrayMutRef.IIterableMutRefRT", constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT")
+		);
+		this->builtin_symbol_kind_lookup.emplace(
+			"arrayMutRef.IIterableMutRefCT", constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT")
 		);
 	}
 

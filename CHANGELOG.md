@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.355.0"></a>
+## v0.0.355.0
+
+### Panther
+- Added interfaces to `@pthr`
+	- `IIterableCT`
+	- `IIterableRefCT`
+	- `IIterableMutRefCT`
+	- `IIteratorCT`
+	- `IMutIteratorCT`
+
+### Misc
+- Updated to [Panther-std v0.0.43.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.43.0)
+
+
+<!---------------------------------->
 <a name="v0.0.354.2"></a>
 ## v0.0.354.2
 
