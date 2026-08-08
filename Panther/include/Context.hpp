@@ -65,6 +65,12 @@ namespace pcit::panther{
 					BUILD       = 3,
 				};
 
+				enum class UnreachableMode : uint32_t {
+					PANIC       = 0,
+					ABORT       = 1,
+					UNREACHABLE = 2,
+				};
+
 				enum class WindowsSubsystem : uint32_t {
 					CONSOLE = 0, // console application
 					WINDOWS = 1, // application doesn't require a console
@@ -85,6 +91,7 @@ namespace pcit::panther{
 				CompilerMode compilerMode;
 				std::optional<WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
+				UnreachableMode unreachableMode;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -371,6 +378,7 @@ namespace pcit::panther{
 				Config::Mode mode;
 				pir::OptMode optMode;
 				NumThreads numThreads;
+				Config::UnreachableMode unreachableMode;
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;
@@ -396,7 +404,6 @@ namespace pcit::panther{
 					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.useDebugUnreachables = true, // TODO(FUTURE): when an option, add check in sema for `unreachable`
 				})
 			{
 				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
@@ -414,7 +421,6 @@ namespace pcit::panther{
 					.includeDebugInfo     = this->_config.includeDebugInfo,
 					.useReadableNames     = true,
 					.checkedMath          = true,
-					.useDebugUnreachables = true, // TODO(FUTURE): when an option, add check in sema for `unreachable`
 				})
 			{
 				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");

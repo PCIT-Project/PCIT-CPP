@@ -228,6 +228,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ErrorID>::UniqueID;
 	};
 
+	struct UnreachableID : public core::UniqueID<uint32_t, struct UnreachableID> {
+		using core::UniqueID<uint32_t, UnreachableID>::UniqueID;
+	};
+
 	struct BreakID : public core::UniqueID<uint32_t, struct BreakID> {
 		using core::UniqueID<uint32_t, BreakID>::UniqueID;
 	};
@@ -759,6 +763,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::ErrorID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::UnreachableID>{
+		static constexpr auto init(panther::sema::UnreachableID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::UnreachableID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1772,6 +1787,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::ErrorID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::ErrorID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::UnreachableID>{
+		auto operator()(pcit::panther::sema::UnreachableID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::UnreachableID> : 
+		public pcit::core::Optional<pcit::panther::sema::UnreachableID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::UnreachableID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::UnreachableID>::operator=;
 	};
 
 

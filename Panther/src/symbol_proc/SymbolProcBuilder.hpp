@@ -96,7 +96,7 @@ namespace pcit::panther{
 			auto analyze_local_interface(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
-			auto analyze_unreachable(Token::ID unreachable_token) -> evo::Result<>;
+			auto analyze_unreachable(const AST::Unreachable& unreachable_token) -> evo::Result<>;
 			auto analyze_break(const AST::Break& break_stmt) -> evo::Result<>;
 			auto analyze_continue(const AST::Continue& continue_stmt) -> evo::Result<>;
 			auto analyze_delete(const AST::Delete& delete_stmt) -> evo::Result<>;

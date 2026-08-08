@@ -2793,6 +2793,27 @@ namespace pcit::panther{
 		);
 
 
+
+		const BaseType::Enum::ID unreachable_mode_type = this->create_builtin_enum(
+			BuiltinModule::ID::PTHR,
+			"UnreachableMode",
+			evo::SmallVector<BaseType::Enum::Enumerator>{
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("PANIC"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::PANIC))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("ABORT"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::ABORT))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("UNREACHABLE"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::UNREACHABLE))
+				),
+			}
+		);
+
+
 		const BaseType::Enum::ID opt_mode_type = this->create_builtin_enum(
 			BuiltinModule::ID::PTHR,
 			"OptMode",
@@ -2942,6 +2963,13 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("numThreads"),
 					TypeManager::getTypeUI32(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("unreachableMode"),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(unreachable_mode_type))),
 					std::nullopt,
 					false
 				),

@@ -318,6 +318,18 @@ namespace pcit::panther{
 
 
 			///////////////////////////////////
+			// unreachables
+
+			[[nodiscard]] auto createUnreachable(auto&&... args) -> sema::Unreachable::ID {
+				return this->unreachables.emplace_back(std::forward<decltype(args)>(args)...);
+			}
+
+			[[nodiscard]] auto getUnreachable(sema::Unreachable::ID id) const -> const sema::Unreachable& {
+				return this->unreachables[id];
+			}
+
+
+			///////////////////////////////////
 			// breaks
 
 			[[nodiscard]] auto createBreak(auto&&... args) -> sema::Break::ID {
@@ -1019,6 +1031,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
 			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
 			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
+			core::SyncLinearStepAlloc<sema::Unreachable, sema::Unreachable::ID> unreachables{};
 			core::SyncLinearStepAlloc<sema::Break, sema::Break::ID> breaks{};
 			core::SyncLinearStepAlloc<sema::Continue, sema::Continue::ID> continues{};
 			core::SyncLinearStepAlloc<sema::Delete, sema::Delete::ID> deletes{};

@@ -92,6 +92,8 @@ namespace pcit::panther{
 					-> Location;
 				[[nodiscard]] static auto get(const AST::Return& return_stmt, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Error& error_stmt, const class Source& src) -> Location;
+				[[nodiscard]] static auto get(const AST::Unreachable& unreachable_stmt, const class Source& src)
+					-> Location;
 				[[nodiscard]] static auto get(const AST::Break& break_stmt, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Continue& continue_stmt, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::Delete& delete_stmt, const class Source& src) -> Location;

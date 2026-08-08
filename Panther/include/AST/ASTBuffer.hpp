@@ -85,11 +85,6 @@ namespace pcit::panther{
 				return node._value.token_id;
 			}
 
-			[[nodiscard]] static auto getUnreachable(const AST::Node& node) -> Token::ID {
-				evo::debugAssert(node.kind() == AST::Kind::UNREACHABLE, "Node is not a Unreachable");
-				return node._value.token_id;
-			}
-
 
 
 			[[nodiscard]] auto createVarDef(auto&&... args) -> AST::Node {
@@ -216,6 +211,16 @@ namespace pcit::panther{
 			[[nodiscard]] auto getError(const AST::Node& node) const -> const AST::Error& {
 				evo::debugAssert(node.kind() == AST::Kind::ERROR, "Node is not a Error");
 				return this->errors[node._value.node_index];
+			}
+
+			[[nodiscard]] auto createUnreachable(auto&&... args) -> AST::Node {
+				evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+				const uint32_t node_index = this->unreachables.emplace_back(std::forward<decltype(args)>(args)...);
+				return AST::Node(AST::Kind::UNREACHABLE, node_index);
+			}
+			[[nodiscard]] auto getUnreachable(const AST::Node& node) const -> const AST::Unreachable& {
+				evo::debugAssert(node.kind() == AST::Kind::UNREACHABLE, "Node is not a Unreachable");
+				return this->unreachables[node._value.node_index];
 			}
 
 			[[nodiscard]] auto createBreak(auto&&... args) -> AST::Node {
@@ -568,6 +573,7 @@ namespace pcit::panther{
 
 			core::LinearStepAlloc<AST::Return, uint32_t> returns{};
 			core::LinearStepAlloc<AST::Error, uint32_t> errors{};
+			core::LinearStepAlloc<AST::Unreachable, uint32_t> unreachables{};
 			core::LinearStepAlloc<AST::Break, uint32_t> breaks{};
 			core::LinearStepAlloc<AST::Continue, uint32_t> continues{};
 			core::LinearStepAlloc<AST::Delete, uint32_t> deletes{};

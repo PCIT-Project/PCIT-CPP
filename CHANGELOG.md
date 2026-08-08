@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.356.0"></a>
+## v0.0.356.0
+
+### Panther
+- Added optional `unreachable` message
+- Added `@pthr.UnreachableMode`
+
+### Misc
+- Updated to [Panther-std v0.0.44.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.44.0)
+
+
+<!---------------------------------->
 <a name="v0.0.355.0"></a>
 ## v0.0.355.0
 

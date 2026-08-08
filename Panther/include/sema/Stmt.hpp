@@ -69,6 +69,8 @@ namespace pcit::panther::sema{
 			: _kind(Kind::MULTI_ASSIGN), value{.multi_assign_id = multi_assign_id} {}
 		explicit Stmt(ReturnID return_id)        : _kind(Kind::RETURN),      value{.return_id = return_id}         {}
 		explicit Stmt(ErrorID error_id)          : _kind(Kind::ERROR),       value{.error_id = error_id}           {}
+		explicit Stmt(UnreachableID unreachable_id)
+			: _kind(Kind::UNREACHABLE), value{.unreachable_id = unreachable_id} {}
 		explicit Stmt(BreakID break_id)          : _kind(Kind::BREAK),       value{.break_id = break_id}           {}
 		explicit Stmt(ContinueID continue_id)    : _kind(Kind::CONTINUE),    value{.continue_id = continue_id}     {}
 		explicit Stmt(DeleteID delete_id)        : _kind(Kind::DELETE),      value{.delete_id = delete_id}         {}
@@ -86,9 +88,6 @@ namespace pcit::panther::sema{
 			: _kind(Kind::LIFETIME_END), value{.lifetime_end_id = lifetime_end_id} {}
 		explicit Stmt(UnusedExprID unused_expr_id)
 			: _kind(Kind::UNUSED_EXPR), value{.unused_expr_id = unused_expr_id} {}
-
-
-		static auto createUnreachable(Token::ID token_id) -> Stmt { return Stmt(token_id, Kind::UNREACHABLE); }
 
 
 		[[nodiscard]] auto kind() const -> Kind { return this->_kind; }
@@ -143,9 +142,9 @@ namespace pcit::panther::sema{
 			return this->value.error_id;
 		}
 
-		[[nodiscard]] auto unreachableID() const -> Token::ID {
+		[[nodiscard]] auto unreachableID() const -> UnreachableID {
 			evo::debugAssert(this->kind() == Kind::UNREACHABLE, "not an unreachable");
-			return this->value.token_id;
+			return this->value.unreachable_id;
 		}
 
 		[[nodiscard]] auto breakID() const -> BreakID {
@@ -215,13 +214,8 @@ namespace pcit::panther::sema{
 
 
 		private:
-			Stmt(Token::ID token_id, Kind stmt_kind) : _kind(stmt_kind), value{.token_id = token_id} {}
-
-
-		private:
 			Kind _kind;
 			union {
-				Token::ID token_id;
 				VarID var_id;
 				FuncCallID func_call_id;
 				TryElseID try_else_id;
@@ -232,6 +226,7 @@ namespace pcit::panther::sema{
 				MultiAssignID multi_assign_id;
 				ReturnID return_id;
 				ErrorID error_id;
+				UnreachableID unreachable_id;
 				BreakID break_id;
 				ContinueID continue_id;
 				DeleteID delete_id;

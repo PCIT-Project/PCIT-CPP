@@ -1020,14 +1020,28 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): check EOF
 	auto Parser::parse_unreachable() -> Result {
-		const Token::ID start_location = this->reader.peek();
+		const Token::ID keyword = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_UNREACHABLE).isError()){ return Result::Code::ERROR; }
 
-		if(this->expect_token(Token::lookupKind(";"), "at the end of a [unreachable] statement").isError()){
+		auto message = std::optional<AST::Node>();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+			this->reader.skip();
+
+			const Result expr_result = this->parse_expr();
+			if(this->check_result(expr_result, "message after [(] in unreachable statement").isError()){
+				return Result::Code::ERROR;
+			}
+
+			if(this->expect_token(Token::lookupKind(")"), "at end of unreachable statement").isError()){
+				return Result::Code::ERROR;
+			}
+		}
+
+		if(this->expect_token(Token::lookupKind(";"), "at the end of a unreachable statement").isError()){
 			return Result::Code::ERROR;
 		}
 
-		return AST::Node(AST::Kind::UNREACHABLE, start_location);
+		return this->source.ast_buffer.createUnreachable(keyword, message);
 	}
 
 

@@ -510,7 +510,8 @@ namespace pcit::panther{
 		};
 
 		struct Unreachable{
-			Token::ID keyword;
+			const AST::Unreachable& unreachable_stmt;
+			std::optional<SymbolProcTermInfoID>	message;
 		};
 
 		struct Break{

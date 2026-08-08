@@ -182,6 +182,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		.compilerMode           = compiler_mode,
 		.windowsSubsystem       = static_cast<std::optional<ContextConfig::WindowsSubsystem>>(config.windowsSubsystem),
 		.optMode                = config.optMode,
+		.unreachableMode        = config.unreachableMode,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1120,6 +1121,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.compilerMode           = ContextConfig::CompilerMode::BUILD,
 		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
+		.unreachableMode        = ContextConfig::UnreachableMode::PANIC,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1293,6 +1295,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		.compilerMode           = ContextConfig::CompilerMode::SCRIPT,
 		.windowsSubsystem       = std::nullopt,
 		.optMode                = pir::OptMode::SPEED,
+		.unreachableMode        = ContextConfig::UnreachableMode::PANIC,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 

@@ -491,6 +491,14 @@ namespace pcit::panther::sema{
 		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
 	};
 
+	struct Unreachable{
+		using ID = UnreachableID;
+		
+		std::optional<Expr> message;
+		uint32_t line = 0; // 0 if unused (must be both line and collumn)
+		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+	};
+
 	struct Break{
 		using ID = BreakID;
 

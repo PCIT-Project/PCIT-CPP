@@ -311,6 +311,11 @@ namespace pcit::panther::AST{
 		evo::Variant<std::monostate, Node, Token::ID> value; // std::monostate == error; Token::ID == error...;
 	};
 
+	struct Unreachable{
+		Token::ID keyword;
+		std::optional<Node> message;
+	};
+
 	struct Break{
 		Token::ID keyword;
 		std::optional<Token::ID> label;

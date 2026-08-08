@@ -48,6 +48,7 @@ namespace pcit::panther{
 			case AST::Kind::INTERFACE_IMPL:    return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:            return Location::get(ast_buffer.getReturn(node), src); 
 			case AST::Kind::ERROR:             return Location::get(ast_buffer.getError(node), src);
+			case AST::Kind::UNREACHABLE:       return Location::get(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::BREAK:             return Location::get(ast_buffer.getBreak(node), src);
 			case AST::Kind::CONTINUE:          return Location::get(ast_buffer.getContinue(node), src);
 			case AST::Kind::DELETE:            return Location::get(ast_buffer.getDelete(node), src);
@@ -58,7 +59,6 @@ namespace pcit::panther{
 			case AST::Kind::SWITCH:            return Location::get(ast_buffer.getSwitch(node), src);
 			case AST::Kind::WHEN_SWITCH:       return Location::get(ast_buffer.getWhenSwitch(node), src);
 			case AST::Kind::DEFER:             return Location::get(ast_buffer.getDefer(node), src);
-			case AST::Kind::UNREACHABLE:       return Location::get(ast_buffer.getUnreachable(node), src);
 			case AST::Kind::BLOCK:             return Location::get(ast_buffer.getBlock(node), src);
 			case AST::Kind::FUNC_CALL:         return Location::get(ast_buffer.getFuncCall(node), src);
 			case AST::Kind::INDEXER:           return Location::get(ast_buffer.getIndexer(node), src);
@@ -157,6 +157,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::Error& error_stmt, const Source& src) -> Location {
 		return Location::get(error_stmt.keyword, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::Unreachable& unreachable_stmt, const Source& src) -> Location {
+		return Location::get(unreachable_stmt.keyword, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::Break& break_stmt, const Source& src) -> Location {

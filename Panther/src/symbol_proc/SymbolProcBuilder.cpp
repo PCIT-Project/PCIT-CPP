@@ -2932,8 +2932,17 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::analyze_unreachable(Token::ID unreachable_token) -> evo::Result<> {
-		this->add_instruction(this->context.symbol_proc_manager.createUnreachable(unreachable_token));
+	auto SymbolProcBuilder::analyze_unreachable(const AST::Unreachable& unreachable_stmt) -> evo::Result<> {
+		auto message = std::optional<SymbolProc::TermInfoID>();
+
+		if(unreachable_stmt.message.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*unreachable_stmt.message);
+			if(message_res.isError()){ return evo::resultError; }
+
+			message = message_res.value();
+		}
+
+		this->add_instruction(this->context.symbol_proc_manager.createUnreachable(unreachable_stmt, message));
 		return evo::Result<>();
 	}
 

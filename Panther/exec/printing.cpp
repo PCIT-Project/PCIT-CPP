@@ -312,6 +312,10 @@ namespace pthr{
 						this->print_error(this->ast_buffer.getError(stmt));
 					} break;
 
+					case panther::AST::Kind::UNREACHABLE: {
+						this->print_unreachable(this->ast_buffer.getUnreachable(stmt));
+					} break;
+
 					case panther::AST::Kind::BREAK: {
 						this->print_break(this->ast_buffer.getBreak(stmt));
 					} break;
@@ -1196,6 +1200,32 @@ namespace pthr{
 						}
 					});
 
+
+					this->indenter.pop();
+				}
+			}
+
+
+
+			auto print_unreachable(const panther::AST::Unreachable& unreachable_stmt) -> void {
+				this->indenter.print();
+				this->print_major_header("Unreachable");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_end();
+					this->print_minor_header("Message");
+
+					if(unreachable_stmt.message.has_value()){
+						this->indenter.push();
+						this->printer.println();
+						this->print_expr(*unreachable_stmt.message);
+						this->indenter.pop();
+						
+					}else{
+						this->printer.printlnGray(" {NONE");
+					}
 
 					this->indenter.pop();
 				}

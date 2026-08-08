@@ -2673,17 +2673,28 @@ namespace pcit::panther{
 			} break;
 
 			case sema::Stmt::Kind::UNREACHABLE: {
-				if(this->data.getConfig().useDebugUnreachables){
-					const Diagnostic::Location location =
-						Diagnostic::Location::get(stmt.unreachableID(), *this->current_source);
-					const auto ssl = this->create_scoped_source_location(
-						location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
-					);
+				const sema::Unreachable& unreachable_stmt =
+					this->context.getSemaBuffer().getUnreachable(stmt.unreachableID());
 
-					this->create_panic("Attempted to execute unreachable");
+				const auto ssl = this->create_scoped_source_location(unreachable_stmt.line, unreachable_stmt.collumn);
 
-				}else{
-					this->handler.createUnreachable();
+				switch(this->context.getConfig().unreachableMode){
+					case Context::Config::UnreachableMode::PANIC: {
+						if(unreachable_stmt.message.has_value()){
+							this->create_panic(sema::extractStringFromExpr(*unreachable_stmt.message, this->context));
+
+						}else{
+							this->create_panic("Reached an unreachable");
+						}
+					} break;
+
+					case Context::Config::UnreachableMode::ABORT: {
+						this->handler.createAbort();
+					} break;
+
+					case Context::Config::UnreachableMode::UNREACHABLE: {
+						this->handler.createUnreachable();
+					} break;
 				}
 			} break;
 

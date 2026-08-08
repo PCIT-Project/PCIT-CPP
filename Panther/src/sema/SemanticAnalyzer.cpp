@@ -7381,14 +7381,40 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_unreachable(const Instruction::Unreachable& instr) -> Result {
-		if(this->check_scope_isnt_terminated(instr.keyword).isError()){ return Result::ERROR; }
-		
-		this->get_current_scope_level().stmtBlock().emplace_back(sema::Stmt::createUnreachable(instr.keyword));
+		if(this->check_scope_isnt_terminated(instr.unreachable_stmt.keyword).isError()){ return Result::ERROR; }
+
+		auto message_expr = std::optional<sema::Expr>();
+		if(instr.message.has_value()){
+			TermInfo& message_term_info = this->get_term_info(*instr.message);
+
+			TypeCheckInfo message_type_check_info = this->type_check<true, true, true>(
+				TypeManager::getTypeStringRef(),
+				message_term_info,
+				"Message in unreachable statement",
+				this->get_location(*instr.unreachable_stmt.message)
+			);
+			if(message_type_check_info.ok == false){
+				return message_type_check_info.extractSpecialResultForReturning();
+			}
+
+			message_expr = message_term_info.getExpr();
+		}
+
+
+
+		const Diagnostic::Location location = this->get_location(instr.unreachable_stmt.keyword);
+
+		this->get_current_scope_level().stmtBlock().emplace_back(
+			this->context.sema_buffer.createUnreachable(
+				message_expr, location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
+			)
+		);
+
 		this->get_current_scope_level().setTerminated();
 
-		// if(this->context.getConfig().useDebugUnreachables){ // TODO(FUTURE): uncomment / change if
+		if(this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC){
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
-		// }
+		}
 
 		return Result::SUCCESS;
 	}

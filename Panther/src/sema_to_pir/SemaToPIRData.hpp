@@ -60,8 +60,6 @@ namespace pcit::panther{
 				bool includeDebugInfo;
 				bool useReadableNames;
 				bool checkedMath;
-
-				bool useDebugUnreachables;
 			};
 			
 			struct FuncInfo{
