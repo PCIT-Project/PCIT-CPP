@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.357.0"></a>
+## v0.0.357.0
+
+### Panther
+- Added `@getIntegerTypeID()`
+- Added `@ctGetIntegerTypeID()`
+- Fixed incorrect checking for comptime/runtime expression calls of intrinsic function call
+
+### PIR
+- Fixed execution engine calling of registered functions
+	- Passing parameters incorrectly
+	- Returning values incorrectly
+
+
+<!---------------------------------->
 <a name="v0.0.356.0"></a>
 ## v0.0.356.0
 

@@ -12122,25 +12122,35 @@ namespace pcit::panther{
 				const Context::IntrinsicFuncInfo& intrinsic_func_info =
 					this->context.getIntrinsicFuncInfo(intrinsic_kind);
 
-				if(this->currently_in_func()){
-					if(
-						this->func_scope_current_value_stage().requiresComptime()
-						&& intrinsic_func_info.allowedInComptime == false
-					){
+				if constexpr(IS_COMPTIME){
+					if(intrinsic_func_info.allowedInComptime == false){
 						this->emit_error(
-							"Cannot call a non-comptime function within a comptime function", instr.func_call.target
+							"Comptime value cannot be a call to a function that is not comptime", instr.func_call.target
 						);
 						return Result::ERROR;
 					}
 
-					if(
-						this->func_scope_current_value_stage().requiresRuntime()
-						&& intrinsic_func_info.allowedInRuntime == false
-					){
-						this->emit_error(
-							"Cannot call a non-runtime function within a runtime function", instr.func_call.target
-						);
-						return Result::ERROR;
+				}else{
+					if(this->currently_in_func()){
+						if(
+							this->func_scope_current_value_stage().requiresComptime()
+							&& intrinsic_func_info.allowedInComptime == false
+						){
+							this->emit_error(
+								"Cannot call a non-comptime function within a comptime function", instr.func_call.target
+							);
+							return Result::ERROR;
+						}
+
+						if(
+							this->func_scope_current_value_stage().requiresRuntime()
+							&& intrinsic_func_info.allowedInRuntime == false
+						){
+							this->emit_error(
+								"Cannot call a non-runtime function within a runtime function", instr.func_call.target
+							);
+							return Result::ERROR;
+						}
 					}
 				}
 
@@ -12204,6 +12214,24 @@ namespace pcit::panther{
 						);
 
 						return Result::SUCCESS;
+					} break;
+
+					case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
+						if constexpr(IS_COMPTIME){
+							const uint32_t width =
+								uint32_t(this->context.getSemaBuffer().getIntValue(sema_args[0].intValueID()).value);
+							const bool is_unsigned =
+								this->context.getSemaBuffer().getBoolValue(sema_args[1].boolValueID()).value;
+
+							auto comptime_intrinsic_evaluator = ComptimeIntrinsicEvaluator(
+								this->context.type_manager, this->context.sema_buffer
+							);
+
+							this->return_term_info(instr.output,
+								comptime_intrinsic_evaluator.getIntegerTypeID(width, is_unsigned)
+							);
+							return Result::SUCCESS;
+						}
 					} break;
 
 					case IntrinsicFunc::Kind::COMPILER_EXECUTABLE_DIRECTORY: {
@@ -13452,6 +13480,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES:
 			case TemplateIntrinsicFunc::Kind::NUM_BITS:
 			case TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES:
+			case TemplateIntrinsicFunc::Kind::GET_INTEGER_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE:
@@ -13838,6 +13867,16 @@ namespace pcit::panther{
 					instr.output,
 					comptime_intrinsic_evaluator.numAlignBytes(
 						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+					)
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::GET_INTEGER_TYPE_ID: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.getIntegerTypeID(
+						static_cast<uint32_t>(template_args[0].as<core::GenericValue>().getInt(32)),
+						template_args[1].as<core::GenericValue>().getBool()
 					)
 				);
 			} break;
@@ -26359,7 +26398,7 @@ namespace pcit::panther{
 		}
 
 		// Uncomment this to print out the state of the comptime pir module (for debugging purposes)
-		// {
+		// if(this->context.getConfig().compilerMode == Context::Config::CompilerMode::COMPILE){
 		// 	auto printer = core::Printer::createConsole();
 		// 	pir::printModule(this->context.pir_module, printer);
 		// }

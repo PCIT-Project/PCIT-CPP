@@ -94,8 +94,9 @@ namespace pcit::panther{
 			};
 
 			struct ComptimeExecutionEngineFuncs{
-				pir::ExternalFunction::ID print   = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID println = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID print               = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID println             = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID get_integer_type_id = pir::ExternalFunction::ID::dummy();
 			};
 
 			using VTableID = SemaToPIRDataVTableID;

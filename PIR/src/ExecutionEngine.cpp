@@ -103,7 +103,7 @@ namespace pcit::pir{
 		const ExternalFunction& extern_func = this->module.getExternalFunction(extern_func_id);
 
 		const Function::ID created_func_id = this->jit_engine_module.createFunction(
-			std::format("PIR.ExEng-intf.{}", extern_func.name),
+			std::format("PIR.ExecEng-intf.{}", extern_func.name),
 			evo::SmallVector<Parameter>{
 				Parameter("PARAMS", this->jit_engine_module.createPtrType()),
 				Parameter("RET", this->jit_engine_module.createPtrType()),
@@ -132,8 +132,6 @@ namespace pcit::pir{
 		const ExternalFunction::ID created_extern_func_id = this->jit_engine_module.createExternalFunction(
 			evo::copy(extern_func.name), std::move(params), CallingConvention::C, Linkage::EXTERNAL, return_type
 		);
-		const ExternalFunction& created_extern_func =
-			this->jit_engine_module.getExternalFunction(created_extern_func_id);
 
 		auto handler = InstrHandler(this->jit_engine_module, this->jit_engine_module.getFunction(created_func_id));
 
@@ -141,15 +139,22 @@ namespace pcit::pir{
 		handler.setTargetBasicBlock(created_func_entry_basic_block);
 
 		auto args = evo::SmallVector<Expr>();
-		args.reserve(created_extern_func.parameters.size());
-		for(size_t i = 0; const Parameter& param : created_extern_func.parameters){
-			const Expr arg_ptr = handler.createCalcPtr(
+		args.reserve(extern_func.parameters.size());
+		for(size_t i = 0; const Parameter& param : extern_func.parameters){
+			const Expr arg_ptr_ptr = handler.createCalcPtr(
 				handler.createParamExpr(0),
 				this->jit_engine_module.createPtrType(),
 				evo::SmallVector<CalcPtr::Index>{int32_t(i)}
 			);
 
-			args.emplace_back(handler.createLoad(arg_ptr, param.getType()));
+			const Expr arg_ptr = handler.createLoad(arg_ptr_ptr, this->jit_engine_module.createPtrType());
+
+			if(param.getType().kind() == Type::Kind::PTR){
+				args.emplace_back(arg_ptr);
+			}else{
+				args.emplace_back(handler.createLoad(arg_ptr, param.getType()));
+			}
+
 			
 			i += 1;
 		}

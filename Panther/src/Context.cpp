@@ -4285,7 +4285,7 @@ namespace pcit::panther{
 		);
 		this->comptime_execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.print,
-			[](PantherBuildConfig::StringRef str) -> void { evo::print(static_cast<std::string_view>(str)); }
+			[](PantherBuildConfig::StringRef* str) -> void { evo::print(static_cast<std::string_view>(*str)); }
 		);
 
 
@@ -4298,7 +4298,36 @@ namespace pcit::panther{
 		);
 		this->comptime_execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.println,
-			[](PantherBuildConfig::StringRef str) -> void { evo::println(static_cast<std::string_view>(str)); }
+			[](PantherBuildConfig::StringRef* str) -> void { evo::println(static_cast<std::string_view>(*str)); }
+		);
+
+
+		comptime_execution_engine_funcs.get_integer_type_id = this->pir_module.createExternalFunction(
+			"@ctGetIntegerTypeID",
+			evo::SmallVector<pir::Parameter>{
+				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("width", pir::Module::createUnsignedType(32)),
+				pir::Parameter("is_unsigned", pir::Module::createBoolType())
+			},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createUnsignedType(32)
+		);
+		this->comptime_execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.get_integer_type_id,
+			[](Context* context, uint32_t width, bool is_unsigned) -> uint32_t {
+				const BaseType::ID primitive_type_id = [&]() -> BaseType::ID {
+					if(is_unsigned){
+						return context->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, width);
+					}else{
+						return context->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, width);
+					}
+				}();
+
+				const TypeInfo::ID type_id = context->type_manager.getOrCreateTypeInfo(TypeInfo(primitive_type_id));
+
+				return type_id.get();
+			}
 		);
 	}
 
@@ -4309,6 +4338,7 @@ namespace pcit::panther{
 			
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.print);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.println);
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.get_integer_type_id);
 	}
 
 
@@ -4439,6 +4469,23 @@ namespace pcit::panther{
 			.allowedInComptime = true, .allowedInRuntime = false,
 			.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
 		};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID))] =
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ),
+						BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ),
+					},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeTypeID()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = true, .allowedInRuntime = false,
+				.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
+			};
+
 
 		{
 			const BuiltinModule& builtin_module_build = this->source_manager[BuiltinModule::ID::BUILD];
@@ -4572,6 +4619,14 @@ namespace pcit::panther{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUI32()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::GET_INTEGER_TYPE_ID) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TypeManager::getTypeUI32(), TypeManager::getTypeBool()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};

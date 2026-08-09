@@ -29,6 +29,9 @@ namespace pcit::panther{
 			COMPTIME_PRINT,
 			COMPTIME_PRINTLN,
 
+			// type traits
+			CT_GET_INTEGER_TYPE_ID,
+
 			// build system
 			CREATE_PANTHER_BUILD,
 
@@ -55,6 +58,7 @@ namespace pcit::panther{
 			NUM_BYTES,
 			NUM_BITS,
 			NUM_ALIGN_BYTES,
+			GET_INTEGER_TYPE_ID,
 			IS_DEFAULT_INITIALIZABLE,
 			IS_TRIVIALLY_DEFAULT_INITIALIZABLE,
 			IS_COMPTIME_DEFAULT_INITIALIZABLE,

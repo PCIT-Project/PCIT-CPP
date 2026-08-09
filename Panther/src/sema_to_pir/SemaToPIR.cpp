@@ -10549,7 +10549,7 @@ namespace pcit::panther{
 					args.emplace_back(this->get_expr_register(arg));
 				}else{
 					args.emplace_back(this->get_expr_pointer(arg));
-				}
+				}	
 
 				i += 1;
 			}
@@ -10564,6 +10564,16 @@ namespace pcit::panther{
 
 		const pir::Expr value = [&](){
 			switch(intrinsic_func_kind){
+				case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
+					auto args = evo::SmallVector<pir::Expr>();
+					args.emplace_back(get_context_ptr());
+					get_args(args);
+
+					return this->handler.createCall(
+						this->data.getComptimeExecutionEngineFuncs().get_integer_type_id, std::move(args)
+					);
+				} break;
+
 				case IntrinsicFunc::Kind::CREATE_PANTHER_BUILD: {
 					auto args = evo::SmallVector<pir::Expr>();
 					args.emplace_back(get_context_ptr());

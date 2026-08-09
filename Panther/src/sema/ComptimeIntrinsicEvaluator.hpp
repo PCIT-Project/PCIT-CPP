@@ -39,6 +39,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			[[nodiscard]] auto numAlignBytes(TypeInfo::ID type_id) -> TermInfo;
 
+			[[nodiscard]] auto getIntegerTypeID(uint32_t width, bool is_unsigned) -> TermInfo;
+
 			[[nodiscard]] auto isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isTriviallyDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto isComptimeDefaultInitializable(TypeInfo::ID type_id) -> TermInfo;

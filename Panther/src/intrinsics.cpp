@@ -50,6 +50,9 @@ namespace pcit::panther{
 			{"comptimePrint",               Kind::COMPTIME_PRINT},
 			{"comptimePrintln",             Kind::COMPTIME_PRINTLN},
 
+			// type traits
+			{"ctGetIntegerTypeID",          Kind::CT_GET_INTEGER_TYPE_ID},
+
 			// build system
 			{"createPantherBuild",          Kind::CREATE_PANTHER_BUILD},
 
@@ -97,6 +100,7 @@ namespace pcit::panther{
 			{"numBytes",                        Kind::NUM_BYTES},
 			{"numBits",                         Kind::NUM_BITS},
 			{"numAlignBytes",                   Kind::NUM_ALIGN_BYTES},
+			{"getIntegerTypeID",                Kind::GET_INTEGER_TYPE_ID},
 			{"isDefaultInitializable",          Kind::IS_DEFAULT_INITIALIZABLE},
 			{"isTriviallyDefaultInitializable", Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE},
 			{"isComptimeDefaultInitializable",  Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE},

@@ -113,6 +113,30 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::getIntegerTypeID(uint32_t width, bool is_unsigned) -> TermInfo {
+		const BaseType::ID primitive_type_id = [&]() -> BaseType::ID {
+			if(is_unsigned){
+				return this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, width);
+			}else{
+				return this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, width);
+			}
+		}();
+
+		const TypeInfo::ID type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(primitive_type_id));
+
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL, 
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeTypeID(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt::create<uint32_t>(type_id.get()),
+				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
+			))
+		);
+	}
+
+
 	auto ComptimeIntrinsicEvaluator::isDefaultInitializable(TypeInfo::ID type_id) -> TermInfo {
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL, 

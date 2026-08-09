@@ -248,17 +248,36 @@ namespace pcit::pir{
 							params.emplace_back(generic_value->writableDataRange().data());
 						}
 					}
-					
+
+
+					void* ret_ptr = [&]() -> void* {
+						auto ret_expr_find = stack_frame.registers.find(expr);
+						if(ret_expr_find != stack_frame.registers.end()){
+							return ret_expr_find->second.writableDataRange().data();
+						}
+
+						const ExternalFunction& extern_func = this->engine.module.getExternalFunction(extern_func_id);
+
+						const size_t ret_type_num_bytes = this->engine.module.numBytes(extern_func.returnType);
+
+						core::GenericValue& ret_expr = stack_frame.registers.emplace(
+							expr, core::GenericValue::createUninit(ret_type_num_bytes)
+						).first->second;
+
+						return ret_expr.writableDataRange().data();
+					}();
+
+
 					#if defined(EVO_PLATFORM_WINDOWS)
 						__try{
-							(*extern_func_ptr)(params.data(), stack_frame.registers[expr].writableDataRange().data());
+							(*extern_func_ptr)(params.data(), ret_ptr);
 						}__except(0x1){
 							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
 							break;
 						}
 
 					#else
-						(*extern_func_ptr)(params.data(), stack_frame.registers[expr].writableDataRange().data());
+						(*extern_func_ptr)(params.data(), ret_ptr);
 					#endif 
 
 				}else{
