@@ -12323,7 +12323,7 @@ namespace pcit::panther{
 		const pir::Expr data_ptr = this->handler.createCalcPtr(
 			string_ref_alloca,
 			array_ref_type,
-			evo::SmallVector<pir::CalcPtr::Index>{0},
+			evo::SmallVector<pir::CalcPtr::Index>{0, 0},
 			this->name(".PANIC_STRING.data_ptr")
 		);
 		this->handler.createStore(data_ptr, this->handler.createGlobalValue(string_id));
@@ -12331,7 +12331,7 @@ namespace pcit::panther{
 		const pir::Expr size_ptr = this->handler.createCalcPtr(
 			string_ref_alloca,
 			array_ref_type,
-			evo::SmallVector<pir::CalcPtr::Index>{1},
+			evo::SmallVector<pir::CalcPtr::Index>{0, 1},
 			this->name(".PANIC_STRING.size_ptr")
 		);
 		const uint64_t num_bits_of_ptr = this->context.getTypeManager().numBitsOfPtr();

@@ -1035,6 +1035,8 @@ namespace pcit::panther{
 			if(this->expect_token(Token::lookupKind(")"), "at end of unreachable statement").isError()){
 				return Result::Code::ERROR;
 			}
+
+			message = expr_result.value();
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a unreachable statement").isError()){
