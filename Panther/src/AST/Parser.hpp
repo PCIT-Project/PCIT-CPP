@@ -91,7 +91,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto parse_union_def(const AST::Node& ident) -> Result;
 			[[nodiscard]] auto parse_enum_def(const AST::Node& ident) -> Result;
 			[[nodiscard]] auto parse_type_alias(const AST::Node& ident) -> Result;
-			[[nodiscard]] auto parse_interface_def() -> Result;
+			[[nodiscard]] auto parse_interface_def(const AST::Node& ident) -> Result;
 			template<bool ALLOW_METHOD_IDENTS> [[nodiscard]] auto parse_interface_impl() -> Result;
 			[[nodiscard]] auto parse_return() -> Result;
 			[[nodiscard]] auto parse_error() -> Result;

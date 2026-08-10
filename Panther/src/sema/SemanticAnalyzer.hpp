@@ -1054,7 +1054,7 @@ namespace pcit::panther{
 			struct InterfaceAttrs{
 				bool is_pub;
 				bool is_priv;
-				bool is_polymorphic;
+				bool is_non_polymorphic;
 			};
 			[[nodiscard]] auto analyze_interface_attrs(
 				const AST::InterfaceDef& interface_def,

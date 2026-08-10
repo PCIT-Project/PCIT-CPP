@@ -51,7 +51,6 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_DEF:         return this->parse_var_def<AST::VarDef::Kind::DEF>();
 			case Token::Kind::KEYWORD_FUNC:        return this->parse_func_def<true>();
 			case Token::Kind::KEYWORD_TYPE:        return this->parse_type_def();
-			case Token::Kind::KEYWORD_INTERFACE:   return this->parse_interface_def();
 			case Token::Kind::KEYWORD_IMPL:        return this->parse_interface_impl<true>();
 			case Token::Kind::KEYWORD_RETURN:      return this->parse_return();
 			case Token::Kind::KEYWORD_ERROR:       return this->parse_error();
@@ -556,10 +555,11 @@ namespace pcit::panther{
 		if(this->expect_token(Token::lookupKind("="), "in type definition").isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
-			case Token::Kind::KEYWORD_STRUCT: return this->parse_struct_def(ident.value());
-			case Token::Kind::KEYWORD_UNION:  return this->parse_union_def(ident.value());
-			case Token::Kind::KEYWORD_ENUM:   return this->parse_enum_def(ident.value());
-			case Token::Kind::KEYWORD_ALIAS:  return this->parse_type_alias(ident.value());
+			case Token::Kind::KEYWORD_STRUCT:    return this->parse_struct_def(ident.value());
+			case Token::Kind::KEYWORD_UNION:     return this->parse_union_def(ident.value());
+			case Token::Kind::KEYWORD_ENUM:      return this->parse_enum_def(ident.value());
+			case Token::Kind::KEYWORD_ALIAS:     return this->parse_type_alias(ident.value());
+			case Token::Kind::KEYWORD_INTERFACE: return this->parse_interface_def(ident.value());
 		}
 
 		this->expected_but_got("valid type kind ([struct], [union], [enum], or [alias])", this->reader.peek());
@@ -773,15 +773,8 @@ namespace pcit::panther{
 
 
 	// TODO(FUTURE): check EOF
-	auto Parser::parse_interface_def() -> Result {
+	auto Parser::parse_interface_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_INTERFACE).isError()){ return Result::Code::ERROR; }
-
-		const Result ident = this->parse_ident();
-		if(this->check_result(ident, "identifier in interface definition").isError()){ return Result::Code::ERROR; }
-
-		if(this->expect_token(Token::lookupKind("="), "after identifier in interface definition").isError()){
-			return Result::Code::ERROR;
-		}
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
@@ -833,7 +826,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createInterfaceDef(
-			ASTBuffer::getIdent(ident.value()), attributes.value(), std::move(methods), std::move(impls)
+			ASTBuffer::getIdent(ident), attributes.value(), std::move(methods), std::move(impls)
 		);
 	}
 

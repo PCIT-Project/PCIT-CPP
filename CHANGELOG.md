@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.360.0"></a>
+## v0.0.360.0
+
+### Panther
+- Changed syntax of interfaces to same as other types
+- Replaced interface attribute `#polymorphic` with `#nonPolymorphic` (default is now swapped)
+
+### Misc
+- Updated to [Panther-std v0.0.48.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.48.0)
+
+
+<!---------------------------------->
 <a name="v0.0.359.1"></a>
 ## v0.0.359.1
 
@@ -17,7 +29,7 @@
 - Fixed emitting diagnostic when there's a circular dependency that requires the comptime lowering of a symbol
 
 ### Misc
-- Updated to [Panther-std v0.0.46.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.46.0)
+- Updated to [Panther-std v0.0.47.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.47.0)
 
 
 <!---------------------------------->

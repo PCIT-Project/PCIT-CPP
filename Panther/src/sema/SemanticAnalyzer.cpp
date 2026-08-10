@@ -6129,7 +6129,7 @@ namespace pcit::panther{
 				this->symbol_proc.getID(),
 				interface_attrs.value().is_pub,
 				interface_attrs.value().is_priv,
-				interface_attrs.value().is_polymorphic
+				!interface_attrs.value().is_non_polymorphic
 			)
 		);
 
@@ -35406,7 +35406,7 @@ namespace pcit::panther{
 	) -> evo::Expected<InterfaceAttrs, Result> {
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
-		auto attr_polymorphic = Attribute(*this, "polymorphic");
+		auto attr_non_polymorphic = Attribute(*this, "nonPolymorphic");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(interface_def.attributeBlock);
@@ -35480,13 +35480,13 @@ namespace pcit::panther{
 				}
 
 
-			}else if(attribute_str == "polymorphic"){
+			}else if(attribute_str == "nonPolymorphic"){
 				if(attribute_params_info[i].empty() == false){
-					this->emit_error("Attribute #polymorphic does not accept any arguments", attribute.args.front());
+					this->emit_error("Attribute #nonPolymorphic does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
 				}
 
-				if(attr_polymorphic.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+				if(attr_non_polymorphic.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else{
 				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
@@ -35495,9 +35495,9 @@ namespace pcit::panther{
 		}
 
 		return InterfaceAttrs{
-			.is_pub         = attr_pub.is_set(),
-			.is_priv        = attr_priv.is_set(),
-			.is_polymorphic = attr_polymorphic.is_set(),
+			.is_pub             = attr_pub.is_set(),
+			.is_priv            = attr_priv.is_set(),
+			.is_non_polymorphic = attr_non_polymorphic.is_set(),
 		};
 	}
 
