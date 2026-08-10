@@ -42,7 +42,7 @@ namespace pcit::panther{
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
-		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
+		if(this->detect_circular_dependency(id, context, DependencyKind::DECL).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
@@ -130,7 +130,7 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
-		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
+		if(this->detect_circular_dependency(id, context, DependencyKind::PIR_DEF).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
 
@@ -233,6 +233,13 @@ namespace pcit::panther{
 							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
 						);
 					} break;
+
+					case DependencyKind::PIR_DEF: {
+						infos.emplace_back(
+							"Requries comptime lowering definition of this symbol:",
+							Diagnostic::Location::get(this->ast_node, context.getSourceManager()[this->source_id])
+						);
+					} break;
 				}
 
 				context.emitError(
@@ -275,6 +282,17 @@ namespace pcit::panther{
 						}
 					}
 
+					{ // pir def
+						const auto def_lock = std::scoped_lock(waiting_for_symbol.pir_def_waited_on_lock);
+
+						if(
+							std::ranges::find(waiting_for_symbol.pir_def_waited_on_by, visited_info.id)
+							!= waiting_for_symbol.pir_def_waited_on_by.end()
+						){
+							visited_queue.emplace(waiting_for_id, DependencyKind::PIR_DEF);
+							continue;
+						}
+					}
 				}
 			}
 			

@@ -1692,6 +1692,7 @@ namespace pcit::panther{
 			enum class DependencyKind{
 				DECL,
 				DEF,
+				PIR_DEF,
 			};
 
 			[[nodiscard]] auto detect_circular_dependency(

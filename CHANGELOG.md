@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.359.0"></a>
+## v0.0.359.0
+
+### Panther
+- Added string escape sequence `\e`
+- Fixed emitting diagnostic when there's a circular dependency that requires the comptime lowering of a symbol
+
+### Misc
+- Updated to [Panther-std v0.0.46.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.46.0)
+
+
+<!---------------------------------->
 <a name="v0.0.358.0"></a>
 ## v0.0.358.0
 
@@ -11,6 +23,9 @@
 - Renamed `@comptimePrint()` to `@ctPrint()`
 - Renamed `@comptimePrintln()` to `@ctPrintln()`
 - Fixed lowering of interface v-tables when a function has attribute `#ct`
+
+### Misc
+- Updated to [Panther-std v0.0.46.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.46.0)
 
 
 <!---------------------------------->
@@ -26,6 +41,9 @@
 - Fixed execution engine calling of registered functions
 	- Passing parameters incorrectly
 	- Returning values incorrectly
+
+### Misc
+- Updated to [Panther-std v0.0.45.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.45.0)
 
 
 <!---------------------------------->

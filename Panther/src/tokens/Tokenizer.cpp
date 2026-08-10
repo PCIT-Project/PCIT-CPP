@@ -1209,10 +1209,11 @@ namespace pcit::panther{
 					break; case '0': literal_value += '\0';
 					// break; case 'a': literal_value += '\a';
 					// break; case 'b': literal_value += '\b';
+					break; case 'e': literal_value += '\x1B';
+					// break; case 'f': literal_value += '\f';
 					break; case 't': literal_value += '\t';
 					break; case 'n': literal_value += '\n';
 					// break; case 'v': literal_value += '\v';
-					// break; case 'f': literal_value += '\f';
 					break; case 'r': literal_value += '\r';
 
 					break; case '\'': literal_value += '\'';
