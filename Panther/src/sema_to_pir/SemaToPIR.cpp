@@ -1297,10 +1297,10 @@ namespace pcit::panther{
 
 
 		if(funcs.size() == 1){
-			const sema::Func& func = this->context.getSemaBuffer().getFunc(funcs[0]);
-			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
+			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(funcs[0]);
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
-			if(func_type.attributes.isComptime == false){
+			if(func_type.attributes.isRuntime){
 				this->data.create_single_method_vtable(
 					Data::VTableID(interface_id, type_id),
 					this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
@@ -1311,12 +1311,21 @@ namespace pcit::panther{
 		}
 
 
+		// TODO(FUTURE): make it so the non-runtime functions can be skipped
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
 		for(sema::Func::ID func_id : funcs){
-			vtable_values.emplace_back(
-				this->handler.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
-			);
+			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+
+			if(func_type.attributes.isRuntime){
+				vtable_values.emplace_back(
+					this->handler.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
+				);
+				
+			}else{
+				vtable_values.emplace_back(this->handler.createNullptr());
+			}
 		}
 
 
@@ -10564,6 +10573,16 @@ namespace pcit::panther{
 
 		const pir::Expr value = [&](){
 			switch(intrinsic_func_kind){
+				case IntrinsicFunc::Kind::CT_ALLOC: {
+					auto args = evo::SmallVector<pir::Expr>();
+					args.emplace_back(get_context_ptr());
+					get_args(args);
+
+					return this->handler.createCall(
+						this->data.getComptimeExecutionEngineFuncs().alloc, std::move(args)
+					);
+				} break;
+
 				case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
 					auto args = evo::SmallVector<pir::Expr>();
 					args.emplace_back(get_context_ptr());
@@ -12191,18 +12210,38 @@ namespace pcit::panther{
 				this->create_panic(this->get_expr_pointer(func_call.args[0]));
 			} break;
 
-			case IntrinsicFunc::Kind::COMPTIME_PRINT: {
+			case IntrinsicFunc::Kind::CT_PRINT: {
 				this->handler.createCallVoid(
 					this->data.getComptimeExecutionEngineFuncs().print,
 					evo::SmallVector<pir::Expr>{this->get_expr_pointer(func_call.args[0])}
 				);
 			} break;
 
-			case IntrinsicFunc::Kind::COMPTIME_PRINTLN: {
+			case IntrinsicFunc::Kind::CT_PRINTLN: {
 				this->handler.createCallVoid(
 					this->data.getComptimeExecutionEngineFuncs().println,
 					evo::SmallVector<pir::Expr>{this->get_expr_pointer(func_call.args[0])}
 				);
+			} break;
+
+			case IntrinsicFunc::Kind::CT_DEALLOC: {
+				const pir::Expr error_occured = this->handler.createCall(
+					this->data.getComptimeExecutionEngineFuncs().dealloc,
+					evo::SmallVector<pir::Expr>{
+						get_context_ptr(),
+						this->get_expr_register(func_call.args[0]),
+					}
+				);
+
+				const pir::BasicBlock::ID error_block = this->handler.createBasicBlock(this->name("ctDealloc.ERROR"));
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("ctDealloc.END"));
+
+				this->handler.createBranch(error_occured, error_block, end_block);
+
+				this->handler.setTargetBasicBlock(error_block);
+				this->handler.createAbort();
+
+				this->handler.setTargetBasicBlock(end_block);
 			} break;
 
 			default: evo::debugFatalBreak("Unknown intrinsic");

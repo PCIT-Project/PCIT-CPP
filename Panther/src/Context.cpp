@@ -4277,7 +4277,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.print = this->pir_module.createExternalFunction(
-			"@comptimePrint",
+			"@ctPrint",
 			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
@@ -4290,7 +4290,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.println = this->pir_module.createExternalFunction(
-			"@comptimePrintln",
+			"@ctPrintln",
 			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
@@ -4327,6 +4327,82 @@ namespace pcit::panther{
 				const TypeInfo::ID type_id = context->type_manager.getOrCreateTypeInfo(TypeInfo(primitive_type_id));
 
 				return type_id.get();
+			}
+		);
+
+
+		comptime_execution_engine_funcs.alloc = this->pir_module.createExternalFunction(
+			"@ctAlloc",
+			evo::SmallVector<pir::Parameter>{
+				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("size", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("alignment", pir::Module::createUnsignedType(32)),
+			},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createPtrType()
+		);
+		this->comptime_execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.alloc,
+			[](Context* context, size_t size, uint32_t alignment) -> void* {
+				void* const ptr = [&]() -> void* {
+					#if defined(EVO_PLATFORM_WINDOWS)
+						return _aligned_malloc(size_t(alignment), size);
+					#else
+						return std::aligned_alloc(size_t(alignment), size);
+					#endif
+				}();
+
+				context->comptime_context.get_data().add_allocation(ptr);
+
+				return ptr;
+			}
+		);
+
+		comptime_execution_engine_funcs.dealloc = this->pir_module.createExternalFunction(
+			"@ctDealloc",
+			evo::SmallVector<pir::Parameter>{
+				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("ptr", pir::Module::createPtrType()),
+			},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createBoolType()
+		);
+		this->comptime_execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.dealloc,
+			[](Context* context, void* ptr) -> bool {
+				ComptimeContext::Data& data = context->comptime_context.get_data();
+
+				auto alloc_find = data.allocations_currently_allocated.find(ptr);
+
+				if(alloc_find == data.allocations_currently_allocated.end()){
+					context->emitError(
+						"Called `@ctDealloc` with a pointer that wasn't allocated by `@ctAlloc`",
+						Diagnostic::Location::NONE
+					);
+					return true;
+				}
+
+				if(alloc_find->second == false){
+					context->emitError(
+						"Called `@ctDealloc` with a pointer that was already deallocated",
+						Diagnostic::Location::NONE
+					);
+					return true;
+				}
+				
+				alloc_find->second = false;
+
+				data.num_allocations_allocated -= 1;
+
+				#if defined(EVO_PLATFORM_WINDOWS)
+					_aligned_free(ptr);
+				#else
+					std::free(ptr);
+				#endif
+
+				return false;
 			}
 		);
 	}
@@ -4442,7 +4518,7 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
 		};
 
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINT))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_PRINT))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
 					BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ)
@@ -4456,7 +4532,7 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
 		};
 
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPTIME_PRINTLN))] = IntrinsicFuncInfo{
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_PRINTLN))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
 					BaseType::Function::Param(TypeManager::getTypeStringRef(), BaseType::Function::Param::Kind::READ)
@@ -4478,6 +4554,38 @@ namespace pcit::panther{
 						BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ),
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeTypeID()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = true, .allowedInRuntime = false,
+				.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
+			};
+
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_ALLOC))] =
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(TypeManager::getTypeUSize(), BaseType::Function::Param::Kind::READ),
+						BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ),
+					},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeRawPtr()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = true, .allowedInRuntime = false,
+				.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
+			};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_DEALLOC))] =
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(TypeManager::getTypeRawPtr(), BaseType::Function::Param::Kind::READ),
+					},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
 					evo::SmallVector<TypeInfo::VoidableID>{},
 					true,
 					true

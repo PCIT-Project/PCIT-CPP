@@ -26,8 +26,10 @@ namespace pcit::panther{
 			ENTRY,
 
 			IS_COMPTIME,
-			COMPTIME_PRINT,
-			COMPTIME_PRINTLN,
+			CT_PRINT,
+			CT_PRINTLN,
+			CT_ALLOC,
+			CT_DEALLOC,
 
 			// type traits
 			CT_GET_INTEGER_TYPE_ID,

@@ -12192,6 +12192,7 @@ namespace pcit::panther{
 					case IntrinsicFunc::Kind::IS_COMPTIME: {
 						const FuncScopeValueStage func_scope_value_stage = this->func_scope_current_value_stage();
 
+
 						if(func_scope_value_stage == FuncScopeValueStage::BOTH){
 							this->emit_error(
 								"Cannot call `@isComptime` in this function as the value is ambiguous",
@@ -12214,6 +12215,13 @@ namespace pcit::panther{
 						);
 
 						return Result::SUCCESS;
+					} break;
+
+					case IntrinsicFunc::Kind::CT_ALLOC: {
+						if constexpr(IS_COMPTIME){
+							this->emit_error("Cannot call `@ctAlloc` as a comptime value", instr.func_call.target);
+							return Result::ERROR;
+						}
 					} break;
 
 					case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
@@ -26403,11 +26411,37 @@ namespace pcit::panther{
 		// 	pir::printModule(this->context.pir_module, printer);
 		// }
 
-
+		this->context.comptime_context.add_thread_data_if_needed();
+		
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
 			this->context.comptime_execution_engine.runFunction(
 				*target_func.value.as<sema::Func::DefValue>().comptimePIRFunc, actual_args
 			);
+
+		Context::ComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
+
+		if(comptime_context_data.num_allocations_allocated != 0){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(comptime_context_data.num_allocations_allocated == 1){
+				infos.emplace_back("Missing 1 allocation");
+			}else{
+				infos.emplace_back( 
+					std::format("Missing {} allocations", comptime_context_data.num_allocations_allocated)
+				);
+			}
+
+			this->emit_error(
+				"After comptime execution of function call, not all allocations from `@ctAlloc` were not deallocated",
+				location,
+				std::move(infos)
+			);
+			comptime_context_data.reset();
+			return evo::resultError;
+		}
+
+		comptime_context_data.reset();
+
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();

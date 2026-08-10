@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.358.0"></a>
+## v0.0.358.0
+
+### Panther
+- Added `@ctAlloc()`
+- Added `@ctAllocResize()`
+- Added `@ctAllocDealloc()`
+- Renamed `@comptimePrint()` to `@ctPrint()`
+- Renamed `@comptimePrintln()` to `@ctPrintln()`
+- Fixed lowering of interface v-tables when a function has attribute `#ct`
+
+
+<!---------------------------------->
 <a name="v0.0.357.0"></a>
 ## v0.0.357.0
 

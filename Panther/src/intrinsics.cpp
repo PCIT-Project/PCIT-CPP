@@ -47,8 +47,10 @@ namespace pcit::panther{
 			{"entry",                       Kind::ENTRY},
 
 			{"isComptime",                  Kind::IS_COMPTIME},
-			{"comptimePrint",               Kind::COMPTIME_PRINT},
-			{"comptimePrintln",             Kind::COMPTIME_PRINTLN},
+			{"ctPrint",                     Kind::CT_PRINT},
+			{"ctPrintln",                   Kind::CT_PRINTLN},
+			{"ctAlloc",                     Kind::CT_ALLOC},
+			{"ctDealloc",                   Kind::CT_DEALLOC},
 
 			// type traits
 			{"ctGetIntegerTypeID",          Kind::CT_GET_INTEGER_TYPE_ID},
