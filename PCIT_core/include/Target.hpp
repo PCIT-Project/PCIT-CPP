@@ -18,8 +18,8 @@ namespace pcit::core{
 	struct TargetArchitecture{
 		enum class Value : uint32_t{
 			X86_64,
-
-			UNKNOWN,
+			WASM32,
+			WASM64_P32,
 		};
 		using enum class Value;
 
@@ -32,8 +32,12 @@ namespace pcit::core{
 			#if defined(EVO_ARCH_X86_64)
 				return TargetArchitecture::X86_64;
 			#else
-				return TargetArchitecture::UNKNOWN;
+				#error "Compiling on an unsupported architecture"
 			#endif
+		}
+
+		[[nodiscard]] constexpr auto isWasm() const -> bool {
+			return this->_value == Value::WASM32 || this->_value == Value::WASM64_P32;
 		}
 
 		private:
@@ -46,8 +50,7 @@ namespace pcit::core{
 		enum class Value : uint32_t{
 			WINDOWS,
 			LINUX,
-
-			UNKNOWN,
+			FREESTANDING,
 		};
 		
 		using enum class Value;
@@ -58,12 +61,14 @@ namespace pcit::core{
 
 
 		[[nodiscard]] constexpr static auto getNative() -> TargetPlatform {
-			#if defined(EVO_PLATFORM_WINDOWS)
-				return TargetPlatform::WINDOWS;
-			#elif defined(EVO_PLATFORM_LINUX)
+			#if defined(EVO_PLATFORM_LINUX)
 				return TargetPlatform::LINUX;
+
+			#elif defined(EVO_PLATFORM_WINDOWS)
+				return TargetPlatform::WINDOWS;
+
 			#else
-				return TargetPlatform::UNKNOWN;
+				return TargetPlatform::FREESTANDING;
 			#endif
 		}
 
@@ -87,6 +92,59 @@ namespace pcit::core{
 		[[nodiscard]] constexpr static auto getNative() -> Target {
 			return Target(Architecture::getNative(), Platform::getNative());
 		}
+
+		[[nodiscard]] constexpr auto isValid() const -> bool {
+			switch(this->platform){
+				case Platform::WINDOWS: {
+					return this->architecture == Architecture::X86_64;
+				} break;
+
+				case Platform::LINUX: {
+					return this->architecture == Architecture::X86_64;
+				} break;
+
+				case Platform::FREESTANDING: {
+					return this->architecture != Architecture::X86_64;
+				} break;
+			}
+			evo::unreachable();
+		}
+
+		[[nodiscard]] auto numBytesOfPtr() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 8;
+				break; case core::Target::Architecture::WASM32:     return 4;
+				break; case core::Target::Architecture::WASM64_P32: return 4;
+			}
+			evo::unreachable();
+		}
+
+		[[nodiscard]] auto numBytesOfGeneralRegister() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 8;
+				break; case core::Target::Architecture::WASM32:     return 4;
+				break; case core::Target::Architecture::WASM64_P32: return 8;
+			}
+			evo::unreachable();
+		}
+
+		[[nodiscard]] auto numBitsOfPtr() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 64;
+				break; case core::Target::Architecture::WASM32:     return 32;
+				break; case core::Target::Architecture::WASM64_P32: return 32;
+			}
+			evo::unreachable();
+		}
+
+		[[nodiscard]] auto numBitsOfGeneralRegister() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 64;
+				break; case core::Target::Architecture::WASM32:     return 32;
+				break; case core::Target::Architecture::WASM64_P32: return 64;
+			}
+			evo::unreachable();
+		}
 	};
 
 }
@@ -97,9 +155,10 @@ struct std::formatter<pcit::core::Target::Platform> : std::formatter<std::string
     auto format(const pcit::core::Target::Platform& platform, std::format_context& ctx) const
     -> std::format_context::iterator {
         switch(platform){
-        	case pcit::core::Target::Platform::WINDOWS: return std::formatter<std::string_view>::format("Windows", ctx);
         	case pcit::core::Target::Platform::LINUX:   return std::formatter<std::string_view>::format("Linux", ctx);
-        	case pcit::core::Target::Platform::UNKNOWN: return std::formatter<std::string_view>::format("UNKNOWN", ctx);
+        	case pcit::core::Target::Platform::WINDOWS: return std::formatter<std::string_view>::format("Windows", ctx);
+        	case pcit::core::Target::Platform::FREESTANDING:
+        		return std::formatter<std::string_view>::format("FREESTANDING", ctx);
         	default: evo::debugFatalBreak("Unknown or unsupported Platform");
         }
     }
@@ -114,8 +173,11 @@ struct std::formatter<pcit::core::Target::Architecture> : std::formatter<std::st
         	case pcit::core::Target::Architecture::X86_64:
         		return std::formatter<std::string_view>::format("x86_64", ctx);
 
-        	case pcit::core::Target::Architecture::UNKNOWN:
-        		return std::formatter<std::string_view>::format("UNKNOWN", ctx);
+        	case pcit::core::Target::Architecture::WASM32:
+        		return std::formatter<std::string_view>::format("WASM32", ctx);
+
+        	case pcit::core::Target::Architecture::WASM64_P32:
+        		return std::formatter<std::string_view>::format("WASM64_P32", ctx);
 
         	default: evo::debugFatalBreak("Unknown or unsupported architecture");
         }

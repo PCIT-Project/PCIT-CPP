@@ -98,7 +98,7 @@ namespace pcit::panther{
 			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 			if(func.status == sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT){ continue; }
 			if(func.status == sema::Func::Status::SUSPENDED){ continue; }
-			if(func.isExtern()){ continue; }
+			if(func.isDef() == false){ continue; }
 			if(func.isCFamilyFunc()){ continue; }
 
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
@@ -10554,7 +10554,7 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = type_manager.getFunction(intrinsic_type.baseTypeID().funcID());
 
 			for(size_t i = 0; const sema::Expr& arg : func_call.args){
-				if(this->is_param_copy(func_type.params[i], func_type.isMethod && i == 0)){
+				if(this->is_native_param_copy(func_type.params[i])){
 					args.emplace_back(this->get_expr_register(arg));
 				}else{
 					args.emplace_back(this->get_expr_pointer(arg));
@@ -10577,6 +10577,22 @@ namespace pcit::panther{
 					auto args = evo::SmallVector<pir::Expr>();
 					args.emplace_back(get_context_ptr());
 					get_args(args);
+
+					const size_t target_ptr_num_bytes = this->context.getTypeManager().getTarget().numBytesOfPtr();
+					const size_t native_ptr_num_bytes = core::Target::getNative().numBytesOfPtr();
+
+
+					if(target_ptr_num_bytes != native_ptr_num_bytes){
+						if(target_ptr_num_bytes < native_ptr_num_bytes){
+							args[1] = this->handler.createZExt(
+								args[1], this->module.createUnsignedType(uint32_t(native_ptr_num_bytes * 8))
+							);
+						}else{
+							args[1] = this->handler.createTrunc(
+								args[1], this->module.createUnsignedType(uint32_t(native_ptr_num_bytes * 8))
+							);
+						}
+					}
 
 					return this->handler.createCall(
 						this->data.getComptimeExecutionEngineFuncs().alloc, std::move(args)
@@ -12293,8 +12309,28 @@ namespace pcit::panther{
 	auto SemaToPIR::create_panic(pir::Expr message) -> void {
 		const Data::FuncInfo& func_info = this->data.get_func(*this->context.panic);
 
+		evo::debugAssert(
+			this->handler.getExprType(message).kind() == pir::Type::Kind::PTR, "Panic message must be pointer"
+		);
+
+		const pir::Expr message_expr = [&]() -> pir::Expr {
+			if(this->context.getTypeManager().isTriviallyParamReadable(TypeManager::getTypeStringRef())){
+				const pir::Type array_ref_type = this->data.getArrayRefType(
+					this->module,
+					this->context,
+					TypeManager::getTypeStringRef(),
+					[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+				).pir_type;
+
+				return this->handler.createLoad(message, array_ref_type);
+
+			}else{
+				return message;
+			}
+		}();
+
 		this->handler.createCallNoReturn(
-			func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{message}
+			func_info.pir_ids[0].as<pir::Function::ID>(), evo::SmallVector<pir::Expr>{message_expr}
 		);
 	}
 
@@ -15126,6 +15162,11 @@ namespace pcit::panther{
 		if(is_this){ return false; }
 		if(func_param.kind != BaseType::Function::Param::Kind::READ){ return false; }
 		return this->context.getTypeManager().isTriviallyParamReadable(func_param.typeID);
+	}
+
+	auto SemaToPIR::is_native_param_copy(const BaseType::Function::Param& func_param) const -> bool {
+		if(func_param.kind != BaseType::Function::Param::Kind::READ){ return false; }
+		return this->context.getTypeManager().isNativelyTriviallyParamReadable(func_param.typeID);
 	}
 
 

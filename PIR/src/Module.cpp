@@ -45,20 +45,35 @@ namespace pcit::pir{
 
 
 	auto Module::sizeOfPtr() const -> size_t {
-		return 8;
+		switch(this->target.architecture){
+			break; case core::Target::Architecture::X86_64:     return 8;
+			break; case core::Target::Architecture::WASM32:     return 4;
+			break; case core::Target::Architecture::WASM64_P32: return 4;
+		}
+		evo::unreachable();
 	}
 
 	auto Module::alignmentOfPtr() const -> size_t {
-		return 8;
+		switch(this->target.architecture){
+			break; case core::Target::Architecture::X86_64:     return 8;
+			break; case core::Target::Architecture::WASM32:     return 4;
+			break; case core::Target::Architecture::WASM64_P32: return 4;
+		}
+		evo::unreachable();
 	}
 
 	auto Module::sizeOfGeneralRegister() const -> size_t {
-		return 8;
+		switch(this->target.architecture){
+			break; case core::Target::Architecture::X86_64:     return 8;
+			break; case core::Target::Architecture::WASM32:     return 4;
+			break; case core::Target::Architecture::WASM64_P32: return 8;
+		}
+		evo::unreachable();
 	}
 
 
 	auto Module::maxAlignmentOfPrimitive() const -> size_t {
-		return 16;
+		return this->alignmentOfPtr() * 2;
 	}
 
 

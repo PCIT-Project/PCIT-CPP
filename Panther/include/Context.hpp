@@ -405,12 +405,7 @@ namespace pcit::panther{
 					.useReadableNames     = true,
 					.checkedMath          = true,
 				})
-			{
-				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
-				evo::debugAssert(
-					config.target.architecture != core::Target::Architecture::UNKNOWN, "Architecture must be known"
-				);
-			}
+			{}
 
 			Context(DiagnosticCallback&& diagnostic_callback, const Config& config)
 				: _diagnostic_callback(std::move(diagnostic_callback)),
@@ -422,12 +417,7 @@ namespace pcit::panther{
 					.useReadableNames     = true,
 					.checkedMath          = true,
 				})
-			{
-				evo::debugAssert(config.target.platform != core::Target::Platform::UNKNOWN, "Platform must be known");
-				evo::debugAssert(
-					config.target.architecture != core::Target::Architecture::UNKNOWN, "Architecture must be known"
-				);
-			}
+			{}
 
 
 

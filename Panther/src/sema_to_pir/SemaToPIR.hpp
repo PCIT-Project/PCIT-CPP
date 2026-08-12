@@ -720,6 +720,7 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto is_param_copy(const BaseType::Function::Param& func_param, bool is_this) const -> bool;
+			[[nodiscard]] auto is_native_param_copy(const BaseType::Function::Param& func_param) const -> bool;
 
 
 	

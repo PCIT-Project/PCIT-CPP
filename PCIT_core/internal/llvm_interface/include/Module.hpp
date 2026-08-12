@@ -82,7 +82,11 @@ namespace pcit::llvmint{
 				AssemblyDialect dialect = AssemblyDialect::INTEL;
 			};
 
-			using ArchSpecificSettings = evo::Variant<ArchSpecificSettingsDefault, ArchSpecificSettingsX86>;
+			struct ArchSpecificSettingsWasm{};
+
+			using ArchSpecificSettings = evo::Variant<
+				ArchSpecificSettingsDefault, ArchSpecificSettingsX86, ArchSpecificSettingsWasm
+			>;
 
 		public:
 			Module() = default;

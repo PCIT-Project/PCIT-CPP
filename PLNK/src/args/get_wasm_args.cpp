@@ -15,10 +15,25 @@ namespace pcit::plnk{
 
 	
 	auto get_wasm_args(evo::ArrayProxy<std::filesystem::path> link_file_paths, const Options& options) -> Args {
-		std::ignore = link_file_paths;
-		std::ignore = options;
-		
-		evo::debugFatalBreak("WASM target currently unsupported");
+		auto args = Args();
+
+		args.addArg("wasm-ld");
+
+		args.addArg("-o");
+		args.addArg(evo::copy(options.outputFilePath));
+
+		for(const std::filesystem::path& link_file_path : link_file_paths){
+			args.addArg(link_file_path.string());
+		}
+
+
+		// args.addArg("-mwasm64");
+		args.addArg("--no-entry"); // TODO(FUTURE): make option?
+
+		args.addArg("--export-all");
+
+
+		return args;
 	}
 
 

@@ -2749,6 +2749,14 @@ namespace pcit::panther{
 					pthr_module.createString("X86_64"),
 					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::X86_64))
 				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("WASM32"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::WASM32))
+				),
+				BaseType::Enum::Enumerator(
+					pthr_module.createString("WASM64_P32"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Architecture::WASM64_P32))
+				),
 			}
 		);
 
@@ -2758,12 +2766,16 @@ namespace pcit::panther{
 			"Platform",
 			evo::SmallVector<BaseType::Enum::Enumerator>{
 				BaseType::Enum::Enumerator(
+					pthr_module.createString("LINUX"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
+				),
+				BaseType::Enum::Enumerator(
 					pthr_module.createString("WINDOWS"),
 					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
 				),
 				BaseType::Enum::Enumerator(
-					pthr_module.createString("LINUX"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
+					pthr_module.createString("FREESTANDING"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::FREESTANDING))
 				),
 			}
 		);
@@ -4415,6 +4427,8 @@ namespace pcit::panther{
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.print);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.println);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.get_integer_type_id);
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.alloc);
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.dealloc);
 	}
 
 

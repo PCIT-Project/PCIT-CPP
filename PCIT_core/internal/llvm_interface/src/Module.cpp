@@ -59,7 +59,13 @@ namespace pcit::llvmint{
 					arch_specific_settings = ArchSpecificSettingsX86();
 				} break;
 
-				case core::Target::Architecture::UNKNOWN: break;
+				case core::Target::Architecture::WASM32: {
+					arch_specific_settings = ArchSpecificSettingsWasm();
+				} break;
+
+				case core::Target::Architecture::WASM64_P32: {
+					arch_specific_settings = ArchSpecificSettingsWasm();
+				} break;
 			}
 		}
 
@@ -69,14 +75,16 @@ namespace pcit::llvmint{
 				using Settings = std::decay_t<decltype(settings)>;
 
 				if constexpr(std::is_same<Settings, ArchSpecificSettingsDefault>()){
-					evo::debugAssert(
-						target.architecture == core::Target::Architecture::UNKNOWN,
-						"Architecture specific settings should have been set to correct architecture"
-					);
 
 				}else if constexpr(std::is_same<Settings, ArchSpecificSettingsX86>()){
 					evo::debugAssert(
 						target.architecture == core::Target::Architecture::X86_64,
+						"Architecture and arch specific settings do not match"
+					);
+
+				}else if constexpr(std::is_same<Settings, ArchSpecificSettingsWasm>()){
+					evo::debugAssert(
+						target.architecture.isWasm(),
 						"Architecture and arch specific settings do not match"
 					);
 
@@ -89,8 +97,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::ArchType triple_arch = [&](){
 			switch(target.architecture){
-				case core::Target::Architecture::UNKNOWN: return llvm::Triple::ArchType::UnknownArch;
-				case core::Target::Architecture::X86_64:  return llvm::Triple::ArchType::x86_64;
+				case core::Target::Architecture::X86_64:     return llvm::Triple::ArchType::x86_64;
+				case core::Target::Architecture::WASM32:     return llvm::Triple::ArchType::wasm32;
+				case core::Target::Architecture::WASM64_P32: return llvm::Triple::ArchType::wasm32;
 			}
 
 			evo::unreachable();
@@ -100,9 +109,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::OSType triple_os = [&](){
 			switch(target.platform){
-				case core::Target::Platform::UNKNOWN: return llvm::Triple::OSType::UnknownOS;
-				case core::Target::Platform::WINDOWS: return llvm::Triple::OSType::Win32;
-				case core::Target::Platform::LINUX:   return llvm::Triple::OSType::Linux;
+				case core::Target::Platform::LINUX:        return llvm::Triple::OSType::Linux;
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::OSType::Win32;
+				case core::Target::Platform::FREESTANDING: return llvm::Triple::OSType::UnknownOS;
 			}
 
 			evo::unreachable();
@@ -110,9 +119,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::VendorType triple_vendor = [&](){
 			switch(target.platform){
-				case core::Target::Platform::UNKNOWN: return llvm::Triple::VendorType::UnknownVendor;
-				case core::Target::Platform::WINDOWS: return llvm::Triple::VendorType::PC;
-				case core::Target::Platform::LINUX:   return llvm::Triple::VendorType::UnknownVendor;
+				case core::Target::Platform::LINUX:        return llvm::Triple::VendorType::UnknownVendor;
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::VendorType::PC;
+				case core::Target::Platform::FREESTANDING: return llvm::Triple::VendorType::UnknownVendor;
 			}
 
 			evo::unreachable();
@@ -120,9 +129,9 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::EnvironmentType triple_enviroment = [&](){
 			switch(target.platform){
-				case core::Target::Platform::UNKNOWN: return llvm::Triple::EnvironmentType::UnknownEnvironment;
-				case core::Target::Platform::WINDOWS: return llvm::Triple::EnvironmentType::MSVC;
-				case core::Target::Platform::LINUX:   return llvm::Triple::EnvironmentType::GNU;
+				case core::Target::Platform::LINUX:        return llvm::Triple::EnvironmentType::GNU;
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::EnvironmentType::MSVC;
+				case core::Target::Platform::FREESTANDING: return llvm::Triple::EnvironmentType::UnknownEnvironment;
 			}
 
 			evo::unreachable();
@@ -130,9 +139,9 @@ namespace pcit::llvmint{
 
 		// const llvm::Triple::ObjectFormatType triple_object_format = [&](){
 		// 	switch(target.platform){
-		// 		case core::Target::Platform::UNKNOWN: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
-		// 		case core::Target::Platform::WINDOWS: return llvm::Triple::ObjectFormatType::COFF;
-		// 		case core::Target::Platform::LINUX:   return llvm::Triple::ObjectFormatType::ELF;
+		// 		case core::Target::Platform::WINDOWS:      return llvm::Triple::ObjectFormatType::COFF;
+		// 		case core::Target::Platform::LINUX:        return llvm::Triple::ObjectFormatType::ELF;
+		// 		case core::Target::Platform::FREESTANDING: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
 		// 	}
 
 		// 	evo::unreachable();

@@ -3214,8 +3214,9 @@ namespace pcit::pir{
 			case CallingConvention::COLD:    return llvmint::CallingConv::Cold;
 			case CallingConvention::WIN_API: {
 				switch(this->module.getTarget().architecture){
-					case core::Target::Architecture::X86_64:  return llvmint::CallingConv::Win64;
-					case core::Target::Architecture::UNKNOWN: return llvmint::CallingConv::C;
+					case core::Target::Architecture::X86_64:     return llvmint::CallingConv::Win64;
+					case core::Target::Architecture::WASM32:     return llvmint::CallingConv::C;
+					case core::Target::Architecture::WASM64_P32: return llvmint::CallingConv::C;
 				}
 			} break;
 		}

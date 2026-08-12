@@ -820,6 +820,7 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto hasNamedReturns() const -> bool { return this->returnParamIdents.empty() == false; }
 		[[nodiscard]] auto hasNamedErrors() const -> bool { return this->errorParamIdents.empty() == false; }
 
+		[[nodiscard]] auto isDef() const -> bool { return this->value.is<DefValue>(); }
 		[[nodiscard]] auto isExtern() const -> bool { return this->value.is<ExternValue>(); }
 		[[nodiscard]] auto isDeleted() const -> bool { return this->value.is<DeleteValue>(); }
 	};

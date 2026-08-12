@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.361.0"></a>
+## v0.0.361.0
+
+### Panther
+- Added target architectures `WASM32` and `WASM64_P32`
+	- NOTE: comptime execution using pointers will not work properly when targeting these architectures, yet
+- Added target platform `FREESTANDING`
+- Fixed external declarations of `@ctAlloc` and `@ctDealloc` being emitted to outputs
+- Fixed lowering of deleted functions
+
+### Plnk
+- Added basic linking for Wasm
+
+### Misc
+- Updated to [Panther-std v0.0.49.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.49.0)
+
+
+<!---------------------------------->
 <a name="v0.0.360.0"></a>
 ## v0.0.360.0
 
@@ -776,7 +794,7 @@
 ### PIR
 - Fixed lowering of `@asm` statements
 
-### plnk
+### Plnk
 - Added basic linking for Linux
 
 ### Misc
@@ -5677,8 +5695,8 @@ Renamed "Panther" to "Panther-old" and started a new Panther project. This is be
 <a name="v0.0.65.0"></a>
 ## v0.0.65.0
 
-### plnk
-- Added the plnk project. General project layout has been created
+### Plnk
+- Added the Plnk project. General project layout has been created
 - Added basic linking for Windows
 
 

@@ -175,20 +175,6 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		}
 	}();
 
-	const auto context_config = ContextConfig{
-		.title                  = config.title,
-		.target                 = core::Target(config.architecture, config.platform),
-		.mode                   = config.mode,
-		.compilerMode           = compiler_mode,
-		.windowsSubsystem       = static_cast<std::optional<ContextConfig::WindowsSubsystem>>(config.windowsSubsystem),
-		.optMode                = config.optMode,
-		.unreachableMode        = config.unreachableMode,
-		.compilerExecutablePath = cmd_args_config.executablePath,
-		.workingDirectory       = cmd_args_config.workingDirectory,
-
-		.includeDebugInfo       = config.addDebugInfo,
-		.numThreads             = config.numThreads,
-	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
 		printer.printlnGray("Compile relative directory: \"{}\"", cmd_args_config.workingDirectory.string());
@@ -218,6 +204,38 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		printer.printlnMagenta("Include Debug Info: {}", config.addDebugInfo);
 	}
+
+
+
+
+	const auto target = core::Target(config.architecture, config.platform);
+	if(target.isValid() == false){
+		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+			panther::Diagnostic::Level::ERROR,
+			"Invalid compile target",
+			panther::Diagnostic::Location::NONE,
+			evo::SmallVector<panther::Diagnostic::Info>{
+				panther::Diagnostic::Info(std::format("Architecture: {}", config.architecture)),
+				panther::Diagnostic::Info(std::format("Platform:     {}", config.platform)),
+			}
+		));
+		return evo::resultError;
+	}
+
+	const auto context_config = ContextConfig{
+		.title                  = config.title,
+		.target                 = target,
+		.mode                   = config.mode,
+		.compilerMode           = compiler_mode,
+		.windowsSubsystem       = static_cast<std::optional<ContextConfig::WindowsSubsystem>>(config.windowsSubsystem),
+		.optMode                = config.optMode,
+		.unreachableMode        = config.unreachableMode,
+		.compilerExecutablePath = cmd_args_config.executablePath,
+		.workingDirectory       = cmd_args_config.workingDirectory,
+
+		.includeDebugInfo       = config.addDebugInfo,
+		.numThreads             = config.numThreads,
+	};
 
 
 
@@ -982,6 +1000,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 			const plnk::Options plnk_options = [&]() -> plnk::Options {
 				switch(config.platform){
+					case core::Target::Platform::LINUX: {
+						auto plnk_options = plnk::Options(plnk::Target::UNIX);
+						plnk_options.outputFilePath = exec_path.string();
+						return plnk_options;
+					} break;
+					
 					case core::Target::Platform::WINDOWS: {
 						auto plnk_options = plnk::Options(plnk::Target::WINDOWS);
 						plnk_options.outputFilePath = exec_path.string();
@@ -1004,13 +1028,13 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 						return plnk_options;
 					} break;
 
-					case core::Target::Platform::LINUX: {
-						auto plnk_options = plnk::Options(plnk::Target::UNIX);
+					case core::Target::Platform::FREESTANDING: {
+						evo::debugAssert(config.architecture.isWasm(), "Must be Wasm");
+
+						auto plnk_options = plnk::Options(plnk::Target::WEB_ASSEMBLY);
 						plnk_options.outputFilePath = exec_path.string();
 						return plnk_options;
 					} break;
-
-					case core::Target::Platform::UNKNOWN: evo::debugFatalBreak("Invalid platform");
 				}
 
 				evo::unreachable();

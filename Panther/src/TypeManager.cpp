@@ -2391,7 +2391,7 @@ namespace pcit::panther{
 						return 4;
 
 					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
-						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 4 : 8;
+						return this->getTarget().platform == core::Target::Platform::LINUX ? 8 : 4;
 
 					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return 8;
@@ -2562,8 +2562,14 @@ namespace pcit::panther{
 		evo::debugFatalBreak("Unknown or unsupported base-type kind");
 	}
 
-	auto TypeManager::numBytesOfPtr() const -> uint64_t { return 8; }
-	auto TypeManager::numBytesOfGeneralRegister() const -> uint64_t { return 8; }
+	auto TypeManager::numBytesOfPtr() const -> uint64_t {
+		return this->getTarget().numBytesOfPtr();
+	}
+
+	auto TypeManager::numBytesOfGeneralRegister() const -> uint64_t {
+		return this->getTarget().numBytesOfGeneralRegister();
+	}
+
 
 
 	///////////////////////////////////
@@ -2632,7 +2638,7 @@ namespace pcit::panther{
 						return 32;
 
 					case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_ULONG:
-						return this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
+						return this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32;
 
 					case Token::Kind::TYPE_C_LONG_LONG: case Token::Kind::TYPE_C_ULONG_LONG:
 						return 64;
@@ -2741,8 +2747,13 @@ namespace pcit::panther{
 
 
 
-	auto TypeManager::numBitsOfPtr() const -> uint64_t { return 64; }
-	auto TypeManager::numBitsOfGeneralRegister() const -> uint64_t { return 64; }
+	auto TypeManager::numBitsOfPtr() const -> uint64_t {
+		return this->getTarget().numBitsOfPtr();
+	}
+
+	auto TypeManager::numBitsOfGeneralRegister() const -> uint64_t {
+		return this->getTarget().numBitsOfGeneralRegister();
+	}
 
 
 
@@ -2750,11 +2761,20 @@ namespace pcit::panther{
 	// isTriviallySized
 
 	auto TypeManager::isTriviallySized(TypeInfo::ID id) const -> bool {
-		return this->numBytes(id) <= this->numBytesOfPtr();
+		return this->numBytes(id) <= this->numBytesOfGeneralRegister();
 	}
 
 	auto TypeManager::isTriviallySized(BaseType::ID id) const -> bool {
-		return this->numBytes(id) <= this->numBytesOfPtr();
+		return this->numBytes(id) <= this->numBytesOfGeneralRegister();
+	}
+
+
+	auto TypeManager::isNativelyTriviallySized(TypeInfo::ID id) const -> bool {
+		return this->numBytes(id) <= core::Target::getNative().numBytesOfGeneralRegister();
+	}
+
+	auto TypeManager::isNativelyTriviallySized(BaseType::ID id) const -> bool {
+		return this->numBytes(id) <= core::Target::getNative().numBytesOfGeneralRegister();
 	}
 
 
@@ -2768,6 +2788,14 @@ namespace pcit::panther{
 
 	auto TypeManager::isTriviallyParamReadable(BaseType::ID id) const -> bool {
 		return this->isTriviallySized(id) && this->isTriviallyCopyable(id);
+	}
+
+	auto TypeManager::isNativelyTriviallyParamReadable(TypeInfo::ID id) const -> bool {
+		return this->isNativelyTriviallySized(id) && this->isTriviallyCopyable(id);
+	}
+
+	auto TypeManager::isNativelyTriviallyParamReadable(BaseType::ID id) const -> bool {
+		return this->isNativelyTriviallySized(id) && this->isTriviallyCopyable(id);
 	}
 
 
@@ -3688,29 +3716,53 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case Token::Kind::TYPE_C_SHORT: case Token::Kind::TYPE_C_INT: {
+			case Token::Kind::TYPE_C_SHORT: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 16))
+				);
+			} break;
+
+			case Token::Kind::TYPE_C_INT: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 32))
 				);
 			} break;
 
-			case Token::Kind::TYPE_C_LONG: case Token::Kind::TYPE_C_LONG_LONG: {
-				const uint32_t size = this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
+			case Token::Kind::TYPE_C_LONG: {
+				const uint32_t size = this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, size))
 				);
 			} break;
 
-			case Token::Kind::TYPE_C_USHORT: case Token::Kind::TYPE_C_UINT: {
+			case Token::Kind::TYPE_C_LONG_LONG: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_I_N, 64))
+				);
+			} break;
+
+			case Token::Kind::TYPE_C_USHORT: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 16))
+				);
+			} break;
+
+			case Token::Kind::TYPE_C_UINT: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32))
 				);
 			} break;
 
-			case Token::Kind::TYPE_C_ULONG: case Token::Kind::TYPE_C_ULONG_LONG: {
-				const uint32_t size = this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64;
+			case Token::Kind::TYPE_C_ULONG: {
+				const uint32_t size = this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32;
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, size))
+				);
+			} break;
+
+			case Token::Kind::TYPE_C_ULONG_LONG: {
+				return this->getOrCreateTypeInfo(
+					TypeInfo(this->getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 64))
 				);
 			} break;
 
@@ -3821,7 +3873,7 @@ namespace pcit::panther{
 				
 			case Token::Kind::TYPE_C_LONG:
 				return core::GenericValue(
-					calc_min_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+					calc_min_signed(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32)
 				);
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
@@ -3830,7 +3882,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:     
 				return core::GenericValue(
-					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64, 0)
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32, 0)
 				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
@@ -3911,7 +3963,7 @@ namespace pcit::panther{
 				
 			case Token::Kind::TYPE_C_LONG:
 				return core::GenericValue(
-					calc_min_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+					calc_min_signed(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32)
 				);
 
 			case Token::Kind::TYPE_C_LONG_LONG: return core::GenericValue(calc_min_signed(32));
@@ -3920,7 +3972,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:     
 				return core::GenericValue(
-					core::GenericInt(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64, 0)
+					core::GenericInt(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32, 0)
 				);
 
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(core::GenericInt(64, 0));
@@ -3995,7 +4047,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_LONG:      
 				return core::GenericValue(
-					calc_max_signed(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+					calc_max_signed(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32)
 				);
 
 			case Token::Kind::TYPE_C_LONG_LONG:  return core::GenericValue(calc_max_signed(32));
@@ -4004,7 +4056,7 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_C_ULONG:
 				return core::GenericValue(
-					calc_max_unsigned(this->getTarget().platform == core::Target::Platform::WINDOWS ? 32 : 64)
+					calc_max_unsigned(this->getTarget().platform == core::Target::Platform::LINUX ? 64 : 32)
 				);
 				
 			case Token::Kind::TYPE_C_ULONG_LONG: return core::GenericValue(calc_max_unsigned(64));

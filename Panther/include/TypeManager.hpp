@@ -1376,9 +1376,13 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto isTriviallySized(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallySized(BaseType::ID id) const -> bool;
+			[[nodiscard]] auto isNativelyTriviallySized(TypeInfo::ID id) const -> bool;
+			[[nodiscard]] auto isNativelyTriviallySized(BaseType::ID id) const -> bool;
 
 			[[nodiscard]] auto isTriviallyParamReadable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallyParamReadable(BaseType::ID id) const -> bool;
+			[[nodiscard]] auto isNativelyTriviallyParamReadable(TypeInfo::ID id) const -> bool;
+			[[nodiscard]] auto isNativelyTriviallyParamReadable(BaseType::ID id) const -> bool;
 
 			[[nodiscard]] auto offsetOf(BaseType::Struct::ID id, size_t member_index) const -> uint64_t;
 

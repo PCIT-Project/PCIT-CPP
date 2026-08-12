@@ -700,22 +700,21 @@ namespace pcit::clangint{
 		// found by running `clang -v file.cpp -g` and looking at cc1 invocation
 		if(include_debug_info){
 			switch(target.platform){
+				case core::Target::Platform::LINUX: {
+					args.emplace_back("-debug-info-kind=constructor");
+					args.emplace_back("-dwarf-version=5");
+				} break;
+
 				case core::Target::Platform::WINDOWS: {
 					args.emplace_back("-gno-column-info");
 					args.emplace_back("-gcodeview");
 					args.emplace_back("-debug-info-kind=constructor");
 				} break;
 
-				case core::Target::Platform::LINUX: {
-					args.emplace_back("-debug-info-kind=constructor");
-					args.emplace_back("-dwarf-version=5");
-				} break;
-
-				case core::Target::Platform::UNKNOWN: {
-					// do nothing...
+				case core::Target::Platform::FREESTANDING: {
+					
 				} break;
 			}
-
 		}
 
 		opts.visit([&](const auto& opts) -> void {
@@ -779,7 +778,7 @@ namespace pcit::clangint{
 				// do nothing...
 			} break;
 
-			case core::Target::Platform::UNKNOWN: {
+			case core::Target::Platform::FREESTANDING: {
 				// do nothing...
 			} break;
 		}
