@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.362.0"></a>
+## v0.0.362.0
+
+### PIR
+- Added support for `ExecutionEngine` when targeting a 32-bit architecture
+
+### Misc
+- Updated to [Evo v1.40.1](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.40.1)
+
+
+<!---------------------------------->
 <a name="v0.0.361.0"></a>
 ## v0.0.361.0
 

@@ -16,6 +16,7 @@
 
 #include "../include/Module.hpp"
 #include "../include/InstrReader.hpp"
+#include "../include/ExecutionEnginePtrMap.hpp"
 
 
 #if !defined(EVO_PLATFORM_WINDOWS)
@@ -84,7 +85,7 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto get_expr(Expr expr, StackFrame& stack_frame) -> core::GenericValue&;
 			[[nodiscard]] auto get_expr_maybe_ptr(Expr expr, StackFrame& stack_frame) -> core::GenericValue*;
-			[[nodiscard]] auto get_expr_ptr(Expr expr, StackFrame& stack_frame) -> std::byte*;
+			[[nodiscard]] auto get_expr_ptr(Expr expr, StackFrame& stack_frame) -> evo::Result<std::byte*>;
 
 			[[nodiscard]] auto get_or_create_lowered_global_ptr(GlobalVar::ID id) -> std::byte*;
 			auto lower_global_value(const GlobalVar::Value& value, std::span<std::byte> dst) -> void;
@@ -97,6 +98,8 @@ namespace pcit::pir{
 
 			evo::SmallVector<StackFrame> stack_frames{};
 			std::optional<FuncRunError::Code> last_error{};
+
+			ExecutionEnginePtrMap ptr_map{};
 
 			#if !defined(EVO_PLATFORM_WINDOWS)
 				std::jmp_buf jump_buf;
