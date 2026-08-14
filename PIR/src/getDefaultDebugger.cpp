@@ -904,6 +904,9 @@ namespace pcit::pir{
 				} break;      
 				case Expr::Kind::ASM_VOID:          return evo::resultError;
 
+				case Expr::Kind::WASM_MEMORY_GROW:  return std::string_view(reader.getWasmMemoryGrow(expr).name);
+				case Expr::Kind::WASM_MEMORY_SIZE:  return std::string_view(reader.getWasmMemoryGrow(expr).name);
+
 				case Expr::Kind::META_LOCAL_VAR:    return evo::resultError;
 				case Expr::Kind::META_PARAM:        return evo::resultError;
 			}

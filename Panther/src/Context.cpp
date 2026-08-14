@@ -5484,6 +5484,24 @@ namespace pcit::panther{
 			.allowedInComptime = true, .allowedInRuntime = true,
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::WASM_MEMORY_GROW) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TypeManager::getTypeUI32()},
+			.params         = evo::SmallVector<Param>{
+				Param(BaseType::Function::Param::Kind::READ, TypeManager::getTypeUI32())
+			},
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeISize()},
+			.allowedInComptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TypeManager::getTypeUI32()},
+			.params         = evo::SmallVector<Param>{},
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
+			.allowedInComptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
 	}
 
 

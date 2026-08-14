@@ -1,11 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.363.0"></a>
+## v0.0.363.0
+
+### Panther
+- Added `wasmMemorGrow()`
+- Added `wasmMemorSize()`
+- Fixed returning of pointers from comptime function execution when targeting a 32-bit pointer architecture
+
+### Misc
+- Updated to [Evo v1.40.2](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.40.2)
+
+
+<!---------------------------------->
 <a name="v0.0.362.0"></a>
 ## v0.0.362.0
 
 ### PIR
-- Added support for `ExecutionEngine` when targeting a 32-bit architecture
+- Added support for `ExecutionEngine` when targeting a 32-bit pointer architecture
 
 ### Misc
 - Updated to [Evo v1.40.1](https://github.com/12Thanjo/Evo/blob/main/CHANGELOG.md#v1.40.1)

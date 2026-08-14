@@ -37,6 +37,7 @@
 
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/InlineAsm.h>
+#include <llvm/IR/IntrinsicsWebAssembly.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/NoFolder.h>
 

@@ -75,6 +75,8 @@ namespace pcit::pir{
 				auto set_signal_error(FuncRunError::Code error) -> std::jmp_buf&;
 			#endif
 
+		public:
+			ExecutionEnginePtrMap ptr_map{};
 
 		private:
 			[[nodiscard]] auto run_function_setup_and_run(Function::ID func_id, std::span<core::GenericValue> arguments)
@@ -98,8 +100,6 @@ namespace pcit::pir{
 
 			evo::SmallVector<StackFrame> stack_frames{};
 			std::optional<FuncRunError::Code> last_error{};
-
-			ExecutionEnginePtrMap ptr_map{};
 
 			#if !defined(EVO_PLATFORM_WINDOWS)
 				std::jmp_buf jump_buf;

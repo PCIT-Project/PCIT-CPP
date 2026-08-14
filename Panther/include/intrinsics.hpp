@@ -149,7 +149,11 @@ namespace pcit::panther{
 			CMPXCHG,
 			ATOMIC_RMW,
 
-			_LAST_ = ATOMIC_RMW,
+			// Wasm
+			WASM_MEMORY_GROW,
+			WASM_MEMORY_SIZE,
+
+			_LAST_ = WASM_MEMORY_SIZE,
 		};
 		
 

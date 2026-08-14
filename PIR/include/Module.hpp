@@ -1295,6 +1295,8 @@ namespace pcit::pir{
 			core::StepAlloc<AsmVoid, uint32_t> asm_voids{};
 
 
+			core::StepAlloc<WasmMemoryGrow, uint32_t> wasm_memory_grows{};
+			core::StepAlloc<WasmMemorySize, uint32_t> wasm_memory_sizes{};
 
 
 			core::StepAlloc<MetaLocalVar, uint32_t> meta_local_vars{};

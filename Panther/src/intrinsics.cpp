@@ -185,6 +185,9 @@ namespace pcit::panther{
 			{"atomicStore",                     Kind::ATOMIC_STORE},
 			{"cmpxchg",                         Kind::CMPXCHG},
 			{"atomicRMW",                       Kind::ATOMIC_RMW},
+
+			{"wasmMemoryGrow",                  Kind::WASM_MEMORY_GROW},
+			{"wasmMemorySize",                  Kind::WASM_MEMORY_SIZE},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

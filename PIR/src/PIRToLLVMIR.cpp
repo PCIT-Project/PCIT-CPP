@@ -2495,6 +2495,32 @@ namespace pcit::pir{
 						}
 					} break;
 
+					case Expr::Kind::WASM_MEMORY_GROW: {
+						const WasmMemoryGrow& wasm_memory_grow = this->reader.getWasmMemoryGrow(stmt);
+
+						const llvmint::Value ammount = this->get_value<ADD_WEAK_DEPS>(wasm_memory_grow.ammount);
+
+						const llvmint::Value wasm_memory_grow_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::WASM_MEMORY_GROW,
+							this->builder.getTypeI_N(uint32_t(this->module.getTarget().numBitsOfPtr())).asType(),
+							{this->builder.getValueI32(wasm_memory_grow.index).asValue(), ammount},
+							wasm_memory_grow.name
+						).asValue();
+						this->stmt_values.emplace(stmt, wasm_memory_grow_value);
+					} break;
+
+					case Expr::Kind::WASM_MEMORY_SIZE: {
+						const WasmMemorySize& wasm_memory_size = this->reader.getWasmMemorySize(stmt);
+
+						const llvmint::Value wasm_memory_size_value = this->builder.createIntrinsicCall(
+							llvmint::IRBuilder::IntrinsicID::WASM_MEMORY_SIZE,
+							this->builder.getTypeI_N(uint32_t(this->module.getTarget().numBitsOfPtr())).asType(),
+							{this->builder.getValueI32(wasm_memory_size.index).asValue()},
+							wasm_memory_size.name
+						).asValue();
+						this->stmt_values.emplace(stmt, wasm_memory_size_value);
+					} break;
+
 					case Expr::Kind::META_LOCAL_VAR: {
 						if(this->add_debug_info == false){ continue; }
 
@@ -2886,6 +2912,8 @@ namespace pcit::pir{
 			case Expr::Kind::ASM:               evo::debugFatalBreak("Not a value");
 			case Expr::Kind::EXTRACT_ASM_VALUE: return this->stmt_values.at(expr);
 			case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Not a value");
+			case Expr::Kind::WASM_MEMORY_GROW:  return this->stmt_values.at(expr);
+			case Expr::Kind::WASM_MEMORY_SIZE:  return this->stmt_values.at(expr);
 			case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Not a value");
 			case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Not a value");
 		}

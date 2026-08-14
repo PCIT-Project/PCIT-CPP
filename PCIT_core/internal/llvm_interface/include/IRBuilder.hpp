@@ -56,6 +56,9 @@ namespace pcit::llvmint{
 				CTPOP,
 				CTLZ,
 				CTTZ,
+
+				WASM_MEMORY_GROW,
+				WASM_MEMORY_SIZE,
 			};
 
 		public:

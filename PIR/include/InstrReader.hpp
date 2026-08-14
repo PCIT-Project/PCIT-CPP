@@ -163,6 +163,9 @@ namespace pcit::pir{
 			[[nodiscard]] auto getExtractAsmValue(Expr expr) const -> const ExtractAsmValue&;
 			[[nodiscard]] auto getAsmVoid(Expr expr) const -> const AsmVoid&;
 
+			[[nodiscard]] auto getWasmMemoryGrow(Expr expr) const -> const WasmMemoryGrow&;
+			[[nodiscard]] auto getWasmMemorySize(Expr expr) const -> const WasmMemorySize&;
+
 			[[nodiscard]] auto getMetaLocalVar(Expr expr) const -> const MetaLocalVar&;
 			[[nodiscard]] auto getMetaParam(Expr expr) const -> const MetaParam&;
 

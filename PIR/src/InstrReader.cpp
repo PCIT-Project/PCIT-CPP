@@ -162,6 +162,8 @@ namespace pcit::pir{
 				return extract_asm_values.asmExpr.outputs[extract_asm_values.index].type;
 			} break;
 			case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Not a value");
+			case Expr::Kind::WASM_MEMORY_GROW:  return this->module.createSignedType(32);
+			case Expr::Kind::WASM_MEMORY_SIZE:  return this->module.createUnsignedType(32);
 			case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Not a value");
 			case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Not a value");
 		}
@@ -940,6 +942,20 @@ namespace pcit::pir{
 		evo::debugAssert(expr.kind() == Expr::Kind::ASM_VOID, "Not an asm void");
 
 		return this->module.asm_voids[expr.index];
+	}
+
+	auto InstrReader::getWasmMemoryGrow(Expr expr) const -> const WasmMemoryGrow& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::WASM_MEMORY_GROW, "Not a Wasm memory grow");
+
+		return this->module.wasm_memory_grows[expr.index];
+	}
+
+	auto InstrReader::getWasmMemorySize(Expr expr) const -> const WasmMemorySize& {
+		evo::debugAssert(this->hasTargetFunction(), "No target function set");
+		evo::debugAssert(expr.kind() == Expr::Kind::WASM_MEMORY_SIZE, "Not a Wasm memory size");
+
+		return this->module.wasm_memory_sizes[expr.index];
 	}
 
 	auto InstrReader::getMetaLocalVar(Expr expr) const -> const MetaLocalVar& {

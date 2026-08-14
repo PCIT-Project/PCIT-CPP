@@ -203,6 +203,13 @@ namespace pcit::pir{
 		return created_executor;
 	}
 
+	auto ExecutionEngine::get_existing_current_executor() const -> const Executor& {
+		const std::thread::id this_id = std::this_thread::get_id();
+
+		const auto lock = std::scoped_lock(this->executors_lock);
+		return this->executors.at(this_id);
+	}
+
 
 
 	auto ExecutionEngine::run_debugger(Executor& executor)

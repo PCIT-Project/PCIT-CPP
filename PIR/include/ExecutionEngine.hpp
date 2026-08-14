@@ -85,6 +85,10 @@ namespace pcit::pir{
 				return lowered_global.value;
 			}
 
+			[[nodiscard]] auto getPtrMap() const -> const ExecutionEnginePtrMap& {
+				return this->get_existing_current_executor().ptr_map;
+			}
+
 
 			[[nodiscard]] auto registerExternFunc(ExternalFunction::ID extern_func_id, void* func_ptr) -> void;
 
@@ -92,6 +96,7 @@ namespace pcit::pir{
 		private:
 			using Executor = ExecutionEngineExecutor;
 			[[nodiscard]] auto get_current_executor() -> Executor&;
+			[[nodiscard]] auto get_existing_current_executor() const -> const Executor&;
 
 			struct LoweredGlobal{
 				core::GenericValue value;

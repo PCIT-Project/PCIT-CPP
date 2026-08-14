@@ -146,6 +146,9 @@ namespace pcit::pir{
 				EXTRACT_ASM_VALUE,
 				ASM_VOID,
 
+				WASM_MEMORY_SIZE,
+				WASM_MEMORY_GROW,
+
 				META_LOCAL_VAR,
 				META_PARAM,
 			};
@@ -188,7 +191,7 @@ namespace pcit::pir{
 					case Kind::BYTE_SWAP:         case Kind::CTPOP:             case Kind::CTLZ:
 					case Kind::CTTZ:              case Kind::CMPXCHG:           case Kind::CMPXCHG_LOADED:
 					case Kind::CMPXCHG_SUCCEEDED: case Kind::ATOMIC_RMW:        case Kind::ASM:
-					case Kind::EXTRACT_ASM_VALUE: {
+					case Kind::EXTRACT_ASM_VALUE: case Kind::WASM_MEMORY_SIZE:  case Kind::WASM_MEMORY_GROW: {
 						return true;
 					} break;
 					default: return false;
@@ -208,34 +211,35 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto isStmt() const -> bool {
 				switch(this->_kind){
-					case Kind::CALL:           case Kind::CALL_VOID:  case Kind::CALL_NO_RETURN:
-					case Kind::ABORT:          case Kind::BREAKPOINT: case Kind::RET:
-					case Kind::JUMP:           case Kind::BRANCH:     case Kind::UNREACHABLE:
-					case Kind::PHI:            case Kind::SWITCH:     case Kind::ALLOCA:
-					case Kind::LOAD:           case Kind::STORE:      case Kind::CALC_PTR:
-					case Kind::MEMCPY:         case Kind::MEMSET:     case Kind::BIT_CAST:
-					case Kind::TRUNC:          case Kind::FTRUNC:     case Kind::SEXT:
-					case Kind::ZEXT:           case Kind::FEXT:       case Kind::ITOF:
-					case Kind::UITOF:          case Kind::FTOI:       case Kind::FTOUI:
-					case Kind::ADD:            case Kind::SADD_SAT:   case Kind::UADD_SAT:
-					case Kind::FADD:           case Kind::SUB:        case Kind::SSUB_SAT:
-					case Kind::USUB_SAT:       case Kind::FSUB:       case Kind::MUL:
-					case Kind::SMUL_WRAP:      case Kind::UMUL_WRAP:  case Kind::SMUL_SAT:
-					case Kind::UMUL_SAT:       case Kind::FMUL:       case Kind::SDIV:
-					case Kind::UDIV:           case Kind::FDIV:       case Kind::SREM:
-					case Kind::UREM:           case Kind::FREM:       case Kind::FNEG:
-					case Kind::IEQ:            case Kind::FEQ:        case Kind::INEQ:
-					case Kind::FNEQ:           case Kind::SLT:        case Kind::ULT:
-					case Kind::FLT:            case Kind::SLTE:       case Kind::ULTE:
-					case Kind::FLTE:           case Kind::SGT:        case Kind::UGT:
-					case Kind::FGT:            case Kind::SGTE:       case Kind::UGTE:
-					case Kind::FGTE:           case Kind::AND:        case Kind::OR:
-					case Kind::XOR:            case Kind::SHL:        case Kind::SSHL_SAT:
-					case Kind::USHL_SAT:       case Kind::SSHR:       case Kind::USHR:
-					case Kind::BIT_REVERSE:    case Kind::BYTE_SWAP:  case Kind::CTPOP:
-					case Kind::CTLZ:           case Kind::CTTZ:       case Kind::CMPXCHG:
-					case Kind::ATOMIC_RMW:     case Kind::ASM:        case Kind::ASM_VOID:
-					case Kind::META_LOCAL_VAR: case Kind::META_PARAM: {
+					case Kind::CALL:             case Kind::CALL_VOID:  case Kind::CALL_NO_RETURN:
+					case Kind::ABORT:            case Kind::BREAKPOINT: case Kind::RET:
+					case Kind::JUMP:             case Kind::BRANCH:     case Kind::UNREACHABLE:
+					case Kind::PHI:              case Kind::SWITCH:     case Kind::ALLOCA:
+					case Kind::LOAD:             case Kind::STORE:      case Kind::CALC_PTR:
+					case Kind::MEMCPY:           case Kind::MEMSET:     case Kind::BIT_CAST:
+					case Kind::TRUNC:            case Kind::FTRUNC:     case Kind::SEXT:
+					case Kind::ZEXT:             case Kind::FEXT:       case Kind::ITOF:
+					case Kind::UITOF:            case Kind::FTOI:       case Kind::FTOUI:
+					case Kind::ADD:              case Kind::SADD_SAT:   case Kind::UADD_SAT:
+					case Kind::FADD:             case Kind::SUB:        case Kind::SSUB_SAT:
+					case Kind::USUB_SAT:         case Kind::FSUB:       case Kind::MUL:
+					case Kind::SMUL_WRAP:        case Kind::UMUL_WRAP:  case Kind::SMUL_SAT:
+					case Kind::UMUL_SAT:         case Kind::FMUL:       case Kind::SDIV:
+					case Kind::UDIV:             case Kind::FDIV:       case Kind::SREM:
+					case Kind::UREM:             case Kind::FREM:       case Kind::FNEG:
+					case Kind::IEQ:              case Kind::FEQ:        case Kind::INEQ:
+					case Kind::FNEQ:             case Kind::SLT:        case Kind::ULT:
+					case Kind::FLT:              case Kind::SLTE:       case Kind::ULTE:
+					case Kind::FLTE:             case Kind::SGT:        case Kind::UGT:
+					case Kind::FGT:              case Kind::SGTE:       case Kind::UGTE:
+					case Kind::FGTE:             case Kind::AND:        case Kind::OR:
+					case Kind::XOR:              case Kind::SHL:        case Kind::SSHL_SAT:
+					case Kind::USHL_SAT:         case Kind::SSHR:       case Kind::USHR:
+					case Kind::BIT_REVERSE:      case Kind::BYTE_SWAP:  case Kind::CTPOP:
+					case Kind::CTLZ:             case Kind::CTTZ:       case Kind::CMPXCHG:
+					case Kind::ATOMIC_RMW:       case Kind::ASM:        case Kind::ASM_VOID:
+					case Kind::META_LOCAL_VAR:   case Kind::META_PARAM: case Kind::WASM_MEMORY_SIZE:
+					case Kind::WASM_MEMORY_GROW: {
 						return true;
 					} break;
 					default: return false;
@@ -1025,6 +1029,21 @@ namespace pcit::pir{
 		std::optional<meta::SourceLocation> sourceLocation;
 	};
 
+
+
+	//////////////////////////////////////////////////////////////////////
+	// Wasm
+
+	struct WasmMemoryGrow{
+		std::string name;
+		uint32_t index;
+		Expr ammount;
+	};
+
+	struct WasmMemorySize{
+		std::string name;
+		uint32_t index;
+	};
 
 
 	//////////////////////////////////////////////////////////////////////

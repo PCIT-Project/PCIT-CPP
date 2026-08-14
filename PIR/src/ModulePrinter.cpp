@@ -1088,6 +1088,16 @@ namespace pcit::pir{
 
 			case Expr::Kind::ASM_VOID: evo::debugFatalBreak("Expr::Kind::ASM_VOID is not a valid expression");
 
+			case Expr::Kind::WASM_MEMORY_GROW: {
+				const WasmMemoryGrow& wasm_memory_grow = this->reader.getWasmMemoryGrow(expr);
+				this->printer.print("${}", wasm_memory_grow.name);
+			} break;
+
+			case Expr::Kind::WASM_MEMORY_SIZE: {
+				const WasmMemorySize& wasm_memory_size = this->reader.getWasmMemorySize(expr);
+				this->printer.print("${}", wasm_memory_size.name);
+			} break;
+
 			case Expr::Kind::META_LOCAL_VAR:
 				evo::debugFatalBreak("Expr::Kind::META_LOCAL_VAR is not a valid expression");
 
@@ -2248,6 +2258,23 @@ namespace pcit::pir{
 				}
 
 				this->printer.printYellow(" \"{}\"\n", asm_expr.code);
+			} break;
+
+			case Expr::Kind::WASM_MEMORY_GROW: {
+				const WasmMemoryGrow& wasm_memory_grow = this->reader.getWasmMemoryGrow(stmt);
+
+				this->printer.printRed("{}@wasm.memoryGrow ", tabs(2));
+
+				this->printer.printMagenta("{} ", wasm_memory_grow.index);
+				this->print_expr(wasm_memory_grow.ammount);
+				this->printer.println();
+			} break;
+
+			case Expr::Kind::WASM_MEMORY_SIZE: {
+				const WasmMemorySize& wasm_memory_size = this->reader.getWasmMemorySize(stmt);
+
+				this->printer.printRed("{}@wasm.memorySize ", tabs(2));
+				this->printer.printMagenta("{}\n", wasm_memory_size.index);
 			} break;
 
 			case Expr::Kind::META_LOCAL_VAR: {

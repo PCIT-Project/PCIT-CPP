@@ -782,6 +782,17 @@ namespace pcit::pir{
 			[[nodiscard]] auto getAsmVoid(Expr expr) const -> const AsmVoid&;
 
 
+			//////////////////////////////////////////////////////////////////////
+			// Wasm
+
+			[[nodiscard]] auto createWasmMemoryGrow(uint32_t index, Expr ammount, std::string&& name = "") const
+				-> Expr;
+			[[nodiscard]] auto getWasmMemoryGrow(Expr expr) const -> const WasmMemoryGrow&;
+
+			[[nodiscard]] auto createWasmMemorySize(uint32_t index, std::string&& name = "") const -> Expr;
+			[[nodiscard]] auto getWasmMemorySize(Expr expr) const -> const WasmMemorySize&;
+
+
 
 			//////////////////////////////////////////////////////////////////////
 			// meta

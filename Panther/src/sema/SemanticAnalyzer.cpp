@@ -13557,7 +13557,9 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::CTPOP:
 			case TemplateIntrinsicFunc::Kind::CTLZ:
 			case TemplateIntrinsicFunc::Kind::CTTZ:
-			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD: {
+			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD:
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_GROW:
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE: {
 				this->emit_error("Discarding return value of function call", instr.func_call.target);
 				return Result::ERROR;
 			} break;
@@ -15730,6 +15732,48 @@ namespace pcit::panther{
 					if(create_runtime_call().isError()){ return Result::ERROR; }
 				}
 
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_GROW: {
+				if(this->context.getTypeManager().getTarget().architecture.isWasm() == false){
+					this->emit_error(
+						"Intrinsic function `@wasmMemoryGrow` can only called when the target architecture is "
+							"Web Assembly",
+						instr.func_call
+					);
+					return Result::ERROR;
+				}
+
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						"Intrinsic function `@wasmMemoryGrow` cannot be a comptime value", instr.func_call
+					);
+					return Result::ERROR;
+
+				}else{
+					if(create_runtime_call().isError()){ return Result::ERROR; }
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE: {
+				if(this->context.getTypeManager().getTarget().architecture.isWasm() == false){
+					this->emit_error(
+						"Intrinsic function `@wasmMemoryGrow` can only called when the target architecture is "
+							"Web Assembly",
+						instr.func_call
+					);
+					return Result::ERROR;
+				}
+
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						"Intrinsic function `@wasmMemorySize` cannot be a comptime value", instr.func_call
+					);
+					return Result::ERROR;
+
+				}else{
+					if(create_runtime_call().isError()){ return Result::ERROR; }
+				}
 			} break;
 		}
 
@@ -31171,7 +31215,22 @@ namespace pcit::panther{
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
 		if(target_type.isPointer()){
-			void* const global_ptr = value.getPtr<void*>();
+			void* global_ptr = nullptr;
+
+			if(this->context.getTypeManager().numBytesOfPtr() == 8){
+				global_ptr = value.getPtr<void*>();
+
+			}else{
+				std::optional<void*> ptr_lookup_result =
+					this->context.comptime_execution_engine.getPtrMap().lookupPtr(uint32_t(value.getInt(32)));
+
+				if(ptr_lookup_result.has_value()){
+					this->emit_error("Comptime pointer is not a valid value", location);
+					return evo::resultError;
+				}
+
+				global_ptr = *ptr_lookup_result;
+			}
 
 			if(global_ptr == nullptr){
 				if(target_type.isOptional() == false){

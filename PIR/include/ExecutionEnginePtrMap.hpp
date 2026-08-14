@@ -24,7 +24,7 @@ namespace pcit::pir{
 			~ExecutionEnginePtrMap() = default;
 
 
-			auto lookupPtr(uint32_t ptr_key) -> std::optional<void*> {
+			auto lookupPtr(uint32_t ptr_key) const -> std::optional<void*> {
 				const auto find = this->map.find_left(ptr_key);
 				if(find != this->map.end()){ return find->second; }
 				return std::nullopt;

@@ -2395,6 +2395,9 @@ namespace pcit::pir{
 				break;
 			} break;
 
+			case Expr::Kind::WASM_MEMORY_GROW: evo::debugFatalBreak("Unsupported instruction");
+			case Expr::Kind::WASM_MEMORY_SIZE: evo::debugFatalBreak("Unsupported instruction");
+
 			case Expr::Kind::META_LOCAL_VAR: {
 				// do nothing
 			} break;

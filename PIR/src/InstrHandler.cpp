@@ -780,6 +780,14 @@ namespace pcit::pir{
 						}
 					} break;
 
+					case Expr::Kind::WASM_MEMORY_GROW: {
+						WasmMemoryGrow& wasm_memory_grow = this->module.wasm_memory_grows[stmt.index];
+
+						if(wasm_memory_grow.ammount == original){ wasm_memory_grow.ammount = replacement; }
+					} break;
+
+					case Expr::Kind::WASM_MEMORY_SIZE: continue;
+
 					case Expr::Kind::META_LOCAL_VAR: {
 						MetaLocalVar& meta_local_var = this->module.meta_local_vars[stmt.index];
 
@@ -3676,6 +3684,46 @@ namespace pcit::pir{
 
 
 	//////////////////////////////////////////////////////////////////////
+	// Wasm
+
+	auto InstrHandler::createWasmMemoryGrow(uint32_t index, Expr ammount, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getTarget().architecture.isWasm(), "Target must be Wasm to create this instruction"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::WASM_MEMORY_GROW,
+			this->module.wasm_memory_grows.emplace_back(std::move(name), index, ammount)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+	auto InstrHandler::getWasmMemoryGrow(Expr expr) const -> const WasmMemoryGrow& {
+		return InstrReader(this->module, this->getTargetFunction()).getWasmMemoryGrow(expr);
+	}
+
+
+	auto InstrHandler::createWasmMemorySize(uint32_t index, std::string&& name) const -> Expr {
+		evo::debugAssert(this->hasTargetBasicBlock(), "No target basic block set");
+		evo::debugAssert(
+			this->module.getTarget().architecture.isWasm(), "Target must be Wasm to create this instruction"
+		);
+
+		const auto new_expr = Expr(
+			Expr::Kind::WASM_MEMORY_SIZE,
+			this->module.wasm_memory_sizes.emplace_back(std::move(name), index)
+		);
+		this->insert_stmt(new_expr);
+		return new_expr;
+	}
+	auto InstrHandler::getWasmMemorySize(Expr expr) const -> const WasmMemorySize& {
+		return InstrReader(this->module, this->getTargetFunction()).getWasmMemorySize(expr);
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
 	// meta
 
 	auto InstrHandler::createMetaLocalVar(std::string&& name, Expr value, meta::Type type) const -> Expr {
@@ -3855,6 +3903,8 @@ namespace pcit::pir{
 			break; case Expr::Kind::ASM:               this->module.asms.erase(expr.index);
 			break; case Expr::Kind::EXTRACT_ASM_VALUE: return;
 			break; case Expr::Kind::ASM_VOID:          this->module.asm_voids.erase(expr.index);
+			break; case Expr::Kind::WASM_MEMORY_GROW:  this->module.wasm_memory_grows.erase(expr.index);
+			break; case Expr::Kind::WASM_MEMORY_SIZE:  this->module.wasm_memory_sizes.erase(expr.index);
 			break; case Expr::Kind::META_LOCAL_VAR:    this->module.meta_local_vars.erase(expr.index);
 			break; case Expr::Kind::META_PARAM:        this->module.meta_params.erase(expr.index);
 		}
@@ -4029,6 +4079,13 @@ namespace pcit::pir{
 						}
 					} continue;
 					case Expr::Kind::EXTRACT_ASM_VALUE: continue;
+
+					case Expr::Kind::WASM_MEMORY_GROW:
+						if(this->getWasmMemoryGrow(stmt).name == name){ return true; } continue;
+
+					case Expr::Kind::WASM_MEMORY_SIZE:
+						if(this->getWasmMemorySize(stmt).name == name){ return true; } continue;
+
 					case Expr::Kind::ASM_VOID:          continue;
 					case Expr::Kind::META_LOCAL_VAR: 
 						if(this->getMetaLocalVar(stmt).name == name){ return true; } continue;

@@ -149,6 +149,8 @@ namespace pcit::pir::passes{
 				break; case Expr::Kind::ASM:               evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::EXTRACT_ASM_VALUE: func_metadata.emplace(expr);
 				break; case Expr::Kind::ASM_VOID:          evo::debugFatalBreak("Should never see this expr kind");
+				break; case Expr::Kind::WASM_MEMORY_GROW:  func_metadata.emplace(expr);
+				break; case Expr::Kind::WASM_MEMORY_SIZE:  func_metadata.emplace(expr);
 				break; case Expr::Kind::META_LOCAL_VAR:    evo::debugFatalBreak("Should never see this expr kind");
 				break; case Expr::Kind::META_PARAM:        evo::debugFatalBreak("Should never see this expr kind");
 			}
@@ -1152,6 +1154,15 @@ namespace pcit::pir::passes{
 				}
 
 				return false;
+			} break;
+
+			case Expr::Kind::WASM_MEMORY_GROW: {
+				const WasmMemoryGrow& wasm_memory_grow = handler.getWasmMemoryGrow(stmt);
+				see_expr(wasm_memory_grow.ammount);
+			} break;
+
+			case Expr::Kind::WASM_MEMORY_SIZE: {
+				return remove_unused_stmt();
 			} break;
 
 			case Expr::Kind::META_LOCAL_VAR: return false;

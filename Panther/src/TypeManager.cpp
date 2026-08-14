@@ -226,9 +226,9 @@ namespace pcit::panther{
 		evo::debugAssert(this->primitivesInitialized() == false, "primitives already initialized");
 
 		this->primitives.emplace_back(Token::Kind::TYPE_INT);
-		this->primitives.emplace_back(Token::Kind::TYPE_ISIZE);
+		const BaseType::Primitive::ID type_isize   = this->primitives.emplace_back(Token::Kind::TYPE_ISIZE);
 		this->primitives.emplace_back(Token::Kind::TYPE_UINT);
-		const BaseType::Primitive::ID type_usize = this->primitives.emplace_back(Token::Kind::TYPE_USIZE);
+		const BaseType::Primitive::ID type_usize   = this->primitives.emplace_back(Token::Kind::TYPE_USIZE);
 		const BaseType::Primitive::ID type_f16     = this->primitives.emplace_back(Token::Kind::TYPE_F16);
 		const BaseType::Primitive::ID type_f32     = this->primitives.emplace_back(Token::Kind::TYPE_F32);
 		const BaseType::Primitive::ID type_f64     = this->primitives.emplace_back(Token::Kind::TYPE_F64);
@@ -281,6 +281,7 @@ namespace pcit::panther{
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_i64.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_i256.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_usize.get())));
+		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_isize.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_type_id.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_raw_ptr.get())));
 		this->types.emplace_back(TypeInfo(BaseType::ID(BaseType::Kind::PRIMITIVE, type_f16.get())));

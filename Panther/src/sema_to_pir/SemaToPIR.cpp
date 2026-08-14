@@ -12174,6 +12174,55 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 			} break;
+
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_GROW: {
+				const pir::Expr memory_grow_expr = this->handler.createWasmMemoryGrow(
+					static_cast<uint32_t>(instantiation.templateArgs[0].as<core::GenericValue>().getInt(32)),
+					this->get_expr_register(func_call.args[0])
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return memory_grow_expr;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->handler.createAlloca(
+						this->module.createSignedType(uint32_t(this->module.getTarget().numBitsOfPtr()))
+					);
+					this->handler.createStore(pointer_alloca, memory_grow_expr);
+					return pointer_alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->handler.createStore(store_locations[0], memory_grow_expr);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE: {
+				const pir::Expr memory_size_expr = this->handler.createWasmMemorySize(
+					static_cast<uint32_t>(instantiation.templateArgs[0].as<core::GenericValue>().getInt(32))
+				);
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return memory_size_expr;
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					const pir::Expr pointer_alloca = this->handler.createAlloca(
+						this->module.createUnsignedType(uint32_t(this->module.getTarget().numBitsOfPtr()))
+					);
+					this->handler.createStore(pointer_alloca, memory_size_expr);
+					return pointer_alloca;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					this->handler.createStore(store_locations[0], memory_size_expr);
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+			} break;
 		}
 
 		evo::unreachable();
