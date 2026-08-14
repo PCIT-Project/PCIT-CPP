@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.363.1"></a>
+## v0.0.363.1
+
+### Panther
+- Fixed stalling with some nested non-local `when` statements
+
+
+<!---------------------------------->
 <a name="v0.0.363.0"></a>
 ## v0.0.363.0
 

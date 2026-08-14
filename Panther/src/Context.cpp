@@ -603,9 +603,7 @@ namespace pcit::panther{
 
 				if(this->_config.numThreads.isMulti()){
 					infos.emplace_back("This may be caused by the multi-threading during semantic analysis. "
-								"Until a fix is made, try the single-threaded mode as it should be more stable.");
-				}else{
-					infos.emplace_back("This may have been caused by an uncaught circular dependency");
+								"Until a fix is made, try the single-threaded mode as it may be more stable.");
 				}
 
 				this->emitFatal("Stall detected while compiling", Diagnostic::Location::NONE, std::move(infos));

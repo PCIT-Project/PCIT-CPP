@@ -1388,11 +1388,22 @@ namespace pcit::panther{
 				);
 
 				if(encapsulating_symbol_proc != nullptr){
-					const auto lock =
-						std::scoped_lock(encapsulating_symbol_proc->waiting_for_lock, then_symbol.decl_waited_on_lock);
+					if(then_symbol.getASTNode().kind() == AST::Kind::WHEN_CONDITIONAL){
+						const auto lock = std::scoped_lock(
+							encapsulating_symbol_proc->waiting_for_lock, then_symbol.def_waited_on_lock
+						);
 
-					then_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
-					encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
+						then_symbol.def_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+						encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
+
+					}else{
+						const auto lock = std::scoped_lock(
+							encapsulating_symbol_proc->waiting_for_lock, then_symbol.decl_waited_on_lock
+						);
+
+						then_symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+						encapsulating_symbol_proc->waiting_for.emplace_back(then_id);
+					}
 				}
 
 				this->set_waiting_for_is_done(then_id, this->symbol_proc.getID());
