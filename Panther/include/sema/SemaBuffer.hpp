@@ -13,1095 +13,909 @@
 #include <Evo.hpp>
 #include <PCIT_core.hpp>
 
-#include "../../src/sema/ScopeManager.hpp"
 #include "./sema.hpp"
 
 
-namespace pcit::panther{
+namespace pcit::panther::sema{
+
+	class ScopeManager;
 
 	class SemaBuffer{
 		public:
-			SemaBuffer() = default;
-			~SemaBuffer() = default;
+			SemaBuffer();
+			~SemaBuffer();
+
+
+			[[nodiscard]] auto getScopeManager() const -> const class sema::ScopeManager&;
+			[[nodiscard]] auto getScopeManager()       ->       class sema::ScopeManager&;
+
 
 			///////////////////////////////////
 			// funcs
 
-			[[nodiscard]] auto createFunc(auto&&... args) -> sema::Func::ID {
-				return this->funcs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createFunc(
+				evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID,
+				Func::Name name,
+				std::string&& cFamilyMangledName, // empty if not c-family
+				std::optional<EncapsulatingSymbolID> parent,
+				BaseType::Function::ID typeID,
+				evo::SmallVector<Func::Param>&& params,
+				evo::SmallVector<Token::ID>&& returnParamIdents, // empty if not named
+				evo::SmallVector<Token::ID>&& errorParamIdents,  // empty if not named
+				std::optional<SymbolProcID> symbolProcID, // only value if is sema src and not auto-generated
+				uint32_t minNumArgs,
+				bool hasInParam,
+				Func::Attributes attributes,
+				std::optional<sema::TemplatedFuncID> templated_func_id = std::nullopt,
+				uint32_t instanceID = std::numeric_limits<uint32_t>::max() // max if not an instantiation
+			) -> Func::ID;
 
-			[[nodiscard]] auto getFunc(sema::Func::ID id) const -> const sema::Func& { return this->funcs[id]; }
+			[[nodiscard]] auto getFunc(Func::ID id) const -> const Func&;
 
 
-			[[nodiscard]] auto getFuncs() const -> evo::IterRange<sema::Func::ID::Iterator> {
-				return evo::IterRange<sema::Func::ID::Iterator>(
-					sema::Func::ID::Iterator(sema::Func::ID(0)),
-					sema::Func::ID::Iterator(sema::Func::ID(uint32_t(this->funcs.size())))
-				);
-			};
+			[[nodiscard]] auto getFuncs() const -> evo::IterRange<Func::ID::Iterator>;;
 
-			[[nodiscard]] auto numFuncs() const -> size_t { return this->funcs.size(); }
+			[[nodiscard]] auto numFuncs() const -> size_t;
 
 
 			///////////////////////////////////
 			// func alias
 
-			[[nodiscard]] auto createFuncAlias(auto&&... args) -> sema::FuncAlias::ID {
-				return this->func_aliases.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createFuncAlias(
+				SourceID sourceID,
+				Token::ID ident,
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>&& aliasedOverloads,
+				bool isPub,
+				bool isPriv
+			) -> FuncAlias::ID;
 
-			[[nodiscard]] auto getFuncAlias(sema::FuncAlias::ID id) const -> const sema::FuncAlias& {
-				return this->func_aliases[id];
-			}
+			[[nodiscard]] auto getFuncAlias(FuncAlias::ID id) const -> const FuncAlias&;
 
 
 			///////////////////////////////////
 			// templated funcs
 
-			[[nodiscard]] auto createTemplatedFunc(auto&&... args) -> sema::TemplatedFunc::ID {
-				return this->templated_funcs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTemplatedFunc(
+				SymbolProc& symbol_proc,
+				size_t min_num_template_args,
+				evo::SmallVector<TemplatedFunc::TemplateParam>&& template_params,
+				evo::SmallVector<bool>&& param_is_deducer,
+				bool is_variadic
+			) -> TemplatedFunc::ID;
 
-			[[nodiscard]] auto getTemplatedFunc(sema::TemplatedFunc::ID id) const -> const sema::TemplatedFunc& {
-				return this->templated_funcs[id];
-			}
+			[[nodiscard]] auto getTemplatedFunc(TemplatedFunc::ID id) const -> const TemplatedFunc&;
 
 
 			///////////////////////////////////
 			// templated structs
 
-			[[nodiscard]] auto createTemplatedStruct(auto&&... args) -> sema::TemplatedStruct::ID {
-				return this->templated_structs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTemplatedStruct(BaseType::StructTemplate::ID templateID, SymbolProc& symbolProc)
+				-> TemplatedStruct::ID;
 
-			[[nodiscard]] auto getTemplatedStruct(sema::TemplatedStruct::ID id) const -> const sema::TemplatedStruct& {
-				return this->templated_structs[id];
-			}
+			[[nodiscard]] auto getTemplatedStruct(TemplatedStruct::ID id) const -> const TemplatedStruct&;
 
 
 			///////////////////////////////////
 			// struct template alias
 
-			[[nodiscard]] auto createStructTemplateAlias(auto&&... args) -> sema::StructTemplateAlias::ID {
-				return this->struct_template_aliases.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createStructTemplateAlias(
+				SourceID sourceID,
+				Token::ID ident,
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::Variant<TemplatedStruct::ID, StructTemplateAlias::ID> aliasedID,
+				bool requiresPub,
+				bool isDistinct,
+				bool isPub,
+				bool isPriv
+			) -> StructTemplateAlias::ID;
 
-			[[nodiscard]] auto getStructTemplateAlias(sema::StructTemplateAlias::ID id) const
-			-> const sema::StructTemplateAlias& {
-				return this->struct_template_aliases[id];
-			}
+			[[nodiscard]] auto getStructTemplateAlias(StructTemplateAlias::ID id) const -> const StructTemplateAlias&;
 
 
 			///////////////////////////////////
 			// vars
 
-			[[nodiscard]] auto createVar(auto&&... args) -> sema::Var::ID {
-				return this->vars.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createVar(
+				AST::VarDef::Kind kind,
+				Token::ID ident,
+				Expr expr,
+				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Var::ID;
 
-			[[nodiscard]] auto getVar(sema::Var::ID id) const -> const sema::Var& {
-				return this->vars[id];
-			}
+			[[nodiscard]] auto getVar(Var::ID id) const -> const Var&;
 
-			[[nodiscard]] auto getVars() const -> evo::IterRange<sema::Var::ID::Iterator> {
-				return evo::IterRange<sema::Var::ID::Iterator>(
-					sema::Var::ID::Iterator(sema::Var::ID(0)),
-					sema::Var::ID::Iterator(sema::Var::ID(uint32_t(this->vars.size())))
-				);
-			};
+			[[nodiscard]] auto getVars() const -> evo::IterRange<Var::ID::Iterator>;
 
-			[[nodiscard]] auto numVars() const -> size_t { return this->vars.size(); }
+			[[nodiscard]] auto numVars() const -> size_t;
 
 
 			///////////////////////////////////
 			// global vars
 
-			[[nodiscard]] auto createGlobalVar(auto&&... args) -> sema::GlobalVar::ID {
-				return this->global_vars.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createGlobalVar(
+				AST::VarDef::Kind kind,
+				evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID,
+				evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> ident,
+				std::string cFamilyMangledName, // empty if not c-family
+				std::optional<EncapsulatingSymbolID> parent,
+				evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value, // monostate if def not done, or c-family
+				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
+				bool isPub,
+				bool isPriv,
+				std::optional<SymbolProcID> symbolProcID,
+				bool defCompleted = false
+			) -> GlobalVar::ID;
 
-			[[nodiscard]] auto getGlobalVar(sema::GlobalVar::ID id) const -> const sema::GlobalVar& {
-				return this->global_vars[id];
-			}
+			[[nodiscard]] auto getGlobalVar(GlobalVar::ID id) const -> const GlobalVar&;
 
-			[[nodiscard]] auto getGlobalVars() const -> evo::IterRange<sema::GlobalVar::ID::Iterator> {
-				return evo::IterRange<sema::GlobalVar::ID::Iterator>(
-					sema::GlobalVar::ID::Iterator(sema::GlobalVar::ID(0)),
-					sema::GlobalVar::ID::Iterator(sema::GlobalVar::ID(uint32_t(this->global_vars.size())))
-				);
-			};
+			[[nodiscard]] auto getGlobalVars() const -> evo::IterRange<GlobalVar::ID::Iterator>;
 
-			[[nodiscard]] auto numGlobalVars() const -> size_t { return this->global_vars.size(); }
+			[[nodiscard]] auto numGlobalVars() const -> size_t;
 
 
 			///////////////////////////////////
 			// params
 
-			[[nodiscard]] auto createParam(auto&&... args) -> sema::Param::ID {
-				return this->params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createParam(uint32_t index, uint32_t abiIndex) -> Param::ID;
 
-			[[nodiscard]] auto getParam(sema::Param::ID id) const -> const sema::Param& {
-				return this->params[id];
-			}
+			[[nodiscard]] auto getParam(Param::ID id) const -> const Param&;
 
 
 			///////////////////////////////////
 			// variadic params
 
-			[[nodiscard]] auto createVariadicParam(auto&&... args) -> sema::VariadicParam::ID {
-				return this->variadic_params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createVariadicParam(uint32_t startIndex, uint32_t startABIIndex, uint32_t numParams)
+			-> VariadicParam::ID;
 
-			[[nodiscard]] auto getVariadicParam(sema::VariadicParam::ID id) const -> const sema::VariadicParam& {
-				return this->variadic_params[id];
-			}
+			[[nodiscard]] auto getVariadicParam(VariadicParam::ID id) const -> const VariadicParam&;
 
 
 			///////////////////////////////////
 			// return params
 
-			[[nodiscard]] auto createReturnParam(auto&&... args) -> sema::ReturnParam::ID {
-				return this->return_params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createReturnParam(uint32_t index, uint32_t abiIndex) -> ReturnParam::ID;
 
-			[[nodiscard]] auto getReturnParam(sema::ReturnParam::ID id) const -> const sema::ReturnParam& {
-				return this->return_params[id];
-			}
+			[[nodiscard]] auto getReturnParam(ReturnParam::ID id) const -> const ReturnParam&;
 
 
 			///////////////////////////////////
 			// error return params
 
-			[[nodiscard]] auto createErrorReturnParam(auto&&... args) -> sema::ErrorReturnParam::ID {
-				return this->error_return_params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createErrorReturnParam(uint32_t index, uint32_t abiIndex) -> ErrorReturnParam::ID;
 
-			[[nodiscard]] auto getErrorReturnParam(sema::ErrorReturnParam::ID id) const
-			-> const sema::ErrorReturnParam& {
-				return this->error_return_params[id];
-			}
+			[[nodiscard]] auto getErrorReturnParam(ErrorReturnParam::ID id) const -> const ErrorReturnParam&;
 
 
 			///////////////////////////////////
 			// block expr outputs
 
-			[[nodiscard]] auto createBlockExprOutput(auto&&... args) -> sema::BlockExprOutput::ID {
-				return this->block_expr_outputs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createBlockExprOutput(
+				uint32_t index, Token::ID label, Token::ID ident, TypeInfo::ID typeID
+			) -> BlockExprOutput::ID;
 
-			[[nodiscard]] auto getBlockExprOutput(sema::BlockExprOutput::ID id) const -> const sema::BlockExprOutput& {
-				return this->block_expr_outputs[id];
-			}
+			[[nodiscard]] auto getBlockExprOutput(BlockExprOutput::ID id) const -> const BlockExprOutput&;
 
 
 			///////////////////////////////////
 			// except param
 
-			[[nodiscard]] auto createExceptParam(auto&&... args) -> sema::ExceptParam::ID {
-				return this->except_params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createExceptParam(Token::ID ident, uint32_t index, TypeInfo::ID typeID)
+				-> ExceptParam::ID;
 
-			[[nodiscard]] auto getExceptParam(sema::ExceptParam::ID id) const -> const sema::ExceptParam& {
-				return this->except_params[id];
-			}
+			[[nodiscard]] auto getExceptParam(ExceptParam::ID id) const -> const ExceptParam&;
 
 
 			///////////////////////////////////
 			// for param
 
-			[[nodiscard]] auto createForParam(auto&&... args) -> sema::ForParam::ID {
-				return this->for_params.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createForParam(Token::ID ident, TypeInfo::ID typeID, bool isIndex, bool isMut)
+				-> ForParam::ID;
 
-			[[nodiscard]] auto getForParam(sema::ForParam::ID id) const -> const sema::ForParam& {
-				return this->for_params[id];
-			}
+			[[nodiscard]] auto getForParam(ForParam::ID id) const -> const ForParam&;
 
 
 			///////////////////////////////////
 			// func calls
 
-			[[nodiscard]] auto createFuncCall(auto&&... args) -> sema::FuncCall::ID {
-				return this->func_calls.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createFuncCall(
+				evo::Variant<
+					FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncCall::FuncPtr
+				> target,
+				evo::SmallVector<Expr>&& args,
+				uint32_t line,
+				uint32_t collumn
+			) -> FuncCall::ID;
 
-			[[nodiscard]] auto getFuncCall(sema::FuncCall::ID id) const -> const sema::FuncCall& {
-				return this->func_calls[id];
-			}
+			[[nodiscard]] auto getFuncCall(FuncCall::ID id) const -> const FuncCall&;
 
 
 			///////////////////////////////////
 			// try else
 
-			[[nodiscard]] auto createTryElse(auto&&... args) -> sema::TryElse::ID {
-				return this->try_elses.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTryElse(
+				evo::Variant<FuncID, TryElse::FuncPtr> target,
+				evo::SmallVector<Expr>&& args,
+				evo::SmallVector<ExceptParamID>&& exceptParams,
+				StmtBlock&& elseBlock,
+				uint32_t line,
+				uint32_t collumn
+			) -> TryElse::ID;
 
-			[[nodiscard]] auto getTryElse(sema::TryElse::ID id) const -> const sema::TryElse& {
-				return this->try_elses[id];
-			}
+			[[nodiscard]] auto getTryElse(TryElse::ID id) const -> const TryElse&;
 
 
 			///////////////////////////////////
 			// try else interface
 
-			[[nodiscard]] auto createTryElseInterface(auto&&... args) -> sema::TryElseInterface::ID {
-				return this->try_else_interfaces.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTryElseInterface(
+				Expr value,
+				BaseType::Function::ID funcTypeID,
+				BaseType::Interface::ID interfaceID,
+				uint32_t vtableFuncIndex,
+				evo::SmallVector<Expr>&& args,
+				evo::SmallVector<ExceptParamID>&& exceptParams,
+				StmtBlock&& elseBlock,
+				uint32_t line,
+				uint32_t collumn
+			) -> TryElseInterface::ID;
 
-			[[nodiscard]] auto getTryElseInterface(sema::TryElseInterface::ID id) const
-			-> const sema::TryElseInterface& {
-				return this->try_else_interfaces[id];
-			}
+			[[nodiscard]] auto getTryElseInterface(TryElseInterface::ID id) const -> const TryElseInterface&;
 
 
 			///////////////////////////////////
 			// asm
 
-			[[nodiscard]] auto createAsm(auto&&... args) -> sema::Asm::ID {
-				return this->asms.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createAsm(
+				std::string_view code,
+				evo::SmallVector<Asm::Param>&& params,
+				evo::SmallVector<std::string_view>&& clobbers,
+				evo::SmallVector<Asm::RetParam>&& retParams,
+				bool isSideEffect,
+				bool isAlignStack,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Asm::ID;
 
-			[[nodiscard]] auto getAsm(sema::Asm::ID id) const -> const sema::Asm& {
-				return this->asms[id];
-			}
+			[[nodiscard]] auto getAsm(Asm::ID id) const -> const Asm&;
 
 
 			///////////////////////////////////
 			// assignments
 
-			[[nodiscard]] auto createAssign(auto&&... args) -> sema::Assign::ID {
-				return this->assigns.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createAssign(
+				std::optional<Expr> lhs, // nullopt if is a discard
+				Expr rhs,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Assign::ID;
 
-			[[nodiscard]] auto getAssign(sema::Assign::ID id) const -> const sema::Assign& {
-				return this->assigns[id];
-			}
+			[[nodiscard]] auto getAssign(Assign::ID id) const -> const Assign&;
 
 
 			///////////////////////////////////
 			// multi-assign
 
-			[[nodiscard]] auto createMultiAssign(auto&&... args) -> sema::MultiAssign::ID {
-				return this->multi_assigns.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createMultiAssign(
+				evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>>&& targets, // TypeInfo::ID if is a discard
+				Expr value,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> MultiAssign::ID;
 
-			[[nodiscard]] auto getMultiAssign(sema::MultiAssign::ID id) const -> const sema::MultiAssign& {
-				return this->multi_assigns[id];
-			}
+			[[nodiscard]] auto getMultiAssign(MultiAssign::ID id) const -> const MultiAssign&;
 
 
 			///////////////////////////////////
 			// returns
 
-			[[nodiscard]] auto createReturn(auto&&... args) -> sema::Return::ID {
-				return this->returns.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createReturn(
+				std::optional<Expr> value, // nullopt means return void
+				std::optional<Token::ID> targetLabel,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Return::ID;
 
-			[[nodiscard]] auto getReturn(sema::Return::ID id) const -> const sema::Return& {
-				return this->returns[id];
-			}
+			[[nodiscard]] auto getReturn(Return::ID id) const -> const Return&;
 
 
 			///////////////////////////////////
 			// errors
 
-			[[nodiscard]] auto createError(auto&&... args) -> sema::Error::ID {
-				return this->errors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createError(
+				std::optional<Expr> value, // nullopt means return void
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Error::ID;
 
-			[[nodiscard]] auto getError(sema::Error::ID id) const -> const sema::Error& {
-				return this->errors[id];
-			}
+			[[nodiscard]] auto getError(Error::ID id) const -> const Error&;
 
 
 			///////////////////////////////////
 			// unreachables
 
-			[[nodiscard]] auto createUnreachable(auto&&... args) -> sema::Unreachable::ID {
-				return this->unreachables.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnreachable(
+				std::optional<Expr> message,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Unreachable::ID;
 
-			[[nodiscard]] auto getUnreachable(sema::Unreachable::ID id) const -> const sema::Unreachable& {
-				return this->unreachables[id];
-			}
+			[[nodiscard]] auto getUnreachable(Unreachable::ID id) const -> const Unreachable&;
 
 
 			///////////////////////////////////
 			// breaks
 
-			[[nodiscard]] auto createBreak(auto&&... args) -> sema::Break::ID {
-				return this->breaks.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createBreak(std::optional<Token::ID> label) -> Break::ID;
 
-			[[nodiscard]] auto getBreak(sema::Break::ID id) const -> const sema::Break& {
-				return this->breaks[id];
-			}
+			[[nodiscard]] auto getBreak(Break::ID id) const -> const Break&;
 
 
 			///////////////////////////////////
 			// continues
 
-			[[nodiscard]] auto createContinue(auto&&... args) -> sema::Continue::ID {
-				return this->continues.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createContinue(std::optional<Token::ID> label) -> Continue::ID;
 
-			[[nodiscard]] auto getContinue(sema::Continue::ID id) const -> const sema::Continue& {
-				return this->continues[id];
-			}
+			[[nodiscard]] auto getContinue(Continue::ID id) const -> const Continue&;
 
 
 			///////////////////////////////////
 			// deletes
 
-			[[nodiscard]] auto createDelete(auto&&... args) -> sema::Delete::ID {
-				return this->deletes.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createDelete(
+				Expr expr,
+				TypeInfo::ID exprTypeID,
+				uint32_t line = 0, // 0 if unused (must be both line and collumn)
+				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+			) -> Delete::ID;
 
-			[[nodiscard]] auto getDelete(sema::Delete::ID id) const -> const sema::Delete& {
-				return this->deletes[id];
-			}
+			[[nodiscard]] auto getDelete(Delete::ID id) const -> const Delete&;
 
 
 			///////////////////////////////////
 			// block scopes
 
-			[[nodiscard]] auto createBlockScope(auto&&... args) -> sema::BlockScope::ID {
-				return this->block_scopes.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createBlockScope(
+				Token::ID openBrace, Token::ID closeBrace, StmtBlock&& block = StmtBlock{}
+			) -> BlockScope::ID;
 
-			[[nodiscard]] auto getBlockScope(sema::BlockScope::ID id) const -> const sema::BlockScope& {
-				return this->block_scopes[id];
-			}
+			[[nodiscard]] auto getBlockScope(BlockScope::ID id) const -> const BlockScope&;
 
 
 			///////////////////////////////////
 			// conditionals
 
-			[[nodiscard]] auto createConditional(auto&&... args) -> sema::Conditional::ID {
-				return this->conds.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createConditional(
+				Expr cond,
+				Token::ID ifToken,
+				std::optional<Token::ID> elseToken,
+				Token::ID closeBraceToken,
+				StmtBlock&& thenStmts = StmtBlock{},
+				StmtBlock&& elseStmts = StmtBlock{}
+			) -> Conditional::ID;
 
-			[[nodiscard]] auto getConditional(sema::Conditional::ID id) const -> const sema::Conditional& {
-				return this->conds[id];
-			}
+			[[nodiscard]] auto getConditional(Conditional::ID id) const -> const Conditional&;
 
 
 			///////////////////////////////////
 			// whiles
 
-			[[nodiscard]] auto createWhile(auto&&... args) -> sema::While::ID {
-				return this->whiles.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createWhile(
+				Expr cond, Token::ID whileToken, std::optional<Token::ID> label, StmtBlock&& block = StmtBlock{}
+			) -> While::ID;
 
-			[[nodiscard]] auto getWhile(sema::While::ID id) const -> const sema::While& {
-				return this->whiles[id];
-			}
+			[[nodiscard]] auto getWhile(While::ID id) const -> const While&;
 
 
 			///////////////////////////////////
 			// fors
 
-			[[nodiscard]] auto createFor(auto&&... args) -> sema::For::ID {
-				return this->fors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createFor(
+				evo::SmallVector<For::Iterable>&& iterables,
+				Token::ID forToken,
+				std::optional<Token::ID> label,
+				bool hasIndex,
+				evo::SmallVector<For::Param>&& params = evo::SmallVector<For::Param>{},
+				StmtBlock&& block = StmtBlock{}
+			) -> For::ID;
 
-			[[nodiscard]] auto getFor(sema::For::ID id) const -> const sema::For& {
-				return this->fors[id];
-			}
-
+			[[nodiscard]] auto getFor(For::ID id) const -> const For&;
 
 			///////////////////////////////////
 			// for unrolls
 
-			[[nodiscard]] auto createForUnroll(auto&&... args) -> sema::ForUnroll::ID {
-				return this->for_unrolls.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createForUnroll(
+				Token::ID forToken,
+				std::optional<Token::ID> label,
+				evo::SmallVector<StmtBlock>&& stmtBlocks = evo::SmallVector<StmtBlock>{}
+			) -> ForUnroll::ID;
 
-			[[nodiscard]] auto getForUnroll(sema::ForUnroll::ID id) const -> const sema::ForUnroll& {
-				return this->for_unrolls[id];
-			}
+			[[nodiscard]] auto getForUnroll(ForUnroll::ID id) const -> const ForUnroll&;
 
 
 			///////////////////////////////////
 			// switches
 
-			[[nodiscard]] auto createSwitch(auto&&... args) -> sema::Switch::ID {
-				return this->switches.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createSwitch(
+				Token::ID switchToken,
+				TypeInfo::ID condTypeID,
+				Expr cond,
+				evo::SmallVector<Switch::Case>&& cases,
+				Switch::Kind kind
+			) -> Switch::ID;
 
-			[[nodiscard]] auto getSwitch(sema::Switch::ID id) const -> const sema::Switch& {
-				return this->switches[id];
-			}
+			[[nodiscard]] auto getSwitch(Switch::ID id) const -> const Switch&;
 
 
 			///////////////////////////////////
 			// defers
 
-			[[nodiscard]] auto createDefer(auto&&... args) -> sema::Defer::ID {
-				return this->defers.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createDefer(
+				Token::ID deferToken,
+				bool isErrorDefer,
+				StmtBlock&& block = StmtBlock{}
+			) -> Defer::ID;
 
-			[[nodiscard]] auto getDefer(sema::Defer::ID id) const -> const sema::Defer& {
-				return this->defers[id];
-			}
+			[[nodiscard]] auto getDefer(Defer::ID id) const -> const Defer&;
 
 
 			///////////////////////////////////
 			// lifetime start
 
-			[[nodiscard]] auto createLifetimeStart(auto&&... args) -> sema::LifetimeStart::ID {
-				return this->lifetime_starts.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createLifetimeStart(evo::Variant<Expr, OpDeleteThisAccessor> target, TypeInfo::ID typeID)
+				-> LifetimeStart::ID;
 
-			[[nodiscard]] auto getLifetimeStart(sema::LifetimeStart::ID id) const -> const sema::LifetimeStart& {
-				return this->lifetime_starts[id];
-			}
+			[[nodiscard]] auto getLifetimeStart(LifetimeStart::ID id) const -> const LifetimeStart&;
 
 
 			///////////////////////////////////
 			// lifetime end
 
-			[[nodiscard]] auto createLifetimeEnd(auto&&... args) -> sema::LifetimeEnd::ID {
-				return this->lifetime_ends.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createLifetimeEnd(evo::Variant<Expr, OpDeleteThisAccessor> target, TypeInfo::ID typeID)
+				-> LifetimeEnd::ID;
 
-			[[nodiscard]] auto getLifetimeEnd(sema::LifetimeEnd::ID id) const -> const sema::LifetimeEnd& {
-				return this->lifetime_ends[id];
-			}
+			[[nodiscard]] auto getLifetimeEnd(LifetimeEnd::ID id) const -> const LifetimeEnd&;
 
 
 			///////////////////////////////////
 			// unused expr
 
-			[[nodiscard]] auto createUnusedExpr(auto&&... args) -> sema::UnusedExpr::ID {
-				return this->unused_exprs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnusedExpr(Expr expr) -> UnusedExpr::ID;
 
-			[[nodiscard]] auto getUnusedExpr(sema::UnusedExpr::ID id) const -> const sema::UnusedExpr& {
-				return this->unused_exprs[id];
-			}
+			[[nodiscard]] auto getUnusedExpr(UnusedExpr::ID id) const -> const UnusedExpr&;
 
 
 			///////////////////////////////////
 			// copies
 
-			[[nodiscard]] auto createCopy(auto&&... args) -> sema::Copy::ID {
-				return this->copies.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createCopy(Expr expr, TypeInfo::ID exprTypeID, bool isInitialization) -> Copy::ID;
 
-			[[nodiscard]] auto getCopy(sema::Copy::ID id) const -> const sema::Copy& {
-				return this->copies[id];
-			}
+			[[nodiscard]] auto getCopy(Copy::ID id) const -> const Copy&;
 
 
 			///////////////////////////////////
 			// moves
 
-			[[nodiscard]] auto createMove(auto&&... args) -> sema::Move::ID {
-				return this->moves.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createMove(Expr expr, TypeInfo::ID exprTypeID, bool isInitialization) -> Move::ID;
 
-			[[nodiscard]] auto getMove(sema::Move::ID id) const -> const sema::Move& {
-				return this->moves[id];
-			}
+			[[nodiscard]] auto getMove(Move::ID id) const -> const Move&;
 
 
 			///////////////////////////////////
 			// forwards
 
-			[[nodiscard]] auto createForward(auto&&... args) -> sema::Forward::ID {
-				return this->forwards.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createForward(Expr expr, TypeInfo::ID exprTypeID, bool isInitialization) -> Forward::ID;
 
-			[[nodiscard]] auto getForward(sema::Forward::ID id) const -> const sema::Forward& {
-				return this->forwards[id];
-			}
+			[[nodiscard]] auto getForward(Forward::ID id) const -> const Forward&;
 
 
 			///////////////////////////////////
 			// func ptrs
 
-			[[nodiscard]] auto createFuncPtr(auto&&... args) -> sema::FuncPtr::ID {
-				return sema::FuncPtr::ID(this->func_ptrs.emplace_back(std::forward<decltype(args)>(args)...));
-			}
+			[[nodiscard]] auto createFuncPtr(FuncID targetFuncID) -> FuncPtr::ID;
 
-			[[nodiscard]] auto getFuncPtr(sema::FuncPtr::ID id) const -> const sema::FuncPtr& {
-				return this->func_ptrs[id];
-			}
+			[[nodiscard]] auto getFuncPtr(FuncPtr::ID id) const -> const FuncPtr&;
+
 
 			///////////////////////////////////
 			// address ofs
 
-			[[nodiscard]] auto createAddrOf(auto&&... args) -> sema::AddrOf::ID {
-				return sema::AddrOf::ID(this->misc_exprs.emplace_back(std::forward<decltype(args)>(args)...));
-			}
+			[[nodiscard]] auto createAddrOf(Expr expr) -> AddrOf::ID;
 
-			[[nodiscard]] auto getAddrOf(sema::AddrOf::ID id) const -> const sema::Expr& {
-				return this->misc_exprs[id.get()];
-			}
+			[[nodiscard]] auto getAddrOf(AddrOf::ID id) const -> const Expr&;
 
 
 			///////////////////////////////////
 			// optional null check
 
-			[[nodiscard]] auto createConversionToOptional(auto&&... args)
-			-> sema::ConversionToOptional::ID {
-				return this->conversion_to_optionals.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createConversionToOptional(Expr expr, TypeInfo::ID targetTypeID)
+				-> ConversionToOptional::ID;
 
-			[[nodiscard]] auto getConversionToOptional(sema::ConversionToOptional::ID id) const
-			-> const sema::ConversionToOptional& {
-				return this->conversion_to_optionals[id];
-			}
+			[[nodiscard]] auto getConversionToOptional(ConversionToOptional::ID id) const
+				-> const ConversionToOptional&;
 
 
 			///////////////////////////////////
 			// optional null check
 
-			[[nodiscard]] auto createOptionalNullCheck(auto&&... args) -> sema::OptionalNullCheck::ID {
-				return this->optional_null_checks.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createOptionalNullCheck(Expr expr, TypeInfo::ID targetTypeID, bool equal)
+				-> OptionalNullCheck::ID;
 
-			[[nodiscard]] auto getOptionalNullCheck(sema::OptionalNullCheck::ID id) const
-			-> const sema::OptionalNullCheck& {
-				return this->optional_null_checks[id];
-			}
+			[[nodiscard]] auto getOptionalNullCheck(OptionalNullCheck::ID id) const -> const OptionalNullCheck&;
 
 
 			///////////////////////////////////
 			// optional extract
 
-			[[nodiscard]] auto createOptionalExtract(auto&&... args) -> sema::OptionalExtract::ID {
-				return this->optional_extracts.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID) -> OptionalExtract::ID;
 
-			[[nodiscard]] auto getOptionalExtract(sema::OptionalExtract::ID id) const
-			-> const sema::OptionalExtract& {
-				return this->optional_extracts[id];
-			}
+			[[nodiscard]] auto getOptionalExtract(OptionalExtract::ID id) const -> const OptionalExtract&;
 
 
 
 			///////////////////////////////////
 			// dereferences
 
-			[[nodiscard]] auto createDeref(auto&&... args) -> sema::Deref::ID {
-				return this->derefs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createDeref(Expr expr, TypeInfo::ID targetTypeID) -> Deref::ID;
 
-			[[nodiscard]] auto getDeref(sema::Deref::ID id) const -> const sema::Deref& {
-				return this->derefs[id];
-			}
+			[[nodiscard]] auto getDeref(Deref::ID id) const -> const Deref&;
 
 
 			///////////////////////////////////
 			// unwraps
 
-			[[nodiscard]] auto createUnwrap(auto&&... args) -> sema::Unwrap::ID {
-				return this->unwraps.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnwrap(Expr expr, TypeInfo::ID targetTypeID, bool isComptime) -> Unwrap::ID;
 
-			[[nodiscard]] auto getUnwrap(sema::Unwrap::ID id) const -> const sema::Unwrap& {
-				return this->unwraps[id];
-			}
+			[[nodiscard]] auto getUnwrap(Unwrap::ID id) const -> const Unwrap&;
 
 
 			///////////////////////////////////
 			// accessors
 
-			[[nodiscard]] auto createAccessor(auto&&... args) -> sema::Accessor::ID {
-				return this->accessors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createAccessor(Expr target, TypeInfo::ID targetTypeID, uint32_t memberABIIndex)
+				-> Accessor::ID;
 
-			[[nodiscard]] auto getAccessor(sema::Accessor::ID id) const -> const sema::Accessor& {
-				return this->accessors[id];
-			}
+			[[nodiscard]] auto getAccessor(Accessor::ID id) const -> const Accessor&;
 
 
 			///////////////////////////////////
 			// union accessors
 
-			[[nodiscard]] auto createUnionAccessor(auto&&... args) -> sema::UnionAccessor::ID {
-				return this->union_accessors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnionAccessor(Expr target, TypeInfo::ID targetTypeID, uint32_t fieldIndex)
+				-> UnionAccessor::ID;
 
-			[[nodiscard]] auto getUnionAccessor(sema::UnionAccessor::ID id) const -> const sema::UnionAccessor& {
-				return this->union_accessors[id];
-			}
+			[[nodiscard]] auto getUnionAccessor(UnionAccessor::ID id) const -> const UnionAccessor&;
 
 
 			///////////////////////////////////
 			// logical and
 
-			[[nodiscard]] auto createLogicalAnd(auto&&... args) -> sema::LogicalAnd::ID {
-				return this->logical_ands.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createLogicalAnd(Expr lhs, Expr rhs) -> LogicalAnd::ID;
 
-			[[nodiscard]] auto getLogicalAnd(sema::LogicalAnd::ID id) const -> const sema::LogicalAnd& {
-				return this->logical_ands[id];
-			}
+			[[nodiscard]] auto getLogicalAnd(LogicalAnd::ID id) const -> const LogicalAnd&;
 
 
 			///////////////////////////////////
 			// logical or
 
-			[[nodiscard]] auto createLogicalOr(auto&&... args) -> sema::LogicalOr::ID {
-				return this->logical_ors.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createLogicalOr(Expr lhs, Expr rhs) -> LogicalOr::ID;
 
-			[[nodiscard]] auto getLogicalOr(sema::LogicalOr::ID id) const -> const sema::LogicalOr& {
-				return this->logical_ors[id];
-			}
+			[[nodiscard]] auto getLogicalOr(LogicalOr::ID id) const -> const LogicalOr&;
 
 
 			///////////////////////////////////
 			// try/else expr
 
-			[[nodiscard]] auto createTryElseExpr(auto&&... args) -> sema::TryElseExpr::ID {
-				return this->try_else_exprs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTryElseExpr(
+				Expr attempt,
+				Expr except,
+				evo::SmallVector<ExceptParamID>&& exceptParams,
+				uint32_t line,
+				uint32_t collumn
+			) -> TryElseExpr::ID;
 
-			[[nodiscard]] auto getTryElseExpr(sema::TryElseExpr::ID id) const -> const sema::TryElseExpr& {
-				return this->try_else_exprs[id];
-			}
+			[[nodiscard]] auto getTryElseExpr(TryElseExpr::ID id) const -> const TryElseExpr&;
 
 
 			///////////////////////////////////
 			// try/else interface expr
 
-			[[nodiscard]] auto createTryElseInterfaceExpr(auto&&... args) -> sema::TryElseInterfaceExpr::ID {
-				return this->try_else_interface_exprs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createTryElseInterfaceExpr(
+				Expr attempt,
+				Expr except,
+				evo::SmallVector<ExceptParamID>&& exceptParams,
+				uint32_t line,
+				uint32_t collumn
+			) -> TryElseInterfaceExpr::ID;
 
-			[[nodiscard]] auto getTryElseInterfaceExpr(sema::TryElseInterfaceExpr::ID id) const
-			-> const sema::TryElseInterfaceExpr& {
-				return this->try_else_interface_exprs[id];
-			}
+			[[nodiscard]] auto getTryElseInterfaceExpr(TryElseInterfaceExpr::ID id) const
+				-> const TryElseInterfaceExpr&;
 
 
 			///////////////////////////////////
 			// block expr
 
-			[[nodiscard]] auto createBlockExpr(auto&&... args) -> sema::BlockExpr::ID {
-				return this->block_exprs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createBlockExpr(
+				Token::ID label,
+				evo::SmallVector<BlockExpr::Output>&& outputs = evo::SmallVector<BlockExpr::Output>{},
+				StmtBlock&& block = StmtBlock{}
+			) -> BlockExpr::ID;
 
-			[[nodiscard]] auto getBlockExpr(sema::BlockExpr::ID id) const -> const sema::BlockExpr& {
-				return this->block_exprs[id];
-			}
+			[[nodiscard]] auto getBlockExpr(BlockExpr::ID id) const -> const BlockExpr&;
 
 
 			///////////////////////////////////
 			// fake term info
 
-			[[nodiscard]] auto createFakeTermInfo(auto&&... args) -> sema::FakeTermInfo::ID {
-				return this->fake_term_infos.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createFakeTermInfo(
+				FakeTermInfo::ValueCategory valueCategory,
+				FakeTermInfo::ValueState valueState,
+				TypeInfo::ID typeID,
+				Expr expr,
+				bool isComptime
+			) -> FakeTermInfo::ID;
 
-			[[nodiscard]] auto getFakeTermInfo(sema::FakeTermInfo::ID id) const -> const sema::FakeTermInfo& {
-				return this->fake_term_infos[id];
-			}
+			[[nodiscard]] auto getFakeTermInfo(FakeTermInfo::ID id) const -> const FakeTermInfo&;
 
 
 			///////////////////////////////////
 			// make interface ptr
 
-			[[nodiscard]] auto createMakeInterfacePtr(auto&&... args) -> sema::MakeInterfacePtr::ID {
-				return this->make_interface_ptrs.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createMakeInterfacePtr(
+				Expr expr, BaseType::Interface::ID interfaceID, TypeInfo::ID implTypeID
+			) -> MakeInterfacePtr::ID;
 
-			[[nodiscard]] auto getMakeInterfacePtr(sema::MakeInterfacePtr::ID id) const
-			-> const sema::MakeInterfacePtr& {
-				return this->make_interface_ptrs[id];
-			}
+			[[nodiscard]] auto getMakeInterfacePtr(MakeInterfacePtr::ID id) const
+			-> const MakeInterfacePtr&;
 
 
 			///////////////////////////////////
 			// interface ptr extract this
 
-			[[nodiscard]] auto createInterfacePtrExtractThis(auto&&... args) -> sema::InterfacePtrExtractThis::ID {
-				return this->interface_ptr_extract_thises.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createInterfacePtrExtractThis(Expr expr) -> InterfacePtrExtractThis::ID;
 
-			[[nodiscard]] auto getInterfacePtrExtractThis(sema::InterfacePtrExtractThis::ID id) const
-			-> const sema::InterfacePtrExtractThis& {
-				return this->interface_ptr_extract_thises[id];
-			}
+			[[nodiscard]] auto getInterfacePtrExtractThis(InterfacePtrExtractThis::ID id) const
+			-> const InterfacePtrExtractThis&;
 
 
 			///////////////////////////////////
 			// interface call
 
-			[[nodiscard]] auto createInterfaceCall(auto&&... args) -> sema::InterfaceCall::ID {
-				return this->interface_calls.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createInterfaceCall(
+				Expr value,
+				BaseType::Function::ID funcTypeID,
+				BaseType::Interface::ID interfaceID,
+				uint32_t vtableFuncIndex,
+				evo::SmallVector<Expr>&& args
+			) -> InterfaceCall::ID;
 
-			[[nodiscard]] auto getInterfaceCall(sema::InterfaceCall::ID id) const -> const sema::InterfaceCall& {
-				return this->interface_calls[id];
-			}
+			[[nodiscard]] auto getInterfaceCall(InterfaceCall::ID id) const -> const InterfaceCall&;
 
 
 			///////////////////////////////////
 			// indexer
 
-			[[nodiscard]] auto createIndexer(auto&&... args) -> sema::Indexer::ID {
-				return this->indexers.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createIndexer(
+				Expr target, TypeInfo::ID targetTypeID, evo::SmallVector<Expr>&& indices
+			) -> Indexer::ID;
 
-			[[nodiscard]] auto getIndexer(sema::Indexer::ID id) const -> const sema::Indexer& {
-				return this->indexers[id];
-			}
+			[[nodiscard]] auto getIndexer(Indexer::ID id) const -> const Indexer&;
 
 
 			///////////////////////////////////
 			// default init
 
-			[[nodiscard]] auto createDefaultNew(auto&&... args) -> sema::DefaultNew::ID {
-				return this->default_news.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createDefaultNew(TypeInfo::ID targetTypeID, bool isInitialization) -> DefaultNew::ID;
 
-			[[nodiscard]] auto getDefaultNew(sema::DefaultNew::ID id) const
-			-> const sema::DefaultNew& {
-				return this->default_news[id];
-			}
+			[[nodiscard]] auto getDefaultNew(DefaultNew::ID id) const -> const DefaultNew&;
 
 
 			///////////////////////////////////
 			// init array ref
 
-			[[nodiscard]] auto createInitArrayRef(auto&&... args) -> sema::InitArrayRef::ID {
-				return this->init_array_ref.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createInitArrayRef(
+				Expr expr,
+				BaseType::ArrayRef::ID targetTypeID,
+				evo::SmallVector<evo::Variant<uint64_t, Expr>>&& dimensions
+			) -> InitArrayRef::ID;
 
-			[[nodiscard]] auto getInitArrayRef(sema::InitArrayRef::ID id) const -> const sema::InitArrayRef& {
-				return this->init_array_ref[id];
-			}
+			[[nodiscard]] auto getInitArrayRef(InitArrayRef::ID id) const -> const InitArrayRef&;
 
 
 			///////////////////////////////////
 			// array ref indexer
 
-			[[nodiscard]] auto createArrayRefIndexer(auto&&... args) -> sema::ArrayRefIndexer::ID {
-				return this->array_ref_indexers.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createArrayRefIndexer(
+				Expr target, BaseType::ArrayRef::ID targetTypeID, evo::SmallVector<Expr>&& indices
+			) -> ArrayRefIndexer::ID;
 
-			[[nodiscard]] auto getArrayRefIndexer(sema::ArrayRefIndexer::ID id) const -> const sema::ArrayRefIndexer& {
-				return this->array_ref_indexers[id];
-			}
+			[[nodiscard]] auto getArrayRefIndexer(ArrayRefIndexer::ID id) const -> const ArrayRefIndexer&;
 
 
 			///////////////////////////////////
 			// array ref size
 
-			[[nodiscard]] auto createArrayRefSize(auto&&... args) -> sema::ArrayRefSize::ID {
-				return this->array_ref_size.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createArrayRefSize(Expr target, BaseType::ArrayRef::ID targetTypeID)
+				-> ArrayRefSize::ID;
 
-			[[nodiscard]] auto getArrayRefSize(sema::ArrayRefSize::ID id) const -> const sema::ArrayRefSize& {
-				return this->array_ref_size[id];
-			}
+			[[nodiscard]] auto getArrayRefSize(ArrayRefSize::ID id) const -> const ArrayRefSize&;
 
 
 			///////////////////////////////////
 			// array ref dimensions
 
-			[[nodiscard]] auto createArrayRefDimensions(auto&&... args) -> sema::ArrayRefDimensions::ID {
-				return this->array_ref_dimensions.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createArrayRefDimensions(Expr target, BaseType::ArrayRef::ID targetTypeID)
+				-> ArrayRefDimensions::ID;
 
-			[[nodiscard]] auto getArrayRefDimensions(sema::ArrayRefDimensions::ID id) const
-			-> const sema::ArrayRefDimensions& {
-				return this->array_ref_dimensions[id];
-			}
+			[[nodiscard]] auto getArrayRefDimensions(ArrayRefDimensions::ID id) const -> const ArrayRefDimensions&;
 
 
 			///////////////////////////////////
 			// array ref data
 
-			[[nodiscard]] auto createArrayRefData(auto&&... args) -> sema::ArrayRefData::ID {
-				return this->array_ref_data.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createArrayRefData(Expr target, BaseType::ArrayRef::ID targetTypeID) -> ArrayRefData::ID;
 
-			[[nodiscard]] auto getArrayRefData(sema::ArrayRefData::ID id) const -> const sema::ArrayRefData& {
-				return this->array_ref_data[id];
-			}
+			[[nodiscard]] auto getArrayRefData(ArrayRefData::ID id) const -> const ArrayRefData&;
 
 
 			///////////////////////////////////
 			// union designated init new
 
-			[[nodiscard]] auto createUnionDesignatedInitNew(auto&&... args) -> sema::UnionDesignatedInitNew::ID {
-				return this->union_designated_init_news.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnionDesignatedInitNew(
+				Expr value, BaseType::Union::ID unionTypeID, uint32_t fieldIndex
+			) -> UnionDesignatedInitNew::ID;
 
-			[[nodiscard]] auto getUnionDesignatedInitNew(sema::UnionDesignatedInitNew::ID id) const
-			-> const sema::UnionDesignatedInitNew& {
-				return this->union_designated_init_news[id];
-			}
+			[[nodiscard]] auto getUnionDesignatedInitNew(UnionDesignatedInitNew::ID id) const
+				-> const UnionDesignatedInitNew&;
 
 
 			///////////////////////////////////
 			// union tag cmp
 
-			[[nodiscard]] auto createUnionTagCmp(auto&&... args) -> sema::UnionTagCmp::ID {
-				return this->union_tag_cmps.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createUnionTagCmp(
+				Expr value, BaseType::Union::ID unionTypeID, uint32_t fieldIndex, bool isEqual
+			) -> UnionTagCmp::ID;
 
-			[[nodiscard]] auto getUnionTagCmp(sema::UnionTagCmp::ID id) const -> const sema::UnionTagCmp& {
-				return this->union_tag_cmps[id];
-			}
+			[[nodiscard]] auto getUnionTagCmp(UnionTagCmp::ID id) const -> const UnionTagCmp&;
 
 
 			///////////////////////////////////
 			// same type cmp
 
-			[[nodiscard]] auto createSameTypeCmp(auto&&... args) -> sema::SameTypeCmp::ID {
-				return this->same_type_cmps.emplace_back(std::forward<decltype(args)>(args)...);
-			}
+			[[nodiscard]] auto createSameTypeCmp(TypeInfo::ID typeID, Expr lhs, Expr rhs, bool isEqual)
+				-> SameTypeCmp::ID;
 
-			[[nodiscard]] auto getSameTypeCmp(sema::SameTypeCmp::ID id) const -> const sema::SameTypeCmp& {
-				return this->same_type_cmps[id];
-			}
+			[[nodiscard]] auto getSameTypeCmp(SameTypeCmp::ID id) const -> const SameTypeCmp&;
 
 
 			///////////////////////////////////
 			// template intrinsic instantiations
 
-			[[nodiscard]] auto createTemplateIntrinsicFuncInstantiation(auto&&... args)
-			-> sema::TemplateIntrinsicFuncInstantiation::ID {
-				return this->templated_intrinsic_func_instantiations.emplace_back(
-					std::forward<decltype(args)>(args)...
-				);
-			}
+			[[nodiscard]] auto createTemplateIntrinsicFuncInstantiation(
+				TemplateIntrinsicFunc::Kind kind,
+				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>&& templateArgs
+			) -> TemplateIntrinsicFuncInstantiation::ID;
 
-			[[nodiscard]] auto getTemplateIntrinsicFuncInstantiation(
-				sema::TemplateIntrinsicFuncInstantiation::ID id
-			) const -> const sema::TemplateIntrinsicFuncInstantiation& {
-				return this->templated_intrinsic_func_instantiations[id];
-			}
+			[[nodiscard]] auto getTemplateIntrinsicFuncInstantiation(TemplateIntrinsicFuncInstantiation::ID id) const
+				-> const TemplateIntrinsicFuncInstantiation&;
 
 
 			///////////////////////////////////
 			// ints
 
-			[[nodiscard]] auto createIntValue(core::GenericInt integer, std::optional<BaseType::ID> type_info_id)
-			-> sema::IntValue::ID {
-				return this->int_values.emplace_back(integer, type_info_id);
-			}
+			[[nodiscard]] auto createIntValue(core::GenericInt&& integer, std::optional<BaseType::ID> type_info_id)
+			-> IntValue::ID;
 
-			[[nodiscard]] auto getIntValue(sema::IntValue::ID id) const -> const sema::IntValue& {
-				return this->int_values[id];
-			}
+			[[nodiscard]] auto getIntValue(IntValue::ID id) const -> const IntValue&;
 
 
 			///////////////////////////////////
 			// floats
 
 			[[nodiscard]] auto createFloatValue(
-				core::GenericFloat floating_point, std::optional<BaseType::ID> type_info_id
-			) -> sema::FloatValue::ID {
-				return this->float_values.emplace_back(floating_point, type_info_id);
-			}
+				core::GenericFloat&& floating_point, std::optional<BaseType::ID> type_info_id
+			) -> FloatValue::ID;
 
-			[[nodiscard]] auto getFloatValue(sema::FloatValue::ID id) const -> const sema::FloatValue& {
-				return this->float_values[id];
-			}
+			[[nodiscard]] auto getFloatValue(FloatValue::ID id) const -> const FloatValue&;
 
 
 			///////////////////////////////////
 			// bools
 
-			[[nodiscard]] auto createBoolValue(bool boolean, bool is_bool_32) -> sema::BoolValue::ID {
-				return this->bool_values.emplace_back(boolean, is_bool_32);
-			}
+			[[nodiscard]] auto createBoolValue(bool boolean, bool is_bool_32) -> BoolValue::ID;
 
-			[[nodiscard]] auto getBoolValue(sema::BoolValue::ID id) const -> const sema::BoolValue& {
-				return this->bool_values[id];
-			}
+			[[nodiscard]] auto getBoolValue(BoolValue::ID id) const -> const BoolValue&;
+
 
 			///////////////////////////////////
 			// strings
 
-			[[nodiscard]] auto createStringValue(std::string&& value) -> sema::StringValue::ID {
-				return this->string_values.emplace_back(std::move(value));
-			}
+			[[nodiscard]] auto createStringValue(std::string&& value) -> StringValue::ID;
 
-			[[nodiscard]] auto createStringValue(const std::string& value) -> sema::StringValue::ID {
-				return this->string_values.emplace_back(value);
-			}
+			[[nodiscard]] auto createStringValue(const std::string& value) -> StringValue::ID;
 
-			[[nodiscard]] auto getStringValue(sema::StringValue::ID id) const -> const sema::StringValue& {
-				return this->string_values[id];
-			}
+			[[nodiscard]] auto getStringValue(StringValue::ID id) const -> const StringValue&;
 
 
 			///////////////////////////////////
 			// aggregates
 
-			[[nodiscard]] auto createAggregateValue(evo::SmallVector<sema::Expr>&& values, BaseType::ID typeID)
-			-> sema::AggregateValue::ID {
-				return this->aggregate_values.emplace_back(std::move(values), typeID);
-			}
+			[[nodiscard]] auto createAggregateValue(evo::SmallVector<Expr>&& values, BaseType::ID typeID)
+				-> AggregateValue::ID;
 
-			[[nodiscard]] auto createAggregateValue(
-				const evo::SmallVector<sema::Expr>& values, BaseType::ID typeID
-			) -> sema::AggregateValue::ID {
-				return this->aggregate_values.emplace_back(values, typeID);
-			}
+			[[nodiscard]] auto createAggregateValue(const evo::SmallVector<Expr>& values, BaseType::ID typeID)
+				-> AggregateValue::ID;
 
-			[[nodiscard]] auto getAggregateValue(sema::AggregateValue::ID id) const -> const sema::AggregateValue& {
-				return this->aggregate_values[id];
-			}
+			[[nodiscard]] auto getAggregateValue(AggregateValue::ID id) const -> const AggregateValue&;
 
 
 			///////////////////////////////////
 			// chars
 
-			[[nodiscard]] auto createCharValue(char character) -> sema::CharValue::ID {
-				return this->char_values.emplace_back(character);
-			}
+			[[nodiscard]] auto createCharValue(char character) -> CharValue::ID;
 
-			[[nodiscard]] auto getCharValue(sema::CharValue::ID id) const -> const sema::CharValue& {
-				return this->char_values[id];
-			}
+			[[nodiscard]] auto getCharValue(CharValue::ID id) const -> const CharValue&;
 
 
 			///////////////////////////////////
 			// null
 
-			[[nodiscard]] auto createNull(Token::ID null_token_id) -> sema::Null::ID {
-				return sema::Null::ID(this->misc_tokens.emplace_back(null_token_id));
-			}
+			[[nodiscard]] auto createNull(Token::ID null_token_id) -> Null::ID;
 
-			[[nodiscard]] auto getNull(sema::Uninit::ID id) const -> Token::ID {
-				return this->misc_tokens[id.get()];
-			}
+			[[nodiscard]] auto getNull(Uninit::ID id) const -> Token::ID;
 
 
 			///////////////////////////////////
 			// uninit
 
-			[[nodiscard]] auto createUninit(Token::ID uninit_token_id) -> sema::Uninit::ID {
-				return sema::Uninit::ID(this->misc_tokens.emplace_back(uninit_token_id));
-			}
+			[[nodiscard]] auto createUninit(Token::ID uninit_token_id) -> Uninit::ID;
 
-			[[nodiscard]] auto getUninit(sema::Uninit::ID id) const -> Token::ID {
-				return this->misc_tokens[id.get()];
-			}
+			[[nodiscard]] auto getUninit(Uninit::ID id) const -> Token::ID;
 
 
 			///////////////////////////////////
 			// zeroinit
 
-			[[nodiscard]] auto createZeroinit(Token::ID zeroinit_token_id) -> sema::Zeroinit::ID {
-				return sema::Zeroinit::ID(this->misc_tokens.emplace_back(zeroinit_token_id));
-			}
+			[[nodiscard]] auto createZeroinit(Token::ID zeroinit_token_id) -> Zeroinit::ID;
 
-			[[nodiscard]] auto getZeroinit(sema::Zeroinit::ID id) const -> Token::ID {
-				return this->misc_tokens[id.get()];
-			}
+			[[nodiscard]] auto getZeroinit(Zeroinit::ID id) const -> Token::ID;
 
+
+		// TODO(NOW): make private
+		public:
+			[[nodiscard]] auto getFunc(sema::Func::ID func_id) -> Func&;
+			[[nodiscard]] auto getTemplatedFunc(sema::TemplatedFunc::ID templated_func_id) -> TemplatedFunc&;
+			[[nodiscard]] auto getGlobalVar(sema::GlobalVar::ID global_var_id) -> GlobalVar&;
+			[[nodiscard]] auto getTryElse(sema::TryElse::ID try_else_id) -> TryElse&;
+			[[nodiscard]] auto getBlockScope(sema::BlockScope::ID block_scope_id) -> BlockScope&;
+			[[nodiscard]] auto getConditional(sema::Conditional::ID cond_id) -> Conditional&;
+			[[nodiscard]] auto getWhile(sema::While::ID while_id) -> While&;
+			[[nodiscard]] auto getFor(sema::For::ID for_id) -> For&;
+			[[nodiscard]] auto getForUnroll(sema::ForUnroll::ID for_unroll_id) -> ForUnroll&;
+			[[nodiscard]] auto getSwitch(sema::Switch::ID switch_id) -> Switch&;
+			[[nodiscard]] auto getDefer(sema::Defer::ID defer_id) -> Defer&;
+			[[nodiscard]] auto getTryElseInterface(sema::TryElseInterface::ID try_else_interface_id)
+				-> TryElseInterface&;
+			[[nodiscard]] auto getBlockExpr(sema::BlockExpr::ID block_expr_id) -> BlockExpr&;
+			[[nodiscard]] auto getCopy(sema::Copy::ID copy_id) -> Copy&;
+			[[nodiscard]] auto getMove(sema::Move::ID move_id) -> Move&;
+			[[nodiscard]] auto getForward(sema::Forward::ID forward_id) -> Forward&;
+			[[nodiscard]] auto getDefaultNew(sema::DefaultNew::ID default_new_id) -> DefaultNew&;
+			[[nodiscard]] auto getIntValue(sema::IntValue::ID int_value_id) -> IntValue&;
+			[[nodiscard]] auto getFloatValue(sema::FloatValue::ID float_value_id) -> FloatValue&;
+			[[nodiscard]] auto getBoolValue(sema::BoolValue::ID bool_value_id) -> BoolValue&;
 
 	
 		private:
-			core::SyncLinearStepAlloc<sema::Func, sema::Func::ID> funcs{};
-			core::SyncLinearStepAlloc<sema::FuncAlias, sema::FuncAlias::ID> func_aliases{};
-			core::SyncLinearStepAlloc<sema::TemplatedFunc, sema::TemplatedFunc::ID> templated_funcs{};
-			core::SyncLinearStepAlloc<sema::TemplatedStruct, sema::TemplatedStruct::ID> templated_structs{};
-			core::SyncLinearStepAlloc<sema::StructTemplateAlias, sema::StructTemplateAlias::ID>
-				struct_template_aliases{};
-			core::SyncLinearStepAlloc<sema::Var, sema::Var::ID> vars{};
-			core::SyncLinearStepAlloc<sema::GlobalVar, sema::GlobalVar::ID> global_vars{};
-			core::SyncLinearStepAlloc<sema::Param, sema::Param::ID> params{};
-			core::SyncLinearStepAlloc<sema::VariadicParam, sema::VariadicParam::ID> variadic_params{};
-			core::SyncLinearStepAlloc<sema::ReturnParam, sema::ReturnParam::ID> return_params{};
-			core::SyncLinearStepAlloc<sema::ErrorReturnParam, sema::ErrorReturnParam::ID> error_return_params{};
-			core::SyncLinearStepAlloc<sema::BlockExprOutput, sema::BlockExprOutput::ID> block_expr_outputs{};
-			core::SyncLinearStepAlloc<sema::ExceptParam, sema::ExceptParam::ID> except_params{};
-			core::SyncLinearStepAlloc<sema::ForParam, sema::ForParam::ID> for_params{};
+			struct Internal;
 
-			core::SyncLinearStepAlloc<sema::FuncCall, sema::FuncCall::ID> func_calls{};
-			core::SyncLinearStepAlloc<sema::TryElse, sema::TryElse::ID> try_elses{};
-			core::SyncLinearStepAlloc<sema::TryElseInterface, sema::TryElseInterface::ID> try_else_interfaces{};
-			core::SyncLinearStepAlloc<sema::Asm, sema::Asm::ID> asms{};
-			core::SyncLinearStepAlloc<sema::Assign, sema::Assign::ID> assigns{};
-			core::SyncLinearStepAlloc<sema::MultiAssign, sema::MultiAssign::ID> multi_assigns{};
-			core::SyncLinearStepAlloc<sema::Return, sema::Return::ID> returns{};
-			core::SyncLinearStepAlloc<sema::Error, sema::Error::ID> errors{};
-			core::SyncLinearStepAlloc<sema::Unreachable, sema::Unreachable::ID> unreachables{};
-			core::SyncLinearStepAlloc<sema::Break, sema::Break::ID> breaks{};
-			core::SyncLinearStepAlloc<sema::Continue, sema::Continue::ID> continues{};
-			core::SyncLinearStepAlloc<sema::Delete, sema::Delete::ID> deletes{};
-			core::SyncLinearStepAlloc<sema::BlockScope, sema::BlockScope::ID> block_scopes{};
-			core::SyncLinearStepAlloc<sema::Conditional, sema::Conditional::ID> conds{};
-			core::SyncLinearStepAlloc<sema::While, sema::While::ID> whiles{};
-			core::SyncLinearStepAlloc<sema::For, sema::For::ID> fors{};
-			core::SyncLinearStepAlloc<sema::ForUnroll, sema::ForUnroll::ID> for_unrolls{};
-			core::SyncLinearStepAlloc<sema::Switch, sema::Switch::ID> switches{};
-			core::SyncLinearStepAlloc<sema::Defer, sema::Defer::ID> defers{};
-			core::SyncLinearStepAlloc<sema::LifetimeStart, sema::LifetimeStart::ID> lifetime_starts{};
-			core::SyncLinearStepAlloc<sema::LifetimeEnd, sema::LifetimeEnd::ID> lifetime_ends{};
-			core::SyncLinearStepAlloc<sema::UnusedExpr, sema::UnusedExpr::ID> unused_exprs{};
-			core::SyncLinearStepAlloc<sema::Copy, sema::Copy::ID> copies{};
-			core::SyncLinearStepAlloc<sema::Move, sema::Move::ID> moves{};
-			core::SyncLinearStepAlloc<sema::Forward, sema::Forward::ID> forwards{};
+			struct Internal* internal;
 
-			core::SyncLinearStepAlloc<sema::Expr, uint32_t> misc_exprs{};
-			core::SyncLinearStepAlloc<sema::FuncPtr, sema::FuncPtr::ID> func_ptrs{};
-			core::SyncLinearStepAlloc<sema::Deref, sema::Deref::ID> derefs{};
-			core::SyncLinearStepAlloc<sema::Unwrap, sema::Unwrap::ID> unwraps{};
-			core::SyncLinearStepAlloc<sema::ConversionToOptional, sema::ConversionToOptional::ID> 
-				conversion_to_optionals{};
-			core::SyncLinearStepAlloc<sema::OptionalNullCheck, sema::OptionalNullCheck::ID> optional_null_checks{};
-			core::SyncLinearStepAlloc<sema::OptionalExtract, sema::OptionalExtract::ID> optional_extracts{};
-			core::SyncLinearStepAlloc<sema::Accessor, sema::Accessor::ID> accessors{};
-			core::SyncLinearStepAlloc<sema::UnionAccessor, sema::UnionAccessor::ID> union_accessors{};
-			core::SyncLinearStepAlloc<sema::LogicalAnd, sema::LogicalAnd::ID> logical_ands{};
-			core::SyncLinearStepAlloc<sema::LogicalOr, sema::LogicalOr::ID> logical_ors{};
-			core::SyncLinearStepAlloc<sema::TryElseExpr, sema::TryElseExpr::ID> try_else_exprs{};
-			core::SyncLinearStepAlloc<sema::TryElseInterfaceExpr, sema::TryElseInterfaceExpr::ID>
-				try_else_interface_exprs{};
-			core::SyncLinearStepAlloc<sema::BlockExpr, sema::BlockExpr::ID> block_exprs{};
-			core::SyncLinearStepAlloc<sema::FakeTermInfo, sema::FakeTermInfo::ID> fake_term_infos{};
-			core::SyncLinearStepAlloc<sema::MakeInterfacePtr, sema::MakeInterfacePtr::ID> make_interface_ptrs{};
-			core::SyncLinearStepAlloc<sema::InterfacePtrExtractThis, sema::InterfacePtrExtractThis::ID>
-				interface_ptr_extract_thises{};
-			core::SyncLinearStepAlloc<sema::InterfaceCall, sema::InterfaceCall::ID> interface_calls{};
-			core::SyncLinearStepAlloc<sema::Indexer, sema::Indexer::ID> indexers{};
-			core::SyncLinearStepAlloc<sema::DefaultNew, sema::DefaultNew::ID> default_news{};
-			core::SyncLinearStepAlloc<sema::InitArrayRef, sema::InitArrayRef::ID> init_array_ref{};
-			core::SyncLinearStepAlloc<sema::ArrayRefIndexer, sema::ArrayRefIndexer::ID> array_ref_indexers{};
-			core::SyncLinearStepAlloc<sema::ArrayRefSize, sema::ArrayRefSize::ID> array_ref_size{};
-			core::SyncLinearStepAlloc<sema::ArrayRefDimensions, sema::ArrayRefDimensions::ID> array_ref_dimensions{};
-			core::SyncLinearStepAlloc<sema::ArrayRefData, sema::ArrayRefData::ID> array_ref_data{};
-			core::SyncLinearStepAlloc<sema::UnionDesignatedInitNew, sema::UnionDesignatedInitNew::ID>
-				union_designated_init_news{};
-			core::SyncLinearStepAlloc<sema::UnionTagCmp, sema::UnionTagCmp::ID> union_tag_cmps{};
-			core::SyncLinearStepAlloc<sema::SameTypeCmp, sema::SameTypeCmp::ID> same_type_cmps{};
-
-			core::SyncLinearStepAlloc<
-				sema::TemplateIntrinsicFuncInstantiation, sema::TemplateIntrinsicFuncInstantiation::ID
-			> templated_intrinsic_func_instantiations{};
-
-			core::SyncLinearStepAlloc<sema::IntValue, sema::IntValue::ID> int_values{};
-			core::SyncLinearStepAlloc<sema::FloatValue, sema::FloatValue::ID> float_values{};
-			core::SyncLinearStepAlloc<sema::BoolValue, sema::BoolValue::ID> bool_values{};
-			core::SyncLinearStepAlloc<sema::StringValue, sema::StringValue::ID> string_values{};
-			core::SyncLinearStepAlloc<sema::AggregateValue, sema::AggregateValue::ID> aggregate_values{};
-			core::SyncLinearStepAlloc<sema::CharValue, sema::CharValue::ID> char_values{};
-
-			core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
-
-
-			sema::ScopeManager scope_manager{};
-
-
-			friend class Source;
-			friend class Context;
-			friend class SemanticAnalyzer;
+			// TODO(NOW): uncomment
+			// friend class Context;
+			// friend class SemanticAnalyzer;
 	};
 
 

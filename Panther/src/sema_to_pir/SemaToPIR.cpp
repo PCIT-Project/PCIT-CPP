@@ -8200,7 +8200,7 @@ namespace pcit::panther{
 				expr, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 0}, this->name(".DELETE_OPT.data_ptr")
 			);
 			this->delete_expr(
-				data_ptr, this->context.type_manager.getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier())
+				data_ptr, this->context.getTypeManager().getOrCreateTypeInfo(expr_type.copyWithPoppedQualifier())
 			);
 
 			this->handler.createJump(end_block);
@@ -12637,7 +12637,7 @@ namespace pcit::panther{
 				const sema::DefaultNew& default_new = this->context.getSemaBuffer().getDefaultNew(expr.defaultNewID());
 
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(
-					this->context.type_manager.decayType<true, true>(default_new.targetTypeID)
+					this->context.getTypeManager().decayType<true, true>(default_new.targetTypeID)
 				);
 
 				if(target_type.isPointer()){

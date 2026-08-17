@@ -424,9 +424,9 @@ namespace pcit::panther{
 		for(const Source::ID& source_id : this->source_manager.getSourceIDRange()){
 			Source& source = this->source_manager[source_id];
 
-			source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
-			this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
-				.pushLevel(this->sema_buffer.scope_manager.createLevel());
+			source.sema_scope_id = this->sema_buffer.getScopeManager().createScope();
+			this->sema_buffer.getScopeManager().getScope(*source.sema_scope_id)
+				.pushLevel(this->sema_buffer.getScopeManager().createLevel());
 
 			source.is_ready_for_sema = true;
 
@@ -1679,7 +1679,7 @@ namespace pcit::panther{
 								source_c_family_source.createDeclInfo(
 									function_decl.name, function_decl.declLine, function_decl.declCollumn
 								),
-								function_decl.mangled_name,
+								evo::copy(function_decl.mangled_name),
 								std::nullopt,
 								this->type_manager.getTypeInfo(panther_func_type->asTypeID()).baseTypeID().funcID(),
 								std::move(params),
@@ -2043,9 +2043,9 @@ namespace pcit::panther{
 
 
 		Source& source = this->source_manager[dep_analysis_res.value()];
-		source.sema_scope_id = this->sema_buffer.scope_manager.createScope();
-		this->sema_buffer.scope_manager.getScope(*source.sema_scope_id)
-			.pushLevel(this->sema_buffer.scope_manager.createLevel());
+		source.sema_scope_id = this->sema_buffer.getScopeManager().createScope();
+		this->sema_buffer.getScopeManager().getScope(*source.sema_scope_id)
+			.pushLevel(this->sema_buffer.getScopeManager().createLevel());
 
 		if(this->_config.includeDebugInfo){
 			source.pir_file_id = this->pir_module.createMetaFile(
@@ -5581,7 +5581,7 @@ namespace pcit::panther{
 			}
 		);
 
-		this->sema_buffer.funcs[created_func_id].status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
+		this->sema_buffer.getFunc(created_func_id).status = sema::Func::Status::INTERFACE_METHOD_NO_DEFAULT;
 
 		return created_func_id;
 	}

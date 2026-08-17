@@ -28,10 +28,10 @@ namespace pcit::panther{
 				Source& source = context.getSourceManager()[symbol_proc.getSourceID()];
 
 				if(symbol_proc.sema_scope_id.has_value() == false){
-					symbol_proc.sema_scope_id = context.sema_buffer.scope_manager.copyScope(*source.sema_scope_id);
+					symbol_proc.sema_scope_id = context.sema_buffer.getScopeManager().copyScope(*source.sema_scope_id);
 				}
 
-				sema::ScopeManager::Scope& scope = context.sema_buffer.scope_manager.getScope(
+				sema::ScopeManager::Scope& scope = context.sema_buffer.getScopeManager().getScope(
 					*symbol_proc.sema_scope_id
 				);
 

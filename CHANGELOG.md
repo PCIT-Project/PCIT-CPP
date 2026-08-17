@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.364.0"></a>
+## v0.0.364.0
+- Improved compilation speed
+	- `panther::sema::SemaBuffer`
+
+
+<!---------------------------------->
 <a name="v0.0.363.1"></a>
 ## v0.0.363.1
 

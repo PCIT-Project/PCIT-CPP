@@ -148,9 +148,9 @@ namespace pcit::panther{
 
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<sema::Func::ID>()){
-						sema::Func& sema_func = this->context.sema_buffer.funcs[
+						sema::Func& sema_func = this->context.sema_buffer.getFunc(
 							this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>()
-						];
+						);
 
 						sema_func.status = sema::Func::Status::SUSPENDED;
 					}
@@ -931,7 +931,7 @@ namespace pcit::panther{
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
 				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
 		}else{
@@ -979,7 +979,7 @@ namespace pcit::panther{
 			if(is_global){
 				const sema::GlobalVar::ID sema_var_id =
 					this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<sema::GlobalVar::ID>();
-				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(sema_var_id);
 				return *sema_var.typeID;
 
 			}else{
@@ -1048,7 +1048,7 @@ namespace pcit::panther{
 		if(is_global){
 			const sema::GlobalVar::ID sema_var_id =
 				this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().sema_id.as<sema::GlobalVar::ID>();
-			sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[sema_var_id];
+			sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(sema_var_id);
 
 			sema_var.value = this->get_term_info(*instr.value_id).getExpr();
 			sema_var.defCompleted = true;
@@ -1270,7 +1270,7 @@ namespace pcit::panther{
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
 				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 				sema_to_pir.lowerGlobalDef(new_sema_var);
 			}
@@ -1379,11 +1379,11 @@ namespace pcit::panther{
 			encapsulating_symbol_proc = encapsulating_symbol_proc->parent;
 		}
 
-		const bool cond = this->context.sema_buffer.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
+		const bool cond = this->context.getSemaBuffer().getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 		if(cond){
 			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
 				SymbolProc& then_symbol = this->context.symbol_proc_manager.getSymbolProc(then_id);
-				then_symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+				then_symbol.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 					*this->symbol_proc.sema_scope_id
 				);
 
@@ -1416,7 +1416,7 @@ namespace pcit::panther{
 		}else{
 			for(const SymbolProc::ID& else_id : when_cond_info.else_ids){
 				SymbolProc& else_symbol = this->context.symbol_proc_manager.getSymbolProc(else_id);
-				else_symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+				else_symbol.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 					*this->symbol_proc.sema_scope_id
 				);
 
@@ -1685,7 +1685,7 @@ namespace pcit::panther{
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
 
-			member_stmt.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+			member_stmt.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 				*this->symbol_proc.sema_scope_id
 			);
 
@@ -2066,7 +2066,7 @@ namespace pcit::panther{
 				);
 
 
-				sema::Func& created_default_init_new = this->context.sema_buffer.funcs[created_default_init_new_id];
+				sema::Func& created_default_init_new = this->context.sema_buffer.getFunc(created_default_init_new_id);
 
 				const sema::Expr return_param = sema::Expr(this->context.sema_buffer.createReturnParam(0, 0));
 
@@ -2121,7 +2121,7 @@ namespace pcit::panther{
 				}
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn()
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
 				);
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2251,7 +2251,7 @@ namespace pcit::panther{
 				);
 
 
-				sema::Func& created_default_delete = this->context.sema_buffer.funcs[created_default_delete_id];
+				sema::Func& created_default_delete = this->context.sema_buffer.getFunc(created_default_delete_id);
 
 				const sema::Expr this_param = sema::Expr(this->context.sema_buffer.createParam(0, 0));
 
@@ -2290,7 +2290,7 @@ namespace pcit::panther{
 				}
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn()
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
 				);
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2442,7 +2442,7 @@ namespace pcit::panther{
 					);
 
 
-					sema::Func& created_default_move = this->context.sema_buffer.funcs[created_default_move_id];
+					sema::Func& created_default_move = this->context.sema_buffer.getFunc(created_default_move_id);
 
 					const sema::Expr this_param = sema::Expr(this->context.sema_buffer.createParam(0, 0));
 					const sema::Expr output_param = sema::Expr(this->context.sema_buffer.createReturnParam(0, 1));
@@ -2489,7 +2489,7 @@ namespace pcit::panther{
 					}
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn()
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
 					);
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2655,7 +2655,7 @@ namespace pcit::panther{
 					);
 
 
-					sema::Func& created_default_copy = this->context.sema_buffer.funcs[created_default_copy_id];
+					sema::Func& created_default_copy = this->context.sema_buffer.getFunc(created_default_copy_id);
 
 					const sema::Expr this_param = sema::Expr(this->context.sema_buffer.createParam(0, 0));
 					const sema::Expr output_param = sema::Expr(this->context.sema_buffer.createReturnParam(0, 1));
@@ -2703,7 +2703,7 @@ namespace pcit::panther{
 					}
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn()
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
 					);
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2766,7 +2766,7 @@ namespace pcit::panther{
 
 
 		const auto lower_func = [&](sema::Func::ID target_func_id) -> evo::Result<> {
-			sema::Func& target_func = this->context.sema_buffer.funcs[target_func_id];
+			sema::Func& target_func = this->context.sema_buffer.getFunc(target_func_id);
 
 
 			target_func.value.as<sema::Func::DefValue>().comptimePIRFunc =
@@ -2976,7 +2976,7 @@ namespace pcit::panther{
 		for(const SymbolProc::ID& member_stmt_id : union_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
-			member_stmt.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+			member_stmt.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 				*this->symbol_proc.sema_scope_id
 			);
 		}
@@ -3163,7 +3163,7 @@ namespace pcit::panther{
 		for(const SymbolProc::ID& member_stmt_id : enum_info.stmts){
 			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
 
-			member_stmt.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+			member_stmt.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 				*this->symbol_proc.sema_scope_id
 			);
 		}
@@ -3845,7 +3845,7 @@ namespace pcit::panther{
 		}
 
 
-		sema::Func& created_func = this->context.sema_buffer.funcs[created_func_id];
+		sema::Func& created_func = this->context.sema_buffer.getFunc(created_func_id);
 
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 		switch(name_token.kind()){
@@ -4772,8 +4772,8 @@ namespace pcit::panther{
 									this->scope.getCurrentEncapsulatingSymbolIfExists(),
 									swapped_type_id.funcID(),
 									evo::SmallVector<sema::Func::Param>{created_func.params[1], created_func.params[0]},
-									created_func.returnParamIdents,
-									created_func.errorParamIdents,
+									evo::copy(created_func.returnParamIdents),
+									evo::copy(created_func.errorParamIdents),
 									this->symbol_proc.getID(),
 									2,
 									created_func.hasInParam,
@@ -4781,7 +4781,7 @@ namespace pcit::panther{
 								);
 
 								sema::Func& created_swapped_func =
-									this->context.sema_buffer.funcs[created_swapped_func_id];
+									this->context.sema_buffer.getFunc(created_swapped_func_id);
 
 								const Diagnostic::Location func_location = 
 									Diagnostic::Location::get(created_func, this->context);
@@ -5109,7 +5109,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_func_extern(const Instruction::FuncExtern& instr) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
 
@@ -5177,7 +5177,7 @@ namespace pcit::panther{
 		const Instruction::FuncPostDeclCheckingAndSetup& instr
 	) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
 		const SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
@@ -5350,7 +5350,7 @@ namespace pcit::panther{
 
 
 		if(func_info.flipped_version.has_value()){
-			sema::Func& flipped_version = this->context.sema_buffer.funcs[*func_info.flipped_version];
+			sema::Func& flipped_version = this->context.sema_buffer.getFunc(*func_info.flipped_version);
 
 			flipped_version.value.as<sema::Func::DefValue>().comptimePIRFunc =
 				sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
@@ -5370,7 +5370,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_func_body_setup(const Instruction::FuncBodySetup& instr) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
 
@@ -5551,7 +5551,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_func_def(const Instruction::FuncDef& instr) -> Result {
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(current_func.typeID);
 
 
@@ -5792,7 +5792,7 @@ namespace pcit::panther{
 		if(func_info.currently_rt_diff){ return Result::SUCCESS; }
 
 		const sema::Func::ID current_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_func = this->context.sema_buffer.funcs[current_func_id];
+		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 
 		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
 
@@ -5901,7 +5901,7 @@ namespace pcit::panther{
 		);
 
 		this->symbol_proc.extra_info.emplace<SymbolProc::TemplateFuncInfo>(
-			new_templated_func_id, this->context.sema_buffer.templated_funcs[new_templated_func_id]
+			new_templated_func_id, this->context.sema_buffer.getTemplatedFunc(new_templated_func_id)
 		);
 
 		return Result::SUCCESS;
@@ -6110,7 +6110,7 @@ namespace pcit::panther{
 			this->source.getID(),
 			instr.func_alias_def.ident,
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
-			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
+			evo::copy(target_term_info.type_id.as<TermInfo::FuncOverloadList>()),
 			func_alias.value().is_pub,
 			func_alias.value().is_priv
 		);
@@ -6212,7 +6212,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result {
 		const sema::Func::ID current_method_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
-		sema::Func& current_method = this->context.sema_buffer.funcs[current_method_id];
+		sema::Func& current_method = this->context.sema_buffer.getFunc(current_method_id);
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_method.typeID);
 
@@ -6516,7 +6516,7 @@ namespace pcit::panther{
 
 
 			sub_symbol_proc.sema_scope_id = 
-				this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+				this->context.sema_buffer.getScopeManager().copyScope(*this->symbol_proc.sema_scope_id);
 
 			this->context.symbol_proc_manager.num_procs_not_done += 1;
 
@@ -6811,7 +6811,7 @@ namespace pcit::panther{
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-				sema::GlobalVar& sema_var = this->context.sema_buffer.global_vars[new_sema_var];
+				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
 				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 				sema_to_pir.lowerGlobalDef(new_sema_var);
 			}
@@ -6880,7 +6880,7 @@ namespace pcit::panther{
 			this->source.getID(),
 			instr.func_alias_def.ident,
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
-			target_term_info.type_id.as<TermInfo::FuncOverloadList>(),
+			evo::copy(target_term_info.type_id.as<TermInfo::FuncOverloadList>()),
 			false,
 			false
 		);
@@ -6962,7 +6962,7 @@ namespace pcit::panther{
 			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
-				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 
 			if(target_scope_level.isDeferMainScope()){
 				this->emit_error(
@@ -7167,7 +7167,7 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+			scope_level = &this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 			if(scope_level->hasLabel() == false){ continue; }
 		
 			const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
@@ -7287,7 +7287,7 @@ namespace pcit::panther{
 			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
-				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 
 			if(target_scope_level.isDeferMainScope()){
 				this->emit_error("Error statements are not allowed in [defer]/[errorDefer] blocks", instr.error_stmt);
@@ -7447,7 +7447,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				scope_level = &this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 				if(scope_level->hasLabel() == false){ continue; }
 			
 				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
@@ -7467,7 +7467,7 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i -= 1; });
 
 				const sema::ScopeLevel& scope_level =
-					this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+					this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 
 				if(scope_level.isLoopMainScope()){
 					found_loop = true;
@@ -7505,7 +7505,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				scope_level = &this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				scope_level = &this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 				if(scope_level->hasLabel() == false){ continue; }
 			
 				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
@@ -7527,7 +7527,7 @@ namespace pcit::panther{
 				EVO_DEFER([&](){ i -= 1; });
 
 				const sema::ScopeLevel& scope_level =
-					this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+					this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 
 				if(scope_level.isLoopMainScope()){
 					found_loop = true;
@@ -7705,7 +7705,7 @@ namespace pcit::panther{
 
 		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.emplace(new_sema_conditional_id);
 
-		sema::Conditional& new_sema_conditional = this->context.sema_buffer.conds[new_sema_conditional_id];
+		sema::Conditional& new_sema_conditional = this->context.sema_buffer.getConditional(new_sema_conditional_id);
 		this->push_scope_level(&new_sema_conditional.thenStmts);
 
 		return Result::SUCCESS;
@@ -7724,7 +7724,8 @@ namespace pcit::panther{
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 
 		const sema::Stmt current_cond_stmt = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top();
-		sema::Conditional& current_conditional = this->context.sema_buffer.conds[current_cond_stmt.conditionalID()];
+		sema::Conditional& current_conditional =
+			this->context.sema_buffer.getConditional(current_cond_stmt.conditionalID());
 
 		this->push_scope_level(&current_conditional.elseStmts);
 
@@ -7955,7 +7956,7 @@ namespace pcit::panther{
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_while_id);
 
-		sema::While& sema_while = this->context.sema_buffer.whiles[sema_while_id];
+		sema::While& sema_while = this->context.sema_buffer.getWhile(sema_while_id);
 		if(while_block.label.has_value()){
 			this->push_scope_level(sema_while.block, *while_block.label, sema_while_id);
 		}else{
@@ -8453,7 +8454,7 @@ namespace pcit::panther{
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_id);
 
-		sema::For& sema_for = this->context.sema_buffer.fors[sema_for_id];
+		sema::For& sema_for = this->context.sema_buffer.getFor(sema_for_id);
 		if(for_block.label.has_value()){
 			this->push_scope_level(sema_for.block, *for_block.label, sema_for_id);
 		}else{
@@ -8660,7 +8661,7 @@ namespace pcit::panther{
 		{
 			const sema::Stmt current_for_unroll_stmt = this->get_current_scope_level().stmtBlock().back();
 			sema::ForUnroll& current_for_unroll =
-				this->context.sema_buffer.for_unrolls[current_for_unroll_stmt.forUnrollID()];
+				this->context.sema_buffer.getForUnroll(current_for_unroll_stmt.forUnrollID());
 
 			if(current_for_unroll.label.has_value()){
 				this->push_scope_level(
@@ -8874,7 +8875,7 @@ namespace pcit::panther{
 		const sema::Switch::ID current_switch_id =
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top().switchID();
 
-		sema::Switch& current_switch = this->context.sema_buffer.switches[current_switch_id];
+		sema::Switch& current_switch = this->context.sema_buffer.getSwitch(current_switch_id);
 		sema::Switch::Case& current_case = current_switch.cases[instr.index];
 
 		const TypeInfo::ID decay_cond_type_id =
@@ -8958,7 +8959,7 @@ namespace pcit::panther{
 		const sema::Switch::ID current_switch_id =
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top().switchID();
 
-		sema::Switch& current_switch = this->context.sema_buffer.switches[current_switch_id];
+		sema::Switch& current_switch = this->context.sema_buffer.getSwitch(current_switch_id);
 
 		if(current_switch.kind != sema::Switch::Kind::NO_JUMP){
 			auto else_index = std::optional<size_t>();
@@ -9390,7 +9391,7 @@ namespace pcit::panther{
 
 			for(SymbolProc::ID symbol_scope_id : instr.cases[*selected_case_index].symbol_scope){
 				SymbolProc& symbol = this->context.symbol_proc_manager.getSymbolProc(symbol_scope_id);
-				symbol.sema_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+				symbol.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 					*this->symbol_proc.sema_scope_id
 				);
 
@@ -9499,7 +9500,7 @@ namespace pcit::panther{
 			this->context.sema_buffer.createDefer(instr.defer_stmt.keyword, is_error_defer);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_defer_id);
 
-		sema::Defer& sema_defer = this->context.sema_buffer.defers[sema_defer_id];
+		sema::Defer& sema_defer = this->context.sema_buffer.getDefer(sema_defer_id);
 		this->push_scope_level(&sema_defer.block);
 
 		this->get_current_scope_level().setIsDeferMainScope();
@@ -9527,7 +9528,7 @@ namespace pcit::panther{
 			this->context.sema_buffer.createBlockScope(instr.stmt_block.openBrace, instr.stmt_block.closeBrace);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
 
-		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];
+		sema::BlockScope& block_scope = this->context.sema_buffer.getBlockScope(block_scope_id);
 
 		this->push_scope_level(&block_scope.block);
 		return Result::SUCCESS;
@@ -11634,7 +11635,7 @@ namespace pcit::panther{
 					this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_interface_id);
 
 					sema::TryElseInterface& sema_try_else_interface =
-						this->context.sema_buffer.try_else_interfaces[sema_try_else_interface_id];
+						this->context.sema_buffer.getTryElseInterface(sema_try_else_interface_id);
 					this->push_scope_level(&sema_try_else_interface.elseBlock);
 				}
 
@@ -11659,7 +11660,7 @@ namespace pcit::panther{
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
 
-			sema::TryElse& sema_try_else = this->context.sema_buffer.try_elses[sema_try_else_id];
+			sema::TryElse& sema_try_else = this->context.sema_buffer.getTryElse(sema_try_else_id);
 			this->push_scope_level(&sema_try_else.elseBlock);
 
 		}else{ // function pointer
@@ -11681,7 +11682,7 @@ namespace pcit::panther{
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
 
-			sema::TryElse& sema_try_else = this->context.sema_buffer.try_elses[sema_try_else_id];
+			sema::TryElse& sema_try_else = this->context.sema_buffer.getTryElse(sema_try_else_id);
 			this->push_scope_level(&sema_try_else.elseBlock);
 		}
 
@@ -11710,7 +11711,7 @@ namespace pcit::panther{
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
 
-		sema::BlockScope& block_scope = this->context.sema_buffer.block_scopes[block_scope_id];
+		sema::BlockScope& block_scope = this->context.sema_buffer.getBlockScope(block_scope_id);
 
 		this->push_scope_level(&block_scope.block);
 		this->get_current_scope_level().setIsUnsafe();
@@ -11957,7 +11958,7 @@ namespace pcit::panther{
 		evo::debugAssert(sub_symbol_proc.isLocalSymbol(), "Should not call this instruction on a non-local symbol");
 
 		sub_symbol_proc.sema_scope_id = 
-			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+			this->context.sema_buffer.getScopeManager().copyScope(*this->symbol_proc.sema_scope_id);
 
 		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
@@ -11996,7 +11997,7 @@ namespace pcit::panther{
 
 
 		sub_symbol_proc.sema_scope_id = 
-			this->context.sema_buffer.scope_manager.copyScope(*this->symbol_proc.sema_scope_id);
+			this->context.sema_buffer.getScopeManager().copyScope(*this->symbol_proc.sema_scope_id);
 
 		this->context.symbol_proc_manager.num_procs_not_done += 1;
 
@@ -16279,7 +16280,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_COMPTIME){
 			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
-				sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+				sema::IntValue& int_value = this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 				int_value.value = core::GenericInt(int_value.value.getBitWidth(), 0).ssub(int_value.value).result;
 
 				this->return_term_info(instr.output, expr);
@@ -16287,7 +16288,7 @@ namespace pcit::panther{
 				
 			}else{
 				sema::FloatValue& float_value =
-					this->context.sema_buffer.float_values[expr.getExpr().floatValueID()];
+					this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
 				float_value.value = float_value.value.neg();
 
 				this->return_term_info(instr.output, expr);
@@ -16305,7 +16306,7 @@ namespace pcit::panther{
 
 			if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
 				if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
-					sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+					sema::IntValue& int_value = this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 					int_value.value = core::GenericInt(int_value.value.getBitWidth(), 0).ssub(int_value.value).result;
 
 					this->return_term_info(instr.output, expr);
@@ -16313,7 +16314,7 @@ namespace pcit::panther{
 					
 				}else{
 					sema::FloatValue& float_value =
-						this->context.sema_buffer.float_values[expr.getExpr().floatValueID()];
+						this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
 					float_value.value = float_value.value.neg();
 
 					this->return_term_info(instr.output, expr);
@@ -16449,7 +16450,7 @@ namespace pcit::panther{
 
 
 		if constexpr(IS_COMPTIME){
-			sema::BoolValue& bool_value = this->context.sema_buffer.bool_values[expr.getExpr().boolValueID()];
+			sema::BoolValue& bool_value = this->context.sema_buffer.getBoolValue(expr.getExpr().boolValueID());
 			bool_value.value = !bool_value.value;
 
 			this->return_term_info(instr.output, expr);
@@ -16536,7 +16537,7 @@ namespace pcit::panther{
 
 
 		if constexpr(IS_COMPTIME){
-			sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+			sema::IntValue& int_value = this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 			int_value.value =
 				int_value.value.bitwiseXor(core::GenericInt(int_value.value.getBitWidth(), 0).bitwiseNot());
 
@@ -16545,7 +16546,7 @@ namespace pcit::panther{
 
 		}else{
 			if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
-				sema::IntValue& int_value = this->context.sema_buffer.int_values[expr.getExpr().intValueID()];
+				sema::IntValue& int_value = this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 				int_value.value =
 					int_value.value.bitwiseXor(core::GenericInt(int_value.value.getBitWidth(), 0).bitwiseNot());
 
@@ -18248,7 +18249,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result {
 		this->push_scope_level();
 
-		const SemaBuffer& sema_buffer = this->context.getSemaBuffer();
+		const sema::SemaBuffer& sema_buffer = this->context.getSemaBuffer();
 
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 
@@ -18645,7 +18646,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result {
 		const sema::BlockExpr::ID sema_block_expr_id = this->context.sema_buffer.createBlockExpr(instr.label);
-		sema::BlockExpr& sema_block_expr = this->context.sema_buffer.block_exprs[sema_block_expr_id];
+		sema::BlockExpr& sema_block_expr = this->context.sema_buffer.getBlockExpr(sema_block_expr_id);
 
 		///////////////////////////////////
 		// check for label reuse
@@ -18657,7 +18658,7 @@ namespace pcit::panther{
 			if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){ break; }
 
 			const sema::ScopeLevel& target_scope_level = 
-				this->context.sema_buffer.scope_manager.getLevel(target_scope_level_id);
+				this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
 
 			if(target_scope_level.hasLabel() == false){ continue; }
 
@@ -19471,7 +19472,7 @@ namespace pcit::panther{
 			auto symbol_proc_builder = SymbolProcBuilder(this->context, instantiation_source);
 
 			const sema::ScopeManager::Scope::ID instantiation_sema_scope_id = 
-				this->context.sema_buffer.scope_manager.copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
+				this->context.sema_buffer.getScopeManager().copyScope(*sema_templated_struct.symbolProc.sema_scope_id);
 
 
 			///////////////////////////////////
@@ -19498,9 +19499,9 @@ namespace pcit::panther{
 			// add instantiation args to scope
 
 			sema::ScopeManager::Scope& instantiation_sema_scope =
-				this->context.sema_buffer.scope_manager.getScope(instantiation_sema_scope_id);
+				this->context.sema_buffer.getScopeManager().getScope(instantiation_sema_scope_id);
 
-			instantiation_sema_scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel());
+			instantiation_sema_scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel());
 
 			const AST::StructDef& struct_template_decl = 
 				instantiation_source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
@@ -23650,10 +23651,10 @@ namespace pcit::panther{
 		const Source& source_module = this->context.getSourceManager()[lhs.type_id.as<Source::ID>()];
 
 		const sema::ScopeManager::Scope& source_module_sema_scope = 
-			this->context.sema_buffer.scope_manager.getScope(*source_module.sema_scope_id);
+			this->context.sema_buffer.getScopeManager().getScope(*source_module.sema_scope_id);
 
 
-		const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(
+		const sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(
 			source_module_sema_scope.getGlobalLevel()
 		);
 
@@ -23875,7 +23876,7 @@ namespace pcit::panther{
 							decayed_lhs_type_id,
 							sema::Expr(
 								this->context.sema_buffer.createIntValue(
-									enumerator.value, decayed_lhs_type.baseTypeID()
+									evo::copy(enumerator.value), decayed_lhs_type.baseTypeID()
 								)
 							)
 						);
@@ -25639,7 +25640,7 @@ namespace pcit::panther{
 	// scope
 
 	auto SemanticAnalyzer::get_current_scope_level() const -> sema::ScopeLevel& {
-		return this->context.sema_buffer.scope_manager.getLevel(this->scope.getCurrentLevel());
+		return this->context.sema_buffer.getScopeManager().getLevel(this->scope.getCurrentLevel());
 	}
 
 
@@ -25647,7 +25648,7 @@ namespace pcit::panther{
 		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block));
+		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block));
 	}
 
 	auto SemanticAnalyzer::push_scope_level(
@@ -25656,12 +25657,12 @@ namespace pcit::panther{
 		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block, label, label_node));
+		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block, label, label_node));
 	}
 
 	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& encapsulating_symbol_id) -> void {
 		this->get_current_scope_level().addSubScope();
-		this->scope.pushLevel(this->context.sema_buffer.scope_manager.createLevel(stmt_block), encapsulating_symbol_id);
+		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block), encapsulating_symbol_id);
 	}
 
 
@@ -25684,7 +25685,7 @@ namespace pcit::panther{
 
 			}else if(current_scope_is_terminated == false && this->scope.inEncapsulatingSymbol()){
 				sema::ScopeLevel& parent_scope_level = 
-					this->context.sema_buffer.scope_manager.getLevel(*std::next(this->scope.begin()));
+					this->context.sema_buffer.getScopeManager().getLevel(*std::next(this->scope.begin()));
 
 				for(const auto& [value_state_id, value_state_info] : current_scope_level.getValueStateInfos()){
 					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){ continue; }
@@ -26357,7 +26358,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::currently_in_unsafe() const -> bool {
 		for(const sema::ScopeLevel::ID scope_level_id : this->scope | std::views::reverse){
-			if(this->context.sema_buffer.scope_manager.getLevel(scope_level_id).isUnsafe()){ return true; }
+			if(this->context.sema_buffer.getScopeManager().getLevel(scope_level_id).isUnsafe()){ return true; }
 		}
 
 		return false;
@@ -26370,7 +26371,7 @@ namespace pcit::panther{
 	}
 
 	auto SemanticAnalyzer::get_current_func() -> sema::Func& {
-		return this->context.sema_buffer.funcs[this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>()];
+		return this->context.sema_buffer.getFunc(this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>());
 	}
 
 	auto SemanticAnalyzer::get_current_func() const -> const sema::Func& {
@@ -26661,7 +26662,7 @@ namespace pcit::panther{
 				this->analyze_expr_ident_in_scope_level<NEEDS_DEF, ScopeAccessRequirement::NONE>(
 					ident,
 					ident_str,
-					this->context.sema_buffer.scope_manager.getLevel(scope_level_id),
+					this->context.sema_buffer.getScopeManager().getLevel(scope_level_id),
 					i >= this->scope.getCurrentEncapsulatingSymbolIndex() || i == 0,
 					i == 0,
 					nullptr
@@ -27825,7 +27826,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
 	-> TermInfo::ValueState {
 		for(const sema::ScopeLevel::ID scope_id : this->scope){
-			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_id);
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(scope_id);
 
 			const std::optional<sema::ScopeLevel::ValueState> value_state =
 				scope_level.getIdentValueState(value_state_id);
@@ -27850,7 +27851,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::ident_value_state_is_uninit_with_default(sema::ScopeLevel::ValueStateID value_state_id)
 	-> bool {
 		for(const sema::ScopeLevel::ID scope_id : this->scope){
-			const sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(scope_id);
+			const sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(scope_id);
 
 			const std::optional<sema::ScopeLevel::ValueState> value_state =
 				scope_level.getIdentValueState(value_state_id);
@@ -28489,7 +28490,7 @@ namespace pcit::panther{
 		SymbolProc& instantiation_symbol_proc =
 			this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
 
-		sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+		sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
 		if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 			this->emit_error(
@@ -29820,9 +29821,9 @@ namespace pcit::panther{
 					if(instantiation_symbol_proc.unsuspendIfNeeded()){
 						this->context.symbol_proc_manager.symbol_proc_unsuspended();
 
-						sema::Func& sema_func = this->context.sema_buffer.funcs[
+						sema::Func& sema_func = this->context.sema_buffer.getFunc(
 							*instantiation_info.instantiation.funcID
-						];
+						);
 						sema_func.status = sema::Func::Status::NOT_DONE;
 
 						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
@@ -29876,7 +29877,7 @@ namespace pcit::panther{
 					SymbolProc& instantiation_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
 
-					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+					sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
 					if(sema_func.attributes.isPub == false){
 						this->emit_error(
@@ -29945,7 +29946,7 @@ namespace pcit::panther{
 					SymbolProc& instantiation_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
 
-					sema::Func& sema_func = this->context.sema_buffer.funcs[*instantiation_info.instantiation.funcID];
+					sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
 					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
@@ -30038,7 +30039,7 @@ namespace pcit::panther{
 		bool is_member_call,
 		Diagnostic::Location location
 	) -> evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> {
-		sema::TemplatedFunc& templated_func = this->context.sema_buffer.templated_funcs[func_id];
+		sema::TemplatedFunc& templated_func = this->context.sema_buffer.getTemplatedFunc(func_id);
 
 		const Source& template_source = this->context.getSourceManager()[templated_func.symbolProc.source_id];
 		const AST::FuncDef& ast_func = template_source.getASTBuffer().getFuncDef(templated_func.symbolProc.ast_node);
@@ -30261,7 +30262,7 @@ namespace pcit::panther{
 				this->context, this->context.source_manager[templated_func.symbolProc.source_id]
 			);
 
-			sema::ScopeManager& scope_manager = this->context.sema_buffer.scope_manager;
+			sema::ScopeManager& scope_manager = this->context.sema_buffer.getScopeManager();
 
 			const sema::ScopeManager::Scope::ID instantiation_sema_scope_id = 
 				scope_manager.copyScope(*templated_func.symbolProc.sema_scope_id);
@@ -31783,7 +31784,7 @@ namespace pcit::panther{
 					const SymbolProc& deducer_match_symbol_proc =
 						this->context.symbol_proc_manager.getSymbolProc(deducer_match.symbolProcID);
 
-					const auto copy_scope_id = this->context.sema_buffer.scope_manager.copyScope(
+					const auto copy_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
 						*deducer_match_symbol_proc.sema_scope_id
 					);
 
@@ -36179,27 +36180,28 @@ namespace pcit::panther{
 										switch(got_expr.getExpr().kind()){
 											case sema::Expr::Kind::COPY: {
 												sema::Copy& copy_expr =
-													this->context.sema_buffer.copies[got_expr.getExpr().copyID()];
+													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
 												copy_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::MOVE: {
 												sema::Move& move_expr =
-													this->context.sema_buffer.moves[got_expr.getExpr().moveID()];
+													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
 												move_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr =
-													this->context.sema_buffer.forwards[got_expr.getExpr().forwardID()];
+												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
+													got_expr.getExpr().forwardID()
+												);
 												forward_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::DEFAULT_NEW: {
 												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.default_news[
+													this->context.sema_buffer.getDefaultNew(
 														got_expr.getExpr().defaultNewID()
-													];
+													);
 												default_new_expr.isInitialization = true;
 											} break;
 										}
@@ -36643,27 +36645,28 @@ namespace pcit::panther{
 										switch(got_expr.getExpr().kind()){
 											case sema::Expr::Kind::COPY: {
 												sema::Copy& copy_expr =
-													this->context.sema_buffer.copies[got_expr.getExpr().copyID()];
+													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
 												copy_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::MOVE: {
 												sema::Move& move_expr =
-													this->context.sema_buffer.moves[got_expr.getExpr().moveID()];
+													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
 												move_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr =
-													this->context.sema_buffer.forwards[got_expr.getExpr().forwardID()];
+												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
+													got_expr.getExpr().forwardID()
+												);
 												forward_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::DEFAULT_NEW: {
 												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.default_news[
+													this->context.sema_buffer.getDefaultNew(
 														got_expr.getExpr().defaultNewID()
-													];
+													);
 												default_new_expr.isInitialization = true;
 											} break;
 										}
@@ -36724,28 +36727,28 @@ namespace pcit::panther{
 										switch(got_expr.getExpr().kind()){
 											case sema::Expr::Kind::COPY: {
 												sema::Copy& copy_expr =
-													this->context.sema_buffer.copies[got_expr.getExpr().copyID()];
+													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
 												copy_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::MOVE: {
 												sema::Move& move_expr =
-													this->context.sema_buffer.moves[got_expr.getExpr().moveID()];
+													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
 												move_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr = this->context.sema_buffer.forwards[
+												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
 													got_expr.getExpr().forwardID()
-												];
+												);
 												forward_expr.isInitialization = true;
 											} break;
 
 											case sema::Expr::Kind::DEFAULT_NEW: {
 												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.default_news[
+													this->context.sema_buffer.getDefaultNew(
 														got_expr.getExpr().defaultNewID()
-													];
+													);
 												default_new_expr.isInitialization = true;
 											} break;
 										}
@@ -37181,7 +37184,7 @@ namespace pcit::panther{
 
 					if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 						const sema::IntValue::ID int_value_id = got_expr.getExpr().intValueID();
-						sema::IntValue& int_value = this->context.sema_buffer.int_values[int_value_id];
+						sema::IntValue& int_value = this->context.sema_buffer.getIntValue(int_value_id);
 
 						const unsigned bit_width =
 							unsigned(this->context.getTypeManager().numBits(expected_type_info.baseTypeID(), false));
@@ -37269,7 +37272,7 @@ namespace pcit::panther{
 
 					if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 						const sema::FloatValue::ID float_value_id = got_expr.getExpr().floatValueID();
-						sema::FloatValue& float_value = this->context.sema_buffer.float_values[float_value_id];
+						sema::FloatValue& float_value = this->context.sema_buffer.getFloatValue(float_value_id);
 
 
 						const core::GenericFloat target_min = [&](){
@@ -37367,14 +37370,14 @@ namespace pcit::panther{
 						case Token::Kind::TYPE_BOOL: {
 							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 								const sema::BoolValue::ID bool_value_id = got_expr.getExpr().boolValueID();
-								this->context.sema_buffer.bool_values[bool_value_id].isBool32 = false;
+								this->context.sema_buffer.getBoolValue(bool_value_id).isBool32 = false;
 							}
 						} break;
 
 						case Token::Kind::TYPE_BOOL32: {
 							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 								const sema::BoolValue::ID bool_value_id = got_expr.getExpr().boolValueID();
-								this->context.sema_buffer.bool_values[bool_value_id].isBool32 = true;
+								this->context.sema_buffer.getBoolValue(bool_value_id).isBool32 = true;
 							}
 						} break;
 
@@ -38030,7 +38033,7 @@ namespace pcit::panther{
 		auto&&... ident_id_info
 	) -> evo::Result<> {
 		sema::ScopeLevel& current_scope_level = 
-			this->context.sema_buffer.scope_manager.getLevel(target_scope.getCurrentLevel());
+			this->context.sema_buffer.getScopeManager().getLevel(target_scope.getCurrentLevel());
 
 		const sema::ScopeLevel::AddIdentResult add_ident_result = current_scope_level.addIdent(
 			ident_str, std::forward<decltype(ident_id_info)>(ident_id_info)...
@@ -38099,7 +38102,7 @@ namespace pcit::panther{
 
 		if(include_shadow_checks && current_scope_level.doesShadowingChecks()){
 			for(auto iter = std::next(target_scope.begin()); iter != target_scope.end(); ++iter){
-				sema::ScopeLevel& scope_level = this->context.sema_buffer.scope_manager.getLevel(*iter);
+				sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(*iter);
 				if(scope_level.disallowIdentForShadowing(ident_str, add_ident_result.value()) == false){
 					this->error_already_defined<true>(
 						ast_node,

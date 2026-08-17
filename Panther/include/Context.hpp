@@ -449,7 +449,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto getTypeManager() const -> const TypeManager& { return this->type_manager; }
 			[[nodiscard]] auto getTypeManager()       ->       TypeManager& { return this->type_manager; }
 
-			[[nodiscard]] auto getSemaBuffer() const -> const SemaBuffer& { return this->sema_buffer; }
+			[[nodiscard]] auto getSemaBuffer() const -> const sema::SemaBuffer& { return this->sema_buffer; }
 
 			[[nodiscard]] auto getConfig() const -> const Config& { return this->_config; }
 
@@ -880,7 +880,7 @@ namespace pcit::panther{
 			SourceManager source_manager{};
 			TypeManager type_manager;
 			SymbolProcManager symbol_proc_manager{};
-			SemaBuffer sema_buffer{};
+			sema::SemaBuffer sema_buffer{};
 
 			std::atomic<std::optional<sema::Func::ID>> entry{};
 			std::optional<sema::Func::ID> panic{}; 

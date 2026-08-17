@@ -1129,7 +1129,7 @@ namespace pcit::panther{
 
 
 	template<TypeManager::SpecialMember SPECIAL_MEMBER, TypeManager::SpecialMemberProp SPECIAL_MEMBER_PROP>
-	auto TypeManager::special_member_prop_check(TypeInfo::ID id, const SemaBuffer* sema_buffer) const -> bool {
+	auto TypeManager::special_member_prop_check(TypeInfo::ID id, const sema::SemaBuffer* sema_buffer) const -> bool {
 		if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::DELETE){
@@ -1214,7 +1214,7 @@ namespace pcit::panther{
 
 
 	template<TypeManager::SpecialMember SPECIAL_MEMBER, TypeManager::SpecialMemberProp SPECIAL_MEMBER_PROP>
-	auto TypeManager::special_member_prop_check(BaseType::ID id, const SemaBuffer* sema_buffer) const -> bool {
+	auto TypeManager::special_member_prop_check(BaseType::ID id, const sema::SemaBuffer* sema_buffer) const -> bool {
 		if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 
 		}else if constexpr(SPECIAL_MEMBER == SpecialMember::DELETE){
@@ -3114,18 +3114,18 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::isComptimeDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeDeletable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isComptimeDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeDeletable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isRuntimeDeletable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeDeletable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isRuntimeDeletable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeDeletable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::DELETE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
@@ -3149,34 +3149,34 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::isComptimeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeCopyable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isComptimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeCopyable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isRuntimeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeCopyable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isRuntimeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeCopyable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isNoErrorCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorCopyable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
-	auto TypeManager::isNoErrorCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorCopyable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isSafeCopyable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeCopyable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
-	auto TypeManager::isSafeCopyable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeCopyable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COPY, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
 
@@ -3201,34 +3201,34 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::isComptimeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeMovable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isComptimeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeMovable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isRuntimeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeMovable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isRuntimeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeMovable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isNoErrorMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorMovable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
-	auto TypeManager::isNoErrorMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorMovable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isSafeMovable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeMovable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
-	auto TypeManager::isSafeMovable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeMovable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
 
@@ -3237,10 +3237,10 @@ namespace pcit::panther{
 	///////////////////////////////////
 	// comparable
 
-	auto TypeManager::isComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComparable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::AT_ALL>(id, &sema_buffer);
 	}
-	auto TypeManager::isComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComparable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::AT_ALL>(id, &sema_buffer);
 	}
 
@@ -3253,34 +3253,34 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::isComptimeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeComparable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isComptimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isComptimeComparable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::COMPTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isRuntimeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeComparable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
-	auto TypeManager::isRuntimeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isRuntimeComparable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::RUNTIME>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isNoErrorComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorComparable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
-	auto TypeManager::isNoErrorComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isNoErrorComparable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::NO_ERROR>(id, &sema_buffer);
 	}
 
 
-	auto TypeManager::isSafeComparable(TypeInfo::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeComparable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
-	auto TypeManager::isSafeComparable(BaseType::ID id, const SemaBuffer& sema_buffer) const -> bool {
+	auto TypeManager::isSafeComparable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::COMPARE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
 

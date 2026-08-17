@@ -19,10 +19,14 @@
 
 namespace pcit::panther{
 
+	namespace sema{
+		class SemaBuffer;
+	}
+
 
 	class ComptimeIntrinsicEvaluator{
 		public:
-			ComptimeIntrinsicEvaluator(TypeManager& _type_manager, class SemaBuffer& _sema_buffer)
+			ComptimeIntrinsicEvaluator(TypeManager& _type_manager, class sema::SemaBuffer& _sema_buffer)
 				: type_manager(_type_manager), sema_buffer(_sema_buffer) {}
 
 			~ComptimeIntrinsicEvaluator() = default;
@@ -332,7 +336,7 @@ namespace pcit::panther{
 	
 		private:
 			TypeManager& type_manager;
-			class SemaBuffer& sema_buffer;
+			class sema::SemaBuffer& sema_buffer;
 	};
 
 

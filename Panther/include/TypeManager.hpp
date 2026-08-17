@@ -32,6 +32,10 @@ namespace pcit::panther{
 	class SourceManager;
 	class Context;
 
+	namespace sema{
+		class SemaBuffer;
+	}
+
 
 	//////////////////////////////////////////////////////////////////////
 	// base type
@@ -1426,11 +1430,15 @@ namespace pcit::panther{
 			[[nodiscard]] auto isTriviallyDeletable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallyDeletable(BaseType::ID id) const -> bool;
 
-			[[nodiscard]] auto isComptimeDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isComptimeDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComptimeDeletable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isComptimeDeletable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isRuntimeDeletable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isRuntimeDeletable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeDeletable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isRuntimeDeletable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
 
 			// copy
@@ -1441,17 +1449,23 @@ namespace pcit::panther{
 			[[nodiscard]] auto isTriviallyCopyable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallyCopyable(BaseType::ID id) const -> bool;
 
-			[[nodiscard]] auto isComptimeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isComptimeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComptimeCopyable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isComptimeCopyable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isRuntimeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isRuntimeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeCopyable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isRuntimeCopyable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isNoErrorCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isNoErrorCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isNoErrorCopyable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isNoErrorCopyable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isSafeCopyable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isSafeCopyable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isSafeCopyable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isSafeCopyable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
 
 
 			// move
@@ -1462,38 +1476,52 @@ namespace pcit::panther{
 			[[nodiscard]] auto isTriviallyMovable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallyMovable(BaseType::ID id) const -> bool;
 
-			[[nodiscard]] auto isComptimeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isComptimeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComptimeMovable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isComptimeMovable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isRuntimeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isRuntimeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeMovable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isRuntimeMovable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isNoErrorMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isNoErrorMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isNoErrorMovable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isNoErrorMovable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isSafeMovable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isSafeMovable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isSafeMovable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isSafeMovable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
 
 
 			// compare
 			
-			[[nodiscard]] auto isComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComparable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
 
 			[[nodiscard]] auto isTriviallyComparable(TypeInfo::ID id) const -> bool;
 			[[nodiscard]] auto isTriviallyComparable(BaseType::ID id) const -> bool;
 
-			[[nodiscard]] auto isComptimeComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isComptimeComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isComptimeComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isComptimeComparable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isRuntimeComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isRuntimeComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isRuntimeComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isRuntimeComparable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isNoErrorComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isNoErrorComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isNoErrorComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isNoErrorComparable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
-			[[nodiscard]] auto isSafeComparable(TypeInfo::ID id, const class SemaBuffer& sema_buffer) const -> bool;
-			[[nodiscard]] auto isSafeComparable(BaseType::ID id, const class SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isSafeComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isSafeComparable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
 
 
 
@@ -1597,12 +1625,14 @@ namespace pcit::panther{
 			};
 
 			template<SpecialMember SPECIAL_MEMBER, SpecialMemberProp SPECIAL_MEMBER_PROP>
-			[[nodiscard]] auto special_member_prop_check(TypeInfo::ID id, const class SemaBuffer* sema_buffer) const
-				-> bool;
+			[[nodiscard]] auto special_member_prop_check(
+				TypeInfo::ID id, const class sema::SemaBuffer* sema_buffer
+			) const -> bool;
 
 			template<SpecialMember SPECIAL_MEMBER, SpecialMemberProp SPECIAL_MEMBER_PROP>
-			[[nodiscard]] auto special_member_prop_check(BaseType::ID id, const class SemaBuffer* sema_buffer) const
-				-> bool;
+			[[nodiscard]] auto special_member_prop_check(
+				BaseType::ID id, const class sema::SemaBuffer* sema_buffer
+			) const -> bool;
 
 
 

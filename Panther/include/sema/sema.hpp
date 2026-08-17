@@ -724,7 +724,7 @@ namespace pcit::panther::sema{
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPub;
 		bool isPriv;
-		std::optional<SymbolProcID> symbolProcID; // TODO(FUTURE): need both id and ref?
+		std::optional<SymbolProcID> symbolProcID;
 
 		std::atomic<bool> defCompleted = false;
 		std::optional<pir::GlobalVar::ID> comptimePIRGlobal{};
@@ -781,10 +781,11 @@ namespace pcit::panther::sema{
 		};
 
 		using Value = evo::Variant<DefValue, ExternValue, DeleteValue>;
+		using Name = evo::Variant<Token::ID, CFamilySourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID>;
 
 
 		evo::Variant<SourceID, CFamilySourceID, BuiltinModuleID> sourceID;
-		evo::Variant<Token::ID, CFamilySourceDeclInfoID, CompilerCreatedOpOverload, BuiltinModuleStringID> name;
+		Name name;
 		std::string cFamilyMangledName; // empty if not c-family
 		std::optional<EncapsulatingSymbolID> parent;
 		BaseType::Function::ID typeID;

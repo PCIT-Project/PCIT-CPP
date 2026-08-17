@@ -597,7 +597,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
-			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -607,7 +611,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -617,7 +625,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
-			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -627,7 +639,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
-			sema::Expr(this->sema_buffer.createIntValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -637,7 +653,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			to_type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(arg, this->type_manager.getTypeInfo(to_type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -699,7 +719,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::add(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
-		const core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
 		if(result.wrapped && !may_wrap){ return evo::resultError; }
 
 		return TermInfo(
@@ -708,7 +728,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -717,7 +739,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::addWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->add_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -725,7 +747,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -733,7 +757,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::addSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->type_manager.isUnsignedIntegral(type_id)){
@@ -749,14 +773,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::fadd(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
-		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
+		core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.add(rhs);
 			}
@@ -767,7 +795,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -778,7 +810,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::sub(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
-		const core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
 		if(result.wrapped && !may_wrap){ return evo::resultError; }
 
 		return TermInfo(
@@ -787,7 +819,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -796,7 +830,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::subWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->sub_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -804,7 +838,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -812,7 +848,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::subSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->type_manager.isUnsignedIntegral(type_id)){
@@ -828,14 +864,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::fsub(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
-		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
+		core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.sub(rhs);
 			}
@@ -846,7 +886,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -857,7 +901,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::mul(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
-		const core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
 		if(result.wrapped && !may_wrap){ return evo::resultError; }
 
 		return TermInfo(
@@ -866,7 +910,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -875,7 +921,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::mulWrap(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
+		core::GenericInt::WrapResult result = this->mul_wrap_impl(type_id, lhs, rhs);
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -883,7 +929,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.result, this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -891,7 +939,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::mulSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->type_manager.isUnsignedIntegral(type_id)){
@@ -907,14 +955,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::fmul(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
-		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
+		core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.mul(rhs);
 			}
@@ -925,7 +977,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -980,14 +1036,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(*result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(*result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::fdiv(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
-		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
+		core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.div(rhs);
 			}
@@ -998,14 +1058,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::rem(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs) 
 				-> core::GenericInt {
 				if(this->type_manager.isUnsignedIntegral(type_id)){
@@ -1021,14 +1085,18 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::rem(
 		const TypeInfo::ID type_id, const core::GenericFloat& lhs, const core::GenericFloat& rhs
 	) -> TermInfo {
-		const core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
+		core::GenericFloat result = this->intrin_base_impl<core::GenericFloat>(type_id, lhs, rhs, 
 			[&](const core::GenericFloat& lhs, const core::GenericFloat& rhs) -> core::GenericFloat {
 				return lhs.rem(rhs);
 			}
@@ -1039,7 +1107,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1073,14 +1145,16 @@ namespace pcit::panther{
 			default: evo::debugFatalBreak("Unknown or unsupported float type");
 		}
 
-		const core::GenericFloat result = arg_converted->neg();
-
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createFloatValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createFloatValue(
+					arg_converted->neg(), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1396,7 +1470,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseAnd(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseAnd(rhs);
@@ -1408,7 +1482,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1427,7 +1505,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseOr(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseOr(rhs);
@@ -1439,7 +1517,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1458,7 +1540,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::bitwiseXor(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				return lhs.bitwiseXor(rhs);
@@ -1470,7 +1552,11 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1489,13 +1575,13 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::shl(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
-		const evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
+		evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
 			type_id,
 			lhs,
 			rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> evo::Result<core::GenericInt> {
-				const core::GenericInt::WrapResult result = [&](){
+				core::GenericInt::WrapResult result = [&](){
 					if(this->type_manager.isUnsignedIntegral(type_id)){
 						return lhs.ushl(rhs);
 					}else{
@@ -1515,7 +1601,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.value(), this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.value()), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -1523,7 +1611,7 @@ namespace pcit::panther{
 	auto ComptimeIntrinsicEvaluator::shlSat(
 		const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> TermInfo {
-		const core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
+		core::GenericInt result = this->intrin_base_impl<core::GenericInt>(type_id, lhs, rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> core::GenericInt {
 				if(this->type_manager.isUnsignedIntegral(type_id)){
@@ -1539,20 +1627,24 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::shr(
 		const TypeInfo::ID type_id, bool may_wrap, const core::GenericInt& lhs, const core::GenericInt& rhs
 	) -> evo::Result<TermInfo> {
-		const evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
+		evo::Result<core::GenericInt> result = this->intrin_base_impl<evo::Result<core::GenericInt>>(
 			type_id,
 			lhs,
 			rhs,
 			[&](const TypeInfo::ID type_id, const core::GenericInt& lhs, const core::GenericInt& rhs)
 			-> evo::Result<core::GenericInt> {
-				const core::GenericInt::WrapResult result = [&](){
+				core::GenericInt::WrapResult result = [&](){
 					if(this->type_manager.isUnsignedIntegral(type_id)){
 						return lhs.ushr(rhs);
 					}else{
@@ -1572,7 +1664,9 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
 			sema::Expr(
-				this->sema_buffer.createIntValue(result.value(), this->type_manager.getTypeInfo(type_id).baseTypeID())
+				this->sema_buffer.createIntValue(
+					std::move(result.value()), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
 			)
 		);
 	}
@@ -1589,14 +1683,18 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).bitReverse();
+		core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).bitReverse();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1612,14 +1710,18 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).byteSwap();
+		core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).byteSwap();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1635,14 +1737,18 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).ctPop();
+		core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).ctPop();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1658,14 +1764,18 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).ctlz();
+		core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).ctlz();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
@@ -1681,14 +1791,18 @@ namespace pcit::panther{
 			return primitive.bitWidth();
 		}();
 
-		const core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).cttz();
+		core::GenericInt result = arg.extOrTrunc(type_width, is_unsigned).cttz();
 
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			type_id,
-			sema::Expr(this->sema_buffer.createIntValue(result, this->type_manager.getTypeInfo(type_id).baseTypeID()))
+			sema::Expr(
+				this->sema_buffer.createIntValue(
+					std::move(result), this->type_manager.getTypeInfo(type_id).baseTypeID()
+				)
+			)
 		);
 	}
 
