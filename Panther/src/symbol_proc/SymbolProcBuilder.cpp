@@ -113,7 +113,7 @@ namespace pcit::panther{
 		uint32_t instantiation_id,
 		evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 	) -> evo::Result<SymbolProc::ID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
@@ -182,7 +182,7 @@ namespace pcit::panther{
 		evo::SmallVector<std::optional<TypeInfo::ID>>&& arg_types,
 		evo::SmallVector<Diagnostic::Location>&& instantiation_locations
 	) -> evo::Result<SymbolProc::ID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		const SymbolProc::ID symbol_proc_id = this->context.symbol_proc_manager.create_symbol_proc(
 			template_symbol_proc.ast_node,
@@ -514,7 +514,7 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view> {
 		const TokenBuffer& token_buffer = this->source.getTokenBuffer();
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(stmt.kind()){
 			case AST::Kind::NONE: evo::debugFatalBreak("Not a valid AST node");
@@ -711,7 +711,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_func_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::FuncDef& func_def = ast_buffer.getFuncDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -1176,7 +1176,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_alias_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::AliasDef& alias_def = ast_buffer.getAliasDef(stmt);
 
 
@@ -1219,7 +1219,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_struct_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::StructDef& struct_def = ast_buffer.getStructDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -1289,7 +1289,7 @@ namespace pcit::panther{
 	
 
 	auto SymbolProcBuilder::build_union_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::UnionDef& union_def = ast_buffer.getUnionDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -1349,7 +1349,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_enum_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::EnumDef& enum_def = ast_buffer.getEnumDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
@@ -1426,7 +1426,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_interface_def(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::InterfaceDef& interface_def = ast_buffer.getInterfaceDef(stmt);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
@@ -1494,7 +1494,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_interface_impl(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::InterfaceImpl& interface_impl = ast_buffer.getInterfaceImpl(stmt);
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
@@ -1596,7 +1596,7 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::build_when_conditional(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::WhenConditional& when_conditional = ast_buffer.getWhenConditional(stmt);
 
 		const evo::Result<SymbolProc::TermInfoID> cond_id = this->analyze_expr<true>(when_conditional.cond);
@@ -1894,7 +1894,7 @@ namespace pcit::panther{
 
 	template<bool NEEDS_DEF>
 	auto SymbolProcBuilder::analyze_type_base(const AST::Node& ast_type_base) -> evo::Result<SymbolProc::TermInfoID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(ast_type_base.kind()){
 			case AST::Kind::FUNC_CALL: {
@@ -2229,7 +2229,7 @@ namespace pcit::panther{
 
 	// TODO(FUTURE): error on invalid statements
 	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> evo::Result<> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		switch(stmt.kind()){
 			case AST::Kind::NONE:                   evo::debugFatalBreak("Not a valid AST node");
@@ -3350,7 +3350,7 @@ namespace pcit::panther{
 
 	template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
 	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		if constexpr(ERRORS){
 			switch(expr.kind()){
@@ -3900,7 +3900,7 @@ namespace pcit::panther{
 
 	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_indexer(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::Indexer& indexer = ast_buffer.getIndexer(node);
 
 		const evo::Result<SymbolProc::TermInfoID> target = this->analyze_expr<IS_COMPTIME>(indexer.target);
@@ -3935,7 +3935,7 @@ namespace pcit::panther{
 
 	template<bool IS_COMPTIME>
 	auto SymbolProcBuilder::analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::TemplatedExpr& templated_expr = ast_buffer.getTemplatedExpr(node);
 
 		const evo::Result<SymbolProc::TermInfoID> base_type = this->analyze_expr<IS_COMPTIME>(templated_expr.base);
@@ -4778,7 +4778,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				const Token::ID attribute_arg_token_id = ASTBuffer::getLiteral(attribute.args[0]);
+				const Token::ID attribute_arg_token_id = AST::ASTBuffer::getLiteral(attribute.args[0]);
 				const Token& attribute_arg_token = this->source.getTokenBuffer()[attribute_arg_token_id];
 
 				if(attribute_arg_token.kind() != Token::Kind::LITERAL_STRING){
@@ -4860,7 +4860,7 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				const Token::ID arg_id = ASTBuffer::getLiteral(attribute.args[0]);
+				const Token::ID arg_id = AST::ASTBuffer::getLiteral(attribute.args[0]);
 				const Token& arg = this->source.getTokenBuffer()[arg_id];
 
 				if(arg.kind() != Token::Kind::LITERAL_STRING){
@@ -4892,7 +4892,7 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_template_param_pack(const AST::TemplatePack& template_pack)
 	-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>> {
 		const TokenBuffer& token_buffer = this->source.getTokenBuffer();
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		auto template_param_infos = evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>();
 
@@ -5003,7 +5003,7 @@ namespace pcit::panther{
 			} break;
 
 			case AST::Kind::DEDUCER: {
-				const Token& deducer_token = this->source.getTokenBuffer()[ASTBuffer::getDeducer(node)];
+				const Token& deducer_token = this->source.getTokenBuffer()[AST::ASTBuffer::getDeducer(node)];
 				return deducer_token.kind() == Token::Kind::DEDUCER;
 			} break;
 

@@ -2932,7 +2932,7 @@ namespace pthr{
 			core::Printer& printer;
 			const panther::Source& source;
 			const fs::path& relative_dir;
-			const panther::ASTBuffer& ast_buffer;
+			const panther::AST::ASTBuffer& ast_buffer;
 
 			Indenter indenter;
 	};

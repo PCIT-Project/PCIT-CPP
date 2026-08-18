@@ -32,7 +32,7 @@ namespace pcit::panther{
 	// AST
 
 	auto Diagnostic::Location::get(const AST::Node& node, const Source& src) -> Location {
-		const ASTBuffer& ast_buffer = src.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = src.getASTBuffer();
 
 		switch(node.kind()){
 			case AST::Kind::NONE:              evo::debugFatalBreak("Cannot get location of AST::Kind::None");

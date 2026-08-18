@@ -883,8 +883,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto getZeroinit(Zeroinit::ID id) const -> Token::ID;
 
 
-		// TODO(NOW): make private
-		public:
+		private:
 			[[nodiscard]] auto getFunc(sema::Func::ID func_id) -> Func&;
 			[[nodiscard]] auto getTemplatedFunc(sema::TemplatedFunc::ID templated_func_id) -> TemplatedFunc&;
 			[[nodiscard]] auto getGlobalVar(sema::GlobalVar::ID global_var_id) -> GlobalVar&;
@@ -913,9 +912,8 @@ namespace pcit::panther::sema{
 
 			struct Internal* internal;
 
-			// TODO(NOW): uncomment
-			// friend class Context;
-			// friend class SemanticAnalyzer;
+			friend class Context;
+			friend class SemanticAnalyzer;
 	};
 
 

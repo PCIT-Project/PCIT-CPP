@@ -22,7 +22,7 @@ namespace pcit::panther{
 
 			switch(stmt_result.code()){
 				case Result::Code::SUCCESS: {
-					this->source.ast_buffer.global_stmts.emplace_back(stmt_result.value());
+					this->source.ast_buffer.getMutGlobalStmts().emplace_back(stmt_result.value());
 				} break;
 
 				case Result::Code::WRONG_TYPE: {
@@ -205,7 +205,7 @@ namespace pcit::panther{
 
 
 		return this->source.ast_buffer.createVarDef(
-			VAR_DEF_KIND, ASTBuffer::getIdent(ident.value()), type, attributes.value(), value_kind, value
+			VAR_DEF_KIND, AST::ASTBuffer::getIdent(ident.value()), type, attributes.value(), value_kind, value
 		);
 	}
 
@@ -588,7 +588,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createStructDef(
-			ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
+			AST::ASTBuffer::getIdent(ident), template_pack_node, std::move(attributes.value()), block.value()
 		);
 	}
 
@@ -631,7 +631,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
-				fields.emplace_back(ASTBuffer::getIdent(field_ident.value()), type.value());
+				fields.emplace_back(AST::ASTBuffer::getIdent(field_ident.value()), type.value());
 				
 			}else{ // is statement
 				const Result stmt = this->parse_stmt();
@@ -649,14 +649,14 @@ namespace pcit::panther{
 		if(fields.empty()){
 			this->context.emitError(
 				"Enum must be defined with at least one field",
-				Diagnostic::Location::get(ASTBuffer::getIdent(ident), this->source)
+				Diagnostic::Location::get(AST::ASTBuffer::getIdent(ident), this->source)
 			);
 			return Result::Code::ERROR;
 		}
 
 
 		return this->source.ast_buffer.createUnionDef(
-			ASTBuffer::getIdent(ident), attributes.value(), std::move(fields), std::move(statements)
+			AST::ASTBuffer::getIdent(ident), attributes.value(), std::move(fields), std::move(statements)
 		);
 	}
 
@@ -719,7 +719,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
-				enumerators.emplace_back(ASTBuffer::getIdent(enumerator_ident.value()), enumerator_value);
+				enumerators.emplace_back(AST::ASTBuffer::getIdent(enumerator_ident.value()), enumerator_value);
 
 			}else{ // is statement
 				const Result stmt = this->parse_stmt();
@@ -737,14 +737,14 @@ namespace pcit::panther{
 		if(enumerators.empty()){
 			this->context.emitError(
 				"Enum must be defined with at least one enumerator",
-				Diagnostic::Location::get(ASTBuffer::getIdent(ident), this->source)
+				Diagnostic::Location::get(AST::ASTBuffer::getIdent(ident), this->source)
 			);
 			return Result::Code::ERROR;
 		}
 
 
 		return this->source.ast_buffer.createEnumDef(
-			ASTBuffer::getIdent(ident),
+			AST::ASTBuffer::getIdent(ident),
 			underlying_type,
 			attributes.value(),
 			std::move(enumerators),
@@ -767,7 +767,7 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createAliasDef(ASTBuffer::getIdent(ident), attributes.value(), type.value());
+		return this->source.ast_buffer.createAliasDef(AST::ASTBuffer::getIdent(ident), attributes.value(), type.value());
 	}
 
 
@@ -826,7 +826,7 @@ namespace pcit::panther{
 		}
 
 		return this->source.ast_buffer.createInterfaceDef(
-			ASTBuffer::getIdent(ident), attributes.value(), std::move(methods), std::move(impls)
+			AST::ASTBuffer::getIdent(ident), attributes.value(), std::move(methods), std::move(impls)
 		);
 	}
 
@@ -868,7 +868,7 @@ namespace pcit::panther{
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::IDENT: {
 					if constexpr(ALLOW_METHOD_IDENTS){
-						methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), this->reader.next());
+						methods.emplace_back(AST::ASTBuffer::getIdent(method_ident.value()), this->reader.next());
 					}else{
 						this->expected_but_got(
 							"method value in interface impl",
@@ -907,7 +907,7 @@ namespace pcit::panther{
 					if(this->check_result(block, "block in interface impl").isError()){ return Result::Code::ERROR; }
 
 					const AST::Node created_func_def_node = this->source.ast_buffer.createFuncDef(
-						ASTBuffer::getIdent(method_ident.value()),
+						AST::ASTBuffer::getIdent(method_ident.value()),
 						std::nullopt,
 						std::move(params.value().params),
 						params.value().is_variadic,
@@ -918,7 +918,7 @@ namespace pcit::panther{
 						block.value()
 					);
 
-					methods.emplace_back(ASTBuffer::getIdent(method_ident.value()), created_func_def_node);
+					methods.emplace_back(AST::ASTBuffer::getIdent(method_ident.value()), created_func_def_node);
 				} break;
 
 				default: {
@@ -1054,7 +1054,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-			label = ASTBuffer::getIdent(label_result.value());
+			label = AST::ASTBuffer::getIdent(label_result.value());
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
@@ -1078,7 +1078,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-			label = ASTBuffer::getIdent(label_result.value());
+			label = AST::ASTBuffer::getIdent(label_result.value());
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
@@ -1311,7 +1311,7 @@ namespace pcit::panther{
 			const Result type = this->parse_type<TypeKind::EXPLICIT>();
 			if(this->check_result(type, "type of for loop index parameter").isError()){ return Result::Code::ERROR; }
 
-			index = AST::For::Param(ASTBuffer::getIdent(ident.value()), type.value());
+			index = AST::For::Param(AST::ASTBuffer::getIdent(ident.value()), type.value());
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "after for loop index parameter").isError()){
@@ -1369,7 +1369,7 @@ namespace pcit::panther{
 			}
 
 
-			values.emplace_back(ASTBuffer::getIdent(param_ident.value()), param_type.value(), is_mut);
+			values.emplace_back(AST::ASTBuffer::getIdent(param_ident.value()), param_type.value(), is_mut);
 
 
 			// check if ending or should continue
@@ -1615,7 +1615,7 @@ namespace pcit::panther{
 							return Result::Code::ERROR;
 						}
 
-						except_params.emplace_back(ASTBuffer::getIdent(ident.value()));
+						except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
 					}
 
 					// check if ending or should continue
@@ -1756,7 +1756,7 @@ namespace pcit::panther{
 
 
 			params.emplace_back(
-				ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value(), param_arg.value(), kind
+				AST::ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value(), param_arg.value(), kind
 			);
 
 
@@ -1828,7 +1828,7 @@ namespace pcit::panther{
 
 
 					ret_params.emplace_back(
-						ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value()
+						AST::ASTBuffer::getIdent(ident.value()), param_constraint_str, param_type.value()
 					);
 
 
@@ -2026,7 +2026,7 @@ namespace pcit::panther{
 			if(this->check_result(label_result, "identifier in block label definition").isError()){
 				return Result::Code::ERROR;
 			}
-			label = ASTBuffer::getIdent(label_result.value());
+			label = AST::ASTBuffer::getIdent(label_result.value());
 
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
 				if(label_requirement == BlockLabelRequirement::OPTIONAL){
@@ -2069,7 +2069,7 @@ namespace pcit::panther{
 							return Result::Code::ERROR;
 						}
 
-						outputs.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+						outputs.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 
 						// check if ending or should continue
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
@@ -3126,7 +3126,7 @@ namespace pcit::panther{
 							return Result::Code::ERROR;
 						}
 
-						except_params.emplace_back(ASTBuffer::getIdent(ident.value()));
+						except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
 					}
 
 					// check if ending or should continue
@@ -3151,7 +3151,7 @@ namespace pcit::panther{
 			}
 
 			return this->source.ast_buffer.createTryElse(
-				attempt_expr.value(), except_expr.value(), std::move(except_params), else_token_id
+				attempt_expr.value(), except_expr.value(), std::move(except_params), else_token_id, std::nullopt
 			);
 		}
 
@@ -3650,7 +3650,7 @@ namespace pcit::panther{
 			}
 
 
-			params.emplace_back(ASTBuffer::getIdent(ident.value()), type.value(), default_value);
+			params.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value(), default_value);
 
 
 			// check if ending or should continue
@@ -3863,7 +3863,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			returns.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+			returns.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 
 
 			// check if ending or should continue
@@ -3966,7 +3966,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			error_returns.emplace_back(ASTBuffer::getIdent(ident.value()), type.value());
+			error_returns.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 
 
 			// check if ending or should continue
@@ -4100,7 +4100,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			init_values.emplace_back(ASTBuffer::getIdent(ident.value()), expr.value());
+			init_values.emplace_back(AST::ASTBuffer::getIdent(ident.value()), expr.value());
 
 			// check if ending or should continue
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();

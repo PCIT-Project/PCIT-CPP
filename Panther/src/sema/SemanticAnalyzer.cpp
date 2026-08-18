@@ -3391,7 +3391,7 @@ namespace pcit::panther{
 		///////////////////////////////////
 		// create func type
 
-		const ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 
 		auto params = evo::SmallVector<BaseType::Function::Param>();
@@ -7151,7 +7151,7 @@ namespace pcit::panther{
 
 		if(this->check_scope_isnt_terminated(instr.return_stmt).isError()){ return Result::ERROR; }
 
-		const Token::ID target_label_id = ASTBuffer::getIdent(*instr.return_stmt.label);
+		const Token::ID target_label_id = AST::ASTBuffer::getIdent(*instr.return_stmt.label);
 		const sema::ScopeLevel* scope_level = nullptr;
 
 		const std::string_view return_label = this->source.getTokenBuffer()[target_label_id].getString();
@@ -11692,7 +11692,9 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_try_else_end(const Instruction::TryElseEnd& instr) -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
-		if(this->end_sub_scopes(this->get_location(instr.try_else.semicolonTokenID)).isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(*instr.try_else.semicolonTokenID)).isError()){
+			return Result::ERROR;
+		}
 		return Result::SUCCESS;
 	}
 
@@ -19281,7 +19283,7 @@ namespace pcit::panther{
 					if(struct_template.params[i].isExpr()){
 						const Source& templated_struct_source = 
 							this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
-						const ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
+						const AST::ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
 						const AST::StructDef& ast_struct =
 							ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 						const AST::TemplatePack& ast_template_pack =
@@ -19308,7 +19310,7 @@ namespace pcit::panther{
 				if(struct_template.params[i].isType()){
 					const Source& templated_struct_source = 
 						this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
-					const ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
+					const AST::ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
 					const AST::StructDef& ast_struct =
 						ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
@@ -19385,7 +19387,7 @@ namespace pcit::panther{
 				instantiation_lookup_args.emplace_back(sema::exprToGenericValue(arg_expr, this->context));
 				
 			}else{
-				const ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
+				const AST::ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
 				const AST::StructDef& ast_struct = ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 				const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
 
@@ -22392,7 +22394,7 @@ namespace pcit::panther{
 		auto base_type = std::optional<BaseType::ID>();
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
-		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
+		const Token::ID primitive_type_token_id = AST::ASTBuffer::getPrimitiveType(instr.ast_type.base);
 		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
 
 		switch(primitive_type_token.kind()){
@@ -22483,7 +22485,7 @@ namespace pcit::panther{
 		auto base_type = std::optional<BaseType::ID>();
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
-		const Token::ID primitive_type_token_id = ASTBuffer::getPrimitiveType(instr.ast_type.base);
+		const Token::ID primitive_type_token_id = AST::ASTBuffer::getPrimitiveType(instr.ast_type.base);
 		const Token& primitive_type_token = this->source.getTokenBuffer()[primitive_type_token_id];
 
 		switch(primitive_type_token.kind()){

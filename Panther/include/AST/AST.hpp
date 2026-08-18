@@ -16,7 +16,7 @@
 #include "../tokens/Token.hpp"
 
 // forward declaration
-namespace pcit::panther{
+namespace pcit::panther::AST{
 	class ASTBuffer;
 }
 
@@ -337,7 +337,7 @@ namespace pcit::panther::AST{
 		Token::ID closeBraceToken;
 		Node cond;
 		Node thenBlock;
-		std::optional<Node> elseBlock;  // either `Block` or `Conditional`
+		std::optional<Node> elseBlock; // either `Block` or `Conditional`
 	};
 
 	struct WhenConditional{
@@ -456,7 +456,7 @@ namespace pcit::panther::AST{
 	struct Infix{
 		Node lhs;
 		Token::ID opTokenID;
-		Node rhs;	
+		Node rhs;
 	};
 
 	struct Postfix{
@@ -498,7 +498,7 @@ namespace pcit::panther::AST{
 		Node exceptExpr;
 		evo::SmallVector<Token::ID> exceptParams;
 		Token::ID elseTokenID;
-		Token::ID semicolonTokenID;
+		std::optional<Token::ID> semicolonTokenID; // nullopt if expr
 	};
 
 	struct Unsafe{

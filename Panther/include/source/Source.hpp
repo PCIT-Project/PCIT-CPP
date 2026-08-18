@@ -78,7 +78,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto getPackageID() const -> Package::ID { return this->packagage_id; }
 
 			[[nodiscard]] auto getTokenBuffer() const -> const TokenBuffer& { return this->token_buffer; }
-			[[nodiscard]] auto getASTBuffer() const -> const ASTBuffer& { return this->ast_buffer; }
+			[[nodiscard]] auto getASTBuffer() const -> const AST::ASTBuffer& { return this->ast_buffer; }
 
 			[[nodiscard]] auto getPIRMetaFileID() const -> std::optional<pir::meta::File::ID> {
 				return this->pir_file_id;
@@ -123,7 +123,7 @@ namespace pcit::panther{
 			Package::ID packagage_id;
 
 			TokenBuffer token_buffer{};
-			ASTBuffer ast_buffer{};
+			AST::ASTBuffer ast_buffer{};
 
 			bool is_ready_for_sema = false;
 

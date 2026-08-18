@@ -1,6 +1,13 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.365.0"></a>
+## v0.0.365.0
+- Improved compilation speed
+	- `panther::AST::ASTBuffer`
+
+
+<!---------------------------------->
 <a name="v0.0.364.0"></a>
 ## v0.0.364.0
 - Improved compilation speed
