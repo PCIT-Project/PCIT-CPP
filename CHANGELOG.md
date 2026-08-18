@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.365.1"></a>
+## v0.0.365.1
+
+### Panther
+- Fixed semantic analysis of functions where a parameters is an interface map where the target interface is a template parameter
+
+
+<!---------------------------------->
 <a name="v0.0.365.0"></a>
 ## v0.0.365.0
 - Improved compilation speed

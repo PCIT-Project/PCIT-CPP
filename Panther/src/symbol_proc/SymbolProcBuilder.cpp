@@ -1046,6 +1046,8 @@ namespace pcit::panther{
 
 								is_deducer = true;
 							}
+
+							terms_to_check_for_deducers.emplace(interface_map.interface);
 						} break;
 
 						case AST::Kind::TYPE: {
