@@ -1096,7 +1096,10 @@ namespace pcit::panther{
 				return std::format(
 					"impl({}:{})",
 					poly_interface_ref_info.isMut ? "*mut" : "*",
-					this->printType(BaseType::ID(poly_interface_ref_info.interfaceID), context)
+					this->printType(
+						poly_interface_ref_info.interfaceID.visit([&](const auto& id){ return BaseType::ID(id); }),
+						context
+					)
 				);
 			} break;
 
@@ -1114,11 +1117,14 @@ namespace pcit::panther{
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(base_type_id.interfaceMapID());
+
 				
 				return std::format(
 					"impl({}:{})",
 					this->printType(interface_map_info.underlyingTypeID, context),
-					this->printType(BaseType::ID(interface_map_info.interfaceID), context)
+					this->printType(
+						interface_map_info.interfaceID.visit([&](const auto& id){ return BaseType::ID(id); }), context
+					)
 				);
 			} break;
 		}
@@ -2290,12 +2296,20 @@ namespace pcit::panther{
 				return true;
 			} break;
 
+			case BaseType::Kind::POLY_INTERFACE_REF: {
+				const BaseType::PolyInterfaceRef& poly_interface_ref_type =
+					this->getPolyInterfaceRef(id.polyInterfaceRefID());
+
+				return poly_interface_ref_type.interfaceID.is<BaseType::TypeDeducer::ID>();
+			} break;
+
 			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
 				return true;
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_type = this->getInterfaceMap(id.interfaceMapID());
+				if(interface_map_type.interfaceID.is<BaseType::TypeDeducer::ID>()){ return true; }
 				return this->isTypeDeducer(interface_map_type.underlyingTypeID);
 			} break;
 

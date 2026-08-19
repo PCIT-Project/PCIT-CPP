@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.365.2"></a>
+## v0.0.365.2
+
+### Panther
+- Fixed interface map types where the interface is a deducer
+- Fixed polymorphic interface reference types where the interface is a deducer
+- Fixed implicit conversion of mutable polymorphic interface reference to read-only polymorphic interface reference
+
+
+<!---------------------------------->
 <a name="v0.0.365.1"></a>
 ## v0.0.365.1
 
