@@ -1925,19 +1925,29 @@ namespace pthr{
 					case panther::AST::Kind::INTERFACE_MAP: {
 						const panther::AST::InterfaceMap& interface_map = this->ast_buffer.getInterfaceMap(base_type);
 
-						this->printer.printMagenta("impl(");
+						this->printer.printMagenta("impl");
 
-						if(interface_map.underlyingType.is<panther::AST::InterfaceMap::Ptr>()){
-							if(interface_map.underlyingType.as<panther::AST::InterfaceMap::Ptr>().isMut){
-								this->printer.printMagenta("*mut");
+						if(interface_map.underlyingType.is<panther::AST::InterfaceMap::Polymorphic>()){
+							if(interface_map.underlyingType.as<panther::AST::InterfaceMap::Polymorphic>().isMut){
+								this->printer.printMagenta("(*mut");
 							}else{
-								this->printer.printMagenta("*");
+								this->printer.printMagenta("(*");
 							}
 
-						}else if(interface_map.underlyingType.is<panther::AST::InterfaceMap::PtrDeducer>()){
-							this->printer.printMagenta("$*");
+						}else if(interface_map.underlyingType.is<panther::AST::InterfaceMap::Ptr>()){
+							const panther::AST::InterfaceMap::Ptr& ptr_map = 
+								interface_map.underlyingType.as<panther::AST::InterfaceMap::Ptr>();
+
+							if(ptr_map.isMut){
+								this->printer.printMagenta("*mut(");
+							}else{
+								this->printer.printMagenta("*(");
+							}
+
+							this->print_type(this->ast_buffer.getType(ptr_map.underlyingType));
 
 						}else{
+							this->printer.print("(");
 							this->print_type(
 								this->ast_buffer.getType(interface_map.underlyingType.as<panther::AST::Node>())
 							);

@@ -2672,35 +2672,96 @@ namespace pcit::panther{
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_IMPL){
 				if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result(Result::Code::ERROR); }
 
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
+					this->reader.skip();
+
+					const bool is_mut = [&]() -> bool {
+						if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
+							this->reader.skip();
+							return true;
+						}
+
+						return false;
+					}();
+
+					if(this->expect_token(Token::lookupKind("("), "in interface pointer map").isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+					const Result underlying_type_result = [&](){
+						if constexpr(
+							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+						){
+							return this->parse_type<KIND>();
+						}else{
+							return this->parse_type<TypeKind::EXPLICIT>();
+						}
+					}();
+
+					if(this->check_result(
+						underlying_type_result, "underlying type in interface pointer map"
+					).isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+
+					const Token::ID colon_token = this->reader.next();
+					if(this->reader[colon_token].kind() != Token::lookupKind(":")){
+						this->expected_but_got("[:] after underlying type in interface map", colon_token);
+						return Result(Result::Code::ERROR);
+					}
+
+
+					const Result interface_type_result = [&](){
+						if constexpr(
+							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
+							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
+						){
+							return this->parse_type<KIND>();
+						}else{
+							return this->parse_type<TypeKind::EXPLICIT>();
+						}
+					}();
+
+					if(this->check_result(
+						interface_type_result, "interface type in interface pointer map"
+					).isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+					if(this->expect_token(Token::lookupKind(")"), "at end of interface pointer map").isError()){
+						return Result(Result::Code::ERROR);
+					}
+
+					return Result(
+						this->source.ast_buffer.createInterfaceMap(
+							AST::InterfaceMap::Ptr(underlying_type_result.value(), is_mut),
+							colon_token,
+							interface_type_result.value()
+						)
+					);
+				}
+
+
+
 				if(this->expect_token(Token::lookupKind("("), "in interface map").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
 
-				auto underlying_type = 
-					std::optional<evo::Variant<AST::InterfaceMap::Ptr, AST::InterfaceMap::PtrDeducer, AST::Node>>();
+				auto underlying_type = std::optional<
+					evo::Variant<AST::InterfaceMap::Polymorphic, AST::InterfaceMap::Ptr, AST::Node>
+				>();
 
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 					this->reader.skip();
 
 					if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
-						underlying_type = AST::InterfaceMap::Ptr(true);
+						underlying_type = AST::InterfaceMap::Polymorphic(true);
 						this->reader.skip();
 					}else{
-						underlying_type = AST::InterfaceMap::Ptr(false);
-					}
-
-				}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("$*")){
-					this->reader.skip();
-
-					underlying_type = AST::InterfaceMap::PtrDeducer();
-
-					if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
-						this->context.emitError(
-							"The mutablility of polymorphic deducer interface maps is not defined in the type",
-							Diagnostic::Location::get(this->reader.peek(), this->source)
-						);
-						return Result(Result::Code::ERROR);
+						underlying_type = AST::InterfaceMap::Polymorphic(false);
 					}
 
 				}else{

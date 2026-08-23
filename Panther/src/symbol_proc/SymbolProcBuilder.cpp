@@ -1039,12 +1039,10 @@ namespace pcit::panther{
 							if(interface_map.underlyingType.is<AST::Node>()){
 								terms_to_check_for_deducers.emplace(interface_map.underlyingType.as<AST::Node>());
 
-							}else if(interface_map.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){
-								this->add_instruction(
-									this->context.symbol_proc_manager.createTemplateFuncSetParamIsDeducer(i)
+							}else if(interface_map.underlyingType.is<AST::InterfaceMap::Ptr>()){
+								terms_to_check_for_deducers.emplace(
+									interface_map.underlyingType.as<AST::InterfaceMap::Ptr>().underlyingType
 								);
-
-								is_deducer = true;
 							}
 
 							terms_to_check_for_deducers.emplace(interface_map.interface);
@@ -2088,6 +2086,15 @@ namespace pcit::panther{
 				if(interface_map.underlyingType.is<AST::Node>()){
 					const evo::Result<SymbolProc::TypeID> underlying_type_type_res = this->analyze_type<true>(
 						this->source.getASTBuffer().getType(interface_map.underlyingType.as<AST::Node>())
+					);
+					if(underlying_type_type_res.isError()){ return evo::resultError; }
+					base_type = underlying_type_type_res.value();
+
+				}else if(interface_map.underlyingType.is<AST::InterfaceMap::Ptr>()){
+					const evo::Result<SymbolProc::TypeID> underlying_type_type_res = this->analyze_type<true>(
+						this->source.getASTBuffer().getType(
+							interface_map.underlyingType.as<AST::InterfaceMap::Ptr>().underlyingType
+						)
 					);
 					if(underlying_type_type_res.isError()){ return evo::resultError; }
 					base_type = underlying_type_type_res.value();
@@ -4988,8 +4995,22 @@ namespace pcit::panther{
 
 				if(this->is_deducer(interface_map_type.interface)){ return true; }
 
-				if(interface_map_type.underlyingType.is<AST::Node>() == false){ return false; }
-				return this->is_deducer(interface_map_type.underlyingType.as<AST::Node>());
+				return interface_map_type.underlyingType.visit([&](const auto& underlying_type) -> bool {
+					using UnderlyingType = std::decay_t<decltype(underlying_type)>;
+				
+					if constexpr(std::is_same<UnderlyingType, AST::InterfaceMap::Polymorphic>()){
+						return false;
+				
+					}else if constexpr(std::is_same<UnderlyingType, AST::InterfaceMap::Ptr>()){
+						return this->is_deducer(underlying_type.underlyingType);
+
+					}else if constexpr(std::is_same<UnderlyingType, AST::Node>()){
+						return this->is_deducer(underlying_type);
+				
+					}else{
+						static_assert(false, "Unknown underlying type");
+					}
+				});
 			} break;
 
 			default: {
@@ -5059,8 +5080,22 @@ namespace pcit::panther{
 
 				if(this->is_named_deducer(interface_map_type.interface)){ return true; }
 
-				if(interface_map_type.underlyingType.is<AST::Node>() == false){ return false; }
-				return this->is_named_deducer(interface_map_type.underlyingType.as<AST::Node>());
+				return interface_map_type.underlyingType.visit([&](const auto& underlying_type) -> bool {
+					using UnderlyingType = std::decay_t<decltype(underlying_type)>;
+				
+					if constexpr(std::is_same<UnderlyingType, AST::InterfaceMap::Polymorphic>()){
+						return false;
+				
+					}else if constexpr(std::is_same<UnderlyingType, AST::InterfaceMap::Ptr>()){
+						return this->is_named_deducer(underlying_type.underlyingType);
+
+					}else if constexpr(std::is_same<UnderlyingType, AST::Node>()){
+						return this->is_named_deducer(underlying_type);
+				
+					}else{
+						static_assert(false, "Unknown underlying type");
+					}
+				});
 			} break;
 
 			default: {
@@ -5068,109 +5103,6 @@ namespace pcit::panther{
 			} break;
 		}
 	}
-
-
-	auto SymbolProcBuilder::extract_deducer_names(const AST::Node& node) const -> evo::SmallVector<std::string_view> {
-		auto output = evo::SmallVector<std::string_view>();
-
-		switch(node.kind()){
-			case AST::Kind::TYPE: {
-				return this->extract_deducer_names(this->source.getASTBuffer().getType(node).base);
-			} break;
-
-			case AST::Kind::DEDUCER: {
-				const Token::ID deducer_token_id = this->source.getASTBuffer().getDeducer(node);
-				const Token& deducer_token = this->source.getTokenBuffer()[deducer_token_id];
-
-				if(deducer_token.kind() == Token::Kind::DEDUCER){
-					output.emplace_back(deducer_token.getString());
-				}
-			} break;
-
-			case AST::Kind::ARRAY_TYPE: {
-				const AST::ArrayType& array_type = this->source.getASTBuffer().getArrayType(node);
-				evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(
-					this->source.getASTBuffer().getType(array_type.elemType).base
-				);
-
-				output.reserve(std::bit_ceil(output.size() + extracted.size()));
-				for(const std::string_view& extracted_str : extracted){
-					output.emplace_back(extracted_str);
-				}
-
-				for(const std::optional<AST::Node>& dimension : array_type.dimensions){
-					if(dimension.has_value() == false){ continue; }
-
-					extracted = this->extract_deducer_names(*dimension);
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-
-				if(array_type.terminator.has_value()){
-					extracted = this->extract_deducer_names(*array_type.terminator);
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-			} break;
-
-			case AST::Kind::FUNC_TYPE: {
-				const AST::FuncType& func_type = this->source.getASTBuffer().getFuncType(node);
-
-				for(const AST::FuncType::Param& param : func_type.params){
-					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(param.type);
-
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-
-				for(const AST::Node& ret_type : func_type.returnTypes){
-					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(ret_type);
-
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-
-				for(const AST::Node& err_type : func_type.errorTypes){
-					evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(err_type);
-
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-			} break;
-
-			case AST::Kind::TEMPLATED_EXPR: {
-				const AST::TemplatedExpr& templated_expr = this->source.getASTBuffer().getTemplatedExpr(node);
-
-				for(const AST::Node& arg : templated_expr.args){
-					const evo::SmallVector<std::string_view> extracted = this->extract_deducer_names(arg);
-					output.reserve(std::bit_ceil(output.size() + extracted.size()));
-					for(const std::string_view& extracted_str : extracted){
-						output.emplace_back(extracted_str);
-					}
-				}
-			} break;
-
-			case AST::Kind::INTERFACE_MAP: {
-				// TODO(NOW): 
-				evo::unimplemented("Extract deducer names: INTERFACE_MAP");
-			} break;
-
-			default: break;
-		}
-
-		return output;
-	}
-
 
 
 }

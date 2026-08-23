@@ -313,7 +313,7 @@ namespace pcit::panther::AST{
 
 
 			[[nodiscard]] auto createInterfaceMap(
-				evo::Variant<InterfaceMap::Ptr, InterfaceMap::PtrDeducer, Node> underlyingType,
+				evo::Variant<InterfaceMap::Polymorphic, InterfaceMap::Ptr, Node> underlyingType,
 				Token::ID colonToken,
 				Node interface
 			) -> Node;

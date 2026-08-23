@@ -1,6 +1,19 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.366.0"></a>
+## v0.0.366.0
+
+### Panther
+- Added interface pointer maps
+- Removed polymorphic deducer interface references
+- Fixed `@getTypeID` giving a different value if the type is an alias as compared to the direct type
+
+### Misc
+- Updated to [Panther-std v0.0.50.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.50.0)
+
+
+<!---------------------------------->
 <a name="v0.0.365.2"></a>
 ## v0.0.365.2
 

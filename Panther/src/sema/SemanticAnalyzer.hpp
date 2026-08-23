@@ -293,8 +293,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_expr_as(const Instruction::As<IS_COMPTIME>& instr) -> Result;
 
 			// return nullopt to type has no interface maps 
+			template<bool IS_COMPTIME>
 			[[nodiscard]] auto operator_as_check_interface_map(
-				const TermInfo& from_expr,
+				TermInfo& from_expr,
 				const TypeInfo::ID from_type_id,
 				const TypeInfo::ID to_type_id,
 				SymbolProc::TermInfoID output_id,
@@ -373,14 +374,18 @@ namespace pcit::panther{
 			) -> Result;
 
 
-			template<bool IS_COMPTIME>
+			enum class InterfaceMapKind{
+				POLY,
+				MAP,
+				PTR_MAP,
+			};
+			template<bool IS_COMPTIME, InterfaceMapKind INTERFACE_MAP_KIND>
 			[[nodiscard]] auto interface_accessor(
 				const Instruction::Accessor<IS_COMPTIME>& instr,
 				std::string_view rhs_ident_str,
 				const TermInfo& lhs,
 				TypeInfo::ID decayed_lhs_type_id,
-				const TypeInfo& decayed_lhs_type,
-				bool is_ref
+				const TypeInfo& decayed_lhs_type
 			) -> Result;
 
 

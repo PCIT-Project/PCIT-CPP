@@ -25,7 +25,7 @@ namespace pcit::panther{
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeTypeID(),
 			sema::Expr(this->sema_buffer.createIntValue(
-				core::GenericInt::create<uint32_t>(type_id.get()),
+				core::GenericInt::create<uint32_t>(this->type_manager.decayType<false, false>(type_id).get()),
 				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
 			))
 		);

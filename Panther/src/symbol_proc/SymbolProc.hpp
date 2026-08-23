@@ -1105,7 +1105,7 @@ namespace pcit::panther{
 
 		struct InterfaceMap{
 			const AST::InterfaceMap& interface_map;
-			std::optional<SymbolProcTypeID> base_type; // nullopt if polymorphic
+			std::optional<SymbolProcTypeID> underlying_type; // nullopt if polymorphic
 			SymbolProcTypeID interface;
 			SymbolProcTermInfoID output;
 		};

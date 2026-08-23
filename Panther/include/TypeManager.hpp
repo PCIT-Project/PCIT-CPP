@@ -60,8 +60,8 @@ namespace pcit::panther{
 			TYPE_DEDUCER,
 			INTERFACE,
 			POLY_INTERFACE_REF,
-			POLY_DEDUCER_INTERFACE_REF,
 			INTERFACE_MAP,
+			INTERFACE_PTR_MAP,
 		};
 
 
@@ -148,14 +148,14 @@ namespace pcit::panther{
 				return PolyInterfaceRefID(this->_id);
 			}
 
-			[[nodiscard]] auto polyDeducerInterfaceRefID() const -> PolyDeducerInterfaceRefID {
-				evo::debugAssert(this->kind() == Kind::POLY_DEDUCER_INTERFACE_REF, "not a poly deducer interface ref");
-				return PolyDeducerInterfaceRefID(this->_id);
-			}
-
 			[[nodiscard]] auto interfaceMapID() const -> InterfaceMapID {
 				evo::debugAssert(this->kind() == Kind::INTERFACE_MAP, "not an interface map");
 				return InterfaceMapID(this->_id);
+			}
+
+			[[nodiscard]] auto interfacePtrMapID() const -> InterfacePtrMapID {
+				evo::debugAssert(this->kind() == Kind::INTERFACE_PTR_MAP, "not an interface pointer map");
+				return InterfacePtrMapID(this->_id);
 			}
 
 
@@ -183,8 +183,8 @@ namespace pcit::panther{
 			explicit ID(TypeDeducerID id)             : _kind(Kind::TYPE_DEDUCER),               _id(id.get()) {}
 			explicit ID(InterfaceID id)               : _kind(Kind::INTERFACE),                  _id(id.get()) {}
 			explicit ID(PolyInterfaceRefID id)        : _kind(Kind::POLY_INTERFACE_REF),         _id(id.get()) {}
-			explicit ID(PolyDeducerInterfaceRefID id) : _kind(Kind::POLY_DEDUCER_INTERFACE_REF), _id(id.get()) {}
 			explicit ID(InterfaceMapID id)            : _kind(Kind::INTERFACE_MAP),              _id(id.get()) {}
+			explicit ID(InterfacePtrMapID id)         : _kind(Kind::INTERFACE_PTR_MAP),          _id(id.get()) {}
 
 
 
@@ -1087,15 +1087,11 @@ namespace pcit::panther{
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
 			bool isMut;
 
+			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
+			}
+
 			[[nodiscard]] auto operator==(const PolyInterfaceRef&) const -> bool = default;
-		};
-
-		struct PolyDeducerInterfaceRef{
-			using ID = PolyDeducerInterfaceRefID;
-			
-			Interface::ID interfaceID;
-
-			[[nodiscard]] auto operator==(const PolyDeducerInterfaceRef&) const -> bool = default;
 		};
 
 		struct InterfaceMap{
@@ -1103,8 +1099,32 @@ namespace pcit::panther{
 			
 			TypeInfoID underlyingTypeID;
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
+			
+
+			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
+			}
 
 			[[nodiscard]] auto operator==(const InterfaceMap&) const -> bool = default;
+		};
+
+		struct InterfacePtrMap{
+			using ID = InterfacePtrMapID;
+			
+			evo::Variant<PolyInterfaceRef::ID, InterfaceMap::ID, TypeDeducer::ID> underlyingTypeID;
+			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
+			bool isMut;
+
+
+			[[nodiscard]] auto underlyingTypeIDasBaseTypeID() const -> BaseType::ID {
+				return this->underlyingTypeID.visit([&](const auto& id){ return BaseType::ID(id); });
+			}
+
+			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
+			}
+
+			[[nodiscard]] auto operator==(const InterfacePtrMap&) const -> bool = default;
 		};
 
 	};
@@ -1319,14 +1339,14 @@ namespace pcit::panther{
 				-> const BaseType::PolyInterfaceRef&;
 			[[nodiscard]] auto getOrCreatePolyInterfaceRef(BaseType::PolyInterfaceRef&& lookup_type) -> BaseType::ID;
 
-			[[nodiscard]] auto getPolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef::ID id) const
-				-> const BaseType::PolyDeducerInterfaceRef&;
-			[[nodiscard]] auto getOrCreatePolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef&& lookup_type)
-				-> BaseType::ID;
-
 			[[nodiscard]] auto getInterfaceMap(BaseType::InterfaceMap::ID id) const
 				-> const BaseType::InterfaceMap&;
 			[[nodiscard]] auto getOrCreateInterfaceMap(BaseType::InterfaceMap&& lookup_type)
+				-> BaseType::ID;
+
+			[[nodiscard]] auto getInterfacePtrMap(BaseType::InterfacePtrMap::ID id) const
+				-> const BaseType::InterfacePtrMap&;
+			[[nodiscard]] auto getOrCreateInterfacePtrMap(BaseType::InterfacePtrMap&& lookup_type)
 				-> BaseType::ID;
 
 			
@@ -1777,12 +1797,11 @@ namespace pcit::panther{
 			core::LinearStepAlloc<BaseType::PolyInterfaceRef, BaseType::PolyInterfaceRef::ID> poly_interface_refs{};
 			mutable evo::SpinLock poly_interface_refs_lock{};
 
-			core::LinearStepAlloc<BaseType::PolyDeducerInterfaceRef, BaseType::PolyDeducerInterfaceRef::ID>	
-				poly_deducer_interface_refs{};
-			mutable evo::SpinLock poly_deducer_interface_refs_lock{};
-
 			core::LinearStepAlloc<BaseType::InterfaceMap, BaseType::InterfaceMap::ID> interface_maps{};
 			mutable evo::SpinLock interface_maps_lock{};
+
+			core::LinearStepAlloc<BaseType::InterfacePtrMap, BaseType::InterfacePtrMap::ID> interface_ptr_maps{};
+			mutable evo::SpinLock interface_ptr_maps_lock{};
 
 			core::LinearStepAlloc<TypeInfo, TypeInfo::ID> types{};
 			mutable evo::SpinLock types_lock{};

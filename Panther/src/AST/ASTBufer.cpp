@@ -745,7 +745,7 @@ namespace pcit::panther::AST{
 
 
 	auto ASTBuffer::createInterfaceMap(
-		evo::Variant<InterfaceMap::Ptr, InterfaceMap::PtrDeducer, Node> underlyingType,
+		evo::Variant<InterfaceMap::Polymorphic, InterfaceMap::Ptr, Node> underlyingType,
 		Token::ID colonToken,
 		Node interface
 	) -> Node {

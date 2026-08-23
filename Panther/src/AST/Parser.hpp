@@ -122,12 +122,12 @@ namespace pcit::panther{
 			
 			enum class TypeKind{
 				EXPLICIT,
-				EXPLICIT_MAYBE_DEDUCER, // included named deducers
-				EXPLICIT_MAYBE_ANONYMOUS_DEDUCER,
+				EXPLICIT_MAYBE_DEDUCER, // includes named deducers
+				EXPLICIT_MAYBE_ANONYMOUS_DEDUCER, // doesn't include named deducers
 				AS_TYPE,
 				TEMPLATE_ARG,
-				TEMPLATE_ARG_MAYBE_DEDUCER, // included named deducers
-				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER,
+				TEMPLATE_ARG_MAYBE_DEDUCER, // includes named deducers
+				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER, // doesn't include named deducers
 			};
 			template<TypeKind KIND>
 			[[nodiscard]] auto parse_type() -> Result;
@@ -142,13 +142,13 @@ namespace pcit::panther{
 
 			enum class TermKind{
 				EXPLICIT_TYPE,
-				EXPLICIT_TYPE_MAYBE_DEDUCER, // included named deducers
-				EXPLICIT_TYPE_MAYBE_ANONYMOUS_DEDUCER,
+				EXPLICIT_TYPE_MAYBE_DEDUCER, // includes named deducers
+				EXPLICIT_TYPE_MAYBE_ANONYMOUS_DEDUCER, // doesn't include named deducers
 				AS_TYPE,
 				EXPR,
 				TEMPLATE_ARG,
-				TEMPLATE_ARG_MAYBE_DEDUCER, // included named deducers
-				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER,
+				TEMPLATE_ARG_MAYBE_DEDUCER, // includes named deducers
+				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER, // doesn't include named deducers
 			};
 			template<TermKind TERM_KIND>
 			[[nodiscard]] auto parse_term() -> Result; 

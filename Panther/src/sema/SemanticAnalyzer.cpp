@@ -9774,13 +9774,21 @@ namespace pcit::panther{
 				);
 
 				const TypeInfo& expr_type_info = this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
-				const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
-					this->context.getTypeManager().getPolyInterfaceRef(
-						expr_type_info.baseTypeID().polyInterfaceRefID()
-					);
-				const BaseType::Interface& target_interface = this->context.getTypeManager().getInterface(
-					target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
-				);
+
+				const BaseType::Interface::ID target_interface_id = [&]() -> BaseType::Interface::ID {
+					if(expr_type_info.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF){
+						return this->context.getTypeManager().getPolyInterfaceRef(
+							expr_type_info.baseTypeID().polyInterfaceRefID()
+						).interfaceID.as<BaseType::Interface::ID>();
+					}else{
+						return this->context.getTypeManager().getInterfacePtrMap(
+							expr_type_info.baseTypeID().interfacePtrMapID()
+						).interfaceID.as<BaseType::Interface::ID>();
+					}
+				}();
+
+				const BaseType::Interface& target_interface =
+					this->context.getTypeManager().getInterface(target_interface_id);
 
 
 				for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
@@ -9788,7 +9796,7 @@ namespace pcit::panther{
 						const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
 							fake_term_info.expr,
 							func_call_impl_res.value().selected_func->typeID,
-							target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>(),
+							target_interface_id,
 							uint32_t(i),
 							std::move(sema_args)
 						);
@@ -10637,7 +10645,7 @@ namespace pcit::panther{
 						"No matching operator [new] overload for this type",
 						ast_new.type,
 						Diagnostic::Info(
-							std::format("Expected {} arguments, got {}", 0, instr.args.size())
+							std::format("Expected 0 arguments, got {}", instr.args.size())
 						)
 					);
 					return Result::ERROR;
@@ -10658,6 +10666,82 @@ namespace pcit::panther{
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
+					)
+				);
+
+				return Result::SUCCESS;
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				if(instr.args.size() != 1){
+					this->emit_error(
+						"No matching operator [new] overload for this type",
+						ast_new.type,
+						Diagnostic::Info(
+							std::format("Expected 1 argument, got {}", instr.args.size())
+						)
+					);
+					return Result::ERROR;
+				}
+
+				const BaseType::InterfacePtrMap& interface_ptr_map = this->context.getTypeManager().getInterfacePtrMap(
+					decayed_target_type_info.baseTypeID().interfacePtrMapID()
+				);
+
+
+				TermInfo& arg = this->get_term_info(instr.args[0]);
+
+				TypeCheckInfo type_check_info = this->type_check<true, true, false>(
+					this->context.getTypeManager().getOrCreateTypeInfo(
+						TypeInfo(interface_ptr_map.underlyingTypeIDasBaseTypeID())
+					),
+					arg,
+					"Argument in operator [new] of interface pointer map",
+					this->get_location(ast_new.args[0].value)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+
+				if(ast_new.args[0].label.has_value()){
+					this->emit_error(
+						"No matching operator [new] overload for this type",
+						ast_new.type,
+						Diagnostic::Info("No operator [new] of interface pointer map accepts arguments with labels")
+					);
+				}
+
+
+				if(interface_ptr_map.isMut && arg.is_mutable() == false){
+					this->emit_error(
+						"Argument in operator [new] of mutable interface pointer map must be mutable",
+						this->get_location(ast_new.args[0].value)
+					);
+					return Result::ERROR;
+				}
+
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+						return arg.getExpr();
+						
+					}else{
+						evo::debugAssert(
+							interface_ptr_map.underlyingTypeID.is<BaseType::InterfaceMap::ID>(),
+							"Can't initialize deducer"
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(arg.getExpr()));
+					}
+				}();
+
+				const auto location = this->get_location(instr.infix);
+
+				this->get_current_scope_level().stmtBlock().emplace_back(
+					this->context.sema_buffer.createAssign(
+						lhs.getExpr(),
+						output_expr,
 						location.as<SourceLocation>().lineStart,
 						location.as<SourceLocation>().collumnStart
 					)
@@ -11608,11 +11692,22 @@ namespace pcit::panther{
 
 			const TypeInfo& expr_type_info = this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
 			
-			const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
-				this->context.getTypeManager().getPolyInterfaceRef(expr_type_info.baseTypeID().polyInterfaceRefID());
-			const BaseType::Interface& target_interface = this->context.getTypeManager().getInterface(
-				target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
-			);
+
+			const BaseType::Interface::ID target_interface_id = [&]() -> BaseType::Interface::ID {
+				if(expr_type_info.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF){
+					return this->context.getTypeManager().getPolyInterfaceRef(
+						expr_type_info.baseTypeID().polyInterfaceRefID()
+					).interfaceID.as<BaseType::Interface::ID>();
+				}else{
+					return this->context.getTypeManager().getInterfacePtrMap(
+						expr_type_info.baseTypeID().interfacePtrMapID()
+					).interfaceID.as<BaseType::Interface::ID>();
+				}
+			}();
+
+
+			const BaseType::Interface& target_interface =
+				this->context.getTypeManager().getInterface(target_interface_id);
 
 			const sema::Func& selected_func =
 				this->context.getSemaBuffer().getFunc(*func_call_impl_res.value().selected_func_id);
@@ -11625,7 +11720,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createTryElseInterface(
 							fake_term_info.expr,
 							selected_func.typeID,
-							target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>(),
+							target_interface_id,
 							uint32_t(i),
 							std::move(sema_args),
 							std::move(except_params),
@@ -12828,12 +12923,20 @@ namespace pcit::panther{
 
 		const TypeInfo& expr_type_info = this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
 
-		const BaseType::PolyInterfaceRef& target_poly_interface_ref = 
-			this->context.getTypeManager().getPolyInterfaceRef(expr_type_info.baseTypeID().polyInterfaceRefID());
 
-		const BaseType::Interface& target_interface = this->context.getTypeManager().getInterface(
-			target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
-		);
+		const BaseType::Interface::ID target_interface_id = [&]() -> BaseType::Interface::ID {
+			if(expr_type_info.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF){
+				return this->context.getTypeManager().getPolyInterfaceRef(
+					expr_type_info.baseTypeID().polyInterfaceRefID()
+				).interfaceID.as<BaseType::Interface::ID>();
+			}else{
+				return this->context.getTypeManager().getInterfacePtrMap(
+					expr_type_info.baseTypeID().interfacePtrMapID()
+				).interfaceID.as<BaseType::Interface::ID>();
+			}
+		}();
+
+		const BaseType::Interface& target_interface = this->context.getTypeManager().getInterface(target_interface_id);
 
 		const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_call_id);
 		const BaseType::Function& selected_func_type = this->context.getTypeManager().getFunction(selected_func.typeID);
@@ -12843,7 +12946,7 @@ namespace pcit::panther{
 				const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
 					fake_term_info.expr,
 					selected_func.typeID,
-					target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>(),
+					target_interface_id,
 					uint32_t(i),
 					std::move(args)
 				);
@@ -17718,6 +17821,76 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				if(instr.args.size() != 1){
+					this->emit_error(
+						"No matching operator [new] overload for this type",
+						instr.ast_new.type,
+						Diagnostic::Info(
+							std::format("Expected 1 argument, got {}", instr.args.size())
+						)
+					);
+					return Result::ERROR;
+				}
+
+				const BaseType::InterfacePtrMap& interface_ptr_map = this->context.getTypeManager().getInterfacePtrMap(
+					decayed_target_type_info.baseTypeID().interfacePtrMapID()
+				);
+
+
+				TermInfo& arg = this->get_term_info(instr.args[0]);
+
+				TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+					this->context.getTypeManager().getOrCreateTypeInfo(
+						TypeInfo(interface_ptr_map.underlyingTypeIDasBaseTypeID())
+					),
+					arg,
+					"Argument in operator [new] of interface pointer map",
+					this->get_location(instr.ast_new.args[0].value)
+				);
+				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+
+				if(instr.ast_new.args[0].label.has_value()){
+					this->emit_error(
+						"No matching operator [new] overload for this type",
+						instr.ast_new.type,
+						Diagnostic::Info("No operator [new] of interface pointer map accepts arguments with labels")
+					);
+				}
+
+				if(interface_ptr_map.isMut && arg.is_mutable() == false){
+					this->emit_error(
+						"Argument in operator [new] of mutable interface pointer map must be mutable",
+						this->get_location(instr.ast_new.args[0].value)
+					);
+					return Result::ERROR;
+				}
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+						return arg.getExpr();
+						
+					}else{
+						evo::debugAssert(
+							interface_ptr_map.underlyingTypeID.is<BaseType::InterfaceMap::ID>(),
+							"Can't initialize deducer"
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(arg.getExpr()));
+					}
+				}();
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type_id.asTypeID(),
+					output_expr
+				);
+				return Result::SUCCESS;
+			} break;
+
 			default: {
 				this->emit_error("Invalid type for operator [new]", instr.ast_new.type);
 				return Result::ERROR;
@@ -17903,7 +18076,7 @@ namespace pcit::panther{
 			case BaseType::Kind::TYPE_DEDUCER:
 			case BaseType::Kind::INTERFACE:
 			case BaseType::Kind::POLY_INTERFACE_REF:
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
 				evo::debugFatalBreak("Not default-initializable");
 			} break;
 		}
@@ -19907,7 +20080,7 @@ namespace pcit::panther{
 
 
 		{
-			const std::optional<Result> as_interface_map_res = this->operator_as_check_interface_map(
+			const std::optional<Result> as_interface_map_res = this->operator_as_check_interface_map<IS_COMPTIME>(
 				expr, expr.type_id.as<TypeInfo::ID>(), target_type.asTypeID(), instr.output, instr.infix
 			);
 
@@ -20888,8 +21061,10 @@ namespace pcit::panther{
 		}
 	}
 
+
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::operator_as_check_interface_map(
-		const TermInfo& from_expr,
+		TermInfo& from_expr,
 		const TypeInfo::ID from_type_id,
 		const TypeInfo::ID to_type_id,
 		SymbolProc::TermInfoID output_id,
@@ -20993,8 +21168,6 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: evo::debugFatalBreak("Invalid operator [as] target");
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& target_interface_map = 
 					this->context.getTypeManager().getInterfaceMap(decayed_to_type.baseTypeID().interfaceMapID());
@@ -21019,6 +21192,66 @@ namespace pcit::panther{
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					from_expr.getExpr()
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& target_interface_ptr_map = 
+					this->context.getTypeManager().getInterfacePtrMap(decayed_to_type.baseTypeID().interfacePtrMapID());
+
+				const TypeInfo::ID expected_type = this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(target_interface_ptr_map.underlyingTypeIDasBaseTypeID())
+				);
+
+				TypeCheckInfo type_check_info = this->type_check<true, false, IS_COMPTIME>(
+					this->context.getTypeManager().getOrCreateTypeInfo(
+						TypeInfo(target_interface_ptr_map.underlyingTypeIDasBaseTypeID())
+					),
+					from_expr,
+					"",
+					Diagnostic::Location::NONE
+				);
+				if(type_check_info.ok == false){
+					const Result special_result = type_check_info.extractSpecialResultForReturning();
+
+					if(special_result != Result::ERROR){ return special_result; }
+
+					this->emit_error(
+						"LHS of operator [as] cannot be converted to target interface pointer map "
+							"as it cannot be converted to the target underlying type",
+						ast_infix
+					);
+					return Result::ERROR;
+				}
+
+				if(target_interface_ptr_map.isMut && from_expr.is_mutable() == false){
+					this->emit_error(
+						"Argument in operator [new] of mutable interface pointer map must be mutable", ast_infix.lhs
+					);
+					return Result::ERROR;
+				}
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(target_interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+						return from_expr.getExpr();
+						
+					}else{
+						evo::debugAssert(
+							target_interface_ptr_map.underlyingTypeID.is<BaseType::InterfaceMap::ID>(),
+							"Can't convert to deducer"
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(from_expr.getExpr()));
+					}
+				}();
+
+				this->return_term_info(output_id,
+					TermInfo::ValueCategory::EPHEMERAL,
+					from_expr.isComptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					to_type_id,
+					sema::Expr(output_expr)
 				);
 				return Result::SUCCESS;
 			} break;
@@ -22377,14 +22610,20 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
-				return this->interface_accessor<IS_COMPTIME>(
-					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, true
+				return this->interface_accessor<IS_COMPTIME, InterfaceMapKind::POLY>(
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type
 				);
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
-				return this->interface_accessor<IS_COMPTIME>(
-					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type, false
+				return this->interface_accessor<IS_COMPTIME, InterfaceMapKind::MAP>(
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type
+				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				return this->interface_accessor<IS_COMPTIME, InterfaceMapKind::PTR_MAP>(
+					instr, rhs_ident_str, lhs, decayed_lhs_type_id, decayed_lhs_type
 				);
 			} break;
 
@@ -23062,29 +23301,21 @@ namespace pcit::panther{
 		}();
 
 
-		if(instr.base_type.has_value() == false){
-			if(interface_is_deducer == false && got_interface->isPolymorphic == false){
-				this->emit_error(
-					"Target interface of polymorphic interface map deducer must be a polymorphic interface",
-					instr.interface_map.interface
-				);
-				return Result::ERROR;
-			}
+
+		return instr.interface_map.underlyingType.visit([&](const auto& ast_underlying_type) -> Result {
+			using ASTUnderlyingType = std::decay_t<decltype(ast_underlying_type)>;
+
+			if constexpr(std::is_same<ASTUnderlyingType, AST::InterfaceMap::Polymorphic>()){
+				if(interface_is_deducer == false && got_interface->isPolymorphic == false){
+					this->emit_error(
+						"Target interface of polymorphic interface map deducer must be a polymorphic interface",
+						instr.interface_map.interface
+					);
+					return Result::ERROR;
+				}
 
 
-			if(instr.interface_map.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){
-				const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreatePolyDeducerInterfaceRef(
-					BaseType::PolyDeducerInterfaceRef(got_interface_type.baseTypeID().interfaceID())
-				);
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::TYPE,
-					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
-				);
-				return Result::SUCCESS;
-
-			}else{
-				const bool is_mut = instr.interface_map.underlyingType.as<AST::InterfaceMap::Ptr>().isMut;
+				const bool is_mut = instr.interface_map.underlyingType.as<AST::InterfaceMap::Polymorphic>().isMut;
 
 				using InterfaceMapTargetInterfaceID = evo::Variant<BaseType::Interface::ID, BaseType::TypeDeducer::ID>;
 				const InterfaceMapTargetInterfaceID interface_map_target_interface_id =
@@ -23106,63 +23337,184 @@ namespace pcit::panther{
 					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
 				);
 				return Result::SUCCESS;
-			}
-		}
 
+			}else if constexpr(std::is_same<ASTUnderlyingType, AST::InterfaceMap::Ptr>()){
+				const TypeInfo::VoidableID underlying_type_id = 
+					this->context.getTypeManager().decayVoidableType<false, false>(
+						this->get_type(*instr.underlying_type)
+					);
 
-		
-		const TypeInfo::VoidableID base_type_id = this->get_type(*instr.base_type);
-
-		if(base_type_id.isVoid()){
-			this->emit_error("Base type of interface map doesn't implement the target interface", instr.interface_map);
-			return Result::ERROR;
-		}
-
-
-		const bool base_type_is_deducer = this->context.getTypeManager().isTypeDeducer(base_type_id.asTypeID());
-		const bool type_is_deducer = interface_is_deducer || base_type_is_deducer;
-
-		if(type_is_deducer){
-			// do nothing
-
-		}else{
-			const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
-				*got_interface, base_type_id.asTypeID(), this->get_location(instr.interface_map)
-			);
-
-			if(implements_result.has_value()){
-				if(implements_result.value() == false){
+				if(underlying_type_id.isVoid()){
 					this->emit_error(
-						"Base type of interface map doesn't implement the target interface", instr.interface_map
+						"Underlying type of interface pointer map cannot be `Void`", ast_underlying_type.underlyingType
 					);
 					return Result::ERROR;
 				}
+
+				const TypeInfo& underlying_type =
+					this->context.getTypeManager().getTypeInfo(underlying_type_id.asTypeID());
+
+				if(underlying_type.qualifiers().empty() == false){
+					this->emit_error(
+						"Underlying type of interface pointer map cannot have qualifiers",
+						ast_underlying_type.underlyingType
+					);
+					return Result::ERROR;
+				}
+
+
+				const bool underlying_type_is_deducer =
+					this->context.getTypeManager().isTypeDeducer(underlying_type_id.asTypeID());
+				const bool type_is_deducer = interface_is_deducer || underlying_type_is_deducer;
+
+
+				auto output_underlying_type_id = std::optional<
+					evo::Variant<BaseType::PolyInterfaceRef::ID, BaseType::InterfaceMap::ID, BaseType::TypeDeducer::ID>
+				>();
+
+				auto underlying_interface_id = std::optional<BaseType::Interface::ID>();
+
+				switch(underlying_type.baseTypeID().kind()){
+					case BaseType::Kind::POLY_INTERFACE_REF: {
+						if(underlying_type_is_deducer == false){
+							underlying_interface_id = this->context.getTypeManager().getPolyInterfaceRef(
+								underlying_type.baseTypeID().polyInterfaceRefID()
+							).interfaceID.as<BaseType::Interface::ID>();
+						}
+
+						output_underlying_type_id = underlying_type.baseTypeID().polyInterfaceRefID();
+					} break;
+
+					case BaseType::Kind::INTERFACE_MAP: {
+						if(underlying_type_is_deducer == false){
+							underlying_interface_id = this->context.getTypeManager().getInterfaceMap(
+								underlying_type.baseTypeID().interfaceMapID()
+							).interfaceID.as<BaseType::Interface::ID>();
+						}
+
+						output_underlying_type_id = underlying_type.baseTypeID().interfaceMapID();
+					} break;
+
+					case BaseType::Kind::TYPE_DEDUCER: {
+						output_underlying_type_id = underlying_type.baseTypeID().typeDeducerID();
+					} break;
+
+					default: {
+						this->emit_error(
+							"Invalid underlying type for interface pointer map", ast_underlying_type.underlyingType
+						);
+						return Result::ERROR;
+					} break;
+				}
+
+
+
+				if(type_is_deducer == false){
+					if(*underlying_interface_id != got_interface_type.baseTypeID().interfaceID()){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(
+							got_interface_type_id,
+							infos,
+							"Expected interface type:      "
+						);
+						this->diagnostic_print_type_info(
+							this->context.getTypeManager().getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(*underlying_interface_id))
+							),
+							infos,
+							"Interface of underlying type: "
+						);
+
+						this->emit_error(
+							"Interfaces of underlying type for interface pointer map doesn't match interface "
+								"pointer map type",
+							ast_underlying_type.underlyingType,
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+				}
+
+
+				const auto output_interface_id = 
+					[&]() -> evo::Variant<BaseType::Interface::ID, BaseType::TypeDeducer::ID> {
+						if(interface_is_deducer){
+							return got_interface_type.baseTypeID().typeDeducerID();
+						}else{
+							return got_interface_type.baseTypeID().interfaceID();
+						}
+					}();
+
+				const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreateInterfacePtrMap(
+					BaseType::InterfacePtrMap(
+						*output_underlying_type_id, output_interface_id, ast_underlying_type.isMut
+					)
+				);
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE,
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
+				);
+				return Result::SUCCESS;
+
+			}else if constexpr(std::is_same<ASTUnderlyingType, AST::Node>()){
+				const TypeInfo::VoidableID underlying_type_id = this->get_type(*instr.underlying_type);
+
+				if(underlying_type_id.isVoid()){
+					this->emit_error("Underlying type of interface map cannot be `Void`", instr.interface_map);
+					return Result::ERROR;
+				}
+
+
+				const bool underlying_type_is_deducer =
+					this->context.getTypeManager().isTypeDeducer(underlying_type_id.asTypeID());
+				const bool type_is_deducer = interface_is_deducer || underlying_type_is_deducer;
+
+				if(type_is_deducer == false){
+					const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+						*got_interface, underlying_type_id.asTypeID(), this->get_location(instr.interface_map)
+					);
+
+					if(implements_result.has_value()){
+						if(implements_result.value() == false){
+							this->emit_error(
+								"Underlying type of interface map doesn't implement the target interface",
+								instr.interface_map
+							);
+							return Result::ERROR;
+						}
+					}else{
+						return implements_result.error();
+					}
+				}
+
+
+				using InterfaceMapTargetInterfaceID = evo::Variant<BaseType::Interface::ID, BaseType::TypeDeducer::ID>;
+				const InterfaceMapTargetInterfaceID interface_map_target_interface_id =
+					[&]() -> InterfaceMapTargetInterfaceID {
+						if(interface_is_deducer){
+							return got_interface_type.baseTypeID().typeDeducerID();
+
+						}else{
+							return got_interface_type.baseTypeID().interfaceID();
+						}
+					}();
+
+				const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreateInterfaceMap(
+					BaseType::InterfaceMap(underlying_type_id.asTypeID(), interface_map_target_interface_id)
+				);
+				
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::TYPE,
+					TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
+				);
+				return Result::SUCCESS;
+
 			}else{
-				return implements_result.error();
+				static_assert(false, "Unsupported interface map type");
 			}
-		}
-
-
-		using InterfaceMapTargetInterfaceID = evo::Variant<BaseType::Interface::ID, BaseType::TypeDeducer::ID>;
-		const InterfaceMapTargetInterfaceID interface_map_target_interface_id = [&]() -> InterfaceMapTargetInterfaceID {
-			if(interface_is_deducer){
-				return got_interface_type.baseTypeID().typeDeducerID();
-
-			}else{
-				return got_interface_type.baseTypeID().interfaceID();
-			}
-		}();
-
-		const BaseType::ID created_base_type_id = this->context.type_manager.getOrCreateInterfaceMap(
-			BaseType::InterfaceMap(base_type_id.asTypeID(), interface_map_target_interface_id)
-		);
-		
-
-		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::TYPE,
-			TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_base_type_id)))
-		);
-		return Result::SUCCESS;
+		});
 	}
 
 
@@ -24315,41 +24667,66 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME>
+	template<bool IS_COMPTIME, SemanticAnalyzer::InterfaceMapKind INTERFACE_MAP_KIND>
 	auto SemanticAnalyzer::interface_accessor(
 		const Instruction::Accessor<IS_COMPTIME>& instr,
 		std::string_view rhs_ident_str,
 		const TermInfo& lhs,
 		TypeInfo::ID decayed_lhs_type_id,
-		const TypeInfo& decayed_lhs_type,
-		bool is_ref
+		const TypeInfo& decayed_lhs_type
 	) -> Result {
 		auto impl_instantiation_type_id = std::optional<TypeInfo::ID>();
-
-		bool ref_is_mut = false; // only needed if `is_ref`
+		bool is_mut = false;
+		bool is_polymorphic = false;
 
 		const BaseType::Interface& target_interface = [&]() -> const BaseType::Interface& {
-			if(is_ref){
+			if constexpr(INTERFACE_MAP_KIND == InterfaceMapKind::POLY){
 				const BaseType::PolyInterfaceRef& poly_interface_ref = 
 					this->context.getTypeManager().getPolyInterfaceRef(
 						decayed_lhs_type.baseTypeID().polyInterfaceRefID()
 					);
 
-				ref_is_mut = poly_interface_ref.isMut;
+				is_mut = poly_interface_ref.isMut;
+				is_polymorphic = true;
 
 				return this->context.getTypeManager().getInterface(
 					poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
 				);
 
-			}else{
+			}else if constexpr(INTERFACE_MAP_KIND == InterfaceMapKind::MAP){
 				const BaseType::InterfaceMap& interface_map = 
 					this->context.getTypeManager().getInterfaceMap(decayed_lhs_type.baseTypeID().interfaceMapID());
 
 				impl_instantiation_type_id = interface_map.underlyingTypeID;
+				is_mut = lhs.is_mutable();
 
 				return this->context.getTypeManager().getInterface(
 					interface_map.interfaceID.as<BaseType::Interface::ID>()
 				);
+
+			}else if constexpr(INTERFACE_MAP_KIND == InterfaceMapKind::PTR_MAP){
+				const BaseType::InterfacePtrMap& interface_ptr_map = 
+					this->context.getTypeManager().getInterfacePtrMap(
+						decayed_lhs_type.baseTypeID().interfacePtrMapID()
+					);
+
+				is_mut = interface_ptr_map.isMut;
+				is_polymorphic = interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>();
+
+				if(is_polymorphic == false){
+					const BaseType::InterfaceMap& interface_map = this->context.getTypeManager().getInterfaceMap(
+						interface_ptr_map.underlyingTypeID.as<BaseType::InterfaceMap::ID>()
+					);
+
+					impl_instantiation_type_id = interface_map.underlyingTypeID;
+				}
+
+				return this->context.getTypeManager().getInterface(
+					interface_ptr_map.interfaceID.as<BaseType::Interface::ID>()
+				);
+				
+			}else{
+				static_assert(false, "Unknown interface map kind");
 			}
 		}();
 
@@ -24377,7 +24754,8 @@ namespace pcit::panther{
 		}
 
 
-		if(is_ref){
+
+		if(is_polymorphic){
 			auto methods = TermInfo::FuncOverloadList();
 			for(const sema::Func::ID method_id : target_interface.methods){
 				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
@@ -24395,7 +24773,7 @@ namespace pcit::panther{
 
 
 			const sema::FakeTermInfo::ValueCategory value_category = [&](){
-				if(ref_is_mut){
+				if(is_mut){
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
 				}else{
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
@@ -24477,6 +24855,16 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
+
+			const sema::FakeTermInfo::ValueCategory value_category = [&]() -> sema::FakeTermInfo::ValueCategory {
+				if(is_mut){
+					// TODO(FUTURE): need to check if lhs is `EPHEMERAL` when `InterfaceMap`?
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+				}else{
+					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
+				}
+			}();
+
 			const TypeInfo::ID this_type_id = [&](){
 				if(decayed_lhs_type.qualifiers().empty()){
 					return decayed_lhs_type_id;
@@ -24487,14 +24875,19 @@ namespace pcit::panther{
 
 			const sema::Expr this_expr = [&](){
 				if(decayed_lhs_type.qualifiers().empty()){
-					return lhs.getExpr();
+					if constexpr(INTERFACE_MAP_KIND == InterfaceMapKind::PTR_MAP){
+						return sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), this_type_id));	
+					}else{
+						return lhs.getExpr();
+					}
+
 				}else{
 					return sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), this_type_id));
 				}
 			}();
 
 			const sema::FakeTermInfo::ID method_this = this->context.sema_buffer.createFakeTermInfo(
-				TermInfo::convertValueCategory(lhs.value_category),
+				value_category,
 				TermInfo::convertValueState(lhs.value_state),
 				this_type_id,
 				this_expr,
@@ -26384,10 +26777,6 @@ namespace pcit::panther{
 				return evo::Result<>();
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				evo::debugFatalBreak("Not a valid type to for value");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map = 
 					this->context.getTypeManager().getInterfaceMap(type_info.baseTypeID().interfaceMapID());
@@ -26395,6 +26784,11 @@ namespace pcit::panther{
 				return this->get_special_member_call_dependents<SPECIAL_MEMBER_KIND, CHECK_VALIDITY>(
 					interface_map.underlyingTypeID, value_category, dependent_funcs, location
 				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				// trivial
+				return evo::Result<>();
 			} break;
 		}
 
@@ -28517,8 +28911,8 @@ namespace pcit::panther{
 				case BaseType::Kind::TYPE_DEDUCER:               evo::debugFatalBreak("Shouldn't be possible");
 				case BaseType::Kind::INTERFACE:                  break;
 				case BaseType::Kind::POLY_INTERFACE_REF:         break;
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: evo::debugFatalBreak("Shouldn't be possible");
 				case BaseType::Kind::INTERFACE_MAP:              break;
+				case BaseType::Kind::INTERFACE_PTR_MAP:          break;
 			}
 		}
 
@@ -28913,60 +29307,9 @@ namespace pcit::panther{
 							}();
 
 							if(param_is_not_this){
-								const bool is_valid_mut_poly_impl_conversion = [&]() -> bool {
-									const TypeInfo::ID param_type_id = func_info.func_type.params[arg_i].typeID;
-									const TypeInfo& param_type =
-										this->context.getTypeManager().getTypeInfo(param_type_id);
-
-									if(param_type.qualifiers().empty() == false){ return false; }
-									if(param_type.baseTypeID().kind() != BaseType::Kind::POLY_INTERFACE_REF){
-										return false;
-									}
-
-									const BaseType::PolyInterfaceRef& param_poly_interface_ref_type = 
-										this->context.getTypeManager().getPolyInterfaceRef(
-											param_type.baseTypeID().polyInterfaceRefID()
-										);
-
-									if(param_poly_interface_ref_type.isMut == false){ return false; }
-
-
-									if(func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>() == false){
-										return false;
-									}
-
-									const sema::TemplatedFunc::InstantiationInfo& instantiation_info = 
-										func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
-
-									const SymbolProc::ID instantiation_symbol_proc_id = 
-										*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
-
-									const SymbolProc& instantiation_symbol_proc = 
-										this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
-
-									const Source& source =
-										this->context.getSourceManager()[instantiation_symbol_proc.getSourceID()];
-
-									const AST::FuncDef& instantiation_ast_func =
-										source.getASTBuffer().getFuncDef(instantiation_symbol_proc.getASTNode());
-
-									const AST::FuncDef::Param& ast_param = instantiation_ast_func.params[
-										std::min(arg_i, instantiation_ast_func.params.size())
-									];
-
-									const AST::Type& ast_param_type = source.getASTBuffer().getType(*ast_param.type);
-									const AST::InterfaceMap& ast_param_interface_map_type =
-										source.getASTBuffer().getInterfaceMap(ast_param_type.base);
-
-									return ast_param_interface_map_type.underlyingType
-										.is<AST::InterfaceMap::PtrDeducer>();
-								}();
-
-								if(is_valid_mut_poly_impl_conversion == false){
-									scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
-									arg_checking_failed = true;
-									break;
-								}
+								scores.emplace_back(OverloadScore::ValueKindMismatch(arg_i));
+								arg_checking_failed = true;
+								break;
 							}
 						}
 
@@ -29646,13 +29989,21 @@ namespace pcit::panther{
 				const TypeInfo& method_this_type_info = 
 					this->context.getTypeManager().getTypeInfo(method_this_term_info->type_id.as<TypeInfo::ID>());
 
-				const BaseType::PolyInterfaceRef& poly_interface_ref =
-					this->context.getTypeManager().getPolyInterfaceRef(
-						method_this_type_info.baseTypeID().polyInterfaceRefID()
-					);
+
+				const BaseType::Interface::ID target_interface_id = [&]() -> BaseType::Interface::ID {
+					if(method_this_type_info.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF){
+						return this->context.getTypeManager().getPolyInterfaceRef(
+							method_this_type_info.baseTypeID().polyInterfaceRefID()
+						).interfaceID.as<BaseType::Interface::ID>();
+					}else{
+						return this->context.getTypeManager().getInterfacePtrMap(
+							method_this_type_info.baseTypeID().interfacePtrMapID()
+						).interfaceID.as<BaseType::Interface::ID>();
+					}
+				}();
 
 				method_this_term_info->type_id = this->context.type_manager.getOrCreateTypeInfo(
-					TypeInfo(BaseType::ID(poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()))
+					TypeInfo(BaseType::ID(target_interface_id))
 				);
 			} break;
 
@@ -31722,15 +32073,47 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				evo::debugFatalBreak("Function cannot return a polymoprhic deducer interface reference");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info =
 					this->context.getTypeManager().getInterfaceMap(target_type.baseTypeID().interfaceMapID());
 
 				return this->generic_value_to_sema_expr(value, interface_map_info.underlyingTypeID, location);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& interface_ptr_map_info =
+					this->context.getTypeManager().getInterfacePtrMap(target_type.baseTypeID().interfacePtrMapID());
+
+				if(interface_ptr_map_info.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+					return this->generic_value_to_sema_expr(
+						value,
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							TypeInfo(
+								BaseType::ID(
+									interface_ptr_map_info.underlyingTypeID.as<BaseType::PolyInterfaceRef::ID>()
+								)
+							)
+						),
+						location
+					);
+
+				}else{
+					const BaseType::InterfaceMap& interface_map_info = this->context.getTypeManager().getInterfaceMap(
+						interface_ptr_map_info.underlyingTypeID.as<BaseType::InterfaceMap::ID>()
+					);
+
+					return this->generic_value_to_sema_expr(
+						value,
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							this->context.getTypeManager().getTypeInfo(
+								interface_map_info.underlyingTypeID
+							).copyWithPushedQualifier(
+								TypeInfo::Qualifier(true, interface_ptr_map_info.isMut, false, false)
+							)
+						),
+						location
+					);
+				}
 			} break;
 		}
 
@@ -32806,57 +33189,6 @@ namespace pcit::panther{
 				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				const evo::Result<bool> qualifiers_check_result =
-					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
-				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
-
-
-				const BaseType::PolyDeducerInterfaceRef& deducer_poly_deducer_interface_ref = 
-					this->context.getTypeManager().getPolyDeducerInterfaceRef(
-						deducer.baseTypeID().polyDeducerInterfaceRefID()
-					);
-
-
-				switch(got_type.baseTypeID().kind()){
-					case BaseType::Kind::INTERFACE_MAP: {
-						const BaseType::InterfaceMap& got_interface_map = 
-							this->context.getTypeManager().getInterfaceMap(
-								got_type.baseTypeID().interfaceMapID()
-							);
-
-						if( // THIS IS NOT CORRECT CODE, BUT THIS IS GETTING REPLACED SOON
-							deducer_poly_deducer_interface_ref.interfaceID
-								!= got_interface_map.interfaceID.as<BaseType::Interface::ID>()
-						){
-							return evo::resultError;
-						}
-
-						return DeducerMatchOutput(std::move(deduced_terms), got_type_id, false);
-					} break;
-
-					case BaseType::Kind::POLY_INTERFACE_REF: {
-						const BaseType::PolyInterfaceRef& got_poly_interface_ref_type = 
-							this->context.getTypeManager().getPolyInterfaceRef(
-								got_type.baseTypeID().polyInterfaceRefID()
-							);
-
-						if( // THIS IS NOT CORRECT CODE, BUT THIS IS GETTING REPLACED SOON
-							deducer_poly_deducer_interface_ref.interfaceID
-								!= got_poly_interface_ref_type.interfaceID.as<BaseType::Interface::ID>()
-						){
-							return evo::resultError;
-						}
-
-						return DeducerMatchOutput(std::move(deduced_terms), got_type_id, false);
-					} break;
-
-					default: {
-						return evo::resultError;
-					} break;
-				}
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const evo::Result<bool> qualifiers_check_result =
 					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
@@ -32930,6 +33262,104 @@ namespace pcit::panther{
 							)
 						)
 					);
+				}
+
+				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const evo::Result<bool> qualifiers_check_result =
+					this->type_qualifiers_check(deducer.qualifiers(), got_type.qualifiers());
+				if(qualifiers_check_result.isError() || qualifiers_check_result.value()){ return evo::resultError; }
+
+				const BaseType::InterfacePtrMap& deducer_interface_ptr_map = 
+					this->context.getTypeManager().getInterfacePtrMap(deducer.baseTypeID().interfacePtrMapID());
+
+				bool requires_implicit_conversion = false;
+				TypeInfo::ID output_type_id = got_type_id;
+				
+				switch(got_type.baseTypeID().kind()){
+					case BaseType::Kind::POLY_INTERFACE_REF: {
+						// TODO(FUTURE): 
+						return evo::resultError;
+					} break;
+
+					case BaseType::Kind::INTERFACE_MAP: {
+						// TODO(FUTURE): 
+						return evo::resultError;
+					} break;
+
+					case BaseType::Kind::INTERFACE_PTR_MAP: {
+						const BaseType::InterfacePtrMap& got_interface_ptr_map = 
+							this->context.getTypeManager().getInterfacePtrMap(deducer.baseTypeID().interfacePtrMapID());
+
+						{ // underlying type
+							DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+								this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(deducer_interface_ptr_map.underlyingTypeIDasBaseTypeID())
+								),
+								this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(got_interface_ptr_map.underlyingTypeIDasBaseTypeID())
+								)
+							);
+
+							switch(deducer_match_output.outcome()){
+								case DeducerMatchOutput::Outcome::MATCH:    break;
+
+								case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+									requires_implicit_conversion = true;
+									break;
+
+								case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+								case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
+							}
+
+							deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						}
+
+						{ // interface
+							DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+								this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(deducer_interface_ptr_map.interfaceIDasBaseTypeID())
+								),
+								this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(got_interface_ptr_map.interfaceIDasBaseTypeID())
+								)
+							);
+
+							switch(deducer_match_output.outcome()){
+								case DeducerMatchOutput::Outcome::MATCH:    break;
+
+								case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+									requires_implicit_conversion = true;
+									break;
+
+								case DeducerMatchOutput::Outcome::NO_MATCH: return evo::resultError;
+								case DeducerMatchOutput::Outcome::RESULT:   return deducer_match_output.result();
+							}
+
+							deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						}
+
+						if(deducer_interface_ptr_map.isMut && got_interface_ptr_map.isMut == false){
+							return evo::resultError;
+						}
+
+						if(requires_implicit_conversion){
+							output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(
+									got_type.baseTypeID(),
+									evo::SmallVector<TypeInfo::Qualifier>(
+										deducer.qualifiers().begin(), deducer.qualifiers().end()
+									)
+								)
+							);
+						}
+					} break;
+
+					default: {
+						return evo::resultError;
+					} break;
 				}
 
 				return DeducerMatchOutput(std::move(deduced_terms), output_type_id, requires_implicit_conversion);
@@ -37818,17 +38248,26 @@ namespace pcit::panther{
 				case AST::Kind::INTERFACE_MAP: {
 					const AST::InterfaceMap& interface_map_type =
 						source.getASTBuffer().getInterfaceMap(deducer_info.node);
-					if(interface_map_type.underlyingType.is<AST::InterfaceMap::Ptr>()){ break; }
 
-					if(interface_map_type.underlyingType.is<AST::InterfaceMap::PtrDeducer>()){
-						deducer_count += 1;
-						deducer_depth_count += deducer_info.depth + 1;
-						break;
-					}
 
-					deducer_info_queue.emplace(
-						interface_map_type.underlyingType.as<AST::Node>(), deducer_info.depth + 1
-					);
+					interface_map_type.underlyingType.visit([&](const auto& underlying_type) -> void {
+						using UnderlyingTypeType = std::decay_t<decltype(underlying_type)>;
+					
+						if constexpr(std::is_same<UnderlyingTypeType, AST::InterfaceMap::Polymorphic>()){
+							// do nothing
+							
+						}else if constexpr(std::is_same<UnderlyingTypeType, AST::InterfaceMap::Ptr>()){
+							deducer_info_queue.emplace(underlying_type.underlyingType, deducer_info.depth + 1);
+
+						}else if constexpr(std::is_same<UnderlyingTypeType, AST::Node>()){
+							deducer_info_queue.emplace(underlying_type, deducer_info.depth + 1);
+					
+						}else{
+							static_assert(false, "Unknown underlying type");
+						}
+					});
+
+					deducer_info_queue.emplace(interface_map_type.interface, deducer_info.depth + 1);
 				} break;
 
 				default: break;

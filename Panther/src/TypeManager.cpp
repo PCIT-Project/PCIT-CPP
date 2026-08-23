@@ -1097,33 +1097,38 @@ namespace pcit::panther{
 					"impl({}:{})",
 					poly_interface_ref_info.isMut ? "*mut" : "*",
 					this->printType(
-						poly_interface_ref_info.interfaceID.visit([&](const auto& id){ return BaseType::ID(id); }),
+						poly_interface_ref_info.interfaceIDasBaseTypeID(),
 						context
 					)
 				);
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				const BaseType::PolyDeducerInterfaceRef::ID poly_deducer_interface_ref_id =
-					base_type_id.polyDeducerInterfaceRefID();
-				const BaseType::PolyDeducerInterfaceRef& poly_deducer_interface_ref_info =
-					this->getPolyDeducerInterfaceRef(poly_deducer_interface_ref_id);
-					
-				return std::format(
-					"impl($*:{})",
-					this->printType(BaseType::ID(poly_deducer_interface_ref_info.interfaceID), context)
-				);
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(base_type_id.interfaceMapID());
-
 				
 				return std::format(
 					"impl({}:{})",
 					this->printType(interface_map_info.underlyingTypeID, context),
 					this->printType(
-						interface_map_info.interfaceID.visit([&](const auto& id){ return BaseType::ID(id); }), context
+						interface_map_info.interfaceIDasBaseTypeID(), context
+					)
+				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& interface_ptr_map_info =
+					this->getInterfacePtrMap(base_type_id.interfacePtrMapID());
+
+				return std::format(
+					"impl{}({}:{})",
+					interface_ptr_map_info.isMut ? "*mut" : "*",
+					this->printType(
+						interface_ptr_map_info.underlyingTypeIDasBaseTypeID(),
+						context
+					),
+					this->printType(
+						interface_ptr_map_info.interfaceIDasBaseTypeID(),
+						context
 					)
 				);
 			} break;
@@ -1589,6 +1594,8 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Invalid to check with this type");
+
 				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 					return false;
 				}else{
@@ -1597,6 +1604,8 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Invalid to check with this type");
+
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 
 				return this->special_member_prop_check<SPECIAL_MEMBER, SPECIAL_MEMBER_PROP>(
@@ -1604,10 +1613,19 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Invalid to check with this type");
+
+				if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
+					return false;
+				}else{
+					return true;
+				}
+			} break;
+
 			case BaseType::Kind::ARRAY_DEDUCER:   case BaseType::Kind::ARRAY_REF_DEDUCER:
 			case BaseType::Kind::STRUCT_TEMPLATE: case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE:
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+			case BaseType::Kind::TYPE_DEDUCER:    case BaseType::Kind::INTERFACE: {
 				evo::debugFatalBreak("Invalid to check with this type");
 			} break;
 		}
@@ -2190,33 +2208,6 @@ namespace pcit::panther{
 
 
 
-	//////////////////////////////////////////////////////////////////////
-	// poly deducer interface ref
-
-	auto TypeManager::getPolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef::ID id) const
-	-> const BaseType::PolyDeducerInterfaceRef& {
-		const auto lock = std::scoped_lock(this->poly_deducer_interface_refs_lock);
-		return this->poly_deducer_interface_refs[id];
-	}
-
-
-	auto TypeManager::getOrCreatePolyDeducerInterfaceRef(BaseType::PolyDeducerInterfaceRef&& lookup_type)
-	-> BaseType::ID {
-		const auto lock = std::scoped_lock(this->poly_deducer_interface_refs_lock);
-
-		for(uint32_t i = 0; i < this->poly_deducer_interface_refs.size(); i+=1){
-			if(this->poly_deducer_interface_refs[BaseType::PolyDeducerInterfaceRef::ID(i)] == lookup_type){
-				return BaseType::ID(BaseType::Kind::POLY_DEDUCER_INTERFACE_REF, i);
-			}
-		}
-
-		const BaseType::PolyDeducerInterfaceRef::ID new_poly_deducer_interface_ref =
-			this->poly_deducer_interface_refs.emplace_back(std::move(lookup_type));
-		return BaseType::ID(BaseType::Kind::POLY_DEDUCER_INTERFACE_REF, new_poly_deducer_interface_ref.get());
-	}
-
-
-
 
 	//////////////////////////////////////////////////////////////////////
 	// interface map
@@ -2238,6 +2229,31 @@ namespace pcit::panther{
 
 		const BaseType::InterfaceMap::ID new_instantiation = this->interface_maps.emplace_back(std::move(lookup_type));
 		return BaseType::ID(BaseType::Kind::INTERFACE_MAP, new_instantiation.get());
+	}
+
+
+
+	//////////////////////////////////////////////////////////////////////
+	// interface pointer map
+
+	auto TypeManager::getInterfacePtrMap(BaseType::InterfacePtrMap::ID id) const -> const BaseType::InterfacePtrMap& {
+		const auto lock = std::scoped_lock(this->interface_ptr_maps_lock);
+		return this->interface_ptr_maps[id];
+	}
+
+
+	auto TypeManager::getOrCreateInterfacePtrMap(BaseType::InterfacePtrMap&& lookup_type)
+	-> BaseType::ID {
+		const auto lock = std::scoped_lock(this->interface_ptr_maps_lock);
+		for(uint32_t i = 0; i < this->interface_ptr_maps.size(); i+=1){
+			if(this->interface_ptr_maps[BaseType::InterfacePtrMap::ID(i)] == lookup_type){
+				return BaseType::ID(BaseType::Kind::INTERFACE_PTR_MAP, i);
+			}
+		}
+
+		const BaseType::InterfacePtrMap::ID new_instantiation =
+			this->interface_ptr_maps.emplace_back(std::move(lookup_type));
+		return BaseType::ID(BaseType::Kind::INTERFACE_PTR_MAP, new_instantiation.get());
 	}
 
 
@@ -2303,14 +2319,40 @@ namespace pcit::panther{
 				return poly_interface_ref_type.interfaceID.is<BaseType::TypeDeducer::ID>();
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				return true;
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_type = this->getInterfaceMap(id.interfaceMapID());
 				if(interface_map_type.interfaceID.is<BaseType::TypeDeducer::ID>()){ return true; }
 				return this->isTypeDeducer(interface_map_type.underlyingTypeID);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& interface_ptr_map_type =
+					this->getInterfacePtrMap(id.interfacePtrMapID());
+
+				const bool underlying_type_is_deducer = interface_ptr_map_type.underlyingTypeID.visit(
+					[&](const auto& underlying_type_id) -> bool {
+						using UnderlyingTypeIDType = std::decay_t<decltype(underlying_type_id)>;
+					
+						if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::PolyInterfaceRef::ID>()){
+							return this->isTypeDeducer(BaseType::ID(underlying_type_id));
+					
+						}else if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::InterfaceMap::ID>()){
+							return this->isTypeDeducer(BaseType::ID(underlying_type_id));
+
+						}else if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::TypeDeducer::ID>()){
+							return true;
+					
+						}else{
+							static_assert(false, "Unknown underlying type id");
+						}
+					}
+				);
+
+				if(underlying_type_is_deducer){
+					return true;
+				}
+
+				return interface_ptr_map_type.interfaceID.is<BaseType::TypeDeducer::ID>();
 			} break;
 
 			default: {
@@ -2560,17 +2602,30 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				return this->numBytesOfPtr() * 2;
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of polymorphic deducer interface ref");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->numBytes(interface_map_info.underlyingTypeID, true);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
+				const BaseType::InterfacePtrMap& interface_ptr_map_info =
+					this->getInterfacePtrMap(id.interfacePtrMapID());
+
+				if(interface_ptr_map_info.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+					return this->numBytesOfPtr() * 2;
+					
+				}else{
+					return this->numBytesOfPtr();
+				}
 			} break;
 		}
 
@@ -2743,17 +2798,30 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				return this->numBitsOfPtr() * 2;
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get size of polymorphic deducer interface ref");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->numBits(interface_map_info.underlyingTypeID, include_end_padding);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
+				const BaseType::InterfacePtrMap& interface_ptr_map_info =
+					this->getInterfacePtrMap(id.interfacePtrMapID());
+
+				if(interface_ptr_map_info.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+					return this->numBitsOfPtr() * 2;
+					
+				}else{
+					return this->numBitsOfPtr();
+				}
 			} break;
 		}
 
@@ -2985,17 +3053,22 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				return this->numBytesOfPtr();
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				// TODO(FUTURE): handle this better?
-				evo::debugFatalBreak("Cannot get alignment of polymorphic deducer interface ref");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->alignmentOf(interface_map_info.underlyingTypeID);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugAssert(this->isTypeDeducer(id) == false, "Cannot get size of type deducer");
+
+				return this->numBytesOfPtr();
 			} break;
 		}
 
@@ -3008,7 +3081,7 @@ namespace pcit::panther{
 	// maxAlignmentOfPrimitive
 
 	auto TypeManager::maxAlignmentOfPrimitive() const -> uint64_t {
-		return 16;
+		return this->getTarget().maxAlignmentOfPrimitive();
 	}
 
 
@@ -3017,46 +3090,12 @@ namespace pcit::panther{
 	// maxAtomicNumBytes
 
 	auto TypeManager::maxAtomicNumBytes() const -> uint64_t {
-		return 8;
-
-		// aarch64    = 16
-		// aarch64_be = 16
-		// arm        = 4
-		// armeb      = 4
-
-		// riscv32    = 4
-		// riscv64    = 8
-
-		// spirv32    = 8
-		// spirv64    = 8
-
-		// wasm32     = 4
-		// wasm64     = 8
-
-		// x86        = 4
-		// x86_64     = 8
+		return this->getTarget().maxAtomicNumBytes();
 	}
 
 
 	auto TypeManager::maxAtomicNumBits() const -> uint64_t {
-		return 8;
-
-		// aarch64    = 128
-		// aarch64_be = 128
-		// arm        = 32
-		// armeb      = 32
-
-		// riscv32    = 32
-		// riscv64    = 64
-
-		// spirv32    = 64
-		// spirv64    = 64
-
-		// wasm32     = 32
-		// wasm64     = 64
-
-		// x86        = 32
-		// x86_64     = 64
+		return this->getTarget().maxAtomicNumBits();
 	}
 
 
@@ -3615,17 +3654,21 @@ namespace pcit::panther{
 			case BaseType::Kind::TYPE_DEDUCER:       evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE:          evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::POLY_INTERFACE_REF: return this->getOrCreateTypeInfo(TypeInfo(id));
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: 
-				evo::debugFatalBreak("Cannot get underlying type of this kind");
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map_info = this->getInterfaceMap(id.interfaceMapID());
 				return this->getUnderlyingType(interface_map_info.underlyingTypeID);
+			} break;
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& interface_map_info = this->getInterfacePtrMap(id.interfacePtrMapID());
+				return this->getUnderlyingType(
+					interface_map_info.underlyingTypeIDasBaseTypeID()
+				);
 			} break;
 		}
 
 		const BaseType::Primitive& primitive = this->getPrimitive(id.primitiveID());
 		switch(primitive.kind()){
-			case Token::Kind::TYPE_INT:{
+			case Token::Kind::TYPE_INT: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(
 						this->getOrCreatePrimitiveBaseType(
@@ -3635,7 +3678,7 @@ namespace pcit::panther{
 				);
 			} break;
 
-			case Token::Kind::TYPE_ISIZE:{
+			case Token::Kind::TYPE_ISIZE: {
 				return this->getOrCreateTypeInfo(
 					TypeInfo(this->getOrCreatePrimitiveBaseType(
 						Token::Kind::TYPE_I_N, uint32_t(this->numBytesOfPtr()) * 8

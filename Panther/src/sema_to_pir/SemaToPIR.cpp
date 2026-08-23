@@ -1239,13 +1239,13 @@ namespace pcit::panther{
 						"PTHR.vtable.i{}.u{}", interface_id.get(), type_info.baseTypeID().unionID().get()
 					);
 
-				case BaseType::Kind::DUMMY:                      case BaseType::Kind::FUNCTION:
-				case BaseType::Kind::ARRAY_DEDUCER:              case BaseType::Kind::ARRAY_REF:
-				case BaseType::Kind::ARRAY_REF_DEDUCER:          case BaseType::Kind::ALIAS:
-				case BaseType::Kind::STRUCT_TEMPLATE:            case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
-				case BaseType::Kind::TYPE_DEDUCER:               case BaseType::Kind::ENUM:
-				case BaseType::Kind::INTERFACE:                  case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: case BaseType::Kind::INTERFACE_MAP: {
+				case BaseType::Kind::DUMMY:             case BaseType::Kind::FUNCTION:
+				case BaseType::Kind::ARRAY_DEDUCER:     case BaseType::Kind::ARRAY_REF:
+				case BaseType::Kind::ARRAY_REF_DEDUCER: case BaseType::Kind::ALIAS:
+				case BaseType::Kind::STRUCT_TEMPLATE:   case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:
+				case BaseType::Kind::TYPE_DEDUCER:      case BaseType::Kind::ENUM:
+				case BaseType::Kind::INTERFACE:         case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::INTERFACE_MAP:     case BaseType::Kind::INTERFACE_PTR_MAP: {
 					evo::debugFatalBreak("Not valid base type for VTable");
 				} break;
 			}
@@ -1301,10 +1301,12 @@ namespace pcit::panther{
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
 			if(func_type.attributes.isRuntime){
-				this->data.create_single_method_vtable(
-					Data::VTableID(interface_id, type_id),
-					this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
-				);
+				if(func_type.attributes.isComptime == false || sema_func.attributes.isRTDiff){
+					this->data.create_single_method_vtable(
+						Data::VTableID(interface_id, type_id),
+						this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
+					);
+				}
 			}
 
 			return;
@@ -7559,7 +7561,7 @@ namespace pcit::panther{
 				case BaseType::Kind::TYPE_DEDUCER: 
 				case BaseType::Kind::INTERFACE:
 				case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+				case BaseType::Kind::INTERFACE_PTR_MAP: {
 					evo::debugFatalBreak("Invalid generic value type");
 				} break;
 			}
@@ -8142,16 +8144,16 @@ namespace pcit::panther{
 			case BaseType::Kind::POLY_INTERFACE_REF: {
 				evo::debugFatalBreak("Invalid type to default initialize");
 			} break;
-
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				evo::debugFatalBreak("Invalid type to default initialize");
-			} break;
 			
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map =
 					this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
 
 				return this->default_new_expr<MODE>(interface_map.underlyingTypeID, is_initialization, store_locations);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugFatalBreak("Invalid type to default initialize");
 			} break;
 		}
 
@@ -8359,14 +8361,14 @@ namespace pcit::panther{
 				evo::debugFatalBreak("Not non-trivially-deletable");
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				evo::debugFatalBreak("Not non-trivially-deletable");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map =
 					this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
 				return this->delete_expr(expr, interface_map.underlyingTypeID);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				evo::debugFatalBreak("Not non-trivially-deletable");
 			} break;
 		}
 	}
@@ -8827,10 +8829,6 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-					evo::debugFatalBreak("Not non-trivially-copyable");
-				} break;
-
 				case BaseType::Kind::INTERFACE_MAP: {
 					const BaseType::InterfaceMap& interface_map =
 						this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
@@ -8841,6 +8839,10 @@ namespace pcit::panther{
 						is_initialization,
 						store_locations
 					);
+				} break;
+
+				case BaseType::Kind::INTERFACE_PTR_MAP: {
+					evo::debugFatalBreak("Not non-trivially-copyable");
 				} break;
 			}
 		}
@@ -9305,10 +9307,6 @@ namespace pcit::panther{
 					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-					evo::debugFatalBreak("Not non-trivially-movable");
-				} break;
-
 				case BaseType::Kind::INTERFACE_MAP: {
 					const BaseType::InterfaceMap& interface_map =
 						this->context.getTypeManager().getInterfaceMap(expr_type.baseTypeID().interfaceMapID());
@@ -9318,6 +9316,10 @@ namespace pcit::panther{
 						is_initialization,
 						store_locations
 					);
+				} break;
+
+				case BaseType::Kind::INTERFACE_PTR_MAP: {
+					evo::debugFatalBreak("Not non-trivially-movable");
 				} break;
 			}
 		}
@@ -10356,10 +10358,10 @@ namespace pcit::panther{
 					evo::debugFatalBreak("enum is trivially comparable");
 				} break;
 
-				case BaseType::Kind::ARRAY_DEDUCER:              case BaseType::Kind::STRUCT_TEMPLATE:
-				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER:    case BaseType::Kind::TYPE_DEDUCER:
-				case BaseType::Kind::INTERFACE:                  case BaseType::Kind::POLY_INTERFACE_REF:
-				case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: case BaseType::Kind::INTERFACE_MAP: {
+				case BaseType::Kind::ARRAY_DEDUCER:           case BaseType::Kind::STRUCT_TEMPLATE:
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: case BaseType::Kind::TYPE_DEDUCER:
+				case BaseType::Kind::INTERFACE:               case BaseType::Kind::POLY_INTERFACE_REF:
+				case BaseType::Kind::INTERFACE_MAP:           case BaseType::Kind::INTERFACE_PTR_MAP: {
 					evo::debugFatalBreak("Invalid type to compare");
 				} break;
 			}
@@ -12694,7 +12696,7 @@ namespace pcit::panther{
 					case BaseType::Kind::TYPE_DEDUCER:
 					case BaseType::Kind::INTERFACE:
 					case BaseType::Kind::POLY_INTERFACE_REF:
-					case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
+					case BaseType::Kind::INTERFACE_PTR_MAP: {
 						evo::debugFatalBreak("Not default-initializable");
 					} break;
 				}
@@ -13694,10 +13696,6 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case BaseType::Kind::POLY_DEDUCER_INTERFACE_REF: {
-				evo::debugFatalBreak("Cannot get type of polymorphic deducer interface reference");
-			} break;
-
 			case BaseType::Kind::INTERFACE_MAP: {
 				const BaseType::InterfaceMap& interface_map =
 					this->context.getTypeManager().getInterfaceMap(base_type_id.interfaceMapID());
@@ -13707,6 +13705,60 @@ namespace pcit::panther{
 						interface_map.underlyingTypeID
 					).baseTypeID()
 				);
+			} break;
+
+			case BaseType::Kind::INTERFACE_PTR_MAP: {
+				const BaseType::InterfacePtrMap& interface_ptr_map = 
+					this->context.getTypeManager().getInterfacePtrMap(base_type_id.interfacePtrMapID());
+
+				if(interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+					const Data::PIRType pir_type = this->data.getInterfacePtrType(this->module);
+
+					if constexpr(GET_META){
+						return PIRType(pir_type.pir_type, pir_type.meta_type_id);
+						
+					}else{
+						return PIRType(pir_type.pir_type, std::nullopt);
+					}
+
+				}else{
+					if constexpr(GET_META){
+						if(this->data.config.includeDebugInfo == false){
+							return PIRType(this->module.createPtrType(), std::nullopt);
+						}
+
+						std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
+
+						const TypeInfo::ID pointee_type_id = this->context.getTypeManager().getInterfaceMap(
+							interface_ptr_map.underlyingTypeID.as<BaseType::InterfaceMap::ID>()
+						).underlyingTypeID;
+
+						PIRType pointee_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, true>(pointee_type_id);
+
+						const pir::meta::QualifiedType::Qualifier qualifier =
+							[&]() -> pir::meta::QualifiedType::Qualifier {
+								if(interface_ptr_map.isMut){
+									return pir::meta::QualifiedType::Qualifier::MUT_POINTER;
+								}else{
+									return pir::meta::QualifiedType::Qualifier::POINTER;
+								}
+							}();
+
+						return PIRType(
+							this->module.createPtrType(),
+							this->data.get_or_create_meta_pointer_qualified_type(
+								type_id,
+								this->module,
+								std::move(type_name),
+								*pointee_pir_type.meta_type_id,
+								qualifier
+							)
+						);
+
+					}else{
+						return PIRType(this->module.createPtrType(), std::nullopt);
+					}
+				}
 			} break;
 		}
 

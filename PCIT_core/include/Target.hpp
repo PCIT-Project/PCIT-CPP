@@ -145,6 +145,62 @@ namespace pcit::core{
 			}
 			evo::unreachable();
 		}
+
+		[[nodiscard]] auto maxAlignmentOfPrimitive() const -> size_t {
+			return this->numBytesOfPtr() * 2;
+		}
+
+		[[nodiscard]] auto maxAtomicNumBytes() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 8;
+				break; case core::Target::Architecture::WASM32:     return 4;
+				break; case core::Target::Architecture::WASM64_P32: return 8;
+
+				// aarch64    = 16
+				// aarch64_be = 16
+				// arm        = 4
+				// armeb      = 4
+
+				// riscv32    = 4
+				// riscv64    = 8
+
+				// spirv32    = 8
+				// spirv64    = 8
+
+				// wasm32     = 4
+				// wasm64     = 8
+
+				// x86        = 4
+				// x86_64     = 8
+			}
+			evo::unreachable();
+		}
+
+		[[nodiscard]] auto maxAtomicNumBits() const -> size_t {
+			switch(this->architecture){
+				break; case core::Target::Architecture::X86_64:     return 64;
+				break; case core::Target::Architecture::WASM32:     return 32;
+				break; case core::Target::Architecture::WASM64_P32: return 64;
+
+				// aarch64    = 128
+				// aarch64_be = 128
+				// arm        = 32
+				// armeb      = 32
+
+				// riscv32    = 32
+				// riscv64    = 64
+
+				// spirv32    = 64
+				// spirv64    = 64
+
+				// wasm32     = 32
+				// wasm64     = 64
+
+				// x86        = 32
+				// x86_64     = 64
+			}
+			evo::unreachable();
+		}
 	};
 
 }
