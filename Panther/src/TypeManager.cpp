@@ -1122,14 +1122,8 @@ namespace pcit::panther{
 				return std::format(
 					"impl{}({}:{})",
 					interface_ptr_map_info.isMut ? "*mut" : "*",
-					this->printType(
-						interface_ptr_map_info.underlyingTypeIDasBaseTypeID(),
-						context
-					),
-					this->printType(
-						interface_ptr_map_info.interfaceIDasBaseTypeID(),
-						context
-					)
+					this->printType(interface_ptr_map_info.targetTypeID, context),
+					this->printType(interface_ptr_map_info.interfaceIDasBaseTypeID(), context)
 				);
 			} break;
 		}
@@ -2329,29 +2323,7 @@ namespace pcit::panther{
 				const BaseType::InterfacePtrMap& interface_ptr_map_type =
 					this->getInterfacePtrMap(id.interfacePtrMapID());
 
-				const bool underlying_type_is_deducer = interface_ptr_map_type.underlyingTypeID.visit(
-					[&](const auto& underlying_type_id) -> bool {
-						using UnderlyingTypeIDType = std::decay_t<decltype(underlying_type_id)>;
-					
-						if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::PolyInterfaceRef::ID>()){
-							return this->isTypeDeducer(BaseType::ID(underlying_type_id));
-					
-						}else if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::InterfaceMap::ID>()){
-							return this->isTypeDeducer(BaseType::ID(underlying_type_id));
-
-						}else if constexpr(std::is_same<UnderlyingTypeIDType, BaseType::TypeDeducer::ID>()){
-							return true;
-					
-						}else{
-							static_assert(false, "Unknown underlying type id");
-						}
-					}
-				);
-
-				if(underlying_type_is_deducer){
-					return true;
-				}
-
+				if(this->isTypeDeducer(interface_ptr_map_type.targetTypeID)){ return true; }
 				return interface_ptr_map_type.interfaceID.is<BaseType::TypeDeducer::ID>();
 			} break;
 
@@ -2620,9 +2592,8 @@ namespace pcit::panther{
 				const BaseType::InterfacePtrMap& interface_ptr_map_info =
 					this->getInterfacePtrMap(id.interfacePtrMapID());
 
-				if(interface_ptr_map_info.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+				if(interface_ptr_map_info.isPolymorphic){
 					return this->numBytesOfPtr() * 2;
-					
 				}else{
 					return this->numBytesOfPtr();
 				}
@@ -2816,9 +2787,8 @@ namespace pcit::panther{
 				const BaseType::InterfacePtrMap& interface_ptr_map_info =
 					this->getInterfacePtrMap(id.interfacePtrMapID());
 
-				if(interface_ptr_map_info.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+				if(interface_ptr_map_info.isPolymorphic){
 					return this->numBitsOfPtr() * 2;
-					
 				}else{
 					return this->numBitsOfPtr();
 				}
@@ -3660,9 +3630,12 @@ namespace pcit::panther{
 			} break;
 			case BaseType::Kind::INTERFACE_PTR_MAP: {
 				const BaseType::InterfacePtrMap& interface_map_info = this->getInterfacePtrMap(id.interfacePtrMapID());
-				return this->getUnderlyingType(
-					interface_map_info.underlyingTypeIDasBaseTypeID()
-				);
+
+				if(interface_map_info.isPolymorphic){
+					return this->getOrCreateTypeInfo(TypeInfo(id));
+				}else{
+					return TypeManager::getTypeRawPtr();
+				}
 			} break;
 		}
 

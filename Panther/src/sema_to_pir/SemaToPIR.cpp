@@ -13711,7 +13711,7 @@ namespace pcit::panther{
 				const BaseType::InterfacePtrMap& interface_ptr_map = 
 					this->context.getTypeManager().getInterfacePtrMap(base_type_id.interfacePtrMapID());
 
-				if(interface_ptr_map.underlyingTypeID.is<BaseType::PolyInterfaceRef::ID>()){
+				if(interface_ptr_map.isPolymorphic){
 					const Data::PIRType pir_type = this->data.getInterfacePtrType(this->module);
 
 					if constexpr(GET_META){
@@ -13729,11 +13729,8 @@ namespace pcit::panther{
 
 						std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
 
-						const TypeInfo::ID pointee_type_id = this->context.getTypeManager().getInterfaceMap(
-							interface_ptr_map.underlyingTypeID.as<BaseType::InterfaceMap::ID>()
-						).underlyingTypeID;
-
-						PIRType pointee_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, true>(pointee_type_id);
+						PIRType pointee_pir_type =
+							this->get_type<MAY_LOWER_DEPENDENCY, true>(interface_ptr_map.targetTypeID);
 
 						const pir::meta::QualifiedType::Qualifier qualifier =
 							[&]() -> pir::meta::QualifiedType::Qualifier {

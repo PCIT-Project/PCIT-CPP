@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.367.0"></a>
+## v0.0.367.0
+
+### Panther
+- Changed interface pointer maps to take the type that implements the interface as the target type instead of the interface map
+
+### Misc
+- Updated to [Panther-std v0.0.51.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.51.0)
+
+
+<!---------------------------------->
 <a name="v0.0.366.0"></a>
 ## v0.0.366.0
 

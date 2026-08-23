@@ -1111,14 +1111,11 @@ namespace pcit::panther{
 		struct InterfacePtrMap{
 			using ID = InterfacePtrMapID;
 			
-			evo::Variant<PolyInterfaceRef::ID, InterfaceMap::ID, TypeDeducer::ID> underlyingTypeID;
+			TypeInfoID targetTypeID;
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
 			bool isMut;
+			bool isPolymorphic; // invalid if deducer
 
-
-			[[nodiscard]] auto underlyingTypeIDasBaseTypeID() const -> BaseType::ID {
-				return this->underlyingTypeID.visit([&](const auto& id){ return BaseType::ID(id); });
-			}
 
 			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
 				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
