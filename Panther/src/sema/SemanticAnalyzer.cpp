@@ -36527,802 +36527,56 @@ namespace pcit::panther{
 
 					if(expected_type.baseTypeID() != got_type.baseTypeID()){
 						if(got_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
-							const BaseType::Struct& got_struct =
-								this->context.getTypeManager().getStruct(got_type.baseTypeID().structID());
+							std::optional<TypeCheckInfo> result = 
+								this->type_check_from_struct<MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME>(
+									got_type,
+									decayed_expected_type_id,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									is_initialization,
+									multi_type_index
+								);
 
-							evo::debugAssert(
-								got_struct.defCompleted.load(std::memory_order::relaxed),
-								"expected struct def to be completed"
-							);
-
-							const auto as_find = got_struct.operatorAsOverloads.find(decayed_expected_type_id);
-							if(as_find != got_struct.operatorAsOverloads.end()){
-								const sema::Func::ID target_as_func_id = as_find->second;
-								const sema::Func& target_as_func =
-									this->context.getSemaBuffer().getFunc(target_as_func_id);
-
-								const BaseType::Function& target_as_func_type =
-									this->context.getTypeManager().getFunction(target_as_func.typeID);
-
-								switch(target_as_func_type.params[0].kind){
-									case BaseType::Function::Param::Kind::READ: {
-										// no checking needed
-									} break;
-
-									case BaseType::Function::Param::Kind::MUT: {
-										if(got_expr.is_mutable() == false){
-											if constexpr(MAY_EMIT_ERROR){
-												this->error_type_mismatch(
-													expected_type_id,
-													got_expr,
-													expected_type_location_name,
-													location,
-													multi_type_index
-												);
-											}
-											return TypeCheckInfo::fail();
-										}
-									} break;
-
-									case BaseType::Function::Param::Kind::IN: {
-										if(got_expr.is_ephemeral() == false){
-											if constexpr(MAY_EMIT_ERROR){
-												this->error_type_mismatch(
-													expected_type_id,
-													got_expr,
-													expected_type_location_name,
-													location,
-													multi_type_index
-												);
-											}
-											return TypeCheckInfo::fail();
-										}
-									} break;
-
-									case BaseType::Function::Param::Kind::C: {
-										evo::debugFatalBreak("Shouldn't have a [this] param of kind C");
-									} break;
-								}
-
-								if(target_as_func.attributes.isImplicit == false){
-									if constexpr(MAY_EMIT_ERROR){
-										this->error_type_mismatch(
-											expected_type_id,
-											got_expr,
-											expected_type_location_name,
-											location,
-											multi_type_index
-										);
-									}
-									return TypeCheckInfo::fail();
-								}
-
-
-								if(target_as_func_type.attributes.isComptime == false){
-									if constexpr(IS_COMPTIME){
-										if constexpr(MAY_EMIT_ERROR){
-											this->error_type_mismatch(
-												expected_type_id,
-												got_expr,
-												expected_type_location_name,
-												location,
-												multi_type_index
-											);
-										}
-										return TypeCheckInfo::fail();
-
-									}else{
-										if(
-											this->currently_in_func() == false
-											|| this->func_scope_current_value_stage().requiresComptime()
-										){
-											if constexpr(MAY_EMIT_ERROR){
-												this->error_type_mismatch(
-													expected_type_id,
-													got_expr,
-													expected_type_location_name,
-													location,
-													multi_type_index
-												);
-											}
-											return TypeCheckInfo::fail();
-										}
-									}
-								}
-
-
-								if constexpr(IS_COMPTIME == false){
-									if(
-										target_as_func_type.attributes.isRuntime == false
-										&& this->func_scope_current_value_stage().requiresRuntime()
-									){
-										if constexpr(MAY_EMIT_ERROR){
-											this->error_type_mismatch(
-												expected_type_id,
-												got_expr,
-												expected_type_location_name,
-												location,
-												multi_type_index
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-								}
-
-
-								if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-									if constexpr(IS_COMPTIME){
-										SymbolProc& target_as_func_symbol_proc =
-											this->context.symbol_proc_manager.getSymbolProc(
-												*target_as_func.symbolProcID
-											);
-
-										const SymbolProc::WaitOnResult wait_on_result =
-											target_as_func_symbol_proc.waitOnPIRDefIfNeeded(
-												this->symbol_proc.getID(), this->context
-											);
-
-										switch(wait_on_result){
-											case SymbolProc::WaitOnResult::NOT_NEEDED:
-												break;
-
-											case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-												this->context.symbol_proc_manager.symbol_proc_unsuspended();
-												this->context.add_task_to_work_manager(*target_as_func.symbolProcID);
-												[[fallthrough]];
-											}
-
-											case SymbolProc::WaitOnResult::WAITING:
-												return TypeCheckInfo::fail(Result::NEED_TO_WAIT);
-
-											case SymbolProc::WaitOnResult::WAS_ERRORED:
-												return TypeCheckInfo::fail();
-
-											case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
-												evo::debugFatalBreak("Shouldn't be possible");
-
-											case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-												evo::debugFatalBreak("Shouldn't be possible");
-										}
-									}
-
-
-									if(is_initialization == false){
-										switch(got_expr.getExpr().kind()){
-											case sema::Expr::Kind::COPY: {
-												sema::Copy& copy_expr =
-													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
-												copy_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::MOVE: {
-												sema::Move& move_expr =
-													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
-												move_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
-													got_expr.getExpr().forwardID()
-												);
-												forward_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::DEFAULT_NEW: {
-												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.getDefaultNew(
-														got_expr.getExpr().defaultNewID()
-													);
-												default_new_expr.isInitialization = true;
-											} break;
-										}
-									}
-
-
-									got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-
-									if constexpr(IS_COMPTIME){
-										const evo::Result<sema::Expr> comptime_func_res = this->comptime_func_call(
-											target_as_func_id,
-											evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-											this->get_location(location)
-										);
-
-										if(comptime_func_res.isError()){ return TypeCheckInfo::fail(); }
-
-										got_expr.getExpr() = comptime_func_res.value();
-
-									}else{
-										got_expr.getExpr() = sema::Expr(
-											this->context.sema_buffer.createFuncCall(
-												target_as_func_id,
-												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-												location.as<SourceLocation>().lineStart,
-												location.as<SourceLocation>().collumnStart
-											)
-										);
-									}
-
-									if constexpr(IS_COMPTIME == false){
-										if(this->func_scope_current_value_stage().requiresComptime()){
-											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-												.dependent_funcs.emplace(target_as_func_id);
-										}
-									}
-								}
-
-								return TypeCheckInfo::success(true);
+							if(result.has_value()){
+								return *result;
 							}
 						}
 
-						if(expected_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
-							const BaseType::Struct& expected_struct =
-								this->context.getTypeManager().getStruct(expected_type.baseTypeID().structID());
-
-							evo::debugAssert(
-								expected_struct.defCompleted.load(std::memory_order::relaxed),
-								"expected struct def to be completed"
-							);
-
-							
-
-							if(is_initialization){
-								auto func_match = std::optional<sema::Func::ID>();
-								auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
-
-								for(
-									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
-									: expected_struct.newInitOverloads
+						switch(expected_type.baseTypeID().kind()){
+							case BaseType::Kind::PRIMITIVE: {
+								if(
+									decayed_expected_type_id == TypeManager::getTypeBool()
+									&& decayed_got_type_id == TypeManager::getTypeBool32()
 								){
-									if(new_func_id.is<sema::Func::ID>()){
-										const sema::Func& new_func =
-											this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
-
-										const BaseType::Function& new_func_type =
-											this->context.getTypeManager().getFunction(new_func.typeID);
-
-										switch(new_func_type.params[0].kind){
-											case BaseType::Function::Param::Kind::READ: {
-												// do nothing
-											} break;
-
-											case BaseType::Function::Param::Kind::MUT: {
-												if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
-													continue;
+									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+										const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
+											this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+												TemplateIntrinsicFunc::Kind::NEQ,
+												evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+													TypeManager::getTypeBool32()
 												}
-											} break;
-
-											case BaseType::Function::Param::Kind::IN: {
-												if(got_expr.is_ephemeral() == false){ continue; }
-											} break;
-
-											case BaseType::Function::Param::Kind::C: {
-												evo::debugFatalBreak("Unsupported");
-											} break;
-										}
-
-
-										const TypeInfo::ID decayed_param_type_id = 
-											this->context.type_manager.decayType<false, false>(
-												new_func_type.params[0].typeID
 											);
 
-
-										if(decayed_param_type_id == decayed_got_type_id){
-											func_match = new_func_id.as<sema::Func::ID>();
-											break;
-										}
-
-									}else{
-										evo::Expected<
-											sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail
-										> template_res = this->get_select_func_overload_func_info_for_template(
-											new_func_id.as<sema::TemplatedFunc::ID>(),
-											evo::ArrayProxy<const TermInfo*>{&got_expr},
-											evo::ArrayProxy<SymbolProc::TermInfoID>(),
-											false,
-											location 
+										const sema::Expr false_value = sema::Expr(
+											this->context.sema_buffer.createBoolValue(false, true)
 										);
 
-										if(template_res.has_value() == false){ continue; }
-
-										instantiation_infos.emplace_back(*template_res);
-									}
-								}
-
-
-								if(func_match.has_value()){
-									const sema::Func& new_func = this->context.getSemaBuffer().getFunc(*func_match);
-
-									const BaseType::Function& new_func_type =
-										this->context.getTypeManager().getFunction(new_func.typeID);
-
-									if(new_func.attributes.isImplicit == false){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"`new` does not have attribute `#implicit`",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(new_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									if(
-										new_func.attributes.isPriv
-										&& new_func.parent != this->scope.getCurrentTypeScopeIfExists()
-									){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"`new` has attribute `#priv` and is not accessable from this scope",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(new_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"is unsafe and not currently in an unsafe scope",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(new_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-										got_expr.getExpr() = sema::Expr(
+										const sema::FuncCall::ID created_func_call_id = 
 											this->context.sema_buffer.createFuncCall(
-												*func_match,
-												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+												instantiation_id,
+												evo::SmallVector<sema::Expr>{got_expr.getExpr(), false_value},
 												location.as<SourceLocation>().lineStart,
 												location.as<SourceLocation>().collumnStart
-											)
-										);
-
-										if(this->func_scope_current_value_stage().requiresComptime()){
-											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-												.dependent_funcs.emplace(*func_match);
-										}
-									}
-
-
-									return TypeCheckInfo::success(true);
-
-								}else{
-									if(instantiation_infos.empty()){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as it has no matching "
-													"operator `new`",
-												location
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
-									const evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
-										this->handle_results_of_get_select_func_overload_func_info_for_template(
-											evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>(),
-											func_infos,
-											instantiation_infos,
-											evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>>(),
-											evo::ArrayProxy<const TermInfo*>{&got_expr},
-											std::nullopt,
-											evo::ArrayProxy<AST::FuncCall::Arg>(),
-											location
-										);
-
-									if(handle_results.has_value() == false){
-										return TypeCheckInfo::fail(handle_results.error());
-									}
-
-									const SelectFuncOverloadFuncInfo* selected_func_info = nullptr;
-									if(func_infos.size() > 1){
-										auto deducer_scores = evo::SmallVector<DeducerCountAndDepth, 16>();
-										deducer_scores.reserve(func_infos.size());
-
-										for(const SelectFuncOverloadFuncInfo& func_info : func_infos){
-											const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
-												func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
-
-											const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(
-												*instantiation_info.instantiation.funcID
 											);
 
-											const sema::TemplatedFunc& templated_func =
-												this->context.getSemaBuffer().getTemplatedFunc(
-													*sema_func.templated_func_id
-												);
-
-											const Source& func_source = this->context.getSourceManager()[
-												templated_func.symbolProc.getSourceID()
-											];
-											const AST::FuncDef& ast_func = func_source.getASTBuffer().getFuncDef(
-												templated_func.symbolProc.getASTNode()
-											);
-
-											deducer_scores.emplace_back(
-												calc_deducer_count_and_depth(func_source, *ast_func.params[0].type)
-											);
-										}
-
-
-										size_t best_score_index = 0;
-										bool found_duplicate_best_score = false;
-										for(size_t i = 1; i < deducer_scores.size(); i+=1){
-											const DeducerCountAndDepth& best_score = deducer_scores[best_score_index];
-											const DeducerCountAndDepth& target_score = deducer_scores[i];
-
-											if(best_score == target_score){
-												found_duplicate_best_score = true;
-
-											}else if(best_score < target_score){
-												best_score_index = i;
-												found_duplicate_best_score = false;
-											}
-										}
-
-										if(found_duplicate_best_score){
-											auto infos = evo::SmallVector<Diagnostic::Info>();
-											for(
-												size_t i = 0;
-												const DeducerCountAndDepth& deducer_score : deducer_scores
-											){
-												if(deducer_scores[best_score_index] == deducer_score){
-													const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
-														func_infos[i].func_id.as<
-															sema::TemplatedFunc::InstantiationInfo
-														>();
-
-													infos.emplace_back(
-														"Could be this one:",
-														this->get_location(*instantiation_info.instantiation.funcID)
-													);
-												}	
-											
-												i += 1;
-											}
-
-											if constexpr(MAY_EMIT_ERROR){
-												this->emit_error(
-													"Multiple implicit `new` functions match",
-													location,
-													std::move(infos)
-												);
-											}
-
-											return TypeCheckInfo::fail();
-										}
-
-										selected_func_info = &func_infos[best_score_index];
-
-									}else{
-										selected_func_info = &func_infos[0];
-									}
-
-
-									const sema::TemplatedFunc::InstantiationInfo& selected_instantiation_info =
-										selected_func_info->func_id.as<sema::TemplatedFunc::InstantiationInfo>();
-
-									const sema::Func::ID selected_func_id = 
-										*selected_instantiation_info.instantiation.funcID;
-
-									const sema::Func& selected_func =
-										this->context.getSemaBuffer().getFunc(selected_func_id);
-
-									const BaseType::Function& selected_func_type =
-										this->context.getTypeManager().getFunction(selected_func.typeID);
-
-									if(selected_func.attributes.isImplicit == false){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"`new` does not have attribute `#implicit`",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(selected_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									if(
-										selected_func.attributes.isPriv
-										&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
-									){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"`new` has attribute `#priv` and is not accessable from this scope",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(selected_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-									if(this->currently_in_unsafe() == false && selected_func_type.attributes.isUnsafe){
-										if constexpr(MAY_EMIT_ERROR){
-											this->emit_error(
-												"Cannot implicitly convert to this type as the selected operator "
-													"is unsafe and not currently in an unsafe scope",
-												location,
-												Diagnostic::Info(
-													"Selected operator `new` defined here:",
-													this->get_location(selected_func)
-												)
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
-
-
-									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-										const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
-											selected_instantiation_info, "implicit `new`", location
-										);
-										if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
-
-
-										got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-										got_expr.getExpr() = sema::Expr(
-											this->context.sema_buffer.createFuncCall(
-												selected_func_id,
-												evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-												location.as<SourceLocation>().lineStart,
-												location.as<SourceLocation>().collumnStart
-											)
-										);
-
-										if(this->func_scope_current_value_stage().requiresComptime()){
-											this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-												.dependent_funcs.emplace(selected_func_id);
-										}
+										got_expr.getExpr() = sema::Expr(created_func_call_id);
 									}
 
 									return TypeCheckInfo::success(true);
 								}
 
-							}else{ // assignment
-								for(
-									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
-									: expected_struct.newAssignOverloads
-								){
-									if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
-
-									const sema::Func& new_func =
-										this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
-
-									if(new_func.attributes.isImplicit == false){ continue; }
-
-									const BaseType::Function& new_func_type =
-										this->context.getTypeManager().getFunction(new_func.typeID);
-
-									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
-										continue;
-									}
-
-									const TypeInfo::ID decayed_param_type_id = 
-										this->context.type_manager.decayType<false, false>(
-											new_func_type.params[1].typeID
-										);
-
-									if(decayed_param_type_id != decayed_got_type_id){ continue; }
-
-									switch(new_func_type.params[1].kind){
-										case BaseType::Function::Param::Kind::READ: {
-											// do nothing
-										} break;
-
-										case BaseType::Function::Param::Kind::MUT: {
-											if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
-												continue;
-											}
-										} break;
-
-										case BaseType::Function::Param::Kind::IN: {
-											if(got_expr.is_ephemeral() == false){ continue; }
-										} break;
-
-										case BaseType::Function::Param::Kind::C: {
-											evo::debugFatalBreak("Unsupported");
-										} break;
-									}
-
-									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-										switch(got_expr.getExpr().kind()){
-											case sema::Expr::Kind::COPY: {
-												sema::Copy& copy_expr =
-													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
-												copy_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::MOVE: {
-												sema::Move& move_expr =
-													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
-												move_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
-													got_expr.getExpr().forwardID()
-												);
-												forward_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::DEFAULT_NEW: {
-												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.getDefaultNew(
-														got_expr.getExpr().defaultNewID()
-													);
-												default_new_expr.isInitialization = true;
-											} break;
-										}
-									}
-
-									return TypeCheckInfo::success(
-										TypeCheckInfo::AssignFunc(new_func_id.as<sema::Func::ID>())
-									);
-								}
-
-
-								for(
-									const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
-									: expected_struct.newInitOverloads
-								){
-									if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
-
-									const sema::Func& new_func =
-										this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
-
-									if(new_func.attributes.isImplicit == false){ continue; }
-
-									const BaseType::Function& new_func_type =
-										this->context.getTypeManager().getFunction(new_func.typeID);
-
-									if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
-										continue;
-									}
-
-									const TypeInfo::ID decayed_param_type_id = 
-										this->context.type_manager.decayType<false, false>(
-											new_func_type.params[0].typeID
-										);
-
-									if(decayed_param_type_id != decayed_got_type_id){ continue; }
-
-									switch(new_func_type.params[0].kind){
-										case BaseType::Function::Param::Kind::READ: {
-											// do nothing
-										} break;
-
-										case BaseType::Function::Param::Kind::MUT: {
-											if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
-												continue;
-											}
-										} break;
-
-										case BaseType::Function::Param::Kind::IN: {
-											if(got_expr.is_ephemeral() == false){ continue; }
-										} break;
-
-										case BaseType::Function::Param::Kind::C: {
-											evo::debugFatalBreak("Unsupported");
-										} break;
-									}
-
-									if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-										switch(got_expr.getExpr().kind()){
-											case sema::Expr::Kind::COPY: {
-												sema::Copy& copy_expr =
-													this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
-												copy_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::MOVE: {
-												sema::Move& move_expr =
-													this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
-												move_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::FORWARD: {
-												sema::Forward& forward_expr = this->context.sema_buffer.getForward(
-													got_expr.getExpr().forwardID()
-												);
-												forward_expr.isInitialization = true;
-											} break;
-
-											case sema::Expr::Kind::DEFAULT_NEW: {
-												sema::DefaultNew& default_new_expr = 
-													this->context.sema_buffer.getDefaultNew(
-														got_expr.getExpr().defaultNewID()
-													);
-												default_new_expr.isInitialization = true;
-											} break;
-										}
-									}
-
-									return TypeCheckInfo::success(
-										TypeCheckInfo::InitAssignFunc(new_func_id.as<sema::Func::ID>())
-									);
-								}
-							}
-						}
-
-
-						if(expected_type.baseTypeID().kind() == BaseType::Kind::FUNCTION){
-							if(got_type.baseTypeID().kind() != BaseType::Kind::FUNCTION){
-								return TypeCheckInfo::fail();
-							}
-
-							const BaseType::Function& expected_func =
-								this->context.getTypeManager().getFunction(expected_type.baseTypeID().funcID());
-
-							const BaseType::Function& got_func =
-								this->context.getTypeManager().getFunction(got_type.baseTypeID().funcID());
-
-							if(expected_func.params != got_func.params){ return TypeCheckInfo::fail(); }
-							if(expected_func.returnTypes != got_func.returnTypes){ return TypeCheckInfo::fail(); }
-							if(expected_func.errorTypes != got_func.errorTypes){ return TypeCheckInfo::fail(); }
-							if(expected_func.hasNamedReturns != got_func.hasNamedReturns){
-								return TypeCheckInfo::fail();
-							}
-
-							if(expected_func.attributes.isComptime && got_func.attributes.isComptime == false){
-								return TypeCheckInfo::fail();
-							}
-
-							if(expected_func.attributes.isRuntime && got_func.attributes.isRuntime == false){
-								return TypeCheckInfo::fail();
-							}
-
-							if(expected_func.attributes.isUnsafe && got_func.attributes.isUnsafe == false){
-								return TypeCheckInfo::fail();
-							}
-
-							if(expected_func.attributes.callingConvention != got_func.attributes.callingConvention){
-								return TypeCheckInfo::fail();
-							}
-
-							if(expected_func.attributes.abi != got_func.attributes.abi){ return TypeCheckInfo::fail(); }
-
-
-							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-								got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-							}
-
-							return TypeCheckInfo::success(true);
-						}
-
-
-						if(
-							expected_type.baseTypeID().kind() == BaseType::Kind::ARRAY_REF
-							&& got_type.baseTypeID().kind() == BaseType::Kind::ARRAY
-						){
-							if(expected_type.qualifiers().empty() == false || got_type.qualifiers().size() > 1){
 								if constexpr(MAY_EMIT_ERROR){
 									this->error_type_mismatch(
 										expected_type_id,
@@ -37333,80 +36587,76 @@ namespace pcit::panther{
 									);
 								}
 								return TypeCheckInfo::fail();
-							}
+							} break;
 
-							bool got_is_ptr = false;
-							if(got_type.qualifiers().size() == 1){
-								if(got_type.qualifiers()[0].isUninit | got_type.qualifiers()[0].isOptional){
-									if constexpr(MAY_EMIT_ERROR){
-										this->error_type_mismatch(
+							case BaseType::Kind::FUNCTION: {
+								return this->type_check_to_function<
+									MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+								>(
+									expected_type,
+									got_type,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									multi_type_index
+								);
+							} break;
+
+							case BaseType::Kind::ARRAY_REF: {
+								switch(got_type.baseTypeID().kind()){
+									case BaseType::Kind::ARRAY: {
+										return this->type_check_array_to_array_ref<
+											MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+										>(
+											expected_type,
+											got_type,
 											expected_type_id,
 											got_expr,
 											expected_type_location_name,
 											location,
 											multi_type_index
 										);
-									}
-									return TypeCheckInfo::fail();
-								}
+									} break;
 
-								got_is_ptr = true;
-							}
+									case BaseType::Kind::ARRAY_REF: {
+										const BaseType::ArrayRef& expected_array_ref =
+											type_manager.getArrayRef(expected_type.baseTypeID().arrayRefID());
 
-							const BaseType::ArrayRef& expected_array_ref =
-								this->context.getTypeManager().getArrayRef(expected_type.baseTypeID().arrayRefID());
+										const BaseType::ArrayRef& got_array_ref =
+											type_manager.getArrayRef(got_type.baseTypeID().arrayRefID());
 
-							const BaseType::Array& got_array =
-								this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
 
-							if(
-								this->context.type_manager.decayType<false, false>(expected_array_ref.elementTypeID)
-								!= this->context.type_manager.decayType<false, false>(got_array.elementTypeID)
-							){
-								if constexpr(MAY_EMIT_ERROR){
-									this->error_type_mismatch(
-										expected_type_id,
-										got_expr,
-										expected_type_location_name,
-										location,
-										multi_type_index
-									);
-								}
-								return TypeCheckInfo::fail();
-							}
+										if(expected_array_ref.elementTypeID != got_array_ref.elementTypeID){
+											if constexpr(MAY_EMIT_ERROR){
+												this->error_type_mismatch(
+													expected_type_id,
+													got_expr,
+													expected_type_location_name,
+													location,
+													multi_type_index
+												);
+											}
+											return TypeCheckInfo::fail();
+										}
 
-							if(expected_array_ref.dimensions.size() != got_array.dimensions.size()){
-								if constexpr(MAY_EMIT_ERROR){
-									this->error_type_mismatch(
-										expected_type_id,
-										got_expr,
-										expected_type_location_name,
-										location,
-										multi_type_index
-									);
-								}
-								return TypeCheckInfo::fail();
-							}
+										if(expected_array_ref.isMut && got_array_ref.isMut == false){
+											if constexpr(MAY_EMIT_ERROR){
+												this->error_type_mismatch(
+													expected_type_id,
+													got_expr,
+													expected_type_location_name,
+													location,
+													multi_type_index
+												);
+											}
+											return TypeCheckInfo::fail();
+										}
 
-							if(
-								expected_array_ref.terminator.has_value()
-								&& expected_array_ref.terminator != got_array.terminator
-							){
-								if constexpr(MAY_EMIT_ERROR){
-									this->error_type_mismatch(
-										expected_type_id,
-										got_expr,
-										expected_type_location_name,
-										location,
-										multi_type_index
-									);
-								}
-								return TypeCheckInfo::fail();
-							}
+										return TypeCheckInfo::success(true);
+									} break;
 
-							if(expected_array_ref.isMut){
-								if(got_is_ptr){
-									if(got_type.qualifiers()[0].isMut == false){
+									default: {
 										if constexpr(MAY_EMIT_ERROR){
 											this->error_type_mismatch(
 												expected_type_id,
@@ -37417,173 +36667,82 @@ namespace pcit::panther{
 											);
 										}
 										return TypeCheckInfo::fail();
-									}
-
-								}else{
-									if(got_expr.is_const()){
-										if constexpr(MAY_EMIT_ERROR){
-											this->error_type_mismatch(
-												expected_type_id,
-												got_expr,
-												expected_type_location_name,
-												location,
-												multi_type_index
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
+									} break;
 								}
-							}
+							} break;
 
+							case BaseType::Kind::STRUCT: {
+								return this->type_check_to_struct<
+									MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+								>(
+									expected_type,
+									decayed_got_type_id,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									is_initialization,
+									multi_type_index
+								);
+							} break;
 
-							auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
-							dimensions.reserve(got_array.dimensions.size());
-							for(size_t i = 0; uint64_t dimension : got_array.dimensions){
-								if(expected_array_ref.dimensions[i].isPtr()){
-									dimensions.emplace_back(dimension);
-								}else{
-									if(dimension != expected_array_ref.dimensions[i].length()){
-										if constexpr(MAY_EMIT_ERROR){
-											this->error_type_mismatch(
-												expected_type_id,
-												got_expr,
-												expected_type_location_name,
-												location,
-												multi_type_index
-											);
-										}
-										return TypeCheckInfo::fail();
-									}
+							case BaseType::Kind::POLY_INTERFACE_REF: {
+								return this->type_check_to_poly_interface_ref<
+									MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+								>(
+									expected_type,
+									got_type,
+									decayed_got_type_id,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									multi_type_index
+								);
+							} break;
+
+							case BaseType::Kind::INTERFACE_MAP: {
+								return this->type_check_to_interface_map<
+									MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+								>(
+									expected_type,
+									decayed_got_type_id,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									multi_type_index
+								);
+							} break;
+							
+							case BaseType::Kind::INTERFACE_PTR_MAP: {
+								return this->type_check_to_interface_ptr_map<
+									MAY_DO_IMPLICIT_CONVERSION, MAY_EMIT_ERROR, IS_COMPTIME
+								>(
+									expected_type,
+									expected_type_id,
+									got_expr,
+									expected_type_location_name,
+									location,
+									multi_type_index
+								);
+							} break;
+
+							default: {
+								if constexpr(MAY_EMIT_ERROR){
+									this->error_type_mismatch(
+										expected_type_id,
+										got_expr,
+										expected_type_location_name,
+										location,
+										multi_type_index
+									);
 								}
-
-								i += 1;
-							}
-
-
-							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-								const sema::Expr data_ptr = [&]() -> sema::Expr {
-									if(got_is_ptr){
-										return got_expr.getExpr();
-									}else{
-										return sema::Expr(this->context.sema_buffer.createAddrOf(got_expr.getExpr()));
-									}
-								}();
-
-								got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-								got_expr.getExpr() = sema::Expr(
-									this->context.sema_buffer.createInitArrayRef(
-										data_ptr, expected_type.baseTypeID().arrayRefID(), std::move(dimensions)
-									)
-								);
-							}
-
-							return TypeCheckInfo::success(true);
-						}
-
-						if(
-							decayed_expected_type_id == TypeManager::getTypeBool()
-							&& decayed_got_type_id == TypeManager::getTypeBool32()
-						){
-							if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-								const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
-									this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
-										TemplateIntrinsicFunc::Kind::NEQ,
-										evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-											TypeManager::getTypeBool32()
-										}
-									);
-
-								const sema::Expr false_value = sema::Expr(
-									this->context.sema_buffer.createBoolValue(false, true)
-								);
-
-								const sema::FuncCall::ID created_func_call_id = 
-									this->context.sema_buffer.createFuncCall(
-										instantiation_id,
-										evo::SmallVector<sema::Expr>{got_expr.getExpr(), false_value},
-										location.as<SourceLocation>().lineStart,
-										location.as<SourceLocation>().collumnStart
-									);
-
-								got_expr.getExpr() = sema::Expr(created_func_call_id);
-							}
-
-							return TypeCheckInfo::success(true);
-						}
-
-
-						if(
-							expected_type.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF
-								&& got_type.baseTypeID().kind() == BaseType::Kind::POLY_INTERFACE_REF
-						){
-							const BaseType::PolyInterfaceRef& expected_poly_interface_ref = 
-								this->context.getTypeManager().getPolyInterfaceRef(
-									expected_type.baseTypeID().polyInterfaceRefID()
-								);
-
-							const BaseType::PolyInterfaceRef& got_poly_interface_ref = 
-								this->context.getTypeManager().getPolyInterfaceRef(
-									got_type.baseTypeID().polyInterfaceRefID()
-								);
-
-							if(
-								expected_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
-									!= got_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
-							){
 								return TypeCheckInfo::fail();
-							}
-
-							bool requires_implicit_conversion = false;
-
-							if(expected_poly_interface_ref.isMut){
-								if(got_poly_interface_ref.isMut == false){
-									return TypeCheckInfo::fail();
-								}
-
-							}else if(got_poly_interface_ref.isMut){
-								requires_implicit_conversion = true;
-							}
-
-							return TypeCheckInfo::success(requires_implicit_conversion);
+							} break;
 						}
 
-
-						if(
-							expected_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
-							|| got_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
-						){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
-
-						const BaseType::ArrayRef& expected_array_ref =
-							type_manager.getArrayRef(expected_type.baseTypeID().arrayRefID());
-
-						const BaseType::ArrayRef& got_array_ref =
-							type_manager.getArrayRef(got_type.baseTypeID().arrayRefID());
-
-
-						if(expected_array_ref.elementTypeID != got_array_ref.elementTypeID){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
-
-						if(expected_array_ref.isMut && got_array_ref.isMut == false){
-							if constexpr(MAY_EMIT_ERROR){
-								this->error_type_mismatch(
-									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
-								);
-							}
-							return TypeCheckInfo::fail();
-						}
+						evo::unreachable();
 					}
 
 
@@ -38024,6 +37183,1123 @@ namespace pcit::panther{
 
 		evo::debugFatalBreak("Unknown or unsupported value category");
 	}
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_from_struct(
+		const TypeInfo& got_type,
+		TypeInfo::ID decayed_expected_type_id,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		bool is_initialization,
+		std::optional<unsigned> multi_type_index
+	) -> std::optional<TypeCheckInfo> {
+		const BaseType::Struct& got_struct =
+			this->context.getTypeManager().getStruct(got_type.baseTypeID().structID());
+
+		evo::debugAssert(
+			got_struct.defCompleted.load(std::memory_order::relaxed),
+			"expected struct def to be completed"
+		);
+
+		const auto as_find = got_struct.operatorAsOverloads.find(decayed_expected_type_id);
+		if(as_find != got_struct.operatorAsOverloads.end()){
+			const sema::Func::ID target_as_func_id = as_find->second;
+			const sema::Func& target_as_func = this->context.getSemaBuffer().getFunc(target_as_func_id);
+
+			const BaseType::Function& target_as_func_type =
+				this->context.getTypeManager().getFunction(target_as_func.typeID);
+
+			switch(target_as_func_type.params[0].kind){
+				case BaseType::Function::Param::Kind::READ: {
+					// no checking needed
+				} break;
+
+				case BaseType::Function::Param::Kind::MUT: {
+					if(got_expr.is_mutable() == false){
+						if constexpr(MAY_EMIT_ERROR){
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::IN: {
+					if(got_expr.is_ephemeral() == false){
+						if constexpr(MAY_EMIT_ERROR){
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
+				} break;
+
+				case BaseType::Function::Param::Kind::C: {
+					evo::debugFatalBreak("Shouldn't have a [this] param of kind C");
+				} break;
+			}
+
+			if(target_as_func.attributes.isImplicit == false){
+				if constexpr(MAY_EMIT_ERROR){
+					this->error_type_mismatch(
+						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+					);
+				}
+				return TypeCheckInfo::fail();
+			}
+
+
+			if(target_as_func_type.attributes.isComptime == false){
+				if constexpr(IS_COMPTIME){
+					if constexpr(MAY_EMIT_ERROR){
+						this->error_type_mismatch(
+							expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+						);
+					}
+					return TypeCheckInfo::fail();
+
+				}else{
+					if(
+						this->currently_in_func() == false
+						|| this->func_scope_current_value_stage().requiresComptime()
+					){
+						if constexpr(MAY_EMIT_ERROR){
+							this->error_type_mismatch(
+								expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
+				}
+			}
+
+
+			if constexpr(IS_COMPTIME == false){
+				if(
+					target_as_func_type.attributes.isRuntime == false
+					&& this->func_scope_current_value_stage().requiresRuntime()
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->error_type_mismatch(
+							expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+			}
+
+
+			if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+				if constexpr(IS_COMPTIME){
+					SymbolProc& target_as_func_symbol_proc =this->context.symbol_proc_manager.getSymbolProc(
+						*target_as_func.symbolProcID
+					);
+
+					const SymbolProc::WaitOnResult wait_on_result = target_as_func_symbol_proc.waitOnPIRDefIfNeeded(
+						this->symbol_proc.getID(), this->context
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED:
+							break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(*target_as_func.symbolProcID);
+							[[fallthrough]];
+						}
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return TypeCheckInfo::fail(Result::NEED_TO_WAIT);
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return TypeCheckInfo::fail();
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Shouldn't be possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							evo::debugFatalBreak("Shouldn't be possible");
+					}
+				}
+
+
+				if(is_initialization == false){
+					switch(got_expr.getExpr().kind()){
+						case sema::Expr::Kind::COPY: {
+							sema::Copy& copy_expr = this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
+							copy_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::MOVE: {
+							sema::Move& move_expr = this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
+							move_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::FORWARD: {
+							sema::Forward& forward_expr = this->context.sema_buffer.getForward(
+								got_expr.getExpr().forwardID()
+							);
+							forward_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::DEFAULT_NEW: {
+							sema::DefaultNew& default_new_expr = this->context.sema_buffer.getDefaultNew(
+								got_expr.getExpr().defaultNewID()
+							);
+							default_new_expr.isInitialization = true;
+						} break;
+					}
+				}
+
+
+				got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+
+				if constexpr(IS_COMPTIME){
+					const evo::Result<sema::Expr> comptime_func_res = this->comptime_func_call(
+						target_as_func_id,
+						evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+						this->get_location(location)
+					);
+
+					if(comptime_func_res.isError()){ return TypeCheckInfo::fail(); }
+
+					got_expr.getExpr() = comptime_func_res.value();
+
+				}else{
+					got_expr.getExpr() = sema::Expr(
+						this->context.sema_buffer.createFuncCall(
+							target_as_func_id,
+							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
+						)
+					);
+				}
+
+				if constexpr(IS_COMPTIME == false){
+					if(this->func_scope_current_value_stage().requiresComptime()){
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+							target_as_func_id
+						);
+					}
+				}
+			}
+
+			return TypeCheckInfo::success(true);
+		}
+
+		return std::nullopt;
+	}
+
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_to_struct(
+		const TypeInfo& expected_type,
+		TypeInfo::ID decayed_got_type_id,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		bool is_initialization,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		const BaseType::Struct& expected_struct =
+			this->context.getTypeManager().getStruct(expected_type.baseTypeID().structID());
+
+		evo::debugAssert(
+			expected_struct.defCompleted.load(std::memory_order::relaxed),
+			"expected struct def to be completed"
+		);
+
+		
+
+		if(is_initialization){
+			auto func_match = std::optional<sema::Func::ID>();
+			auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
+
+			for(
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+				: expected_struct.newInitOverloads
+			){
+				if(new_func_id.is<sema::Func::ID>()){
+					const sema::Func& new_func =
+						this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
+
+					const BaseType::Function& new_func_type =
+						this->context.getTypeManager().getFunction(new_func.typeID);
+
+					switch(new_func_type.params[0].kind){
+						case BaseType::Function::Param::Kind::READ: {
+							// do nothing
+						} break;
+
+						case BaseType::Function::Param::Kind::MUT: {
+							if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
+								continue;
+							}
+						} break;
+
+						case BaseType::Function::Param::Kind::IN: {
+							if(got_expr.is_ephemeral() == false){ continue; }
+						} break;
+
+						case BaseType::Function::Param::Kind::C: {
+							evo::debugFatalBreak("Unsupported");
+						} break;
+					}
+
+
+					const TypeInfo::ID decayed_param_type_id = this->context.type_manager.decayType<false, false>(
+						new_func_type.params[0].typeID
+					);
+
+
+					if(decayed_param_type_id == decayed_got_type_id){
+						func_match = new_func_id.as<sema::Func::ID>();
+						break;
+					}
+
+				}else{
+					evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res = 
+						this->get_select_func_overload_func_info_for_template(
+							new_func_id.as<sema::TemplatedFunc::ID>(),
+							evo::ArrayProxy<const TermInfo*>{&got_expr},
+							evo::ArrayProxy<SymbolProc::TermInfoID>(),
+							false,
+							location 
+						);
+
+					if(template_res.has_value() == false){ continue; }
+
+					instantiation_infos.emplace_back(*template_res);
+				}
+			}
+
+
+			if(func_match.has_value()){
+				const sema::Func& new_func = this->context.getSemaBuffer().getFunc(*func_match);
+
+				const BaseType::Function& new_func_type = this->context.getTypeManager().getFunction(new_func.typeID);
+
+				if(new_func.attributes.isImplicit == false){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"`new` does not have attribute `#implicit`",
+							location,
+							Diagnostic::Info(
+								"Selected operator `new` defined here:",
+								this->get_location(new_func)
+							)
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(new_func.attributes.isPriv && new_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"`new` has attribute `#priv` and is not accessable from this scope",
+							location,
+							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(new_func))
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"is unsafe and not currently in an unsafe scope",
+							location,
+							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(new_func))
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+					got_expr.getExpr() = sema::Expr(
+						this->context.sema_buffer.createFuncCall(
+							*func_match,
+							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
+						)
+					);
+
+					if(this->func_scope_current_value_stage().requiresComptime()){
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
+							.dependent_funcs.emplace(*func_match);
+					}
+				}
+
+
+				return TypeCheckInfo::success(true);
+
+			}else{
+				if(instantiation_infos.empty()){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as it has no matching "
+								"operator `new`",
+							location
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				auto func_infos = evo::SmallVector<SelectFuncOverloadFuncInfo>();
+				const evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
+					this->handle_results_of_get_select_func_overload_func_info_for_template(
+						evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>(),
+						func_infos,
+						instantiation_infos,
+						evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>>(),
+						evo::ArrayProxy<const TermInfo*>{&got_expr},
+						std::nullopt,
+						evo::ArrayProxy<AST::FuncCall::Arg>(),
+						location
+					);
+
+				if(handle_results.has_value() == false){
+					return TypeCheckInfo::fail(handle_results.error());
+				}
+
+				const SelectFuncOverloadFuncInfo* selected_func_info = nullptr;
+				if(func_infos.size() > 1){
+					auto deducer_scores = evo::SmallVector<DeducerCountAndDepth, 16>();
+					deducer_scores.reserve(func_infos.size());
+
+					for(const SelectFuncOverloadFuncInfo& func_info : func_infos){
+						const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+							func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+						const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(
+							*instantiation_info.instantiation.funcID
+						);
+
+						const sema::TemplatedFunc& templated_func = this->context.getSemaBuffer().getTemplatedFunc(
+							*sema_func.templated_func_id
+						);
+
+						const Source& func_source = this->context.getSourceManager()[
+							templated_func.symbolProc.getSourceID()
+						];
+						const AST::FuncDef& ast_func = func_source.getASTBuffer().getFuncDef(
+							templated_func.symbolProc.getASTNode()
+						);
+
+						deducer_scores.emplace_back(
+							calc_deducer_count_and_depth(func_source, *ast_func.params[0].type)
+						);
+					}
+
+
+					size_t best_score_index = 0;
+					bool found_duplicate_best_score = false;
+					for(size_t i = 1; i < deducer_scores.size(); i+=1){
+						const DeducerCountAndDepth& best_score = deducer_scores[best_score_index];
+						const DeducerCountAndDepth& target_score = deducer_scores[i];
+
+						if(best_score == target_score){
+							found_duplicate_best_score = true;
+
+						}else if(best_score < target_score){
+							best_score_index = i;
+							found_duplicate_best_score = false;
+						}
+					}
+
+					if(found_duplicate_best_score){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						for(
+							size_t i = 0;
+							const DeducerCountAndDepth& deducer_score : deducer_scores
+						){
+							if(deducer_scores[best_score_index] == deducer_score){
+								const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+									func_infos[i].func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+								infos.emplace_back(
+									"Could be this one:", this->get_location(*instantiation_info.instantiation.funcID)
+								);
+							}	
+						
+							i += 1;
+						}
+
+						if constexpr(MAY_EMIT_ERROR){
+							this->emit_error("Multiple implicit `new` functions match", location, std::move(infos));
+						}
+
+						return TypeCheckInfo::fail();
+					}
+
+					selected_func_info = &func_infos[best_score_index];
+
+				}else{
+					selected_func_info = &func_infos[0];
+				}
+
+
+				const sema::TemplatedFunc::InstantiationInfo& selected_instantiation_info =
+					selected_func_info->func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+				const sema::Func::ID selected_func_id =  *selected_instantiation_info.instantiation.funcID;
+
+				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+
+				const BaseType::Function& selected_func_type =
+					this->context.getTypeManager().getFunction(selected_func.typeID);
+
+				if(selected_func.attributes.isImplicit == false){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"`new` does not have attribute `#implicit`",
+							location,
+							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(selected_func))
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(
+					selected_func.attributes.isPriv && selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"`new` has attribute `#priv` and is not accessable from this scope",
+							location,
+							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(selected_func))
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(this->currently_in_unsafe() == false && selected_func_type.attributes.isUnsafe){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot implicitly convert to this type as the selected operator "
+								"is unsafe and not currently in an unsafe scope",
+							location,
+							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(selected_func))
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+
+				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+					const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
+						selected_instantiation_info, "implicit `new`", location
+					);
+					if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
+
+
+					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+					got_expr.getExpr() = sema::Expr(
+						this->context.sema_buffer.createFuncCall(
+							selected_func_id,
+							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart
+						)
+					);
+
+					if(this->func_scope_current_value_stage().requiresComptime()){
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+							selected_func_id
+						);
+					}
+				}
+
+				return TypeCheckInfo::success(true);
+			}
+
+		}else{ // assignment
+			for(
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+				: expected_struct.newAssignOverloads
+			){
+				if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+				const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
+
+				if(new_func.attributes.isImplicit == false){ continue; }
+
+				const BaseType::Function& new_func_type = this->context.getTypeManager().getFunction(new_func.typeID);
+
+				if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
+					continue;
+				}
+
+				const TypeInfo::ID decayed_param_type_id = this->context.type_manager.decayType<false, false>(
+					new_func_type.params[1].typeID
+				);
+
+				if(decayed_param_type_id != decayed_got_type_id){ continue; }
+
+				switch(new_func_type.params[1].kind){
+					case BaseType::Function::Param::Kind::READ: {
+						// do nothing
+					} break;
+
+					case BaseType::Function::Param::Kind::MUT: {
+						if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
+							continue;
+						}
+					} break;
+
+					case BaseType::Function::Param::Kind::IN: {
+						if(got_expr.is_ephemeral() == false){ continue; }
+					} break;
+
+					case BaseType::Function::Param::Kind::C: {
+						evo::debugFatalBreak("Unsupported");
+					} break;
+				}
+
+				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+					switch(got_expr.getExpr().kind()){
+						case sema::Expr::Kind::COPY: {
+							sema::Copy& copy_expr = this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
+							copy_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::MOVE: {
+							sema::Move& move_expr = this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
+							move_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::FORWARD: {
+							sema::Forward& forward_expr = this->context.sema_buffer.getForward(
+								got_expr.getExpr().forwardID()
+							);
+							forward_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::DEFAULT_NEW: {
+							sema::DefaultNew& default_new_expr = this->context.sema_buffer.getDefaultNew(
+								got_expr.getExpr().defaultNewID()
+							);
+							default_new_expr.isInitialization = true;
+						} break;
+					}
+				}
+
+				return TypeCheckInfo::success(
+					TypeCheckInfo::AssignFunc(new_func_id.as<sema::Func::ID>())
+				);
+			}
+
+
+			for(
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> new_func_id
+				: expected_struct.newInitOverloads
+			){
+				if(new_func_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+				const sema::Func& new_func = this->context.getSemaBuffer().getFunc(new_func_id.as<sema::Func::ID>());
+
+				if(new_func.attributes.isImplicit == false){ continue; }
+
+				const BaseType::Function& new_func_type = this->context.getTypeManager().getFunction(new_func.typeID);
+
+				if(this->currently_in_unsafe() == false && new_func_type.attributes.isUnsafe){
+					continue;
+				}
+
+				const TypeInfo::ID decayed_param_type_id = this->context.type_manager.decayType<false, false>(
+					new_func_type.params[0].typeID
+				);
+
+				if(decayed_param_type_id != decayed_got_type_id){ continue; }
+
+				switch(new_func_type.params[0].kind){
+					case BaseType::Function::Param::Kind::READ: {
+						// do nothing
+					} break;
+
+					case BaseType::Function::Param::Kind::MUT: {
+						if(got_expr.is_concrete() == false || got_expr.is_mutable() == false){
+							continue;
+						}
+					} break;
+
+					case BaseType::Function::Param::Kind::IN: {
+						if(got_expr.is_ephemeral() == false){ continue; }
+					} break;
+
+					case BaseType::Function::Param::Kind::C: {
+						evo::debugFatalBreak("Unsupported");
+					} break;
+				}
+
+				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+					switch(got_expr.getExpr().kind()){
+						case sema::Expr::Kind::COPY: {
+							sema::Copy& copy_expr = this->context.sema_buffer.getCopy(got_expr.getExpr().copyID());
+							copy_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::MOVE: {
+							sema::Move& move_expr = this->context.sema_buffer.getMove(got_expr.getExpr().moveID());
+							move_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::FORWARD: {
+							sema::Forward& forward_expr = this->context.sema_buffer.getForward(
+								got_expr.getExpr().forwardID()
+							);
+							forward_expr.isInitialization = true;
+						} break;
+
+						case sema::Expr::Kind::DEFAULT_NEW: {
+							sema::DefaultNew& default_new_expr = this->context.sema_buffer.getDefaultNew(
+								got_expr.getExpr().defaultNewID()
+							);
+							default_new_expr.isInitialization = true;
+						} break;
+					}
+				}
+
+				return TypeCheckInfo::success(
+					TypeCheckInfo::InitAssignFunc(new_func_id.as<sema::Func::ID>())
+				);
+			}
+		}
+
+		if constexpr(MAY_EMIT_ERROR){
+			this->error_type_mismatch(
+				expected_type_id,
+				got_expr,
+				expected_type_location_name,
+				location,
+				multi_type_index
+			);
+		}
+		return TypeCheckInfo::fail();
+	}
+
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_to_function(
+		const TypeInfo& expected_type,
+		const TypeInfo& got_type,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		if(got_type.baseTypeID().kind() != BaseType::Kind::FUNCTION){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		const BaseType::Function& expected_func =
+			this->context.getTypeManager().getFunction(expected_type.baseTypeID().funcID());
+
+		const BaseType::Function& got_func =
+			this->context.getTypeManager().getFunction(got_type.baseTypeID().funcID());
+
+
+		const bool matches = [&]() -> bool {
+			if(expected_func.params != got_func.params                                             ){ return false; }
+			if(expected_func.returnTypes != got_func.returnTypes                                   ){ return false; }
+			if(expected_func.errorTypes != got_func.errorTypes                                     ){ return false; }
+			if(expected_func.hasNamedReturns != got_func.hasNamedReturns                           ){ return false; }
+			if(expected_func.attributes.isComptime && got_func.attributes.isComptime == false      ){ return false; }
+			if(expected_func.attributes.isRuntime && got_func.attributes.isRuntime == false        ){ return false; }
+			if(expected_func.attributes.isUnsafe && got_func.attributes.isUnsafe == false          ){ return false; }
+			if(expected_func.attributes.callingConvention != got_func.attributes.callingConvention ){ return false; }
+			if(expected_func.attributes.abi != got_func.attributes.abi                             ){ return false; }
+			
+			return true;
+		}();
+
+		if(matches == false){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+
+		if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+			got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+		}
+
+		return TypeCheckInfo::success(true);
+	}
+
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_array_to_array_ref(
+		const TypeInfo& expected_type,
+		const TypeInfo& got_type,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		if(expected_type.qualifiers().empty() == false || got_type.qualifiers().size() > 1){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		bool got_is_ptr = false;
+		if(got_type.qualifiers().size() == 1){
+			if(got_type.qualifiers()[0].isUninit | got_type.qualifiers()[0].isOptional){
+				if constexpr(MAY_EMIT_ERROR){
+					this->error_type_mismatch(
+						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+					);
+				}
+				return TypeCheckInfo::fail();
+			}
+
+			got_is_ptr = true;
+		}
+
+		const BaseType::ArrayRef& expected_array_ref =
+			this->context.getTypeManager().getArrayRef(expected_type.baseTypeID().arrayRefID());
+
+		const BaseType::Array& got_array =
+			this->context.getTypeManager().getArray(got_type.baseTypeID().arrayID());
+
+		if(
+			this->context.type_manager.decayType<false, false>(expected_array_ref.elementTypeID)
+			!= this->context.type_manager.decayType<false, false>(got_array.elementTypeID)
+		){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		if(expected_array_ref.dimensions.size() != got_array.dimensions.size()){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		if(
+			expected_array_ref.terminator.has_value()
+			&& expected_array_ref.terminator != got_array.terminator
+		){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		if(expected_array_ref.isMut){
+			if(got_is_ptr){
+				if(got_type.qualifiers()[0].isMut == false){
+					if constexpr(MAY_EMIT_ERROR){
+						this->error_type_mismatch(
+							expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+			}else{
+				if(got_expr.is_const()){
+					if constexpr(MAY_EMIT_ERROR){
+						this->error_type_mismatch(
+							expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+			}
+		}
+
+
+		auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
+		dimensions.reserve(got_array.dimensions.size());
+		for(size_t i = 0; uint64_t dimension : got_array.dimensions){
+			if(expected_array_ref.dimensions[i].isPtr()){
+				dimensions.emplace_back(dimension);
+			}else{
+				if(dimension != expected_array_ref.dimensions[i].length()){
+					if constexpr(MAY_EMIT_ERROR){
+						this->error_type_mismatch(
+							expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+			}
+
+			i += 1;
+		}
+
+
+		if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+			const sema::Expr data_ptr = [&]() -> sema::Expr {
+				if(got_is_ptr){
+					return got_expr.getExpr();
+				}else{
+					return sema::Expr(this->context.sema_buffer.createAddrOf(got_expr.getExpr()));
+				}
+			}();
+
+			got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+			got_expr.getExpr() = sema::Expr(
+				this->context.sema_buffer.createInitArrayRef(
+					data_ptr, expected_type.baseTypeID().arrayRefID(), std::move(dimensions)
+				)
+			);
+		}
+
+		return TypeCheckInfo::success(true);
+	}
+
+
+
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_to_poly_interface_ref(
+		const TypeInfo& expected_type,
+		const TypeInfo& got_type,
+		TypeInfo::ID decayed_got_type_id,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		const BaseType::PolyInterfaceRef& expected_poly_interface_ref = 
+			this->context.getTypeManager().getPolyInterfaceRef(
+				expected_type.baseTypeID().polyInterfaceRefID()
+			);
+
+
+		if(got_type.baseTypeID().kind() != BaseType::Kind::POLY_INTERFACE_REF){
+			BaseType::Interface& target_interface = this->context.type_manager.getInterface(
+				expected_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
+			);
+
+			const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+				target_interface, decayed_got_type_id, location
+			);
+
+			if(implements_result.has_value() == false){ return TypeCheckInfo::fail(implements_result.error()); }
+			if(implements_result.value() == false){
+				if constexpr(MAY_EMIT_ERROR){
+					this->error_type_mismatch(
+						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+					);
+				}
+				return TypeCheckInfo::fail();
+			}
+
+
+			if(expected_poly_interface_ref.isMut && got_expr.is_const()){
+				if constexpr(MAY_EMIT_ERROR){
+					this->error_type_mismatch(
+						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+					);
+				}
+				return TypeCheckInfo::fail();
+			}
+
+
+			if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+				got_expr.getExpr() = sema::Expr(
+					this->context.sema_buffer.createMakeInterfacePtr(
+						got_expr.getExpr(),
+						expected_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>(),
+						got_expr.type_id.as<TypeInfo::ID>()
+					)
+				);
+
+				if(this->func_scope_current_value_stage().requiresComptime()){
+					const auto lock = std::scoped_lock(target_interface.implsLock);
+
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_impls.emplace(
+						&target_interface.impls.at(got_expr.type_id.as<TypeInfo::ID>())
+					);
+				}
+
+				got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+			}
+
+			return TypeCheckInfo::success(true);
+		}
+
+
+		const BaseType::PolyInterfaceRef& got_poly_interface_ref = 
+			this->context.getTypeManager().getPolyInterfaceRef(
+				got_type.baseTypeID().polyInterfaceRefID()
+			);
+
+
+		if(
+			expected_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
+				!= got_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
+		){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		if(expected_poly_interface_ref.isMut && got_poly_interface_ref.isMut == false){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		return TypeCheckInfo::success(true);
+	}
+	
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_to_interface_map(
+		const TypeInfo& expected_type,
+		TypeInfo::ID decayed_got_type_id,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		const BaseType::InterfaceMap& target_interface_map = 
+			this->context.getTypeManager().getInterfaceMap(expected_type.baseTypeID().interfaceMapID());
+
+		BaseType::Interface& target_interface = this->context.type_manager.getInterface(
+			target_interface_map.interfaceID.as<BaseType::Interface::ID>()
+		);
+
+		const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+			target_interface, decayed_got_type_id, location
+		);
+
+		if(implements_result.has_value() == false){ return TypeCheckInfo::fail(implements_result.error()); }
+		if(implements_result.value() == false){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+
+		if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+			got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+		}
+		return TypeCheckInfo::success(true);
+	}
+
+
+	template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+	auto SemanticAnalyzer::type_check_to_interface_ptr_map(
+		const TypeInfo& expected_type,
+		// from actual call
+		TypeInfo::ID expected_type_id,
+		TermInfo& got_expr,
+		std::string_view expected_type_location_name,
+		Diagnostic::Location location,
+		std::optional<unsigned> multi_type_index
+	) -> TypeCheckInfo {
+		const BaseType::InterfacePtrMap& expected_interface_ptr_map = this->context.getTypeManager().getInterfacePtrMap(
+			expected_type.baseTypeID().interfacePtrMapID()
+		);
+
+
+		TypeCheckInfo type_check_info = this->type_check<true, false, IS_COMPTIME>(
+			expected_interface_ptr_map.targetTypeID,
+			got_expr,
+			"",
+			Diagnostic::Location::NONE
+		);
+		if(type_check_info.ok == false){
+			const Result special_result = type_check_info.extractSpecialResultForReturning();
+
+			if(special_result != Result::ERROR){ return TypeCheckInfo::fail(special_result); }
+
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+		if(expected_interface_ptr_map.isMut && got_expr.is_mutable() == false){
+			if constexpr(MAY_EMIT_ERROR){
+				this->error_type_mismatch(
+					expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+				);
+			}
+			return TypeCheckInfo::fail();
+		}
+
+
+		if constexpr(MAY_DO_IMPLICIT_CONVERSION){
+			got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+
+			if(expected_interface_ptr_map.isPolymorphic == false){
+				got_expr.getExpr() = sema::Expr(this->context.sema_buffer.createAddrOf(got_expr.getExpr()));
+			}
+		}
+
+		return TypeCheckInfo::success(true);
+	}
+
+
+
 
 
 

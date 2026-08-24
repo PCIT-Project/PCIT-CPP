@@ -1237,6 +1237,100 @@ namespace pcit::panther{
 			) -> TypeCheckInfo;
 
 
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_from_struct(
+				const TypeInfo& got_type,
+				TypeInfo::ID decayed_expected_type_id,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				bool is_initialization,
+				std::optional<unsigned> multi_type_index
+			) -> std::optional<TypeCheckInfo>;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_to_struct(
+				const TypeInfo& expected_type,
+				TypeInfo::ID decayed_got_type_id,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				bool is_initialization,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_to_function(
+				const TypeInfo& expected_type,
+				const TypeInfo& got_type,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_array_to_array_ref(
+				const TypeInfo& expected_type,
+				const TypeInfo& got_type,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_to_poly_interface_ref(
+				const TypeInfo& expected_type,
+				const TypeInfo& got_type,
+				TypeInfo::ID decayed_got_type_id,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_to_interface_map(
+				const TypeInfo& expected_type,
+				TypeInfo::ID decayed_got_type_id,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+			template<bool MAY_DO_IMPLICIT_CONVERSION, bool MAY_EMIT_ERROR, bool IS_COMPTIME>
+			[[nodiscard]] auto type_check_to_interface_ptr_map(
+				const TypeInfo& expected_type,
+				// from actual call
+				TypeInfo::ID expected_type_id,
+				TermInfo& got_expr,
+				std::string_view expected_type_location_name,
+				Diagnostic::Location location,
+				std::optional<unsigned> multi_type_index
+			) -> TypeCheckInfo;
+
+
+
 			[[nodiscard]] auto handle_non_auto_implicit_conversion(
 				TypeCheckInfo::NonAutoImplicitConversionTarget& non_auto_implicit_conversion_target,
 				const TermInfo& lhs,

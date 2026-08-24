@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.368.0"></a>
+## v0.0.368.0
+
+### Panther
+- Added implicit conversion to interface maps, polymorphic interface references, and interface pointer maps
+
+
+<!---------------------------------->
 <a name="v0.0.367.0"></a>
 ## v0.0.367.0
 
