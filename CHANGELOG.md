@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.369.0"></a>
+## v0.0.369.0
+
+### Panther
+- Added uninit qualified types for function parameters if the function has attribute `unsafe`
+
+### Misc
+- Updated to [Panther-std v0.0.52.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.52.0)
+
+
+<!---------------------------------->
 <a name="v0.0.368.0"></a>
 ## v0.0.368.0
 

@@ -3465,7 +3465,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(param_type.isUninitPointer()){
+				if(func_attrs.value().is_unsafe == false && param_type.isUninitPointer()){
 					this->emit_error(
 						"Type of function parameter cannot be a uninitialized-qualified pointer", *param.type
 					);
@@ -36742,7 +36742,7 @@ namespace pcit::panther{
 							} break;
 						}
 
-						evo::unreachable();
+						// evo::unreachable();
 					}
 
 
