@@ -92,6 +92,7 @@ namespace pcit::panther{
 				std::optional<WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
 				UnreachableMode unreachableMode;
+				bool checkedOptionals;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -379,6 +380,7 @@ namespace pcit::panther{
 				pir::OptMode optMode;
 				NumThreads numThreads;
 				Config::UnreachableMode unreachableMode;
+				bool checkedOptionals;
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;

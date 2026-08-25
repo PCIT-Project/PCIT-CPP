@@ -928,7 +928,12 @@ namespace pcit::panther{
 		);
 
 		if(this->entry.load(std::memory_order::relaxed).has_value() == false){
-			this->emitError("No function with the [#entry] attribute found", Diagnostic::Location::NONE);
+			this->emitError("No function with the `#entry` attribute found", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
+		if(this->expecting_panic && this->panic.has_value() == false){
+			this->emitError("No function with the `#builtin(\"panic\")` attribute found", Diagnostic::Location::NONE);
 			return evo::resultError;
 		}
 
@@ -2980,6 +2985,13 @@ namespace pcit::panther{
 					AST::VarDef::Kind::VAR,
 					build_module.createString("unreachableMode"),
 					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(unreachable_mode_type))),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("checkedOptionals"),
+					TypeManager::getTypeBool(),
 					std::nullopt,
 					false
 				),

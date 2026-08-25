@@ -2858,7 +2858,7 @@ namespace pcit::panther{
 				const sema::Conditional& conditional_stmt = 
 					this->context.getSemaBuffer().getConditional(stmt.conditionalID());
 
-				const pir::BasicBlock::ID then_block = this->handler.createBasicBlock("IF.THEN");
+				const pir::BasicBlock::ID then_block = this->handler.createBasicBlock(this->name("IF.THEN"));
 				auto end_block = std::optional<pir::BasicBlock::ID>();
 
 
@@ -2876,7 +2876,7 @@ namespace pcit::panther{
 				const pir::Expr cond_value = this->get_expr_register(conditional_stmt.cond);
 
 				if(conditional_stmt.elseStmts.empty()){
-					end_block = this->handler.createBasicBlock("IF.END");
+					end_block = this->handler.createBasicBlock(this->name("IF.END"));
 
 					this->handler.createBranch(cond_value, then_block, *end_block);
 
@@ -2931,7 +2931,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const pir::BasicBlock::ID else_block = this->handler.createBasicBlock("IF.ELSE");
+					const pir::BasicBlock::ID else_block = this->handler.createBasicBlock(this->name("IF.ELSE"));
 
 					const bool then_terminated = conditional_stmt.thenStmts.isTerminated();
 					const bool else_terminated = conditional_stmt.elseStmts.isTerminated();
@@ -3007,7 +3007,7 @@ namespace pcit::panther{
 
 					if(else_terminated && then_terminated){ break; }
 
-					end_block = this->handler.createBasicBlock("IF.END");
+					end_block = this->handler.createBasicBlock(this->name("IF.END"));
 
 					if(else_terminated == false){
 						if(this->data.getConfig().includeDebugInfo){
@@ -4876,6 +4876,33 @@ namespace pcit::panther{
 				);
 			});
 
+			if(this->context.getConfig().checkedOptionals){
+				const pir::BasicBlock::ID fail_block = 
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL"));
+				const pir::BasicBlock::ID end_block = 
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS"));
+
+
+				const pir::Expr converted_ptr = this->handler.createBitCast(
+					this->get_expr_register(optional_extract.expr),
+					this->module.createUSize(),
+					this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+				);
+
+				const pir::Expr zero_value = this->handler.createNumber(
+					this->module.createUSize(), core::GenericInt(unsigned(this->module.getTarget().numBitsOfPtr()), 0)
+				);
+
+				const pir::Expr is_null = this->handler.createIEq(converted_ptr, zero_value);
+
+				this->handler.createBranch(is_null, fail_block, end_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to extract an optional that is null");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
 			if constexpr(MODE == GetExprMode::REGISTER){
 				return this->get_expr_register(optional_extract.expr);
 
@@ -4903,6 +4930,26 @@ namespace pcit::panther{
 				lhs, target_type, evo::SmallVector<pir::CalcPtr::Index>{0, 1}, this->name(".EXTRACT_OPT.flag")
 			);
 
+			if(this->context.getConfig().checkedOptionals){
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+					this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL")
+				);
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+					this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS")
+				);
+
+				const pir::Expr flag_value = this->handler.createLoad(
+					flag, this->module.createBoolType(), this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.FLAG_VALUE")
+				);
+
+				this->handler.createBranch(flag_value, end_block, fail_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to extract an optional that is null");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
 			const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
 				this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID)
 					.copyWithPoppedQualifier()
@@ -4915,6 +4962,33 @@ namespace pcit::panther{
 			return output;
 
 		}else{
+			if(this->context.getConfig().checkedOptionals){
+				const pir::BasicBlock::ID fail_block = 
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL"));
+				const pir::BasicBlock::ID end_block = 
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS"));
+
+
+				const pir::Expr converted_ptr = this->handler.createBitCast(
+					this->get_expr_register(optional_extract.expr),
+					this->module.createUSize(),
+					this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+				);
+
+				const pir::Expr zero_value = this->handler.createNumber(
+					this->module.createUSize(), core::GenericInt(unsigned(this->module.getTarget().numBitsOfPtr()), 0)
+				);
+
+				const pir::Expr is_null = this->handler.createIEq(converted_ptr, zero_value);
+
+				this->handler.createBranch(is_null, fail_block, end_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to extract an optional that is null");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
 			EVO_DEFER([&](){
 				const pir::Type interface_ptr_type = this->data.getInterfacePtrType(this->module).pir_type;
 				const pir::Expr calc_ptr = this->handler.createCalcPtr(
@@ -5030,6 +5104,33 @@ namespace pcit::panther{
 		}
 
 		if(target_type_info.isPointer()){
+			if(this->context.getConfig().checkedOptionals){
+				const pir::BasicBlock::ID fail_block = 
+					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED_OPTIONAL.FAIL"));
+				const pir::BasicBlock::ID end_block = 
+					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED_OPTIONAL.SUCCESS"));
+
+
+				const pir::Expr converted_ptr = this->handler.createBitCast(
+					this->get_expr_register(unwrap.expr),
+					this->module.createUSize(),
+					this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+				);
+
+				const pir::Expr zero_value = this->handler.createNumber(
+					this->module.createUSize(), core::GenericInt(unsigned(this->module.getTarget().numBitsOfPtr()), 0)
+				);
+
+				const pir::Expr is_null = this->handler.createIEq(converted_ptr, zero_value);
+
+				this->handler.createBranch(is_null, fail_block, end_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to extract an optional that is null");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
 			if constexpr(MODE == GetExprMode::REGISTER){
 				return this->get_expr_register(unwrap.expr);
 
@@ -5047,6 +5148,34 @@ namespace pcit::panther{
 
 		}else{
 			const pir::Type target_pir_type = this->get_type<false, false>(unwrap.targetTypeID).type;
+
+			if(this->context.getConfig().checkedOptionals){
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+					this->name("UNWRAP_OPT.CHECKED_OPTIONAL.FAIL")
+				);
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+					this->name("UNWRAP_OPT.CHECKED_OPTIONAL.SUCCESS")
+				);
+
+				const pir::Expr flag = this->handler.createCalcPtr(
+					this->get_expr_pointer(unwrap.expr),
+					target_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.FLAG")
+				);
+
+				const pir::Expr flag_value = this->handler.createLoad(
+					flag, this->module.createBoolType(), this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.FLAG_VALUE")
+				);
+
+				this->handler.createBranch(flag_value, end_block, fail_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to extract an optional that is null");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
 
 			if constexpr(MODE == GetExprMode::REGISTER){
 				return this->handler.createCalcPtr(
@@ -5329,7 +5458,7 @@ namespace pcit::panther{
 
 		const std::string_view label = this->current_source->getTokenBuffer()[block_expr.label].getString();
 
-		const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("BLOCK_EXPR.END");
+		const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("BLOCK_EXPR.END"));
 
 
 		if(this->data.getConfig().includeDebugInfo){
@@ -8572,15 +8701,18 @@ namespace pcit::panther{
 				);
 
 
-				const pir::BasicBlock::ID flags_eq_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_EQ");
+				const pir::BasicBlock::ID flags_eq_block = 
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.FLAGS_EQ"));
 				const pir::BasicBlock::ID flags_true_block =
-					this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_TRUE");
-				const pir::BasicBlock::ID flags_neq_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.FLAGS_NEQ");
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.FLAGS_TRUE"));
+				const pir::BasicBlock::ID flags_neq_block =
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.FLAGS_NEQ"));
 				const pir::BasicBlock::ID src_flag_true_block =
-					this->handler.createBasicBlock("COPY_OPT_ASSIGN.SRC_FLAG_TRUE");
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.SRC_FLAG_TRUE"));
 				const pir::BasicBlock::ID dst_flag_true_block =
-					this->handler.createBasicBlock("COPY_OPT_ASSIGN.DST_FLAG_TRUE");
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("COPY_OPT_ASSIGN.END");
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.DST_FLAG_TRUE"));
+				const pir::BasicBlock::ID end_block =
+					this->handler.createBasicBlock(this->name("COPY_OPT_ASSIGN.END"));
 
 				const pir::Expr flags_eq = 
 					this->handler.createIEq(src_flag, dst_flag, this->name(".COPY_OPT_ASSIGN.flags_eq"));
@@ -9050,15 +9182,18 @@ namespace pcit::panther{
 				);
 
 
-				const pir::BasicBlock::ID flags_eq_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_EQ");
+				const pir::BasicBlock::ID flags_eq_block =
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.FLAGS_EQ"));
 				const pir::BasicBlock::ID flags_true_block =
-					this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_TRUE");
-				const pir::BasicBlock::ID flags_neq_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.FLAGS_NEQ");
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.FLAGS_TRUE"));
+				const pir::BasicBlock::ID flags_neq_block =
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.FLAGS_NEQ"));
 				const pir::BasicBlock::ID src_flag_true_block =
-					this->handler.createBasicBlock("MOVE_OPT_ASSIGN.SRC_FLAG_TRUE");
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.SRC_FLAG_TRUE"));
 				const pir::BasicBlock::ID dst_flag_true_block =
-					this->handler.createBasicBlock("MOVE_OPT_ASSIGN.DST_FLAG_TRUE");
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock("MOVE_OPT_ASSIGN.END");
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.DST_FLAG_TRUE"));
+				const pir::BasicBlock::ID end_block =
+					this->handler.createBasicBlock(this->name("MOVE_OPT_ASSIGN.END"));
 
 				const pir::Expr flags_eq = 
 					this->handler.createIEq(src_flag, dst_flag, this->name(".MOVE_OPT_ASSIGN.flags_eq"));
@@ -12386,8 +12521,7 @@ namespace pcit::panther{
 	}
 
 
-	auto SemaToPIR::create_panic(std::string_view message)
-	-> void {
+	auto SemaToPIR::create_panic(std::string_view message) -> void {
 		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message) + '\0');
 
 		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
@@ -12431,6 +12565,23 @@ namespace pcit::panther{
 		);
 
 		this->create_panic(string_ref_alloca);
+	}
+
+
+	auto SemaToPIR::create_unreachable(std::string_view message) -> void {
+		switch(this->context.getConfig().unreachableMode){
+			case Context::Config::UnreachableMode::PANIC: {
+				this->create_panic(message);
+			} break;
+
+			case Context::Config::UnreachableMode::ABORT: {
+				this->handler.createAbort();
+			} break;
+
+			case Context::Config::UnreachableMode::UNREACHABLE: {
+				this->handler.createUnreachable();
+			} break;
+		}
 	}
 
 

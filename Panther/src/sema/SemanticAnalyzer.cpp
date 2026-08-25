@@ -12710,9 +12710,25 @@ namespace pcit::panther{
 					);
 					return Result::ERROR;
 				}else{
-					const TypeInfo::ID held_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).copyWithPoppedQualifier()
-					);
+					const TypeInfo& optional_type = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID);
+
+					const TypeInfo::ID held_type_id = [&]() -> TypeInfo::ID {
+						if(optional_type.isPointer()){
+							TypeInfo::Qualifier current_last_qualifier = optional_type.qualifiers().back();
+							current_last_qualifier.isOptional = false;
+
+							return this->context.type_manager.getOrCreateTypeInfo(
+								optional_type.copyWithDifferentLastQualifier(current_last_qualifier)
+							);
+							
+						}else{
+							return this->context.type_manager.getOrCreateTypeInfo(
+								optional_type.copyWithPoppedQualifier()
+							);
+						}
+					}();
+
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -16713,7 +16729,9 @@ namespace pcit::panther{
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
 		if(target_type.isPointer() == false){
-			this->emit_error("Argument of operator [.*] must be a pointer", instr.postfix);
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(target.type_id.as<TypeInfo::ID>(), infos, "Argument type: ");
+			this->emit_error("Argument of operator [.*] must be a pointer", instr.postfix, std::move(infos));
 			return Result::ERROR;
 		}
 
@@ -16873,6 +16891,14 @@ namespace pcit::panther{
 					return Result::ERROR;
 				} break;
 			}
+		}
+
+		if(
+			this->currently_in_func()
+				&& this->context.getConfig().checkedOptionals
+				&& this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC
+		){
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 		}
 
 		this->return_term_info(instr.output,
@@ -24899,6 +24925,14 @@ namespace pcit::panther{
 		}();
 
 		if(rhs_ident_str == "extract"){
+			if(
+				this->context.getConfig().checkedOptionals
+					&& this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC
+			){
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+			}
+
+
 			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
 				TypeInfo(
 					this->context.type_manager.getOrCreateFunction(

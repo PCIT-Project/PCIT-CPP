@@ -1227,6 +1227,12 @@ namespace pcit::panther{
 				return copied_type;
 			}
 
+			[[nodiscard]] auto copyWithDifferentLastQualifier(const Qualifier& qualifier) const -> TypeInfo {
+				TypeInfo copied_type = *this;
+				copied_type._qualifiers.back() = qualifier;
+				return copied_type;
+			}
+
 			// TODO(PERF): better allocation of qualifiers vector
 			[[nodiscard]] auto copyWithPoppedQualifier(size_t ammount_to_pop) const -> TypeInfo {
 				evo::debugAssert(ammount_to_pop != 0, "Shouldn't be copying if popping 0");

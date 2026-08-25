@@ -462,6 +462,11 @@ namespace pcit::pir{
 			}
 
 
+			[[nodiscard]] auto createUSize() const -> Type {
+				return createUnsignedType(uint32_t(this->getTarget().numBitsOfPtr()));
+			}
+
+
 			[[nodiscard]] auto getOrCreateArrayType(Type elem_type, uint64_t length) -> Type {
 				const auto lock = std::scoped_lock(array_types_lock);
 

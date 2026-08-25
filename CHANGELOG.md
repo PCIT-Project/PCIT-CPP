@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.370.0"></a>
+## v0.0.370.0
+
+### Panther
+- Added `@build.PantherBuildConfig.checkedOptional`
+- Fixed checking for `@panic` if it's needed in script mode and build mode
+- Fixed return type of optional `.extract()` when the held type is a pointer
+
+
+<!---------------------------------->
 <a name="v0.0.369.0"></a>
 ## v0.0.369.0
 

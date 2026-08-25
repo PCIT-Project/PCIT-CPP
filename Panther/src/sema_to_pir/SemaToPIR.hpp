@@ -496,6 +496,7 @@ namespace pcit::panther{
 
 			auto create_panic(pir::Expr message) -> void;
 			auto create_panic(std::string_view message) -> void;
+			auto create_unreachable(std::string_view message) -> void;
 
 
 			[[nodiscard]] auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
