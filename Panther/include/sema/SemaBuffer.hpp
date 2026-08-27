@@ -842,11 +842,13 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// aggregates
 
-			[[nodiscard]] auto createAggregateValue(evo::SmallVector<Expr>&& values, BaseType::ID typeID)
-				-> AggregateValue::ID;
+			[[nodiscard]] auto createAggregateValue(
+				evo::SmallVector<Expr>&& values, BaseType::ID typeID, bool isComptime
+			) -> AggregateValue::ID;
 
-			[[nodiscard]] auto createAggregateValue(const evo::SmallVector<Expr>& values, BaseType::ID typeID)
-				-> AggregateValue::ID;
+			[[nodiscard]] auto createAggregateValue(
+				const evo::SmallVector<Expr>& values, BaseType::ID typeID, bool isComptime
+			) -> AggregateValue::ID;
 
 			[[nodiscard]] auto getAggregateValue(AggregateValue::ID id) const -> const AggregateValue&;
 
@@ -857,6 +859,14 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createCharValue(char character) -> CharValue::ID;
 
 			[[nodiscard]] auto getCharValue(CharValue::ID id) const -> const CharValue&;
+
+
+			///////////////////////////////////
+			// RawPtrs
+
+			[[nodiscard]] auto createRawPtrValue(core::GenericInt&& value) -> RawPtrValue::ID;
+
+			[[nodiscard]] auto getRawPtrValue(RawPtrValue::ID id) const -> const RawPtrValue&;
 
 
 			///////////////////////////////////

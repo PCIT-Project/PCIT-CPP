@@ -130,6 +130,15 @@ namespace pcit::pir{
 
 
 			///////////////////////////////////
+			// raw pointer values
+
+			[[nodiscard]] auto createRawPtrValue(core::GenericInt&& value) const -> Expr;
+			[[nodiscard]] auto createRawPtrValue(const core::GenericInt& value) const -> Expr;
+
+			[[nodiscard]] auto getRawPtrValue(Expr expr) const -> const RawPtrValue&;
+
+
+			///////////////////////////////////
 			// nullptr
 
 			[[nodiscard]] static auto createNullptr() -> Expr;

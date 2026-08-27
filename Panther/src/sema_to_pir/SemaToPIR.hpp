@@ -194,6 +194,11 @@ namespace pcit::panther{
 			) -> std::optional<pir::Expr>;
 
 			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_raw_ptr_value(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
 			[[nodiscard]] auto get_expr_impl_func_call(
 				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;

@@ -565,6 +565,11 @@ namespace pcit::llvmint{
 	}
 
 
+	auto IRBuilder::getValueIntToPtr(ConstantInt value, Type to_type) const -> Constant {
+		return Constant(llvm::ConstantExpr::getIntToPtr(value.native(), to_type.native()));
+	}
+
+
 	auto IRBuilder::getValueBool(bool value) const -> ConstantInt {
 		return ConstantInt(this->builder->getInt1(value));
 	}

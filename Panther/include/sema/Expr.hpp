@@ -42,6 +42,7 @@ namespace pcit::panther::sema{
 			STRING_VALUE,
 			AGGREGATE_VALUE,
 			CHAR_VALUE,
+			RAW_PTR_VALUE,
 
 			INTRINSIC_FUNC,
 			TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
@@ -107,6 +108,7 @@ namespace pcit::panther::sema{
 		explicit Expr(StringValueID id)        : _kind(Kind::STRING_VALUE),         value{.string_value = id}        {};
 		explicit Expr(AggregateValueID id)     : _kind(Kind::AGGREGATE_VALUE),      value{.aggregate_value = id}     {};
 		explicit Expr(CharValueID id)          : _kind(Kind::CHAR_VALUE),           value{.char_value = id}          {};
+		explicit Expr(RawPtrValueID id)        : _kind(Kind::RAW_PTR_VALUE),        value{.raw_ptr_value = id}       {};
 
 		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
 			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
@@ -213,6 +215,10 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto charValueID() const -> CharValueID {
 			evo::debugAssert(this->kind() == Kind::CHAR_VALUE, "not a CharValue");
 			return this->value.char_value;
+		}
+		[[nodiscard]] auto rawPtrValueID() const -> RawPtrValueID {
+			evo::debugAssert(this->kind() == Kind::RAW_PTR_VALUE, "not a RawPtrValue");
+			return this->value.raw_ptr_value;
 		}
 
 		[[nodiscard]] auto intrinsicFuncID() const -> IntrinsicFunc::Kind {
@@ -430,6 +436,7 @@ namespace pcit::panther::sema{
 				StringValueID string_value;
 				AggregateValueID aggregate_value;
 				CharValueID char_value;
+				RawPtrValueID raw_ptr_value;
 
 				IntrinsicFunc::Kind intrinsic_func;
 				TemplateIntrinsicFuncInstantiationID templated_intrinsic_func_instantiation;

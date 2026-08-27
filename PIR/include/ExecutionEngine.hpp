@@ -89,6 +89,10 @@ namespace pcit::pir{
 				return this->get_existing_current_executor().ptr_map;
 			}
 
+			[[nodiscard]] auto getPtrMap() -> ExecutionEnginePtrMap& {
+				return this->get_current_executor().ptr_map;
+			}
+
 
 			[[nodiscard]] auto registerExternFunc(ExternalFunction::ID extern_func_id, void* func_ptr) -> void;
 
@@ -116,7 +120,7 @@ namespace pcit::pir{
 				const size_t global_size = this->module.numBytes(global_var.type);
 
 				LoweredGlobal& new_global = this->lowered_globals.emplace_back(
-					core::GenericValue::createUninit(global_size), false
+					core::GenericValue::createZeroinit(global_size), false
 				);
 
 				this->lowered_globals_map.emplace(global_id, new_global);

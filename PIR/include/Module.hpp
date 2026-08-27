@@ -1195,6 +1195,7 @@ namespace pcit::pir{
 
 			core::StepAlloc<BasicBlock, BasicBlock::ID> basic_blocks{};
 			core::StepAlloc<Number, uint32_t> numbers{};
+			core::StepAlloc<RawPtrValue, uint32_t> raw_ptr_values{};
 
 
 			core::LinearStepAlloc<ArrayType, uint32_t> array_types{};

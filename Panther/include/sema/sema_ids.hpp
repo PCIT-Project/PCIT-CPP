@@ -58,6 +58,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, CharValueID>::UniqueID;
 	};
 
+	struct RawPtrValueID : public core::UniqueID<uint32_t, struct RawPtrValueID> {
+		using core::UniqueID<uint32_t, RawPtrValueID>::UniqueID;
+	};
+
 
 
 
@@ -444,6 +448,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::CharValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::RawPtrValueID>{
+		static constexpr auto init(panther::sema::RawPtrValueID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::RawPtrValueID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1322,6 +1337,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::CharValueID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::CharValueID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::RawPtrValueID>{
+		auto operator()(pcit::panther::sema::RawPtrValueID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::RawPtrValueID>
+		: public pcit::core::Optional<pcit::panther::sema::RawPtrValueID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::RawPtrValueID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::RawPtrValueID>::operator=;
 	};
 
 

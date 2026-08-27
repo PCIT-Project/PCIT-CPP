@@ -776,10 +776,11 @@ namespace pcit::pir{
 				case Expr::Kind::FUNCTION_POINTER:
 					return std::string_view(reader.getModule().getFunction(reader.getFunctionPointer(expr)).getName());
 
-				case Expr::Kind::NUMBER:    return evo::resultError;
-				case Expr::Kind::BOOLEAN:   return evo::resultError;
-				case Expr::Kind::BOOLEAN32: return evo::resultError;
-				case Expr::Kind::NULLPTR:   return evo::resultError;
+				case Expr::Kind::NUMBER:        return evo::resultError;
+				case Expr::Kind::BOOLEAN:       return evo::resultError;
+				case Expr::Kind::BOOLEAN32:     return evo::resultError;
+				case Expr::Kind::RAW_PTR_VALUE: return evo::resultError;
+				case Expr::Kind::NULLPTR:       return evo::resultError;
 
 				case Expr::Kind::PARAM_EXPR:
 					return std::string_view(

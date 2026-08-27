@@ -1,6 +1,20 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.371.0"></a>
+## v0.0.371.0
+
+### Panther
+- Added automatic comptime execution of comptime function call expressions that are runtime values
+- Improved lowering of aggregate values to have values as global data
+- Fixed lowering of some global values
+
+### PIR
+- Added raw pointer values
+- Fixed lowering of some global values
+
+
+<!---------------------------------->
 <a name="v0.0.370.0"></a>
 ## v0.0.370.0
 

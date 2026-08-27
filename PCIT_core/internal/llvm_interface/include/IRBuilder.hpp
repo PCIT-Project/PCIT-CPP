@@ -321,6 +321,7 @@ namespace pcit::llvmint{
 			
 			[[nodiscard]] auto getValueNull() const -> Constant;
 
+			[[nodiscard]] auto getValueIntToPtr(ConstantInt value, Type to_type) const -> Constant;
 
 			[[nodiscard]] auto getValueBool(bool value) const -> ConstantInt;
 

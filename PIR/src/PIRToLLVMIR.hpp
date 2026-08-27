@@ -135,7 +135,7 @@ namespace pcit::pir{
 			// nullopt means forward decl should not be done on this type
 			[[nodiscard]] auto get_meta_forward_decl_type(meta::Type type) -> std::optional<llvmint::DIBuilder::Type>;
 
-
+			[[nodiscard]] auto get_struct_padding_type(size_t num_bytes) const -> llvmint::Type;
 
 			[[nodiscard]] static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			[[nodiscard]] auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
@@ -154,6 +154,7 @@ namespace pcit::pir{
 			struct StructData{
 				llvmint::StructType struct_type;
 				evo::SmallVector<uint32_t> member_offsets;
+				evo::SmallVector<uint32_t> paddings;
 			};
 
 			std::unordered_map<const StructType*, StructData> struct_types{};

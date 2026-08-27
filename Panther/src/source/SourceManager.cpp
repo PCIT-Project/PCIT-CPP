@@ -183,4 +183,11 @@ namespace pcit::panther{
 	}
 
 
+	#if defined(PCIT_CONFIG_DEBUG)
+		auto SourceManager::debug_get_source(uint32_t id) const -> const Source& {
+			return this->operator[](Source::ID(id));
+		}
+	#endif
+
+
 }

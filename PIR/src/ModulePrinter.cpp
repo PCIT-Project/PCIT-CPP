@@ -451,8 +451,14 @@ namespace pcit::pir{
 
 				for(char c : string_value.value){
 					if(c > 31 && c < 127){
-						char_str[0] = c;
-						this->printer.printYellow(char_str);
+						if(c == '\"'){
+							this->printer.printYellow("\\\"");
+
+						}else{
+							char_str[0] = c;
+							this->printer.printYellow(char_str);
+						}
+
 					}else{
 						const uint8_t char_num = uint8_t(c);
 						uint8_t char_ones_place = char_num % 16;
@@ -507,7 +513,7 @@ namespace pcit::pir{
 
 				this->printer.print("[");
 				for(size_t i = 0; const std::byte byte_value : byte_array.bytes){
-					this->printer.printCyan("I8");
+					this->printer.printCyan("UI8");
 					this->printer.print("(");
 					this->printer.printMagenta("{}", uint8_t(byte_value));
 					this->printer.print(")");
@@ -644,6 +650,14 @@ namespace pcit::pir{
 
 			case Expr::Kind::BOOLEAN32: {
 				this->printer.printMagenta("{}32", this->reader.getBoolean32(expr));
+			} break;
+
+			case Expr::Kind::RAW_PTR_VALUE: {
+				const RawPtrValue& raw_ptr_value = this->reader.getRawPtrValue(expr);
+				this->printer.printCyan("Ptr");
+				this->printer.print("(");
+				this->printer.printMagenta(raw_ptr_value.value.toString(false));
+				this->printer.print(")");
 			} break;
 
 			case Expr::Kind::NULLPTR: {
@@ -1113,11 +1127,12 @@ namespace pcit::pir{
 			case Expr::Kind::GLOBAL_VALUE: evo::debugFatalBreak("Expr::Kind::GLOBAL_VALUE is not a valid statement");
 			case Expr::Kind::FUNCTION_POINTER: 
 				evo::debugFatalBreak("Expr::Kind::FUNCTION_POINTER is not a valid statement");
-			case Expr::Kind::NUMBER:      evo::debugFatalBreak("Expr::Kind::NUMBER is not a valid statement");
-			case Expr::Kind::BOOLEAN:     evo::debugFatalBreak("Expr::Kind::BOOLEAN is not a valid statement");
-			case Expr::Kind::BOOLEAN32:   evo::debugFatalBreak("Expr::Kind::BOOLEAN32 is not a valid statement");
-			case Expr::Kind::NULLPTR:     evo::debugFatalBreak("Expr::Kind::NULLPTR is not a valid statement");
-			case Expr::Kind::PARAM_EXPR:  evo::debugFatalBreak("Expr::Kind::PARAM_EXPR is not a valid statement");
+			case Expr::Kind::NUMBER:        evo::debugFatalBreak("Expr::Kind::NUMBER is not a valid statement");
+			case Expr::Kind::BOOLEAN:       evo::debugFatalBreak("Expr::Kind::BOOLEAN is not a valid statement");
+			case Expr::Kind::BOOLEAN32:     evo::debugFatalBreak("Expr::Kind::BOOLEAN32 is not a valid statement");
+			case Expr::Kind::RAW_PTR_VALUE: evo::debugFatalBreak("Expr::Kind::RAW_PTR_VALUE is not a valid statement");
+			case Expr::Kind::NULLPTR:       evo::debugFatalBreak("Expr::Kind::NULLPTR is not a valid statement");
+			case Expr::Kind::PARAM_EXPR:    evo::debugFatalBreak("Expr::Kind::PARAM_EXPR is not a valid statement");
 
 			case Expr::Kind::CALL: {
 				const Call& call_inst = this->reader.getCall(stmt);

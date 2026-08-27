@@ -47,6 +47,7 @@ namespace pcit::pir::passes{
 				break; case Expr::Kind::NUMBER:            break;
 				break; case Expr::Kind::BOOLEAN:           break;
 				break; case Expr::Kind::BOOLEAN32:         break;
+				break; case Expr::Kind::RAW_PTR_VALUE:     break;
 				break; case Expr::Kind::NULLPTR:           break;
 				break; case Expr::Kind::PARAM_EXPR:        break;
 				break; case Expr::Kind::CALL:              func_metadata.emplace(expr);
@@ -172,6 +173,7 @@ namespace pcit::pir::passes{
 			case Expr::Kind::NUMBER:           return false;
 			case Expr::Kind::BOOLEAN:          return false;
 			case Expr::Kind::BOOLEAN32:        return false;
+			case Expr::Kind::RAW_PTR_VALUE:    return false;
 			case Expr::Kind::NULLPTR:          return false;
 			case Expr::Kind::PARAM_EXPR:       return false;
 

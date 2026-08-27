@@ -175,6 +175,7 @@ namespace pcit::pir{
 					case Expr::Kind::NUMBER:           continue;
 					case Expr::Kind::BOOLEAN:          continue;
 					case Expr::Kind::BOOLEAN32:        continue;
+					case Expr::Kind::RAW_PTR_VALUE:    continue;
 					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					
@@ -932,6 +933,29 @@ namespace pcit::pir{
 	auto InstrHandler::getBoolean32(Expr expr) -> bool {
 		return InstrReader::getBoolean32(expr);
 	}
+
+
+	//////////////////////////////////////////////////////////////////////
+	// pointer values
+
+	auto InstrHandler::createRawPtrValue(core::GenericInt&& value) const -> Expr {
+		evo::debugAssert(
+			value.getBitWidth() != this->module.getTarget().numBitsOfPtr(),
+			"value must be same size as pointer on target architecture"
+		);
+
+		return Expr(Expr::Kind::RAW_PTR_VALUE, this->module.raw_ptr_values.emplace_back(std::move(value)));
+	}
+
+	auto InstrHandler::createRawPtrValue(const core::GenericInt& value) const -> Expr {
+		evo::debugAssert(
+			value.getBitWidth() == this->module.getTarget().numBitsOfPtr(),
+			"value must be same size as pointer on target architecture"
+		);
+
+		return Expr(Expr::Kind::RAW_PTR_VALUE, this->module.raw_ptr_values.emplace_back(value));
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////
@@ -3801,6 +3825,7 @@ namespace pcit::pir{
 			break; case Expr::Kind::NUMBER:            this->module.numbers.erase(expr.index);
 			break; case Expr::Kind::BOOLEAN:           return;
 			break; case Expr::Kind::BOOLEAN32:         return;
+			break; case Expr::Kind::RAW_PTR_VALUE:     return;
 			break; case Expr::Kind::NULLPTR:           return;
 			break; case Expr::Kind::PARAM_EXPR:        return;
 			break; case Expr::Kind::CALL:              this->module.calls.erase(expr.index);
@@ -3939,6 +3964,7 @@ namespace pcit::pir{
 					case Expr::Kind::NUMBER:           continue;
 					case Expr::Kind::BOOLEAN:          continue;
 					case Expr::Kind::BOOLEAN32:        continue;
+					case Expr::Kind::RAW_PTR_VALUE:    continue;
 					case Expr::Kind::NULLPTR:          continue;
 					case Expr::Kind::PARAM_EXPR:       continue;
 					case Expr::Kind::CALL:             if(this->getCall(stmt).name == name){ return true; } continue;

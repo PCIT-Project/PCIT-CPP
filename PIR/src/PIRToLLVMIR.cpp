@@ -567,6 +567,8 @@ namespace pcit::pir{
 		auto member_offsets = evo::SmallVector<uint32_t>();
 		member_offsets.reserve(struct_type.members.size());
 
+		auto paddings = evo::SmallVector<uint32_t>();
+
 		for(const Type& member : struct_type.members){
 			if(struct_type.isPacked){
 				struct_size += this->module.numBytes(member, false);
@@ -579,11 +581,10 @@ namespace pcit::pir{
 				if(padding_offset != 0){
 					member_offset += 1;
 
-					members.emplace_back(
-						this->builder.getArrayType(
-							this->builder.getTypeI_N(8).asType(), actual_align - padding_offset
-						).asType()
-					);
+					const size_t padding_size = actual_align - padding_offset;
+
+					members.emplace_back(this->get_struct_padding_type(padding_size));
+					paddings.emplace_back(uint32_t(padding_size));
 				}
 
 				struct_size = ceil_to_multiple(struct_size, this->module.getAlignment(member));
@@ -599,11 +600,9 @@ namespace pcit::pir{
 
 		const size_t end_padding_offset = struct_size % struct_type.alignment;
 		if(end_padding_offset != 0){
-			members.emplace_back(
-				this->builder.getArrayType(
-					this->builder.getTypeI_N(8).asType(), struct_type.alignment - end_padding_offset
-				).asType()
-			);
+			const size_t padding_size = struct_type.alignment - end_padding_offset;
+			members.emplace_back(this->get_struct_padding_type(padding_size));
+			paddings.emplace_back(uint32_t(padding_size));
 		}
 
 
@@ -611,7 +610,9 @@ namespace pcit::pir{
 			members, struct_type.isPacked, struct_type.name
 		);
 
-		this->struct_types.emplace(&struct_type, StructData{llvm_struct_type, std::move(member_offsets)});
+		this->struct_types.emplace(
+			&struct_type, StructData{llvm_struct_type, std::move(member_offsets), std::move(paddings)}
+		);
 	}
 
 
@@ -850,6 +851,7 @@ namespace pcit::pir{
 					case Expr::Kind::NUMBER:           evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::BOOLEAN:          evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::BOOLEAN32:        evo::debugFatalBreak("Not a valid stmt");
+					case Expr::Kind::RAW_PTR_VALUE:    evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::NULLPTR:          evo::debugFatalBreak("Not a valid stmt");
 					case Expr::Kind::PARAM_EXPR:       evo::debugFatalBreak("Not a valid stmt");
 
@@ -2595,6 +2597,17 @@ namespace pcit::pir{
 				return this->builder.getValueI_N(32, uint64_t(this->reader.getBoolean32(expr))).asConstant();
 			} break;
 
+			case Expr::Kind::RAW_PTR_VALUE: {
+				const RawPtrValue& raw_ptr_value = this->reader.getRawPtrValue(expr);
+
+				const llvmint::IntegerType usize_type = this->builder.getTypeI_N(raw_ptr_value.value.getBitWidth());
+
+				return this->builder.getValueIntToPtr(
+					this->builder.getValueIntegral(usize_type, static_cast<uint64_t>(raw_ptr_value.value)),
+					this->builder.getTypePtr().asType()
+				);
+			} break;
+
 			case Expr::Kind::NULLPTR: {
 				return this->builder.getValueNull();
 			} break;
@@ -2687,13 +2700,34 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 				const GlobalVar::Struct& global_struct = this->module.getGlobalStruct(value);
 				const StructType& struct_type = this->module.getStructType(type);
+				const StructData& struct_data = this->struct_types.at(&struct_type);
 
 				auto values = std::vector<llvmint::Constant>();
 				values.reserve(global_struct.values.size());
+
+				size_t padding_i = 0;
 				for(size_t i = 0; const GlobalVar::Value& arr_value : global_struct.values){
+					while(values.size() + 1 < struct_data.member_offsets[i]){
+						values.emplace_back(
+							this->builder.getValueGlobalAggregateZero(
+								this->get_struct_padding_type(struct_data.paddings[padding_i])
+							)
+						);
+
+						padding_i += 1;
+					}
+
 					values.emplace_back(this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, struct_type.members[i]));
 
 					i += 1;
+				}
+
+				if(padding_i != struct_data.paddings.size()){
+					values.emplace_back(
+						this->builder.getValueGlobalAggregateZero(
+							this->get_struct_padding_type(struct_data.paddings[padding_i])
+						)
+					);
 				}
 
 				return this->builder.getValueGlobalStruct(this->get_struct_type<ADD_WEAK_DEPS>(struct_type), values);
@@ -2756,6 +2790,17 @@ namespace pcit::pir{
 
 			case Expr::Kind::BOOLEAN32: {
 				return this->builder.getValueI_N(32, uint64_t(this->reader.getBoolean32(expr))).asValue();
+			} break;
+
+			case Expr::Kind::RAW_PTR_VALUE: {
+				const RawPtrValue& raw_ptr_value = this->reader.getRawPtrValue(expr);
+
+				const llvmint::IntegerType usize_type = this->builder.getTypeI_N(raw_ptr_value.value.getBitWidth());
+
+				return this->builder.getValueIntToPtr(
+					this->builder.getValueIntegral(usize_type, static_cast<uint64_t>(raw_ptr_value.value)),
+					this->builder.getTypePtr().asType()
+				).asValue();
 			} break;
 
 			case Expr::Kind::NULLPTR: {
@@ -3220,6 +3265,10 @@ namespace pcit::pir{
 	}
 
 
+
+	auto PIRToLLVMIR::get_struct_padding_type(size_t num_bytes) const -> llvmint::Type {
+		return this->builder.getArrayType(this->builder.getTypeI_N(8).asType(), num_bytes).asType();
+	}
 
 
 	auto PIRToLLVMIR::get_linkage(const Linkage& linkage) -> llvmint::LinkageType {

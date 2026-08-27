@@ -63,12 +63,19 @@ namespace pcit::panther::sema{
 
 		evo::SmallVector<Expr> values;
 		BaseType::ID typeID;
+		bool isComptime;
 	};
 
 	struct CharValue{
 		using ID = CharValueID;
 
 		char value;
+	};
+
+	struct RawPtrValue{
+		using ID = RawPtrValueID;
+
+		core::GenericInt value;
 	};
 	
 

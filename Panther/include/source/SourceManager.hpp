@@ -211,6 +211,10 @@ namespace pcit::panther{
 			}
 
 
+			#if defined(PCIT_CONFIG_DEBUG)
+				[[nodiscard]] auto debug_get_source(uint32_t id) const -> const Source&;
+			#endif
+
 	
 		private:
 			// To prevent context from accessing private members while allowing access to private methods

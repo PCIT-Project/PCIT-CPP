@@ -98,6 +98,7 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<StringValue, StringValue::ID> string_values{};
 		core::SyncLinearStepAlloc<AggregateValue, AggregateValue::ID> aggregate_values{};
 		core::SyncLinearStepAlloc<CharValue, CharValue::ID> char_values{};
+		core::SyncLinearStepAlloc<RawPtrValue, RawPtrValue::ID> raw_ptr_values{};
 
 		core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
 
@@ -1325,15 +1326,14 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// aggregates
 
-	auto SemaBuffer::createAggregateValue(evo::SmallVector<Expr>&& values, BaseType::ID typeID)
+	auto SemaBuffer::createAggregateValue(evo::SmallVector<Expr>&& values, BaseType::ID typeID, bool isComptime)
 	-> AggregateValue::ID {
-		return this->internal->aggregate_values.emplace_back(std::move(values), typeID);
+		return this->internal->aggregate_values.emplace_back(std::move(values), typeID, isComptime);
 	}
 
-	auto SemaBuffer::createAggregateValue(
-		const evo::SmallVector<Expr>& values, BaseType::ID typeID
-	) -> AggregateValue::ID {
-		return this->internal->aggregate_values.emplace_back(values, typeID);
+	auto SemaBuffer::createAggregateValue(const evo::SmallVector<Expr>& values, BaseType::ID typeID, bool isComptime)
+	-> AggregateValue::ID {
+		return this->internal->aggregate_values.emplace_back(values, typeID, isComptime);
 	}
 
 	auto SemaBuffer::getAggregateValue(AggregateValue::ID id) const -> const AggregateValue& {
@@ -1350,6 +1350,18 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::getCharValue(CharValue::ID id) const -> const CharValue& {
 		return this->internal->char_values[id];
+	}
+
+
+	///////////////////////////////////
+	// RawPtrs
+
+	auto SemaBuffer::createRawPtrValue(core::GenericInt&& value) -> RawPtrValue::ID {
+		return this->internal->raw_ptr_values.emplace_back(value);
+	}
+
+	auto SemaBuffer::getRawPtrValue(RawPtrValue::ID id) const -> const RawPtrValue& {
+		return this->internal->raw_ptr_values[id];
 	}
 
 

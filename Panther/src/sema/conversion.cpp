@@ -30,8 +30,8 @@ namespace pcit::panther::sema{
 			} break;
 
 			case sema::Expr::Kind::STRING_VALUE: {
-				return core::GenericValue(
-					std::string_view(context.getSemaBuffer().getStringValue(expr.stringValueID()).value)
+				return core::GenericValue::createPtr(
+					context.getSemaBuffer().getStringValue(expr.stringValueID()).value.data()
 				);
 			} break;
 
@@ -40,7 +40,7 @@ namespace pcit::panther::sema{
 					context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
 
 				const size_t output_size = context.getTypeManager().numBytes(aggregate_value.typeID);
-				core::GenericValue output = core::GenericValue::createUninit(output_size);
+				core::GenericValue output = core::GenericValue::createZeroinit(output_size);
 
 				if(aggregate_value.typeID.kind() == BaseType::Kind::STRUCT){
 					const BaseType::Struct& struct_type = 
@@ -91,6 +91,10 @@ namespace pcit::panther::sema{
 				return core::GenericValue(context.getSemaBuffer().getCharValue(expr.charValueID()).value);
 			} break;
 
+			case sema::Expr::Kind::RAW_PTR_VALUE: {
+				return core::GenericValue(context.getSemaBuffer().getRawPtrValue(expr.rawPtrValueID()).value);
+			} break;
+
 			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
 				const sema::ConversionToOptional& conversion_to_optional =
 					context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
@@ -111,7 +115,7 @@ namespace pcit::panther::sema{
 					return data_value;
 				}
 
-				core::GenericValue output = core::GenericValue::createUninit(optional_type_size);
+				core::GenericValue output = core::GenericValue::createZeroinit(optional_type_size);
 				std::memcpy(output.writableDataRange().data(), data_value.dataRange().data(), element_type_size);
 				output.writableDataRange()[element_type_size] = std::byte(1);
 
@@ -130,6 +134,39 @@ namespace pcit::panther::sema{
 				const size_t num_bytes = context.getTypeManager().numBytes(default_new_expr.targetTypeID);
 
 				return core::GenericValue::createZeroinit(num_bytes);
+			} break;
+
+			case sema::Expr::Kind::INIT_ARRAY_REF: {
+				const sema::InitArrayRef& init_array_ref_expr =
+					context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
+
+
+				const size_t target_type_size = context.getTypeManager().numBytes(
+					BaseType::ID(init_array_ref_expr.targetTypeID)
+				);
+				core::GenericValue output = core::GenericValue::createZeroinit(target_type_size);
+
+				const StringValue& string_value = context.getSemaBuffer().getStringValue(
+					init_array_ref_expr.expr.stringValueID()
+				);
+
+				const size_t target_ptr_width = context.getTypeManager().numBitsOfPtr();
+				if(target_ptr_width == 64){
+					*std::bit_cast<const char**>(&output.writableDataRange()[0]) = string_value.value.data();
+					*std::bit_cast<uint64_t*>(&output.writableDataRange()[8]) = string_value.value.size();
+
+				}else{
+					evo::debugAssert(target_ptr_width == 32);
+
+					const uint32_t data_ptr_key = context.comptime_execution_engine.getPtrMap().getOrCreateKey(
+						std::bit_cast<void*>(string_value.value.data())
+					);
+
+					*std::bit_cast<uint32_t*>(&output.writableDataRange()[0]) = data_ptr_key;
+					*std::bit_cast<uint32_t*>(&output.writableDataRange()[4]) = uint32_t(string_value.value.size());
+				}
+
+				return output;
 			} break;
 
 			default: evo::debugFatalBreak("Invalid comptime value");

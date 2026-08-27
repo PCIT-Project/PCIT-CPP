@@ -3893,15 +3893,25 @@ namespace pcit::panther{
 						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 					)
 				);
+
+				return new_term_info_id;
+
 			}else{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createFuncCallExpr(
 						func_call, std::move(template_args), std::move(args), target.value(), new_term_info_id
 					)
 				);
-			}
 
-			return new_term_info_id;
+				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeFuncCallRun(
+						func_call, new_term_info_id, comptime_res_term_info_id
+					)
+				);
+				
+				return comptime_res_term_info_id;
+			}
 		}
 
 	}

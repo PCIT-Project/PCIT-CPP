@@ -22,6 +22,7 @@
 #include "./TypeManager.hpp"
 #include "../../src/symbol_proc/SymbolProcManager.hpp"
 #include "./sema/SemaBuffer.hpp"
+#include "./sema/conversion.hpp"
 #include "../../src/sema_to_pir/SemaToPIR.hpp"
 
 
@@ -965,6 +966,7 @@ namespace pcit::panther{
 			friend class SymbolProc;
 			friend class SymbolProcManager;
 			friend class SemaToPIR;
+			friend auto sema::exprToGenericValue(Expr, Context&) -> core::GenericValue;
 	};
 
 	

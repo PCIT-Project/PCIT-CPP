@@ -178,6 +178,10 @@ namespace pcit::pir{
 				evo::debugFatalBreak("Invalid stmt");
 			} break;
 
+			case Expr::Kind::RAW_PTR_VALUE: {
+				evo::debugFatalBreak("Invalid stmt");
+			} break;
+
 			case Expr::Kind::CALL: {
 				const Call& call_inst = stack_frame.reader_agent.getCall(expr);
 
@@ -263,7 +267,7 @@ namespace pcit::pir{
 						const size_t ret_type_num_bytes = this->engine.module.numBytes(extern_func.returnType);
 
 						core::GenericValue& ret_expr = stack_frame.registers.emplace(
-							expr, core::GenericValue::createUninit(ret_type_num_bytes)
+							expr, core::GenericValue::createZeroinit(ret_type_num_bytes)
 						).first->second;
 
 						return ret_expr.writableDataRange().data();
@@ -2459,6 +2463,16 @@ namespace pcit::pir{
 				).first->second;
 			} break;
 
+			case Expr::Kind::RAW_PTR_VALUE: {
+				const RawPtrValue& raw_ptr_value = stack_frame.reader_agent.getRawPtrValue(expr);
+				return &stack_frame.registers.emplace(expr, raw_ptr_value.value).first->second;
+			} break;
+
+			case Expr::Kind::NULLPTR: {
+				return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(nullptr)).first->second;
+			} break;
+
+
 			case Expr::Kind::PARAM_EXPR: {
 				const Type param_type = stack_frame.reader_agent.getExprType(expr);
 
@@ -2479,10 +2493,6 @@ namespace pcit::pir{
 					).first->second;
 				}
 
-			} break;
-
-			case Expr::Kind::NULLPTR: {
-				return &stack_frame.registers.emplace(expr, core::GenericValue::createPtr(nullptr)).first->second;
 			} break;
 
 			case Expr::Kind::ALLOCA: {

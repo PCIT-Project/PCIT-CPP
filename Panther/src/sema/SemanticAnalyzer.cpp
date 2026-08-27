@@ -12577,7 +12577,12 @@ namespace pcit::panther{
 				return true;
 
 			}else{
-				return all_args_are_comptime && func_call_impl_res.value().selected_func_type.attributes.isComptime;
+				const BaseType::Function& selected_func_type = func_call_impl_res.value().selected_func_type;
+
+				return all_args_are_comptime
+					&& selected_func_type.attributes.isComptime
+					&& selected_func_type.returnTypes.size() == 1
+					&& selected_func_type.hasErrorReturn() == false;
 			}
 		}();
 
@@ -12678,6 +12683,34 @@ namespace pcit::panther{
 					)
 				);
 				return Result::ERROR;
+			}
+
+
+			if(output_is_comptime == false){
+				return Result::SUCCESS;
+			}
+
+
+			// wait on pir def so it can be executed next instruction
+
+			SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+				*func_call_impl_res.value().selected_func->symbolProcID
+			);
+
+			const SymbolProc::WaitOnResult wait_on_result =
+				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*func_call_impl_res.value().selected_func->symbolProcID);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			return Result::SUCCESS;
@@ -12793,7 +12826,7 @@ namespace pcit::panther{
 
 
 				const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-					std::move(values), this->context.getTypeManager().getTypeInfo(return_type_id).baseTypeID()
+					std::move(values), this->context.getTypeManager().getTypeInfo(return_type_id).baseTypeID(), true
 				);
 				
 				this->return_term_info(output,
@@ -12999,20 +13032,36 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_comptime_func_call_run(const Instruction::ComptimeFuncCallRun& instr) -> Result {
 		const TermInfo& func_call_term = this->get_term_info(instr.target);
 
-		if(func_call_term.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
-			evo::debugAssert(
-				func_call_term.getExpr().kind() == sema::Expr::Kind::INT_VALUE
-				|| func_call_term.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE
-				|| func_call_term.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE
-				|| func_call_term.getExpr().kind() == sema::Expr::Kind::STRING_VALUE
-				|| func_call_term.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE
-				|| func_call_term.getExpr().kind() == sema::Expr::Kind::CHAR_VALUE,
-				"Invalid builtin comptime func call (expected func call or output of comptime builtin method call)"
-			);
-
+		if(func_call_term.isComptime == false){
 			this->return_term_info(instr.output, func_call_term);
-			return Result::SUCCESS;
+			return Result::SUCCESS;	
 		}
+
+		switch(func_call_term.getExpr().kind()){
+			case sema::Expr::Kind::INT_VALUE:       case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:      case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE: case sema::Expr::Kind::CHAR_VALUE: {
+				this->return_term_info(instr.output, func_call_term);
+				return Result::SUCCESS;	
+			} break;
+
+			case sema::Expr::Kind::FUNC_CALL: break; // body is the rest of the function
+
+			case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA: {
+				// TODO(FUTURE): comptime?
+				this->return_term_info(instr.output, func_call_term);
+				return Result::SUCCESS;
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Invalid comptime func call");
+			} break;
+		}
+
 
 		const sema::FuncCall& sema_func_call =
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
@@ -16906,9 +16955,7 @@ namespace pcit::panther{
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
-			sema::Expr(
-				this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true)
-			)
+			sema::Expr(this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true))
 		);
 		return Result::SUCCESS;
 	}
@@ -17319,10 +17366,12 @@ namespace pcit::panther{
 							.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref.isMut, false, false))
 					);
 
+					TermInfo& target_term_info = this->get_term_info(instr.args[0]);
+
 					{
 						TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
 							array_ptr_type,
-							this->get_term_info(instr.args[0]),
+							target_term_info,
 							"Pointer argument of operator [new] for array reference",
 							this->get_location(instr.ast_new.args[0].value)
 						);
@@ -17368,22 +17417,31 @@ namespace pcit::panther{
 						}
 					}
 
+					bool is_comptime = target_term_info.isComptime;
 
 					auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
 					dimensions.reserve(array_ref.dimensions.size());
 					for(const BaseType::ArrayRef::Dimension& dimension : array_ref.dimensions){
 						if(dimension.isPtr()){
-							dimensions.emplace_back(this->get_term_info(instr.args[dimensions.size() + 1]).getExpr());
+							const TermInfo& dimension_term_info =
+								this->get_term_info(instr.args[dimensions.size() + 1]);
+
+							dimensions.emplace_back(dimension_term_info.getExpr());
+
+							if(dimension_term_info.isComptime == false){
+								is_comptime = false;
+							}
 						}
 					}
 
+
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						true,
+						is_comptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
 						sema::Expr(this->context.sema_buffer.createInitArrayRef(
-							this->get_term_info(instr.args[0]).getExpr(),
+							target_term_info.getExpr(),
 							decayed_target_type_info.baseTypeID().arrayRefID(),
 							std::move(dimensions)
 						))
@@ -17393,20 +17451,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT: {
-				if constexpr(IS_COMPTIME){
-					if(this->context.getTypeManager().isTriviallyCopyable(
-						decayed_target_type_info.baseTypeID()
-					) == false){
-						this->emit_error(
-							"No matching operator [new] overload for this type",
-							instr.ast_new.type,
-							Diagnostic::Info("Struct type is not trivially copyable, and value is comptime")
-						);
-						return Result::ERROR;	
-					}
-				}
-
-
 				const BaseType::Struct& target_struct =
 					this->context.getTypeManager().getStruct(decayed_target_type_info.baseTypeID().structID());
 
@@ -18034,7 +18078,9 @@ namespace pcit::panther{
 				}
 
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(std::move(aggregate_values), type_info.baseTypeID())
+					this->context.sema_buffer.createAggregateValue(
+						std::move(aggregate_values), type_info.baseTypeID(), true
+					)
 				);
 			} break;
 
@@ -18156,6 +18202,8 @@ namespace pcit::panther{
 		auto values = evo::SmallVector<sema::Expr>();
 		values.reserve(instr.values.size() + size_t(target_type.terminator.has_value()));
 
+		bool is_comptime = true;
+
 		for(size_t i = 0; const SymbolProc::TermInfoID value_id : instr.values){
 			TermInfo& value = this->get_term_info(value_id);
 
@@ -18177,6 +18225,10 @@ namespace pcit::panther{
 
 			values.emplace_back(value.getExpr());
 
+			if(value.isComptime == false){
+				is_comptime = false;
+			}
+
 			i += 1;
 		}
 
@@ -18190,13 +18242,13 @@ namespace pcit::panther{
 		}
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-			std::move(values), decayed_target_type_info.baseTypeID()
+			std::move(values), decayed_target_type_info.baseTypeID(), is_comptime
 		);
 
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			IS_COMPTIME || this->currently_in_func(),
+			is_comptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -18280,12 +18332,12 @@ namespace pcit::panther{
 
 
 			const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-				evo::SmallVector<sema::Expr>(), target_type_info.baseTypeID()
+				evo::SmallVector<sema::Expr>(), target_type_info.baseTypeID(), true
 			);
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				IS_COMPTIME || this->currently_in_func(),
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_id.asTypeID(),
 				sema::Expr(created_aggregate_value)
@@ -18309,6 +18361,8 @@ namespace pcit::panther{
 		auto values = evo::SmallVector<sema::Expr>();
 		values.reserve(target_type.memberVars.size());
 
+		bool is_comptime = true;
+
 		size_t member_init_i = 0;
 		for(const BaseType::Struct::MemberVar* member_var : target_type.memberVarsABI){
 			const std::string_view member_var_ident =
@@ -18317,6 +18371,9 @@ namespace pcit::panther{
 			if(member_init_i >= instr.designated_init_new.memberInits.size()){
 				if(member_var->defaultValue.has_value()){
 					values.emplace_back(member_var->defaultValue->value);
+					if(member_var->defaultValue->isComptime == false){
+						is_comptime = false;
+					}
 					continue;
 				}
 
@@ -18348,6 +18405,9 @@ namespace pcit::panther{
 				if(member_var_ident != member_init_ident){
 					if(member_var->defaultValue.has_value()){
 						values.emplace_back(member_var->defaultValue->value);
+						if(member_var->defaultValue->isComptime == false){
+							is_comptime = false;
+						}
 						continue;
 					}
 
@@ -18396,6 +18456,10 @@ namespace pcit::panther{
 
 				values.emplace_back(member_init_expr.getExpr());
 
+				if(member_init_expr.isComptime == false){
+					is_comptime = false;
+				}
+
 				member_init_i += 1;
 			}
 		}
@@ -18419,13 +18483,13 @@ namespace pcit::panther{
 
 
 		const sema::AggregateValue::ID created_aggregate_value = this->context.sema_buffer.createAggregateValue(
-			std::move(values), target_type_info.baseTypeID()
+			std::move(values), target_type_info.baseTypeID(), is_comptime
 		);
 
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			IS_COMPTIME || this->currently_in_func(),
+			is_comptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -26859,7 +26923,7 @@ namespace pcit::panther{
 			arg_values.emplace_back(sema::exprToGenericValue(arg, this->context));
 		}
 
-
+		
 		auto actual_args = evo::SmallVector<core::GenericValue>();
 		actual_args.reserve(args.size());
 		for(size_t i = 0; core::GenericValue& arg_value : arg_values){
@@ -26881,7 +26945,7 @@ namespace pcit::panther{
 		auto output = core::GenericValue();
 
 		if(uses_rvo){
-			output = core::GenericValue::createUninit(
+			output = core::GenericValue::createZeroinit(
 				this->context.getTypeManager().numBytes(target_func_type.returnTypes[0].asTypeID())
 			);
 
@@ -28629,7 +28693,8 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INT_VALUE:                  case sema::Expr::Kind::FLOAT_VALUE:
 			case sema::Expr::Kind::BOOL_VALUE:                 case sema::Expr::Kind::STRING_VALUE:
 			case sema::Expr::Kind::AGGREGATE_VALUE:            case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
+			case sema::Expr::Kind::RAW_PTR_VALUE:              case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
 			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
 			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
 			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
@@ -31774,7 +31839,13 @@ namespace pcit::panther{
 						return sema::Expr(this->context.sema_buffer.createCharValue(value.getChar()));
 					} break;
 
-					case Token::Kind::TYPE_RAWPTR: evo::unimplemented("Token::Kind::TYPE_RAWPTR");
+					case Token::Kind::TYPE_RAWPTR: {
+						return sema::Expr(
+							this->context.sema_buffer.createRawPtrValue(
+								value.getInt(unsigned(this->context.getTypeManager().numBitsOfPtr()))
+							)
+						);
+					} break;
 
 					default: evo::debugFatalBreak("Invalid type");
 				}
@@ -31834,7 +31905,9 @@ namespace pcit::panther{
 				}
 
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
+					this->context.sema_buffer.createAggregateValue(
+						std::move(member_vals), target_type.baseTypeID(), true
+					)
 				);
 			} break;
 
@@ -31924,7 +31997,9 @@ namespace pcit::panther{
 				}
 
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
+					this->context.sema_buffer.createAggregateValue(
+						std::move(member_vals), target_type.baseTypeID(), true
+					)
 				);
 			} break;
 
@@ -31959,7 +32034,9 @@ namespace pcit::panther{
 				}
 
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(std::move(member_vals), target_type.baseTypeID())
+					this->context.sema_buffer.createAggregateValue(
+						std::move(member_vals), target_type.baseTypeID(), true
+					)
 				);
 			} break;
 
@@ -34112,7 +34189,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				IS_COMPTIME || this->currently_in_func(),
+				init_value.isComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_info_id,
 				sema::Expr(

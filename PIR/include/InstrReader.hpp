@@ -50,6 +50,7 @@ namespace pcit::pir{
 			[[nodiscard]] auto getNumber(Expr expr) const -> const Number&;
 			[[nodiscard]] static auto getBoolean(Expr expr) -> bool;
 			[[nodiscard]] static auto getBoolean32(Expr expr) -> bool;
+			[[nodiscard]] auto getRawPtrValue(Expr expr) const -> const RawPtrValue&;
 			[[nodiscard]] static auto getParamExpr(Expr expr) -> ParamExpr;
 			[[nodiscard]] static auto getGlobalValue(Expr expr) -> GlobalVar::ID;
 			[[nodiscard]] static auto getFunctionPointer(Expr expr) -> Function::ID;

@@ -3860,13 +3860,15 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case sema::Expr::Kind::INT_VALUE:    return this->get_expr_impl_int_value<MODE>(expr, store_locations);
-			case sema::Expr::Kind::FLOAT_VALUE:  return this->get_expr_impl_float_value<MODE>(expr, store_locations);
-			case sema::Expr::Kind::BOOL_VALUE:   return this->get_expr_impl_bool_value<MODE>(expr, store_locations);
-			case sema::Expr::Kind::STRING_VALUE: return this->get_expr_impl_string_value<MODE>(expr, store_locations);
+
+			case sema::Expr::Kind::INT_VALUE:     return this->get_expr_impl_int_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::FLOAT_VALUE:   return this->get_expr_impl_float_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::BOOL_VALUE:    return this->get_expr_impl_bool_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::STRING_VALUE:  return this->get_expr_impl_string_value<MODE>(expr, store_locations);
 			case sema::Expr::Kind::AGGREGATE_VALUE:
 				return this->get_expr_impl_aggregate_value<MODE>(expr, store_locations);
-			case sema::Expr::Kind::CHAR_VALUE:   return this->get_expr_impl_char_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::CHAR_VALUE:    return this->get_expr_impl_char_value<MODE>(expr, store_locations);
+			case sema::Expr::Kind::RAW_PTR_VALUE: return this->get_expr_impl_raw_ptr_value<MODE>(expr, store_locations);
 
 			case sema::Expr::Kind::INTRINSIC_FUNC: {
 				evo::debugFatalBreak("sema::Expr::Kind::INTRINSIC_FUNC should be target of func call");
@@ -4171,6 +4173,39 @@ namespace pcit::panther{
 
 
 		if constexpr(MODE != GetExprMode::DISCARD){
+			if(aggregate.isComptime){
+				const pir::GlobalVar::Value global_var_value = this->get_global_var_value(expr);
+
+				const pir::Type pir_type = this->get_type<false, false>(
+					this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(aggregate.typeID))
+				).type;
+
+				const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
+					std::format("PTHR.aggregate{}", this->data.get_global_aggregate_id()),
+					pir_type,
+					pir::Linkage::PRIVATE,
+					global_var_value,
+					true
+				);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->handler.createLoad(this->handler.createGlobalValue(global_var), pir_type);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return this->handler.createGlobalValue(global_var);
+
+				}else{
+					this->handler.createMemcpy(
+						store_locations[0],
+						this->handler.createGlobalValue(global_var),
+						pir_type
+					);
+					return std::nullopt;
+				}
+			}
+
+
 			const pir::Type pir_type = this->get_type<false, false>(aggregate.typeID).type;
 
 			const pir::Expr initialization_target = [&](){
@@ -4254,13 +4289,41 @@ namespace pcit::panther{
 			return number;
 
 		}else if constexpr(MODE == GetExprMode::POINTER){
-			const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".NUMBER.ALLOCA"));
+			const pir::Expr alloca = this->handler.createAlloca(value_type, this->name(".CHAR.ALLOCA"));
 			this->handler.createStore(alloca, number);
 			return alloca;
 
 		}else if constexpr(MODE == GetExprMode::STORE){
 			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
 			this->handler.createStore(store_locations[0], number);
+			return std::nullopt;
+
+		}else{
+			return std::nullopt;
+		}
+	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_raw_ptr_value(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::RawPtrValue& raw_ptr_value = this->context.getSemaBuffer().getRawPtrValue(expr.rawPtrValueID());
+
+		const pir::Expr value = this->handler.createRawPtrValue(raw_ptr_value.value);
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			return value;
+
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr alloca = this->handler.createAlloca(
+				this->module.createPtrType(), this->name(".RAW_PTR.ALLOCA")
+			);
+			this->handler.createStore(alloca, value);
+			return alloca;
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
+			this->handler.createStore(store_locations[0], value);
 			return std::nullopt;
 
 		}else{
@@ -12645,6 +12708,8 @@ namespace pcit::panther{
 				const sema::AggregateValue& aggregate_value = 
 					this->context.getSemaBuffer().getAggregateValue(expr.aggregateValueID());
 
+				evo::debugAssert(aggregate_value.isComptime, "Must be comptime to be global");
+
 				if(aggregate_value.typeID.kind() == BaseType::Kind::ARRAY){
 					const BaseType::Array& aggregate_array_type =
 						this->context.getTypeManager().getArray(aggregate_value.typeID.arrayID());
@@ -12696,6 +12761,12 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case sema::Expr::Kind::RAW_PTR_VALUE: {
+				const sema::RawPtrValue& raw_ptr_value =
+					this->context.getSemaBuffer().getRawPtrValue(expr.rawPtrValueID());
+				return this->handler.createRawPtrValue(raw_ptr_value.value);
+			} break;
+
 			case sema::Expr::Kind::ADDR_OF: {
 				const sema::Expr& addr_of_target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
 
@@ -12708,6 +12779,11 @@ namespace pcit::panther{
 
 					case sema::Expr::Kind::GLOBAL_VAR: {
 						return this->handler.createGlobalValue(this->data.get_global_var(addr_of_target.globalVarID()));
+					} break;
+
+					case sema::Expr::Kind::DEREF: {
+						const sema::Deref& deref = this->context.getSemaBuffer().getDeref(addr_of_target.derefID());
+						return this->get_global_var_value(deref.expr);
 					} break;
 
 					default: {
@@ -12906,12 +12982,14 @@ namespace pcit::panther{
 				}();
 
 
+				const pir::StructType& union_pir_struct_type = this->module.getStructType(union_pir_type);
+
 				const size_t data_size = [&]() -> size_t {
 					if(union_type.isUntagged){
-						return this->module.getArrayType(this->module.getStructType(union_pir_type).members[0]).length;
+						return this->module.getArrayType(union_pir_struct_type.members[0]).length;
 					}else{
 						return this->module.getArrayType(
-							this->module.getStructType(this->module.getStructType(union_pir_type).members[0]).members[0]
+							this->module.getStructType(union_pir_struct_type.members[0]).members[0]
 						).length;
 					}
 				}();
@@ -12943,7 +13021,12 @@ namespace pcit::panther{
 					core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
 				);
 
-				auto aggregate_values = evo::SmallVector<pir::GlobalVar::Value>{pir_byte_array, tag_value};
+				auto aggregate_values = evo::SmallVector<pir::GlobalVar::Value>{
+					this->module.createGlobalStruct(
+						union_pir_struct_type.members[0], evo::SmallVector<pir::GlobalVar::Value>{pir_byte_array}
+					),
+					tag_value
+				};
 
 				return this->module.createGlobalStruct(union_pir_type, std::move(aggregate_values));
 			} break;
