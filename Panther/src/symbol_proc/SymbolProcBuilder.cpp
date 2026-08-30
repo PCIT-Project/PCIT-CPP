@@ -3403,7 +3403,7 @@ namespace pcit::panther{
 					}
 				} break;
 
-				case AST::Kind::IDENT:               return this->analyze_expr_ident<IS_COMPTIME>(expr);
+				case AST::Kind::IDENT:               return this->analyze_expr_ident<true>(expr);
 				case AST::Kind::INTRINSIC:           return this->analyze_expr_intrinsic(expr);
 				case AST::Kind::LITERAL:             return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
 				case AST::Kind::UNINIT:              return this->analyze_expr_uninit(ast_buffer.getUninit(expr));

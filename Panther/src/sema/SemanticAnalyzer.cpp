@@ -25409,8 +25409,9 @@ namespace pcit::panther{
 
 
 		if(lookup_ident->is<sema::ScopeLevel::UnionField>()){
-			const BaseType::Union::Field& union_field = 
-				lhs_type_union.fields[lookup_ident->as<sema::ScopeLevel::UnionField>().field_index];
+			const size_t selected_field_index = lookup_ident->as<sema::ScopeLevel::UnionField>().field_index;
+
+			const BaseType::Union::Field& union_field = lhs_type_union.fields[selected_field_index];
 
 			if(union_field.typeID.isVoid()){
 				this->emit_error(std::format("Cannot access union fields that are type `Void`"), instr.infix.rhs);
@@ -25438,8 +25439,45 @@ namespace pcit::panther{
 
 
 			if(lhs.isComptime){
-				this->emit_error("Comptime union accessor is currenlty unimplemented", instr.infix);
-				return Result::ERROR;
+				sema::Expr target_expr = lhs.getExpr();
+
+				bool need_to_look_for_value = true;
+				while(need_to_look_for_value){
+					switch(target_expr.kind()){
+						case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: {
+							const sema::UnionDesignatedInitNew& union_designated_init_new =
+								this->context.getSemaBuffer().getUnionDesignatedInitNew(
+									target_expr.unionDesignatedInitNewID()
+								);
+
+							if(union_designated_init_new.fieldIndex != selected_field_index){
+								this->emit_error("This union doesn't currently hold this field", instr.infix.rhs);
+								return Result::ERROR;
+							}
+
+							target_expr = union_designated_init_new.value;
+							need_to_look_for_value = false;
+						} break;
+
+						case sema::Expr::Kind::GLOBAL_VAR: {
+							const sema::GlobalVar& global_var =
+								this->context.getSemaBuffer().getGlobalVar(target_expr.globalVarID());
+							target_expr = global_var.value.as<sema::Expr>();
+						} break;
+
+						default: {
+							evo::debugFatalBreak("Unknown comptime union expr");
+						} break;
+					}
+				}
+
+				this->return_term_info(instr.output,
+					value_category,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					lhs_type_union.fields[selected_field_index].typeID.asTypeID(),
+					target_expr
+				);
 				
 			}else{
 				const sema::Expr sema_expr = [&](){
@@ -25455,7 +25493,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createUnionAccessor(
 								sema::Expr(deref),
 								target_type_id,
-								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
+								uint32_t(selected_field_index)
 							)
 						);
 					}else{
@@ -25463,7 +25501,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createUnionAccessor(
 								lhs.getExpr(),
 								decayed_lhs_type_id,
-								lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
+								uint32_t(selected_field_index)
 							)
 						);
 					}
@@ -25473,9 +25511,7 @@ namespace pcit::panther{
 					value_category,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
-					lhs_type_union.fields[
-						lookup_ident->as<sema::ScopeLevel::UnionField>().field_index
-					].typeID.asTypeID(),
+					lhs_type_union.fields[selected_field_index].typeID.asTypeID(),
 					sema_expr
 				);
 			}
