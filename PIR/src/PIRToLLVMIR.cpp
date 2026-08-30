@@ -19,10 +19,7 @@
 
 namespace pcit::pir{
 
-	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
-		return (num + (multiple - 1)) & ~(multiple - 1);
-	}
-	
+
 	auto PIRToLLVMIR::lower() -> void {
 		if(this->add_debug_info){
 			for(uint32_t i = 0; i < this->module.getMetaFileIter().size(); i += 1){
@@ -55,6 +52,7 @@ namespace pcit::pir{
 
 			// functions and globals are done with the corresponding declaration
 		}
+
 
 		for(const StructType& struct_type : this->module.getStructTypeIter()){
 			this->lower_struct_type<true>(struct_type);
@@ -217,6 +215,7 @@ namespace pcit::pir{
 				case Type::Kind::PTR:      evo::debugFatalBreak("Invalid meta basic type");
 				case Type::Kind::ARRAY:    evo::debugFatalBreak("Invalid meta basic type");
 				case Type::Kind::STRUCT:   evo::debugFatalBreak("Invalid meta basic type");
+				case Type::Kind::UNION:    evo::debugFatalBreak("Invalid meta basic type");
 				case Type::Kind::FUNCTION: evo::debugFatalBreak("Invalid meta basic type");
 			}
 
@@ -293,14 +292,14 @@ namespace pcit::pir{
 		uint64_t member_offset_bits = 0;
 		uint32_t struct_align_bits = 8;
 
-		for(size_t i = 0; const Type& member_type : struct_type.members){
+		for(size_t i = 0; Type member_type : struct_type.members){
 			EVO_DEFER([&](){ i += 1; });
 
 			const uint64_t member_size_bits = this->module.numBytes(member_type, !struct_type.isPacked) * 8;
 			const uint32_t member_align_bits = uint32_t(this->module.getAlignment(member_type)) * 8;
 
 			if(struct_type.isPacked == false){
-				member_offset_bits = ceil_to_multiple(member_offset_bits, member_align_bits);
+				member_offset_bits = core::ceilToPowOf2Multiple(member_offset_bits, member_align_bits);
 			}
 
 			const meta::StructType::Member& debug_member = meta_struct_type.members[i];
@@ -516,7 +515,7 @@ namespace pcit::pir{
 
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_subset_impl(const Subset& subset) -> void {
-		for(const Type& struct_type : subset.structs){
+		for(Type struct_type : subset.structs){
 			this->lower_struct_type<ADD_WEAK_DEPS>(this->module.getStructType(struct_type));
 		}
 
@@ -569,29 +568,34 @@ namespace pcit::pir{
 
 		auto paddings = evo::SmallVector<uint32_t>();
 
-		for(const Type& member : struct_type.members){
+		bool includes_union = false;
+
+		for(Type member : struct_type.members){
 			if(struct_type.isPacked){
 				struct_size += this->module.numBytes(member, false);
 
 			}else{
-				const size_t actual_align = this->module.getAlignment(member);
-
-				const size_t padding_offset = struct_size % actual_align;
+				const size_t member_align = this->module.getAlignment(member);
+				const size_t padding_offset = struct_size % member_align;
 
 				if(padding_offset != 0){
 					member_offset += 1;
 
-					const size_t padding_size = actual_align - padding_offset;
+					const size_t padding_size = member_align - padding_offset;
 
 					members.emplace_back(this->get_struct_padding_type(padding_size));
 					paddings.emplace_back(uint32_t(padding_size));
 				}
 
-				struct_size = ceil_to_multiple(struct_size, this->module.getAlignment(member));
+				struct_size = core::ceilToPowOf2Multiple(struct_size, this->module.getAlignment(member));
 				struct_size += this->module.numBytes(member, true);
 			}
 
 			members.emplace_back(this->get_type<ADD_WEAK_DEPS>(member));
+
+			if(this->type_includes_union(member)){
+				includes_union = true;
+			}
 
 			member_offsets.emplace_back(member_offset);
 			member_offset += 1;
@@ -613,6 +617,8 @@ namespace pcit::pir{
 		this->struct_types.emplace(
 			&struct_type, StructData{llvm_struct_type, std::move(member_offsets), std::move(paddings)}
 		);
+
+		this->struct_type_includes_union.emplace(&struct_type, includes_union);
 	}
 
 
@@ -639,7 +645,13 @@ namespace pcit::pir{
 		}
 
 
-		const llvmint::Type constant_type = this->get_type<ADD_WEAK_DEPS>(global.type);
+		const llvmint::Type constant_type = [&]() -> llvmint::Type {
+			if(this->type_includes_union(global.type)){
+				return this->get_global_inline_type<ADD_WEAK_DEPS>(global.value, global.type);
+			}else{
+				return this->get_type<ADD_WEAK_DEPS>(global.type);
+			}
+		}();
 
 		llvmint::GlobalVariable llvm_global_var = this->llvm_module.createGlobal(
 			llvmint::Constant(nullptr),
@@ -662,7 +674,10 @@ namespace pcit::pir{
 	template<bool ADD_WEAK_DEPS>
 	auto PIRToLLVMIR::lower_global_var_def(const GlobalVar& global) -> void {
 		llvmint::GlobalVariable& llvm_global = this->global_vars.at(&global);
-		llvm_global.setInitializer(this->get_global_var_value<ADD_WEAK_DEPS>(global.value, global.type));
+
+		llvm_global.setInitializer(
+			this->get_global_var_value<ADD_WEAK_DEPS>(global.value, global.type, this->type_includes_union(global.type))
+		);
 	}
 
 
@@ -843,7 +858,7 @@ namespace pcit::pir{
 
 			this->builder.setInsertionPoint(basic_block_map.at(basic_block_id));
 			
-			for(const Expr& stmt : basic_block){
+			for(Expr stmt : basic_block){
 				switch(stmt.kind()){
 					case Expr::Kind::NONE:             evo::debugFatalBreak("Not a valid expr");
 					case Expr::Kind::GLOBAL_VALUE:     evo::debugFatalBreak("Not a valid stmt");
@@ -859,7 +874,7 @@ namespace pcit::pir{
 						const Call& call = this->reader.getCall(stmt);
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
-						for(const Expr& arg : call.args){
+						for(Expr arg : call.args){
 							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
 						}
 
@@ -932,7 +947,7 @@ namespace pcit::pir{
 						const CallVoid& call_void = this->reader.getCallVoid(stmt);
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
-						for(const Expr& arg : call_void.args){
+						for(Expr arg : call_void.args){
 							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
 						}
 
@@ -986,7 +1001,7 @@ namespace pcit::pir{
 						const CallNoReturn& call_no_return = this->reader.getCallNoReturn(stmt);
 
 						auto call_args = evo::SmallVector<llvmint::Value>();
-						for(const Expr& arg : call_no_return.args){
+						for(Expr arg : call_no_return.args){
 							call_args.emplace_back(this->get_value<ADD_WEAK_DEPS>(arg));
 						}
 
@@ -1409,10 +1424,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::SADD_WRAP: {
 						const SAddWrap& sadd_wrap = this->reader.getSAddWrap(stmt);
-						const Type& sadd_type = this->reader.getExprType(sadd_wrap.lhs);
+						Type sadd_type = this->reader.getExprType(sadd_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(sadd_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(sadd_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value sadd_value = this->builder.createIntrinsicCall(
@@ -1441,10 +1457,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::UADD_WRAP: {
 						const UAddWrap& uadd_wrap = this->reader.getUAddWrap(stmt);
-						const Type& uadd_type = this->reader.getExprType(uadd_wrap.lhs);
+						Type uadd_type = this->reader.getExprType(uadd_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(uadd_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(uadd_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value uadd_value = this->builder.createIntrinsicCall(
@@ -1473,7 +1490,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::SADD_SAT: {
 						const SAddSat& sadd_sat = this->reader.getSAddSat(stmt);
-						const Type& sadd_sat_type = this->reader.getExprType(sadd_sat.lhs);
+						Type sadd_sat_type = this->reader.getExprType(sadd_sat.lhs);
 
 						const llvmint::Value sadd_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SADD_SAT,
@@ -1489,7 +1506,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::UADD_SAT: {
 						const UAddSat& uadd_sat = this->reader.getUAddSat(stmt);
-						const Type& uadd_sat_type = this->reader.getExprType(uadd_sat.lhs);
+						Type uadd_sat_type = this->reader.getExprType(uadd_sat.lhs);
 
 						const llvmint::Value uadd_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UADD_SAT,
@@ -1526,10 +1543,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::SSUB_WRAP: {
 						const SSubWrap& ssub_wrap = this->reader.getSSubWrap(stmt);
-						const Type& ssub_type = this->reader.getExprType(ssub_wrap.lhs);
+						Type ssub_type = this->reader.getExprType(ssub_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(ssub_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(ssub_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value ssub_value = this->builder.createIntrinsicCall(
@@ -1558,10 +1576,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::USUB_WRAP: {
 						const USubWrap& usub_wrap = this->reader.getUSubWrap(stmt);
-						const Type& usub_type = this->reader.getExprType(usub_wrap.lhs);
+						Type usub_type = this->reader.getExprType(usub_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(usub_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(usub_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value usub_value = this->builder.createIntrinsicCall(
@@ -1590,7 +1609,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::SSUB_SAT: {
 						const SSubSat& ssub_sat = this->reader.getSSubSat(stmt);
-						const Type& ssub_sat_type = this->reader.getExprType(ssub_sat.lhs);
+						Type ssub_sat_type = this->reader.getExprType(ssub_sat.lhs);
 
 						const llvmint::Value ssub_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SSUB_SAT,
@@ -1606,7 +1625,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::USUB_SAT: {
 						const USubSat& usub_sat = this->reader.getUSubSat(stmt);
-						const Type& usub_sat_type = this->reader.getExprType(usub_sat.lhs);
+						Type usub_sat_type = this->reader.getExprType(usub_sat.lhs);
 
 						const llvmint::Value usub_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::USUB_SAT,
@@ -1642,10 +1661,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::SMUL_WRAP: {
 						const SMulWrap& smul_wrap = this->reader.getSMulWrap(stmt);
-						const Type& smul_type = this->reader.getExprType(smul_wrap.lhs);
+						Type smul_type = this->reader.getExprType(smul_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(smul_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(smul_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value smul_value = this->builder.createIntrinsicCall(
@@ -1674,10 +1694,11 @@ namespace pcit::pir{
 
 					case Expr::Kind::UMUL_WRAP: {
 						const UMulWrap& umul_wrap = this->reader.getUMulWrap(stmt);
-						const Type& umul_type = this->reader.getExprType(umul_wrap.lhs);
+						Type umul_type = this->reader.getExprType(umul_wrap.lhs);
 
 						const llvmint::Type return_type = this->builder.getStructType(
-							{this->get_type<ADD_WEAK_DEPS>(umul_type), this->builder.getTypeBool().asType()}
+							{this->get_type<ADD_WEAK_DEPS>(umul_type), this->builder.getTypeBool().asType()},
+							false
 						).asType();
 
 						const llvmint::Value umul_value = this->builder.createIntrinsicCall(
@@ -1706,7 +1727,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::SMUL_SAT: {
 						const SMulSat& smul_sat = this->reader.getSMulSat(stmt);
-						const Type& smul_sat_type = this->reader.getExprType(smul_sat.lhs);
+						Type smul_sat_type = this->reader.getExprType(smul_sat.lhs);
 
 						const llvmint::Value smul_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::SMUL_FIX_SAT,
@@ -1723,7 +1744,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::UMUL_SAT: {
 						const UMulSat& umul_sat = this->reader.getUMulSat(stmt);
-						const Type& umul_sat_type = this->reader.getExprType(umul_sat.lhs);
+						Type umul_sat_type = this->reader.getExprType(umul_sat.lhs);
 
 						const llvmint::Value umul_sat_value = this->builder.createIntrinsicCall(
 							llvmint::IRBuilder::IntrinsicID::UMUL_FIX_SAT,
@@ -2020,7 +2041,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::SSHL_SAT: {
 						const SSHLSat& sshl_sat = this->reader.getSSHLSat(stmt);
-						const Type& sshlsat_type = this->reader.getExprType(sshl_sat.lhs);
+						Type sshlsat_type = this->reader.getExprType(sshl_sat.lhs);
 
 						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(sshl_sat.lhs);
 						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(sshl_sat.rhs);
@@ -2039,7 +2060,7 @@ namespace pcit::pir{
 
 					case Expr::Kind::USHL_SAT: {
 						const USHLSat& ushl_sat = this->reader.getUSHLSat(stmt);
-						const Type& ushlsat_type = this->reader.getExprType(ushl_sat.lhs);
+						Type ushlsat_type = this->reader.getExprType(ushl_sat.lhs);
 
 						const llvmint::Value lhs = this->get_value<ADD_WEAK_DEPS>(ushl_sat.lhs);
 						const llvmint::Value rhs = this->get_value<ADD_WEAK_DEPS>(ushl_sat.rhs);
@@ -2567,7 +2588,7 @@ namespace pcit::pir{
 	}
 
 	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::get_constant_value(const Expr& expr) -> llvmint::Constant {
+	auto PIRToLLVMIR::get_constant_value(Expr expr) -> llvmint::Constant {
 		switch(expr.kind()){
 			case Expr::Kind::NUMBER: {
 				const Number& number = this->reader.getNumber(expr);
@@ -2629,8 +2650,9 @@ namespace pcit::pir{
 
 	}
 
+
 	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
+	auto PIRToLLVMIR::get_global_var_value(const GlobalVar::Value& global_var_value, Type type, bool is_inline_type)
 	-> llvmint::Constant {
 		return global_var_value.visit([&](const auto& value) -> llvmint::Constant {
 			using ValueT = std::decay_t<decltype(value)>;
@@ -2686,20 +2708,46 @@ namespace pcit::pir{
 				return this->builder.getValueGlobalByteArray(this->module.getGlobalByteArray(value).bytes);
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
-				const GlobalVar::Array& array = this->module.getGlobalArray(value);
-				const Type& array_elem_type = this->module.getArrayType(type).elemType;
+				const GlobalVar::Array& array_value = this->module.getGlobalArray(value);
+				const ArrayType& array_type = this->module.getArrayType(array_value.type);
+				Type array_elem_type = array_type.elemType;
 
-				auto values = std::vector<llvmint::Constant>();
-				values.reserve(array.values.size());
-				for(const GlobalVar::Value& arr_value : array.values){
-					values.emplace_back(this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, array_elem_type));
+				auto values = evo::SmallVector<llvmint::Constant, 16>();
+				values.reserve(array_value.values.size());
+				for(const GlobalVar::Value& arr_value : array_value.values){
+					values.emplace_back(
+						this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, array_elem_type, is_inline_type)
+					);
 				}
 
-				return this->builder.getValueGlobalArray(this->get_type<ADD_WEAK_DEPS>(array_elem_type), values);
+
+
+				auto elem_types = evo::SmallVector<llvmint::Type>();
+				elem_types.reserve(array_type.length);
+
+				bool all_are_same = true;
+				for(const GlobalVar::Value& elem_value : array_value.values){
+					const llvmint::Type llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
+						elem_value, array_type.elemType
+					);
+
+					elem_types.emplace_back(llvmint_type);
+
+					if(elem_types.size() >= 2 && elem_types[0] != llvmint_type){
+						all_are_same = false;
+					}
+				}
+
+
+				if(all_are_same){
+					return this->builder.getValueGlobalArray(this->get_type<ADD_WEAK_DEPS>(array_elem_type), values);
+				}else{
+					return this->builder.getValueGlobalStruct(this->builder.getStructType(elem_types, true), values);
+				}
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 				const GlobalVar::Struct& global_struct = this->module.getGlobalStruct(value);
-				const StructType& struct_type = this->module.getStructType(type);
+				const StructType& struct_type = this->module.getStructType(global_struct.type);
 				const StructData& struct_data = this->struct_types.at(&struct_type);
 
 				auto values = std::vector<llvmint::Constant>();
@@ -2709,7 +2757,7 @@ namespace pcit::pir{
 				for(size_t i = 0; const GlobalVar::Value& arr_value : global_struct.values){
 					while(values.size() + 1 < struct_data.member_offsets[i]){
 						values.emplace_back(
-							this->builder.getValueGlobalAggregateZero(
+							this->builder.getValueGlobalUndefValue(
 								this->get_struct_padding_type(struct_data.paddings[padding_i])
 							)
 						);
@@ -2717,20 +2765,56 @@ namespace pcit::pir{
 						padding_i += 1;
 					}
 
-					values.emplace_back(this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, struct_type.members[i]));
+					values.emplace_back(
+						this->get_global_var_value<ADD_WEAK_DEPS>(arr_value, struct_type.members[i], is_inline_type)
+					);
 
 					i += 1;
 				}
 
 				if(padding_i != struct_data.paddings.size()){
 					values.emplace_back(
-						this->builder.getValueGlobalAggregateZero(
+						this->builder.getValueGlobalUndefValue(
 							this->get_struct_padding_type(struct_data.paddings[padding_i])
 						)
 					);
 				}
 
-				return this->builder.getValueGlobalStruct(this->get_struct_type<ADD_WEAK_DEPS>(struct_type), values);
+				const llvmint::StructType llvmint_struct_type = [&]() -> llvmint::StructType {
+					if(is_inline_type){
+						return this->get_global_inline_struct_type<ADD_WEAK_DEPS>(value, struct_type);
+					}else{
+						return this->get_struct_type<ADD_WEAK_DEPS>(struct_type);
+					}
+				}();
+
+				return this->builder.getValueGlobalStruct(llvmint_struct_type, values);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
+				const GlobalVar::Union& global_union = this->module.getGlobalUnion(value);
+				
+				const llvmint::Constant union_value = this->get_global_var_value<ADD_WEAK_DEPS>(
+					global_union.value, global_union.type, is_inline_type
+				);
+
+				GlobalInlineUnionType global_inline_union_type = this->get_global_inline_union_type<ADD_WEAK_DEPS>(
+					global_union, global_union.type
+				);
+
+				if(global_inline_union_type.requires_padding()){
+					return this->builder.getValueGlobalStruct(
+						global_inline_union_type.type.as<llvmint::StructType>(),
+						{
+							union_value,
+							this->builder.getValueGlobalUndefValue(
+								this->get_struct_padding_type(global_inline_union_type.padding_bytes)
+							)
+						}
+					);
+
+				}else{
+					return union_value;
+				}
 
 			}else{
 				static_assert(false, "Unknown GlobalVar::Value");
@@ -2740,7 +2824,323 @@ namespace pcit::pir{
 
 
 	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::get_value(const Expr& expr) -> llvmint::Value {
+	auto PIRToLLVMIR::get_global_inline_type(const GlobalVar::Value& global_var_value, Type type) -> llvmint::Type {
+		switch(type.kind()){
+			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get `Void` global value");
+
+			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
+				return this->builder.getTypeI_N(type.getWidth()).asType();
+			}
+
+			case Type::Kind::BOOL: {
+				if(type.getWidth() == 1){
+					return this->builder.getTypeBool().asType();
+				}else{
+					return this->builder.getTypeI_N(32).asType();
+				}
+			} break;
+
+			case Type::Kind::FLOAT: {
+				switch(type.getWidth()){
+					case 16:  return this->builder.getTypeF16();
+					case 32:  return this->builder.getTypeF32();
+					case 64:  return this->builder.getTypeF64();
+					case 80:  return this->builder.getTypeF80();
+					case 128: return this->builder.getTypeF128();
+				}
+			} break;
+
+			case Type::Kind::PTR:    return this->builder.getTypePtr().asType();
+
+			case Type::Kind::ARRAY: {
+				return this->get_global_inline_array_type<ADD_WEAK_DEPS>(
+					global_var_value, this->module.getArrayType(type)
+				);
+			} break;
+
+			case Type::Kind::STRUCT: {
+				return this->get_global_inline_struct_type<ADD_WEAK_DEPS>(
+					global_var_value, this->module.getStructType(type)
+				).asType();
+			} break;
+
+			case Type::Kind::UNION: {
+				const GlobalVar::Union& global_union = this->module.getGlobalUnion(
+					global_var_value.as<GlobalVar::Union::ID>()
+				);
+
+				return this->get_global_inline_union_type<ADD_WEAK_DEPS>(global_union, type).getType();
+			} break;
+
+			case Type::Kind::FUNCTION: {
+				return this->get_func_type<ADD_WEAK_DEPS>(type).asType();
+			} break;
+		}
+
+		evo::debugFatalBreak("Unknown or unsupported Type::Kind");
+	}
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_global_inline_array_type(
+		const GlobalVar::Value& global_var_value, const ArrayType& array_type
+	) -> llvmint::Type {
+		if(global_var_value.is<GlobalVar::String::ID>()){
+			return this->get_type<ADD_WEAK_DEPS>(
+				this->module.getGlobalString(global_var_value.as<GlobalVar::String::ID>()).type
+			);
+		}
+
+
+		const GlobalVar::Array& array_value = this->module.getGlobalArray(
+			global_var_value.as<GlobalVar::Array::ID>()
+		);
+
+
+		auto elem_types = evo::SmallVector<llvmint::Type>();
+		elem_types.reserve(array_type.length);
+
+		bool all_are_same = true;
+		for(const GlobalVar::Value& value : array_value.values){
+			const llvmint::Type llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
+				value, array_type.elemType
+			);
+
+			elem_types.emplace_back(llvmint_type);
+
+			if(elem_types.size() >= 2 && elem_types[0] != llvmint_type){
+				all_are_same = false;
+			}
+		}
+
+
+		if(all_are_same){
+			return this->builder.getArrayType(
+				this->get_type<ADD_WEAK_DEPS>(array_type.elemType), array_type.length
+			).asType();
+
+		}else{
+			return this->builder.getStructType(elem_types, true).asType();
+		}
+	}
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_global_inline_struct_type(
+		const GlobalVar::Value& global_var_value, const StructType& struct_type
+	) -> llvmint::StructType {
+		const GlobalVar::Struct& struct_value =
+			this->module.getGlobalStruct(global_var_value.as<GlobalVar::Struct::ID>());
+
+
+		auto members = evo::SmallVector<llvmint::Type, 32>();
+		members.reserve(struct_type.members.size());
+
+		size_t struct_size = 0;
+		for(size_t i = 0; Type member : struct_type.members){
+			if(struct_type.isPacked){
+				struct_size += this->module.numBytes(member, false);
+
+			}else{
+				const size_t member_align = this->module.getAlignment(member);
+				const size_t padding_offset = struct_size % member_align;
+
+				if(padding_offset != 0){
+					const size_t padding_size = member_align - padding_offset;
+					members.emplace_back(this->get_struct_padding_type(padding_size));
+				}
+
+				struct_size = core::ceilToPowOf2Multiple(struct_size, this->module.getAlignment(member));
+				struct_size += this->module.numBytes(member, true);
+			}
+
+			members.emplace_back(this->get_global_inline_type<ADD_WEAK_DEPS>(struct_value.values[i], member));
+
+			i += 1;
+		}
+
+		const size_t end_padding_offset = struct_size % struct_type.alignment;
+		if(end_padding_offset != 0){
+			const size_t padding_size = struct_type.alignment - end_padding_offset;
+			members.emplace_back(this->get_struct_padding_type(padding_size));
+		}
+
+
+		return this->builder.getStructType(members, struct_type.isPacked);
+	}
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_global_inline_union_type(const GlobalVar::Union& global_union_value, Type type)
+	-> GlobalInlineUnionType {
+		return global_union_value.value.visit([&](const auto& value) -> GlobalInlineUnionType {
+			using ValueT = std::decay_t<decltype(value)>;
+
+			if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+				evo::debugFatalBreak("Cannot have no value");
+
+			}else if constexpr(std::is_same<ValueT, Expr>()){
+				const Type expr_type = this->reader.getExprType(value);
+				const llvmint::Type expr_llvmint_type = this->get_type<ADD_WEAK_DEPS>(expr_type);
+
+				const size_t expr_size = this->module.numBytes(expr_type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == expr_size){
+					return GlobalInlineUnionType{expr_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - expr_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								expr_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+				return GlobalInlineUnionType{this->get_struct_padding_type(this->module.numBytes(type)), 0};
+
+			}else if constexpr(std::is_same<ValueT,GlobalVar::Uninit>()){
+				return GlobalInlineUnionType{this->get_struct_padding_type(this->module.numBytes(type)), 0};
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+				const Type string_type = this->module.getGlobalString(value).type;
+				const llvmint::Type string_llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
+					global_union_value.value, string_type
+				);
+
+				const size_t string_size = this->module.numBytes(string_type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == string_size){
+					return GlobalInlineUnionType{string_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - string_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								string_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+				const Type byte_array_type = this->module.getGlobalByteArray(value).type;
+				const llvmint::Type byte_array_llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
+					global_union_value.value, byte_array_type
+				);
+
+				const size_t byte_array_size = this->module.numBytes(byte_array_type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == byte_array_size){
+					return GlobalInlineUnionType{byte_array_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - byte_array_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								byte_array_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
+				const Type array_type = this->module.getGlobalArray(value).type;
+				const llvmint::Type array_llvmint_type = this->get_global_inline_array_type<ADD_WEAK_DEPS>(
+					global_union_value.value, this->module.getArrayType(array_type)
+				);
+
+				const size_t array_size = this->module.numBytes(array_type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == array_size){
+					return GlobalInlineUnionType{array_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - array_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								array_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
+				const Type struct_type = this->module.getGlobalStruct(value).type;
+				const llvmint::Type struct_llvmint_type = this->get_global_inline_struct_type<ADD_WEAK_DEPS>(
+					global_union_value.value, this->module.getStructType(struct_type)
+				).asType();
+
+				const size_t struct_size = this->module.numBytes(struct_type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == struct_size){
+					return GlobalInlineUnionType{struct_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - struct_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								struct_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
+				const GlobalVar::Union& sub_global_union_value = this->module.getGlobalUnion(value);
+				const llvmint::Type union_llvmint_type = this->get_global_inline_union_type<ADD_WEAK_DEPS>(
+					sub_global_union_value, sub_global_union_value.type
+				).getType();
+
+				const size_t sub_union_size = this->module.numBytes(sub_global_union_value.type);
+				const size_t union_size = this->module.numBytes(type);
+				if(union_size == sub_union_size){
+					return GlobalInlineUnionType{union_llvmint_type, 0};
+
+				}else{
+					const size_t num_bytes_padding = union_size - sub_union_size;
+					return GlobalInlineUnionType{
+						this->builder.getStructType(
+							evo::SmallVector<llvmint::Type>{
+								union_llvmint_type, this->get_struct_padding_type(num_bytes_padding)
+							},
+							false
+						),
+						num_bytes_padding,
+					};
+				}
+
+			}else{
+				static_assert(false, "Unknown GlobalVar::Value");
+			}
+		});
+	}
+
+
+
+
+
+	template<bool ADD_WEAK_DEPS>
+	auto PIRToLLVMIR::get_value(Expr expr) -> llvmint::Value {
 		switch(expr.kind()){
 			case Expr::Kind::NONE: evo::debugFatalBreak("Not a valid expr");
 
@@ -2967,7 +3367,7 @@ namespace pcit::pir{
 	}
 
 	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::get_type(const Type& type) -> llvmint::Type {
+	auto PIRToLLVMIR::get_type(Type type) -> llvmint::Type {
 		switch(type.kind()){
 			case Type::Kind::VOID:     return this->builder.getTypeVoid();
 
@@ -3005,6 +3405,12 @@ namespace pcit::pir{
 				return this->get_struct_type<ADD_WEAK_DEPS>(this->module.getStructType(type)).asType();
 			} break;
 
+			case Type::Kind::UNION: {
+				return this->builder.getArrayType(
+					this->builder.getTypeI8().asType(), this->module.numBytes(type)
+				).asType();
+			} break;
+
 			case Type::Kind::FUNCTION: {
 				return this->get_func_type<ADD_WEAK_DEPS>(type).asType();
 			} break;
@@ -3015,11 +3421,11 @@ namespace pcit::pir{
 
 
 	template<bool ADD_WEAK_DEPS>
-	auto PIRToLLVMIR::get_func_type(const Type& type) -> llvmint::FunctionType {
+	auto PIRToLLVMIR::get_func_type(Type type) -> llvmint::FunctionType {
 		const FunctionType& func_type = this->module.getFunctionType(type);
 
 		auto params = evo::SmallVector<llvmint::Type>();
-		for(const Type& param : func_type.parameters){
+		for(Type param : func_type.parameters){
 			params.emplace_back(this->get_type<ADD_WEAK_DEPS>(param));
 		}
 
@@ -3268,6 +3674,24 @@ namespace pcit::pir{
 
 	auto PIRToLLVMIR::get_struct_padding_type(size_t num_bytes) const -> llvmint::Type {
 		return this->builder.getArrayType(this->builder.getTypeI_N(8).asType(), num_bytes).asType();
+	}
+
+
+	auto PIRToLLVMIR::type_includes_union(Type type) -> bool {
+		switch(type.kind()){
+			case Type::Kind::VOID:     return false;
+			case Type::Kind::UNSIGNED: return false;
+			case Type::Kind::SIGNED:   return false;
+			case Type::Kind::BOOL:     return false;
+			case Type::Kind::FLOAT:    return false;
+			case Type::Kind::PTR:      return false;
+			case Type::Kind::ARRAY:    return this->type_includes_union(this->module.getArrayType(type).elemType);
+			case Type::Kind::STRUCT:   return this->struct_type_includes_union.at(&this->module.getStructType(type));
+			case Type::Kind::UNION:    return true;
+			case Type::Kind::FUNCTION: return false;
+		}
+
+		evo::unreachable();
 	}
 
 

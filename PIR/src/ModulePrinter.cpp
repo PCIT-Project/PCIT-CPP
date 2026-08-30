@@ -43,6 +43,14 @@ namespace pcit::pir{
 			}
 		}
 
+		if(this->get_module().getUnionTypeIter().empty() == false){
+			this->printer.println();
+
+			for(const UnionType& union_type : this->get_module().getUnionTypeIter()){
+				this->printUnionType(union_type);
+			}
+		}
+
 
 		if(this->get_module().getGlobalVarIter().empty() == false){
 			this->printer.println();
@@ -387,6 +395,46 @@ namespace pcit::pir{
 	}
 
 
+	auto ModulePrinter::printUnionType(const UnionType& union_type) -> void {
+		this->printer.printCyan("type ");
+		if(isStandardName(union_type.name)){
+			this->printer.printGreen("&{}", union_type.name);
+		}else{
+			this->printer.printGreen("&");
+			this->print_non_standard_name(union_type.name, true);
+		}
+		this->printer.printRed(" = ");
+		this->printer.printCyan("union ");
+
+		{
+			uint32_t expected_alignment = 0;
+			for(const Type& field : union_type.fields){
+				expected_alignment = std::max(expected_alignment, uint32_t(this->get_module().getAlignment(field)));
+			}
+
+			if(union_type.alignment != expected_alignment){
+				this->printer.printRed("#align");
+				this->printer.print("(");
+				this->printer.printMagenta("{}", union_type.alignment);
+				this->printer.print(") ");
+			}
+		}
+
+		this->printer.print("{");
+		for(size_t i = 0; const Type& field : union_type.fields){
+			this->printType(field);
+
+			if(i < union_type.fields.size() - 1){
+				this->printer.print(", ");
+			}
+
+			i += 1;
+		}
+
+		this->printer.println("}");
+	}
+
+
 	auto ModulePrinter::printGlobalVar(const GlobalVar& global_var) -> void {
 		if(global_var.isConstant){
 			this->printer.printCyan("const ");
@@ -541,6 +589,12 @@ namespace pcit::pir{
 				}
 				this->printer.print("}");
 
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
+				const GlobalVar::Union& union_value = this->get_module().getGlobalUnion(value);
+				this->printer.print("{");
+				this->printGlobalVarValue(union_value.value);
+				this->printer.print("}");
+
 			}else{
 				static_assert(false, "Unsupported global var kind");
 			}
@@ -596,6 +650,17 @@ namespace pcit::pir{
 				}else{
 					printer.print("&", struct_type.name);
 					this->print_non_standard_name(struct_type.name, false);
+				}
+			} break;
+
+			case Type::Kind::UNION: {
+				const UnionType& union_type = this->get_module().getUnionType(type);
+				
+				if(isStandardName(union_type.name)){
+					printer.print("&{}", union_type.name);
+				}else{
+					printer.print("&", union_type.name);
+					this->print_non_standard_name(union_type.name, false);
 				}
 			} break;
 

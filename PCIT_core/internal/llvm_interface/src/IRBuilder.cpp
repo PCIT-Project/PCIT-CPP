@@ -744,8 +744,10 @@ namespace pcit::llvmint{
 	}
 
 
-	auto IRBuilder::getStructType(evo::ArrayProxy<Type> members) -> StructType {
-		return StructType(llvm::StructType::get(this->get_native_context(), create_array_ref<llvm::Type>(members)));
+	auto IRBuilder::getStructType(evo::ArrayProxy<Type> members, bool is_packed) -> StructType {
+		return StructType(
+			llvm::StructType::get(this->get_native_context(), create_array_ref<llvm::Type>(members), is_packed)
+		);
 	}
 
 	auto IRBuilder::createStructType(evo::ArrayProxy<Type> members, bool is_packed, std::string_view name) const

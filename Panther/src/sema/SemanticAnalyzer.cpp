@@ -31982,7 +31982,10 @@ namespace pcit::panther{
 				member_vals.reserve(struct_type.memberVarsABI.size());
 
 				for(const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+					const size_t member_alignment = this->context.getTypeManager().alignmentOf(member_var->typeID);
 					const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
+
+					offset = core::ceilToPowOf2Multiple(offset, member_alignment);
 
 					const auto member_range = evo::ArrayProxy<std::byte>(&value.dataRange()[offset], member_size);
 
@@ -32012,30 +32015,117 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::UNION: {
-				// const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
-				// 	target_type.baseTypeID().unionID()
-				// );
+				const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
+					target_type.baseTypeID().unionID()
+				);
 
-				const uint64_t num_elems = this->context.getTypeManager().numBytes(target_type.baseTypeID());
+				if(union_type.isUntagged){
+					if(union_type.fields.size() == 1){ // untagged union with 1 field
+						const evo::Result<sema::Expr> expr = this->generic_value_to_sema_expr(
+							value, union_type.fields[0].typeID.asTypeID(), location
+						);
 
-				auto member_vals = evo::SmallVector<sema::Expr>();
-				member_vals.reserve(size_t(num_elems));
+						if(expr.isError()){ return evo::resultError; }
+
+						return sema::Expr(
+							this->context.sema_buffer.createUnionDesignatedInitNew(
+								expr.value(), target_type.baseTypeID().unionID(), 0
+							)
+						);
+					}
 
 
-				for(size_t i = 0; i < num_elems; i+=1){
-					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i], 1);
+					//////////////////
+					// unknown what type is held, just copy bytes
 
-					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
-						core::GenericValue::fromData(elem_range), TypeManager::getTypeByte(), location
+					const uint64_t num_bytes = this->context.getTypeManager().numBytes(target_type.baseTypeID());
+
+					auto member_vals = evo::SmallVector<sema::Expr>();
+					member_vals.reserve(size_t(num_bytes));
+
+
+					for(size_t i = 0; i < num_bytes; i+=1){
+						const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i], 1);
+
+						const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+							core::GenericValue::fromData(elem_range), TypeManager::getTypeByte(), location
+						);
+						if(member_val.isError()){ return evo::resultError; }
+
+						member_vals.emplace_back(member_val.value());
+					}
+
+					return sema::Expr(
+						this->context.sema_buffer.createAggregateValue(
+							std::move(member_vals), target_type.baseTypeID(), true
+						)
 					);
-					if(member_val.isError()){ return evo::resultError; }
-
-					member_vals.emplace_back(member_val.value());
 				}
 
+
+				//////////////////
+				// tagged
+				
+
+				size_t num_data_bytes = 1;
+				for(const BaseType::Union::Field& union_field : union_type.fields){
+					if(union_field.typeID.isVoid()){ continue; }
+					num_data_bytes = std::max(
+						num_data_bytes, this->context.getTypeManager().numBytes(union_field.typeID.asTypeID())
+					);
+				}
+
+
+				const size_t tag_bit_width =
+					core::ceilToPowOf2Multiple(std::bit_width(union_type.fields.size() - 1), 8);
+
+				const size_t tag_alignment = std::min(
+					std::bit_ceil(tag_bit_width / 8), this->context.getTypeManager().maxAlignmentOfPrimitive()
+				);
+
+
+				const size_t field_index = [&]() -> size_t {
+					const size_t tag_offset = core::ceilToPowOf2Multiple(num_data_bytes, tag_alignment);
+
+					if(tag_bit_width <= 8){
+						return size_t(*std::bit_cast<uint8_t*>(&value.dataRange()[tag_offset]));
+
+					}else if(tag_bit_width <= 16){
+						return size_t(*std::bit_cast<uint16_t*>(&value.dataRange()[tag_offset]));
+
+					}else if(tag_bit_width <= 32){
+						return size_t(*std::bit_cast<uint32_t*>(&value.dataRange()[tag_offset]));
+
+					}else{
+						return size_t(*std::bit_cast<uint64_t*>(&value.dataRange()[tag_offset]));
+					}
+				}();
+
+
+				const TypeInfo::VoidableID field_type_id = union_type.fields[field_index].typeID;
+
+				if(field_type_id.isVoid()){
+					return sema::Expr(
+						this->context.sema_buffer.createUnionDesignatedInitNew(
+							sema::Expr(this->context.sema_buffer.createNull(Token::ID::dummy())),
+							target_type.baseTypeID().unionID(),
+							uint32_t(field_index)
+						)
+					);
+				}
+				
+
+				const auto expr_range = evo::ArrayProxy<std::byte>(
+					value.dataRange().data(), this->context.getTypeManager().numBytes(field_type_id.asTypeID())
+				);
+				const evo::Result<sema::Expr> expr = this->generic_value_to_sema_expr(
+					core::GenericValue::fromData(expr_range), field_type_id.asTypeID(), location
+				);
+				if(expr.isError()){ return evo::resultError; }
+
 				return sema::Expr(
-					this->context.sema_buffer.createAggregateValue(
-						std::move(member_vals), target_type.baseTypeID(), true
+					this->context.sema_buffer.createUnionDesignatedInitNew(
+						expr.value(), target_type.baseTypeID().unionID(), uint32_t(field_index)
 					)
 				);
 			} break;

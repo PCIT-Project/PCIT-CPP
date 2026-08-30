@@ -58,7 +58,13 @@ namespace pcit::pir{
 			using core::UniqueID<uint32_t, StructID>::UniqueID;
 		};
 
-		using Value = evo::Variant<NoValue, Expr, Zeroinit, Uninit, String::ID, ByteArray::ID, ArrayID, StructID>;
+		struct UnionID : public core::UniqueID<uint32_t, struct UnionID> {
+			using core::UniqueID<uint32_t, UnionID>::UniqueID;
+		};
+
+		using Value = evo::Variant<
+			NoValue, Expr, Zeroinit, Uninit, String::ID, ByteArray::ID, ArrayID, StructID, UnionID
+		>;
 
 		struct Array{
 			// For lookup in Module
@@ -74,6 +80,14 @@ namespace pcit::pir{
 
 			Type type;
 			evo::SmallVector<Value> values;
+		};
+
+		struct Union{
+			// For lookup in Module
+			using ID = UnionID;
+
+			Type type;
+			Value value;
 		};
 
 

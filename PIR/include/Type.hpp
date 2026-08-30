@@ -38,6 +38,7 @@ namespace pcit::pir{
 				PTR,
 				ARRAY,
 				STRUCT,
+				UNION,
 				FUNCTION,
 			};
 
@@ -130,6 +131,13 @@ namespace pcit::pir{
 		evo::SmallVector<Type> members;
 		uint32_t alignment;
 		bool isPacked;
+	};
+
+
+	struct UnionType{
+		std::string name;
+		evo::SmallVector<Type> fields;
+		uint32_t alignment;
 	};
 
 

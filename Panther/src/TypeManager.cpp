@@ -2338,13 +2338,6 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// type traits
 
-	// https://stackoverflow.com/a/1766566
-	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
-		return (num + (multiple - 1)) & ~(multiple - 1);
-	}
-
-
-
 	auto TypeManager::numBytes(TypeInfo::ID id, bool include_end_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID(), include_end_padding); }
@@ -2356,7 +2349,7 @@ namespace pcit::panther{
 			const size_t num_bytes = this->numBytes(type_info.baseTypeID(), false) + 1;
 
 			if(include_end_padding){
-				return ceil_to_multiple(num_bytes, this->alignmentOf(id));
+				return core::ceilToPowOf2Multiple(num_bytes, this->alignmentOf(id));
 			}else{
 				return num_bytes;
 			} 
@@ -2390,10 +2383,10 @@ namespace pcit::panther{
 								return 4;
 
 							}else{
-								return ceil_to_multiple(primitive.bitWidth(), 64) / 8;
+								return core::ceilToPowOf2Multiple(primitive.bitWidth(), 64) / 8;
 							}
 						}else{
-							return ceil_to_multiple(primitive.bitWidth(), 8) / 8;
+							return core::ceilToPowOf2Multiple(primitive.bitWidth(), 8) / 8;
 						}
 					}
 
@@ -2489,7 +2482,7 @@ namespace pcit::panther{
 					if(struct_type.isPacked == false){
 						const size_t member_alignment = this->alignmentOf(member_var.typeID);
 						alignment = std::max(alignment, member_alignment);
-						num_bytes = ceil_to_multiple(num_bytes, member_alignment);
+						num_bytes = core::ceilToPowOf2Multiple(num_bytes, member_alignment);
 
 						num_bytes += this->numBytes(member_var.typeID);
 					}else{
@@ -2504,7 +2497,7 @@ namespace pcit::panther{
 					return num_bytes;
 				}
 
-				return ceil_to_multiple(num_bytes, alignment);
+				return core::ceilToPowOf2Multiple(num_bytes, alignment);
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
@@ -2522,37 +2515,37 @@ namespace pcit::panther{
 
 				size_t num_bytes = 1;
 				size_t max_field_alignent = 1;
-				for(size_t i = 1; i < union_type.fields.size(); i+=1){
-					if(union_type.fields[i].typeID.isVoid()){ continue; }
+				for(const BaseType::Union::Field& union_field : union_type.fields){
+					if(union_field.typeID.isVoid()){ continue; }
 					num_bytes = std::max(
-						num_bytes, this->numBytes(union_type.fields[i].typeID.asTypeID(), include_end_padding)
+						num_bytes, this->numBytes(union_field.typeID.asTypeID(), include_end_padding)
 					);
 
 					if(include_end_padding){
 						max_field_alignent =
-							std::max(max_field_alignent, this->alignmentOf(union_type.fields[i].typeID.asTypeID()));
+							std::max(max_field_alignent, this->alignmentOf(union_field.typeID.asTypeID()));
 					}
 				}
 
 				if(union_type.isUntagged){
 					if(include_end_padding){
-						num_bytes = ceil_to_multiple(num_bytes, max_field_alignent);
+						num_bytes = core::ceilToPowOf2Multiple(num_bytes, max_field_alignent);
 					}
 
 					return num_bytes;
 				}
 
-				const size_t num_tag_bits = ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8);
+				const size_t num_tag_bits = core::ceilToPowOf2Multiple(std::bit_width(union_type.fields.size() - 1), 8);
 				const size_t num_tag_bytes = num_tag_bits / 8;
 
 				const size_t alignment = 
 					std::max(max_field_alignent, std::min(num_tag_bytes, this->maxAlignmentOfPrimitive()));
 				
-				num_bytes = ceil_to_multiple(num_bytes, alignment);
+				num_bytes = core::ceilToPowOf2Multiple(num_bytes, alignment);
 				num_bytes += num_tag_bytes;
 
 				if(include_end_padding){
-					num_bytes = ceil_to_multiple(num_bytes, alignment);
+					num_bytes = core::ceilToPowOf2Multiple(num_bytes, alignment);
 				}
 				
 				return num_bytes;
@@ -2626,7 +2619,7 @@ namespace pcit::panther{
 			const size_t num_bits = this->numBytes(type_info.baseTypeID(), false) * 8 + 1;
 
 			if(include_end_padding){
-				return ceil_to_multiple(num_bits, this->alignmentOf(id));
+				return core::ceilToPowOf2Multiple(num_bits, this->alignmentOf(id));
 			}else{
 				return num_bits;
 			}
@@ -2650,7 +2643,7 @@ namespace pcit::panther{
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						if(include_end_padding){
-							return ceil_to_multiple(primitive.bitWidth(), this->alignmentOf(id) * 8);
+							return core::ceilToPowOf2Multiple(primitive.bitWidth(), this->alignmentOf(id) * 8);
 						}else{
 							return primitive.bitWidth();
 						}
@@ -2864,7 +2857,7 @@ namespace pcit::panther{
 		for(size_t i = 0; i < member_index; i+=1){
 			const TypeInfo::ID member_type_id = struct_type.memberVarsABI[i]->typeID;
 			size += this->numBytes(member_type_id);
-			size = ceil_to_multiple(size, this->alignmentOf(member_type_id));
+			size = core::ceilToPowOf2Multiple(size, this->alignmentOf(member_type_id));
 		}
 
 		return size;
@@ -2900,7 +2893,7 @@ namespace pcit::panther{
 						return this->numBytesOfPtr();
 
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
-						const size_t unpadded_num_bytes = ceil_to_multiple(primitive.bitWidth(), 8) / 8;
+						const size_t unpadded_num_bytes = core::ceilToPowOf2Multiple(primitive.bitWidth(), 8) / 8;
 						return std::min<size_t>(std::bit_ceil(unpadded_num_bytes), this->maxAlignmentOfPrimitive());
 					}
 

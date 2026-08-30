@@ -947,6 +947,8 @@ namespace pcit::panther{
 		sema_to_pir.lowerRuntime();
 		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
 
+		this->deinit_comptime_execution_engine_funcs();
+
 
 		///////////////////////////////////
 		// setup jit engine

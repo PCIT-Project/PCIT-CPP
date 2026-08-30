@@ -381,7 +381,7 @@ namespace pcit::llvmint{
 
 			[[nodiscard]] auto getArrayType(const Type& elem_type, uint64_t length) const -> ArrayType;
 
-			[[nodiscard]] auto getStructType(evo::ArrayProxy<Type> members) -> StructType;
+			[[nodiscard]] auto getStructType(evo::ArrayProxy<Type> members, bool is_packed) -> StructType;
 			[[nodiscard]] auto createStructType(
 				evo::ArrayProxy<Type> members, bool is_packed, std::string_view name = {}
 			) const -> StructType;

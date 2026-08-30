@@ -910,6 +910,8 @@ namespace pcit::pir{
 
 						size_t offset = 0;
 						for(size_t j = 0; j < size_t(index); j+=1){
+							const size_t member_alignment = this->engine.module.getAlignment(struct_type.members[j]);
+							offset = core::ceilToPowOf2Multiple(offset, member_alignment);
 							offset += this->engine.module.numBytes(struct_type.members[j]);
 						}
 
@@ -2597,15 +2599,11 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueT, Expr>()){
 				switch(decayed_value.kind()){
 					case Expr::Kind::GLOBAL_VALUE: {
-						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
-
 						*std::bit_cast<std::byte**>(dst.data()) =
 							this->get_or_create_lowered_global_ptr(InstrReader::getGlobalValue(decayed_value));
 					} break;
 
 					case Expr::Kind::FUNCTION_POINTER: {
-						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
-
 						const Function::ID function_id = InstrReader::getFunctionPointer(decayed_value);
 						const Function& function = this->engine.module.getFunction(function_id);
 						
@@ -2621,20 +2619,14 @@ namespace pcit::pir{
 					} break;
 
 					case Expr::Kind::BOOLEAN: {
-						evo::debugAssert(dst.size() == sizeof(bool), "Not Bool dst");
-
 						*std::bit_cast<bool*>(dst.data()) = InstrReader::getBoolean(decayed_value);
 					} break;
 
 					case Expr::Kind::BOOLEAN32: {
-						evo::debugAssert(dst.size() == sizeof(uint32_t), "Not Bool dst");
-
 						*std::bit_cast<uint32_t*>(dst.data()) = uint32_t(InstrReader::getBoolean32(decayed_value));
 					} break;
 
 					case Expr::Kind::NULLPTR: {
-						evo::debugAssert(dst.size() == sizeof(void*), "Not pointer dst");
-
 						*std::bit_cast<void**>(dst.data()) = nullptr;
 					} break;
 
@@ -2651,24 +2643,14 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 				const GlobalVar::String& string = this->engine.module.getGlobalString(decayed_value);
-
-				evo::debugAssert(dst.size() == string.value.size(), "dst is not this byte array");
-
 				std::memcpy(dst.data(), string.value.data(), string.value.size());
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
 				const GlobalVar::ByteArray& byte_array = this->engine.module.getGlobalByteArray(decayed_value);
-
-				evo::debugAssert(dst.size() == byte_array.bytes.size(), "dst is not this byte array");
-
 				std::memcpy(dst.data(), byte_array.bytes.data(), byte_array.bytes.size());
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::ArrayID>()){
 				const GlobalVar::Array& array_value = this->engine.module.getGlobalArray(decayed_value);
-
-				evo::debugAssert(
-					dst.size() == this->engine.module.numBytes(array_value.type), "dst is not this array"
-				);
 
 				const ArrayType& array_type = this->engine.module.getArrayType(array_value.type);
 				const size_t elem_size = this->engine.module.numBytes(array_type.elemType);
@@ -2682,10 +2664,6 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueT, GlobalVar::StructID>()){
 				const GlobalVar::Struct& struct_value = this->engine.module.getGlobalStruct(decayed_value);
 
-				evo::debugAssert(
-					dst.size() == this->engine.module.numBytes(struct_value.type), "dst is not this struct"
-				);
-
 				const StructType& struct_type = this->engine.module.getStructType(struct_value.type);
 
 				size_t offset = 0;
@@ -2697,6 +2675,10 @@ namespace pcit::pir{
 					offset += member_num_bytes;
 					i += 1;
 				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::UnionID>()){
+				const GlobalVar::Union& union_value = this->engine.module.getGlobalUnion(decayed_value);
+				this->lower_global_value(union_value.value, dst);
 
 			}else{
 				static_assert(false, "Unknown global value kind");

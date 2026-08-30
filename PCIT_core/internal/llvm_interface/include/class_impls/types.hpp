@@ -21,6 +21,8 @@ namespace pcit::llvmint{
 			~Type() = default;
 
 			[[nodiscard]] auto native() const -> llvm::Type* { return this->_native; }
+
+			[[nodiscard]] auto operator==(const Type& rhs) const -> bool = default;
 	
 		private:
 			llvm::Type* _native;

@@ -11,6 +11,7 @@
 #include <Evo.hpp>
 
 
+#include "../math.hpp"
 #include "./GenericInt.hpp"
 #include "./GenericFloat.hpp"
 
@@ -36,7 +37,7 @@ namespace pcit::core{
 				std::memcpy(&this->data.small, val.data(), this->num_bytes);
 
 			}else{
-				const size_t alloc_size = ceil_to_multiple(this->num_bytes, 8);
+				const size_t alloc_size = ceilToPowOf2Multiple(this->num_bytes, 8);
 
 				this->data.buffer = (uint64_t*)std::malloc(alloc_size);
 				std::memcpy(this->data.buffer, val.data(), this->num_bytes);
@@ -44,7 +45,9 @@ namespace pcit::core{
 		}
 
 
-		explicit GenericValue(const core::GenericInt& val) : num_bytes(ceil_to_multiple(val.getBitWidth(), 64) / 8) {
+		explicit GenericValue(const core::GenericInt& val) 
+			: num_bytes(ceilToPowOf2Multiple(val.getBitWidth(), 64) / 8)
+		{
 			if(this->is_small()){
 				this->data.small = static_cast<uint64_t>(val);
 
@@ -137,7 +140,8 @@ namespace pcit::core{
 				else if(bit_width <= 32){ evo::debugAssert(this->num_bytes >= 4, "Invalid bit width for what is held");}
 				else{
 					evo::debugAssert(
-						ceil_to_multiple(bit_width, 64) / 8 >= this->num_bytes, "Invalid bit width for what is held"
+						core::ceilToPowOf2Multiple(bit_width, 64) / 8 >= this->num_bytes,
+						"Invalid bit width for what is held"
 					);
 				}
 			#endif
@@ -230,12 +234,8 @@ namespace pcit::core{
 
 
 		private:
-			[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
-				return (num + (multiple - 1)) & ~(multiple - 1);
-			}
-
 			[[nodiscard]] auto num_words() const -> size_t {
-				return ceil_to_multiple(this->num_bytes, sizeof(uint64_t)) / sizeof(uint64_t);
+				return ceilToPowOf2Multiple(this->num_bytes, sizeof(uint64_t)) / sizeof(uint64_t);
 			}
 
 			[[nodiscard]] auto is_small() const -> bool {

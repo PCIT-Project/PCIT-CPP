@@ -10,33 +10,11 @@
 #pragma once
 
 
-#include <Evo.hpp>
 
 namespace pcit::core{
 
-	struct Version{
-		uint16_t major;
-		uint16_t release;
-		uint16_t minor;
-		uint16_t patch;
-	};
-
-	constexpr auto VERSION = Version{
-		.major   = 0,
-		.release = 0,
-		.minor   = 372,
-		.patch   = 0,
-	};
+	[[nodiscard]] constexpr auto ceilToPowOf2Multiple(size_t num, size_t multiple) -> size_t {
+		return (num + (multiple - 1)) & ~(multiple - 1);
+	}
 
 }
- 	
-
-template<>
-struct std::formatter<pcit::core::Version> : std::formatter<std::string> {
-    auto format(const pcit::core::Version& version, std::format_context& ctx) const -> std::format_context::iterator {
-        return std::formatter<std::string>::format(
-        	std::format("{}.{}.{}.{}", version.major, version.release, version.minor, version.patch),
-        	ctx
-        );
-    }
-};

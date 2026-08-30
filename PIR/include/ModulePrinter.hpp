@@ -32,6 +32,7 @@ namespace pcit::pir{
 			auto printFunction(const class Function& function) -> void;
 			auto printExternalFunction(const struct ExternalFunction& external_function) -> void;
 			auto printStructType(const struct StructType& struct_type) -> void;
+			auto printUnionType(const struct UnionType& union_type) -> void;
 			auto printGlobalVar(const struct GlobalVar& global_var) -> void;
 			auto printGlobalVarValue(const GlobalVar::Value& global_var_value) -> void;
 			auto printBasicBlock(const class BasicBlock& basic_block) -> void;

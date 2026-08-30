@@ -673,6 +673,37 @@ namespace pcit::pir{
 					printer.print("}");
 				} break;
 
+				case Type::Kind::UNION: {
+					const UnionType& struct_type = this->module.getUnionType(type);
+
+					ModulePrinter(this->module, printer).printType(type);
+					printer.println("{");
+
+					size_t offset = 0;
+
+					for(size_t i = 0; Type field : struct_type.fields){
+						const size_t field_type_size = this->module.numBytes(field);
+
+						const core::GenericValue generic_value = core::GenericValue::fromData(
+							value.dataRange().subarr(offset, field_type_size)
+						);
+
+						this->print_expr_value(generic_value, field, printer, indentation + 1);
+
+						if(i + 1 < struct_type.fields.size()){
+							printer.println(",");
+						}else{
+							printer.println();
+						}
+						
+						offset += field_type_size;
+						i += 1;
+					}
+
+					printer.print(indentation_str);
+					printer.print("}");
+				} break;
+
 				case Type::Kind::FUNCTION: {
 					printer.printlnGray("{{FUNCTION}}");
 				} break;

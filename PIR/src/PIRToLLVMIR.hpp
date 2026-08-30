@@ -103,20 +103,54 @@ namespace pcit::pir{
 			auto lower_func_body(const Function& func, const llvmint::Function& llvm_func) -> void;
 
 			template<bool ADD_WEAK_DEPS>
-			[[nodiscard]] auto get_constant_value(const Expr& expr) -> llvmint::Constant;
+			[[nodiscard]] auto get_constant_value(Expr expr) -> llvmint::Constant;
 
 			template<bool ADD_WEAK_DEPS>
-			[[nodiscard]] auto get_global_var_value(const GlobalVar::Value& global_var_value, const Type& type)
-				-> llvmint::Constant;
+			[[nodiscard]] auto get_global_var_value(
+				const GlobalVar::Value& global_var_value, Type type, bool is_inline_type
+			) -> llvmint::Constant;
 
 			template<bool ADD_WEAK_DEPS>
-			[[nodiscard]] auto get_value(const Expr& expr) -> llvmint::Value;
+			[[nodiscard]] auto get_global_inline_type(const GlobalVar::Value& global_var_value, Type type)
+				-> llvmint::Type;
 
 			template<bool ADD_WEAK_DEPS>
-			[[nodiscard]] auto get_type(const Type& type) -> llvmint::Type;
+			[[nodiscard]] auto get_global_inline_array_type(
+				const GlobalVar::Value& global_var_value, const ArrayType& struct_type
+			) -> llvmint::Type;
 
 			template<bool ADD_WEAK_DEPS>
-			[[nodiscard]] auto get_func_type(const Type& type) -> llvmint::FunctionType;
+			[[nodiscard]] auto get_global_inline_struct_type(
+				const GlobalVar::Value& global_var_value, const StructType& struct_type
+			) -> llvmint::StructType;
+
+			struct GlobalInlineUnionType{
+				evo::Variant<llvmint::Type, llvmint::StructType> type;
+				size_t padding_bytes;
+
+				[[nodiscard]] auto requires_padding() const -> bool { return this->padding_bytes != 0; }
+				[[nodiscard]] auto getType() -> llvmint::Type {
+					if(this->type.is<llvmint::Type>()){
+						return this->type.as<llvmint::Type>();
+					}else{
+						return this->type.as<llvmint::StructType>().asType();
+					}
+				}
+			};
+
+			template<bool ADD_WEAK_DEPS>
+			[[nodiscard]] auto get_global_inline_union_type(const GlobalVar::Union& global_union_value, Type type)
+				-> GlobalInlineUnionType;
+
+
+			template<bool ADD_WEAK_DEPS>
+			[[nodiscard]] auto get_value(Expr expr) -> llvmint::Value;
+
+			template<bool ADD_WEAK_DEPS>
+			[[nodiscard]] auto get_type(Type type) -> llvmint::Type;
+
+			template<bool ADD_WEAK_DEPS>
+			[[nodiscard]] auto get_func_type(Type type) -> llvmint::FunctionType;
 
 			template<bool ADD_WEAK_DEPS>
 			[[nodiscard]] auto get_struct_type(const StructType& type) -> llvmint::StructType;
@@ -136,6 +170,8 @@ namespace pcit::pir{
 			[[nodiscard]] auto get_meta_forward_decl_type(meta::Type type) -> std::optional<llvmint::DIBuilder::Type>;
 
 			[[nodiscard]] auto get_struct_padding_type(size_t num_bytes) const -> llvmint::Type;
+
+			[[nodiscard]] auto type_includes_union(Type type) -> bool;
 
 			[[nodiscard]] static auto get_linkage(const Linkage& linkage) -> llvmint::LinkageType;
 			[[nodiscard]] auto get_calling_conv(const CallingConvention& calling_conv) -> llvmint::CallingConv;
@@ -158,6 +194,7 @@ namespace pcit::pir{
 			};
 
 			std::unordered_map<const StructType*, StructData> struct_types{};
+			std::unordered_map<const StructType*, bool> struct_type_includes_union{};
 			std::unordered_map<const void*, llvmint::Function> funcs{}; // void* for funcs and extern funcs
 			std::unordered_map<const GlobalVar*, llvmint::GlobalVariable> global_vars{};
 			std::unordered_map<Expr, llvmint::Value> stmt_values{};

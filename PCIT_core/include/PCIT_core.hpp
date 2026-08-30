@@ -16,6 +16,7 @@
 #include "./LinearStepAlloc.hpp"
 #include "./linux.hpp"
 #include "./MapAlloc.hpp"
+#include "./math.hpp"
 #include "./SyncLinearStepAlloc.hpp"
 #include "./Optional.hpp"
 #include "./Printer.hpp"

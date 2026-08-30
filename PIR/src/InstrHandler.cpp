@@ -3490,6 +3490,10 @@ namespace pcit::pir{
 					evo::debugFatalBreak("Cannot be struct");
 				} break;
 
+				case Type::Kind::UNION: {
+					evo::debugFatalBreak("Cannot be union");
+				} break;
+
 				case Type::Kind::FUNCTION: {
 					evo::debugFatalBreak("Cannot be funciton");
 				} break;

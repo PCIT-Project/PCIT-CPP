@@ -204,11 +204,13 @@ namespace pcit::pir{
 							using ValueT = std::decay_t<decltype(element)>;
 
 							if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
-								evo::debugAssert("Cannot have array element with no value");
+								evo::debugFatalBreak("Cannot have array element with no value");
 
 							}else if constexpr(std::is_same<ValueT, Expr>()){
 								evo::debugAssert(element.isConstant(), "Array element must be a constant");
-								this->check_expr_type_match(element_type, element);
+								evo::debugAssert(
+									this->check_expr_type_match(element_type, element), "Type and value must match"
+								);
 
 							}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 								// Do nothing...
@@ -237,8 +239,14 @@ namespace pcit::pir{
 									element_type == this->getGlobalStruct(element).type, "Array element must match type"
 								);
 
+							}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
+								evo::debugAssert(
+									element_type == this->getGlobalUnion(element).type,
+									"Array element value must match type"
+								);
+
 							}else{
-								static_assert(false, "Unknown Global value kind");
+								static_assert(false, "Unknown global value kind");
 							}
 						});
 					}
@@ -274,9 +282,8 @@ namespace pcit::pir{
 			//////////////////
 			// global struct
 
-			[[nodiscard]] auto createGlobalStruct(
-				Type type, evo::SmallVector<GlobalVar::Value> values
-			) -> GlobalVar::Struct::ID {
+			[[nodiscard]] auto createGlobalStruct(Type type, evo::SmallVector<GlobalVar::Value>&& values)
+			-> GlobalVar::Struct::ID {
 				#if defined(PCIT_CONFIG_DEBUG)
 					const StructType& struct_type = this->getStructType(type);
 
@@ -289,10 +296,12 @@ namespace pcit::pir{
 			 				using MemberValueT = std::decay_t<decltype(member_value)>;
 
 			 				if constexpr(std::is_same<MemberValueT, GlobalVar::NoValue>()){
-			 					evo::debugAssert("Cannot have struct element with no value");
+			 					evo::debugFatalBreak("Cannot have struct element with no value");
 
 			 				}else if constexpr(std::is_same<MemberValueT, Expr>()){
-			 					this->check_expr_type_match(member_type, member_value);
+			 					evo::debugAssert(
+			 						this->check_expr_type_match(member_type, member_value), "Type and value must match"
+			 					);
 
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
 			 					// Do nothing...
@@ -324,8 +333,14 @@ namespace pcit::pir{
 			 						"Struct member value must match type"
 			 					);
 
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Union::ID>()){
+			 					evo::debugAssert(
+			 						member_type == this->getGlobalUnion(member_value).type,
+			 						"Struct member value must match type"
+			 					);
+
 			 				}else{
-			 					static_assert(false, "Unknown Global value kind");
+			 					static_assert(false, "Unknown global value kind");
 			 				}
 			 			});
 					}
@@ -337,6 +352,71 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto getGlobalStruct(GlobalVar::Struct::ID id) const -> const GlobalVar::Struct& {
 				return this->global_structs[id];
+			}
+
+
+			//////////////////
+			// global union
+
+			[[nodiscard]] auto createGlobalUnion(Type type, GlobalVar::Value value) -> GlobalVar::Union::ID {
+				#if defined(PCIT_CONFIG_DEBUG)
+					const UnionType& union_type = this->getUnionType(type);
+
+					bool matches = false;
+					for(Type field_type : union_type.fields){
+			 			const bool matches_res = value.visit([&](const auto& field_value) -> bool {
+			 				using MemberValueT = std::decay_t<decltype(field_value)>;
+
+			 				if constexpr(std::is_same<MemberValueT, GlobalVar::NoValue>()){
+			 					evo::debugFatalBreak("Cannot have union element with no value");
+
+			 				}else if constexpr(std::is_same<MemberValueT, Expr>()){
+			 					evo::debugAssert(field_value.isConstant(), "Global variable value must be constant");
+			 					return this->check_expr_type_match(field_type, field_value);
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
+			 					return true;
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Uninit>()){
+			 					return true;
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
+			 					return field_type == this->getGlobalString(field_value).type;
+			 					
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
+			 					return field_type == this->getGlobalArray(field_value).type;
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::ByteArray::ID>()){
+			 					return field_type == this->getGlobalByteArray(field_value).type;
+			 					
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
+			 					return field_type == this->getGlobalStruct(field_value).type;
+
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Union::ID>()){
+			 					return field_type == this->getGlobalUnion(field_value).type;
+
+			 				}else{
+			 					static_assert(false, "Unknown global value kind");
+			 				}
+			 			});
+
+			 			if(matches_res){
+			 				matches = true;
+			 				break;
+			 			}
+					}
+
+					if(matches == false){
+						evo::debugFatalBreak("Union value must match one of the field types");
+					}
+				#endif
+
+				return this->global_unions.emplace_back(type, value);
+			}
+
+
+			[[nodiscard]] auto getGlobalUnion(GlobalVar::Union::ID id) const -> const GlobalVar::Union& {
+				return this->global_unions[id];
 			}
 
 
@@ -359,7 +439,9 @@ namespace pcit::pir{
 							// Do nothing...
 
 						}else if constexpr(std::is_same<MemberValueT, Expr>()){
-							this->check_expr_type_match(type, member_value);
+							evo::debugAssert(
+								this->check_expr_type_match(type, member_value), "Type and value must match"
+							);
 							evo::debugAssert(member_value.isConstant(), "Global variable value must be constant");
 
 						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
@@ -392,8 +474,14 @@ namespace pcit::pir{
 								"Global variable value must match type"
 							);
 
+						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Union::ID>()){
+							evo::debugAssert(
+								type == this->getGlobalUnion(member_value).type,
+								"Global variable value must match type"
+							);
+
 						}else{
-							static_assert(false, "Unknown Global value kind");
+							static_assert(false, "Unknown global value kind");
 						}
 					});
 						
@@ -552,6 +640,72 @@ namespace pcit::pir{
 			[[nodiscard]] auto getStructTypeConstIter() const -> evo::IterRange<StructTypeConstIter> {
 				return evo::IterRange<StructTypeConstIter>(
 					this->struct_types.cbegin(), this->struct_types.cend()
+				);
+			}
+
+
+
+
+
+			[[nodiscard]] auto createUnionType(
+				std::string&& union_name,
+				evo::SmallVector<Type>&& fields,
+				std::optional<uint32_t> alignment = std::nullopt
+			) -> Type {
+				#if defined(PCIT_CONFIG_DEBUG)
+					this->check_global_name_reuse(union_name);
+				#endif
+				evo::debugAssert(fields.empty() == false, "Cannot create a union type with no fields");
+
+				if(alignment.has_value() == false){
+					alignment = 1;
+
+					for(const Type& member : fields){
+						alignment = std::max(*alignment, uint32_t(this->getAlignment(member)));
+					}
+				}else{
+					#if defined(PCIT_CONFIG_DEBUG)
+						uint32_t expected_alignment = 0;
+						for(const Type& member : fields){
+							expected_alignment = std::max(expected_alignment, uint32_t(this->getAlignment(member)));
+						}
+
+						evo::debugAssert(expected_alignment <= *alignment, "Alignment for this type is too small");
+						evo::debugAssert(std::has_single_bit(*alignment), "Aligment must be power of 2");
+					#endif
+				}
+
+
+				const uint32_t union_type_index = this->union_types.emplace_back(
+					std::move(union_name), std::move(fields), *alignment
+				);
+				return Type(Type::Kind::UNION, union_type_index);
+			}
+
+			[[nodiscard]] auto getUnionType(const Type& union_type) const -> const UnionType& {
+				evo::debugAssert(union_type.kind() == Type::Kind::UNION, "Not a union");
+				return this->union_types[union_type.number];
+			}
+
+
+			using UnionTypeIter = core::SyncLinearStepAlloc<UnionType, uint32_t>::Iter;
+			using UnionTypeConstIter = core::SyncLinearStepAlloc<UnionType, uint32_t>::ConstIter;
+
+			[[nodiscard]] auto getUnionTypeIter() -> evo::IterRange<UnionTypeIter> {
+				return evo::IterRange<UnionTypeIter>(
+					this->union_types.begin(), this->union_types.end()
+				);
+			}
+
+			[[nodiscard]] auto getUnionTypeIter() const -> evo::IterRange<UnionTypeConstIter> {
+				return evo::IterRange<UnionTypeConstIter>(
+					this->union_types.cbegin(), this->union_types.cend()
+				);
+			}
+
+			[[nodiscard]] auto getUnionTypeConstIter() const -> evo::IterRange<UnionTypeConstIter> {
+				return evo::IterRange<UnionTypeConstIter>(
+					this->union_types.cbegin(), this->union_types.cend()
 				);
 			}
 
@@ -1182,7 +1336,7 @@ namespace pcit::pir{
 				auto check_global_name_reuse(std::string_view global_name) const -> void;
 				auto check_meta_name_reuse(std::string_view meta_name) const -> void;
 
-				auto check_expr_type_match(Type type, const Expr& expr) const -> void;
+				[[nodiscard]] auto check_expr_type_match(Type type, const Expr& expr) const -> bool;
 			#endif
 	
 		private:
@@ -1202,6 +1356,7 @@ namespace pcit::pir{
 			mutable evo::SpinLock array_types_lock{};
 
 			core::SyncLinearStepAlloc<StructType, uint32_t> struct_types{};
+			core::SyncLinearStepAlloc<UnionType, uint32_t> union_types{};
 
 			core::LinearStepAlloc<FunctionType, uint32_t> func_types{};
 			mutable evo::SpinLock func_types_lock{};
@@ -1314,6 +1469,7 @@ namespace pcit::pir{
 			core::StepAlloc<GlobalVar::Array, GlobalVar::Array::ID> global_arrays{};
 			core::StepAlloc<GlobalVar::ByteArray, GlobalVar::ByteArray::ID> global_byte_arrays{};
 			core::StepAlloc<GlobalVar::Struct, GlobalVar::Struct::ID> global_structs{};
+			core::StepAlloc<GlobalVar::Union, GlobalVar::Union::ID> global_unions{};
 
 
 			// meta

@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.372.0"></a>
+## v0.0.372.0
+
+### Panther
+- Fixed lowering of comptime unions that have pointer values
+
+### PIR
+- Added `Union` types
+
+
+<!---------------------------------->
 <a name="v0.0.371.0"></a>
 ## v0.0.371.0
 

@@ -22,10 +22,6 @@
 namespace pcit::pir{
 
 
-	static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
-		return (num + (multiple - 1)) & ~(multiple - 1);
-	}
-
 
 	auto Module::deleteBodyOfFunction(Function::ID id) -> void {
 		Function& func = this->getFunction(id);
@@ -79,10 +75,10 @@ namespace pcit::pir{
 
 	auto Module::numBytes(const Type& type, bool include_padding) const -> size_t {
 		switch(type.kind()){
-			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
+			case Type::Kind::VOID: return 0;
 
 			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
-				const size_t unpadded_num_bytes = ceil_to_multiple(type.getWidth(), 8) / 8;
+				const size_t unpadded_num_bytes = core::ceilToPowOf2Multiple(type.getWidth(), 8) / 8;
 
 				if(include_padding == false){
 					return unpadded_num_bytes;
@@ -91,7 +87,7 @@ namespace pcit::pir{
 					return std::bit_ceil(unpadded_num_bytes);
 					
 				}else{
-					return ceil_to_multiple(unpadded_num_bytes, this->sizeOfPtr());
+					return core::ceilToPowOf2Multiple(unpadded_num_bytes, this->sizeOfPtr());
 				}
 			} break;
 
@@ -123,16 +119,28 @@ namespace pcit::pir{
 					if(struct_type.isPacked){
 						size += this->numBytes(member, false);
 					}else{
-						size = ceil_to_multiple(size, this->getAlignment(member));
+						size = core::ceilToPowOf2Multiple(size, this->getAlignment(member));
 						size += this->numBytes(member, true);
 					}
 				}
 
 				if(include_padding){
-					return ceil_to_multiple(size, this->getAlignment(type));
+					return core::ceilToPowOf2Multiple(size, this->getAlignment(type));
 				}else{
 					return size;
 				}
+			} break;
+
+			case Type::Kind::UNION: {
+				const UnionType& union_type = this->getUnionType(type);
+
+				size_t size = 1;
+
+				for(Type field_type : union_type.fields){
+					size = std::max(size, this->numBytes(field_type));
+				}
+
+				return size;
 			} break;
 
 			case Type::Kind::FUNCTION: return this->sizeOfPtr();
@@ -144,10 +152,10 @@ namespace pcit::pir{
 
 	auto Module::getAlignment(const Type& type) const -> size_t {
 		switch(type.kind()){
-			case Type::Kind::VOID: evo::debugFatalBreak("Cannot get size of Void");
+			case Type::Kind::VOID: return 1;
 
 			case Type::Kind::UNSIGNED: case Type::Kind::SIGNED: {
-				const size_t padded_num_bytes = ceil_to_multiple(type.getWidth(), 8) / 8;
+				const size_t padded_num_bytes = core::ceilToPowOf2Multiple(type.getWidth(), 8) / 8;
 				return std::min<size_t>(std::bit_ceil(padded_num_bytes), this->maxAlignmentOfPrimitive());
 			} break;
 
@@ -173,6 +181,11 @@ namespace pcit::pir{
 			case Type::Kind::STRUCT: {
 				const StructType& struct_type = this->getStructType(type);
 				return struct_type.alignment;
+			} break;
+
+			case Type::Kind::UNION: {
+				const UnionType& union_type = this->getUnionType(type);
+				return union_type.alignment;
 			} break;
 
 			case Type::Kind::FUNCTION: return this->sizeOfPtr();
@@ -250,8 +263,8 @@ namespace pcit::pir{
 		}
 
 
-		auto Module::check_expr_type_match(Type type, const Expr& expr) const -> void {
-			evo::debugAssert(type == InstrReader(*this).getExprType(expr), "Type and value must match");
+		auto Module::check_expr_type_match(Type type, const Expr& expr) const -> bool {
+			return type == InstrReader(*this).getExprType(expr);
 		}
 	#endif
 

@@ -22,10 +22,6 @@
 
 namespace pcit::panther{
 
-	[[nodiscard]] static constexpr auto ceil_to_multiple(size_t num, size_t multiple) -> size_t {
-		return (num + (multiple - 1)) & ~(multiple - 1);
-	}
-
 
 	[[nodiscard]] static auto remove_alloca_from_name(std::string_view str) -> std::string {
 		const size_t alloca_loc = str.find(".ALLOCA");
@@ -1653,38 +1649,54 @@ namespace pcit::panther{
 
 
 		size_t num_bytes_data = 1;
+		auto types_set = std::unordered_set<pir::Type>();
 		for(const BaseType::Union::Field& field : union_type.fields){
-			if(field.typeID.isVoid()){ continue; }
-			num_bytes_data = std::max(num_bytes_data, this->context.getTypeManager().numBytes(field.typeID.asTypeID()));
+			if(field.typeID.isVoid()){
+				types_set.emplace(this->module.createVoidType());
+
+			}else{
+				num_bytes_data = std::max(
+					num_bytes_data, this->context.getTypeManager().numBytes(field.typeID.asTypeID())
+				);
+				types_set.emplace(this->get_type<MAY_LOWER_DEPENDENCY, false>(field.typeID.asTypeID()).type);
+			}
 		}
 
 
-		const pir::Type underlying_data_type = this->module.getOrCreateArrayType(
-			this->module.createUnsignedType(8), num_bytes_data
+	
+		auto union_types = evo::SmallVector<pir::Type>();
+		for(pir::Type type : types_set){
+			union_types.emplace_back(type);
+		}
+
+		std::string mangled_name = this->mangle_name(union_id);
+
+		std::string actual_union_type_name = [&]() -> std::string {
+			if(union_type.isUntagged){
+				return mangled_name;
+			}else{
+				return mangled_name + "-data";
+			}
+		}();
+
+		const pir::Type actual_pir_union_type = this->module.createUnionType(
+			std::move(actual_union_type_name),
+			std::move(union_types),
+			uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(union_id)))
 		);
+
 
 		const pir::Type union_pir_type = [&](){
 			if(union_type.isUntagged){
-				return this->module.createStructType(
-					this->mangle_name(union_id),
-					evo::SmallVector<pir::Type>{underlying_data_type},
-					false,
-					uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(union_id)))
-				);
-
+				return actual_pir_union_type;
 
 			}else{
 				return this->module.createStructType(
 					this->mangle_name(union_id),
 					evo::SmallVector<pir::Type>{
-						this->module.createStructType(
-							this->mangle_name(union_id) + "-data",
-							evo::SmallVector<pir::Type>{underlying_data_type},
-							false,
-							uint32_t(this->context.getTypeManager().alignmentOf(BaseType::ID(union_id)))
-						),
+						actual_pir_union_type,
 						this->module.createUnsignedType(
-							unsigned(ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8))
+							unsigned(core::ceilToPowOf2Multiple(std::bit_width(union_type.fields.size() - 1), 8))
 						)
 					},
 					false
@@ -1714,7 +1726,7 @@ namespace pcit::panther{
 
 			if(union_type.isUntagged){
 				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
-					underlying_data_type,
+					actual_pir_union_type,
 					std::move(mangled_union_name),
 					std::move(unmangled_union_name),
 					std::move(fields),
@@ -1727,7 +1739,7 @@ namespace pcit::panther{
 
 			}else{
 				const pir::meta::UnionType::ID meta_union_id = this->module.createMetaUnionType(
-					underlying_data_type,
+					actual_pir_union_type,
 					mangled_union_name + "-data",
 					unmangled_union_name + "-data",
 					std::move(fields),
@@ -1753,7 +1765,7 @@ namespace pcit::panther{
 				}
 
 				const uint32_t tag_bit_width =
-					uint32_t(ceil_to_multiple(std::bit_width(union_type.fields.size() - 1), 8));
+					uint32_t(core::ceilToPowOf2Multiple(std::bit_width(union_type.fields.size() - 1), 8));
 				const BaseType::ID tag_base_type_id =
 					this->context.getTypeManager().getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, tag_bit_width);
 				const TypeInfo::ID tag_type_info_id =
@@ -12661,8 +12673,8 @@ namespace pcit::panther{
 				return pir::GlobalVar::Zeroinit();
 			} break;
 
-			case sema::Expr::Kind::NULL_VALUE: {
-				evo::debugFatalBreak("Can't lower `null`");
+			case sema::Expr::Kind::NULL_VALUE: { // for placing in unions
+				return pir::GlobalVar::Uninit();
 			} break;
 
 			case sema::Expr::Kind::INT_VALUE: {
@@ -12967,68 +12979,33 @@ namespace pcit::panther{
 				const sema::UnionDesignatedInitNew& union_designated_init_new =
 					this->context.getSemaBuffer().getUnionDesignatedInitNew(expr.unionDesignatedInitNewID());
 
-				const BaseType::Union& union_type =
-					this->context.getTypeManager().getUnion(union_designated_init_new.unionTypeID);
-
-				const pir::Type union_pir_type =
-					this->data.unions.getExisting(union_designated_init_new.unionTypeID);
-
-				const core::GenericValue generic_value = [&]() -> core::GenericValue {
-					if(union_designated_init_new.value.kind() != sema::Expr::Kind::NULL_VALUE){
-						return sema::exprToGenericValue(union_designated_init_new.value, this->context);
-					}else{
-						return core::GenericValue();
-					}
-				}();
-
-
-				const pir::StructType& union_pir_struct_type = this->module.getStructType(union_pir_type);
-
-				const size_t data_size = [&]() -> size_t {
-					if(union_type.isUntagged){
-						return this->module.getArrayType(union_pir_struct_type.members[0]).length;
-					}else{
-						return this->module.getArrayType(
-							this->module.getStructType(union_pir_struct_type.members[0]).members[0]
-						).length;
-					}
-				}();
-
-				auto byte_array_data = evo::SmallVector<std::byte>();
-				byte_array_data.resize(data_size);
-
-				std::memcpy(byte_array_data.data(), generic_value.dataRange().data(), generic_value.dataRange().size());
-
-				if(generic_value.dataRange().size() != data_size){
-					std::memset(
-						&byte_array_data[generic_value.dataRange().size()],
-						0,
-						data_size - generic_value.dataRange().size()
-					);
-				}
-
-
-				const pir::GlobalVar::ByteArray::ID pir_byte_array =
-					this->module.createGlobalByteArray(std::move(byte_array_data));
-
-				if(union_type.isUntagged){
-					return pir_byte_array;
-				}
-				
-				const pir::Type tag_type = this->module.getStructType(union_pir_type).members[1];
-				const pir::Expr tag_value = this->handler.createNumber(
-					tag_type,
-					core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+				const BaseType::Union& union_type = this->context.getTypeManager().getUnion(
+					union_designated_init_new.unionTypeID
 				);
 
-				auto aggregate_values = evo::SmallVector<pir::GlobalVar::Value>{
-					this->module.createGlobalStruct(
-						union_pir_struct_type.members[0], evo::SmallVector<pir::GlobalVar::Value>{pir_byte_array}
-					),
-					tag_value
-				};
+				const pir::Type union_pir_type = this->data.unions.getExisting(union_designated_init_new.unionTypeID);
 
-				return this->module.createGlobalStruct(union_pir_type, std::move(aggregate_values));
+				const pir::GlobalVar::Value init_value = this->get_global_var_value(union_designated_init_new.value);
+
+				if(union_type.isUntagged){
+					return this->module.createGlobalUnion(union_pir_type, init_value);
+
+				}else{
+					const pir::StructType& union_pir_struct_type = this->module.getStructType(union_pir_type);
+					const pir::Type actual_pir_union_type = union_pir_struct_type.members[0];
+					const pir::Type tag_type = union_pir_struct_type.members[1];
+
+					const pir::Expr tag_value = this->handler.createNumber(
+						tag_type, core::GenericInt(unsigned(tag_type.getWidth()), union_designated_init_new.fieldIndex)
+					);
+
+					return this->module.createGlobalStruct(
+						union_pir_type,
+						evo::SmallVector<pir::GlobalVar::Value>{
+							this->module.createGlobalUnion(actual_pir_union_type, init_value), tag_value
+						}
+					);
+				}
 			} break;
 
 			case sema::Expr::Kind::GLOBAL_VAR: {
@@ -13251,7 +13228,7 @@ namespace pcit::panther{
 								return 32;
 
 							}else{
-								return uint32_t(ceil_to_multiple(primitive.bitWidth(), 64));
+								return uint32_t(core::ceilToPowOf2Multiple(primitive.bitWidth(), 64));
 							}
 						}();
 
@@ -13326,7 +13303,7 @@ namespace pcit::panther{
 								return 32;
 
 							}else{
-								return uint32_t(ceil_to_multiple(primitive.bitWidth(), 64));
+								return uint32_t(core::ceilToPowOf2Multiple(primitive.bitWidth(), 64));
 							}
 						}();
 

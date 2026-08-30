@@ -88,6 +88,18 @@ namespace pcit::panther{
 				std::optional<pir::Type> error_return_type;
 			};
 
+			struct UnionTypeInfo{
+				struct FieldTypeInfo{
+					std::optional<pir::Type> pir_type; // nullopt if `Void`
+					size_t tag_member_index; // 0 if untagged
+
+					[[nodiscard]] auto isVoid() const -> bool { return this->pir_type.has_value() == false; }
+					[[nodiscard]] auto needsPadding() const -> bool { return this->tag_member_index == 2; }
+				};
+
+				evo::SmallVector<FieldTypeInfo> field_types{};
+			};
+
 
 			struct JITBuildFuncs{
 				pir::ExternalFunction::ID create_panther_build = pir::ExternalFunction::ID::dummy();
@@ -452,6 +464,7 @@ namespace pcit::panther{
 			core::MapAlloc<BaseType::ArrayRef::ID, PIRType> array_ref_type_infos{};
 
 			core::MapAlloc<BaseType::Struct::ID, pir::Type> structs{}; // access directly from SemaToPIR
+
 			core::MapAlloc<BaseType::Union::ID, pir::Type> unions{}; // access directly from SemaToPIR
 
 			std::unordered_map<sema::GlobalVar::ID, pir::GlobalVar::ID> global_vars{};
@@ -471,6 +484,7 @@ namespace pcit::panther{
 
 			std::unordered_map<pir::Function::ID, sema::Func::ID> func_ptr_map{};
 			mutable evo::SpinLock func_ptr_map_lock{};
+
 
 			JITBuildFuncs jit_build_funcs{};
 			ComptimeExecutionEngineFuncs comptime_execution_engine_funcs{};

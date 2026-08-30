@@ -257,6 +257,25 @@ namespace pcit::pir{
 				return created_struct_type;
 			} break;
 
+			case Type::Kind::UNION: {
+				const auto value_handle = this->type_conv_lookup.get(module_type);
+
+				if(value_handle.needsToBeSet() == false){
+					return value_handle.getValue();
+				}
+
+				const UnionType& struct_type = this->module.getUnionType(module_type);
+
+				const Type created_struct_type = this->jit_engine_module.createUnionType(
+					evo::copy(struct_type.name),
+					evo::copy(struct_type.fields),
+					struct_type.alignment
+				);
+
+				value_handle.emplaceValue(created_struct_type);
+				return created_struct_type;
+			} break;
+
 			case Type::Kind::FUNCTION: {
 				const FunctionType& function_type = this->module.getFunctionType(module_type);
 				return this->jit_engine_module.getOrCreateFunctionType(
