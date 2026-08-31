@@ -231,6 +231,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		.optMode                = config.optMode,
 		.unreachableMode        = config.unreachableMode,
 		.checkedOptionals       = config.checkedOptionals,
+		.checkedUnions          = config.checkedUnions,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1148,6 +1149,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.optMode                = pir::OptMode::SPEED,
 		.unreachableMode        = ContextConfig::UnreachableMode::PANIC,
 		.checkedOptionals       = true,
+		.checkedUnions          = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1323,6 +1325,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		.optMode                = pir::OptMode::SPEED,
 		.unreachableMode        = ContextConfig::UnreachableMode::PANIC,
 		.checkedOptionals       = true,
+		.checkedUnions          = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 

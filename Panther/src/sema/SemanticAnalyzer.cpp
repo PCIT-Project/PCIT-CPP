@@ -25514,6 +25514,15 @@ namespace pcit::panther{
 					lhs_type_union.fields[selected_field_index].typeID.asTypeID(),
 					sema_expr
 				);
+
+				if(
+					lhs_type_union.isUntagged == false
+						&& this->currently_in_func()
+						&& this->context.getConfig().checkedUnions
+						&& this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC
+				){
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+				}
 			}
 
 			return Result::SUCCESS;

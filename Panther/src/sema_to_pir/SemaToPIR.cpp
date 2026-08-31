@@ -4953,15 +4953,15 @@ namespace pcit::panther{
 
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL"));
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS"));
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
 					this->get_expr_register(optional_extract.expr),
 					this->module.createUSize(),
-					this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+					this->name(".EXTRACT_OPT.CHECKED.PTR_AS_USIZE")
 				);
 
 				const pir::Expr zero_value = this->handler.createNumber(
@@ -5007,14 +5007,14 @@ namespace pcit::panther{
 
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
-					this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL")
+					this->name("EXTRACT_OPT.CHECKED.FAIL")
 				);
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
-					this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS")
+					this->name("EXTRACT_OPT.CHECKED.SUCCESS")
 				);
 
 				const pir::Expr flag_value = this->handler.createLoad(
-					flag, this->module.createBoolType(), this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.FLAG_VALUE")
+					flag, this->module.createBoolType(), this->name(".EXTRACT_OPT.CHECKED.FLAG_VALUE")
 				);
 
 				this->handler.createBranch(flag_value, end_block, fail_block);
@@ -5039,15 +5039,15 @@ namespace pcit::panther{
 		}else{
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.FAIL"));
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED_OPTIONAL.SUCCESS"));
+					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
 					this->get_expr_register(optional_extract.expr),
 					this->module.createUSize(),
-					this->name(".EXTRACT_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+					this->name(".EXTRACT_OPT.CHECKED.PTR_AS_USIZE")
 				);
 
 				const pir::Expr zero_value = this->handler.createNumber(
@@ -5181,15 +5181,15 @@ namespace pcit::panther{
 		if(target_type_info.isPointer()){
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED_OPTIONAL.FAIL"));
+					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED_OPTIONAL.SUCCESS"));
+					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
 					this->get_expr_register(unwrap.expr),
 					this->module.createUSize(),
-					this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.PTR_AS_USIZE")
+					this->name(".UNWRAP_OPT.CHECKED.PTR_AS_USIZE")
 				);
 
 				const pir::Expr zero_value = this->handler.createNumber(
@@ -5226,21 +5226,21 @@ namespace pcit::panther{
 
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
-					this->name("UNWRAP_OPT.CHECKED_OPTIONAL.FAIL")
+					this->name("UNWRAP_OPT.CHECKED.FAIL")
 				);
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
-					this->name("UNWRAP_OPT.CHECKED_OPTIONAL.SUCCESS")
+					this->name("UNWRAP_OPT.CHECKED.SUCCESS")
 				);
 
 				const pir::Expr flag = this->handler.createCalcPtr(
 					this->get_expr_pointer(unwrap.expr),
 					target_pir_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.FLAG")
+					this->name(".UNWRAP_OPT.CHECKED.FLAG")
 				);
 
 				const pir::Expr flag_value = this->handler.createLoad(
-					flag, this->module.createBoolType(), this->name(".UNWRAP_OPT.CHECKED_OPTIONAL.FLAG_VALUE")
+					flag, this->module.createBoolType(), this->name(".UNWRAP_OPT.CHECKED.FLAG_VALUE")
 				);
 
 				this->handler.createBranch(flag_value, end_block, fail_block);
@@ -5485,6 +5485,44 @@ namespace pcit::panther{
 			const BaseType::Union& target_union_type = this->context.getTypeManager().getUnion(
 				target_type.baseTypeID().unionID()
 			);
+
+
+			if(target_union_type.isUntagged == false && this->context.getConfig().checkedUnions){
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+					this->name("UNION_ACCESSOR.CHECKED.FAIL")
+				);
+				const pir::BasicBlock::ID success_block = this->handler.createBasicBlock(
+					this->name("UNION_ACCESSOR.CHECKED.SUCCESS")
+				);
+
+				const pir::Type union_pir_type = this->get_type<false, false>(target_type.baseTypeID()).type;
+
+				const pir::Expr tag_ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(union_accessor.target),
+					union_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".UNION_TAG")
+				);
+
+				const pir::StructType& union_pir_struct_type = this->module.getStructType(union_pir_type);
+				const pir::Expr tag_value = this->handler.createLoad(
+					tag_ptr, union_pir_struct_type.members[1], this->name(".UNION_TAG_VALUE")
+				);
+
+				const pir::Expr expected_tag = this->handler.createNumber(
+					union_pir_struct_type.members[1], core::GenericInt::create(union_accessor.fieldIndex)
+				);
+
+				const pir::Expr tag_is_expected = this->handler.createIEq(tag_value, expected_tag);
+
+				this->handler.createBranch(tag_is_expected, success_block, fail_block);
+
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Attempted to access a union field when a different one is currently held");
+
+				this->handler.setTargetBasicBlock(success_block);
+			}
 
 
 			const pir::Expr data_ptr = [&](){

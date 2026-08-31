@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.374.0"></a>
+## v0.0.374.0
+
+### Panther
+- Added `@build.PantherBuildConfig.checkedUnion`
+
+### Misc
+- Updated to [Panther-std v0.0.53.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.53.0)
+
+
+<!---------------------------------->
 <a name="v0.0.373.0"></a>
 ## v0.0.373.0
 
