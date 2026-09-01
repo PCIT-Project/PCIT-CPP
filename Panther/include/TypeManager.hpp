@@ -909,6 +909,7 @@ namespace pcit::panther{
 			bool isPub; // meaningless if c family type
 			bool isPriv;
 			bool isUntagged;
+			bool isManualLifetime;
 
 			std::atomic<bool> defCompleted = false;
 

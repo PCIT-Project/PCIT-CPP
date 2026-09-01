@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.375.0"></a>
+## v0.0.375.0
+
+### Panther
+- Added union attribute `#manualLifetime`
+
+### Misc
+- Updated to [Panther-std v0.0.54.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.54.0)
+
+
+<!---------------------------------->
 <a name="v0.0.374.0"></a>
 ## v0.0.374.0
 

@@ -1548,7 +1548,16 @@ namespace pcit::panther{
 			case BaseType::Kind::UNION: {
 				const BaseType::Union& union_info = this->getUnion(id.unionID());
 
-				if(union_info.isUntagged){
+
+				if(union_info.isManualLifetime){
+					if constexpr(SPECIAL_MEMBER == SpecialMember::COMPARE){
+						return false;
+
+					}else{
+						return true;
+					}
+					
+				}else if(union_info.isUntagged){
 					if constexpr(SPECIAL_MEMBER == SpecialMember::DEFAULT_NEW){
 						return false;
 
@@ -2050,6 +2059,7 @@ namespace pcit::panther{
 			new_type.isPub,
 			new_type.isPriv,
 			new_type.isUntagged,
+			new_type.isManualLifetime,
 			new_type.defCompleted.load(std::memory_order::relaxed)
 		);
 

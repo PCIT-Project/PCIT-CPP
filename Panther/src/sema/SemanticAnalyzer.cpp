@@ -2946,7 +2946,8 @@ namespace pcit::panther{
 				nullptr,
 				union_attrs.value().is_pub,
 				union_attrs.value().is_priv,
-				union_attrs.value().is_untagged
+				union_attrs.value().is_untagged,
+				union_attrs.value().is_manual_lifetime
 			)
 		);
 
@@ -3008,19 +3009,21 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->context.getTypeManager().isTriviallyDeletable(field_type_id.asTypeID()) == false){
-					this->emit_error("Fields in untagged unions must be trivially deletable", ast_field.type);
-					return Result::ERROR;
-				}
+				if(union_type.isManualLifetime == false){
+					if(this->context.getTypeManager().isTriviallyDeletable(field_type_id.asTypeID()) == false){
+						this->emit_error("Fields in untagged unions must be trivially deletable", ast_field.type);
+						return Result::ERROR;
+					}
 
-				if(this->context.getTypeManager().isTriviallyCopyable(field_type_id.asTypeID()) == false){
-					this->emit_error("Fields in untagged unions must be trivially copyable", ast_field.type);
-					return Result::ERROR;
-				}
+					if(this->context.getTypeManager().isTriviallyCopyable(field_type_id.asTypeID()) == false){
+						this->emit_error("Fields in untagged unions must be trivially copyable", ast_field.type);
+						return Result::ERROR;
+					}
 
-				if(this->context.getTypeManager().isTriviallyMovable(field_type_id.asTypeID()) == false){
-					this->emit_error("Fields in untagged unions must be trivially movable", ast_field.type);
-					return Result::ERROR;
+					if(this->context.getTypeManager().isTriviallyMovable(field_type_id.asTypeID()) == false){
+						this->emit_error("Fields in untagged unions must be trivially movable", ast_field.type);
+						return Result::ERROR;
+					}
 				}
 			}
 
@@ -17307,7 +17310,7 @@ namespace pcit::panther{
 								} break;
 
 								default: {
-									break;
+									return Result::SUCCESS;
 								} break;
 							}
 						}
@@ -34280,6 +34283,16 @@ namespace pcit::panther{
 
 		const BaseType::Union& union_info = this->context.getTypeManager().getUnion(union_id);
 
+		if(union_info.isManualLifetime && this->currently_in_unsafe() == false){
+			this->emit_error(
+				"Unsafe union designated initializer [new] while not in an unsafe scope",
+				instr.designated_init_new,
+				Diagnostic::Info("Unions with attribute `#manualLifetime` must be initialized in an unsafe scope")
+			);
+			return Result::ERROR;
+		}
+
+
 		for(size_t i = 0; const BaseType::Union::Field& field : union_info.fields){
 			EVO_DEFER([&](){ i += 1; });
 
@@ -34314,7 +34327,10 @@ namespace pcit::panther{
 				){
 					this->emit_error(
 						"Unsafe union designated initializer [new] while not in an unsafe scope",
-						instr.designated_init_new.memberInits[0].ident
+						instr.designated_init_new.memberInits[0].ident,
+						Diagnostic::Info(
+							"Union fields that are uninit qualified must be initialized in an unsafe scope"
+						)
 					);
 					return Result::ERROR;
 				}
@@ -35335,6 +35351,7 @@ namespace pcit::panther{
 		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_untagged = Attribute(*this, "untagged");
+		auto attr_manual_lifetime = Attribute(*this, "manualLifetime");
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -35415,6 +35432,14 @@ namespace pcit::panther{
 
 				if(attr_untagged.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "manualLifetime"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #manualLifetime does not accept any arguments", attribute.args.front());
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_manual_lifetime.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
 			}else{
 				this->emit_error(std::format("Unknown union attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -35423,9 +35448,10 @@ namespace pcit::panther{
 
 
 		return UnionAttrs{
-			.is_pub      = attr_pub.is_set(),
-			.is_priv     = attr_pub.is_set(),
-			.is_untagged = attr_untagged.is_set(),
+			.is_pub             = attr_pub.is_set(),
+			.is_priv            = attr_pub.is_set(),
+			.is_untagged        = attr_untagged.is_set(),
+			.is_manual_lifetime = attr_manual_lifetime.is_set(),
 		};
 	}
 

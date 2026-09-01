@@ -1587,6 +1587,7 @@ namespace pcit::panther{
 									.isPub             = false,
 									.isPriv            = false,
 									.isUntagged        = true,
+									.isManualLifetime  = false,
 									.defCompleted      = true,
 								}
 							);
@@ -2418,6 +2419,7 @@ namespace pcit::panther{
 					.isPub             = false,
 					.isPriv            = false,
 					.isUntagged        = false,
+					.isManualLifetime  = false,
 					.defCompleted      = true,
 				}
 			);
@@ -2608,17 +2610,17 @@ namespace pcit::panther{
 				.sourceID          = BuiltinModule::ID::BUILD,
 				.name              = build_module.createString("PackageOptionValue"),
 				.fields            = evo::SmallVector<BaseType::Union::Field>{
-					BaseType::Union::Field(build_module.createString("bool"), TypeManager::getTypeBool()),
-					BaseType::Union::Field(build_module.createString("ui8"), TypeManager::getTypeUI8()),
-					BaseType::Union::Field(build_module.createString("ui16"), TypeManager::getTypeUI16()),
-					BaseType::Union::Field(build_module.createString("ui32"), TypeManager::getTypeUI32()),
-					BaseType::Union::Field(build_module.createString("ui64"), TypeManager::getTypeUI64()),
-					BaseType::Union::Field(build_module.createString("i8"), TypeManager::getTypeI8()),
-					BaseType::Union::Field(build_module.createString("i16"), TypeManager::getTypeI16()),
-					BaseType::Union::Field(build_module.createString("i32"), TypeManager::getTypeI32()),
-					BaseType::Union::Field(build_module.createString("i64"), TypeManager::getTypeI64()),
-					BaseType::Union::Field(build_module.createString("f32"), TypeManager::getTypeF32()),
-					BaseType::Union::Field(build_module.createString("f64"), TypeManager::getTypeF64()),
+					BaseType::Union::Field(build_module.createString("bool"),   TypeManager::getTypeBool()),
+					BaseType::Union::Field(build_module.createString("ui8"),    TypeManager::getTypeUI8()),
+					BaseType::Union::Field(build_module.createString("ui16"),   TypeManager::getTypeUI16()),
+					BaseType::Union::Field(build_module.createString("ui32"),   TypeManager::getTypeUI32()),
+					BaseType::Union::Field(build_module.createString("ui64"),   TypeManager::getTypeUI64()),
+					BaseType::Union::Field(build_module.createString("i8"),     TypeManager::getTypeI8()),
+					BaseType::Union::Field(build_module.createString("i16"),    TypeManager::getTypeI16()),
+					BaseType::Union::Field(build_module.createString("i32"),    TypeManager::getTypeI32()),
+					BaseType::Union::Field(build_module.createString("i64"),    TypeManager::getTypeI64()),
+					BaseType::Union::Field(build_module.createString("f32"),    TypeManager::getTypeF32()),
+					BaseType::Union::Field(build_module.createString("f64"),    TypeManager::getTypeF64()),
 					BaseType::Union::Field(build_module.createString("string"), TypeManager::getTypeStringRef()),
 				},
 				.namespacedMembers = nullptr,
@@ -2626,6 +2628,7 @@ namespace pcit::panther{
 				.isPub             = false,
 				.isPriv            = false,
 				.isUntagged        = false,
+				.isManualLifetime  = false,
 				.defCompleted      = true,
 			}
 		));

@@ -996,6 +996,7 @@ namespace pcit::panther{
 				bool is_pub;
 				bool is_priv;
 				bool is_untagged;
+				bool is_manual_lifetime;
 			};
 			[[nodiscard]] auto analyze_union_attrs(
 				const AST::UnionDef& union_def,
