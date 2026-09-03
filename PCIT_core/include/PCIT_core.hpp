@@ -22,6 +22,7 @@
 #include "./Printer.hpp"
 #include "./SingleThreadedWorkQueue.hpp"
 #include "./StepAlloc.hpp"
+#include "./RangeMap.hpp"
 #include "./Target.hpp"
 #include "./ThreadPool.hpp"
 #include "./ThreadQueue.hpp"

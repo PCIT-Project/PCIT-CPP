@@ -194,7 +194,7 @@ namespace pcit::pir{
 	}
 
 	auto InstrReader::getRawPtrValue(Expr expr) const -> const RawPtrValue& {
-		evo::debugAssert(expr.kind() == Expr::Kind::RAW_PTR_VALUE, "Not a RawPtr value");
+		evo::debugAssert(expr.kind() == Expr::Kind::RAW_PTR_VALUE, "Not a RawPtrValue value");
 		return this->module.raw_ptr_values[expr.index];
 	}
 

@@ -2561,16 +2561,8 @@ namespace pcit::pir{
 		ExecutionEngine::LoweredResult lowered_result = this->engine.check_global_lowered(id);
 
 		if(lowered_result.needs_to_be_lowered){
-			// const evo::Expected<void, evo::SmallVector<std::string>> jit_add_result =
-			// 	this->engine.jit_engine.addModuleSubsetWithWeakDependencies(
-			// 		this->engine.module, JITEngine::ModuleSubsets{ .globalVars = id }
-			// 	);
-
-			// evo::debugAssert(jit_add_result.has_value(), "Adding to JITEngine failed");
-
 			this->lower_global_value(global_var.value, lowered_result.lowered_global.value.writableDataRange());
 
-			// std::byte* global_ptr = this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
 			std::byte* global_ptr = lowered_result.lowered_global.value.writableDataRange().data();
 			this->engine.add_global_to_ptr_lookup_map(global_ptr, id);
 
@@ -2583,7 +2575,6 @@ namespace pcit::pir{
 				std::this_thread::yield();
 			}
 
-			// return this->engine.jit_engine.getSymbol<std::byte*>(global_var.name);
 			return lowered_result.lowered_global.value.writableDataRange().data();
 		}
 	}
@@ -2679,6 +2670,12 @@ namespace pcit::pir{
 			}else if constexpr(std::is_same<ValueT, GlobalVar::UnionID>()){
 				const GlobalVar::Union& union_value = this->engine.module.getGlobalUnion(decayed_value);
 				this->lower_global_value(union_value.value, dst);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtrID>()){
+				const GlobalVar::CalcPtr& calc_ptr = this->engine.module.getGlobalCalcPtr(decayed_value);
+
+				this->lower_global_value(calc_ptr.value, dst);
+				*std::bit_cast<uint64_t*>(dst.data()) += uint64_t(calc_ptr.byteOffset);
 
 			}else{
 				static_assert(false, "Unknown global value kind");

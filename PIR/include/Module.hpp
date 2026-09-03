@@ -245,6 +245,11 @@ namespace pcit::pir{
 									"Array element value must match type"
 								);
 
+							}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtr::ID>()){
+								evo::debugAssert(
+									element_type.kind() == Type::Kind::PTR, "Array element value must match type"
+								);
+
 							}else{
 								static_assert(false, "Unknown global value kind");
 							}
@@ -339,6 +344,11 @@ namespace pcit::pir{
 			 						"Struct member value must match type"
 			 					);
 
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::CalcPtr::ID>()){
+			 					evo::debugAssert(
+			 						member_type.kind() == Type::Kind::PTR, "Struct member value must match type"
+			 					);
+
 			 				}else{
 			 					static_assert(false, "Unknown global value kind");
 			 				}
@@ -395,6 +405,9 @@ namespace pcit::pir{
 			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::Union::ID>()){
 			 					return field_type == this->getGlobalUnion(field_value).type;
 
+			 				}else if constexpr(std::is_same<MemberValueT, GlobalVar::CalcPtr::ID>()){
+			 					return field_type.kind() == Type::Kind::PTR;
+
 			 				}else{
 			 					static_assert(false, "Unknown global value kind");
 			 				}
@@ -420,6 +433,21 @@ namespace pcit::pir{
 			}
 
 
+
+			//////////////////
+			// global calc ptr
+
+			[[nodiscard]] auto createGlobalCalcPtr(GlobalVar::Value value, uint32_t byte_offset)
+			-> GlobalVar::CalcPtr::ID {
+				return this->global_calc_ptrs.emplace_back(value, byte_offset);
+			}
+
+
+			[[nodiscard]] auto getGlobalCalcPtr(GlobalVar::CalcPtr::ID id) const -> const GlobalVar::CalcPtr& {
+				return this->global_calc_ptrs[id];
+			}
+
+
 			///////////////////////////////////
 			// global
 
@@ -432,53 +460,56 @@ namespace pcit::pir{
 				std::optional<meta::GlobalVariable::ID> meta_id = std::nullopt
 			) -> GlobalVar::ID {
 				#if defined(EVO_CONFIG_DEBUG)
-					value.visit([&](const auto& member_value) -> void {
-						using MemberValueT = std::decay_t<decltype(member_value)>;
+					value.visit([&](const auto& actual_value) -> void {
+						using ValueT = std::decay_t<decltype(actual_value)>;
 
-						if constexpr(std::is_same<MemberValueT, GlobalVar::NoValue>()){
+						if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
 							// Do nothing...
 
-						}else if constexpr(std::is_same<MemberValueT, Expr>()){
+						}else if constexpr(std::is_same<ValueT, Expr>()){
 							evo::debugAssert(
-								this->check_expr_type_match(type, member_value), "Type and value must match"
+								this->check_expr_type_match(type, actual_value), "Type and value must match"
 							);
-							evo::debugAssert(member_value.isConstant(), "Global variable value must be constant");
+							evo::debugAssert(actual_value.isConstant(), "Global variable value must be constant");
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Zeroinit>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
 							// Do nothing...
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Uninit>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
 							// Do nothing...
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::String::ID>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalString(member_value).type,
+								type == this->getGlobalString(actual_value).type,
 								"Global variable value must match type"
 							);
 							
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Array::ID>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::Array::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalArray(member_value).type,
+								type == this->getGlobalArray(actual_value).type,
 								"Global variable value must match type"
 							);
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::ByteArray::ID>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalByteArray(member_value).type,
+								type == this->getGlobalByteArray(actual_value).type,
 								"Global variable value must match type"
 							);							
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Struct::ID>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalStruct(member_value).type,
+								type == this->getGlobalStruct(actual_value).type,
 								"Global variable value must match type"
 							);
 
-						}else if constexpr(std::is_same<MemberValueT, GlobalVar::Union::ID>()){
+						}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
 							evo::debugAssert(
-								type == this->getGlobalUnion(member_value).type,
+								type == this->getGlobalUnion(actual_value).type,
 								"Global variable value must match type"
 							);
+
+						}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtr::ID>()){
+							evo::debugAssert(type.kind() == Type::Kind::PTR, "Global variable value must match type");
 
 						}else{
 							static_assert(false, "Unknown global value kind");
@@ -1470,6 +1501,7 @@ namespace pcit::pir{
 			core::StepAlloc<GlobalVar::ByteArray, GlobalVar::ByteArray::ID> global_byte_arrays{};
 			core::StepAlloc<GlobalVar::Struct, GlobalVar::Struct::ID> global_structs{};
 			core::StepAlloc<GlobalVar::Union, GlobalVar::Union::ID> global_unions{};
+			core::StepAlloc<GlobalVar::CalcPtr, GlobalVar::CalcPtr::ID> global_calc_ptrs{};
 
 
 			// meta

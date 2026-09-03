@@ -62,8 +62,12 @@ namespace pcit::pir{
 			using core::UniqueID<uint32_t, UnionID>::UniqueID;
 		};
 
+		struct CalcPtrID : public core::UniqueID<uint32_t, struct CalcPtrID> {
+			using core::UniqueID<uint32_t, CalcPtrID>::UniqueID;
+		};
+
 		using Value = evo::Variant<
-			NoValue, Expr, Zeroinit, Uninit, String::ID, ByteArray::ID, ArrayID, StructID, UnionID
+			NoValue, Expr, Zeroinit, Uninit, String::ID, ByteArray::ID, ArrayID, StructID, UnionID, CalcPtrID
 		>;
 
 		struct Array{
@@ -89,6 +93,18 @@ namespace pcit::pir{
 			Type type;
 			Value value;
 		};
+
+		struct CalcPtr{ // TODO(FUTURE): make type an offsets
+			// For lookup in Module
+			using ID = CalcPtrID;
+
+			Value value;
+			uint32_t byteOffset;
+			// Type type;
+			// evo::SmallVector<uint32_t> offsets;
+		};
+
+
 
 
 

@@ -870,6 +870,14 @@ namespace pcit::panther::sema{
 
 
 			///////////////////////////////////
+			// GlobalPtrOffsets
+
+			[[nodiscard]] auto createGlobalPtrOffset(Expr base, size_t byte_offset) -> GlobalPtrOffset::ID;
+
+			[[nodiscard]] auto getGlobalPtrOffset(GlobalPtrOffset::ID id) const -> const GlobalPtrOffset&;
+
+
+			///////////////////////////////////
 			// null
 
 			[[nodiscard]] auto createNull(Token::ID null_token_id) -> Null::ID;

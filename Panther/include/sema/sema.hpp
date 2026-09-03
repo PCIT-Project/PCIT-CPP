@@ -77,6 +77,13 @@ namespace pcit::panther::sema{
 
 		core::GenericInt value;
 	};
+
+	struct GlobalPtrOffset{
+		using ID = GlobalPtrOffsetID;
+		
+		Expr base;
+		size_t byteOffset;
+	};
 	
 
 

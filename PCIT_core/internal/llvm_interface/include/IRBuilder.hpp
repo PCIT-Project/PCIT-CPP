@@ -372,6 +372,10 @@ namespace pcit::llvmint{
 				-> Constant;
 
 
+			[[nodiscard]] auto getValueGlobalGEP(Type type, Constant base, evo::ArrayProxy<Constant> indices) const
+				-> Constant;
+
+
 			//////////////////////////////////////////////////////////////////////
 			// types
 

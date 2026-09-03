@@ -57,13 +57,21 @@ namespace pcit::pir{
 				-> evo::Expected<core::GenericValue, FuncRunError>;
 
 
+			struct GlobalVarLookup{
+				GlobalVar::ID id;
+				size_t offset;
+			};
 			[[nodiscard]] auto lookupGlobalVar(const void* ptr_of_lowered_global) const
-			-> std::optional<GlobalVar::ID> {
+			-> std::optional<GlobalVarLookup> {
 				const auto lock = std::scoped_lock(this->global_ptr_lookup_lock);
 
-				const auto find = this->global_ptr_lookup.find(ptr_of_lowered_global);
-				if(find != this->global_ptr_lookup.end()){ return find->second; }
-				return std::nullopt;
+				const auto lookup_res = this->global_ptr_lookup.lookup(std::bit_cast<size_t>(ptr_of_lowered_global));
+				if(lookup_res.has_value()){
+					return GlobalVarLookup(lookup_res->value, lookup_res->offset);
+
+				}else{
+					return std::nullopt;
+				}
 			}
 
 			[[nodiscard]] auto lookupFunction(const void* ptr_of_lowered_function) const
@@ -132,8 +140,14 @@ namespace pcit::pir{
 			}
 
 			[[nodiscard]] auto add_global_to_ptr_lookup_map(const void* ptr, GlobalVar::ID id) -> void {
+				const GlobalVar& global_var = this->module.getGlobalVar(id);
+				const size_t global_size = this->module.numBytes(global_var.type);
+
+				const size_t ptr_begin = std::bit_cast<size_t>(ptr);
+				const size_t ptr_end = ptr_begin + global_size;
+
 				const auto lock = std::scoped_lock(this->global_ptr_lookup_lock);
-				this->global_ptr_lookup.emplace(ptr, id);
+				this->global_ptr_lookup.emplace(ptr_begin, ptr_end, id);
 			}
 
 			[[nodiscard]] auto add_function_to_ptr_lookup_map(const void* ptr, Function::ID id) -> void {
@@ -167,7 +181,7 @@ namespace pcit::pir{
 			std::unordered_map<GlobalVar::ID, LoweredGlobal&> lowered_globals_map{};
 			mutable evo::SpinLock lowered_globals_lock{};
 
-			std::unordered_map<const void*, GlobalVar::ID> global_ptr_lookup{};
+			core::RangeMap<size_t, GlobalVar::ID> global_ptr_lookup{};
 			mutable evo::SpinLock global_ptr_lookup_lock{};
 
 			std::unordered_map<const void*, Function::ID> function_ptr_lookup{};

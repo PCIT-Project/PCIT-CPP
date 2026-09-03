@@ -99,6 +99,7 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<AggregateValue, AggregateValue::ID> aggregate_values{};
 		core::SyncLinearStepAlloc<CharValue, CharValue::ID> char_values{};
 		core::SyncLinearStepAlloc<RawPtrValue, RawPtrValue::ID> raw_ptr_values{};
+		core::SyncLinearStepAlloc<GlobalPtrOffset, GlobalPtrOffset::ID> global_ptr_offsets{};
 
 		core::SyncLinearStepAlloc<Token::ID, uint32_t> misc_tokens{};
 
@@ -1362,6 +1363,18 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::getRawPtrValue(RawPtrValue::ID id) const -> const RawPtrValue& {
 		return this->internal->raw_ptr_values[id];
+	}
+
+
+	///////////////////////////////////
+	// GlobalPtrOffsets
+
+	auto SemaBuffer::createGlobalPtrOffset(Expr base, size_t byte_offset) -> GlobalPtrOffset::ID {
+		return this->internal->global_ptr_offsets.emplace_back(base, byte_offset);
+	}
+
+	auto SemaBuffer::getGlobalPtrOffset(GlobalPtrOffset::ID id) const -> const GlobalPtrOffset& {
+		return this->internal->global_ptr_offsets[id];
 	}
 
 

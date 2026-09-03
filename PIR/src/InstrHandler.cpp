@@ -956,6 +956,10 @@ namespace pcit::pir{
 		return Expr(Expr::Kind::RAW_PTR_VALUE, this->module.raw_ptr_values.emplace_back(value));
 	}
 
+	auto InstrHandler::getRawPtrValue(Expr expr) const -> const RawPtrValue& {
+		return InstrReader(this->module).getRawPtrValue(expr);
+	}
+
 
 
 	//////////////////////////////////////////////////////////////////////

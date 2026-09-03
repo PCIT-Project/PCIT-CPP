@@ -2721,28 +2721,34 @@ namespace pcit::pir{
 				}
 
 
+				if(is_inline_type){
+					auto elem_types = evo::SmallVector<llvmint::Type>();
+					elem_types.reserve(array_type.length);
 
-				auto elem_types = evo::SmallVector<llvmint::Type>();
-				elem_types.reserve(array_type.length);
+					bool all_are_same = true;
+					for(const GlobalVar::Value& elem_value : array_value.values){
+						const llvmint::Type llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
+							elem_value, array_type.elemType
+						);
 
-				bool all_are_same = true;
-				for(const GlobalVar::Value& elem_value : array_value.values){
-					const llvmint::Type llvmint_type = this->get_global_inline_type<ADD_WEAK_DEPS>(
-						elem_value, array_type.elemType
-					);
+						elem_types.emplace_back(llvmint_type);
 
-					elem_types.emplace_back(llvmint_type);
-
-					if(elem_types.size() >= 2 && elem_types[0] != llvmint_type){
-						all_are_same = false;
+						if(elem_types.size() >= 2 && elem_types[0] != llvmint_type){
+							all_are_same = false;
+						}
 					}
-				}
 
 
-				if(all_are_same){
-					return this->builder.getValueGlobalArray(this->get_type<ADD_WEAK_DEPS>(array_elem_type), values);
+					if(all_are_same){
+						return this->builder.getValueGlobalArray(elem_types[0], values);
+					}else{
+						return this->builder.getValueGlobalStruct(
+							this->builder.getStructType(elem_types, true), values
+						);
+					}
+
 				}else{
-					return this->builder.getValueGlobalStruct(this->builder.getStructType(elem_types, true), values);
+					return this->builder.getValueGlobalArray(this->get_type<ADD_WEAK_DEPS>(array_elem_type), values);
 				}
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Struct::ID>()){
@@ -2815,6 +2821,17 @@ namespace pcit::pir{
 				}else{
 					return union_value;
 				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtr::ID>()){
+				const GlobalVar::CalcPtr& calc_ptr = this->module.getGlobalCalcPtr(value);
+
+				return this->builder.getValueGlobalGEP(
+					this->builder.getTypeI8().asType(),
+					this->get_global_var_value<ADD_WEAK_DEPS>(
+						calc_ptr.value, this->module.createPtrType(), is_inline_type
+					),
+					{this->builder.getValueI32(calc_ptr.byteOffset).asConstant()}
+				);
 
 			}else{
 				static_assert(false, "Unknown GlobalVar::Value");
@@ -2916,10 +2933,7 @@ namespace pcit::pir{
 
 
 		if(all_are_same){
-			return this->builder.getArrayType(
-				this->get_type<ADD_WEAK_DEPS>(array_type.elemType), array_type.length
-			).asType();
-
+			return this->builder.getArrayType(elem_types[0], array_type.length).asType();
 		}else{
 			return this->builder.getStructType(elem_types, true).asType();
 		}
@@ -3128,6 +3142,13 @@ namespace pcit::pir{
 						num_bytes_padding,
 					};
 				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtr::ID>()){
+				const size_t union_size = this->module.numBytes(type);
+
+				return GlobalInlineUnionType{
+					this->builder.getTypePtr().asType(), union_size - this->module.getTarget().numBytesOfPtr()
+				};
 
 			}else{
 				static_assert(false, "Unknown GlobalVar::Value");

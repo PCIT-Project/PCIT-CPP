@@ -43,6 +43,7 @@ namespace pcit::panther::sema{
 			AGGREGATE_VALUE,
 			CHAR_VALUE,
 			RAW_PTR_VALUE,
+			GLOBAL_PTR_OFFSET,
 
 			INTRINSIC_FUNC,
 			TEMPLATED_INTRINSIC_FUNC_INSTANTIATION,
@@ -109,6 +110,7 @@ namespace pcit::panther::sema{
 		explicit Expr(AggregateValueID id)     : _kind(Kind::AGGREGATE_VALUE),      value{.aggregate_value = id}     {};
 		explicit Expr(CharValueID id)          : _kind(Kind::CHAR_VALUE),           value{.char_value = id}          {};
 		explicit Expr(RawPtrValueID id)        : _kind(Kind::RAW_PTR_VALUE),        value{.raw_ptr_value = id}       {};
+		explicit Expr(GlobalPtrOffsetID id)    : _kind(Kind::GLOBAL_PTR_OFFSET),    value{.global_ptr_offset = id}   {};
 
 		explicit Expr(IntrinsicFunc::Kind intrinsic_func_kind) :
 			_kind(Kind::INTRINSIC_FUNC), value{.intrinsic_func = intrinsic_func_kind} {};
@@ -219,6 +221,10 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto rawPtrValueID() const -> RawPtrValueID {
 			evo::debugAssert(this->kind() == Kind::RAW_PTR_VALUE, "not a RawPtrValue");
 			return this->value.raw_ptr_value;
+		}
+		[[nodiscard]] auto globalPtrOffsetID() const -> GlobalPtrOffsetID {
+			evo::debugAssert(this->kind() == Kind::GLOBAL_PTR_OFFSET, "not a GlobalPtrOffset");
+			return this->value.global_ptr_offset;
 		}
 
 		[[nodiscard]] auto intrinsicFuncID() const -> IntrinsicFunc::Kind {
@@ -437,6 +443,7 @@ namespace pcit::panther::sema{
 				AggregateValueID aggregate_value;
 				CharValueID char_value;
 				RawPtrValueID raw_ptr_value;
+				GlobalPtrOffsetID global_ptr_offset;
 
 				IntrinsicFunc::Kind intrinsic_func;
 				TemplateIntrinsicFuncInstantiationID templated_intrinsic_func_instantiation;

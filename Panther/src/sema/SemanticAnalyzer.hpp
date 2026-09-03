@@ -774,8 +774,16 @@ namespace pcit::panther{
 			[[nodiscard]] auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
+			struct ComptimePtrArgData{
+				evo::ArrayProxy<std::byte> value_buffer;
+				TypeInfo::ID type_id;
+			};
+
 			[[nodiscard]] auto generic_value_to_sema_expr(
-				const core::GenericValue& value, TypeInfo::ID target_type_id, Diagnostic::Location location
+				const core::GenericValue& value,
+				TypeInfo::ID target_type_id,
+				evo::ArrayProxy<ComptimePtrArgData> comptime_ptr_arg_datas,
+				Diagnostic::Location location
 			) -> evo::Result<sema::Expr>;
 
 

@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.376.0"></a>
+## v0.0.376.0
+
+### Panther
+- Added support for comptime function call values including a pointer to an argument
+- Added support for comptime function call values to have a pointer that is pointing to a value at an in-bounds offset
+
+### PIR
+- Fixed lowering of some globals arrays that are part of a type that contains a union
+
+
+<!---------------------------------->
 <a name="v0.0.375.0"></a>
 ## v0.0.375.0
 

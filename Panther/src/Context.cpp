@@ -950,6 +950,24 @@ namespace pcit::panther{
 		this->deinit_comptime_execution_engine_funcs();
 
 
+		// Uncomment this for debug printing
+		// {
+		// 	auto llvm_context = llvmint::LLVMContext();
+		// 	llvm_context.init();
+		// 	EVO_DEFER([&](){ llvm_context.deinit(); });
+
+		// 	evo::println(
+		// 		pir::lowerToLLVMIR(
+		// 			this->pir_module,
+		// 			pir::OptMode::NONE,
+		// 			true,
+		// 			llvm_context.native(),
+		// 			{}
+		// 		)
+		// 	);
+		// }
+
+
 		///////////////////////////////////
 		// setup jit engine
 

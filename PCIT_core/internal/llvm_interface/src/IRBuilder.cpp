@@ -724,6 +724,12 @@ namespace pcit::llvmint{
 		return llvm::ConstantStruct::get(type.native(), create_array_ref<llvm::Constant>(values));
 	}
 
+	auto IRBuilder::getValueGlobalGEP(Type type, Constant base, evo::ArrayProxy<Constant> indices) const -> Constant {
+		return llvm::ConstantExpr::getInBoundsGetElementPtr(
+			type.native(), base.native(), create_array_ref<llvm::Constant>(indices)
+		);
+	}
+
 
 	
 

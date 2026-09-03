@@ -3882,6 +3882,9 @@ namespace pcit::panther{
 			case sema::Expr::Kind::CHAR_VALUE:    return this->get_expr_impl_char_value<MODE>(expr, store_locations);
 			case sema::Expr::Kind::RAW_PTR_VALUE: return this->get_expr_impl_raw_ptr_value<MODE>(expr, store_locations);
 
+			case sema::Expr::Kind::GLOBAL_PTR_OFFSET: 
+				evo::debugFatalBreak("sema::Expr::Kind::GLOBAL_PTR_OFFSET can only be global");
+
 			case sema::Expr::Kind::INTRINSIC_FUNC: {
 				evo::debugFatalBreak("sema::Expr::Kind::INTRINSIC_FUNC should be target of func call");
 			} break;
@@ -12817,6 +12820,15 @@ namespace pcit::panther{
 				return this->handler.createRawPtrValue(raw_ptr_value.value);
 			} break;
 
+			case sema::Expr::Kind::GLOBAL_PTR_OFFSET: {
+				const sema::GlobalPtrOffset& global_ptr_offset =
+					this->context.getSemaBuffer().getGlobalPtrOffset(expr.globalPtrOffsetID());
+
+				return this->module.createGlobalCalcPtr(
+					this->get_global_var_value(global_ptr_offset.base), uint32_t(global_ptr_offset.byteOffset)
+				);
+			} break;
+
 			case sema::Expr::Kind::ADDR_OF: {
 				const sema::Expr& addr_of_target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
 
@@ -12825,6 +12837,48 @@ namespace pcit::panther{
 						return this->handler.createGlobalValue(
 							this->data.get_global_string(addr_of_target.stringValueID())
 						);
+					} break;
+
+					case sema::Expr::Kind::AGGREGATE_VALUE: {
+						const pir::GlobalVar::Value aggregate_value = this->get_global_var_value(addr_of_target);
+
+						if(aggregate_value.is<pir::GlobalVar::String::ID>()){
+							const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+								std::format("PTHR.str{}", this->data.get_string_literal_id()),
+								this->module.getGlobalString(aggregate_value.as<pir::GlobalVar::String::ID>()).type,
+								pir::Linkage::PRIVATE,
+								aggregate_value.as<pir::GlobalVar::String::ID>(),
+								true
+							);
+
+							return this->handler.createGlobalValue(string_id);
+
+						}else if(aggregate_value.is<pir::GlobalVar::Array::ID>()){
+							const pir::GlobalVar::ID aggregate_var = this->module.createGlobalVar(
+								std::format("PTHR.aggregate{}", this->data.get_global_aggregate_id()),
+								this->module.getGlobalArray(aggregate_value.as<pir::GlobalVar::Array::ID>()).type,
+								pir::Linkage::PRIVATE,
+								aggregate_value.as<pir::GlobalVar::Array::ID>(),
+								true
+							);
+
+							return this->handler.createGlobalValue(aggregate_var);
+							
+						}else{
+							evo::debugAssert(
+								aggregate_value.is<pir::GlobalVar::Struct::ID>(), "Unknown addr of aggregate value kind"
+							);
+							
+							const pir::GlobalVar::ID aggregate_var = this->module.createGlobalVar(
+								std::format("PTHR.aggregate{}", this->data.get_global_aggregate_id()),
+								this->module.getGlobalStruct(aggregate_value.as<pir::GlobalVar::Struct::ID>()).type,
+								pir::Linkage::PRIVATE,
+								aggregate_value.as<pir::GlobalVar::Struct::ID>(),
+								true
+							);
+
+							return this->handler.createGlobalValue(aggregate_var);
+						}
 					} break;
 
 					case sema::Expr::Kind::GLOBAL_VAR: {

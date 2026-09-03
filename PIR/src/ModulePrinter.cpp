@@ -591,9 +591,24 @@ namespace pcit::pir{
 
 			}else if constexpr(std::is_same<ValueT, GlobalVar::Union::ID>()){
 				const GlobalVar::Union& union_value = this->get_module().getGlobalUnion(value);
+
 				this->printer.print("{");
 				this->printGlobalVarValue(union_value.value);
 				this->printer.print("}");
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtr::ID>()){
+				const GlobalVar::CalcPtr& calc_ptr = this->get_module().getGlobalCalcPtr(value);
+
+				this->printer.printRed("@calcPtr");
+				this->printer.print("(");
+				this->printer.printCyan("UI8 ");
+				this->printGlobalVarValue(calc_ptr.value);
+				this->printer.print(", ");
+				this->printer.printCyan("UI32");
+				this->printer.print("(");
+				this->printer.printMagenta("{}", calc_ptr.byteOffset);
+				this->printer.print(")");
+				this->printer.print(")");
 
 			}else{
 				static_assert(false, "Unsupported global var kind");

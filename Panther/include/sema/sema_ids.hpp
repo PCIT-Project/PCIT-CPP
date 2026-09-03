@@ -62,6 +62,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, RawPtrValueID>::UniqueID;
 	};
 
+	struct GlobalPtrOffsetID : public core::UniqueID<uint32_t, struct GlobalPtrOffsetID> {
+		using core::UniqueID<uint32_t, GlobalPtrOffsetID>::UniqueID;
+	};
+
 
 
 
@@ -459,6 +463,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::RawPtrValueID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::GlobalPtrOffsetID>{
+		static constexpr auto init(panther::sema::GlobalPtrOffsetID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::GlobalPtrOffsetID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -1354,6 +1369,23 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::RawPtrValueID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::RawPtrValueID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::GlobalPtrOffsetID>{
+		auto operator()(pcit::panther::sema::GlobalPtrOffsetID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::GlobalPtrOffsetID>
+		: public pcit::core::Optional<pcit::panther::sema::GlobalPtrOffsetID>{
+			
+		public:
+			using pcit::core::Optional<pcit::panther::sema::GlobalPtrOffsetID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::GlobalPtrOffsetID>::operator=;
 	};
 
 
