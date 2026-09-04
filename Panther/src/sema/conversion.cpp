@@ -158,7 +158,7 @@ namespace pcit::panther::sema{
 				}else{
 					evo::debugAssert(target_ptr_width == 32);
 
-					const uint32_t data_ptr_key = context.comptime_execution_engine.getPtrMap().getOrCreateKey(
+					const uint32_t data_ptr_key = context.execution_engine.getPtrMap().getOrCreateKey(
 						std::bit_cast<void*>(string_value.value.data())
 					);
 

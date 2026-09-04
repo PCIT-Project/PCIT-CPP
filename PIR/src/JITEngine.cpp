@@ -281,6 +281,13 @@ namespace pcit::pir{
 		return this->data->orc_jit.registerFunc(name, func_call_address);
 	}
 
+	auto JITEngine::unregisterFunc(std::string_view name)
+	-> evo::Expected<void, evo::SmallVector<std::string>> {
+		evo::debugAssert(this->isInitialized(), "JITEngine not initialized");
+
+		return this->data->orc_jit.unregisterFunc(name);
+	}
+
 
 
 }

@@ -190,5 +190,14 @@ namespace pcit::llvmint{
 	}
 
 
+	auto OrcJIT::unregisterFunc(std::string_view name) -> evo::Expected<void, evo::SmallVector<std::string>> {
+		llvm::Error remove_res = this->data->lljit->getMainJITDylib().remove(
+			{this->data->lljit->mangleAndIntern(name)}
+		);
+
+		if(is_error(remove_res)){ return evo::Unexpected(extract_llvm_error_messages(std::move(remove_res))); }
+		return {};
+	}
+
 
 }

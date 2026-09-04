@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.377.0"></a>
+## v0.0.377.0
+
+### pthr
+- Added interpreter for execution of build system, script, and run
+- Added console argument option `-jit`
+
+### PIR
+- Fixed `ExecutionEngine` executing `@calcPtr` of a struct if the target member has padding before
+
+
+<!---------------------------------->
 <a name="v0.0.376.0"></a>
 ## v0.0.376.0
 

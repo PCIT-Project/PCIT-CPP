@@ -479,12 +479,19 @@ namespace pcit::panther{
 			[[nodiscard]] auto lowerToAssembly() -> evo::Result<std::string>;
 			[[nodiscard]] auto lowerToObject() -> evo::Result<std::vector<evo::byte>>;
 
-			[[nodiscard]] auto runEntry(bool allow_default_symbol_linking = false) -> evo::Result<uint8_t>;
+			enum class ExecutionMode{
+				INTERPRETER,
+				JIT,
+			};
+			[[nodiscard]] auto runEntry(
+				ExecutionMode exec_mode = ExecutionMode::INTERPRETER, bool allow_default_symbol_linking = false
+			) -> evo::Result<uint8_t>;
 
 
 			using CreatePantherBuildCallback = std::function<evo::Result<void>(PantherBuildConfig&)>;
 			[[nodiscard]] auto runBuildSystem(
 				const CreatePantherBuildCallback& create_panther_build_callback,
+				ExecutionMode exec_mode = ExecutionMode::INTERPRETER,
 				bool allow_default_symbol_linking = false
 			) -> evo::Result<uint8_t>;
 
@@ -703,7 +710,7 @@ namespace pcit::panther{
 
 
 			auto jit_engine_result_emit_diagnostic(const evo::SmallVector<std::string>& messages) -> void;
-
+			auto interpreter_result_emit_diagnostic(pir::ExecutionEngine::FuncRunError func_run_error) -> void;
 
 
 			auto init_builtin_modules() -> void;
@@ -899,7 +906,7 @@ namespace pcit::panther{
 
 			pir::Module pir_module;
 			SemaToPIR::Data sema_to_pir_data;
-			pir::ExecutionEngine comptime_execution_engine{pir_module};
+			pir::ExecutionEngine execution_engine{pir_module};
 
 			class ComptimeContext{
 				public:

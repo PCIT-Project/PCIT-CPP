@@ -89,8 +89,16 @@ namespace pcit::pir{
 				this->functions.erase(id);
 			}
 
-			
 			auto deleteBodyOfFunction(Function::ID id) -> void;
+
+
+			[[nodiscard]] auto lookupFunction(std::string_view func_name) const -> std::optional<Function::ID> {
+				for(auto iter = this->functions.begin(); iter != this->functions.end(); ++iter){
+					if(iter->getName() == func_name){ return iter.getID(); }
+				}
+
+				return std::nullopt;
+			}
 
 
 			using FunctionIter = core::StepAlloc<Function, Function::ID>::Iter;

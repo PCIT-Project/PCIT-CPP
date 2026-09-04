@@ -34,6 +34,7 @@ Actions:
     help            prints the help page
 
 Options:
+	-jit            Execute via the JIT instead of the Interpreter
     -noColor        Disables color printing
     -noStdLib       Doesn't include the standard library
     -v=VALUE        Sets the verbosity level
@@ -102,12 +103,23 @@ Options:
 
 		auto arg_map = std::unordered_map<std::string_view, Arg>{
 			std::pair<std::string_view, Arg>{
+				"jit",
+				Arg(
+					Arg::Kind::SINGLE,
+					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
+					-> evo::Result<> {
+						cmd_args_config.execMode = panther::Context::ExecutionMode::JIT;
+						return evo::Result<>();
+					}
+				)
+			},
+			std::pair<std::string_view, Arg>{
 				"noStdLib",
 				Arg(
 					Arg::Kind::SINGLE,
 					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
 					-> evo::Result<> {
-						cmd_args_config.use_std_lib = false;
+						cmd_args_config.useStdLib = false;
 						return evo::Result<>();
 					}
 				)
@@ -118,7 +130,7 @@ Options:
 					Arg::Kind::SINGLE,
 					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
 					-> evo::Result<> {
-						cmd_args_config.print_color = false;
+						cmd_args_config.printColor = false;
 						return evo::Result<>();
 					}
 				)

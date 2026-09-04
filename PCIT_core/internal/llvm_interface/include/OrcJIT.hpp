@@ -79,6 +79,10 @@ namespace pcit::llvmint{
 				
 			[[nodiscard]] auto registerFunc(std::string_view name, void* func_call_address)
 				-> evo::Expected<void, evo::SmallVector<std::string>>;
+
+
+			[[nodiscard]] auto unregisterFunc(std::string_view name)
+				-> evo::Expected<void, evo::SmallVector<std::string>>;
 				
 
 

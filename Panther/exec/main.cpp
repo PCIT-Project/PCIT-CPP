@@ -935,7 +935,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
-			const evo::Result<uint8_t> entry_res = context->runEntry(true);
+			const evo::Result<uint8_t> entry_res = context->runEntry(panther::Context::ExecutionMode::JIT, true);
 			if(entry_res.isError()){ return evo::resultError; }
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
 			return evo::Result<>();
@@ -1166,7 +1166,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
-	if(cmd_args_config.use_std_lib){
+	if(cmd_args_config.useStdLib){
 		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
 				#if defined(PCIT_BUILD_RELEASE)
@@ -1306,6 +1306,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		[&](panther::Context::PantherBuildConfig& panther_build_config) -> evo::Result<> {
 			return run_compile(cmd_args_config, panther_build_config, printer);
 		},
+		cmd_args_config.execMode,
 		true
 	);
 }
@@ -1342,7 +1343,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
-	if(cmd_args_config.use_std_lib){
+	if(cmd_args_config.useStdLib){
 		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
 				#if defined(PCIT_BUILD_RELEASE)
@@ -1475,7 +1476,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		printer.printlnGray("Executing run script");
 	}
 
-	return context->runEntry(true);
+	return context->runEntry(cmd_args_config.execMode, true);
 }
 
 
@@ -1510,9 +1511,9 @@ auto main(int argc, const char* argv[]) -> int {
 		return EXIT_FAILURE;
 	}
 
-	pthr::setup_debug_close(cmd_args_config.value().print_color);
+	pthr::setup_debug_close(cmd_args_config.value().printColor);
 
-	auto printer = core::Printer::createConsole(cmd_args_config.value().print_color);
+	auto printer = core::Printer::createConsole(cmd_args_config.value().printColor);
 
 	{
 		std::error_code ec;

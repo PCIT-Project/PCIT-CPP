@@ -386,9 +386,9 @@ namespace pcit::panther{
 
 		
 
-		if(this->comptime_execution_engine.isInitialized() == false){
+		if(this->execution_engine.isInitialized() == false){
 			const evo::Expected<void, evo::SmallVector<std::string>> execution_engine_init_result = 
-				this->comptime_execution_engine.init(pir::ExecutionEngine::InitConfig{
+				this->execution_engine.init(pir::ExecutionEngine::InitConfig{
 					.allowDefaultSymbolLinking = false,
 				});
 
@@ -404,7 +404,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			this->comptime_execution_engine.setDebugger(
+			this->execution_engine.setDebugger(
 				[&](pir::ExecutionEngineDebuggerInterface& debugger, const pir::Module& module)
 				-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
 					const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
@@ -920,7 +920,7 @@ namespace pcit::panther{
 	}
 
 
-	auto Context::runEntry(bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
+	auto Context::runEntry(ExecutionMode exec_mode, bool allow_default_symbol_linking) -> evo::Result<uint8_t> {
 		evo::debugAssert(
 			this->_config.compilerMode == Config::CompilerMode::COMPILE_RUN
 			|| this->_config.compilerMode == Config::CompilerMode::SCRIPT,
@@ -968,81 +968,116 @@ namespace pcit::panther{
 		// }
 
 
-		///////////////////////////////////
-		// setup jit engine
+		switch(exec_mode){
+			case ExecutionMode::INTERPRETER: {
+				if(source_manager.getCFamilySourceIDRange().empty() == false){
+					this->emitError(
+						"Executing the interpreter with C-family modules is currenlty unsupported",
+						Diagnostic::Location::NONE
+					);
+					return evo::resultError;
+				}
 
-		auto jit_engine = pir::JITEngine();
-		jit_engine.init(pir::JITEngine::InitConfig{
-			.allowDefaultSymbolLinking = allow_default_symbol_linking,
-		});
-		EVO_DEFER([&](){ jit_engine.deinit(); });
+				this->deinit_comptime_execution_engine_funcs();
 
 
-		{
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
-				jit_engine.addModule(this->pir_module);
-			if(add_module_result.has_value() == false){
-				this->jit_engine_result_emit_diagnostic(add_module_result.error());
-				return evo::resultError;
-			}
+				const std::optional<pir::Function::ID> entry_func_pir_id =
+					this->pir_module.lookupFunction("PTHR.entry");
+
+				evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
+					this->execution_engine.runFunction(*entry_func_pir_id, std::span<core::GenericValue>());
+
+				if(run_result.has_value() == false){
+					this->interpreter_result_emit_diagnostic(run_result.error());
+					return evo::resultError;
+				}
+
+				return static_cast<uint8_t>(run_result.value().getInt(8));
+			} break;
+
+
+			case ExecutionMode::JIT: {
+				///////////////////////////////////
+				// setup jit engine
+
+				auto jit_engine = pir::JITEngine();
+				jit_engine.init(pir::JITEngine::InitConfig{
+					.allowDefaultSymbolLinking = allow_default_symbol_linking,
+				});
+				EVO_DEFER([&](){ jit_engine.deinit(); });
+
+
+				{
+					const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+						jit_engine.addModule(this->pir_module);
+					if(add_module_result.has_value() == false){
+						this->jit_engine_result_emit_diagnostic(add_module_result.error());
+						return evo::resultError;
+					}
+				}
+
+
+				///////////////////////////////////
+				// clang 
+
+				auto clang_modules = evo::SmallVector<std::pair<llvmint::LLVMContext, llvm::Module*>>();
+				clang_modules.reserve(source_manager.getCFamilySourceIDRange().size());
+
+				auto diagnostic_list = clangint::DiagnosticList();
+
+				for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
+					const CFamilySource& c_family_source = source_manager[c_family_source_id];
+
+					if(c_family_source.isImportedByPthr() == false){ continue; }
+
+					auto llvm_context = llvmint::LLVMContext();
+					llvm_context.init();
+
+
+					const evo::Result<llvm::Module*> clang_module = get_clang_module(
+						c_family_source,
+						llvm_context,
+						diagnostic_list,
+						this->_config.target,
+						this->_config.includeDebugInfo,
+						*this,
+						this->source_manager
+					);
+
+					if(clang_module.isError()){ return evo::resultError; }
+
+					clang_modules.emplace_back(std::move(llvm_context), clang_module.value());
+				}
+
+
+				for(auto& pair : clang_modules){
+					const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+						jit_engine.addModule(pair.first.steal(), pair.second);
+
+					if(add_module_result.has_value() == false){
+						this->jit_engine_result_emit_diagnostic(add_module_result.error());
+						return evo::resultError;
+					}
+				}
+
+
+
+				///////////////////////////////////
+				// run
+
+				return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
+			} break;
 		}
 
-
-		///////////////////////////////////
-		// clang 
-
-		auto clang_modules = evo::SmallVector<std::pair<llvmint::LLVMContext, llvm::Module*>>();
-		clang_modules.reserve(source_manager.getCFamilySourceIDRange().size());
-
-		auto diagnostic_list = clangint::DiagnosticList();
-
-		for(CFamilySource::ID c_family_source_id : source_manager.getCFamilySourceIDRange()){
-			const CFamilySource& c_family_source = source_manager[c_family_source_id];
-
-			if(c_family_source.isImportedByPthr() == false){ continue; }
-
-			auto llvm_context = llvmint::LLVMContext();
-			llvm_context.init();
-
-
-			const evo::Result<llvm::Module*> clang_module = get_clang_module(
-				c_family_source,
-				llvm_context,
-				diagnostic_list,
-				this->_config.target,
-				this->_config.includeDebugInfo,
-				*this,
-				this->source_manager
-			);
-
-			if(clang_module.isError()){ return evo::resultError; }
-
-			clang_modules.emplace_back(std::move(llvm_context), clang_module.value());
-		}
-
-
-		for(auto& pair : clang_modules){
-			const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
-				jit_engine.addModule(pair.first.steal(), pair.second);
-
-			if(add_module_result.has_value() == false){
-				this->jit_engine_result_emit_diagnostic(add_module_result.error());
-				return evo::resultError;
-			}
-		}
-
-
-
-		///////////////////////////////////
-		// run
-
-		return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
+		evo::unreachable();
 	}
 
 
 
 	auto Context::runBuildSystem(
-		const CreatePantherBuildCallback& create_panther_build_callback, bool allow_default_symbol_linking
+		const CreatePantherBuildCallback& create_panther_build_callback,
+		ExecutionMode exec_mode,
+		bool allow_default_symbol_linking
 	) -> evo::Result<uint8_t> {
 		evo::debugAssert(this->_config.compilerMode == Config::CompilerMode::BUILD, "Must be in build system mode");
 
@@ -1065,49 +1100,71 @@ namespace pcit::panther{
 		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
 
 
-		this->comptime_execution_engine.deinit();
-
-
-		///////////////////////////////////
-		// setup jit engine
-
-		auto jit_engine = pir::JITEngine();
-		jit_engine.init(pir::JITEngine::InitConfig{
-			.allowDefaultSymbolLinking = allow_default_symbol_linking,
-		});
-		EVO_DEFER([&](){ jit_engine.deinit(); });
-
-
-
 		this->_create_panther_build_callback = &create_panther_build_callback;
 
-		const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
-			jit_engine.registerFuncs({
-				pir::JITEngine::FuncRegisterInfo(
-					"PTHR.BUILD.createPantherBuild",
+		switch(exec_mode){
+			case ExecutionMode::INTERPRETER: {
+				this->deinit_comptime_execution_engine_funcs();
+
+				this->execution_engine.registerExternFunc(
+					this->sema_to_pir_data.getJITBuildFuncs().create_panther_build,
 					[](Context* context, PantherBuildConfig* config) -> bool {
 						return context->_create_panther_build_callback->operator()(*config).isSuccess();
 					}
-				),
-			});
+				);
 
-		if(register_result.has_value() == false){
-			this->jit_engine_result_emit_diagnostic(register_result.error());
-			return evo::resultError;
+
+				const std::optional<pir::Function::ID> entry_func_pir_id =
+					this->pir_module.lookupFunction("PTHR.entry");
+
+				evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
+					this->execution_engine.runFunction(*entry_func_pir_id, std::span<core::GenericValue>());
+
+				if(run_result.has_value() == false){
+					this->interpreter_result_emit_diagnostic(run_result.error());
+					return evo::resultError;
+				}
+
+				return static_cast<uint8_t>(run_result.value().getInt(8));
+			} break;
+
+			case ExecutionMode::JIT: {
+				this->execution_engine.deinit();
+
+				auto jit_engine = pir::JITEngine();
+				jit_engine.init(pir::JITEngine::InitConfig{
+					.allowDefaultSymbolLinking = allow_default_symbol_linking,
+				});
+				EVO_DEFER([&](){ jit_engine.deinit(); });
+
+
+				const evo::Expected<void, evo::SmallVector<std::string>> register_result = 
+					jit_engine.registerFuncs({
+						pir::JITEngine::FuncRegisterInfo(
+							"PTHR.BUILD.createPantherBuild",
+							[](Context* context, PantherBuildConfig* config) -> bool {
+								return context->_create_panther_build_callback->operator()(*config).isSuccess();
+							}
+						),
+					});
+
+				if(register_result.has_value() == false){
+					this->jit_engine_result_emit_diagnostic(register_result.error());
+					return evo::resultError;
+				}
+
+				const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
+					jit_engine.addModule(this->pir_module);
+				if(add_module_result.has_value() == false){
+					this->jit_engine_result_emit_diagnostic(add_module_result.error());
+					return evo::resultError;
+				}
+
+				return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
+			} break;
 		}
 
-		const evo::Expected<void, evo::SmallVector<std::string>> add_module_result =
-			jit_engine.addModule(this->pir_module);
-		if(add_module_result.has_value() == false){
-			this->jit_engine_result_emit_diagnostic(add_module_result.error());
-			return evo::resultError;
-		}
-
-
-		///////////////////////////////////
-		// run
-
-		return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
+		evo::unreachable();
 	}
 
 
@@ -2208,6 +2265,84 @@ namespace pcit::panther{
 
 		this->emitFatal(
 			Diagnostic::createFatalMessage("Error trying to register functions to PIR JITEngine"),
+			Diagnostic::Location::NONE,
+			std::move(infos)
+		);
+	}
+
+
+	auto Context::interpreter_result_emit_diagnostic(pir::ExecutionEngine::FuncRunError func_run_error) -> void {
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+
+		switch(func_run_error.code){
+			case pir::ExecutionEngine::FuncRunError::Code::ABORT: {
+				infos.emplace_back("Cause of error: abort");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::BREAKPOINT: {
+				infos.emplace_back("Cause of error: breakpoint");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::UNREGISTERED_EXTERN_FUNC: {
+				infos.emplace_back("Cause of error: unregistered external function");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::EXCEEDED_MAX_CALL_DEPTH: {
+				infos.emplace_back(
+					std::format("Cause of error: exceeded max call depth ({})", this->execution_engine.maxCallDepth())
+				);
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::OUT_OF_BOUNDS_ACCESS: {
+				infos.emplace_back("Cause of error: out-of-bounds access");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::NULLPTR_ACCESS: {
+				infos.emplace_back("Cause of error: null-pointer access");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::SEG_FAULT: {
+				infos.emplace_back("Cause of error: segmentation fault");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::ARITHMETIC_WRAP: {
+				infos.emplace_back("Cause of error: arithmetic wrap");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::FLOATING_POINT_EXCEPTION: {
+				infos.emplace_back("Cause of error: floating-point exception");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
+				infos.emplace_back("Cause of error: unknown exception");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::ASSEMBLY: {
+				infos.emplace_back("Cause of error: inline assembly cannot be executed by interpreter");
+			} break;
+		}
+
+		Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
+		for(
+			size_t i = func_run_error.stackTrace.size() - 2;
+			const pir::Function::ID pir_func_id : func_run_error.stackTrace | std::views::reverse
+		){
+			const pir::Function& pir_func = this->pir_module.getFunction(pir_func_id);
+
+			if(pir_func.getMetaID().has_value()){
+				const pir::meta::Function& pir_meta_func = this->pir_module.getMetaFunction(*pir_func.getMetaID());
+				stack_trace_info.subInfos.emplace_back(std::format("({}) {}", i, pir_meta_func.unmangledName));
+				
+			}else{
+				stack_trace_info.subInfos.emplace_back(std::format("({}) &{}", i, pir_func.getName()));
+			}
+
+			if(i == 0){ break; }
+			i -= 1;
+		}
+
+		this->emitError(
+			"Error occured while running interpreter",
 			Diagnostic::Location::NONE,
 			std::move(infos)
 		);
@@ -4335,7 +4470,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createVoidType()
 		);
-		this->comptime_execution_engine.registerExternFunc(
+		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.print,
 			[](PantherBuildConfig::StringRef* str) -> void { evo::print(static_cast<std::string_view>(*str)); }
 		);
@@ -4348,7 +4483,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createVoidType()
 		);
-		this->comptime_execution_engine.registerExternFunc(
+		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.println,
 			[](PantherBuildConfig::StringRef* str) -> void { evo::println(static_cast<std::string_view>(*str)); }
 		);
@@ -4365,7 +4500,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createUnsignedType(32)
 		);
-		this->comptime_execution_engine.registerExternFunc(
+		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.get_integer_type_id,
 			[](Context* context, uint32_t width, bool is_unsigned) -> uint32_t {
 				const BaseType::ID primitive_type_id = [&]() -> BaseType::ID {
@@ -4394,7 +4529,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createPtrType()
 		);
-		this->comptime_execution_engine.registerExternFunc(
+		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.alloc,
 			[](Context* context, size_t size, uint32_t alignment) -> void* {
 				void* const ptr = [&]() -> void* {
@@ -4421,7 +4556,7 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createBoolType()
 		);
-		this->comptime_execution_engine.registerExternFunc(
+		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.dealloc,
 			[](Context* context, void* ptr) -> bool {
 				ComptimeContext::Data& data = context->comptime_context.get_data();
@@ -4464,10 +4599,19 @@ namespace pcit::panther{
 		SemaToPIR::Data::ComptimeExecutionEngineFuncs& comptime_execution_engine_funcs = 
 			this->sema_to_pir_data.getComptimeExecutionEngineFuncs();
 			
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.print);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.print);
+
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.println);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.println);
+
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.get_integer_type_id);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.get_integer_type_id);
+
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.alloc);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.alloc);
+
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.dealloc);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.dealloc);
 	}
 

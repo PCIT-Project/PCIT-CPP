@@ -103,6 +103,7 @@ namespace pcit::pir{
 
 
 			[[nodiscard]] auto registerExternFunc(ExternalFunction::ID extern_func_id, void* func_ptr) -> void;
+			[[nodiscard]] auto unregisterExternFunc(ExternalFunction::ID extern_func_id) -> void;
 
 		
 		private:

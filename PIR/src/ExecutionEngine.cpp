@@ -116,7 +116,7 @@ namespace pcit::pir{
 
 		const evo::Expected<void, evo::SmallVector<std::string>> register_res = 
 			this->jit_engine.registerFunc(extern_func.name, func_ptr);
-		evo::debugAssert(register_res.has_value(), "registering func pointer to JIT failed");
+		evo::debugAssert(register_res.has_value(), "registering extern func to JIT failed");
 		
 
 		auto params = evo::SmallVector<Parameter>();
@@ -184,6 +184,22 @@ namespace pcit::pir{
 			const auto lock = std::scoped_lock(this->registered_extern_func_lookup_lock);
 			this->registered_extern_func_lookup.emplace(extern_func_id, created_func_ptr);
 		}
+	}
+
+
+
+	auto ExecutionEngine::unregisterExternFunc(ExternalFunction::ID extern_func_id) -> void {
+		{
+			const auto lock = std::scoped_lock(this->registered_extern_func_lookup_lock);
+			this->registered_extern_func_lookup.erase(extern_func_id);
+		}
+
+		const ExternalFunction& extern_func = this->module.getExternalFunction(extern_func_id);
+
+
+		const evo::Expected<void, evo::SmallVector<std::string>> register_res = 
+			this->jit_engine.unregisterFunc(extern_func.name);
+		evo::debugAssert(register_res.has_value(), "unregistering extern func to JIT failed");
 	}
 
 

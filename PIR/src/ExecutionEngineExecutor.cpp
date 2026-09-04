@@ -915,6 +915,10 @@ namespace pcit::pir{
 							offset += this->engine.module.numBytes(struct_type.members[j]);
 						}
 
+						offset = core::ceilToPowOf2Multiple(
+							offset, this->engine.module.getAlignment(struct_type.members[index])
+						);
+
 						ptr_type = struct_type.members[index];
 						ptr.value() += offset;
 

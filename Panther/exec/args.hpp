@@ -40,13 +40,14 @@ namespace pthr{
 		std::optional<std::string_view> file   = std::nullopt;
 		Verbosity verbosity                    = Verbosity::NONE;
 		std::filesystem::path workingDirectory = {};
-		bool print_color = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
+		bool printColor = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
 
 		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
-		bool use_std_lib                             = true;
+		panther::Context::ExecutionMode execMode     = panther::Context::ExecutionMode::INTERPRETER;
+		bool useStdLib                               = true;
 
 		auto printError(std::string_view message) -> void {
-			auto printer = core::Printer::createConsole(this->print_color);
+			auto printer = core::Printer::createConsole(this->printColor);
 			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 				panther::Diagnostic::Level::ERROR,
 				std::string(message),

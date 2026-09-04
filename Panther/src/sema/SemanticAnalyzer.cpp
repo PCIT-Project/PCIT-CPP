@@ -27035,7 +27035,7 @@ namespace pcit::panther{
 		evo::debugAssert(actual_args.size() == num_actual_args, "Number of arguments is incorrect");
 		
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.comptime_execution_engine.runFunction(
+			this->context.execution_engine.runFunction(
 				*target_func.value.as<sema::Func::DefValue>().comptimePIRFunc, actual_args
 			);
 
@@ -27084,7 +27084,7 @@ namespace pcit::panther{
 					infos.emplace_back(
 						std::format(
 							"Cause of error: exceeded max call depth ({})",
-							this->context.comptime_execution_engine.maxCallDepth()
+							this->context.execution_engine.maxCallDepth()
 						)
 					);
 				} break;
@@ -31760,7 +31760,7 @@ namespace pcit::panther{
 
 			}else{
 				std::optional<void*> ptr_lookup_result =
-					this->context.comptime_execution_engine.getPtrMap().lookupPtr(uint32_t(value.getInt(32)));
+					this->context.execution_engine.getPtrMap().lookupPtr(uint32_t(value.getInt(32)));
 
 				if(ptr_lookup_result.has_value()){
 					this->emit_error("Comptime pointer is not a valid value", location);
@@ -31812,7 +31812,7 @@ namespace pcit::panther{
 
 
 			const std::optional<pir::ExecutionEngine::GlobalVarLookup> pir_global_var_lookup =
-				this->context.comptime_execution_engine.lookupGlobalVar(global_ptr);
+				this->context.execution_engine.lookupGlobalVar(global_ptr);
 
 			if(pir_global_var_lookup.has_value() == false){
 				this->emit_error("Comptime pointer is not a valid value", location);
@@ -31993,7 +31993,7 @@ namespace pcit::panther{
 				void* const extracted_func_ptr = value.getPtr<void*>();
 
 				const std::optional<pir::Function::ID> pir_func_id =
-					this->context.comptime_execution_engine.lookupFunction(extracted_func_ptr);
+					this->context.execution_engine.lookupFunction(extracted_func_ptr);
 				if(pir_func_id.has_value() == false){
 					this->emit_error("Comptime function pointer is not a valid", location);
 					return evo::resultError;
@@ -32322,7 +32322,7 @@ namespace pcit::panther{
 
 				const evo::Result<SemaToPIRData::VTableID> vtable_id = [&]() -> evo::Result<SemaToPIRData::VTableID> {
 					const std::optional<pir::ExecutionEngine::GlobalVarLookup> pir_vtable_global_var =
-						this->context.comptime_execution_engine.lookupGlobalVar(vtable_ptr);
+						this->context.execution_engine.lookupGlobalVar(vtable_ptr);
 
 					if(pir_vtable_global_var.has_value()){ // multi-method vtable found
 						if(pir_vtable_global_var->offset != 0){
@@ -32338,7 +32338,7 @@ namespace pcit::panther{
 					// Lookup single method vtable
 
 					const std::optional<pir::Function::ID> pir_vtable_method_id =
-						this->context.comptime_execution_engine.lookupFunction(vtable_ptr);
+						this->context.execution_engine.lookupFunction(vtable_ptr);
 
 					evo::debugAssert(pir_vtable_method_id.has_value(), "vtable is not global or function");
 
