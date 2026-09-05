@@ -78,6 +78,9 @@ project "pthr"
 
 
 	filter "system:Windows"
+		links{
+			"ntdll"
+		}
 		linkoptions{
 			"/IGNORE:4217"
 		}

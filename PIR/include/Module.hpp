@@ -164,6 +164,17 @@ namespace pcit::pir{
 			}
 
 
+			[[nodiscard]] auto lookupExternalFunction(std::string_view func_name) const
+			-> std::optional<ExternalFunction::ID> {
+				for(auto iter = this->external_funcs.begin(); iter != this->external_funcs.end(); ++iter){
+					if(iter->name == func_name){ return iter.getID(); }
+				}
+
+				return std::nullopt;
+			}
+
+
+
 			using ExternalFunctionIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::Iter;
 			using ExternalFunctionConstIter = core::StepAlloc<ExternalFunction, ExternalFunction::ID>::ConstIter;
 

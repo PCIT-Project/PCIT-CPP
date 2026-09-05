@@ -34,6 +34,56 @@ namespace fs = std::filesystem;
 namespace pcit::panther{
 
 
+	class PantherVMContextLookup{
+		public:
+			PantherVMContextLookup() = default;
+			~PantherVMContextLookup() = default;
+
+			auto set_main_thread() -> void {
+				if(this->main_thread_id.has_value()){ return; }
+				this->main_thread_id = std::this_thread::get_id();
+			}
+
+			[[nodiscard]] auto get_current_context() -> PantherVMContext& {
+				const std::thread::id current_thread_id = std::this_thread::get_id();
+
+				if(current_thread_id == *this->main_thread_id){
+					return *this->main_thread_contexts.top();
+
+				}else{
+					const auto lock = std::scoped_lock(this->thread_contexts_lock);
+					return *this->thread_contexts.at(current_thread_id);
+				}
+			}
+
+			auto push_main_thread_context(PantherVMContext* context) -> void {
+				this->main_thread_contexts.push(context);
+			}
+
+			auto pop_main_thread_context() -> void {
+				this->main_thread_contexts.pop();
+			}
+
+			auto set_child_thread_context(PantherVMContext* context) -> void {
+				const std::thread::id current_thread_id = std::this_thread::get_id();
+
+				const auto lock = std::scoped_lock(this->thread_contexts_lock);
+				this->thread_contexts.insert_or_assign(current_thread_id, context);
+			}
+	
+		private:
+			std::stack<PantherVMContext*, evo::SmallVector<PantherVMContext*, 16>> main_thread_contexts{};
+			std::optional<std::thread::id> main_thread_id{};
+
+			std::unordered_map<std::thread::id, PantherVMContext*> thread_contexts{};
+			evo::SpinLock thread_contexts_lock{};
+	};
+
+
+	static PantherVMContextLookup panther_vm_context_lookup = PantherVMContextLookup{};
+	
+
+
 	//////////////////////////////////////////////////////////////////////
 	// path helpers
 
@@ -413,6 +463,8 @@ namespace pcit::panther{
 			);
 
 			this->init_comptime_execution_engine_funcs();
+
+			panther_vm_context_lookup.set_main_thread();
 		}
 
 			
@@ -939,13 +991,16 @@ namespace pcit::panther{
 
 
 		evo::debugAssert(
-			this->pir_module.getTarget() == core::Target::getNative(), "Can only run entry if target is native"
+			this->pir_module.getTarget() == core::Target::getNative()
+				|| this->pir_module.getTarget() == core::Target(
+					core::Target::Architecture::getNative(), core::Target::Platform::PANTHER_VM
+				),
+			"Can only run entry if target is native or Panther"
 		);
 
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
-		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
 
 		this->deinit_comptime_execution_engine_funcs();
 
@@ -978,14 +1033,26 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
-				this->deinit_comptime_execution_engine_funcs();
+				auto panther_vm_context = PantherVMContext();
+				panther_vm_context_lookup.push_main_thread_context(&panther_vm_context);
+
+				EVO_DEFER([&](){
+					panther_vm_context.clear_current_allocations([&](void* ptr, size_t size) -> void {
+						core::memPageDealloc(ptr, size);
+					});
+
+					panther_vm_context_lookup.pop_main_thread_context();
+				});
+
+				this->init_panther_vm_execution_engine_funcs();
 
 
-				const std::optional<pir::Function::ID> entry_func_pir_id =
-					this->pir_module.lookupFunction("PTHR.entry");
+				const pir::Function::ID entry_func_pir_id = this->sema_to_pir_data.lookupFunction(
+					*this->entry.load(std::memory_order::relaxed)
+				);
 
 				evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-					this->execution_engine.runFunction(*entry_func_pir_id, std::span<core::GenericValue>());
+					this->execution_engine.runFunction(entry_func_pir_id, std::span<core::GenericValue>());
 
 				if(run_result.has_value() == false){
 					this->interpreter_result_emit_diagnostic(run_result.error());
@@ -997,6 +1064,9 @@ namespace pcit::panther{
 
 
 			case ExecutionMode::JIT: {
+				const pir::Function::ID pir_entry =
+					sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
+
 				///////////////////////////////////
 				// setup jit engine
 
@@ -1106,6 +1176,18 @@ namespace pcit::panther{
 			case ExecutionMode::INTERPRETER: {
 				this->deinit_comptime_execution_engine_funcs();
 
+				auto panther_vm_context = PantherVMContext();
+				panther_vm_context_lookup.push_main_thread_context(&panther_vm_context);
+				EVO_DEFER([&](){
+					panther_vm_context.clear_current_allocations([&](void* ptr, size_t size) -> void {
+						core::memPageDealloc(ptr, size);
+					});
+
+					panther_vm_context_lookup.pop_main_thread_context();
+				});
+
+				this->init_panther_vm_execution_engine_funcs();
+
 				this->execution_engine.registerExternFunc(
 					this->sema_to_pir_data.getJITBuildFuncs().create_panther_build,
 					[](Context* context, PantherBuildConfig* config) -> bool {
@@ -1114,11 +1196,12 @@ namespace pcit::panther{
 				);
 
 
-				const std::optional<pir::Function::ID> entry_func_pir_id =
-					this->pir_module.lookupFunction("PTHR.entry");
+				const pir::Function::ID entry_func_pir_id = this->sema_to_pir_data.lookupFunction(
+					*this->entry.load(std::memory_order::relaxed)
+				);
 
 				evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-					this->execution_engine.runFunction(*entry_func_pir_id, std::span<core::GenericValue>());
+					this->execution_engine.runFunction(entry_func_pir_id, std::span<core::GenericValue>());
 
 				if(run_result.has_value() == false){
 					this->interpreter_result_emit_diagnostic(run_result.error());
@@ -2324,7 +2407,7 @@ namespace pcit::panther{
 
 		Diagnostic::Info& stack_trace_info = infos.emplace_back("Stack Trace:");
 		for(
-			size_t i = func_run_error.stackTrace.size() - 2;
+			size_t i = func_run_error.stackTrace.size() - 1;
 			const pir::Function::ID pir_func_id : func_run_error.stackTrace | std::views::reverse
 		){
 			const pir::Function& pir_func = this->pir_module.getFunction(pir_func_id);
@@ -2337,7 +2420,6 @@ namespace pcit::panther{
 				stack_trace_info.subInfos.emplace_back(std::format("({}) &{}", i, pir_func.getName()));
 			}
 
-			if(i == 0){ break; }
 			i -= 1;
 		}
 
@@ -2927,16 +3009,20 @@ namespace pcit::panther{
 			"Platform",
 			evo::SmallVector<BaseType::Enum::Enumerator>{
 				BaseType::Enum::Enumerator(
+					pthr_module.createString("FREESTANDING"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::FREESTANDING))
+				),
+				BaseType::Enum::Enumerator(
 					pthr_module.createString("LINUX"),
 					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::LINUX))
 				),
 				BaseType::Enum::Enumerator(
-					pthr_module.createString("WINDOWS"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
+					pthr_module.createString("PANTHER_VM"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::PANTHER_VM))
 				),
 				BaseType::Enum::Enumerator(
-					pthr_module.createString("FREESTANDING"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::FREESTANDING))
+					pthr_module.createString("WINDOWS"),
+					core::GenericInt::create<uint32_t>(evo::to_underlying(core::Target::Platform::WINDOWS))
 				),
 			}
 		);
@@ -4559,7 +4645,7 @@ namespace pcit::panther{
 		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.dealloc,
 			[](Context* context, void* ptr) -> bool {
-				ComptimeContext::Data& data = context->comptime_context.get_data();
+				ContextComptimeContext::Data& data = context->comptime_context.get_data();
 
 				auto alloc_find = data.allocations_currently_allocated.find(ptr);
 
@@ -4614,6 +4700,128 @@ namespace pcit::panther{
 		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.dealloc);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.dealloc);
 	}
+
+
+
+	auto Context::init_panther_vm_execution_engine_funcs() -> void {
+		const pir::ExternalFunction::ID panther_vm_mem_page_alloc = [&]() -> pir::ExternalFunction::ID {
+			const std::optional<pir::ExternalFunction::ID> lookup =
+				this->pir_module.lookupExternalFunction("pantherVMMemPageAlloc");
+			if(lookup.has_value()){ return *lookup; }
+
+			return this->pir_module.createExternalFunction(
+				"pantherVMMemPageAlloc",
+				evo::SmallVector<pir::Parameter>{
+					pir::Parameter("size", pir::Module::createUnsignedType(sizeof(size_t) * 8)),
+					pir::Parameter("alignment", pir::Module::createUnsignedType(32))
+				},
+				pir::CallingConvention::C,
+				pir::Linkage::EXTERNAL,
+				pir::Module::createPtrType()
+			);
+		}();
+		this->execution_engine.registerExternFunc(
+			panther_vm_mem_page_alloc,
+			[](size_t size, uint32_t alignment) -> void* {
+				PantherVMContext& panther_vm_context = panther_vm_context_lookup.get_current_context();
+
+				void* const ptr = core::memPageAlloc(size, alignment);
+				panther_vm_context.mark_alloc(ptr, size);
+				return ptr;
+			}
+		);
+
+
+
+		const pir::ExternalFunction::ID panther_vm_mem_page_dealloc = [&]() -> pir::ExternalFunction::ID {
+			const std::optional<pir::ExternalFunction::ID> lookup =
+				this->pir_module.lookupExternalFunction("pantherVMMemPageDealloc");
+			if(lookup.has_value()){ return *lookup; }
+
+			return this->pir_module.createExternalFunction(
+				"pantherVMMemPageDealloc",
+				evo::SmallVector<pir::Parameter>{
+					pir::Parameter("buffer_data", pir::Module::createPtrType()),
+					pir::Parameter("buffer_size", pir::Module::createUnsignedType(sizeof(size_t) * 8)),
+					pir::Parameter("ERR", pir::Module::createPtrType())
+				},
+				pir::CallingConvention::C,
+				pir::Linkage::EXTERNAL,
+				pir::Module::createBoolType()
+			);
+		}();
+		enum class DeallocError : uint32_t {
+			NOT_ALLOCATED = 0,
+			ALREADY_DEALLOCATED = 1,
+		};
+		this->execution_engine.registerExternFunc(
+			panther_vm_mem_page_dealloc,
+			[](void* buffer_ptr, size_t buffer_size, DeallocError* dealloc_error) -> bool {
+				PantherVMContext& panther_vm_context = panther_vm_context_lookup.get_current_context();
+
+				const auto dealloc_res = panther_vm_context.mark_dealloc(buffer_ptr);
+				if(dealloc_res.has_value() == false){
+					*dealloc_error = std::bit_cast<DeallocError>(dealloc_res.error());
+					return true;
+				}
+
+				core::memPageDealloc(buffer_ptr, buffer_size);
+				return false;
+			}
+		);
+
+
+		const pir::ExternalFunction::ID panther_vm_file_write = [&]() -> pir::ExternalFunction::ID {
+			const std::optional<pir::ExternalFunction::ID> lookup =
+				this->pir_module.lookupExternalFunction("pantherVMFileWrite");
+			if(lookup.has_value()){ return *lookup; }
+
+			return this->pir_module.createExternalFunction(
+				"pantherVMFileWrite",
+				evo::SmallVector<pir::Parameter>{
+					pir::Parameter("file_handle", pir::Module::createUnsignedType(32)),
+					pir::Parameter("buffer_data", pir::Module::createPtrType()),
+					pir::Parameter("buffer_size", pir::Module::createUnsignedType(sizeof(size_t) * 8)),
+					pir::Parameter("ERR", pir::Module::createPtrType())
+				},
+				pir::CallingConvention::C,
+				pir::Linkage::EXTERNAL,
+				pir::Module::createBoolType()
+			);
+		}();
+		enum class FileWriteError : uint32_t {
+			INVALID_HANDLE = 0,
+			FILE_NOT_WRITABLE = 1,
+		};
+		this->execution_engine.registerExternFunc(
+			panther_vm_file_write,
+			[](uint32_t file_handle, char* str_ptr, size_t str_size, FileWriteError* err) -> bool {
+				switch(file_handle){
+					case 0: { // STDIN
+						*err = FileWriteError::FILE_NOT_WRITABLE;
+						return true;
+					} break;
+
+					case 1: { // STDOUT
+						evo::printStdout(std::string_view(str_ptr, str_size));
+						return false;
+					} break;
+
+					case 2: { // STDERR
+						evo::printStderr(std::string_view(str_ptr, str_size));
+						return false;
+					} break;
+
+					default: {
+						*err = FileWriteError::INVALID_HANDLE;
+						return true;
+					} break;
+				}
+			}
+		);
+	}
+
+
 
 
 

@@ -24,6 +24,7 @@
 #include "./sema/SemaBuffer.hpp"
 #include "./sema/conversion.hpp"
 #include "../../src/sema_to_pir/SemaToPIR.hpp"
+#include "../../src/subcontexts.hpp"
 
 
 namespace pcit::panther{
@@ -716,6 +717,9 @@ namespace pcit::panther{
 			auto init_builtin_modules() -> void;
 			auto init_comptime_execution_engine_funcs() -> void;
 			auto deinit_comptime_execution_engine_funcs() -> void;
+
+			auto init_panther_vm_execution_engine_funcs() -> void;
+
 			
 			auto init_intrinsic_infos() -> void;
 
@@ -907,64 +911,9 @@ namespace pcit::panther{
 			pir::Module pir_module;
 			SemaToPIR::Data sema_to_pir_data;
 			pir::ExecutionEngine execution_engine{pir_module};
-
-			class ComptimeContext{
-				public:
-					struct Data{
-						Data() = default;
-						Data(const Data&) = delete;
-
-						std::unordered_map<void*, bool> allocations_currently_allocated{};
-						size_t num_allocations_allocated = 0;
-
-						auto add_allocation(void* ptr) -> void {
-							this->num_allocations_allocated += 1;
-
-							using MapIter = std::unordered_map<void*, bool>::iterator;
-							std::pair<MapIter, bool> emplace_res =
-								this->allocations_currently_allocated.emplace(ptr, true);
-
-							if(emplace_res.second == false){
-								emplace_res.first->second = true;
-							}
-						}
-
-						auto reset() -> void {
-							this->allocations_currently_allocated.clear();
-							this->num_allocations_allocated = 0;
-						}
-					};
-
-				public:
-					ComptimeContext() = default;
-					~ComptimeContext() = default;
-
-					auto add_thread_data_if_needed() -> void {
-						const auto lock = std::scoped_lock(this->spin_lock);
-
-						const std::thread::id current_thread_id = std::this_thread::get_id();
-						if(this->data_map.contains(current_thread_id)){ return; }
-						this->data_map.emplace(current_thread_id, &this->data_alloc.emplace_back());
-					}
-
-					auto get_data() -> Data& {
-						const auto lock = std::scoped_lock(this->spin_lock);
-						
-						evo::debugAssert(
-							this->data_map.contains(std::this_thread::get_id()), "This thread id wasn't added"
-						);
-
-						return *this->data_map.at(std::this_thread::get_id());
-					}
 			
-				private:
-					evo::StepVector<Data> data_alloc{};
-					std::unordered_map<std::thread::id, Data*> data_map{};
-					mutable evo::SpinLock spin_lock{};
-			};
 
-			ComptimeContext comptime_context{};
-
+			ContextComptimeContext comptime_context{};
 
 
 			const CreatePantherBuildCallback* _create_panther_build_callback = nullptr;

@@ -160,6 +160,10 @@ namespace pcit::panther{
 			}
 
 
+			[[nodiscard]] auto lookupFunction(sema::Func::ID func_id) -> pir::Function::ID {
+				return this->get_func(func_id).pir_ids[0].as<pir::Function::ID>();
+			}
+
 
 
 			//////////////////

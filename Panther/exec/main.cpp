@@ -222,6 +222,50 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		return evo::resultError;
 	}
 
+	if(
+		config.platform == core::Target::Platform::PANTHER_VM
+			&& config.output.getTag() != panther::Context::PantherBuildConfig::Output::Tag::RUN
+	){
+		auto infos = evo::SmallVector<panther::Diagnostic::Info>();
+		infos.emplace_back("Platform:      PantherVM");
+
+		switch(config.output.getTag()){
+			case panther::Context::PantherBuildConfig::Output::Tag::TOKENS:
+				infos.emplace_back("Output Target: Tokens");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::AST:
+				infos.emplace_back("Output Target: AST");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::SEMANTIC_ANALYSIS:
+				infos.emplace_back("Output Target: Semantic Analysis");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::PIR:
+				infos.emplace_back("Output Target: PIR");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::LLVMIR:
+				infos.emplace_back("Output Target: LLVMIR");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::ASSEMBLY:
+				infos.emplace_back("Output Target: Assembly");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::OBJECT:
+				infos.emplace_back("Output Target: Object");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::RUN: evo::debugFatalBreak("Valid output target");
+
+			case panther::Context::PantherBuildConfig::Output::Tag::EXECUTABLE:
+				infos.emplace_back("Output Target: Executable");
+		}
+
+		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
+			panther::Diagnostic::Level::ERROR,
+			"Invalid compile target platform for this output target",
+			panther::Diagnostic::Location::NONE,
+			std::move(infos)
+		));
+		return evo::resultError;
+	}
+
 	const auto context_config = ContextConfig{
 		.title                  = config.title,
 		.target                 = target,
@@ -1002,10 +1046,22 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 			const plnk::Options plnk_options = [&]() -> plnk::Options {
 				switch(config.platform){
+					case core::Target::Platform::FREESTANDING: {
+						evo::debugAssert(config.architecture.isWasm(), "Must be Wasm");
+
+						auto plnk_options = plnk::Options(plnk::Target::WEB_ASSEMBLY);
+						plnk_options.outputFilePath = exec_path.string();
+						return plnk_options;
+					} break;
+
 					case core::Target::Platform::LINUX: {
 						auto plnk_options = plnk::Options(plnk::Target::UNIX);
 						plnk_options.outputFilePath = exec_path.string();
 						return plnk_options;
+					} break;
+
+					case core::Target::Platform::PANTHER_VM: {
+						evo::debugFatalBreak("Cannot be an executable");
 					} break;
 					
 					case core::Target::Platform::WINDOWS: {
@@ -1027,14 +1083,6 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 							evo::unreachable();
 						}();
 
-						return plnk_options;
-					} break;
-
-					case core::Target::Platform::FREESTANDING: {
-						evo::debugAssert(config.architecture.isWasm(), "Must be Wasm");
-
-						auto plnk_options = plnk::Options(plnk::Target::WEB_ASSEMBLY);
-						plnk_options.outputFilePath = exec_path.string();
 						return plnk_options;
 					} break;
 				}
@@ -1142,7 +1190,9 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Build-System>",
-		.target                 = core::Target::getNative(),
+		.target                 = core::Target(
+			core::Target::Architecture::getNative(), core::Target::Platform::PANTHER_VM
+		),
 		.mode                   = ContextConfig::Mode::DEBUG,
 		.compilerMode           = ContextConfig::CompilerMode::BUILD,
 		.windowsSubsystem       = std::nullopt,
@@ -1319,7 +1369,9 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 	using ContextConfig = panther::Context::Config;
 	const auto context_config = ContextConfig{
 		.title                  = "<Panther-Script>",
-		.target                 = core::Target::getNative(),
+		.target                 = core::Target(
+			core::Target::Architecture::getNative(), core::Target::Platform::PANTHER_VM
+		),
 		.mode                   = ContextConfig::Mode::DEBUG,
 		.compilerMode           = ContextConfig::CompilerMode::SCRIPT,
 		.windowsSubsystem       = std::nullopt,

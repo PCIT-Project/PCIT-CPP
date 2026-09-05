@@ -11660,20 +11660,10 @@ namespace pcit::panther{
 			
 			if(except_param_token.kind() == Token::lookupKind("_")){ continue; }
 
-			const std::string_view except_param_ident_str = except_param_token.getString();
-
 			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
 				instr.try_else.exceptParams[i], uint32_t(i), selected_func_type.errorTypes[i].asTypeID()
 			);
 			except_params.emplace_back(except_param_id);
-
-			if(this->add_ident_to_scope(
-				except_param_ident_str, instr.try_else.exceptParams[i], true, except_param_id
-			).isError()){
-				return Result::ERROR;
-			}
-
-			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
 		}
 
 
@@ -11718,7 +11708,7 @@ namespace pcit::panther{
 							target_interface_id,
 							uint32_t(i),
 							std::move(sema_args),
-							std::move(except_params),
+							evo::copy(except_params),
 							sema::StmtBlock{},
 							location.as<SourceLocation>().lineStart,
 							location.as<SourceLocation>().collumnStart
@@ -11729,6 +11719,8 @@ namespace pcit::panther{
 					sema::TryElseInterface& sema_try_else_interface =
 						this->context.sema_buffer.getTryElseInterface(sema_try_else_interface_id);
 					this->push_scope_level(&sema_try_else_interface.elseBlock);
+
+					break;
 				}
 
 				i += 1;
@@ -11744,7 +11736,7 @@ namespace pcit::panther{
 			const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
 				*func_call_impl_res.value().selected_func_id,
 				std::move(sema_args),
-				std::move(except_params),
+				evo::copy(except_params),
 				sema::StmtBlock{},
 				location.as<SourceLocation>().lineStart,
 				location.as<SourceLocation>().collumnStart
@@ -11766,7 +11758,7 @@ namespace pcit::panther{
 					target_term_info.getExpr()
 				},
 				std::move(sema_args),
-				std::move(except_params),
+				evo::copy(except_params),
 				sema::StmtBlock{},
 				location.as<SourceLocation>().lineStart,
 				location.as<SourceLocation>().collumnStart
@@ -11776,6 +11768,23 @@ namespace pcit::panther{
 
 			sema::TryElse& sema_try_else = this->context.sema_buffer.getTryElse(sema_try_else_id);
 			this->push_scope_level(&sema_try_else.elseBlock);
+		}
+
+
+		for(sema::ExceptParam::ID except_param_id : except_params){
+			const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+			const Token::ID except_param_token_id = instr.try_else.exceptParams[except_param.index];
+			const Token& except_param_token = this->source.getTokenBuffer()[except_param_token_id];
+			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			if(this->add_ident_to_scope(
+				except_param_ident_str, except_param_token_id, true, except_param_id
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
 		}
 
 
@@ -27039,7 +27048,7 @@ namespace pcit::panther{
 				*target_func.value.as<sema::Func::DefValue>().comptimePIRFunc, actual_args
 			);
 
-		Context::ComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
+		ContextComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
 
 		if(comptime_context_data.num_allocations_allocated != 0){
 			auto infos = evo::SmallVector<Diagnostic::Info>();

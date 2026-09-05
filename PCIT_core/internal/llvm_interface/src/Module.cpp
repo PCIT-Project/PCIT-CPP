@@ -109,9 +109,10 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::OSType triple_os = [&](){
 			switch(target.platform){
-				case core::Target::Platform::LINUX:        return llvm::Triple::OSType::Linux;
-				case core::Target::Platform::WINDOWS:      return llvm::Triple::OSType::Win32;
 				case core::Target::Platform::FREESTANDING: return llvm::Triple::OSType::UnknownOS;
+				case core::Target::Platform::LINUX:        return llvm::Triple::OSType::Linux;
+				case core::Target::Platform::PANTHER_VM:      evo::debugFatalBreak("Invalid target platform");
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::OSType::Win32;
 			}
 
 			evo::unreachable();
@@ -119,9 +120,10 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::VendorType triple_vendor = [&](){
 			switch(target.platform){
-				case core::Target::Platform::LINUX:        return llvm::Triple::VendorType::UnknownVendor;
-				case core::Target::Platform::WINDOWS:      return llvm::Triple::VendorType::PC;
 				case core::Target::Platform::FREESTANDING: return llvm::Triple::VendorType::UnknownVendor;
+				case core::Target::Platform::LINUX:        return llvm::Triple::VendorType::UnknownVendor;
+				case core::Target::Platform::PANTHER_VM:      evo::debugFatalBreak("Invalid target platform");
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::VendorType::PC;
 			}
 
 			evo::unreachable();
@@ -129,9 +131,10 @@ namespace pcit::llvmint{
 
 		const llvm::Triple::EnvironmentType triple_enviroment = [&](){
 			switch(target.platform){
-				case core::Target::Platform::LINUX:        return llvm::Triple::EnvironmentType::GNU;
-				case core::Target::Platform::WINDOWS:      return llvm::Triple::EnvironmentType::MSVC;
 				case core::Target::Platform::FREESTANDING: return llvm::Triple::EnvironmentType::UnknownEnvironment;
+				case core::Target::Platform::LINUX:        return llvm::Triple::EnvironmentType::GNU;
+				case core::Target::Platform::PANTHER_VM:      evo::debugFatalBreak("Invalid target platform");
+				case core::Target::Platform::WINDOWS:      return llvm::Triple::EnvironmentType::MSVC;
 			}
 
 			evo::unreachable();
@@ -139,9 +142,10 @@ namespace pcit::llvmint{
 
 		// const llvm::Triple::ObjectFormatType triple_object_format = [&](){
 		// 	switch(target.platform){
-		// 		case core::Target::Platform::WINDOWS:      return llvm::Triple::ObjectFormatType::COFF;
-		// 		case core::Target::Platform::LINUX:        return llvm::Triple::ObjectFormatType::ELF;
 		// 		case core::Target::Platform::FREESTANDING: return llvm::Triple::ObjectFormatType::UnknownObjectFormat;
+		// 		case core::Target::Platform::LINUX:        return llvm::Triple::ObjectFormatType::ELF;
+		// 		case core::Target::Platform::PANTHER_VM:      evo::debugFatalBreak("Invalid target platform");
+		// 		case core::Target::Platform::WINDOWS:      return llvm::Triple::ObjectFormatType::COFF;
 		// 	}
 
 		// 	evo::unreachable();

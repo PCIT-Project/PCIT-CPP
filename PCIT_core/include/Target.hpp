@@ -48,9 +48,10 @@ namespace pcit::core{
 
 	struct TargetPlatform{
 		enum class Value : uint32_t{
-			WINDOWS,
-			LINUX,
 			FREESTANDING,
+			LINUX,
+			PANTHER_VM,
+			WINDOWS,
 		};
 		
 		using enum class Value;
@@ -206,20 +207,6 @@ namespace pcit::core{
 }
 
 
-template<>
-struct std::formatter<pcit::core::Target::Platform> : std::formatter<std::string_view> {
-    auto format(const pcit::core::Target::Platform& platform, std::format_context& ctx) const
-    -> std::format_context::iterator {
-        switch(platform){
-        	case pcit::core::Target::Platform::LINUX:   return std::formatter<std::string_view>::format("Linux", ctx);
-        	case pcit::core::Target::Platform::WINDOWS: return std::formatter<std::string_view>::format("Windows", ctx);
-        	case pcit::core::Target::Platform::FREESTANDING:
-        		return std::formatter<std::string_view>::format("FREESTANDING", ctx);
-        	default: evo::debugFatalBreak("Unknown or unsupported Platform");
-        }
-    }
-};
-
 
 template<>
 struct std::formatter<pcit::core::Target::Architecture> : std::formatter<std::string_view> {
@@ -236,6 +223,29 @@ struct std::formatter<pcit::core::Target::Architecture> : std::formatter<std::st
         		return std::formatter<std::string_view>::format("WASM64_P32", ctx);
 
         	default: evo::debugFatalBreak("Unknown or unsupported architecture");
+        }
+    }
+};
+
+
+template<>
+struct std::formatter<pcit::core::Target::Platform> : std::formatter<std::string_view> {
+    auto format(const pcit::core::Target::Platform& platform, std::format_context& ctx) const
+    -> std::format_context::iterator {
+        switch(platform){
+        	case pcit::core::Target::Platform::FREESTANDING:
+        		return std::formatter<std::string_view>::format("FREESTANDING", ctx);
+
+        	case pcit::core::Target::Platform::LINUX:
+        		return std::formatter<std::string_view>::format("Linux", ctx);
+
+        	case pcit::core::Target::Platform::PANTHER_VM:
+        		return std::formatter<std::string_view>::format("PantherVM", ctx);
+
+        	case pcit::core::Target::Platform::WINDOWS:
+        		return std::formatter<std::string_view>::format("Windows", ctx);
+
+        	default: evo::debugFatalBreak("Unknown or unsupported Platform");
         }
     }
 };

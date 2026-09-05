@@ -1115,13 +1115,43 @@ namespace pcit::panther{
 		if(func_type.hasErrorReturnValue()){
 			auto error_return_param_types = evo::SmallVector<pir::Type>();
 			error_return_param_types.reserve(func_type.errorTypes.size());
+
+			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
+			if(this->data.config.includeDebugInfo){
+				debug_members.reserve(func_type.errorTypes.size());
+			}
+
 			for(TypeInfo::VoidableID error_type_id : func_type.errorTypes){
-				error_return_param_types.emplace_back(this->get_type<false, false>(error_type_id.asTypeID()).type);
+				const PIRType pir_type = [&]() -> PIRType {
+					if(this->data.config.includeDebugInfo){
+						return this->get_type<false, true>(error_type_id.asTypeID());
+					}else{
+						return this->get_type<false, false>(error_type_id.asTypeID());
+					}
+				}();
+
+				error_return_param_types.emplace_back(pir_type.type);
+
+				if(this->data.config.includeDebugInfo){
+					debug_members.emplace_back(*pir_type.meta_type_id, std::format("e{}", debug_members.size()));
+				}
 			}
 
 			error_return_type = this->module.createStructType(
 				std::format("PTHR.FUNC_ERR_{}", func_type_id.get()), std::move(error_return_param_types), true
 			);
+
+			if(this->data.config.includeDebugInfo){
+				std::ignore = this->module.createMetaStructType(
+					*error_return_type,
+					std::format("PTHR.FUNC_ERR_{}", func_type_id.get()),
+					std::format("PTHR.FUNC_ERR_{}", func_type_id.get()),
+					std::move(debug_members),
+					this->data.get_builtin_meta_file(this->module),
+					this->data.get_builtin_meta_file(this->module),
+					0
+				);
+			}
 		}
 
 		const pir::Type return_type = [&](){

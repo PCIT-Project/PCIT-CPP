@@ -72,7 +72,7 @@ namespace pcit::panther{
 				: context(_context), module(_module), handler(_module), data(_data) {}
 			~SemaToPIR() = default;
 
-			// auto lower() -> void;
+
 			auto lowerRuntime() -> void;
 
 

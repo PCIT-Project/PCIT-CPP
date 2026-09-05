@@ -700,19 +700,23 @@ namespace pcit::clangint{
 		// found by running `clang -v file.cpp -g` and looking at cc1 invocation
 		if(include_debug_info){
 			switch(target.platform){
+				case core::Target::Platform::FREESTANDING: {
+					
+				} break;
+
 				case core::Target::Platform::LINUX: {
 					args.emplace_back("-debug-info-kind=constructor");
 					args.emplace_back("-dwarf-version=5");
+				} break;
+
+				case core::Target::Platform::PANTHER_VM: {
+					evo::debugFatalBreak("Invalid target platform");
 				} break;
 
 				case core::Target::Platform::WINDOWS: {
 					args.emplace_back("-gno-column-info");
 					args.emplace_back("-gcodeview");
 					args.emplace_back("-debug-info-kind=constructor");
-				} break;
-
-				case core::Target::Platform::FREESTANDING: {
-					
 				} break;
 			}
 		}
@@ -765,6 +769,18 @@ namespace pcit::clangint{
 		}
 
 		switch(target.platform){
+			case core::Target::Platform::FREESTANDING: {
+				// do nothing...
+			} break;
+
+			case core::Target::Platform::LINUX: {
+				// do nothing...
+			} break;
+
+			case core::Target::Platform::PANTHER_VM: {
+				evo::debugFatalBreak("Invalid target platform");
+			} break;
+
 			case core::Target::Platform::WINDOWS: {
 				args.emplace_back("-fms-extensions");
 
@@ -772,14 +788,6 @@ namespace pcit::clangint{
 				// For including windows.h
 				args.emplace_back("-Wno-pragma-pack");
 				args.emplace_back("-Wno-microsoft-anon-tag");
-			} break;
-
-			case core::Target::Platform::LINUX: {
-				// do nothing...
-			} break;
-
-			case core::Target::Platform::FREESTANDING: {
-				// do nothing...
 			} break;
 		}
 

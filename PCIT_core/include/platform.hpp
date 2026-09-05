@@ -9,24 +9,15 @@
 
 #pragma once
 
-#include "./generic_values/GenericInt.hpp"
-#include "./generic_values/GenericFloat.hpp"
-#include "./generic_values/GenericValue.hpp"
+#include <Evo.hpp>
 
-#include "./LinearStepAlloc.hpp"
-#include "./linux.hpp"
-#include "./MapAlloc.hpp"
-#include "./math.hpp"
-#include "./SyncLinearStepAlloc.hpp"
-#include "./Optional.hpp"
-#include "./platform.hpp"
-#include "./Printer.hpp"
-#include "./SingleThreadedWorkQueue.hpp"
-#include "./StepAlloc.hpp"
-#include "./RangeMap.hpp"
-#include "./Target.hpp"
-#include "./ThreadPool.hpp"
-#include "./ThreadQueue.hpp"
-#include "./UniqueID.hpp"
-#include "./version.hpp"
-#include "./windows.hpp"
+
+namespace pcit::core{
+
+
+	[[nodiscard]] auto memPageAlloc(size_t size, uint32_t alignment) -> void*;
+
+	auto memPageDealloc(void* buffer_data, size_t buffer_size) -> void;
+
+	
+}

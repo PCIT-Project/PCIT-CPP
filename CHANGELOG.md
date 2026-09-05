@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.378.0"></a>
+## v0.0.378.0
+
+### Panther
+- Added support for target platform `PantherVM`
+- Fixed scoping of `try`/`else` statement except parameters
+
+### PCIT_core
+- Added target platform `PantherVM`
+
+### Misc
+- Updated to [Panther-std v0.0.55.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.55.0)
+
+
+<!---------------------------------->
 <a name="v0.0.377.0"></a>
 ## v0.0.377.0
 
