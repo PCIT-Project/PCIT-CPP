@@ -26204,7 +26204,9 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& encapsulating_symbol_id) -> void {
 		this->get_current_scope_level().addSubScope();
-		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block), encapsulating_symbol_id);
+		this->scope.pushLevel(
+			this->context.sema_buffer.getScopeManager().createLevel(stmt_block), encapsulating_symbol_id
+		);
 	}
 
 
@@ -26250,7 +26252,6 @@ namespace pcit::panther{
 				if(
 					current_scope_is_terminated
 					&& this->scope.inEncapsulatingSymbol()
-					&& !this->scope.inObjectMainScope()
 					&& current_scope_is_label_terminated == false
 				){
 					this->get_current_scope_level().setSubScopeTerminated();
@@ -26259,11 +26260,7 @@ namespace pcit::panther{
 			}else if constexpr(POP_SCOPE_LEVEL_KIND == PopScopeLevelKind::NORMAL){
 				this->scope.popLevel(); // `current_scope_level` is now invalid
 
-				if(
-					current_scope_is_terminated
-					&& this->scope.inEncapsulatingSymbol()
-					&& !this->scope.inObjectMainScope()
-				){
+				if(current_scope_is_terminated && this->scope.inEncapsulatingSymbol()){
 					this->get_current_scope_level().setSubScopeTerminated();
 
 					if(current_scope_is_label_terminated){
@@ -28389,6 +28386,38 @@ namespace pcit::panther{
 
 				modify_info.num_sub_scopes = 0;
 			}
+
+			if(value_state_id.is<sema::ReturnParamAccessorValueStateID>()){
+				switch(value_state_info.state){
+					case sema::ScopeLevel::ValueState::UNINIT:
+					case sema::ScopeLevel::ValueState::MOVED_FROM: {
+						SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+						func_info.num_members_of_initializing_are_uninit += 1;
+
+						if(func_info.num_members_of_initializing_are_uninit == 1){
+							this->set_ident_value_state(
+								value_state_id.as<sema::ReturnParamAccessorValueStateID>().id,
+								sema::ScopeLevel::ValueState::INITIALIZING
+							);
+						}
+					} break;
+
+					case sema::ScopeLevel::ValueState::INIT: {
+						SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+						func_info.num_members_of_initializing_are_uninit -= 1;
+
+						if(func_info.num_members_of_initializing_are_uninit == 0){
+							this->set_ident_value_state(
+								value_state_id.as<sema::ReturnParamAccessorValueStateID>().id,
+								sema::ScopeLevel::ValueState::INIT
+							);
+						}
+					} break;
+
+					case sema::ScopeLevel::ValueState::UNINIT_WITH_DEFAULT: evo::debugFatalBreak("Invalid value state");
+					case sema::ScopeLevel::ValueState::INITIALIZING: evo::debugFatalBreak("Invalid value state");
+				}
+			}
 		}
 
 		current_scope_level.resetSubScopes();
@@ -28744,7 +28773,18 @@ namespace pcit::panther{
 					} break;
 
 					case sema::Expr::Kind::RETURN_PARAM: {
-						if(accessor.target.kind() != sema::Expr::Kind::RETURN_PARAM){ return evo::Result<>(); }
+						const Token::ID current_func_name_token_id = this->get_current_func().name.as<Token::ID>();
+						const Token& current_func_name_token =
+							this->source.getTokenBuffer()[current_func_name_token_id];
+
+						if(
+							current_func_name_token.kind() != Token::Kind::KEYWORD_NEW
+							&& current_func_name_token.kind() != Token::Kind::KEYWORD_COPY
+							&& current_func_name_token.kind() != Token::Kind::KEYWORD_MOVE
+						){
+							return evo::Result<>();
+						}
+
 
 						this->set_ident_value_state(
 							sema::ReturnParamAccessorValueStateID(
@@ -28753,13 +28793,16 @@ namespace pcit::panther{
 							value_state
 						);
 
-						SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
-						func_info.num_members_of_initializing_are_uninit -= 1;
 
-						if(func_info.num_members_of_initializing_are_uninit == 0){
-							this->set_ident_value_state(
-								accessor.target.returnParamID(), sema::ScopeLevel::ValueState::INIT
-							);
+						if(this->scope.inObjectMainScope()){
+							SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+							func_info.num_members_of_initializing_are_uninit -= 1;
+
+							if(func_info.num_members_of_initializing_are_uninit == 0){
+								this->set_ident_value_state(
+									accessor.target.returnParamID(), sema::ScopeLevel::ValueState::INIT
+								);
+							}
 						}
 
 						return evo::Result<>();

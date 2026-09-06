@@ -1158,7 +1158,11 @@ namespace pcit::panther{
 
 
 		evo::debugAssert(
-			this->pir_module.getTarget() == core::Target::getNative(), "Can only run entry if target is native"
+			this->pir_module.getTarget() == core::Target::getNative()
+				|| this->pir_module.getTarget() == core::Target(
+					core::Target::Architecture::getNative(), core::Target::Platform::PANTHER_VM
+				),
+			"Can only run entry if target is native or Panther"
 		);
 
 

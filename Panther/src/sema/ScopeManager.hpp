@@ -130,7 +130,7 @@ namespace pcit::panther::sema{
 
 					[[nodiscard]] auto inObjectMainScope() const -> bool {
 						evo::debugAssert(this->inEncapsulatingSymbol(), "not in encapsulating symbol");
-						return this->encapsulating_symbols.back().scope_level_index - 1 == this->size();
+						return this->encapsulating_symbols.back().scope_level_index == this->size();
 					}
 
 

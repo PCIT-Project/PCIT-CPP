@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.378.1"></a>
+## v0.0.378.1
+
+### Panther
+- Fixed checking that all members of the output parameter of a `new`, `copy`, or `move` are initialized when initialization of members happens within an `if` conditional block
+
+
+<!---------------------------------->
 <a name="v0.0.378.0"></a>
 ## v0.0.378.0
 
