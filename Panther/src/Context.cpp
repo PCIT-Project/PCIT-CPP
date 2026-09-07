@@ -3057,21 +3057,21 @@ namespace pcit::panther{
 
 
 
-		const BaseType::Enum::ID unreachable_mode_type = this->create_builtin_enum(
+		const BaseType::Enum::ID runtime_error_mode_type = this->create_builtin_enum(
 			BuiltinModule::ID::PTHR,
-			"UnreachableMode",
+			"RuntimeErrorMode",
 			evo::SmallVector<BaseType::Enum::Enumerator>{
 				BaseType::Enum::Enumerator(
 					pthr_module.createString("PANIC"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::PANIC))
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::RuntimeErrorMode::PANIC))
 				),
 				BaseType::Enum::Enumerator(
 					pthr_module.createString("ABORT"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::ABORT))
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::RuntimeErrorMode::ABORT))
 				),
 				BaseType::Enum::Enumerator(
 					pthr_module.createString("UNREACHABLE"),
-					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::UnreachableMode::UNREACHABLE))
+					core::GenericInt::create<uint32_t>(evo::to_underlying(Config::RuntimeErrorMode::UNREACHABLE))
 				),
 			}
 		);
@@ -3231,8 +3231,8 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					build_module.createString("unreachableMode"),
-					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(unreachable_mode_type))),
+					build_module.createString("runtimeErrorMode"),
+					this->type_manager.getOrCreateTypeInfo(TypeInfo(BaseType::ID(runtime_error_mode_type))),
 					std::nullopt,
 					false
 				),

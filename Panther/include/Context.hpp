@@ -67,7 +67,7 @@ namespace pcit::panther{
 					BUILD       = 3,
 				};
 
-				enum class UnreachableMode : uint32_t {
+				enum class RuntimeErrorMode : uint32_t {
 					PANIC       = 0,
 					ABORT       = 1,
 					UNREACHABLE = 2,
@@ -93,7 +93,7 @@ namespace pcit::panther{
 				CompilerMode compilerMode;
 				std::optional<WindowsSubsystem> windowsSubsystem;
 				pir::OptMode optMode;
-				UnreachableMode unreachableMode;
+				RuntimeErrorMode runtimeErrorMode;
 				bool checkedOptionals;
 				bool checkedUnions;
 				std::filesystem::path compilerExecutablePath;
@@ -382,7 +382,7 @@ namespace pcit::panther{
 				Config::Mode mode;
 				pir::OptMode optMode;
 				NumThreads numThreads;
-				Config::UnreachableMode unreachableMode;
+				Config::RuntimeErrorMode runtimeErrorMode;
 				bool checkedOptionals;
 				bool checkedUnions;
 				bool addDebugInfo;

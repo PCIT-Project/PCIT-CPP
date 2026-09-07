@@ -2731,8 +2731,8 @@ namespace pcit::panther{
 
 				const auto ssl = this->create_scoped_source_location(unreachable_stmt.line, unreachable_stmt.collumn);
 
-				switch(this->context.getConfig().unreachableMode){
-					case Context::Config::UnreachableMode::PANIC: {
+				switch(this->context.getConfig().runtimeErrorMode){
+					case Context::Config::RuntimeErrorMode::PANIC: {
 						if(unreachable_stmt.message.has_value()){
 							this->create_panic(sema::extractStringFromExpr(*unreachable_stmt.message, this->context));
 
@@ -2741,11 +2741,11 @@ namespace pcit::panther{
 						}
 					} break;
 
-					case Context::Config::UnreachableMode::ABORT: {
+					case Context::Config::RuntimeErrorMode::ABORT: {
 						this->handler.createAbort();
 					} break;
 
-					case Context::Config::UnreachableMode::UNREACHABLE: {
+					case Context::Config::RuntimeErrorMode::UNREACHABLE: {
 						this->handler.createUnreachable();
 					} break;
 				}
@@ -12724,16 +12724,16 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::create_unreachable(std::string_view message) -> void {
-		switch(this->context.getConfig().unreachableMode){
-			case Context::Config::UnreachableMode::PANIC: {
+		switch(this->context.getConfig().runtimeErrorMode){
+			case Context::Config::RuntimeErrorMode::PANIC: {
 				this->create_panic(message);
 			} break;
 
-			case Context::Config::UnreachableMode::ABORT: {
+			case Context::Config::RuntimeErrorMode::ABORT: {
 				this->handler.createAbort();
 			} break;
 
-			case Context::Config::UnreachableMode::UNREACHABLE: {
+			case Context::Config::RuntimeErrorMode::UNREACHABLE: {
 				this->handler.createUnreachable();
 			} break;
 		}

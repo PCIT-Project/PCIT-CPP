@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.381.0"></a>
+## v0.0.381.0
+
+### Panther
+- Renamed "unreachable mode" to "runtime error mode"
+
+
+<!---------------------------------->
 <a name="v0.0.380.0"></a>
 ## v0.0.380.0
 
