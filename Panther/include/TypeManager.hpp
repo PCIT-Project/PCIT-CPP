@@ -1141,9 +1141,7 @@ namespace pcit::panther{
 
 				Qualifier(bool is_ptr, bool is_mut, bool is_uninit, bool is_optional)
 					: isPtr(is_ptr), isMut(is_mut), isUninit(is_uninit), isOptional(is_optional) {
-					evo::debugAssert(is_ptr || is_optional, "must be pointer xor optional");
-					evo::debugAssert(is_mut == false || is_ptr, "mut must be a pointer");
-					evo::debugAssert(is_uninit == false || is_ptr, "uninit must be a pointer");
+					this->debug_verify();
 				}
 
 
@@ -1158,6 +1156,18 @@ namespace pcit::panther{
 				[[nodiscard]] auto operator==(const Qualifier& rhs) const -> bool {
 					return (std::bit_cast<uint8_t>(*this) & 0b1111) == (std::bit_cast<uint8_t>(rhs) & 0b1111);
 				}
+
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					auto debug_verify() const -> void {
+						evo::debugAssert(this->isPtr || this->isOptional, "must be pointer or optional");
+						evo::debugAssert(this->isMut == false || this->isPtr, "mut must be a pointer");
+						evo::debugAssert(this->isUninit == false || this->isPtr, "uninit must be a pointer");
+						evo::debugAssert(
+							this->isMut == false || this->isUninit == false, "cannot be both mut and uninit"
+						);
+					}
+				#endif
 			};
 			static_assert(sizeof(Qualifier) == 1, "sizeof(TypeInfo::Qualifier) != 1");
 			

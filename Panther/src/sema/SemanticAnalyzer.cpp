@@ -16429,7 +16429,9 @@ namespace pcit::panther{
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			target_type.copyWithPushedQualifier(
-				TypeInfo::Qualifier(true, target.is_mutable(), target.isUninitialized(), false)
+				TypeInfo::Qualifier(
+					true, target.is_mutable() && target.isUninitialized() == false, target.isUninitialized(), false
+				)
 			)
 		);
 
@@ -16840,12 +16842,8 @@ namespace pcit::panther{
 		if constexpr(IS_COMPTIME){
 			auto output_value = std::optional<sema::Expr>();
 			switch(target.getExpr().kind()){
-				case sema::Expr::Kind::UNWRAP: {
-					const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(target.getExpr().unwrapID());
-
-					output_value = this->context.getSemaBuffer().getConversionToOptional(
-						unwrap.expr.conversionToOptionalID()
-					).expr;
+				case sema::Expr::Kind::ADDR_OF: {
+					output_value = this->context.getSemaBuffer().getAddrOf(target.getExpr().addrOfID());
 				} break;
 
 				default: {
@@ -16855,7 +16853,11 @@ namespace pcit::panther{
 			}
 
 			this->return_term_info(instr.output,
-				ValueCategory::EPHEMERAL, true, TermInfo::ValueState::NOT_APPLICABLE, resultant_type_id, *output_value
+				target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
+				true,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				resultant_type_id,
+				*output_value
 			);
 			return Result::SUCCESS;
 
@@ -16894,28 +16896,44 @@ namespace pcit::panther{
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
 		if(target_type.isOptional() == false){
-			this->emit_error("Argument of operator [.?] must be an opional", instr.postfix.lhs);
+			this->emit_error("Argument of operator [.?] must be an optional", instr.postfix.lhs);
 			return Result::ERROR;
 		}
 
 
-		auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
-			target_type.qualifiers().begin(), target_type.qualifiers().end()
-		);
-		resultant_qualifiers.back().isOptional = false;
-		if(target_type.isPointer() == false){
-			resultant_qualifiers.back().isPtr = true;
-			resultant_qualifiers.back().isMut = target.is_mutable();
+
+		const TypeInfo::ID resultant_type_id = [&]() -> TypeInfo::ID {
+			if(target_type.isPointer()){
+				auto resultant_qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
+					target_type.qualifiers().begin(), target_type.qualifiers().end()
+				);
+				resultant_qualifiers.back().isOptional = false;
+				
+				return this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
+				);
+
+			}else{
+				return this->context.type_manager.getOrCreateTypeInfo(target_type.copyWithPoppedQualifier());
+			}
+		}();
+
+		
+		if(
+			this->currently_in_func()
+				&& this->context.getConfig().checkedOptionals
+				&& this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC
+		){
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 		}
-		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(target_type.baseTypeID(), std::move(resultant_qualifiers))
-		);
 
 
 		if constexpr(IS_COMPTIME == false){
 			if(target.isComptime == false){
 				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
+					target.is_mutable()
+						? TermInfo::ValueCategory::CONCRETE_MUT
+						: TermInfo::ValueCategory::CONCRETE_CONST,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					resultant_type_id,
@@ -16934,6 +16952,13 @@ namespace pcit::panther{
 		while(continue_looking){
 			switch(target_expr.kind()){
 				case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
+					const sema::ConversionToOptional& conversion_to_optional =
+						this->context.getSemaBuffer().getConversionToOptional(
+							target_expr.conversionToOptionalID()
+						);
+
+					target_expr = conversion_to_optional.expr;
+
 					continue_looking = false;
 				} break;
 
@@ -16943,7 +16968,7 @@ namespace pcit::panther{
 				} break;
 
 				case sema::Expr::Kind::DEFAULT_NEW: {
-					this->emit_fatal("This optional doesn't hold a value", instr.postfix.lhs);
+					this->emit_error("This optional doesn't hold a value", instr.postfix.lhs);
 					return Result::ERROR;
 				} break;
 
@@ -16954,20 +16979,12 @@ namespace pcit::panther{
 			}
 		}
 
-		if(
-			this->currently_in_func()
-				&& this->context.getConfig().checkedOptionals
-				&& this->context.getConfig().unreachableMode == Context::Config::UnreachableMode::PANIC
-		){
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
-		}
-
 		this->return_term_info(instr.output,
-			TermInfo::ValueCategory::EPHEMERAL,
+			target.is_mutable() ? TermInfo::ValueCategory::CONCRETE_MUT : TermInfo::ValueCategory::CONCRETE_CONST,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
-			sema::Expr(this->context.sema_buffer.createUnwrap(target_expr, target.type_id.as<TypeInfo::ID>(), true))
+			target_expr
 		);
 		return Result::SUCCESS;
 	}

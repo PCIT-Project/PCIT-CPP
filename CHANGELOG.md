@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.379.0"></a>
+## v0.0.379.0
+
+### Panther
+- Improved semantics of unwrapping optionals
+	- Always return a reference to the held value
+	- Now returns a concrete value 
+- Fixed missing check for `@panic` implementation when using checked optionals on panic mode
+- Fixed comptime dereference of an address of expression (`(&x).*`)
+- Fixed comptime dereference being considered ephemeral
+
+### Misc
+- Updated to [Panther-std v0.0.56.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.56.0)
+
+
+<!---------------------------------->
 <a name="v0.0.378.1"></a>
 ## v0.0.378.1
 

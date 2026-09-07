@@ -5214,15 +5214,15 @@ namespace pcit::panther{
 		if(target_type_info.isPointer()){
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED.FAIL"));
+					this->handler.createBasicBlock(this->name("UNWRAP.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP_OPT.CHECKED.SUCCESS"));
+					this->handler.createBasicBlock(this->name("UNWRAP.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
 					this->get_expr_register(unwrap.expr),
 					this->module.createUSize(),
-					this->name(".UNWRAP_OPT.CHECKED.PTR_AS_USIZE")
+					this->name(".UNWRAP.CHECKED.PTR_AS_USIZE")
 				);
 
 				const pir::Expr zero_value = this->handler.createNumber(
@@ -5259,21 +5259,21 @@ namespace pcit::panther{
 
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
-					this->name("UNWRAP_OPT.CHECKED.FAIL")
+					this->name("UNWRAP.CHECKED.FAIL")
 				);
 				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
-					this->name("UNWRAP_OPT.CHECKED.SUCCESS")
+					this->name("UNWRAP.CHECKED.SUCCESS")
 				);
 
 				const pir::Expr flag = this->handler.createCalcPtr(
 					this->get_expr_pointer(unwrap.expr),
 					target_pir_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-					this->name(".UNWRAP_OPT.CHECKED.FLAG")
+					this->name(".UNWRAP.CHECKED.FLAG")
 				);
 
 				const pir::Expr flag_value = this->handler.createLoad(
-					flag, this->module.createBoolType(), this->name(".UNWRAP_OPT.CHECKED.FLAG_VALUE")
+					flag, this->module.createBoolType(), this->name(".UNWRAP.CHECKED.FLAG_VALUE")
 				);
 
 				this->handler.createBranch(flag_value, end_block, fail_block);
@@ -5286,25 +5286,24 @@ namespace pcit::panther{
 
 
 			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr calc_ptr = this->handler.createCalcPtr(
+					this->get_expr_pointer(unwrap.expr),
+					target_pir_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".UNWRAP_PTR")
+				);
+
+				return this->handler.createLoad(
+					calc_ptr, this->module.getStructType(target_pir_type).members[0], this->name("UNWRAP")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
 				return this->handler.createCalcPtr(
 					this->get_expr_pointer(unwrap.expr),
 					target_pir_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
 					this->name("UNWRAP")
 				);
-
-			}else if constexpr(MODE == GetExprMode::POINTER){
-				const pir::Expr unwrap_alloca = this->handler.createAlloca(this->module.createPtrType());
-
-				const pir::Expr calc_ptr = this->handler.createCalcPtr(
-					this->get_expr_pointer(unwrap.expr),
-					target_pir_type,
-					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".UNWRAP")
-				);
-
-				this->handler.createStore(unwrap_alloca, calc_ptr);
-				return unwrap_alloca;
 				
 			}else if constexpr(MODE == GetExprMode::STORE){
 				evo::debugAssert(store_locations.size() == 1, "Only has 1 value to store");
@@ -5313,10 +5312,12 @@ namespace pcit::panther{
 					this->get_expr_pointer(unwrap.expr),
 					target_pir_type,
 					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
-					this->name(".UNWRAP")
+					this->name(".UNWRAP_PTR")
 				);
 
-				this->handler.createStore(store_locations[0], calc_ptr);
+				this->handler.createMemcpy(
+					store_locations[0], calc_ptr, this->module.getStructType(target_pir_type).members[0]
+				);
 				return std::nullopt;
 
 			}else{
