@@ -4974,6 +4974,8 @@ namespace pcit::panther{
 		const sema::OptionalExtract& optional_extract =
 			this->context.getSemaBuffer().getOptionalExtract(expr.optionalExtractID());
 
+		const auto ssl = this->create_scoped_source_location(optional_extract.line, optional_extract.collumn);
+
 		const TypeInfo& target_type_info =
 			this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID);
 
@@ -5162,6 +5164,8 @@ namespace pcit::panther{
 	auto SemaToPIR::get_expr_impl_unwrap(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 	-> std::optional<pir::Expr> {
 		const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
+		const auto ssl = this->create_scoped_source_location(unwrap.line, unwrap.collumn);
+
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
 
 		if(unwrap.isComptime){
@@ -5234,7 +5238,7 @@ namespace pcit::panther{
 				this->handler.createBranch(is_null, fail_block, end_block);
 
 				this->handler.setTargetBasicBlock(fail_block);
-				this->create_unreachable("Attempted to extract an optional that is null");
+				this->create_unreachable("Attempted to unwrap an optional that is null");
 
 				this->handler.setTargetBasicBlock(end_block);
 			}
@@ -12640,6 +12644,8 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::create_panic(pir::Expr message) -> void {
+		evo::debugAssert(this->handler.hasSourceLocation(), "Must have source location to create a panic");
+
 		const Data::FuncInfo& func_info = this->data.get_func(*this->context.panic);
 
 		evo::debugAssert(
@@ -12669,6 +12675,8 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::create_panic(std::string_view message) -> void {
+		evo::debugAssert(this->handler.hasSourceLocation(), "Must have source location to create a panic");
+		
 		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message) + '\0');
 
 		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(

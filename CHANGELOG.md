@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.380.0"></a>
+## v0.0.380.0
+
+### Panther
+- Changed array reference `.data()` to return optional qualified pointer
+- Fixed getting comptime value of default initialized array reference
+- Fixed lowering of some runtime checks when in panic mode
+
+
+<!---------------------------------->
 <a name="v0.0.379.0"></a>
 ## v0.0.379.0
 

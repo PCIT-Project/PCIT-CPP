@@ -2091,7 +2091,9 @@ namespace pcit::panther{
 
 					if(member_var.defaultValue.has_value()){
 						created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-							this->context.sema_buffer.createAssign(member_var_expr, member_var.defaultValue->value)
+							this->context.sema_buffer.createAssign(
+								member_var_expr, member_var.defaultValue->value, 0, 0
+							)
 						);
 						continue;
 					}
@@ -2106,7 +2108,9 @@ namespace pcit::panther{
 						created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								member_var_expr,
-								sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true))
+								sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true)),
+								0,
+								0
 							)
 						);
 						continue;
@@ -2115,13 +2119,15 @@ namespace pcit::panther{
 					created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 						this->context.sema_buffer.createAssign(
 							member_var_expr,
-							sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true))
+							sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true)),
+							0,
+							0
 						)
 					);
 				}
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
 				);
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2290,7 +2296,7 @@ namespace pcit::panther{
 				}
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
 				);
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2483,13 +2489,15 @@ namespace pcit::panther{
 						created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
-								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID, true))
+								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID, true)),
+								0,
+								0
 							)
 						);
 					}
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
 					);
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2697,13 +2705,15 @@ namespace pcit::panther{
 						created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
 								*output_member,
-								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID, true))
+								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID, true)),
+								0,
+								0
 							)
 						);
 					}
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt)
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
 					);
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -12775,13 +12785,20 @@ namespace pcit::panther{
 					}();
 
 
+					const Diagnostic::Location location = this->get_location(ast_func_call.target);
+
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						fake_term_info.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						held_type_id,
 						sema::Expr(
-							this->context.sema_buffer.createOptionalExtract(fake_term_info.expr, fake_term_info.typeID)
+							this->context.sema_buffer.createOptionalExtract(
+								fake_term_info.expr,
+								fake_term_info.typeID,
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
+							)
 						)
 					);
 					return Result::SUCCESS;
@@ -16930,6 +16947,8 @@ namespace pcit::panther{
 
 		if constexpr(IS_COMPTIME == false){
 			if(target.isComptime == false){
+				const Diagnostic::Location location = this->get_location(instr.postfix);
+
 				this->return_term_info(instr.output,
 					target.is_mutable()
 						? TermInfo::ValueCategory::CONCRETE_MUT
@@ -16939,7 +16958,11 @@ namespace pcit::panther{
 					resultant_type_id,
 					sema::Expr(
 						this->context.sema_buffer.createUnwrap(
-							target.getExpr(), target.type_id.as<TypeInfo::ID>(), false
+							target.getExpr(),
+							target.type_id.as<TypeInfo::ID>(),
+							location.as<SourceLocation>().lineStart,
+							location.as<SourceLocation>().collumnStart,
+							false
 						)
 					)
 				);
@@ -22773,7 +22796,6 @@ namespace pcit::panther{
 
 			case Token::Kind::TYPE_F80: {
 				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
-					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
 					this->emit_error("Type `F80` is currenlty unimplemented on this platform", instr.ast_type);
 					return Result::ERROR;
 				}
@@ -26147,9 +26169,8 @@ namespace pcit::panther{
 				const TypeInfo& arr_elem_type =
 					this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
 
-				// TODO(FUTURE): make optional
 				return this->context.type_manager.getOrCreateTypeInfo(
-					arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, false))
+					arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, true))
 				);
 			}();
 
@@ -32132,7 +32153,7 @@ namespace pcit::panther{
 
 				const TypeInfo& elem_type = this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
 				const TypeInfo::ID elem_ptr_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					elem_type.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, false))
+					elem_type.copyWithPushedQualifier(TypeInfo::Qualifier(true, array_ref_type.isMut, false, true))
 				);
 
 				const std::byte* data_cursor = value.dataRange().data();
@@ -38805,7 +38826,9 @@ namespace pcit::panther{
 								location.as<SourceLocation>().lineStart,
 								location.as<SourceLocation>().collumnStart
 							)
-						)
+						),
+						location.as<SourceLocation>().lineStart,
+						location.as<SourceLocation>().collumnStart
 					)
 				);
 

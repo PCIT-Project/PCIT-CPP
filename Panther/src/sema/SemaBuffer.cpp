@@ -902,8 +902,9 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// optional extract
 
-	auto SemaBuffer::createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID) -> OptionalExtract::ID {
-		return this->internal->optional_extracts.emplace_back(expr, targetTypeID);
+	auto SemaBuffer::createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn)
+	-> OptionalExtract::ID {
+		return this->internal->optional_extracts.emplace_back(expr, targetTypeID, line, collumn);
 	}
 
 	auto SemaBuffer::getOptionalExtract(OptionalExtract::ID id) const -> const OptionalExtract& {
@@ -926,8 +927,10 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// unwraps
 
-	auto SemaBuffer::createUnwrap(Expr expr, TypeInfo::ID targetTypeID, bool isComptime) -> Unwrap::ID {
-		return this->internal->unwraps.emplace_back(expr, targetTypeID, isComptime);
+	auto SemaBuffer::createUnwrap(
+		Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn, bool isComptime
+	) -> Unwrap::ID {
+		return this->internal->unwraps.emplace_back(expr, targetTypeID, line, collumn, isComptime);
 	}
 
 	auto SemaBuffer::getUnwrap(Unwrap::ID id) const -> const Unwrap& {

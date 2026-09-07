@@ -165,6 +165,8 @@ namespace pcit::panther::sema{
 		
 		Expr expr;
 		TypeInfo::ID targetTypeID;
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 
@@ -180,6 +182,8 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID targetTypeID;
+		uint32_t line;
+		uint32_t collumn;
 		bool isComptime;
 	};
 
@@ -465,8 +469,8 @@ namespace pcit::panther::sema{
 		evo::SmallVector<RetParam> retParams;
 		bool isSideEffect;
 		bool isAlignStack;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 
@@ -475,8 +479,8 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> lhs; // nullopt if is a discard
 		Expr rhs;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct MultiAssign{
@@ -484,8 +488,8 @@ namespace pcit::panther::sema{
 
 		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>> targets; // TypeInfo::ID if is a discard
 		Expr value;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct Return{
@@ -493,24 +497,24 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> value; // nullopt means return void
 		std::optional<Token::ID> targetLabel;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct Error{
 		using ID = ErrorID;
 
 		std::optional<Expr> value; // nullopt means return void
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct Unreachable{
 		using ID = UnreachableID;
 		
 		std::optional<Expr> message;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct Break{
@@ -530,8 +534,8 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 	struct BlockScope{
@@ -718,8 +722,8 @@ namespace pcit::panther::sema{
 		Token::ID ident;
 		Expr expr;
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
-		uint32_t line = 0; // 0 if unused (must be both line and collumn)
-		uint32_t collumn = 0; // 0 if unused (must be both line and collumn)
+		uint32_t line;
+		uint32_t collumn;
 	};
 
 

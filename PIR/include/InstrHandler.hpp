@@ -86,6 +86,8 @@ namespace pcit::pir{
 
 			[[nodiscard]] auto scopedSourceLocation(meta::SourceLocation source_location) -> DeferPopSourceLocation;
 
+			[[nodiscard]] auto hasSourceLocation() const -> bool;
+
 
 
 			///////////////////////////////////

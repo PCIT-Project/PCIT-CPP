@@ -121,8 +121,8 @@ namespace pcit::panther::sema{
 				Token::ID ident,
 				Expr expr,
 				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> Var::ID;
 
 			[[nodiscard]] auto getVar(Var::ID id) const -> const Var&;
@@ -275,8 +275,8 @@ namespace pcit::panther::sema{
 				evo::SmallVector<Asm::RetParam>&& retParams,
 				bool isSideEffect,
 				bool isAlignStack,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> Asm::ID;
 
 			[[nodiscard]] auto getAsm(Asm::ID id) const -> const Asm&;
@@ -288,8 +288,8 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createAssign(
 				std::optional<Expr> lhs, // nullopt if is a discard
 				Expr rhs,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> Assign::ID;
 
 			[[nodiscard]] auto getAssign(Assign::ID id) const -> const Assign&;
@@ -301,8 +301,8 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createMultiAssign(
 				evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>>&& targets, // TypeInfo::ID if is a discard
 				Expr value,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> MultiAssign::ID;
 
 			[[nodiscard]] auto getMultiAssign(MultiAssign::ID id) const -> const MultiAssign&;
@@ -314,8 +314,8 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createReturn(
 				std::optional<Expr> value, // nullopt means return void
 				std::optional<Token::ID> targetLabel,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> Return::ID;
 
 			[[nodiscard]] auto getReturn(Return::ID id) const -> const Return&;
@@ -326,8 +326,8 @@ namespace pcit::panther::sema{
 
 			[[nodiscard]] auto createError(
 				std::optional<Expr> value, // nullopt means return void
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
+				uint32_t line,
+				uint32_t collumn
 			) -> Error::ID;
 
 			[[nodiscard]] auto getError(Error::ID id) const -> const Error&;
@@ -336,11 +336,8 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// unreachables
 
-			[[nodiscard]] auto createUnreachable(
-				std::optional<Expr> message,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
-			) -> Unreachable::ID;
+			[[nodiscard]] auto createUnreachable(std::optional<Expr> message, uint32_t line, uint32_t collumn)
+				-> Unreachable::ID;
 
 			[[nodiscard]] auto getUnreachable(Unreachable::ID id) const -> const Unreachable&;
 
@@ -364,12 +361,8 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// deletes
 
-			[[nodiscard]] auto createDelete(
-				Expr expr,
-				TypeInfo::ID exprTypeID,
-				uint32_t line = 0, // 0 if unused (must be both line and collumn)
-				uint32_t collumn = 0 // 0 if unused (must be both line and collumn)
-			) -> Delete::ID;
+			[[nodiscard]] auto createDelete(Expr expr, TypeInfo::ID exprTypeID, uint32_t line, uint32_t collumn)
+				-> Delete::ID;
 
 			[[nodiscard]] auto getDelete(Delete::ID id) const -> const Delete&;
 
@@ -549,7 +542,9 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// optional extract
 
-			[[nodiscard]] auto createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID) -> OptionalExtract::ID;
+			[[nodiscard]] auto createOptionalExtract(
+				Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn
+			) -> OptionalExtract::ID;
 
 			[[nodiscard]] auto getOptionalExtract(OptionalExtract::ID id) const -> const OptionalExtract&;
 
@@ -566,7 +561,9 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// unwraps
 
-			[[nodiscard]] auto createUnwrap(Expr expr, TypeInfo::ID targetTypeID, bool isComptime) -> Unwrap::ID;
+			[[nodiscard]] auto createUnwrap(
+				Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn, bool isComptime
+			) -> Unwrap::ID;
 
 			[[nodiscard]] auto getUnwrap(Unwrap::ID id) const -> const Unwrap&;
 

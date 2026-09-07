@@ -125,6 +125,11 @@ namespace pcit::pir{
 	}
 
 
+	auto InstrHandler::hasSourceLocation() const -> bool {
+		return this->source_locations.empty() == false;
+	}
+
+
 	//////////////////////////////////////////////////////////////////////
 	// misc expr stuff
 
