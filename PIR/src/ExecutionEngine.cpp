@@ -99,6 +99,14 @@ namespace pcit::pir{
 
 
 
+
+	auto ExecutionEngine::getOrLowerGlobalVarValue(GlobalVar::ID id) -> const core::GenericValue& {
+		return this->get_or_create_lowered_global_value(id);
+	}
+
+
+
+
 	auto ExecutionEngine::registerExternFunc(ExternalFunction::ID extern_func_id, void* func_ptr) -> void {
 		const ExternalFunction& extern_func = this->module.getExternalFunction(extern_func_id);
 
@@ -301,6 +309,138 @@ namespace pcit::pir{
 		}
 
 		evo::unreachable();
+	}
+
+
+
+
+	auto ExecutionEngine::get_or_create_lowered_global_value(GlobalVar::ID id) -> core::GenericValue& {
+		const GlobalVar& global_var = this->module.getGlobalVar(id);
+
+		LoweredResult lowered_result = this->check_global_lowered(id);
+
+		if(lowered_result.needs_to_be_lowered){
+			this->lower_global_value(global_var.value, lowered_result.lowered_global.value.writableDataRange());
+
+			std::byte* global_ptr = lowered_result.lowered_global.value.writableDataRange().data();
+			this->add_global_to_ptr_lookup_map(global_ptr, id);
+
+			lowered_result.lowered_global.was_lowered.store(true);
+
+			return lowered_result.lowered_global.value;
+
+		}else{
+			while(lowered_result.lowered_global.was_lowered.load() == false){
+				std::this_thread::yield();
+			}
+
+			return lowered_result.lowered_global.value;
+		}
+	}
+
+
+
+	auto ExecutionEngine::lower_global_value(const GlobalVar::Value& value, std::span<std::byte> dst) -> void {
+		value.visit([&](const auto& decayed_value) -> void {
+			using ValueT = std::decay_t<decltype(decayed_value)>;
+
+			if constexpr(std::is_same<ValueT, GlobalVar::NoValue>()){
+
+			}else if constexpr(std::is_same<ValueT, Expr>()){
+				switch(decayed_value.kind()){
+					case Expr::Kind::GLOBAL_VALUE: {
+						*std::bit_cast<std::byte**>(dst.data()) = this->get_or_create_lowered_global_value(
+							InstrReader::getGlobalValue(decayed_value)
+						).writableDataRange().data();
+					} break;
+
+					case Expr::Kind::FUNCTION_POINTER: {
+						const Function::ID function_id = InstrReader::getFunctionPointer(decayed_value);
+						const Function& function = this->module.getFunction(function_id);
+						
+						this->add_function_to_ptr_lookup_map(&function, function_id);
+
+						*std::bit_cast<const Function**>(dst.data()) = &function;
+					} break;
+
+					case Expr::Kind::NUMBER: {
+						const Number& number = InstrReader(this->module).getNumber(decayed_value);
+						const core::GenericValue number_value = number.asGenericValue();
+						std::memcpy(dst.data(), number_value.dataRange().data(), dst.size());
+					} break;
+
+					case Expr::Kind::BOOLEAN: {
+						*std::bit_cast<bool*>(dst.data()) = InstrReader::getBoolean(decayed_value);
+					} break;
+
+					case Expr::Kind::BOOLEAN32: {
+						*std::bit_cast<uint32_t*>(dst.data()) = uint32_t(InstrReader::getBoolean32(decayed_value));
+					} break;
+
+					case Expr::Kind::NULLPTR: {
+						*std::bit_cast<void**>(dst.data()) = nullptr;
+					} break;
+
+					default: {
+						evo::debugFatalBreak("Invalid global value");
+					} break;
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Zeroinit>()){
+				std::memset(dst.data(), 0, dst.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::Uninit>()){
+				std::memset(dst.data(), 0, dst.size());				
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::String::ID>()){
+				const GlobalVar::String& string = this->module.getGlobalString(decayed_value);
+				std::memcpy(dst.data(), string.value.data(), string.value.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ByteArray::ID>()){
+				const GlobalVar::ByteArray& byte_array = this->module.getGlobalByteArray(decayed_value);
+				std::memcpy(dst.data(), byte_array.bytes.data(), byte_array.bytes.size());
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::ArrayID>()){
+				const GlobalVar::Array& array_value = this->module.getGlobalArray(decayed_value);
+
+				const ArrayType& array_type = this->module.getArrayType(array_value.type);
+				const size_t elem_size = this->module.numBytes(array_type.elemType);
+
+				size_t offset = 0;
+				for(const GlobalVar::Value& elem_value : array_value.values){
+					this->lower_global_value(elem_value, dst.subspan(offset, elem_size));
+					offset += elem_size;
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::StructID>()){
+				const GlobalVar::Struct& struct_value = this->module.getGlobalStruct(decayed_value);
+
+				const StructType& struct_type = this->module.getStructType(struct_value.type);
+
+				size_t offset = 0;
+				for(size_t i = 0; const Type& member_type : struct_type.members){
+					const size_t member_num_bytes = this->module.numBytes(member_type);
+
+					this->lower_global_value(struct_value.values[i], dst.subspan(offset, member_num_bytes));
+					
+					offset += member_num_bytes;
+					i += 1;
+				}
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::UnionID>()){
+				const GlobalVar::Union& union_value = this->module.getGlobalUnion(decayed_value);
+				this->lower_global_value(union_value.value, dst);
+
+			}else if constexpr(std::is_same<ValueT, GlobalVar::CalcPtrID>()){
+				const GlobalVar::CalcPtr& calc_ptr = this->module.getGlobalCalcPtr(decayed_value);
+
+				this->lower_global_value(calc_ptr.value, dst);
+				*std::bit_cast<uint64_t*>(dst.data()) += uint64_t(calc_ptr.byteOffset);
+
+			}else{
+				static_assert(false, "Unknown global value kind");
+			}
+		});
 	}
 
 

@@ -106,11 +106,12 @@ namespace pcit::panther{
 			};
 
 			struct ComptimeExecutionEngineFuncs{
-				pir::ExternalFunction::ID print               = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID println             = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID get_integer_type_id = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID alloc               = pir::ExternalFunction::ID::dummy();
-				pir::ExternalFunction::ID dealloc             = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID print                = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID println              = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID get_integer_type_id  = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID alloc                = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID dealloc              = pir::ExternalFunction::ID::dummy();
+				pir::ExternalFunction::ID make_comptime_buffer = pir::ExternalFunction::ID::dummy();
 			};
 
 			using VTableID = SemaToPIRDataVTableID;
@@ -171,6 +172,26 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto getComptimeExecutionEngineFuncs() -> ComptimeExecutionEngineFuncs& {
 				return this->comptime_execution_engine_funcs;
+			}
+
+			auto addComptimeBuffer(sema::Expr expr, pir::GlobalVar::ID global_var_id) -> void {
+				const auto lock = std::scoped_lock(this->comptime_buffers_lock);
+				this->comptime_buffers.emplace(expr, global_var_id);
+				this->reverse_comptime_buffers.emplace(global_var_id, expr);
+			}
+
+			[[nodiscard]] auto lookupComptimeBuffer(sema::Expr expr) -> std::optional<pir::GlobalVar::ID> {
+				const auto lock = std::scoped_lock(this->comptime_buffers_lock);
+				const auto find = this->comptime_buffers.find(expr);
+				if(find != this->comptime_buffers.end()){ return find->second; }
+				return std::nullopt;
+			}
+
+			[[nodiscard]] auto lookupComptimeBuffer(pir::GlobalVar::ID global_var_id) -> std::optional<sema::Expr> {
+				const auto lock = std::scoped_lock(this->comptime_buffers_lock);
+				const auto find = this->reverse_comptime_buffers.find(global_var_id);
+				if(find != this->reverse_comptime_buffers.end()){ return find->second; }
+				return std::nullopt;
 			}
 
 
@@ -478,6 +499,11 @@ namespace pcit::panther{
 			std::unordered_map<sema::StringValue::ID, pir::GlobalVar::ID> global_strings{};
 			std::unordered_map<pir::GlobalVar::ID, sema::StringValue::ID> reverse_global_strings{};
 			mutable evo::SpinLock global_strings_lock{};
+
+
+			std::unordered_map<sema::Expr, pir::GlobalVar::ID> comptime_buffers{};
+			std::unordered_map<pir::GlobalVar::ID, sema::Expr> reverse_comptime_buffers{};
+			mutable evo::SpinLock comptime_buffers_lock{};
 
 
 			core::MapAlloc<sema::Func::ID, FuncInfo> func_infos{};

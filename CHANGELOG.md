@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.382.0"></a>
+## v0.0.382.0
+
+### Panther
+- Added `@makeComptimeBuffer()`
+- Fixed implicit conversion of arguments to templated intrinsic function calls
+
+
+<!---------------------------------->
 <a name="v0.0.381.0"></a>
 ## v0.0.381.0
 

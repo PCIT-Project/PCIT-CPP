@@ -42,6 +42,17 @@ namespace pcit::panther{
 
 			auto analyze() -> void;
 
+
+
+
+			[[nodiscard]] auto genericValueToSemaExpr(
+				const core::GenericValue& value,
+				TypeInfo::ID target_type_id,
+				evo::ArrayProxy<ContextComptimeContext::PtrArgData> comptime_ptr_arg_datas,
+				Diagnostic::Location location
+			) -> evo::Result<sema::Expr>;
+
+
 		private:
 			enum class Result{
 				SUCCESS,
@@ -774,17 +785,6 @@ namespace pcit::panther{
 			[[nodiscard]] auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
 
 
-			struct ComptimePtrArgData{
-				evo::ArrayProxy<std::byte> value_buffer;
-				TypeInfo::ID type_id;
-			};
-
-			[[nodiscard]] auto generic_value_to_sema_expr(
-				const core::GenericValue& value,
-				TypeInfo::ID target_type_id,
-				evo::ArrayProxy<ComptimePtrArgData> comptime_ptr_arg_datas,
-				Diagnostic::Location location
-			) -> evo::Result<sema::Expr>;
 
 
 			[[nodiscard]] auto get_package() const -> const Source::Package&;

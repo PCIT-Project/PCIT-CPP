@@ -4682,6 +4682,63 @@ namespace pcit::panther{
 				return false;
 			}
 		);
+
+
+		comptime_execution_engine_funcs.make_comptime_buffer = this->pir_module.createExternalFunction(
+			"@makeComptimeBuffer",
+			evo::SmallVector<pir::Parameter>{
+				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("buffer_ptr", pir::Module::createPtrType()),
+				pir::Parameter("typeID", pir::Module::createUnsignedType(32)),
+				pir::Parameter("output", pir::Module::createPtrType())
+			},
+			pir::CallingConvention::C,
+			pir::Linkage::EXTERNAL,
+			pir::Module::createBoolType()
+		);
+		this->execution_engine.registerExternFunc(
+			comptime_execution_engine_funcs.make_comptime_buffer,
+			[](
+				Context* context,
+				evo::ArrayProxy<std::byte>* buffer,
+				BaseType::ArrayRef::ID array_ref_id,
+				evo::ArrayProxy<std::byte>* output
+			) -> bool {
+				ContextComptimeContext::Data& data = context->comptime_context.get_data();
+
+				const BaseType::ArrayRef& array_ref_type = context->getTypeManager().getArrayRef(array_ref_id);
+				const TypeInfo::ID created_global_type_id = context->getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(
+						context->getTypeManager().getOrCreateArray(
+							BaseType::Array(
+								array_ref_type.elementTypeID,
+								evo::SmallVector<uint64_t>{buffer->size()},
+								std::nullopt
+							)
+						)
+					)
+				);
+
+				const evo::Result<sema::Expr> created_expr = data.semantic_analyzer->genericValueToSemaExpr(
+					core::GenericValue::fromData(*buffer),
+					created_global_type_id,
+					data.ptr_arg_datas,
+					data.call_location
+				);
+				if(created_expr.isError()){ return true; }
+
+				auto sema_to_pir = SemaToPIR(*context, context->pir_module, context->sema_to_pir_data); 
+				const pir::GlobalVar::ID global_buffer = sema_to_pir.createGlobalBuffer(
+					created_expr.value(), created_global_type_id
+				);
+
+				const std::byte* buffer_ptr =
+					context->execution_engine.getOrLowerGlobalVarValue(global_buffer).dataRange().data();
+				*output = evo::ArrayProxy<std::byte>(buffer_ptr, buffer->size());
+
+				return false;
+			}
+		);
 	}
 
 
@@ -4703,6 +4760,9 @@ namespace pcit::panther{
 
 		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.dealloc);
 		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.dealloc);
+
+		this->execution_engine.unregisterExternFunc(comptime_execution_engine_funcs.make_comptime_buffer);
+		this->pir_module.deleteExternalFunction(comptime_execution_engine_funcs.make_comptime_buffer);
 	}
 
 
@@ -5896,6 +5956,14 @@ namespace pcit::panther{
 			.params         = evo::SmallVector<Param>{},
 			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
 			.allowedInComptime = false, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::MAKE_COMPTIME_BUFFER) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>{Param(BaseType::Function::Param::Kind::READ, 0ul)},
+			.returns        = evo::SmallVector<Return>{0ul},
+			.allowedInComptime = true, .allowedInRuntime = false,
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 	}

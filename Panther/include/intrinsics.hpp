@@ -153,7 +153,10 @@ namespace pcit::panther{
 			WASM_MEMORY_GROW,
 			WASM_MEMORY_SIZE,
 
-			_LAST_ = WASM_MEMORY_SIZE,
+			// misc
+			MAKE_COMPTIME_BUFFER,
+
+			_LAST_ = MAKE_COMPTIME_BUFFER,
 		};
 		
 

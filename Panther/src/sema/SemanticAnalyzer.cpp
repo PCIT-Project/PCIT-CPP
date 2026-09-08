@@ -27,7 +27,6 @@ namespace pcit::panther{
 	using Instruction = SymbolProc::Instruction;
 
 
-
 	//////////////////////////////////////////////////////////////////////
 	// semantic analyzer
 
@@ -13765,7 +13764,8 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::CTTZ:
 			case TemplateIntrinsicFunc::Kind::ATOMIC_LOAD:
 			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_GROW:
-			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE: {
+			case TemplateIntrinsicFunc::Kind::WASM_MEMORY_SIZE:
+			case TemplateIntrinsicFunc::Kind::MAKE_COMPTIME_BUFFER: {
 				this->emit_error("Discarding return value of function call", instr.func_call.target);
 				return Result::ERROR;
 			} break;
@@ -13936,7 +13936,17 @@ namespace pcit::panther{
 			i += 1;
 		}
 
+
 		const evo::SmallVector<SymbolProc::TermInfoID> expanded_args = this->expand_func_call_args(instr.args);
+
+		const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<IS_COMPTIME, false>(
+			instr.func_call, target_term_info, expanded_args, instr.template_args
+		);
+		if(selected_func.has_value() == false){
+			evo::debugAssert(selected_func.error() == Result::ERROR, "Should never have to wait here");
+			return Result::ERROR;
+		}
+
 
 		auto args = evo::SmallVector<sema::Expr>();
 		for(SymbolProc::TermInfoID arg_term_info_id : expanded_args){
@@ -13944,18 +13954,11 @@ namespace pcit::panther{
 		}
 
 
+
 		///////////////////////////////////
 		// helper funcs
 
-		const auto create_runtime_call = [&]() -> evo::Result<> {
-			const evo::Expected<FuncCallImplData, Result> selected_func = this->func_call_impl<IS_COMPTIME, false>(
-				instr.func_call, target_term_info, expanded_args, instr.template_args
-			);
-			if(selected_func.has_value() == false){
-				evo::debugAssert(selected_func.error() == Result::ERROR, "Should never have to wait here");
-				return evo::resultError;
-			}
-
+		const auto create_runtime_call = [&]() -> void {
 			auto return_types = evo::SmallVector<TypeInfo::ID>();
 			for(TypeInfo::VoidableID return_voidable_type : selected_func.value().selected_func_type.returnTypes){
 				return_types.emplace_back(return_voidable_type.asTypeID());
@@ -13967,6 +13970,7 @@ namespace pcit::panther{
 				);
 
 			const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
+
 
 			const auto expr = sema::Expr(
 				this->context.sema_buffer.createFuncCall(
@@ -13995,10 +13999,7 @@ namespace pcit::panther{
 					expr
 				);
 			}
-
-			return evo::Result<>();
 		};
-
 
 
 
@@ -14411,7 +14412,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					const core::GenericValue arg_generic_value = sema::exprToGenericValue(args[0], this->context);
-					const evo::Result<sema::Expr> converted_expr = this->generic_value_to_sema_expr(
+					const evo::Result<sema::Expr> converted_expr = this->genericValueToSemaExpr(
 						arg_generic_value, to_type_id, nullptr, this->get_location(instr.func_call)
 					);
 					if(converted_expr.isError()){ return Result::ERROR; }
@@ -14425,7 +14426,7 @@ namespace pcit::panther{
 					);
 
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14467,7 +14468,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14509,7 +14510,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14551,7 +14552,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14594,7 +14595,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14636,7 +14637,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14667,7 +14668,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14698,7 +14699,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14730,7 +14731,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14746,7 +14747,7 @@ namespace pcit::panther{
 				}
 
 
-				if(create_runtime_call().isError()){ return Result::ERROR; }
+				create_runtime_call();
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
@@ -14768,7 +14769,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14791,7 +14792,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14823,7 +14824,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14838,7 +14839,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(create_runtime_call().isError()){ return Result::ERROR; }
+				create_runtime_call();
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
@@ -14860,7 +14861,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14883,7 +14884,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14915,7 +14916,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14931,7 +14932,7 @@ namespace pcit::panther{
 				}
 
 
-				if(create_runtime_call().isError()){ return Result::ERROR; }
+				create_runtime_call();
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
@@ -14953,7 +14954,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -14976,7 +14977,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15008,7 +15009,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15031,7 +15032,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15068,7 +15069,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15090,7 +15091,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15123,7 +15124,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15157,7 +15158,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15205,7 +15206,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15253,7 +15254,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15301,7 +15302,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15349,7 +15350,7 @@ namespace pcit::panther{
 						));
 					}
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15372,7 +15373,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15395,7 +15396,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15418,7 +15419,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15474,7 +15475,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15520,7 +15521,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15576,7 +15577,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output, std::move(result.value()));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15598,7 +15599,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15620,7 +15621,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15641,7 +15642,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15663,7 +15664,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15685,7 +15686,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15771,7 +15772,7 @@ namespace pcit::panther{
 					}
 				
 					
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15879,7 +15880,7 @@ namespace pcit::panther{
 					}
 
 
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15935,7 +15936,7 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 
 			} break;
@@ -15957,7 +15958,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
 				}
 			} break;
 
@@ -15978,7 +15979,47 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					if(create_runtime_call().isError()){ return Result::ERROR; }
+					create_runtime_call();
+				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::MAKE_COMPTIME_BUFFER: {
+				const TypeInfo::ID buffer_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo& buffer_type = this->context.getTypeManager().getTypeInfo(buffer_type_id);
+
+				if(
+					buffer_type.qualifiers().empty() == false
+					|| buffer_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF
+				){
+					this->emit_error(
+						"Invalid buffer type for `@makeComptimeBuffer`",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+					);
+					return Result::ERROR;
+				}
+
+
+				const BaseType::ArrayRef& array_ref_type = this->context.getTypeManager().getArrayRef(
+					buffer_type.baseTypeID().arrayRefID()
+				);
+
+				if(array_ref_type.dimensions.size() != 1 || array_ref_type.isMut){
+					this->emit_error(
+						"Invalid buffer type for `@makeComptimeBuffer`",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+					);
+					return Result::ERROR;
+				}
+
+
+				if constexpr(IS_COMPTIME){
+					this->emit_error(
+						"Intrinsic function `@makeComptimeBuffer` cannot be a comptime value", instr.func_call
+					);
+					return Result::ERROR;
+
+				}else{
+					create_runtime_call();
 				}
 			} break;
 		}
@@ -18121,7 +18162,7 @@ namespace pcit::panther{
 				);
 
 				if(array_type.terminator.has_value()){
-					const evo::Result<sema::Expr> terminator_value = this->generic_value_to_sema_expr(
+					const evo::Result<sema::Expr> terminator_value = this->genericValueToSemaExpr(
 						*array_type.terminator, array_type.elementTypeID, nullptr, Diagnostic::Location::NONE
 					);
 					evo::debugAssert(terminator_value.isError(), "Converting terminator should never error");
@@ -18285,7 +18326,7 @@ namespace pcit::panther{
 		}
 
 		if(target_type.terminator.has_value()){
-			const evo::Result<sema::Expr> terminator_value = this->generic_value_to_sema_expr(
+			const evo::Result<sema::Expr> terminator_value = this->genericValueToSemaExpr(
 				*target_type.terminator, target_type.elementTypeID, nullptr, Diagnostic::Location::NONE
 			);
 			if(terminator_value.isError()){ return Result::ERROR; }
@@ -25190,7 +25231,7 @@ namespace pcit::panther{
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						member_var->typeID,
-						this->generic_value_to_sema_expr(
+						this->genericValueToSemaExpr(
 							rhs_generic_value, member_var->typeID, nullptr, Diagnostic::Location::NONE
 						).value()
 					);
@@ -27019,7 +27060,7 @@ namespace pcit::panther{
 		auto actual_args = evo::SmallVector<core::GenericValue>();
 		actual_args.reserve(num_actual_args);
 
-		auto comptime_ptr_arg_datas = evo::SmallVector<ComptimePtrArgData>();
+		auto comptime_ptr_arg_datas = evo::SmallVector<ContextComptimeContext::PtrArgData>();
 		comptime_ptr_arg_datas.reserve(num_actual_args);
 
 		for(size_t i = 0; core::GenericValue& arg_value : arg_values){
@@ -27074,7 +27115,8 @@ namespace pcit::panther{
 		// 	pir::printModule(this->context.pir_module, printer);
 		// }
 
-		this->context.comptime_context.add_thread_data_if_needed();
+		this->context.comptime_context.setup_data(*this, comptime_ptr_arg_datas, location);
+
 
 		evo::debugAssert(actual_args.size() == num_actual_args, "Number of arguments is incorrect");
 		
@@ -27188,7 +27230,7 @@ namespace pcit::panther{
 			output = std::move(run_result.value());
 		}
 
-		const evo::Result<sema::Expr> return_sema_expr = this->generic_value_to_sema_expr(
+		const evo::Result<sema::Expr> return_sema_expr = this->genericValueToSemaExpr(
 			output, target_func_type.returnTypes[0].asTypeID(), comptime_ptr_arg_datas, location
 		);
 
@@ -31834,10 +31876,10 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::generic_value_to_sema_expr(
+	auto SemanticAnalyzer::genericValueToSemaExpr(
 		const core::GenericValue& value,
 		TypeInfo::ID target_type_id,
-		evo::ArrayProxy<ComptimePtrArgData> comptime_ptr_arg_datas,
+		evo::ArrayProxy<ContextComptimeContext::PtrArgData> comptime_ptr_arg_datas,
 		Diagnostic::Location location
 	) -> evo::Result<sema::Expr> {
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -31870,14 +31912,14 @@ namespace pcit::panther{
 			}
 
 
-			for(const ComptimePtrArgData& comptime_ptr_arg_data : comptime_ptr_arg_datas){
+			for(const ContextComptimeContext::PtrArgData& comptime_ptr_arg_data : comptime_ptr_arg_datas){
 				const size_t comptime_arg_data_range_min = size_t(&comptime_ptr_arg_data.value_buffer.front());
 				const size_t comptime_arg_data_range_max = size_t(&comptime_ptr_arg_data.value_buffer.back());
 
 				const size_t ptr_value = size_t(global_ptr);
 
 				if(ptr_value >= comptime_arg_data_range_min && ptr_value <= comptime_arg_data_range_max){
-					const evo::Result<sema::Expr> pointed_to_expr_value = this->generic_value_to_sema_expr(
+					const evo::Result<sema::Expr> pointed_to_expr_value = this->genericValueToSemaExpr(
 						core::GenericValue::fromData(comptime_ptr_arg_data.value_buffer),
 						comptime_ptr_arg_data.type_id,
 						comptime_ptr_arg_datas,
@@ -31932,7 +31974,6 @@ namespace pcit::panther{
 				}
 			}
 
-
 			{
 				const std::optional<sema::StringValue::ID> sema_global_string_id =
 					this->context.sema_to_pir_data.lookupGlobalString(pir_global_var_lookup->id);
@@ -31940,6 +31981,27 @@ namespace pcit::panther{
 				if(sema_global_string_id.has_value()){
 					const sema::Expr base_ptr = sema::Expr(
 						this->context.sema_buffer.createAddrOf(sema::Expr(*sema_global_string_id))
+					);
+
+					if(pir_global_var_lookup->offset == 0){
+						return base_ptr;
+					}else{
+						return sema::Expr(
+							this->context.sema_buffer.createGlobalPtrOffset(
+								base_ptr, uint32_t(pir_global_var_lookup->offset)
+							)
+						);
+					}
+				}
+			}
+
+			{
+				const std::optional<sema::Expr> sema_global_string_id =
+					this->context.sema_to_pir_data.lookupComptimeBuffer(pir_global_var_lookup->id);
+
+				if(sema_global_string_id.has_value()){
+					const sema::Expr base_ptr = sema::Expr(
+						this->context.sema_buffer.createAddrOf(*sema_global_string_id)
 					);
 
 					if(pir_global_var_lookup->offset == 0){
@@ -31968,7 +32030,7 @@ namespace pcit::panther{
 			if(held_flag){
 				const evo::ArrayProxy<std::byte> data_range = value.dataRange();
 
-				const evo::Result<sema::Expr> opt_data_value = this->generic_value_to_sema_expr(
+				const evo::Result<sema::Expr> opt_data_value = this->genericValueToSemaExpr(
 					core::GenericValue::fromData(data_range.first(opt_data_type_size)),
 					opt_data_type_id,
 					comptime_ptr_arg_datas,
@@ -32124,7 +32186,7 @@ namespace pcit::panther{
 				for(size_t i = 0; i < num_elems; i+=1){
 					const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i * elem_size], elem_size);
 
-					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+					const evo::Result<sema::Expr> member_val = this->genericValueToSemaExpr(
 						core::GenericValue::fromData(elem_range),
 						array_type.elementTypeID,
 						comptime_ptr_arg_datas,
@@ -32160,7 +32222,7 @@ namespace pcit::panther{
 
 				const auto ptr_expr_range = evo::ArrayProxy<std::byte>(data_cursor, sizeof(void*));
 				data_cursor += sizeof(void*);
-				const evo::Result<sema::Expr> ptr_expr = this->generic_value_to_sema_expr(
+				const evo::Result<sema::Expr> ptr_expr = this->genericValueToSemaExpr(
 					core::GenericValue::fromData(ptr_expr_range), elem_ptr_type_id, comptime_ptr_arg_datas, location
 				);
 				if(ptr_expr.isError()){ return evo::resultError; }
@@ -32191,7 +32253,7 @@ namespace pcit::panther{
 					target_type.baseTypeID().aliasID()
 				);
 
-				return this->generic_value_to_sema_expr(
+				return this->genericValueToSemaExpr(
 					value, alias_type.aliasedType, comptime_ptr_arg_datas, location
 				);
 			} break;
@@ -32201,7 +32263,7 @@ namespace pcit::panther{
 					target_type.baseTypeID().distinctAliasID()
 				);
 
-				return this->generic_value_to_sema_expr(
+				return this->genericValueToSemaExpr(
 					value, distinct_alias_type.underlyingType, comptime_ptr_arg_datas, location
 				);
 			} break;
@@ -32224,7 +32286,7 @@ namespace pcit::panther{
 
 					const auto member_range = evo::ArrayProxy<std::byte>(&value.dataRange()[offset], member_size);
 
-					const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+					const evo::Result<sema::Expr> member_val = this->genericValueToSemaExpr(
 						core::GenericValue::fromData(member_range), member_var->typeID, comptime_ptr_arg_datas, location
 					);
 					if(member_val.isError()){ return evo::resultError; }
@@ -32256,7 +32318,7 @@ namespace pcit::panther{
 
 				if(union_type.isUntagged){
 					if(union_type.fields.size() == 1){ // untagged union with 1 field
-						const evo::Result<sema::Expr> expr = this->generic_value_to_sema_expr(
+						const evo::Result<sema::Expr> expr = this->genericValueToSemaExpr(
 							value, union_type.fields[0].typeID.asTypeID(), comptime_ptr_arg_datas, location
 						);
 
@@ -32282,7 +32344,7 @@ namespace pcit::panther{
 					for(size_t i = 0; i < num_bytes; i+=1){
 						const auto elem_range = evo::ArrayProxy<std::byte>(&value.dataRange()[i], 1);
 
-						const evo::Result<sema::Expr> member_val = this->generic_value_to_sema_expr(
+						const evo::Result<sema::Expr> member_val = this->genericValueToSemaExpr(
 							core::GenericValue::fromData(elem_range),
 							TypeManager::getTypeByte(),
 							comptime_ptr_arg_datas,
@@ -32356,7 +32418,7 @@ namespace pcit::panther{
 				const auto expr_range = evo::ArrayProxy<std::byte>(
 					value.dataRange().data(), this->context.getTypeManager().numBytes(field_type_id.asTypeID())
 				);
-				const evo::Result<sema::Expr> expr = this->generic_value_to_sema_expr(
+				const evo::Result<sema::Expr> expr = this->genericValueToSemaExpr(
 					core::GenericValue::fromData(expr_range), field_type_id.asTypeID(), comptime_ptr_arg_datas, location
 				);
 				if(expr.isError()){ return evo::resultError; }
@@ -32372,7 +32434,7 @@ namespace pcit::panther{
 				const BaseType::Enum& enum_type =
 					this->context.getTypeManager().getEnum(target_type.baseTypeID().enumID());
 
-				return this->generic_value_to_sema_expr(
+				return this->genericValueToSemaExpr(
 					value,
 					this->context.type_manager.getOrCreateTypeInfo(
 						TypeInfo(BaseType::ID(enum_type.underlyingTypeID))
@@ -32452,7 +32514,7 @@ namespace pcit::panther{
 
 				evo::debugAssert(target_ptr != nullptr, "Target pointer is Null");
 
-				const evo::Result<sema::Expr> target_value = this->generic_value_to_sema_expr(
+				const evo::Result<sema::Expr> target_value = this->genericValueToSemaExpr(
 					core::GenericValue::createPtr(target_ptr), target_ptr_type, comptime_ptr_arg_datas, location
 				);
 
@@ -32473,7 +32535,7 @@ namespace pcit::panther{
 				const BaseType::InterfaceMap& interface_map_info =
 					this->context.getTypeManager().getInterfaceMap(target_type.baseTypeID().interfaceMapID());
 
-				return this->generic_value_to_sema_expr(
+				return this->genericValueToSemaExpr(
 					value, interface_map_info.underlyingTypeID, comptime_ptr_arg_datas, location
 				);
 			} break;
@@ -32483,7 +32545,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getInterfacePtrMap(target_type.baseTypeID().interfacePtrMapID());
 
 				if(interface_ptr_map_type.isPolymorphic){
-					return this->generic_value_to_sema_expr(
+					return this->genericValueToSemaExpr(
 						value, interface_ptr_map_type.targetTypeID, comptime_ptr_arg_datas, location
 					);
 
@@ -32491,7 +32553,7 @@ namespace pcit::panther{
 					const TypeInfo& interface_ptr_map_target_type =
 						this->context.getTypeManager().getTypeInfo(interface_ptr_map_type.targetTypeID);
 
-					return this->generic_value_to_sema_expr(
+					return this->genericValueToSemaExpr(
 						value,
 						this->context.getTypeManager().getOrCreateTypeInfo(
 							interface_ptr_map_target_type.copyWithPushedQualifier(
@@ -33229,7 +33291,7 @@ namespace pcit::panther{
 					];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
-						const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+						const evo::Result<sema::Expr> deducer_value = this->genericValueToSemaExpr(
 							*got_array_type.terminator,
 							got_array_type.elementTypeID,
 							nullptr,
@@ -33364,7 +33426,7 @@ namespace pcit::panther{
 					];
 
 					if(deducer_token.kind() == Token::Kind::DEDUCER){
-						const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+						const evo::Result<sema::Expr> deducer_value = this->genericValueToSemaExpr(
 							*got_array_ref_type.terminator,
 							got_array_ref_type.elementTypeID,
 							nullptr,
@@ -33481,7 +33543,7 @@ namespace pcit::panther{
 							if(deducer_token.kind() == Token::Kind::DEDUCER){
 								const TypeInfo::ID arg_type_id = *got_struct_template.params[i].typeID;
 
-								const evo::Result<sema::Expr> deducer_value = this->generic_value_to_sema_expr(
+								const evo::Result<sema::Expr> deducer_value = this->genericValueToSemaExpr(
 									got_arg.as<core::GenericValue>(),
 									arg_type_id,
 									nullptr,

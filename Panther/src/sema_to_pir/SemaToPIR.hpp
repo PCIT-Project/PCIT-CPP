@@ -68,8 +68,9 @@ namespace pcit::panther{
 			using Data = SemaToPIRData;
 
 		public:
-			SemaToPIR(class Context& _context, pir::Module& _module, Data& _data)
-				: context(_context), module(_module), handler(_module), data(_data) {}
+			SemaToPIR(class Context& _context, pir::Module& _module, Data& _data) :
+				context(_context), module(_module), handler(_module), data(_data) {}
+
 			~SemaToPIR() = default;
 
 
@@ -118,6 +119,10 @@ namespace pcit::panther{
 			[[nodiscard]] auto mangleName(sema::Func::ID func_id) -> std::string {
 				return this->mangle_name(func_id);
 			}
+
+
+			[[nodiscard]] auto createGlobalBuffer(sema::Expr expr, TypeInfo::ID type_id) -> pir::GlobalVar::ID;
+
 
 
 		private:
@@ -714,6 +719,9 @@ namespace pcit::panther{
 				-> pir::AtomicOrdering;
 
 
+			[[nodiscard]] auto get_context_ptr() -> pir::Expr;
+
+
 			[[nodiscard]] auto create_scoped_source_location(uint32_t line, uint32_t collumn)
 				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
 
@@ -751,6 +759,7 @@ namespace pcit::panther{
 			evo::SmallVector<AutoDeleteTarget> end_of_stmt_deletes{};
 
 			Data& data;
+			class SemanticAnalyzerComptimeFuncCallContext* semantic_analyzer_comptime_func_call_context;
 	};
 
 

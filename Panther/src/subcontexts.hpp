@@ -11,17 +11,38 @@
 
 #include <Evo.hpp>
 
+#include "../include/TypeManager.hpp"
 
 namespace pcit::panther{
 
 	class ContextComptimeContext{
 		public:
+			struct PtrArgData{
+				evo::ArrayProxy<std::byte> value_buffer;
+				TypeInfo::ID type_id;
+			};
+
+
 			struct Data{
-				Data() = default;
+				Data(
+					class SemanticAnalyzer& _semantic_analyzer,
+					evo::ArrayProxy<PtrArgData> _ptr_arg_datas,
+					Diagnostic::Location _call_location
+				) :
+					semantic_analyzer(&_semantic_analyzer), ptr_arg_datas(_ptr_arg_datas), call_location(_call_location)
+				{}
+
+
 				Data(const Data&) = delete;
+
+
+				class SemanticAnalyzer* semantic_analyzer; // pointer so it's reassignable
+				evo::ArrayProxy<PtrArgData> ptr_arg_datas;
+				Diagnostic::Location call_location;
 
 				std::unordered_map<void*, bool> allocations_currently_allocated{};
 				size_t num_allocations_allocated = 0;
+
 
 				auto add_allocation(void* ptr) -> void {
 					this->num_allocations_allocated += 1;
@@ -45,13 +66,36 @@ namespace pcit::panther{
 			ContextComptimeContext() = default;
 			~ContextComptimeContext() = default;
 
-			auto add_thread_data_if_needed() -> void {
+			auto setup_data(
+				class SemanticAnalyzer& semantic_analyzer,
+				evo::ArrayProxy<PtrArgData> ptr_arg_datas,
+				Diagnostic::Location call_location
+			) -> void {
 				const std::thread::id current_thread_id = std::this_thread::get_id();
 				
-				const auto lock = std::scoped_lock(this->spin_lock);
+				this->spin_lock.lock();
 
-				if(this->data_map.contains(current_thread_id)){ return; }
-				this->data_map.emplace(current_thread_id, &this->data_alloc.emplace_back());
+				const auto find = this->data_map.find(current_thread_id);
+
+				if(find != this->data_map.end()){
+					Data& data = *find->second;
+					this->spin_lock.unlock();
+
+					data.semantic_analyzer = &semantic_analyzer;
+					data.ptr_arg_datas     = ptr_arg_datas;
+					data.call_location     = call_location;
+
+					evo::debugAssert(data.num_allocations_allocated == 0, "Not reset");
+					evo::debugAssert(data.allocations_currently_allocated.empty(), "Not reset");
+
+				}else{
+					this->data_map.emplace(
+						current_thread_id,
+						&this->data_alloc.emplace_back(semantic_analyzer, ptr_arg_datas, call_location)
+					);
+
+					this->spin_lock.unlock();
+				}
 			}
 
 			auto get_data() -> Data& {

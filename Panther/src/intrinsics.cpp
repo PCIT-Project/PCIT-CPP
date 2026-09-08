@@ -188,6 +188,8 @@ namespace pcit::panther{
 
 			{"wasmMemoryGrow",                  Kind::WASM_MEMORY_GROW},
 			{"wasmMemorySize",                  Kind::WASM_MEMORY_SIZE},
+
+			{"makeComptimeBuffer",              Kind::MAKE_COMPTIME_BUFFER},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

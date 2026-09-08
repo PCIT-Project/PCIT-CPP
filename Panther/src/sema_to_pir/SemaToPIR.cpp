@@ -1510,6 +1510,33 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIR::createGlobalBuffer(sema::Expr expr, TypeInfo::ID type_id) -> pir::GlobalVar::ID {
+		const PIRType pir_type = [&]() -> PIRType {
+			if(this->data.getConfig().includeDebugInfo){
+				return this->get_type<true, true>(type_id);
+			}else{
+				return this->get_type<false, false>(type_id);
+			}
+		}();
+
+
+		const pir::GlobalVar::ID created_global_var_id = this->module.createGlobalVar(
+			std::format("PTHR.aggregate{}", this->data.get_global_aggregate_id()),
+			pir_type.type,
+			pir::Linkage::INTERNAL,
+			this->get_global_var_value(expr),
+			true
+		);
+
+		this->data.addComptimeBuffer(expr, created_global_var_id);
+
+		return created_global_var_id;
+	}
+
+
+
+
+
 
 	template<bool MAY_LOWER_DEPENDENCY>
 	auto SemaToPIR::lower_struct(BaseType::Struct::ID struct_id) -> pir::Type {
@@ -4684,9 +4711,15 @@ namespace pcit::panther{
 	template<SemaToPIR::GetExprMode MODE>
 	auto SemaToPIR::get_expr_impl_addr_of(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 	-> std::optional<pir::Expr> {
-		const sema::Expr& target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
+		const sema::Expr target = this->context.getSemaBuffer().getAddrOf(expr.addrOfID());
 
 		const pir::Expr address = [&]() -> pir::Expr {
+			const std::optional<pir::GlobalVar::ID> lookup_comptime_buffer = this->data.lookupComptimeBuffer(target);
+			if(lookup_comptime_buffer.has_value()){
+				return this->handler.createGlobalValue(*lookup_comptime_buffer);
+			}
+
+
 			if(target.kind() == sema::Expr::Kind::STRING_VALUE){
 				return this->get_expr_register(target);
 			}else{
@@ -10852,18 +10885,13 @@ namespace pcit::panther{
 			}
 		};
 
-		const auto get_context_ptr = [&]() -> pir::Expr {
-			return this->handler.createNumber(
-				this->module.createUnsignedType(sizeof(size_t) * 8),
-				core::GenericInt::create<size_t>(size_t(&this->context))
-			);
-		};
+		
 
 		const pir::Expr value = [&](){
 			switch(intrinsic_func_kind){
 				case IntrinsicFunc::Kind::CT_ALLOC: {
 					auto args = evo::SmallVector<pir::Expr>();
-					args.emplace_back(get_context_ptr());
+					args.emplace_back(this->get_context_ptr());
 					get_args(args);
 
 					const size_t target_ptr_num_bytes = this->context.getTypeManager().getTarget().numBytesOfPtr();
@@ -10889,7 +10917,7 @@ namespace pcit::panther{
 
 				case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
 					auto args = evo::SmallVector<pir::Expr>();
-					args.emplace_back(get_context_ptr());
+					args.emplace_back(this->get_context_ptr());
 					get_args(args);
 
 					return this->handler.createCall(
@@ -10899,7 +10927,7 @@ namespace pcit::panther{
 
 				case IntrinsicFunc::Kind::CREATE_PANTHER_BUILD: {
 					auto args = evo::SmallVector<pir::Expr>();
-					args.emplace_back(get_context_ptr());
+					args.emplace_back(this->get_context_ptr());
 					get_args(args);
 
 					return this->handler.createCall(
@@ -12511,6 +12539,91 @@ namespace pcit::panther{
 					return std::nullopt;
 				}
 			} break;
+
+			case TemplateIntrinsicFunc::Kind::MAKE_COMPTIME_BUFFER: {
+				auto args = evo::SmallVector<pir::Expr>();
+				args.emplace_back(this->get_context_ptr());
+				args.emplace_back(this->get_expr_pointer(func_call.args[0]));
+
+				const TypeInfo::ID array_ref_type_id = 
+					instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+
+				const BaseType::ArrayRef::ID array_ref_id =
+					this->context.getTypeManager().getTypeInfo(array_ref_type_id).baseTypeID().arrayRefID();
+
+				args.emplace_back(
+					this->handler.createNumber(
+						this->module.createUnsignedType(32), core::GenericInt::create<uint32_t>(array_ref_id.get())
+					)
+				);
+
+
+				const pir::Expr output_expr = [&]() -> pir::Expr {
+					if constexpr(MODE == GetExprMode::REGISTER){
+						return this->handler.createAlloca(
+							this->get_type<false, false>(BaseType::ID(array_ref_id)).type,
+							this->name(".MAKE_COMPTIME_BUFFER.ALLOCA")
+						);
+
+					}else if constexpr(MODE == GetExprMode::POINTER){
+						return this->handler.createAlloca(
+							this->get_type<false, false>(BaseType::ID(array_ref_id)).type,
+							this->name("MAKE_COMPTIME_BUFFER")
+						);
+
+					}else if constexpr(MODE == GetExprMode::STORE){
+						return store_locations[0];
+
+					}else{
+						return this->handler.createAlloca(
+							this->get_type<false, false>(BaseType::ID(array_ref_id)).type,
+							this->name(".MAKE_COMPTIME_BUFFER.ALLOCA")
+						);
+					}
+				}();
+
+				args.emplace_back(output_expr);
+
+
+				const pir::Expr error_occured = this->handler.createCall(
+					this->data.getComptimeExecutionEngineFuncs().make_comptime_buffer, std::move(args)
+				);
+
+
+				const pir::BasicBlock::ID error_block = this->handler.createBasicBlock(
+					this->name("makeComptimeBuffer.ERROR")
+				);
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+					this->name("makeComptimeBuffer.END")
+				);
+
+
+				this->handler.createBranch(error_occured, error_block, end_block);
+
+				this->handler.setTargetBasicBlock(error_block);
+				this->handler.createAbort();
+
+				this->handler.setTargetBasicBlock(end_block);
+
+
+				if constexpr(MODE == GetExprMode::REGISTER){
+					return this->handler.createLoad(
+						output_expr,
+						this->get_type<false, false>(BaseType::ID(array_ref_id)).type,
+						this->name("MAKE_COMPTIME_BUFFER") 
+					);
+
+				}else if constexpr(MODE == GetExprMode::POINTER){
+					return output_expr;
+
+				}else if constexpr(MODE == GetExprMode::STORE){
+					return std::nullopt;
+
+				}else{
+					return std::nullopt;
+				}
+
+			} break;
 		}
 
 		evo::unreachable();
@@ -12539,13 +12652,6 @@ namespace pcit::panther{
 
 				i += 1;
 			}
-		};
-
-		const auto get_context_ptr = [&]() -> pir::Expr {
-			return this->handler.createNumber(
-				this->module.createUnsignedType(sizeof(size_t) * 8),
-				core::GenericInt::create<size_t>(size_t(&this->context))
-			);
 		};
 
 
@@ -12581,7 +12687,7 @@ namespace pcit::panther{
 				const pir::Expr error_occured = this->handler.createCall(
 					this->data.getComptimeExecutionEngineFuncs().dealloc,
 					evo::SmallVector<pir::Expr>{
-						get_context_ptr(),
+						this->get_context_ptr(),
 						this->get_expr_register(func_call.args[0]),
 					}
 				);
@@ -15563,6 +15669,15 @@ namespace pcit::panther{
 
 		return std::bit_cast<pir::AtomicOrdering>(atomic_ordering_number + 1);
 	}
+
+
+	auto SemaToPIR::get_context_ptr() -> pir::Expr {
+		return this->handler.createNumber( // TODO(FUTURE): make RawPtrValue?
+			this->module.createUnsignedType(sizeof(size_t) * 8),
+			core::GenericInt::create<size_t>(size_t(&this->context))
+		);
+	}
+
 
 
 	auto SemaToPIR::create_scoped_source_location(uint32_t line, uint32_t collumn)

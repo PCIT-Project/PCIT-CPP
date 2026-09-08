@@ -84,14 +84,13 @@ namespace pcit::pir{
 			}
 
 
-			[[nodiscard]] auto getGlobalVarValue(GlobalVar::ID id) const -> core::GenericValue {
+			[[nodiscard]] auto getGlobalVarValue(GlobalVar::ID id) const -> const core::GenericValue& {
 				const auto lock = std::scoped_lock(this->lowered_globals_lock);
-
-				const LoweredGlobal& lowered_global = this->lowered_globals_map.at(id);
-				evo::debugAssert(lowered_global.was_lowered, "Global wasn't lowered yet");
-
-				return lowered_global.value;
+				return this->lowered_globals_map.at(id).value;
 			}
+
+			[[nodiscard]] auto getOrLowerGlobalVarValue(GlobalVar::ID id) -> const core::GenericValue&;
+			
 
 			[[nodiscard]] auto getPtrMap() const -> const ExecutionEnginePtrMap& {
 				return this->get_existing_current_executor().ptr_map;
@@ -163,6 +162,10 @@ namespace pcit::pir{
 
 
 			[[nodiscard]] auto convert_type_from_module_to_jit_engine_module(Type module_type) -> Type;
+
+
+			[[nodiscard]] auto get_or_create_lowered_global_value(GlobalVar::ID id) -> core::GenericValue&;
+			auto lower_global_value(const GlobalVar::Value& value, std::span<std::byte> dst) -> void;
 
 
 		private:
