@@ -207,7 +207,7 @@ namespace pcit::panther::sema{
 			return this->value.bool_value;
 		}
 		[[nodiscard]] auto stringValueID() const -> StringValueID {
-			evo::debugAssert(this->kind() == Kind::STRING_VALUE, "not an StringValue");
+			evo::debugAssert(this->kind() == Kind::STRING_VALUE, "not a StringValue");
 			return this->value.string_value;
 		}
 		[[nodiscard]] auto aggregateValueID() const -> AggregateValueID {

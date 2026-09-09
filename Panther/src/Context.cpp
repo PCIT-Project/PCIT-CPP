@@ -115,6 +115,12 @@ namespace pcit::panther{
 
 
 	auto Context::tokenize() -> evo::Result<> {
+		if(this->files_to_load.empty()){
+			this->emitError("No target files given", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
+
 		this->started_any_target = true;
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
@@ -153,6 +159,11 @@ namespace pcit::panther{
 
 
 	auto Context::parse() -> evo::Result<> {
+		if(this->files_to_load.empty()){
+			this->emitError("No target files given", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
 		this->started_any_target = true;
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
@@ -190,6 +201,11 @@ namespace pcit::panther{
 
 
 	auto Context::buildSymbolProcs() -> evo::Result<> {
+		if(this->files_to_load.empty()){
+			this->emitError("No target files given", Diagnostic::Location::NONE);
+			return evo::resultError;
+		}
+
 		this->started_any_target = true;
 
 		const auto worker = [&](Task& task) -> evo::Result<> {
@@ -3246,6 +3262,13 @@ namespace pcit::panther{
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
 					build_module.createString("checkedUnions"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
+					build_module.createString("comptimeRunIfPossible"),
 					TypeManager::getTypeBool(),
 					std::nullopt,
 					false

@@ -140,30 +140,63 @@ namespace pcit::panther::sema{
 				const sema::InitArrayRef& init_array_ref_expr =
 					context.getSemaBuffer().getInitArrayRef(expr.initArrayRefID());
 
+				const size_t array_size = size_t(init_array_ref_expr.dimensions[0].as<uint64_t>());
+
 
 				const size_t target_type_size = context.getTypeManager().numBytes(
 					BaseType::ID(init_array_ref_expr.targetTypeID)
 				);
 				core::GenericValue output = core::GenericValue::createZeroinit(target_type_size);
 
-				const StringValue& string_value = context.getSemaBuffer().getStringValue(
-					init_array_ref_expr.expr.stringValueID()
-				);
+
+				const void* ptr = [&]() -> const void* {
+					switch(init_array_ref_expr.expr.kind()){
+						case sema::Expr::Kind::STRING_VALUE: {
+							return context.getSemaBuffer().getStringValue(
+								init_array_ref_expr.expr.stringValueID()
+							).value.data();
+						} break;
+
+						case sema::Expr::Kind::ADDR_OF: {
+							const sema::Expr addr_of =
+								context.getSemaBuffer().getAddrOf(init_array_ref_expr.expr.addrOfID());
+
+							std::optional<pir::GlobalVar::ID> global_buffer =
+								context.sema_to_pir_data.lookupComptimeBuffer(addr_of);
+
+							if(global_buffer.has_value() == false){
+								const TypeInfo::ID aggregate_type_id = context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(
+										context.getSemaBuffer().getAggregateValue(addr_of.aggregateValueID()).typeID
+									)
+								);
+
+								auto sema_to_pir = SemaToPIR(context, context.pir_module, context.sema_to_pir_data);
+								global_buffer = sema_to_pir.createGlobalBuffer(addr_of, aggregate_type_id);
+							}
+
+							return context.execution_engine.getOrLowerGlobalVarValue(*global_buffer).dataRange().data();
+						} break;
+
+						default: evo::debugFatalBreak("Invalid init array ref target");
+					}
+				}();
+
 
 				const size_t target_ptr_width = context.getTypeManager().numBitsOfPtr();
 				if(target_ptr_width == 64){
-					*std::bit_cast<const char**>(&output.writableDataRange()[0]) = string_value.value.data();
-					*std::bit_cast<uint64_t*>(&output.writableDataRange()[8]) = string_value.value.size();
+					*std::bit_cast<const char**>(&output.writableDataRange()[0]) = static_cast<const char*>(ptr);
+					*std::bit_cast<uint64_t*>(&output.writableDataRange()[8]) = array_size;
 
 				}else{
 					evo::debugAssert(target_ptr_width == 32);
 
 					const uint32_t data_ptr_key = context.execution_engine.getPtrMap().getOrCreateKey(
-						std::bit_cast<void*>(string_value.value.data())
+						std::bit_cast<void*>(ptr)
 					);
 
 					*std::bit_cast<uint32_t*>(&output.writableDataRange()[0]) = data_ptr_key;
-					*std::bit_cast<uint32_t*>(&output.writableDataRange()[4]) = uint32_t(string_value.value.size());
+					*std::bit_cast<uint32_t*>(&output.writableDataRange()[4]) = uint32_t(array_size);
 				}
 
 				return output;

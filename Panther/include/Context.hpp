@@ -96,6 +96,7 @@ namespace pcit::panther{
 				RuntimeErrorMode runtimeErrorMode;
 				bool checkedOptionals;
 				bool checkedUnions;
+				bool comptimeRunIfPossible;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -385,6 +386,7 @@ namespace pcit::panther{
 				Config::RuntimeErrorMode runtimeErrorMode;
 				bool checkedOptionals;
 				bool checkedUnions;
+				bool comptimeRunIfPossible;
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;

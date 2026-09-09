@@ -1,6 +1,21 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.383.0"></a>
+## v0.0.383.0
+
+### Panther
+- Added `@build.PantherBuildConfig.comptimeRunIfPossible`
+- Added comptime running if possible for:
+	- operator `new`
+	- operator `[]`
+	- operator `as`
+- Added check that there is at least one target file
+- Fixed some comptime array references returned from comptime function calls
+- Fixed race condition in comptime operator `new` call
+
+
+<!---------------------------------->
 <a name="v0.0.382.0"></a>
 ## v0.0.382.0
 

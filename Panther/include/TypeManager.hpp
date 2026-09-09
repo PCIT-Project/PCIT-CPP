@@ -1141,7 +1141,9 @@ namespace pcit::panther{
 
 				Qualifier(bool is_ptr, bool is_mut, bool is_uninit, bool is_optional)
 					: isPtr(is_ptr), isMut(is_mut), isUninit(is_uninit), isOptional(is_optional) {
-					this->debug_verify();
+					#if defined(PCIT_CONFIG_DEBUG)
+						this->debug_verify();
+					#endif
 				}
 
 

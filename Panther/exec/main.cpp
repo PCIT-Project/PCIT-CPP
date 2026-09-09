@@ -276,6 +276,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		.runtimeErrorMode       = config.runtimeErrorMode,
 		.checkedOptionals       = config.checkedOptionals,
 		.checkedUnions          = config.checkedUnions,
+		.comptimeRunIfPossible  = config.comptimeRunIfPossible,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1200,6 +1201,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.runtimeErrorMode       = ContextConfig::RuntimeErrorMode::PANIC,
 		.checkedOptionals       = true,
 		.checkedUnions          = true,
+		.comptimeRunIfPossible  = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1379,6 +1381,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		.runtimeErrorMode       = ContextConfig::RuntimeErrorMode::PANIC,
 		.checkedOptionals       = true,
 		.checkedUnions          = true,
+		.comptimeRunIfPossible  = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 

@@ -667,11 +667,6 @@ namespace pcit::panther{
 			case Instruction::Kind::NEW:
 				return this->instr_new<false, false>(this->context.symbol_proc_manager.getNew(instr));
 
-			case Instruction::Kind::COMPTIME_STRUCT_NEW_RUN_IF_NEEDED:
-				return this->instr_comptime_struct_new_run_if_needed(
-					this->context.symbol_proc_manager.getComptimeStructNewRunIfNeeded(instr)
-				);
-
 			case Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN:
 				return this->instr_comptime_default_new_run(
 					this->context.symbol_proc_manager.getComptimeDefaultNewRun(instr)
@@ -12650,25 +12645,7 @@ namespace pcit::panther{
 			}
 
 
-			SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
-				*func_call_impl_res.value().selected_func->symbolProcID
-			);
-
-			const SymbolProc::WaitOnResult wait_on_result =
-				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-					this->context.symbol_proc_manager.symbol_proc_unsuspended();
-					this->context.add_task_to_work_manager(*func_call_impl_res.value().selected_func->symbolProcID);
-					[[fallthrough]];
-				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
-			}
+			evo::debugAssert(output_is_comptime, "Comptime func call must be comptime");
 
 			return Result::SUCCESS;
 
@@ -12704,34 +12681,6 @@ namespace pcit::panther{
 					)
 				);
 				return Result::ERROR;
-			}
-
-
-			if(output_is_comptime == false){
-				return Result::SUCCESS;
-			}
-
-
-			// wait on pir def so it can be executed next instruction
-
-			SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
-				*func_call_impl_res.value().selected_func->symbolProcID
-			);
-
-			const SymbolProc::WaitOnResult wait_on_result =
-				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-					this->context.symbol_proc_manager.symbol_proc_unsuspended();
-					this->context.add_task_to_work_manager(*func_call_impl_res.value().selected_func->symbolProcID);
-					[[fallthrough]];
-				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
 			return Result::SUCCESS;
@@ -13068,7 +13017,8 @@ namespace pcit::panther{
 		switch(func_call_term.getExpr().kind()){
 			case sema::Expr::Kind::INT_VALUE:       case sema::Expr::Kind::FLOAT_VALUE:
 			case sema::Expr::Kind::BOOL_VALUE:      case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE: case sema::Expr::Kind::CHAR_VALUE: {
+			case sema::Expr::Kind::AGGREGATE_VALUE: case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::DEFAULT_NEW: {
 				this->return_term_info(instr.output, func_call_term);
 				return Result::SUCCESS;	
 			} break;
@@ -13095,31 +13045,38 @@ namespace pcit::panther{
 			this->context.getSemaBuffer().getFuncCall(func_call_term.getExpr().funcCallID());
 
 
-		const sema::Func::ID target_func_id = sema_func_call.target.visit([&](const auto& id) -> sema::Func::ID {
-			using IDType = std::decay_t<decltype(id)>;
+		const std::optional<sema::Func::ID> target_func_id = sema_func_call.target.visit(
+			[&](const auto& id) -> std::optional<sema::Func::ID> {
+				using IDType = std::decay_t<decltype(id)>;
 
-			if constexpr(std::is_same<IDType, sema::Func::ID>()){
-				return id;
+				if constexpr(std::is_same<IDType, sema::Func::ID>()){
+					return id;
 
-			}else if constexpr(std::is_same<IDType, sema::FuncCall::FuncPtr>()){
-				return this->context.getSemaBuffer().getFuncPtr(id.funcPtr.funcPtrID()).targetFuncID;
+				}else if constexpr(std::is_same<IDType, sema::FuncCall::FuncPtr>()){
+					return this->context.getSemaBuffer().getFuncPtr(id.funcPtr.funcPtrID()).targetFuncID;
 
-			}else if constexpr(
-				std::is_same<IDType, IntrinsicFunc::Kind>()
-				|| std::is_same<IDType, sema::TemplateIntrinsicFuncInstantiation::ID>()
-			){
-				evo::debugFatalBreak("Invalid for comptime func call run (should have already been run)");
+				}else if constexpr(
+					std::is_same<IDType, IntrinsicFunc::Kind>()
+					|| std::is_same<IDType, sema::TemplateIntrinsicFuncInstantiation::ID>()
+				){
+					return std::nullopt;
 
-			}else{
-				static_assert(false, "Unknown func call target");
+				}else{
+					static_assert(false, "Unknown func call target");
+				}
 			}
-		});
-
-		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
-			target_func_id, sema_func_call.args, this->get_location(instr.func_call)
 		);
 
-		if(func_call_result.isError()){ return Result::ERROR; }
+		if(target_func_id.has_value() == false){
+			this->return_term_info(instr.output, func_call_term);
+			return Result::SUCCESS;	
+		}
+
+		const evo::Expected<sema::Expr, Result> func_call_result = this->comptime_func_call_with_symbol_checking(
+			*target_func_id, sema_func_call.args, this->get_location(instr.call_node)
+		);
+
+		if(func_call_result.has_value() == false){ return func_call_result.error(); }
 
 		this->return_term_info(instr.output,
 			TermInfo(
@@ -17707,15 +17664,21 @@ namespace pcit::panther{
 				}
 
 
+				bool is_comptime = selected_func_type.attributes.isComptime;
+
 				auto output_args = evo::SmallVector<sema::Expr>();
 				output_args.reserve(selected_func.params.size());
 				for(const SymbolProc::TermInfoID& arg_id : instr.args){
-					output_args.emplace_back(this->get_term_info(arg_id).getExpr());
+					const TermInfo& arg_term_info = this->get_term_info(arg_id);
+
+					output_args.emplace_back(arg_term_info.getExpr());
+					if(arg_term_info.isComptime == false){ is_comptime = false; }
 				}
 
 				// default values
 				for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
 					output_args.emplace_back(*selected_func.params[i].defaultValue);
+					if(selected_func.params[i].defaultValueIsComptime == false){ is_comptime = false; }
 				}
 
 				if constexpr(IS_COMPTIME){
@@ -17729,6 +17692,8 @@ namespace pcit::panther{
 						);
 						return Result::ERROR;
 					}
+
+					evo::debugAssert(is_comptime, "This operator [new] call must be comptime");
 
 				}else{
 					if(this->currently_in_func() && this->func_scope_current_value_stage().requiresComptime()){
@@ -17778,42 +17743,11 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					IS_COMPTIME,
+					is_comptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(created_func_call_id)
 				);
-
-
-				if constexpr(IS_COMPTIME){
-					if(selected_func.symbolProcID.has_value()){
-						SymbolProc& selected_func_symbol_proc =
-							this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
-
-						const SymbolProc::WaitOnResult wait_on_result =
-							selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-						switch(wait_on_result){
-							case SymbolProc::WaitOnResult::NOT_NEEDED: break;
-							case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-								this->context.symbol_proc_manager.symbol_proc_unsuspended();
-								this->context.add_task_to_work_manager(*selected_func.symbolProcID);
-								[[fallthrough]];
-							}
-							case SymbolProc::WaitOnResult::WAITING:
-								return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-
-							case SymbolProc::WaitOnResult::WAS_ERRORED:
-								return Result::ERROR;
-
-							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
-								evo::debugFatalBreak("Shouldn't be possible");
-
-							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
-								evo::debugFatalBreak("Shouldn't be possible");
-						}
-					}
-				}
 
 				return Result::SUCCESS;
 			} break;
@@ -18047,48 +17981,14 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_comptime_struct_new_run_if_needed(
-		const Instruction::ComptimeStructNewRunIfNeeded& instr
-	) -> Result {
-		const TermInfo& target_term = this->get_term_info(instr.target);
-
-		if(target_term.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
-			this->return_term_info(instr.output, target_term);
-			return Result::SUCCESS;
-		}
-
-		const sema::FuncCall& sema_func_call =
-			this->context.getSemaBuffer().getFuncCall(target_term.getExpr().funcCallID());
-
-		const evo::Result<sema::Expr> func_call_result = this->comptime_func_call(
-			sema_func_call.target.as<sema::Func::ID>(), sema_func_call.args, this->get_location(instr.ast_new)
-		);
-
-		if(func_call_result.isError()){ return Result::ERROR; }
-
-		this->return_term_info(instr.output,
-			TermInfo(
-				TermInfo::ValueCategory::EPHEMERAL,
-				true,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				target_term.type_id,
-				func_call_result.value()
-			)
-		);
-
-		return Result::SUCCESS;
-	}
-
-
-
 	auto SemanticAnalyzer::instr_comptime_default_new_run(const Instruction::ComptimeDefaultNewRun& instr) -> Result {
 		const TermInfo& target_term_info = this->get_term_info(instr.target);
 
 		if(target_term_info.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
-			const Instruction::ComptimeStructNewRunIfNeeded& comptime_struct_new_run_if_needed =
-				Instruction::ComptimeStructNewRunIfNeeded(instr.ast_new, instr.target, instr.output);
+			const Instruction::ComptimeFuncCallRun& comptime_func_call_run =
+				Instruction::ComptimeFuncCallRun(instr.ast_new_node, instr.target, instr.output);
 
-			return this->instr_comptime_struct_new_run_if_needed(comptime_struct_new_run_if_needed);
+			return this->instr_comptime_func_call_run(comptime_func_call_run);
 		}
 
 		evo::debugAssert(
@@ -18102,10 +18002,10 @@ namespace pcit::panther{
 		evo::debugAssert(default_new_expr.isInitialization, "Comptime default `new` must be initialization");
 
 
-		const evo::Result<sema::Expr> output_expr =
-			this->instr_comptime_default_new_run_impl(default_new_expr.targetTypeID, instr.ast_new);
+		const evo::Expected<sema::Expr, Result> output_expr =
+			this->instr_comptime_default_new_run_impl(default_new_expr.targetTypeID, instr.ast_new_node);
 
-		if(output_expr.isError()){ return Result::ERROR; }
+		if(output_expr.has_value() == false){ return output_expr.error(); }
 
 		this->return_term_info(instr.output,
 			TermInfo(
@@ -18121,8 +18021,8 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_comptime_default_new_run_impl(TypeInfo::ID type_id, const AST::New& ast_new)
-	-> evo::Result<sema::Expr> {
+	auto SemanticAnalyzer::instr_comptime_default_new_run_impl(TypeInfo::ID type_id, const AST::Node ast_new_node)
+	-> evo::Expected<sema::Expr, Result> {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(
 			this->context.type_manager.decayType<true, true>(type_id)
 		);
@@ -18152,9 +18052,9 @@ namespace pcit::panther{
 					return output;
 				}();
 
-				const evo::Result<sema::Expr> default_element_value =
-					this->instr_comptime_default_new_run_impl(array_type.elementTypeID, ast_new);
-				if(default_element_value.isError()){ return evo::resultError; }
+				const evo::Expected<sema::Expr, Result> default_element_value =
+					this->instr_comptime_default_new_run_impl(array_type.elementTypeID, ast_new_node);
+				if(default_element_value.has_value() == false){ return evo::Unexpected(default_element_value.error()); }
 
 
 				auto aggregate_values = evo::SmallVector<sema::Expr>(
@@ -18199,10 +18099,10 @@ namespace pcit::panther{
 						this->context.getSemaBuffer().getFunc(new_init_overload_id.as<sema::Func::ID>());
 					if(new_init_overload.minNumArgs != 0){ continue; }
 
-					return this->comptime_func_call(
+					return this->comptime_func_call_with_symbol_checking(
 						new_init_overload_id.as<sema::Func::ID>(),
 						evo::SmallVector<sema::Expr>(),
-						this->get_location(ast_new)
+						this->get_location(ast_new_node)
 					);
 				}
 
@@ -19342,22 +19242,29 @@ namespace pcit::panther{
 				}
 
 
+				bool is_comptime = selected_func_type.attributes.isComptime;
+
 				auto sema_args = evo::SmallVector<sema::Expr>();
 				sema_args.reserve(arg_infos.size());
 				for(const SelectFuncOverloadArgInfo& arg_info : arg_infos){
 					sema_args.emplace_back(arg_info.term_info.getExpr());
+					if(arg_info.term_info.isComptime == false){ is_comptime = false; }
+				}
+
+				if constexpr(IS_COMPTIME){
+					evo::debugAssert(is_comptime, "This indexer is required to be comptime");
 				}
 
 				const Diagnostic::Location location = Diagnostic::Location::get(instr.indexer, this->source);
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					target.isComptime,
+					is_comptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					selected_overload_info.func_type.returnTypes[0].asTypeID(),
 					sema::Expr(
 						this->context.sema_buffer.createFuncCall(
-							selected_overload_info.func_id.as<sema::Func::ID>(),
+							selected_overload_id,
 							std::move(sema_args),
 							location.as<SourceLocation>().lineStart,
 							location.as<SourceLocation>().collumnStart
@@ -20364,61 +20271,30 @@ namespace pcit::panther{
 			}
 
 
+			const bool output_is_comptime = selected_func_type.attributes.isComptime && expr.isComptime;
 
 			if constexpr(IS_COMPTIME){
-				SymbolProc& selected_func_symbol_proc =
-					this->context.symbol_proc_manager.getSymbolProc(*selected_func.symbolProcID);
-
-				const SymbolProc::WaitOnResult wait_on_result =
-					selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-				switch(wait_on_result){
-					case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-					case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-						this->context.symbol_proc_manager.symbol_proc_unsuspended();
-						this->context.add_task_to_work_manager(*selected_func.symbolProcID);
-						[[fallthrough]];
-					}
-					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
-				}
-
-				const evo::Result<sema::Expr> comptime_as_res = this->comptime_func_call(
-					selected_func_id, expr.getExpr(), this->get_location(instr.infix)
-				);
-				if(comptime_as_res.isError()){ return Result::ERROR; }
-
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					expr.isComptime,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type.asTypeID(),
-					comptime_as_res.value()
-				);
-				return Result::SUCCESS;
-
-			}else{
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
-
-				const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
-					selected_func_id,
-					evo::SmallVector<sema::Expr>{expr.getExpr()},
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
-				);
-
-				this->return_term_info(instr.output,
-					TermInfo::ValueCategory::EPHEMERAL,
-					expr.isComptime,
-					TermInfo::ValueState::NOT_APPLICABLE,
-					target_type.asTypeID(),
-					sema::Expr(conversion_call)
-				);
-				return Result::SUCCESS;
+				evo::debugAssert(output_is_comptime, "This output must be comptime");
 			}
+
+
+			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
+
+			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
+				selected_func_id,
+				evo::SmallVector<sema::Expr>{expr.getExpr()},
+				location.as<SourceLocation>().lineStart,
+				location.as<SourceLocation>().collumnStart
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::EPHEMERAL,
+				output_is_comptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				target_type.asTypeID(),
+				sema::Expr(conversion_call)
+			);
+			return Result::SUCCESS;
 		}
 
 
@@ -21586,9 +21462,11 @@ namespace pcit::panther{
 					}
 
 
+					// TODO(FUTURE): continue adding auto comptime here
+
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						lhs.isComptime,
+						target_func_type.attributes.isComptime && lhs.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -27241,6 +27119,39 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::comptime_func_call_with_symbol_checking(
+		sema::Func::ID func_id, evo::ArrayProxy<sema::Expr> args, Diagnostic::Location location
+	) -> evo::Expected<sema::Expr, Result> {
+		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+
+
+		SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*func.symbolProcID);
+
+		const SymbolProc::WaitOnResult wait_on_result =
+			selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
+
+		switch(wait_on_result){
+			case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+				this->context.symbol_proc_manager.symbol_proc_unsuspended();
+				this->context.add_task_to_work_manager(*func.symbolProcID);
+				[[fallthrough]];
+			}
+			case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
+			case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
+		}
+
+
+		const evo::Result<sema::Expr> call_result = this->comptime_func_call(func_id, args, location);
+		if(call_result.isError()){ return evo::Unexpected(Result::ERROR); }
+
+		return call_result.value();
+	}
+
+
+
 
 	template<bool NEEDS_DEF>
 	auto SemanticAnalyzer::lookup_ident_impl(Token::ID ident) -> evo::Expected<TermInfo, Result> {
@@ -30103,17 +30014,12 @@ namespace pcit::panther{
 				}
 			}();
 
-			if(is_comptime){
-				if(type_check_info.ok == false){
-					const Result special_result = type_check_info.extractSpecialResultForReturning();
-						
-					evo::debugAssert(special_result == Result::NEED_TO_WAIT, "Should never error here");
+			if(type_check_info.ok == false){
+				const Result special_result = type_check_info.extractSpecialResultForReturning();
+					
+				evo::debugAssert(special_result == Result::NEED_TO_WAIT, "Should never error here");
 
-					return evo::Unexpected(Result::NEED_TO_WAIT);
-				}
-
-			}else{
-				evo::debugAssert(type_check_info.ok, "Should never error here");
+				return evo::Unexpected(Result::NEED_TO_WAIT);
 			}
 		}
 
@@ -38073,19 +37979,35 @@ namespace pcit::panther{
 				}
 
 				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-					got_expr.getExpr() = sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							*func_match,
-							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
-						)
-					);
+					const bool comptime_run = new_func_type.attributes.isComptime
+						&& got_expr.isComptime
+						&& this->context.getConfig().comptimeRunIfPossible;
 
-					if(this->func_scope_current_value_stage().requiresComptime()){
-						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>()
-							.dependent_funcs.emplace(*func_match);
+					if(comptime_run){
+						const evo::Expected<sema::Expr, Result> comptime_call_res =
+							this->comptime_func_call_with_symbol_checking(*func_match, got_expr.getExpr(), location);
+
+						if(comptime_call_res.has_value() == false){
+							return TypeCheckInfo::fail(comptime_call_res.error());
+						}
+
+						got_expr.getExpr() = comptime_call_res.value();
+
+					}else{
+						got_expr.getExpr() = sema::Expr(
+							this->context.sema_buffer.createFuncCall(
+								*func_match,
+								evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
+							)
+						);
+					}
+
+					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+
+					if(comptime_run == false && this->func_scope_current_value_stage().requiresComptime()){
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(*func_match);
 					}
 				}
 
@@ -38254,17 +38176,36 @@ namespace pcit::panther{
 					if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
 
 
-					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
-					got_expr.getExpr() = sema::Expr(
-						this->context.sema_buffer.createFuncCall(
-							selected_func_id,
-							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
-						)
-					);
+					const bool comptime_run = selected_func_type.attributes.isComptime
+						&& got_expr.isComptime
+						&& this->context.getConfig().comptimeRunIfPossible;
 
-					if(this->func_scope_current_value_stage().requiresComptime()){
+					if(comptime_run){
+						const evo::Expected<sema::Expr, Result> comptime_call_res =
+							this->comptime_func_call_with_symbol_checking(
+								selected_func_id, got_expr.getExpr(), location
+							);
+
+						if(comptime_call_res.has_value() == false){
+							return TypeCheckInfo::fail(comptime_call_res.error());
+						}
+
+						got_expr.getExpr() = comptime_call_res.value();
+
+					}else{
+						got_expr.getExpr() = sema::Expr(
+							this->context.sema_buffer.createFuncCall(
+								selected_func_id,
+								evo::SmallVector<sema::Expr>{got_expr.getExpr()},
+								location.as<SourceLocation>().lineStart,
+								location.as<SourceLocation>().collumnStart
+							)
+						);
+					}
+
+					got_expr.type_id.emplace<TypeInfo::ID>(expected_type_id);
+
+					if(comptime_run == false && this->func_scope_current_value_stage().requiresComptime()){
 						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
 							selected_func_id
 						);

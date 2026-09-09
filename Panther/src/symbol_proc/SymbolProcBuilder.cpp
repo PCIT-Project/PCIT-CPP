@@ -3880,7 +3880,7 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						func_call, new_term_info_id, comptime_res_term_info_id
+						node, new_term_info_id, comptime_res_term_info_id
 					)
 				);
 				return comptime_res_term_info_id;
@@ -3903,14 +3903,19 @@ namespace pcit::panther{
 					)
 				);
 
-				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
-				this->add_instruction(
-					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						func_call, new_term_info_id, comptime_res_term_info_id
-					)
-				);
-				
-				return comptime_res_term_info_id;
+				if(this->context.getConfig().comptimeRunIfPossible){
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
+				}else{
+					return new_term_info_id;
+				}
 			}
 		}
 
@@ -3940,6 +3945,15 @@ namespace pcit::panther{
 					indexer, target.value(), new_term_info_id, std::move(indices)
 				)
 			);
+
+			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+			this->add_instruction(
+				this->context.symbol_proc_manager.createComptimeFuncCallRun(
+					node, new_term_info_id, comptime_res_term_info_id
+				)
+			);
+			
+			return comptime_res_term_info_id;
 			
 		}else{
 			this->add_instruction(
@@ -3947,8 +3961,21 @@ namespace pcit::panther{
 					indexer, target.value(), new_term_info_id, std::move(indices)
 				)
 			);
+
+			if(this->context.getConfig().comptimeRunIfPossible){
+				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+				this->add_instruction(
+					this->context.symbol_proc_manager.createComptimeFuncCallRun(
+						node, new_term_info_id, comptime_res_term_info_id
+					)
+				);
+				
+				return comptime_res_term_info_id;
+
+			}else{
+				return new_term_info_id;
+			}
 		}
-		return new_term_info_id;
 	}
 
 
@@ -4177,14 +4204,36 @@ namespace pcit::panther{
 							infix, expr.value(), target_type.value(), new_term_info_id
 						)
 					);
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createAs(
 							infix, expr.value(), target_type.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 			case Token::lookupKind("||"): case Token::lookupKind("&&"): {
@@ -4506,13 +4555,13 @@ namespace pcit::panther{
 			if(ast_new.args.empty()){
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeDefaultNewRun(
-						ast_new, new_term_info_id, comptime_res_term_info_id
+						node, new_term_info_id, comptime_res_term_info_id
 					)
 				);
 			}else{
 				this->add_instruction(
-					this->context.symbol_proc_manager.createComptimeStructNewRunIfNeeded(
-						ast_new, new_term_info_id, comptime_res_term_info_id
+					this->context.symbol_proc_manager.createComptimeFuncCallRun(
+						node, new_term_info_id, comptime_res_term_info_id
 					)
 				);
 			}
@@ -4527,15 +4576,29 @@ namespace pcit::panther{
 					)
 				);
 
+				return new_term_info_id;
+
 			}else{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createNew(
 						ast_new, type_id.value(), new_term_info_id, std::move(args)
 					)
 				);
-			}
 
-			return new_term_info_id;
+				if(this->context.getConfig().comptimeRunIfPossible){
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
+				}else{
+					return new_term_info_id;
+				}
+			}
 		}
 	}
 

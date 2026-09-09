@@ -764,6 +764,7 @@ namespace pcit::panther::sema{
 		struct Param{
 			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> ident;
 			std::optional<Expr> defaultValue;
+			bool defaultValueIsComptime;
 			bool mustLabel;
 		};
 

@@ -2434,25 +2434,6 @@ namespace pcit::panther{
 			}
 
 
-			//////////////////
-			// ComptimeStructNewRunIfNeeded
-
-			[[nodiscard]] auto createComptimeStructNewRunIfNeeded(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::COMPTIME_STRUCT_NEW_RUN_IF_NEEDED,
-					this->comptime_struct_new_run_if_neededs.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			[[nodiscard]] auto getComptimeStructNewRunIfNeeded(Instruction instr) const
-			-> const Instruction::ComptimeStructNewRunIfNeeded& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::COMPTIME_STRUCT_NEW_RUN_IF_NEEDED,
-					"Not a ComptimeStructNewRunIfNeeded"
-				);
-				return this->comptime_struct_new_run_if_neededs[instr._index];
-			}
-
 
 			//////////////////
 			// ComptimeDefaultNewRun
@@ -3601,8 +3582,6 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::New<true, false>, uint32_t> new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::New<false, true>, uint32_t> new_errors{};
 			core::SyncLinearStepAlloc<Instruction::New<false, false>, uint32_t> news{};
-			core::SyncLinearStepAlloc<Instruction::ComptimeStructNewRunIfNeeded, uint32_t>
-				comptime_struct_new_run_if_neededs{};
 			core::SyncLinearStepAlloc<Instruction::ComptimeDefaultNewRun, uint32_t> comptime_default_new_runs{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};
