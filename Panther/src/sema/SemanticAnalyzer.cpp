@@ -21462,8 +21462,6 @@ namespace pcit::panther{
 					}
 
 
-					// TODO(FUTURE): continue adding auto comptime here
-
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						target_func_type.attributes.isComptime && lhs.isComptime,

@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.384.0"></a>
+## v0.0.384.0
+
+### Panther
+- Added comptime running if possible for:
+	- infix operators
+	- prefix operators
+
+
+<!---------------------------------->
 <a name="v0.0.383.0"></a>
 ## v0.0.383.0
 

@@ -4036,7 +4036,6 @@ namespace pcit::panther{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createAddrOf(prefix, target.value(), created_term_info_id)
 				);
-
 				return created_term_info_id;
 			} break;
 
@@ -4107,7 +4106,19 @@ namespace pcit::panther{
 					);
 				}
 
-				return created_term_info_id;
+				if(this->context.getConfig().comptimeRunIfPossible){
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, created_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
+				}else{
+					return created_term_info_id;
+				}
 			} break;
 
 			case Token::lookupKind("!"): {
@@ -4128,7 +4139,19 @@ namespace pcit::panther{
 					);
 				}
 
-				return created_term_info_id;
+				if(this->context.getConfig().comptimeRunIfPossible){
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, created_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
+				}else{
+					return created_term_info_id;
+				}
 			} break;
 
 			case Token::lookupKind("~"): {
@@ -4151,7 +4174,19 @@ namespace pcit::panther{
 					);
 				}
 
-				return created_term_info_id;
+				if(this->context.getConfig().comptimeRunIfPossible){
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, created_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
+				}else{
+					return created_term_info_id;
+				}
 			} break;
 		}
 
@@ -4250,14 +4285,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixLogical(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 
@@ -4280,15 +4338,37 @@ namespace pcit::panther{
 								infix, lhs.value(), new_term_info_id
 							)
 						);
+
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
 					}else{
 						this->add_instruction(
 							this->context.symbol_proc_manager.createOptionalNullCheck(
 								infix, lhs.value(), new_term_info_id
 							)
 						);
-					}
 
-					return new_term_info_id;
+						if(this->context.getConfig().comptimeRunIfPossible){
+							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+							this->add_instruction(
+								this->context.symbol_proc_manager.createComptimeFuncCallRun(
+									node, new_term_info_id, comptime_res_term_info_id
+								)
+							);
+							
+							return comptime_res_term_info_id;
+
+						}else{
+							return new_term_info_id;
+						}
+					}
 
 				}else{
 					const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
@@ -4301,14 +4381,37 @@ namespace pcit::panther{
 								infix, lhs.value(), rhs.value(), new_term_info_id
 							)
 						);
+
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
 					}else{
 						this->add_instruction(
 							this->context.symbol_proc_manager.createMathInfixComparative(
 								infix, lhs.value(), rhs.value(), new_term_info_id
 							)
 						);
+
+						if(this->context.getConfig().comptimeRunIfPossible){
+							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+							this->add_instruction(
+								this->context.symbol_proc_manager.createComptimeFuncCallRun(
+									node, new_term_info_id, comptime_res_term_info_id
+								)
+							);
+							
+							return comptime_res_term_info_id;
+
+						}else{
+							return new_term_info_id;
+						}
 					}
-					return new_term_info_id;
 				}
 			} break;
 
@@ -4327,14 +4430,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixComparative(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 			case Token::lookupKind("&"):  case Token::lookupKind("|"): case Token::lookupKind("^"): {
@@ -4351,14 +4477,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixBitwiseLogical(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 			case Token::lookupKind("+%"): case Token::lookupKind("+|"): case Token::lookupKind("-%"):
@@ -4376,14 +4525,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixIntegralMath(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 			case Token::lookupKind("+"): case Token::lookupKind("-"): case Token::lookupKind("*"):
@@ -4401,14 +4573,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixMath(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 
@@ -4426,14 +4621,37 @@ namespace pcit::panther{
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+					this->add_instruction(
+						this->context.symbol_proc_manager.createComptimeFuncCallRun(
+							node, new_term_info_id, comptime_res_term_info_id
+						)
+					);
+					
+					return comptime_res_term_info_id;
+
 				}else{
 					this->add_instruction(
 						this->context.symbol_proc_manager.createMathInfixShift(
 							infix, lhs.value(), rhs.value(), new_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, new_term_info_id, comptime_res_term_info_id
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return new_term_info_id;
+					}
 				}
-				return new_term_info_id;
 			} break;
 
 			default: {
