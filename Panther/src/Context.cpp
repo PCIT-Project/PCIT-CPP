@@ -3268,6 +3268,13 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
+					build_module.createString("checkedIndexing"),
+					TypeManager::getTypeBool(),
+					std::nullopt,
+					false
+				),
+				BaseType::Struct::MemberVar(
+					AST::VarDef::Kind::VAR,
 					build_module.createString("comptimeRunIfPossible"),
 					TypeManager::getTypeBool(),
 					std::nullopt,

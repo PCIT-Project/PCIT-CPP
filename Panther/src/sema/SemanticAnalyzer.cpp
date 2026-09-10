@@ -19369,6 +19369,14 @@ namespace pcit::panther{
 				}
 			}();
 
+			if(
+				this->currently_in_func()
+				&& this->context.getConfig().checkedIndexing
+				&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
+			){
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+			}
+
 			if(is_arr_ref){
 				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
 					target_expr, decayed_target_type.baseTypeID().arrayRefID(), std::move(indices)
@@ -37601,22 +37609,18 @@ namespace pcit::panther{
 				evo::debugFatalBreak("INITIALIZER should not be compared with this function");
 
 			case TermInfo::ValueCategory::MODULE:
-				evo::debugFatalBreak("MODULE should not be compared with this function");
-
 			case TermInfo::ValueCategory::FUNCTION:
-				evo::debugFatalBreak("FUNCTION should not be compared with this function");
-
 			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
-				evo::debugFatalBreak("FUNCTION_PUB_REQUIRED should not be compared with this function");
-
 			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED:
-				evo::debugFatalBreak("FUNCTION_NOT_PRIV_REQUIRED should not be compared with this function");
-
 			case TermInfo::ValueCategory::INTRINSIC_FUNC:
-				evo::debugFatalBreak("INTRINSIC_FUNC should not be compared with this function");
-
-			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC:
-				evo::debugFatalBreak("TEMPLATE_INTRINSIC_FUNC should not be compared with this function");
+			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
+				if constexpr(MAY_EMIT_ERROR){
+					this->error_type_mismatch(
+						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+					);
+				}
+				return TypeCheckInfo::fail();
+			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE:
 				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");

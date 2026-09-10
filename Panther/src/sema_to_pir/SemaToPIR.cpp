@@ -6067,6 +6067,11 @@ namespace pcit::panther{
 	-> std::optional<pir::Expr> {
 		const sema::Indexer& indexer = this->context.getSemaBuffer().getIndexer(expr.indexerID());
 
+		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(indexer.targetTypeID);
+		const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+			target_type_info.baseTypeID().arrayID()
+		);
+
 		const pir::Expr target = this->get_expr_pointer(indexer.target);
 
 		const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
@@ -6076,8 +6081,36 @@ namespace pcit::panther{
 		indices.emplace_back(
 			pir::CalcPtr::Index(this->handler.createNumber(type_usize, core::GenericInt::create<uint64_t>(0)))
 		);
-		for(const sema::Expr& index : indexer.indices){
-			indices.emplace_back(this->get_expr_register(index));
+		for(size_t i = 0; const sema::Expr& index : indexer.indices){
+			const pir::Expr index_pir_expr = this->get_expr_register(index);
+
+			if(this->context.getConfig().checkedIndexing && index.kind() != sema::Expr::Kind::INT_VALUE){
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+					this->name(".INDEXER.CHECKED.FAIL")
+				);
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+					this->name(".INDEXER.CHECKED.END")
+				);
+
+				const pir::Expr dimension_size = this->handler.createNumber(
+					type_usize, core::GenericInt::create<uint64_t>(array_type.dimensions[i])
+				);
+
+				const pir::Expr index_in_bounds = this->handler.createULT(
+					index_pir_expr, dimension_size, this->name(".INDEXER.CHECKED.IN_BOUNDS")
+				);
+
+				this->handler.createBranch(index_in_bounds, end_block, fail_block);
+
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Array index out of bounds");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
+
+			indices.emplace_back(index_pir_expr);
+
+			i += 1;
 		}
 
 		if constexpr(MODE == GetExprMode::REGISTER){
@@ -6309,36 +6342,56 @@ namespace pcit::panther{
 
 		uint32_t ref_length_index = uint32_t(array_ref_type.getNumRefPtrs());
 
-		pir::Expr index = this->get_expr_register(array_ref_indexer.indices.back());
+		pir::Expr index_pir_expr = this->get_expr_register(array_ref_indexer.indices.back());
+		pir::Expr final_calc_index = index_pir_expr;
 		auto sub_array_width = std::optional<pir::Expr>();
 
+
+		auto get_length_num = [&](size_t i) -> pir::Expr {
+			if(array_ref_type.dimensions[i].isPtr()){
+				const pir::Expr length_load = this->handler.createLoad(
+					this->handler.createCalcPtr(
+						target_array_ref, pir_array_ref_type, evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index}
+					),
+					type_usize
+				);
+
+				ref_length_index -= 1;
+
+				return length_load;
+
+			}else{
+				return this->handler.createNumber(
+					type_usize,
+					core::GenericInt(
+						unsigned(this->context.getTypeManager().numBitsOfPtr()), array_ref_type.dimensions[i].length()
+					)
+				);
+			}
+		};
+
 		for(size_t i = array_ref_indexer.indices.size() - 1; i >= 1; i-=1){
-			const pir::Expr length_num = [&](){
-				if(array_ref_type.dimensions[i].isPtr()){
-					const pir::Expr length_load = this->handler.createLoad(
-						this->handler.createCalcPtr(
-							target_array_ref,
-							pir_array_ref_type,
-							evo::SmallVector<pir::CalcPtr::Index>{0, ref_length_index}
-						),
-						type_usize
-					);
+			const pir::Expr length_num = get_length_num(i);
 
-					ref_length_index -= 1;
+			if(this->context.getConfig().checkedIndexing){
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+					this->name("ARRAY_REF_INDEXER.CHECKED_DIM_{}.FAIL", i)
+				);
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+					this->name("ARRAY_REF_INDEXER.CHECKED_DIM_{}.END", i)
+				);
 
-					return length_load;
+				const pir::Expr index_in_bounds = this->handler.createULT(
+					index_pir_expr, length_num, this->name("ARRAY_REF_INDEXER.CHECKED_DIM_{}.IN_BOUNDS", i)
+				);
 
-				}else{
-					return this->handler.createNumber(
-						type_usize,
-						core::GenericInt(
-							unsigned(this->context.getTypeManager().numBitsOfPtr()),
-							array_ref_type.dimensions[i].length()
-						)
-					);
-				}
-			}();
+				this->handler.createBranch(index_in_bounds, end_block, fail_block);
 
+				this->handler.setTargetBasicBlock(fail_block);
+				this->create_unreachable("Array reference index out of bounds");
+
+				this->handler.setTargetBasicBlock(end_block);
+			}
 
 			if(sub_array_width.has_value()){
 				sub_array_width = this->handler.createMul(*sub_array_width, length_num, false, true);
@@ -6346,17 +6399,34 @@ namespace pcit::panther{
 				sub_array_width = length_num;
 			}
 
-			index = this->handler.createAdd(
-				index,
-				this->handler.createMul(
-					*sub_array_width,
-					this->get_expr_register(array_ref_indexer.indices[i - 1]),
-					false,
-					true
-				),
+			index_pir_expr = this->get_expr_register(array_ref_indexer.indices[i - 1]);
+
+			final_calc_index = this->handler.createAdd(
+				final_calc_index,
+				this->handler.createMul(*sub_array_width, index_pir_expr, false, true),
 				false,
 				true
 			);
+		}
+
+		if(this->context.getConfig().checkedIndexing){
+			const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+				this->name("ARRAY_REF_INDEXER.CHECKED_DIM_0.FAIL")
+			);
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+				this->name("ARRAY_REF_INDEXER.CHECKED_DIM_0.END")
+			);
+
+			const pir::Expr index_in_bounds = this->handler.createULT(
+				index_pir_expr, get_length_num(0), this->name("ARRAY_REF_INDEXER.CHECKED_DIM_0.IN_BOUNDS")
+			);
+
+			this->handler.createBranch(index_in_bounds, end_block, fail_block);
+
+			this->handler.setTargetBasicBlock(fail_block);
+			this->create_unreachable("Array reference index out of bounds");
+
+			this->handler.setTargetBasicBlock(end_block);
 		}
 
 
@@ -6364,7 +6434,7 @@ namespace pcit::panther{
 			return this->handler.createCalcPtr(
 				target,
 				this->get_type<false, false>(array_ref_type.elementTypeID).type,
-				evo::SmallVector<pir::CalcPtr::Index>{index},
+				evo::SmallVector<pir::CalcPtr::Index>{final_calc_index},
 				this->name("ARRAY_REF_INDEXER")
 			);
 
@@ -6376,7 +6446,7 @@ namespace pcit::panther{
 			const pir::Expr calc_ptr = this->handler.createCalcPtr(
 				target,
 				this->get_type<false, false>(array_ref_type.elementTypeID).type,
-				evo::SmallVector<pir::CalcPtr::Index>{index},
+				evo::SmallVector<pir::CalcPtr::Index>{final_calc_index},
 				this->name(".ARRAY_REF_INDEXER")
 			);
 			this->handler.createStore(array_ref_indexer_alloca, calc_ptr);
@@ -6389,7 +6459,7 @@ namespace pcit::panther{
 			const pir::Expr calc_ptr = this->handler.createCalcPtr(
 				target,
 				this->get_type<false, false>(array_ref_type.elementTypeID).type,
-				evo::SmallVector<pir::CalcPtr::Index>{index},
+				evo::SmallVector<pir::CalcPtr::Index>{final_calc_index},
 				this->name(".ARRAY_REF_INDEXER")
 			);
 

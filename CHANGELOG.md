@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.385.0"></a>
+## v0.0.385.0
+
+### Panther
+- Added `@build.PantherBuildConfig.checkedUnion`
+
+
+<!---------------------------------->
 <a name="v0.0.384.0"></a>
 ## v0.0.384.0
 

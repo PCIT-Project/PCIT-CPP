@@ -508,6 +508,9 @@ namespace pcit::panther{
 			auto create_panic(std::string_view message) -> void;
 			auto create_unreachable(std::string_view message) -> void;
 
+			auto create_runtime_check(std::string_view operation_name, std::string_view error_message, pir::Expr cond)
+				-> void;
+
 
 			[[nodiscard]] auto get_global_var_value(const sema::Expr expr) -> pir::GlobalVar::Value;
 
