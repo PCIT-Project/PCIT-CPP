@@ -285,7 +285,6 @@ namespace pcit::panther::sema{
 		SourceID id,
 		Token::ID location,
 		std::optional<EncapsulatingSymbolID> parent,
-		bool is_pub,
 		bool is_priv
 	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
@@ -293,7 +292,7 @@ namespace pcit::panther::sema{
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
 		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		return &this->ids.emplace(ident, ModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
+		return &this->ids.emplace(ident, ModuleInfo(id, location, parent, is_priv)).first->second;
 	}
 
 	auto ScopeLevel::addIdent(
@@ -301,7 +300,6 @@ namespace pcit::panther::sema{
 		CFamilySourceID id,
 		Token::ID location,
 		std::optional<EncapsulatingSymbolID> parent,
-		bool is_pub,
 		bool is_priv
 	) -> AddIdentResult {
 		const auto lock = std::scoped_lock(this->idents_lock);
@@ -309,7 +307,7 @@ namespace pcit::panther::sema{
 		if(this->ids.contains(ident)){ return evo::Unexpected(false); }
 		if(this->disallowed_idents_for_shadowing.contains(ident)){ return evo::Unexpected(true); }
 		
-		return &this->ids.emplace(ident, CFamilyModuleInfo(id, location, parent, is_pub, is_priv)).first->second;
+		return &this->ids.emplace(ident, CFamilyModuleInfo(id, location, parent, is_priv)).first->second;
 	}
 
 

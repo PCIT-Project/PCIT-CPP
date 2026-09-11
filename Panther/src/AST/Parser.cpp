@@ -167,7 +167,6 @@ namespace pcit::panther{
 
 			}else{
 				const Result value_result = this->parse_expr();
-				// TODO(FUTURE): better messaging around block exprs missing a label
 				if(this->check_result(value_result, "expression after [=] in variable definition").isError()){
 					return Result::Code::ERROR;
 				}
@@ -466,7 +465,6 @@ namespace pcit::panther{
 		const Result block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
 
 		if constexpr(MUST_HAVE_BODY){
-			// TODO(FUTURE): better messaging 
 			if(this->check_result(block, "statement block in function definition").isError()){
 				return Result::Code::ERROR;
 			}
@@ -1158,7 +1156,7 @@ namespace pcit::panther{
 						this->expected_but_got(
 							"[when] after [else]",
 							this->reader.peek(),
-							evo::SmallVector<Diagnostic::Info>{ // TODO(FUTURE): better messaging
+							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Cannot mix [if] and [when] in a chain"),
 							}
 						);
@@ -1170,7 +1168,7 @@ namespace pcit::panther{
 						this->expected_but_got(
 							"[if] after [else]",
 							this->reader.peek(),
-							evo::SmallVector<Diagnostic::Info>{ // TODO(FUTURE): better messaging
+							evo::SmallVector<Diagnostic::Info>{
 								Diagnostic::Info("Cannot mix [if] and [when] in a chain"),
 							}
 						);

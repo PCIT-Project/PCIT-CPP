@@ -601,7 +601,6 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID aliasedType;
-			bool isPub; // meaningless if not pthr source type
 			bool isPriv;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
@@ -622,7 +621,6 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID underlyingType;
-			bool isPub; // meaningless if not pthr source type
 			bool isPriv;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
@@ -735,7 +733,6 @@ namespace pcit::panther{
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
 			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type
 			sema::ScopeLevel* scopeLevel; // nullptr if not pthr src type (although temporarily nullptr during creation)
-			bool isPub; // meaningless if not pthr src type
 			bool isPriv;
 			bool isOrdered; // TODO(FUTURE): is this needed here?
 			bool isPacked;
@@ -906,7 +903,6 @@ namespace pcit::panther{
 			evo::SmallVector<Field> fields;
 			SymbolProcNamespace* namespacedMembers; // nullptr if is c family type
 			sema::ScopeLevel* scopeLevel; // nullopt if is c family type (although temporarily nullopt during creation)
-			bool isPub; // meaningless if c family type
 			bool isPriv;
 			bool isUntagged;
 			bool isManualLifetime;
@@ -945,7 +941,6 @@ namespace pcit::panther{
 			BaseType::Primitive::ID underlyingTypeID;
 			SymbolProcNamespace* namespacedMembers; // nullptr if pthr src
 			sema::ScopeLevel* scopeLevel; // nullopt if not pthr src type (although temporarily nullopt during creation)
-			bool isPub; // meaningless not pthr type
 			bool isPriv;
 
 			std::atomic<bool> defCompleted = false; // if not pthr type, should always be `true`
@@ -1060,7 +1055,6 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<SymbolProcID> symbolProcID; // nullopt if builtin
-			bool isPub;
 			bool isPriv;
 			bool isPolymorphic;
 

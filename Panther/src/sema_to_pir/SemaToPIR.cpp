@@ -1997,7 +1997,7 @@ namespace pcit::panther{
 					}
 				}();
 
-				const auto ssl = this->create_scoped_source_location(var.line, var.collumn);
+				const auto ssl = this->create_scoped_source_location(var.location);
 
 				const pir::Expr var_alloca = this->handler.createAlloca(
 					alloca_type.type, this->name("{}.ALLOCA", var_ident)
@@ -2036,7 +2036,7 @@ namespace pcit::panther{
 					break;
 				}
 
-				const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
+				const auto ssl = this->create_scoped_source_location(func_call.location);
 
 				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
 					if(func_call.target.is<sema::FuncCall::FuncPtr>()){
@@ -2134,7 +2134,7 @@ namespace pcit::panther{
 				const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 
-				const auto ssl = this->create_scoped_source_location(try_else.line, try_else.collumn);
+				const auto ssl = this->create_scoped_source_location(try_else.location);
 
 				auto args = evo::SmallVector<pir::Expr>();
 				for(size_t i = 0; const sema::Expr& arg : try_else.args){
@@ -2234,8 +2234,8 @@ namespace pcit::panther{
 						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
 						this->get_current_meta_local_scope(),
 						*this->current_source->getPIRMetaFileID(),
-						try_else.line,
-						try_else.collumn
+						try_else.location.line,
+						try_else.location.collumn
 					);
 
 					this->local_scopes.emplace(block_meta_subscope);
@@ -2274,8 +2274,7 @@ namespace pcit::panther{
 				const sema::TryElseInterface& try_else_interface = 
 					this->context.getSemaBuffer().getTryElseInterface(stmt.tryElseInterfaceID());
 
-				const auto ssl =
-					this->create_scoped_source_location(try_else_interface.line, try_else_interface.collumn);
+				const auto ssl = this->create_scoped_source_location(try_else_interface.location);
 
 
 				///////////////////////////////////
@@ -2408,8 +2407,8 @@ namespace pcit::panther{
 						std::format("meta.subscope.{}", this->data.get_meta_subscope_id()),
 						this->get_current_meta_local_scope(),
 						*this->current_source->getPIRMetaFileID(),
-						try_else_interface.line,
-						try_else_interface.collumn
+						try_else_interface.location.line,
+						try_else_interface.location.collumn
 					);
 
 					this->local_scopes.emplace(block_meta_subscope);
@@ -2545,7 +2544,7 @@ namespace pcit::panther{
 
 				evo::debugAssert(asm_stmt.retParams.empty(), "asm stmt cannot have ret params");
 
-				const auto ssl = this->create_scoped_source_location(asm_stmt.line, asm_stmt.collumn);
+				const auto ssl = this->create_scoped_source_location(asm_stmt.location);
 
 
 				auto args = evo::SmallVector<pir::AsmArg>();
@@ -2605,7 +2604,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::ASSIGN: {
 				const sema::Assign& assignment = this->context.getSemaBuffer().getAssign(stmt.assignID());
 
-				const auto ssl = this->create_scoped_source_location(assignment.line, assignment.collumn);
+				const auto ssl = this->create_scoped_source_location(assignment.location);
 
 				if(assignment.lhs.has_value()){
 					this->get_expr_store(assignment.rhs, this->get_expr_pointer(*assignment.lhs));
@@ -2618,7 +2617,7 @@ namespace pcit::panther{
 				const sema::MultiAssign& multi_assign = 
 					this->context.getSemaBuffer().getMultiAssign(stmt.multiAssignID());
 
-				const auto ssl = this->create_scoped_source_location(multi_assign.line, multi_assign.collumn);
+				const auto ssl = this->create_scoped_source_location(multi_assign.location);
 
 				auto targets = evo::SmallVector<pir::Expr>();
 				targets.reserve(multi_assign.targets.size());
@@ -2642,7 +2641,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::RETURN: {
 				const sema::Return& return_stmt = this->context.getSemaBuffer().getReturn(stmt.returnID());
 
-				const auto ssl = this->create_scoped_source_location(return_stmt.line, return_stmt.collumn);
+				const auto ssl = this->create_scoped_source_location(return_stmt.location);
 
 				if(return_stmt.targetLabel.has_value()) [[unlikely]] {
 					const std::string_view label =
@@ -2729,7 +2728,7 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::ERROR: {
 				const sema::Error& error_stmt = this->context.getSemaBuffer().getError(stmt.errorID());
 
-				const auto ssl = this->create_scoped_source_location(error_stmt.line, error_stmt.collumn);
+				const auto ssl = this->create_scoped_source_location(error_stmt.location);
 
 				if(error_stmt.value.has_value()){
 					this->handler.createStore(
@@ -2756,7 +2755,7 @@ namespace pcit::panther{
 				const sema::Unreachable& unreachable_stmt =
 					this->context.getSemaBuffer().getUnreachable(stmt.unreachableID());
 
-				const auto ssl = this->create_scoped_source_location(unreachable_stmt.line, unreachable_stmt.collumn);
+				const auto ssl = this->create_scoped_source_location(unreachable_stmt.location);
 
 				switch(this->context.getConfig().runtimeErrorMode){
 					case Context::Config::RuntimeErrorMode::PANIC: {
@@ -2884,7 +2883,7 @@ namespace pcit::panther{
 
 			case sema::Stmt::Kind::DELETE: {
 				const sema::Delete& delete_stmt = this->context.getSemaBuffer().getDelete(stmt.deleteID());
-				const auto ssl = this->create_scoped_source_location(delete_stmt.line, delete_stmt.collumn);
+				const auto ssl = this->create_scoped_source_location(delete_stmt.location);
 				this->delete_expr(delete_stmt.expr, delete_stmt.exprTypeID);
 			} break;
 
@@ -3539,6 +3538,53 @@ namespace pcit::panther{
 			case sema::Stmt::Kind::SWITCH: {
 				const sema::Switch& switch_stmt = this->context.getSemaBuffer().getSwitch(stmt.switchID());
 
+				const pir::Expr cond = [&]() -> pir::Expr {
+					TypeInfo::ID target_cond_type_id = switch_stmt.condTypeID;
+					while(true){
+						const TypeInfo& target_cond_type =
+							this->context.getTypeManager().getTypeInfo(target_cond_type_id);
+
+						evo::debugAssert(target_cond_type.qualifiers().empty(), "unexpected switch cond type");
+
+						switch(target_cond_type.baseTypeID().kind()){
+							case BaseType::Kind::ALIAS: {
+								target_cond_type_id = this->context.getTypeManager().getAlias(
+									target_cond_type.baseTypeID().aliasID()
+								).aliasedType;
+							} break;
+
+							case BaseType::Kind::DISTINCT_ALIAS: {
+								target_cond_type_id = this->context.getTypeManager().getDistinctAlias(
+									target_cond_type.baseTypeID().distinctAliasID()
+								).underlyingType;
+							} break;
+
+							case BaseType::Kind::UNION: {
+								const pir::Type union_pir_type = this->get_type<false, false>(
+									target_cond_type_id, target_cond_type.baseTypeID()
+								).type;
+
+								const pir::StructType union_pir_struct_type =
+									this->module.getStructType(union_pir_type);
+
+								const pir::Expr calc_ptr = this->handler.createCalcPtr(
+									this->get_expr_pointer(switch_stmt.cond),
+									union_pir_type,
+									evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+									this->name(".SWITCH.UNION_TAG_PTR")
+								);
+
+								return this->handler.createLoad(
+									calc_ptr, union_pir_struct_type.members[1], this->name(".SWITCH.UNION_TAG")
+								);
+							} break;
+
+							default: {
+								return this->get_expr_register(switch_stmt.cond);
+							} break;
+						}
+					}
+				}();
 
 				const pir::BasicBlock::ID start_basic_block = this->handler.getTargetBasicBlock().getID();
 
@@ -3547,54 +3593,6 @@ namespace pcit::panther{
 					evo::unimplemented("lowering no jump switch");
 
 				}else{
-					const pir::Expr cond = [&]() -> pir::Expr {
-						TypeInfo::ID target_cond_type_id = switch_stmt.condTypeID;
-						while(true){
-							const TypeInfo& target_cond_type =
-								this->context.getTypeManager().getTypeInfo(target_cond_type_id);
-
-							evo::debugAssert(target_cond_type.qualifiers().empty(), "unexpected switch cond type");
-
-							switch(target_cond_type.baseTypeID().kind()){
-								case BaseType::Kind::ALIAS: {
-									target_cond_type_id = this->context.getTypeManager().getAlias(
-										target_cond_type.baseTypeID().aliasID()
-									).aliasedType;
-								} break;
-
-								case BaseType::Kind::DISTINCT_ALIAS: {
-									target_cond_type_id = this->context.getTypeManager().getDistinctAlias(
-										target_cond_type.baseTypeID().distinctAliasID()
-									).underlyingType;
-								} break;
-
-								case BaseType::Kind::UNION: {
-									const pir::Type union_pir_type = this->get_type<false, false>(
-										target_cond_type_id, target_cond_type.baseTypeID()
-									).type;
-
-									const pir::StructType union_pir_struct_type =
-										this->module.getStructType(union_pir_type);
-
-									const pir::Expr calc_ptr = this->handler.createCalcPtr(
-										this->get_expr_pointer(switch_stmt.cond),
-										union_pir_type,
-										evo::SmallVector<pir::CalcPtr::Index>{0, 1},
-										this->name(".SWITCH.UNION_TAG_PTR")
-									);
-
-									return this->handler.createLoad(
-										calc_ptr, union_pir_struct_type.members[1], this->name(".SWITCH.UNION_TAG")
-									);
-								} break;
-
-								default: {
-									return this->get_expr_register(switch_stmt.cond);
-								} break;
-							}
-						}
-					}();
-
 					bool all_cases_terminated = switch_stmt.kind == sema::Switch::Kind::COMPLETE;
 					auto else_index = std::optional<size_t>();
 
@@ -4416,7 +4414,7 @@ namespace pcit::panther{
 			return this->template_intrinsic_func_call_expr<MODE>(func_call, store_locations);
 		}
 
-		const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
+		const auto ssl = this->create_scoped_source_location(func_call.location);
 
 		const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
 			if(func_call.target.is<sema::FuncCall::FuncPtr>()){
@@ -4582,7 +4580,7 @@ namespace pcit::panther{
 
 		evo::debugAssert(asm_expr.retParams.empty() == false, "asm expr must have ret params");
 
-		const auto ssl = this->create_scoped_source_location(asm_expr.line, asm_expr.collumn);
+		const auto ssl = this->create_scoped_source_location(asm_expr.location);
 
 
 		auto args = evo::SmallVector<pir::AsmArg>();
@@ -5007,7 +5005,7 @@ namespace pcit::panther{
 		const sema::OptionalExtract& optional_extract =
 			this->context.getSemaBuffer().getOptionalExtract(expr.optionalExtractID());
 
-		const auto ssl = this->create_scoped_source_location(optional_extract.line, optional_extract.collumn);
+		const auto ssl = this->create_scoped_source_location(optional_extract.location);
 
 		const TypeInfo& target_type_info =
 			this->context.getTypeManager().getTypeInfo(optional_extract.targetTypeID);
@@ -5197,7 +5195,7 @@ namespace pcit::panther{
 	auto SemaToPIR::get_expr_impl_unwrap(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
 	-> std::optional<pir::Expr> {
 		const sema::Unwrap& unwrap = this->context.getSemaBuffer().getUnwrap(expr.unwrapID());
-		const auto ssl = this->create_scoped_source_location(unwrap.line, unwrap.collumn);
+		const auto ssl = this->create_scoped_source_location(unwrap.location);
 
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(unwrap.targetTypeID);
 
@@ -6067,6 +6065,8 @@ namespace pcit::panther{
 	-> std::optional<pir::Expr> {
 		const sema::Indexer& indexer = this->context.getSemaBuffer().getIndexer(expr.indexerID());
 
+		const auto ssl = this->create_scoped_source_location(indexer.location);
+
 		const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(indexer.targetTypeID);
 		const BaseType::Array& array_type = this->context.getTypeManager().getArray(
 			target_type_info.baseTypeID().arrayID()
@@ -6315,6 +6315,8 @@ namespace pcit::panther{
 
 		const BaseType::ArrayRef& array_ref_type =
 			this->context.getTypeManager().getArrayRef(array_ref_indexer.targetTypeID);
+
+		const auto ssl = this->create_scoped_source_location(array_ref_indexer.location);
 
 
 		const pir::Type pir_array_ref_type = this->data.getArrayRefType(
@@ -6880,7 +6882,7 @@ namespace pcit::panther{
 		const sema::TryElseExpr& try_else_expr =
 			this->context.getSemaBuffer().getTryElseExpr(expr.tryElseExprID());
 		
-		const auto ssl = this->create_scoped_source_location(try_else_expr.line, try_else_expr.collumn);
+		const auto ssl = this->create_scoped_source_location(try_else_expr.location);
 
 		const sema::FuncCall& attempt_func_call =
 			this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
@@ -7045,8 +7047,7 @@ namespace pcit::panther{
 			this->context.getSemaBuffer().getInterfaceCall(try_else_interface_expr.attempt.interfaceCallID());
 
 
-		const auto ssl =
-			this->create_scoped_source_location(try_else_interface_expr.line, try_else_interface_expr.collumn);
+		const auto ssl = this->create_scoped_source_location(try_else_interface_expr.location);
 
 
 		///////////////////////////////////
@@ -12702,7 +12703,7 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::intrinsic_func_call(const sema::FuncCall& func_call) -> void {
-		const auto ssl = this->create_scoped_source_location(func_call.line, func_call.collumn);
+		const auto ssl = this->create_scoped_source_location(func_call.location);
 
 		const IntrinsicFunc::Kind intrinsic_func_kind = func_call.target.as<IntrinsicFunc::Kind>();
 
@@ -15749,6 +15750,11 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SemaToPIR::create_scoped_source_location(sema::Location location)
+	-> std::optional<pir::InstrHandler::DeferPopSourceLocation> {
+		return this->create_scoped_source_location(location.line, location.collumn);
+	}
 
 	auto SemaToPIR::create_scoped_source_location(uint32_t line, uint32_t collumn)
 	-> std::optional<pir::InstrHandler::DeferPopSourceLocation> {

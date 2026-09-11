@@ -3673,7 +3673,7 @@ namespace pcit::pir{
 				).asType();
 
 			}else if constexpr(std::is_same<ValueType, meta::UnionType::ID>()){
-				return std::nullopt; // TODO(FUTURE): keep this, or handle?
+				return std::nullopt;
 
 			}else if constexpr(std::is_same<ValueType, meta::ArrayType::ID>()){
 				return std::nullopt;

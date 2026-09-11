@@ -2236,7 +2236,6 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): error on invalid statements
 	auto SymbolProcBuilder::analyze_stmt(const AST::Node& stmt) -> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
@@ -3209,7 +3208,6 @@ namespace pcit::panther{
 		if(rhs.isError()){ return evo::resultError; }
 
 
-		// TODO(PERF): make optional less memory?
 		const SymbolProc::TermInfoID builtin_composite_expr_term_info_id = this->create_term_info();
 
 		this->add_instruction(

@@ -946,7 +946,6 @@ namespace pcit::panther{
 			// attributes
 
 			struct GlobalVarAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_global;
 			};
@@ -964,7 +963,6 @@ namespace pcit::panther{
 
 
 			struct FuncAliasAttrs{
-				bool is_pub;
 				bool is_priv;
 			};
 			[[nodiscard]] auto analyze_func_alias_attrs(
@@ -974,7 +972,6 @@ namespace pcit::panther{
 
 
 			struct AliasAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_distinct;
 			};
@@ -991,7 +988,6 @@ namespace pcit::panther{
 
 
 			struct StructAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_ordered;
 				bool is_packed;
@@ -1003,7 +999,6 @@ namespace pcit::panther{
 
 
 			struct UnionAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_untagged;
 				bool is_manual_lifetime;
@@ -1015,7 +1010,6 @@ namespace pcit::panther{
 
 
 			struct EnumAttrs{
-				bool is_pub;
 				bool is_priv;
 			};
 			[[nodiscard]] auto analyze_enum_attrs(
@@ -1025,7 +1019,6 @@ namespace pcit::panther{
 
 
 			struct FuncAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_comptime;
 				bool is_runtime;
@@ -1046,7 +1039,6 @@ namespace pcit::panther{
 
 
 			struct FuncTypeAttrs{
-				bool is_pub;
 				bool is_runtime;
 				bool is_unsafe;
 				bool is_no_return;
@@ -1068,7 +1060,6 @@ namespace pcit::panther{
 
 
 			struct InterfaceAttrs{
-				bool is_pub;
 				bool is_priv;
 				bool is_non_polymorphic;
 			};
@@ -1545,6 +1536,13 @@ namespace pcit::panther{
 
 			///////////////////////////////////
 			// get location
+
+			[[nodiscard]] auto get_sema_location(const auto& location) -> sema::Location {
+				return this->get_sema_location(this->get_location(location));
+			}
+
+			[[nodiscard]] auto get_sema_location(const Diagnostic::Location& location) -> sema::Location;
+
 
 			[[nodiscard]] auto get_location(Diagnostic::Location::None) const -> Diagnostic::Location {
 				return Diagnostic::Location::NONE;

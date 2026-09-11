@@ -1,11 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.386.0"></a>
+## v0.0.386.0
+
+### Panther
+- Removed attribute `#pub`
+	- Replaced it with `#priv`
+	- Changed the default to public
+- Fixed lowering of checking indexers when adding debug information
+- Fixed lowering of switches when the condition is a checked expression
+
+
+<!---------------------------------->
 <a name="v0.0.385.0"></a>
 ## v0.0.385.0
 
 ### Panther
-- Added `@build.PantherBuildConfig.checkedUnion`
+- Added `@build.PantherBuildConfig.checkedIndexing`
 
 
 <!---------------------------------->

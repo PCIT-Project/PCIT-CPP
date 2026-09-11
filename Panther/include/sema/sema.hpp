@@ -31,6 +31,13 @@ namespace pcit::panther{
 
 namespace pcit::panther::sema{
 
+	struct Location{
+		uint32_t line;
+		uint32_t collumn;
+	};
+
+
+
 	struct IntValue{
 		using ID = IntValueID;
 
@@ -165,8 +172,7 @@ namespace pcit::panther::sema{
 		
 		Expr expr;
 		TypeInfo::ID targetTypeID;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -182,8 +188,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID targetTypeID;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 		bool isComptime;
 	};
 
@@ -227,8 +232,7 @@ namespace pcit::panther::sema{
 		Expr attempt;
 		Expr except;
 		evo::SmallVector<ExceptParamID> exceptParams;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct TryElseInterfaceExpr{
@@ -237,8 +241,7 @@ namespace pcit::panther::sema{
 		Expr attempt;
 		Expr except;
 		evo::SmallVector<ExceptParamID> exceptParams;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -316,6 +319,7 @@ namespace pcit::panther::sema{
 		Expr target;
 		TypeInfo::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
+		Location location;
 	};
 
 
@@ -341,6 +345,7 @@ namespace pcit::panther::sema{
 		Expr target;
 		BaseType::ArrayRef::ID targetTypeID;
 		evo::SmallVector<Expr> indices;
+		Location location;
 	};
 
 
@@ -410,8 +415,7 @@ namespace pcit::panther::sema{
 
 		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncPtr> target;
 		evo::SmallVector<Expr> args;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -427,8 +431,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
 		StmtBlock elseBlock;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct TryElseInterface{
@@ -441,8 +444,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Expr> args;
 		evo::SmallVector<ExceptParamID> exceptParams;
 		StmtBlock elseBlock;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -469,8 +471,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<RetParam> retParams;
 		bool isSideEffect;
 		bool isAlignStack;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -479,8 +480,7 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> lhs; // nullopt if is a discard
 		Expr rhs;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct MultiAssign{
@@ -488,8 +488,7 @@ namespace pcit::panther::sema{
 
 		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>> targets; // TypeInfo::ID if is a discard
 		Expr value;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct Return{
@@ -497,24 +496,21 @@ namespace pcit::panther::sema{
 
 		std::optional<Expr> value; // nullopt means return void
 		std::optional<Token::ID> targetLabel;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct Error{
 		using ID = ErrorID;
 
 		std::optional<Expr> value; // nullopt means return void
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct Unreachable{
 		using ID = UnreachableID;
 		
 		std::optional<Expr> message;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct Break{
@@ -534,8 +530,7 @@ namespace pcit::panther::sema{
 
 		Expr expr;
 		TypeInfo::ID exprTypeID;
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 	struct BlockScope{
@@ -722,8 +717,7 @@ namespace pcit::panther::sema{
 		Token::ID ident;
 		Expr expr;
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
-		uint32_t line;
-		uint32_t collumn;
+		Location location;
 	};
 
 
@@ -740,7 +734,6 @@ namespace pcit::panther::sema{
 		std::optional<EncapsulatingSymbolID> parent;
 		evo::Variant<std::monostate, Expr, DeletedInfo> value; // is monostate if def not done, or if c-family type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
-		bool isPub;
 		bool isPriv;
 		std::optional<SymbolProcID> symbolProcID;
 
@@ -777,7 +770,6 @@ namespace pcit::panther::sema{
 
 		template<class ForceInit>
 		struct AttributesImpl{
-			bool isPub      = ForceInit(); // meaningless if is CFamily or builtin
 			bool isPriv     = ForceInit(); // meaningless if not member
 			bool isRTDiff   = ForceInit(); // meaningless if not both comptime and runtime
 			bool isExport   = ForceInit(); // always true if is clang
@@ -854,7 +846,6 @@ namespace pcit::panther::sema{
 		Token::ID ident;
 		std::optional<EncapsulatingSymbolID> parent;
 		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> aliasedOverloads;
-		bool isPub;
 		bool isPriv;
 	};
 
@@ -971,7 +962,6 @@ namespace pcit::panther::sema{
 		evo::Variant<TemplatedStruct::ID, ID> aliasedID;
 		bool requiresPub;
 		bool isDistinct;
-		bool isPub;
 		bool isPriv;
 	};
 

@@ -1894,7 +1894,7 @@ namespace pcit::panther{
 		this->aliases_lock.lock();
 
 		const BaseType::Alias::ID new_alias = this->aliases.emplace_back(
-			new_type.sourceID, new_type.name, new_type.parent, new_type.aliasedType, new_type.isPub, new_type.isPriv
+			new_type.sourceID, new_type.name, new_type.parent, new_type.aliasedType, new_type.isPriv
 		);
 
 		this->aliases_lock.unlock();
@@ -1921,12 +1921,7 @@ namespace pcit::panther{
 		this->distinct_aliases_lock.lock();
 
 		const BaseType::DistinctAlias::ID new_distinct_alias = this->distinct_aliases.emplace_back(
-			new_type.sourceID,
-			new_type.name,
-			new_type.parent,
-			new_type.underlyingType,
-			new_type.isPub,
-			new_type.isPriv
+			new_type.sourceID, new_type.name, new_type.parent, new_type.underlyingType, new_type.isPriv
 		);
 
 		this->distinct_aliases_lock.unlock();
@@ -1963,7 +1958,6 @@ namespace pcit::panther{
 			std::move(new_type.memberVarsABI),
 			new_type.namespacedMembers,
 			new_type.scopeLevel,
-			new_type.isPub,
 			new_type.isPriv,
 			new_type.isOrdered,
 			new_type.isPacked,
@@ -2063,7 +2057,6 @@ namespace pcit::panther{
 			std::move(new_type.fields),
 			new_type.namespacedMembers,
 			new_type.scopeLevel,
-			new_type.isPub,
 			new_type.isPriv,
 			new_type.isUntagged,
 			new_type.isManualLifetime,
@@ -2107,7 +2100,6 @@ namespace pcit::panther{
 			new_type.underlyingTypeID,
 			new_type.namespacedMembers,
 			new_type.scopeLevel,
-			new_type.isPub,
 			new_type.isPriv,
 			new_type.defCompleted.load(std::memory_order::relaxed)
 		);
@@ -2162,7 +2154,6 @@ namespace pcit::panther{
 			new_type.name,
 			new_type.parent,
 			new_type.symbolProcID,
-			new_type.isPub,
 			new_type.isPriv,
 			new_type.isPolymorphic
 		);

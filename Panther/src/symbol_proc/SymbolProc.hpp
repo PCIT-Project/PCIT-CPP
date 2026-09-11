@@ -148,7 +148,6 @@ namespace std{
 namespace pcit::panther{
 
 
-	// TODO(PERF): make this data oriented
 	struct SymbolProcInstruction{
 		using AttributeParams = evo::StaticVector<SymbolProcTermInfoID, 2>;
 

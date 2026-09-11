@@ -66,7 +66,6 @@ namespace pcit::panther::sema{
 				Token::ID ident,
 				std::optional<EncapsulatingSymbolID> parent,
 				evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>&& aliasedOverloads,
-				bool isPub,
 				bool isPriv
 			) -> FuncAlias::ID;
 
@@ -106,7 +105,6 @@ namespace pcit::panther::sema{
 				evo::Variant<TemplatedStruct::ID, StructTemplateAlias::ID> aliasedID,
 				bool requiresPub,
 				bool isDistinct,
-				bool isPub,
 				bool isPriv
 			) -> StructTemplateAlias::ID;
 
@@ -121,8 +119,7 @@ namespace pcit::panther::sema{
 				Token::ID ident,
 				Expr expr,
 				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> Var::ID;
 
 			[[nodiscard]] auto getVar(Var::ID id) const -> const Var&;
@@ -143,7 +140,6 @@ namespace pcit::panther::sema{
 				std::optional<EncapsulatingSymbolID> parent,
 				evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value, // monostate if def not done, or c-family
 				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
-				bool isPub,
 				bool isPriv,
 				std::optional<SymbolProcID> symbolProcID,
 				bool defCompleted = false
@@ -225,8 +221,7 @@ namespace pcit::panther::sema{
 					FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncCall::FuncPtr
 				> target,
 				evo::SmallVector<Expr>&& args,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> FuncCall::ID;
 
 			[[nodiscard]] auto getFuncCall(FuncCall::ID id) const -> const FuncCall&;
@@ -240,8 +235,7 @@ namespace pcit::panther::sema{
 				evo::SmallVector<Expr>&& args,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
 				StmtBlock&& elseBlock,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> TryElse::ID;
 
 			[[nodiscard]] auto getTryElse(TryElse::ID id) const -> const TryElse&;
@@ -258,8 +252,7 @@ namespace pcit::panther::sema{
 				evo::SmallVector<Expr>&& args,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
 				StmtBlock&& elseBlock,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> TryElseInterface::ID;
 
 			[[nodiscard]] auto getTryElseInterface(TryElseInterface::ID id) const -> const TryElseInterface&;
@@ -275,8 +268,7 @@ namespace pcit::panther::sema{
 				evo::SmallVector<Asm::RetParam>&& retParams,
 				bool isSideEffect,
 				bool isAlignStack,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> Asm::ID;
 
 			[[nodiscard]] auto getAsm(Asm::ID id) const -> const Asm&;
@@ -288,8 +280,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createAssign(
 				std::optional<Expr> lhs, // nullopt if is a discard
 				Expr rhs,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> Assign::ID;
 
 			[[nodiscard]] auto getAssign(Assign::ID id) const -> const Assign&;
@@ -301,8 +292,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createMultiAssign(
 				evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>>&& targets, // TypeInfo::ID if is a discard
 				Expr value,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> MultiAssign::ID;
 
 			[[nodiscard]] auto getMultiAssign(MultiAssign::ID id) const -> const MultiAssign&;
@@ -314,8 +304,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createReturn(
 				std::optional<Expr> value, // nullopt means return void
 				std::optional<Token::ID> targetLabel,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> Return::ID;
 
 			[[nodiscard]] auto getReturn(Return::ID id) const -> const Return&;
@@ -326,8 +315,7 @@ namespace pcit::panther::sema{
 
 			[[nodiscard]] auto createError(
 				std::optional<Expr> value, // nullopt means return void
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> Error::ID;
 
 			[[nodiscard]] auto getError(Error::ID id) const -> const Error&;
@@ -336,8 +324,7 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// unreachables
 
-			[[nodiscard]] auto createUnreachable(std::optional<Expr> message, uint32_t line, uint32_t collumn)
-				-> Unreachable::ID;
+			[[nodiscard]] auto createUnreachable(std::optional<Expr> message, Location line) -> Unreachable::ID;
 
 			[[nodiscard]] auto getUnreachable(Unreachable::ID id) const -> const Unreachable&;
 
@@ -361,8 +348,7 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// deletes
 
-			[[nodiscard]] auto createDelete(Expr expr, TypeInfo::ID exprTypeID, uint32_t line, uint32_t collumn)
-				-> Delete::ID;
+			[[nodiscard]] auto createDelete(Expr expr, TypeInfo::ID exprTypeID, Location line) -> Delete::ID;
 
 			[[nodiscard]] auto getDelete(Delete::ID id) const -> const Delete&;
 
@@ -542,9 +528,8 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// optional extract
 
-			[[nodiscard]] auto createOptionalExtract(
-				Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn
-			) -> OptionalExtract::ID;
+			[[nodiscard]] auto createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID, Location line)
+				-> OptionalExtract::ID;
 
 			[[nodiscard]] auto getOptionalExtract(OptionalExtract::ID id) const -> const OptionalExtract&;
 
@@ -561,9 +546,8 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// unwraps
 
-			[[nodiscard]] auto createUnwrap(
-				Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn, bool isComptime
-			) -> Unwrap::ID;
+			[[nodiscard]] auto createUnwrap(Expr expr, TypeInfo::ID targetTypeID, Location line, bool isComptime)
+				-> Unwrap::ID;
 
 			[[nodiscard]] auto getUnwrap(Unwrap::ID id) const -> const Unwrap&;
 
@@ -609,8 +593,7 @@ namespace pcit::panther::sema{
 				Expr attempt,
 				Expr except,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> TryElseExpr::ID;
 
 			[[nodiscard]] auto getTryElseExpr(TryElseExpr::ID id) const -> const TryElseExpr&;
@@ -623,8 +606,7 @@ namespace pcit::panther::sema{
 				Expr attempt,
 				Expr except,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
-				uint32_t line,
-				uint32_t collumn
+				Location location
 			) -> TryElseInterfaceExpr::ID;
 
 			[[nodiscard]] auto getTryElseInterfaceExpr(TryElseInterfaceExpr::ID id) const
@@ -695,7 +677,7 @@ namespace pcit::panther::sema{
 			// indexer
 
 			[[nodiscard]] auto createIndexer(
-				Expr target, TypeInfo::ID targetTypeID, evo::SmallVector<Expr>&& indices
+				Expr target, TypeInfo::ID targetTypeID, evo::SmallVector<Expr>&& indices, sema::Location location
 			) -> Indexer::ID;
 
 			[[nodiscard]] auto getIndexer(Indexer::ID id) const -> const Indexer&;
@@ -725,7 +707,10 @@ namespace pcit::panther::sema{
 			// array ref indexer
 
 			[[nodiscard]] auto createArrayRefIndexer(
-				Expr target, BaseType::ArrayRef::ID targetTypeID, evo::SmallVector<Expr>&& indices
+				Expr target,
+				BaseType::ArrayRef::ID targetTypeID,
+				evo::SmallVector<Expr>&& indices,
+				sema::Location location
 			) -> ArrayRefIndexer::ID;
 
 			[[nodiscard]] auto getArrayRefIndexer(ArrayRefIndexer::ID id) const -> const ArrayRefIndexer&;

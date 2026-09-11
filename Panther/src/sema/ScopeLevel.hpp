@@ -88,7 +88,6 @@ namespace pcit::panther::sema{
 				SourceID sourceID;
 				Token::ID tokenID;
 				std::optional<EncapsulatingSymbolID> parent;
-				bool isPub;
 				bool isPriv;
 			};
 
@@ -96,7 +95,6 @@ namespace pcit::panther::sema{
 				CFamilySourceID cFamilySourceID;
 				Token::ID tokenID;
 				std::optional<EncapsulatingSymbolID> parent;
-				bool isPub;
 				bool isPriv;
 			};
 
@@ -322,7 +320,6 @@ namespace pcit::panther::sema{
 				SourceID id,
 				Token::ID location,
 				std::optional<EncapsulatingSymbolID> parent,
-				bool is_pub,
 				bool is_priv
 			) -> AddIdentResult;
 			[[nodiscard]] auto addIdent(
@@ -330,7 +327,6 @@ namespace pcit::panther::sema{
 				CFamilySourceID id,
 				Token::ID location,
 				std::optional<EncapsulatingSymbolID> parent,
-				bool is_pub,
 				bool is_priv
 			) -> AddIdentResult;
 			[[nodiscard]] auto addIdent(std::string_view ident, BaseType::AliasID id) -> AddIdentResult;

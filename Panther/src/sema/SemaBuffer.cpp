@@ -183,10 +183,9 @@ namespace pcit::panther::sema{
 		Token::ID ident,
 		std::optional<EncapsulatingSymbolID> parent,
 		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>&& aliasedOverloads,
-		bool isPub,
 		bool isPriv
 	) -> FuncAlias::ID {
-		return this->internal->func_aliases.emplace_back(sourceID, ident, parent, std::move(aliasedOverloads), isPub, isPriv);
+		return this->internal->func_aliases.emplace_back(sourceID, ident, parent, std::move(aliasedOverloads), isPriv);
 	}
 
 	auto SemaBuffer::getFuncAlias(FuncAlias::ID id) const -> const FuncAlias& {
@@ -244,11 +243,10 @@ namespace pcit::panther::sema{
 		evo::Variant<TemplatedStruct::ID, StructTemplateAlias::ID> aliasedID,
 		bool requiresPub,
 		bool isDistinct,
-		bool isPub,
 		bool isPriv
 	) -> StructTemplateAlias::ID {
 		return this->internal->struct_template_aliases.emplace_back(
-			sourceID, ident, parent, aliasedID, requiresPub, isDistinct, isPub, isPriv
+			sourceID, ident, parent, aliasedID, requiresPub, isDistinct, isPriv
 		);
 	}
 
@@ -262,14 +260,9 @@ namespace pcit::panther::sema{
 	// vars
 
 	auto SemaBuffer::createVar(
-		AST::VarDef::Kind kind,
-		Token::ID ident,
-		Expr expr,
-		std::optional<TypeInfo::ID> typeID,
-		uint32_t line,
-		uint32_t collumn
+		AST::VarDef::Kind kind, Token::ID ident, Expr expr, std::optional<TypeInfo::ID> typeID, Location location
 	) -> Var::ID {
-		return this->internal->vars.emplace_back(kind, ident, expr, typeID, line, collumn);
+		return this->internal->vars.emplace_back(kind, ident, expr, typeID, location);
 	}
 
 
@@ -299,18 +292,21 @@ namespace pcit::panther::sema{
 		std::optional<EncapsulatingSymbolID> parent,
 		evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value,
 		std::optional<TypeInfo::ID> typeID,
-		bool isPub,
 		bool isPriv,
 		std::optional<SymbolProcID> symbolProcID,
 		bool defCompleted
 	) -> GlobalVar::ID {
 		return this->internal->global_vars.emplace_back(
-			kind, sourceID, ident, cFamilyMangledName, parent, value, typeID, isPub, isPriv, symbolProcID, defCompleted
+			kind, sourceID, ident, cFamilyMangledName, parent, value, typeID, isPriv, symbolProcID, defCompleted
 		);
 	}
 
-	auto SemaBuffer::getGlobalVar(GlobalVar::ID id) const -> const GlobalVar& { return this->internal->global_vars[id]; }
-	auto SemaBuffer::getGlobalVar(GlobalVar::ID id)       ->       GlobalVar& { return this->internal->global_vars[id]; }
+	auto SemaBuffer::getGlobalVar(GlobalVar::ID id) const -> const GlobalVar& {
+		return this->internal->global_vars[id];
+	}
+	auto SemaBuffer::getGlobalVar(GlobalVar::ID id) -> GlobalVar& {
+		return this->internal->global_vars[id];
+	}
 
 	auto SemaBuffer::getGlobalVars() const -> evo::IterRange<GlobalVar::ID::Iterator> {
 		return evo::IterRange<GlobalVar::ID::Iterator>(
@@ -416,14 +412,11 @@ namespace pcit::panther::sema{
 	// func calls
 
 	auto SemaBuffer::createFuncCall(
-		evo::Variant<
-			FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncCall::FuncPtr
-		> target,
+		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncCall::FuncPtr> target,
 		evo::SmallVector<Expr>&& args,
-		uint32_t line,
-		uint32_t collumn
+		Location location
 	) -> FuncCall::ID {
-		return this->internal->func_calls.emplace_back(target, std::move(args), line, collumn);
+		return this->internal->func_calls.emplace_back(target, std::move(args), location);
 	}
 
 	auto SemaBuffer::getFuncCall(FuncCall::ID id) const -> const FuncCall& {
@@ -439,11 +432,10 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Expr>&& args,
 		evo::SmallVector<ExceptParamID>&& exceptParams,
 		StmtBlock&& elseBlock,
-		uint32_t line,
-		uint32_t collumn
+		Location location
 	) -> TryElse::ID {
 		return this->internal->try_elses.emplace_back(
-			target, std::move(args), std::move(exceptParams), std::move(elseBlock), line, collumn
+			target, std::move(args), std::move(exceptParams), std::move(elseBlock), location
 		);
 	}
 
@@ -467,8 +459,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Expr>&& args,
 		evo::SmallVector<ExceptParamID>&& exceptParams,
 		StmtBlock&& elseBlock,
-		uint32_t line,
-		uint32_t collumn
+		Location location
 	) -> TryElseInterface::ID {
 		return this->internal->try_else_interfaces.emplace_back(
 			value,
@@ -478,8 +469,7 @@ namespace pcit::panther::sema{
 			std::move(args),
 			std::move(exceptParams),
 			std::move(elseBlock),
-			line,
-			collumn
+			location
 		);
 	}
 
@@ -502,8 +492,7 @@ namespace pcit::panther::sema{
 		evo::SmallVector<Asm::RetParam>&& retParams,
 		bool isSideEffect,
 		bool isAlignStack,
-		uint32_t line,
-		uint32_t collumn
+		Location location
 	) -> Asm::ID {
 		return this->internal->asms.emplace_back(
 			code,
@@ -512,8 +501,7 @@ namespace pcit::panther::sema{
 			std::move(retParams),
 			isSideEffect,
 			isAlignStack,
-			line,
-			collumn
+			location
 		);
 	}
 
@@ -525,8 +513,8 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// assignments
 
-	auto SemaBuffer::createAssign(std::optional<Expr> lhs, Expr rhs, uint32_t line, uint32_t collumn) -> Assign::ID {
-		return this->internal->assigns.emplace_back(lhs, rhs, line, collumn);
+	auto SemaBuffer::createAssign(std::optional<Expr> lhs, Expr rhs, Location location) -> Assign::ID {
+		return this->internal->assigns.emplace_back(lhs, rhs, location);
 	}
 
 	auto SemaBuffer::getAssign(Assign::ID id) const -> const Assign& {
@@ -538,9 +526,9 @@ namespace pcit::panther::sema{
 	// multi-assign
 
 	auto SemaBuffer::createMultiAssign(
-		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>>&& targets, Expr value, uint32_t line, uint32_t collumn
+		evo::SmallVector<evo::Variant<Expr, TypeInfo::ID>>&& targets, Expr value, Location location
 	) -> MultiAssign::ID {
-		return this->internal->multi_assigns.emplace_back(std::move(targets), value, line, collumn);
+		return this->internal->multi_assigns.emplace_back(std::move(targets), value, location);
 	}
 
 	auto SemaBuffer::getMultiAssign(MultiAssign::ID id) const -> const MultiAssign& {
@@ -551,10 +539,9 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// returns
 
-	auto SemaBuffer::createReturn(
-		std::optional<Expr> value, std::optional<Token::ID> targetLabel, uint32_t line, uint32_t collumn
-	) -> Return::ID {
-		return this->internal->returns.emplace_back(value, targetLabel, line, collumn);
+	auto SemaBuffer::createReturn(std::optional<Expr> value, std::optional<Token::ID> targetLabel, Location location)
+	-> Return::ID {
+		return this->internal->returns.emplace_back(value, targetLabel, location);
 	}
 
 	auto SemaBuffer::getReturn(Return::ID id) const -> const Return& {
@@ -565,8 +552,8 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// errors
 
-	auto SemaBuffer::createError(std::optional<Expr> value, uint32_t line, uint32_t collumn) -> Error::ID {
-		return this->internal->errors.emplace_back(value, line, collumn);
+	auto SemaBuffer::createError(std::optional<Expr> value, Location location) -> Error::ID {
+		return this->internal->errors.emplace_back(value, location);
 	}
 
 	auto SemaBuffer::getError(Error::ID id) const -> const Error& {
@@ -577,9 +564,8 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// unreachables
 
-	auto SemaBuffer::createUnreachable(std::optional<Expr> message, uint32_t line, uint32_t collumn)
-	-> Unreachable::ID {
-		return this->internal->unreachables.emplace_back(message, line, collumn);
+	auto SemaBuffer::createUnreachable(std::optional<Expr> message, Location location) -> Unreachable::ID {
+		return this->internal->unreachables.emplace_back(message, location);
 	}
 
 	auto SemaBuffer::getUnreachable(Unreachable::ID id) const -> const Unreachable& {
@@ -614,8 +600,8 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// deletes
 
-	auto SemaBuffer::createDelete(Expr expr, TypeInfo::ID exprTypeID, uint32_t line, uint32_t collumn) -> Delete::ID {
-		return this->internal->deletes.emplace_back(expr, exprTypeID, line, collumn);
+	auto SemaBuffer::createDelete(Expr expr, TypeInfo::ID exprTypeID, Location location) -> Delete::ID {
+		return this->internal->deletes.emplace_back(expr, exprTypeID, location);
 	}
 
 	auto SemaBuffer::getDelete(Delete::ID id) const -> const Delete& {
@@ -902,9 +888,9 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// optional extract
 
-	auto SemaBuffer::createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn)
+	auto SemaBuffer::createOptionalExtract(Expr expr, TypeInfo::ID targetTypeID, Location location)
 	-> OptionalExtract::ID {
-		return this->internal->optional_extracts.emplace_back(expr, targetTypeID, line, collumn);
+		return this->internal->optional_extracts.emplace_back(expr, targetTypeID, location);
 	}
 
 	auto SemaBuffer::getOptionalExtract(OptionalExtract::ID id) const -> const OptionalExtract& {
@@ -927,10 +913,9 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// unwraps
 
-	auto SemaBuffer::createUnwrap(
-		Expr expr, TypeInfo::ID targetTypeID, uint32_t line, uint32_t collumn, bool isComptime
-	) -> Unwrap::ID {
-		return this->internal->unwraps.emplace_back(expr, targetTypeID, line, collumn, isComptime);
+	auto SemaBuffer::createUnwrap(Expr expr, TypeInfo::ID targetTypeID, Location location, bool isComptime)
+	-> Unwrap::ID {
+		return this->internal->unwraps.emplace_back(expr, targetTypeID, location, isComptime);
 	}
 
 	auto SemaBuffer::getUnwrap(Unwrap::ID id) const -> const Unwrap& {
@@ -992,13 +977,9 @@ namespace pcit::panther::sema{
 	// try/else expr
 
 	auto SemaBuffer::createTryElseExpr(
-		Expr attempt,
-		Expr except,
-		evo::SmallVector<ExceptParamID>&& exceptParams,
-		uint32_t line,
-		uint32_t collumn
+		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
 	) -> TryElseExpr::ID {
-		return this->internal->try_else_exprs.emplace_back(attempt, except, std::move(exceptParams), line, collumn);
+		return this->internal->try_else_exprs.emplace_back(attempt, except, std::move(exceptParams), location);
 	}
 
 	auto SemaBuffer::getTryElseExpr(TryElseExpr::ID id) const -> const TryElseExpr& {
@@ -1010,13 +991,9 @@ namespace pcit::panther::sema{
 	// try/else interface expr
 
 	auto SemaBuffer::createTryElseInterfaceExpr(
-		Expr attempt,
-		Expr except,
-		evo::SmallVector<ExceptParamID>&& exceptParams,
-		uint32_t line,
-		uint32_t collumn
+		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
 	) -> TryElseInterfaceExpr::ID {
-		return this->internal->try_else_interface_exprs.emplace_back(attempt, except, std::move(exceptParams), line, collumn);
+		return this->internal->try_else_interface_exprs.emplace_back(attempt, except, std::move(exceptParams), location);
 	}
 
 	auto SemaBuffer::getTryElseInterfaceExpr(TryElseInterfaceExpr::ID id) const
@@ -1097,7 +1074,9 @@ namespace pcit::panther::sema{
 		uint32_t vtableFuncIndex,
 		evo::SmallVector<Expr>&& args
 	) -> InterfaceCall::ID {
-		return this->internal->interface_calls.emplace_back(value, funcTypeID, interfaceID, vtableFuncIndex, std::move(args));
+		return this->internal->interface_calls.emplace_back(
+			value, funcTypeID, interfaceID, vtableFuncIndex, std::move(args)
+		);
 	}
 
 	auto SemaBuffer::getInterfaceCall(InterfaceCall::ID id) const -> const InterfaceCall& {
@@ -1109,9 +1088,9 @@ namespace pcit::panther::sema{
 	// indexer
 
 	auto SemaBuffer::createIndexer(
-		Expr target, TypeInfo::ID targetTypeID, evo::SmallVector<Expr>&& indices
+		Expr target, TypeInfo::ID targetTypeID, evo::SmallVector<Expr>&& indices, sema::Location location
 	) -> Indexer::ID {
-		return this->internal->indexers.emplace_back(target, targetTypeID, std::move(indices));
+		return this->internal->indexers.emplace_back(target, targetTypeID, std::move(indices), location);
 	}
 
 	auto SemaBuffer::getIndexer(Indexer::ID id) const -> const Indexer& {
@@ -1155,9 +1134,9 @@ namespace pcit::panther::sema{
 	// array ref indexer
 
 	auto SemaBuffer::createArrayRefIndexer(
-		Expr target, BaseType::ArrayRef::ID targetTypeID, evo::SmallVector<Expr>&& indices
+		Expr target, BaseType::ArrayRef::ID targetTypeID, evo::SmallVector<Expr>&& indices, sema::Location location
 	) -> ArrayRefIndexer::ID {
-		return this->internal->array_ref_indexers.emplace_back(target, targetTypeID, std::move(indices));
+		return this->internal->array_ref_indexers.emplace_back(target, targetTypeID, std::move(indices), location);
 	}
 
 	auto SemaBuffer::getArrayRefIndexer(ArrayRefIndexer::ID id) const -> const ArrayRefIndexer& {

@@ -725,6 +725,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto get_context_ptr() -> pir::Expr;
 
 
+			[[nodiscard]] auto create_scoped_source_location(sema::Location location)
+				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
+
 			[[nodiscard]] auto create_scoped_source_location(uint32_t line, uint32_t collumn)
 				-> std::optional<pir::InstrHandler::DeferPopSourceLocation>;
 

@@ -892,11 +892,6 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(var_attrs.value().is_priv){
-				this->emit_error("Global variable should not have the attribute `#priv`", instr.var_def);
-				return Result::ERROR;
-			}
-			
 		}else{
 			is_global = var_attrs.value().is_global;
 		}
@@ -911,7 +906,6 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				std::monostate(),
 				got_type_info_id.asTypeID(),
-				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
 				this->symbol_proc.getID()
 			);
@@ -929,11 +923,6 @@ namespace pcit::panther{
 				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
 		}else{
-			if(var_attrs.value().is_pub){
-				this->emit_error("Member variable should not have the attribute `#pub`", instr.var_def);
-				return Result::ERROR;
-			}
-
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -1097,7 +1086,6 @@ namespace pcit::panther{
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				var_attrs.value().is_pub,
 				var_attrs.value().is_priv
 			);
 
@@ -1119,7 +1107,6 @@ namespace pcit::panther{
 				value_term_info.type_id.as<CFamilySource::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				var_attrs.value().is_pub,
 				var_attrs.value().is_priv
 			);
 
@@ -1231,11 +1218,6 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(var_attrs.value().is_priv){
-				this->emit_error("Global variable should not have the attribute `#priv`", instr.var_def);
-				return Result::ERROR;
-			}
-			
 		}else{
 			is_global = var_attrs.value().is_global;
 		}
@@ -1250,7 +1232,6 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				value_term_info.getExpr(),
 				type_id,
-				var_attrs.value().is_pub,
 				var_attrs.value().is_priv,
 				this->symbol_proc.getID(),
 				true
@@ -1270,11 +1251,6 @@ namespace pcit::panther{
 			}
 
 		}else{
-			if(var_attrs.value().is_pub){
-				this->emit_error("Member variable should not have the attribute `#pub`", instr.var_def);
-				return Result::ERROR;
-			}
-			
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -1331,7 +1307,6 @@ namespace pcit::panther{
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			message,
 			std::nullopt,
-			var_attrs.value().is_pub,
 			var_attrs.value().is_priv,
 			this->symbol_proc.getID(),
 			true
@@ -1542,7 +1517,6 @@ namespace pcit::panther{
 					aliased_id,
 					aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED,
 					alias_attrs.value().is_distinct,
-					alias_attrs.value().is_pub,
 					alias_attrs.value().is_priv
 				);
 
@@ -1579,7 +1553,6 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_pub,
 					alias_attrs.value().is_priv
 				)
 			);
@@ -1600,7 +1573,6 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_pub,
 					alias_attrs.value().is_priv
 				)
 			);
@@ -1645,7 +1617,6 @@ namespace pcit::panther{
 				.memberVarsABI     = evo::SmallVector<BaseType::Struct::MemberVar*>(),
 				.namespacedMembers = &struct_info.member_symbols,
 				.scopeLevel        = nullptr,
-				.isPub             = struct_attrs.value().is_pub,
 				.isPriv            = struct_attrs.value().is_priv,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
@@ -2050,7 +2021,6 @@ namespace pcit::panther{
 					0,
 					false,
 					sema::Func::Attributes{
-						.isPub      = false,
 						.isPriv     = false,
 						.isRTDiff   = false,
 						.isExport   = false,
@@ -2086,7 +2056,7 @@ namespace pcit::panther{
 					if(member_var.defaultValue.has_value()){
 						created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 							this->context.sema_buffer.createAssign(
-								member_var_expr, member_var.defaultValue->value, 0, 0
+								member_var_expr, member_var.defaultValue->value, sema::Location(0, 0)
 							)
 						);
 						continue;
@@ -2103,8 +2073,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createAssign(
 								member_var_expr,
 								sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true)),
-								0,
-								0
+								sema::Location(0, 0)
 							)
 						);
 						continue;
@@ -2114,14 +2083,13 @@ namespace pcit::panther{
 						this->context.sema_buffer.createAssign(
 							member_var_expr,
 							sema::Expr(this->context.sema_buffer.createDefaultNew(member_var.typeID, true)),
-							0,
-							0
+							sema::Location(0, 0)
 						)
 					);
 				}
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 				);
 
 				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2241,7 +2209,6 @@ namespace pcit::panther{
 					1,
 					false,
 					sema::Func::Attributes{
-						.isPub      = false,
 						.isPriv     = false,
 						.isRTDiff   = false,
 						.isExport   = false,
@@ -2284,13 +2251,13 @@ namespace pcit::panther{
 						evo::debugFatalBreak("Automatic creation of operator [delete] should not be able to fail");
 					}
 					created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createDelete(member_var_expr, member_var.typeID, 0, 0)
+						this->context.sema_buffer.createDelete(member_var_expr, member_var.typeID, sema::Location(0, 0))
 					);
 
 				}
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
+					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 				);
 
 				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2432,7 +2399,6 @@ namespace pcit::panther{
 						1,
 						false,
 						sema::Func::Attributes{
-							.isPub      = false,
 							.isPriv     = false,
 							.isRTDiff   = false,
 							.isExport   = false,
@@ -2484,14 +2450,13 @@ namespace pcit::panther{
 							this->context.sema_buffer.createAssign(
 								*output_member,
 								sema::Expr(this->context.sema_buffer.createMove(*this_member, member_var.typeID, true)),
-								0,
-								0
+								sema::Location(0, 0)
 							)
 						);
 					}
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 					);
 
 					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2647,7 +2612,6 @@ namespace pcit::panther{
 						1,
 						false,
 						sema::Func::Attributes{
-							.isPub      = false,
 							.isPriv     = false,
 							.isRTDiff   = false,
 							.isExport   = false,
@@ -2700,14 +2664,13 @@ namespace pcit::panther{
 							this->context.sema_buffer.createAssign(
 								*output_member,
 								sema::Expr(this->context.sema_buffer.createCopy(*this_member, member_var.typeID, true)),
-								0,
-								0
+								sema::Location(0, 0)
 							)
 						);
 					}
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
-						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, 0, 0)
+						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 					);
 
 					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
@@ -2948,7 +2911,6 @@ namespace pcit::panther{
 				evo::SmallVector<BaseType::Union::Field>(),
 				&union_info.member_symbols,
 				nullptr,
-				union_attrs.value().is_pub,
 				union_attrs.value().is_priv,
 				union_attrs.value().is_untagged,
 				union_attrs.value().is_manual_lifetime
@@ -3139,7 +3101,6 @@ namespace pcit::panther{
 				underlying_type_id,
 				&enum_info.member_symbols,
 				nullptr,
-				enum_attrs.value().is_pub,
 				enum_attrs.value().is_priv
 			)
 		);
@@ -3538,7 +3499,6 @@ namespace pcit::panther{
 					this->scope.getCurrentTypeScopeIfExists();
 
 				if(current_type_scope.has_value() == false){
-					// TODO(FUTURE): better messaging
 					this->emit_error("[this] parameters are only valid inside type scope", param.name);
 					return Result::ERROR;
 				}
@@ -3811,7 +3771,6 @@ namespace pcit::panther{
 			min_num_args,
 			has_in_param,
 			sema::Func::Attributes{
-				.isPub      = func_attrs.value().is_pub,
 				.isPriv     = func_attrs.value().is_priv,
 				.isRTDiff   = func_attrs.value().is_rt_diff,
 				.isExport   = func_attrs.value().is_export,
@@ -4790,8 +4749,8 @@ namespace pcit::panther{
 								sema::Func& created_swapped_func =
 									this->context.sema_buffer.getFunc(created_swapped_func_id);
 
-								const Diagnostic::Location func_location = 
-									Diagnostic::Location::get(created_func, this->context);
+								const sema::Location func_location = 
+									this->get_sema_location(Diagnostic::Location::get(created_func, this->context));
 
 								created_swapped_func.value.as<sema::Func::DefValue>().stmtBlock.emplace_back(
 									this->context.sema_buffer.createReturn(
@@ -4802,13 +4761,11 @@ namespace pcit::panther{
 													sema::Expr(this->context.sema_buffer.createParam(1, 1)),
 													sema::Expr(this->context.sema_buffer.createParam(0, 0)),
 												},
-												func_location.as<SourceLocation>().lineStart,
-												func_location.as<SourceLocation>().collumnStart
+												func_location
 											)
 										),
 										std::nullopt,
-										func_location.as<SourceLocation>().lineStart,
-										func_location.as<SourceLocation>().collumnStart
+										func_location
 									)
 								);
 
@@ -6118,7 +6075,6 @@ namespace pcit::panther{
 			instr.func_alias_def.ident,
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			evo::copy(target_term_info.type_id.as<TermInfo::FuncOverloadList>()),
-			func_alias.value().is_pub,
 			func_alias.value().is_priv
 		);
 
@@ -6145,7 +6101,6 @@ namespace pcit::panther{
 				instr.interface_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				this->symbol_proc.getID(),
-				interface_attrs.value().is_pub,
 				interface_attrs.value().is_priv,
 				!interface_attrs.value().is_non_polymorphic
 			)
@@ -6665,7 +6620,6 @@ namespace pcit::panther{
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				false,
 				false
 			);
 
@@ -6805,7 +6759,6 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				value_term_info.getExpr(),
 				type_id,
-				true,
 				false,
 				this->symbol_proc.getID()
 			);
@@ -6824,15 +6777,12 @@ namespace pcit::panther{
 			}
 
 		}else{
-			const Diagnostic::Location location = this->get_location(instr.var_def);
-
 			const sema::Var::ID new_sema_var = this->context.sema_buffer.createVar(
 				instr.var_def.kind,
 				instr.var_def.ident,
 				value_term_info.getExpr(),
 				type_id,
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(instr.var_def)
 			);
 			this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
 
@@ -6888,7 +6838,6 @@ namespace pcit::panther{
 			instr.func_alias_def.ident,
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			evo::copy(target_term_info.type_id.as<TermInfo::FuncOverloadList>()),
-			false,
 			false
 		);
 
@@ -7071,8 +7020,6 @@ namespace pcit::panther{
 					const BaseType::Struct& return_struct_type =
 						this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
 
-					const Diagnostic::Location location = this->get_location(instr.return_stmt);
-
 					for(size_t member_i = 0; member_i < return_struct_type.memberVars.size(); member_i+=1){
 						if(this->ident_value_state_is_uninit_with_default(
 							sema::ReturnParamAccessorValueStateID(*func_info.constructor_ret_param, uint32_t(member_i))
@@ -7086,8 +7033,7 @@ namespace pcit::panther{
 									uint32_t(member_i)
 								),
 								sema::Expr(return_struct_type.memberVars[member_i].defaultValue->value),
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(instr.return_stmt)
 							);
 
 							this->get_current_scope_level().stmtBlock().emplace_back(assign_default_value);
@@ -7137,13 +7083,9 @@ namespace pcit::panther{
 			}
 		}
 
-		const Diagnostic::Location location = this->get_location(instr.return_stmt);
 
 		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(
-			return_value,
-			std::nullopt,
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
+			return_value, std::nullopt, this->get_sema_location(instr.return_stmt)
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
@@ -7267,13 +7209,9 @@ namespace pcit::panther{
 			}
 		}
 
-		const Diagnostic::Location location = this->get_location(instr.return_stmt);
 
 		const sema::Return::ID sema_return_id = this->context.sema_buffer.createReturn(
-			return_value,
-			target_label_id,
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
+			return_value, target_label_id, this->get_sema_location(instr.return_stmt)
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
@@ -7385,10 +7323,9 @@ namespace pcit::panther{
 			}
 		}
 
-		const Diagnostic::Location location = this->get_location(instr.error_stmt);
 
 		const sema::Error::ID sema_error_id = this->context.sema_buffer.createError(
-			error_value, location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
+			error_value, this->get_sema_location(instr.error_stmt)
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_error_id);
@@ -7420,11 +7357,9 @@ namespace pcit::panther{
 
 
 
-		const Diagnostic::Location location = this->get_location(instr.unreachable_stmt.keyword);
-
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createUnreachable(
-				message_expr, location.as<SourceLocation>().lineStart, location.as<SourceLocation>().collumnStart
+				message_expr, this->get_sema_location(instr.unreachable_stmt.keyword)
 			)
 		);
 
@@ -7654,14 +7589,11 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const Diagnostic::Location location = this->get_location(instr.delete_stmt);
-
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createDelete(
 				target.getExpr(),
 				target.type_id.as<TypeInfo::ID>(),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(instr.delete_stmt)
 			)
 		);
 
@@ -9725,10 +9657,7 @@ namespace pcit::panther{
 				switch(intrinsic_kind){
 					case IntrinsicFunc::Kind::ABORT: case IntrinsicFunc::Kind::PANIC: {
 						const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-							intrinsic_kind,
-							std::move(sema_args),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							intrinsic_kind, std::move(sema_args), this->get_sema_location(location)
 						);
 
 						this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -9737,10 +9666,7 @@ namespace pcit::panther{
 
 					default: {
 						const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
-							intrinsic_kind,
-							std::move(sema_args),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							intrinsic_kind, std::move(sema_args), this->get_sema_location(location)
 						);
 
 						this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -9758,8 +9684,7 @@ namespace pcit::panther{
 						target_term_info.getExpr()
 					},
 					std::move(sema_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(location)
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -9816,14 +9741,10 @@ namespace pcit::panther{
 				}
 
 			}else{
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call.target, this->source);
-
-
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 					*func_call_impl_res.value().selected_func_id,
 					std::move(sema_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.func_call.target, this->source))
 				);
 
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
@@ -9899,14 +9820,11 @@ namespace pcit::panther{
 
 			if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-			const auto location = this->get_location(instr.infix);
-
 			this->get_current_scope_level().stmtBlock().emplace_back(
 				this->context.sema_buffer.createAssign(
 					lhs.getExpr(),
 					rhs.getExpr(),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(instr.infix)
 				)
 			);
 
@@ -9979,14 +9897,11 @@ namespace pcit::panther{
 					} break;
 				}
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						this->get_term_info(instr.builtin_composite_expr_term_info_id).getExpr(),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10084,14 +9999,9 @@ namespace pcit::panther{
 
 						if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-						const auto location = this->get_location(instr.infix);
-
 						this->get_current_scope_level().stmtBlock().emplace_back(
 							this->context.sema_buffer.createAssign(
-								lhs.getExpr(),
-								arg.getExpr(),
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								lhs.getExpr(), arg.getExpr(), this->get_sema_location(instr.infix)
 							)
 						);
 
@@ -10109,8 +10019,6 @@ namespace pcit::panther{
 				if(instr.args.empty()){
 					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-					const auto location = this->get_location(instr.infix);
-
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
@@ -10119,8 +10027,7 @@ namespace pcit::panther{
 									target_type_id.asTypeID(), lhs.isUninitialized()
 								)
 							),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(instr.infix)
 						)
 					);
 
@@ -10142,8 +10049,6 @@ namespace pcit::panther{
 
 					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-					const auto location = this->get_location(instr.infix);
-
 					if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
 						this->get_current_scope_level().stmtBlock().emplace_back(
 							this->context.sema_buffer.createAssign(
@@ -10153,8 +10058,7 @@ namespace pcit::panther{
 										target_type_id.asTypeID(), lhs.isUninitialized()
 									)
 								),
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(instr.infix)
 							)
 						);
 
@@ -10194,8 +10098,7 @@ namespace pcit::panther{
 										arg.getExpr(), target_type_id.asTypeID()
 									)
 								),
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(instr.infix)
 							)
 						);
 					}
@@ -10233,14 +10136,11 @@ namespace pcit::panther{
 					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
-					const auto location = this->get_location(instr.infix);
-
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(instr.infix)
 						)
 					);
 
@@ -10267,14 +10167,10 @@ namespace pcit::panther{
 
 					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-					const auto location = this->get_location(instr.infix);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
-							lhs.getExpr(),
-							arg.getExpr(),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							lhs.getExpr(), arg.getExpr(), this->get_sema_location(instr.infix)
 						)
 					);
 
@@ -10316,14 +10212,11 @@ namespace pcit::panther{
 
 				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10334,14 +10227,11 @@ namespace pcit::panther{
 				if(instr.args.empty()){
 					if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-					const auto location = this->get_location(instr.infix);
-
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
 							lhs.getExpr(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(instr.infix)
 						)
 					);
 
@@ -10436,8 +10326,6 @@ namespace pcit::panther{
 
 				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
@@ -10446,8 +10334,7 @@ namespace pcit::panther{
 							decayed_target_type_info.baseTypeID().arrayRefID(),
 							std::move(dimensions)
 						)),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10558,20 +10445,13 @@ namespace pcit::panther{
 
 				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
-				const Diagnostic::Location call_location = Diagnostic::Location::get(instr.infix.rhs, this->source);
-
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
-					selected_func_id,
-					std::move(output_args),
-					call_location.as<SourceLocation>().lineStart,
-					call_location.as<SourceLocation>().collumnStart
+					selected_func_id, std::move(output_args), this->get_sema_location(instr.infix)
 				);
 
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(selected_func_id);
 
 				if(should_run_initialization){
-					const auto assign_location = this->get_location(instr.infix);
-
 					if(
 						is_semantically_initialization == false
 						&& this->context.getTypeManager().isTriviallyDeletable(decayed_target_type_info.baseTypeID())
@@ -10587,10 +10467,7 @@ namespace pcit::panther{
 
 						this->get_current_scope_level().stmtBlock().emplace_back(
 							this->context.sema_buffer.createDelete(
-								lhs.getExpr(),
-								lhs.type_id.as<TypeInfo::ID>(),
-								assign_location.as<SourceLocation>().lineStart,
-								assign_location.as<SourceLocation>().collumnStart
+								lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>(), this->get_sema_location(instr.infix)
 							)
 						);
 					}
@@ -10598,10 +10475,7 @@ namespace pcit::panther{
 
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createAssign(
-							lhs.getExpr(),
-							sema::Expr(created_func_call_id),
-							assign_location.as<SourceLocation>().lineStart,
-							assign_location.as<SourceLocation>().collumnStart
+							lhs.getExpr(), sema::Expr(created_func_call_id), this->get_sema_location(instr.infix)
 						)
 					);
 
@@ -10632,14 +10506,11 @@ namespace pcit::panther{
 				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10667,14 +10538,11 @@ namespace pcit::panther{
 				if(this->set_assigment_value_state(lhs, instr.infix).isError()){ return Result::ERROR; }
 
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
 						lhs.getExpr(),
 						sema::Expr(this->context.sema_buffer.createDefaultNew(decayed_target_type_id, false)),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10735,14 +10603,9 @@ namespace pcit::panther{
 					}
 				}();
 
-				const auto location = this->get_location(instr.infix);
-
 				this->get_current_scope_level().stmtBlock().emplace_back(
 					this->context.sema_buffer.createAssign(
-						lhs.getExpr(),
-						output_expr,
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						lhs.getExpr(), output_expr, this->get_sema_location(instr.infix)
 					)
 				);
 
@@ -10927,14 +10790,10 @@ namespace pcit::panther{
 			}
 		}
 
-		const auto location = this->get_location(instr.infix);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(
-				lhs.getExpr(),
-				target_copy.getExpr(),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				lhs.getExpr(), target_copy.getExpr(), this->get_sema_location(instr.infix)
 			)
 		);
 
@@ -11145,14 +11004,9 @@ namespace pcit::panther{
 		}
 
 
-		const auto location = this->get_location(instr.infix);
-
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(
-				lhs.getExpr(),
-				target_move.getExpr(),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				lhs.getExpr(), target_move.getExpr(), this->get_sema_location(instr.infix)
 			)
 		);
 
@@ -11346,14 +11200,9 @@ namespace pcit::panther{
 		}
 
 
-		const auto location = this->get_location(instr.infix);
-
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAssign(
-				lhs.getExpr(),
-				target_forward.getExpr(),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				lhs.getExpr(), target_forward.getExpr(), this->get_sema_location(instr.infix)
 			)
 		);
 
@@ -11454,14 +11303,11 @@ namespace pcit::panther{
 					}
 
 
-					const Diagnostic::Location location = this->get_location(instr.multi_assign.assigns[i]);
-
 					this->get_current_scope_level().stmtBlock().emplace_back(
 						this->context.sema_buffer.createDelete(
 							target.getExpr(),
 							target.type_id.as<TypeInfo::ID>(),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(instr.multi_assign.assigns[i])
 						)
 					);
 				}
@@ -11469,14 +11315,9 @@ namespace pcit::panther{
 		}
 
 
-		const auto location = this->get_location(instr.multi_assign);
-
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createMultiAssign(
-				std::move(targets),
-				value.getExpr(),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				std::move(targets), value.getExpr(), this->get_sema_location(instr.multi_assign)
 			)
 		);
 
@@ -11495,8 +11336,6 @@ namespace pcit::panther{
 
 		const TermInfo& rhs = this->get_term_info(instr.rhs);
 
-		const auto location = this->get_location(instr.infix);
-
 		if(rhs.isMultiValue()){
 			auto targets = evo::SmallVector<evo::Variant<sema::Expr, TypeInfo::ID>>();
 			targets.reserve(rhs.type_id.as<evo::SmallVector<TypeInfo::ID>>().size());
@@ -11509,8 +11348,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.createMultiAssign(
 					std::move(targets),
 					rhs.getExpr(),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(instr.infix)
 				)
 			);
 
@@ -11519,8 +11357,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.createAssign(
 					std::nullopt,
 					rhs.getExpr(),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(instr.infix)
 				)
 			);
 		}
@@ -11703,8 +11540,6 @@ namespace pcit::panther{
 
 			for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
 				if(method == *func_call_impl_res.value().selected_func_id){
-					const Diagnostic::Location location = Diagnostic::Location::get(ast_func_call, this->source);
-
 					const sema::TryElseInterface::ID sema_try_else_interface_id = 
 						this->context.sema_buffer.createTryElseInterface(
 							fake_term_info.expr,
@@ -11714,8 +11549,7 @@ namespace pcit::panther{
 							std::move(sema_args),
 							evo::copy(except_params),
 							sema::StmtBlock{},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(Diagnostic::Location::get(ast_func_call, this->source))
 						);
 
 					this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_interface_id);
@@ -11735,15 +11569,12 @@ namespace pcit::panther{
 				*func_call_impl_res.value().selected_func_id
 			);
 
-			const Diagnostic::Location location = Diagnostic::Location::get(ast_func_call, this->source);
-
 			const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
 				*func_call_impl_res.value().selected_func_id,
 				std::move(sema_args),
 				evo::copy(except_params),
 				sema::StmtBlock{},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(ast_func_call, this->source))
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
@@ -11752,8 +11583,6 @@ namespace pcit::panther{
 			this->push_scope_level(&sema_try_else.elseBlock);
 
 		}else{ // function pointer
-			const Diagnostic::Location location = Diagnostic::Location::get(ast_func_call, this->source);
-
 			const sema::TryElse::ID sema_try_else_id = this->context.sema_buffer.createTryElse(
 				sema::TryElse::FuncPtr{
 					this->context.type_manager.getOrCreateFunction(
@@ -11764,8 +11593,7 @@ namespace pcit::panther{
 				std::move(sema_args),
 				evo::copy(except_params),
 				sema::StmtBlock{},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(ast_func_call, this->source))
 			);
 
 			this->get_current_scope_level().stmtBlock().emplace_back(sema_try_else_id);
@@ -11937,7 +11765,6 @@ namespace pcit::panther{
 			i += 1;
 		}
 
-		const Diagnostic::Location location = Diagnostic::Location::get(instr.asm_stmt.startToken, this->source);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createAsm(
@@ -11947,8 +11774,7 @@ namespace pcit::panther{
 				evo::SmallVector<sema::Asm::RetParam>(),
 				asm_attrs.value().is_side_effect,
 				asm_attrs.value().is_align_stack,
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.asm_stmt.startToken, this->source))
 			)
 		);
 		return Result::SUCCESS;
@@ -12425,13 +12251,10 @@ namespace pcit::panther{
 				}
 
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
-
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 					intrinsic_kind,
 					std::move(sema_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 				);
 
 
@@ -12514,8 +12337,6 @@ namespace pcit::panther{
 				}
 
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
-
 				const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 					sema::FuncCall::FuncPtr{
 						this->context.type_manager.getOrCreateFunction(
@@ -12524,8 +12345,7 @@ namespace pcit::panther{
 						target_term_info.getExpr()
 					},
 					std::move(sema_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 				);
 
 				const evo::SmallVector<TypeInfo::VoidableID>& selected_func_type_return_params = 
@@ -12579,13 +12399,10 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
-
 		const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 			*func_call_impl_res.value().selected_func_id,
 			std::move(sema_args),
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
+			this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 		);
 
 		const bool output_is_comptime = [&](){
@@ -12733,8 +12550,6 @@ namespace pcit::panther{
 					}();
 
 
-					const Diagnostic::Location location = this->get_location(ast_func_call.target);
-
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						fake_term_info.isComptime,
@@ -12744,8 +12559,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createOptionalExtract(
 								fake_term_info.expr,
 								fake_term_info.typeID,
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(ast_func_call.target)
 							)
 						)
 					);
@@ -13161,7 +12975,6 @@ namespace pcit::panther{
 			} break;
 
 			case Context::LookupSourceIDError::SAME_AS_CALLER: {
-				// TODO(FUTURE): better messaging
 				this->emit_error("Cannot import self", instr.func_call.args[0].value);
 				return Result::ERROR;
 			} break;
@@ -13744,14 +13557,12 @@ namespace pcit::panther{
 				target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
 			);
 
-		const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(
 			this->context.sema_buffer.createFuncCall(
 				intrinsic_target,
 				std::move(args),
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 			)
 		);
 
@@ -13926,15 +13737,12 @@ namespace pcit::panther{
 					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>(), std::move(template_args)
 				);
 
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.func_call, this->source);
-
 
 			const auto expr = sema::Expr(
 				this->context.sema_buffer.createFuncCall(
 					intrinsic_target,
 					std::move(args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 				)
 			);
 
@@ -14681,7 +14489,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @add wrapped", instr.func_call);
 						return Result::ERROR;
 					}
@@ -14774,7 +14581,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @sub wrapped", instr.func_call);
 						return Result::ERROR;
 					}
@@ -14866,7 +14672,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @mul wrapped", instr.func_call);
 						return Result::ERROR;
 					}
@@ -14959,7 +14764,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @div was not exact", instr.func_call);
 						return Result::ERROR;
 					}
@@ -15425,7 +15229,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @shl wrapped", instr.func_call);
 						return Result::ERROR;
 					}
@@ -15527,7 +15330,6 @@ namespace pcit::panther{
 					);
 
 					if(result.isError()){
-						// TODO(FUTURE): better messaging
 						this->emit_error("Comptime intrinsic @shr wrapped", instr.func_call);
 						return Result::ERROR;
 					}
@@ -16549,13 +16351,10 @@ namespace pcit::panther{
 					);
 
 					
-					const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix, this->source);
-
 					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 						instantiation_id,
 						evo::SmallVector<sema::Expr>{sema::Expr(zero), expr.getExpr()},
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(Diagnostic::Location::get(instr.prefix, this->source))
 					);
 
 					this->return_term_info(instr.output,
@@ -16579,13 +16378,10 @@ namespace pcit::panther{
 						);
 
 					
-					const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix, this->source);
-
 					const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 						instantiation_id,
 						evo::SmallVector<sema::Expr>{expr.getExpr()},
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(Diagnostic::Location::get(instr.prefix, this->source))
 					);
 
 					this->return_term_info(instr.output,
@@ -16663,13 +16459,10 @@ namespace pcit::panther{
 			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true, false);
 
 
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix.rhs, this->source);
-
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				instantiation_id,
 				evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(true_value)},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.prefix.rhs, this->source))
 			);
 
 			this->return_term_info(instr.output,
@@ -16763,13 +16556,10 @@ namespace pcit::panther{
 				);
 
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.prefix.rhs, this->source);
-
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 					instantiation_id,
 					evo::SmallVector<sema::Expr>{expr.getExpr(), sema::Expr(all_ones)},
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.prefix, this->source))
 				);
 
 				this->return_term_info(instr.output,
@@ -16945,8 +16735,6 @@ namespace pcit::panther{
 
 		if constexpr(IS_COMPTIME == false){
 			if(target.isComptime == false){
-				const Diagnostic::Location location = this->get_location(instr.postfix);
-
 				this->return_term_info(instr.output,
 					target.is_mutable()
 						? TermInfo::ValueCategory::CONCRETE_MUT
@@ -16958,8 +16746,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createUnwrap(
 							target.getExpr(),
 							target.type_id.as<TypeInfo::ID>(),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart,
+							this->get_sema_location(instr.postfix),
 							false
 						)
 					)
@@ -17731,13 +17518,10 @@ namespace pcit::panther{
 				}
 
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.ast_new, this->source);
-
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 					selected_func_id,
 					std::move(output_args),
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.ast_new, this->source))
 				);
 
 
@@ -18692,16 +18476,13 @@ namespace pcit::panther{
 		
 
 		const sema::Expr try_else_expr = [&](){
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.try_else.attemptExpr, this->source);
-
 			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
 				return sema::Expr(
 					this->context.sema_buffer.createTryElseExpr(
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(Diagnostic::Location::get(instr.try_else.attemptExpr, this->source))
 					)
 				);
 			}else{
@@ -18710,8 +18491,7 @@ namespace pcit::panther{
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(Diagnostic::Location::get(instr.try_else.attemptExpr, this->source))
 					)
 				);
 			}
@@ -18854,8 +18634,6 @@ namespace pcit::panther{
 		}
 
 
-		const Diagnostic::Location location = Diagnostic::Location::get(instr.asm_expr.startToken, this->source);
-
 		const sema::AsmID asm_expr = this->context.sema_buffer.createAsm(
 			code,
 			std::move(params),
@@ -18863,8 +18641,7 @@ namespace pcit::panther{
 			std::move(ret_params),
 			asm_attrs.value().is_side_effect,
 			asm_attrs.value().is_align_stack,
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
+			this->get_sema_location(Diagnostic::Location::get(instr.asm_expr.startToken, this->source))
 		);
 
 		if(ret_param_types.size() == 1){
@@ -19255,8 +19032,6 @@ namespace pcit::panther{
 					evo::debugAssert(is_comptime, "This indexer is required to be comptime");
 				}
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.indexer, this->source);
-
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					is_comptime,
@@ -19266,8 +19041,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createFuncCall(
 							selected_overload_id,
 							std::move(sema_args),
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(Diagnostic::Location::get(instr.indexer, this->source))
 						)
 					)
 				);
@@ -19379,7 +19153,10 @@ namespace pcit::panther{
 
 			if(is_arr_ref){
 				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
-					target_expr, decayed_target_type.baseTypeID().arrayRefID(), std::move(indices)
+					target_expr,
+					decayed_target_type.baseTypeID().arrayRefID(),
+					std::move(indices),
+					this->get_sema_location(instr.indexer)
 				));
 
 			}else if(is_ptr){
@@ -19389,12 +19166,15 @@ namespace pcit::panther{
 				);
 
 				return sema::Expr(this->context.sema_buffer.createIndexer(
-					target_expr, derefed_type_id, std::move(indices)
+					target_expr, derefed_type_id, std::move(indices), this->get_sema_location(instr.indexer)
 				));
 
 			}else{
 				return sema::Expr(this->context.sema_buffer.createIndexer(
-					target_expr, target.type_id.as<TypeInfo::ID>(), std::move(indices)
+					target_expr,
+					target.type_id.as<TypeInfo::ID>(),
+					std::move(indices),
+					this->get_sema_location(instr.indexer)
 				));
 			}
 		}();
@@ -19917,9 +19697,9 @@ namespace pcit::panther{
 				const BaseType::Struct& instantiated_struct =
 					this->context.getTypeManager().getStruct(*actual_instantiation.structID);
 
-				if(instantiated_struct.isPub == false){
+				if(instantiated_struct.isPriv){
 					this->emit_error(
-						"This struct template instantiation does not have the #pub attribute",
+						"This struct template instantiation has the `#priv` attribute",
 						instr.templated_expr.base,
 						Diagnostic::Info(
 							"Struct template defined here:", this->get_location(*actual_instantiation.structID)
@@ -20286,13 +20066,10 @@ namespace pcit::panther{
 			}
 
 
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
-
 			const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
 				selected_func_id,
 				evo::SmallVector<sema::Expr>{expr.getExpr()},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 			);
 
 			this->return_term_info(instr.output,
@@ -20623,8 +20400,6 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 
 			}else{
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
-
 				switch(to_primitive.kind()){
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
@@ -20639,8 +20414,7 @@ namespace pcit::panther{
 						const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 							instantiation_id,
 							evo::SmallVector<sema::Expr>{expr.getExpr()},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 						);
 
 						this->return_term_info(instr.output,
@@ -20673,8 +20447,7 @@ namespace pcit::panther{
 						const sema::FuncCall::ID bitcast_call = this->context.sema_buffer.createFuncCall(
 							bitcast_instantiation_id,
 							evo::SmallVector<sema::Expr>{expr.getExpr()},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 						);
 
 
@@ -20689,8 +20462,7 @@ namespace pcit::panther{
 						const sema::FuncCall::ID conversion_call = this->context.sema_buffer.createFuncCall(
 							conv_instantiation_id,
 							evo::SmallVector<sema::Expr>{sema::Expr(bitcast_call)},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 						);
 
 						this->return_term_info(instr.output,
@@ -20876,13 +20648,10 @@ namespace pcit::panther{
 						}
 					);
 
-				const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
-
 				const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 					instantiation_id,
 					evo::SmallVector<sema::Expr>{expr.getExpr(), zero},
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 				);
 
 				this->return_term_info(instr.output,
@@ -21092,13 +20861,11 @@ namespace pcit::panther{
 				}
 			);
 
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
 
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				instantiation_id,
 				evo::SmallVector<sema::Expr>{expr.getExpr()},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 			);
 
 			this->return_term_info(instr.output,
@@ -22529,13 +22296,11 @@ namespace pcit::panther{
 				}
 			}();
 
-			const Diagnostic::Location location = Diagnostic::Location::get(instr.infix, this->source);
 
 			const sema::FuncCall::ID created_func_call_id = this->context.sema_buffer.createFuncCall(
 				instantiation_id,
 				evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()},
-				location.as<SourceLocation>().lineStart,
-				location.as<SourceLocation>().collumnStart
+				this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
 			);
 
 			this->return_term_info(instr.output,
@@ -24388,7 +24153,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
+					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -25254,7 +25019,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
+					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -25550,7 +25315,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
+					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -25742,7 +25507,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
+					evo::debugFatalBreak(
 						"Sema doesn't have completed info for def despite SymbolProc saying it should"
 					);
 				} break;
@@ -27340,10 +27105,10 @@ namespace pcit::panther{
 				const sema::FuncAlias& func_alias = this->context.getSemaBuffer().getFuncAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(func_alias.isPub == false){
+					if(func_alias.isPriv){
 						this->emit_error(
 							std::format(
-								"Function alias \"{}\" does not have the `#pub` attribute, "
+								"Function alias \"{}\" has the `#priv` attribute, "
 									"and is not accessable in this scope",
 								ident_str
 							),
@@ -27362,7 +27127,7 @@ namespace pcit::panther{
 						if(func_alias.isPriv && func_alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 							this->emit_error(
 								std::format(
-									"Function alias \"{}\" has the #priv attribute, "
+									"Function alias \"{}\" has the `#priv` attribute, "
 										"and is not accessable from this scope",
 									ident_str
 								),
@@ -27379,7 +27144,6 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
 				if(!variables_in_scope){
-					// TODO(FUTURE): better messaging
 					this->emit_error(
 						std::format("Variable \"{}\" is not accessable in this scope", ident_str),
 						ident,
@@ -27446,9 +27210,9 @@ namespace pcit::panther{
 				const sema::GlobalVar& sema_var = this->context.getSemaBuffer().getGlobalVar(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(sema_var.isPub == false){
+					if(sema_var.isPriv){
 						this->emit_error(
-							std::format("Global variable \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Global variable \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
 						);
@@ -27459,7 +27223,7 @@ namespace pcit::panther{
 					if(sema_var.isPriv && sema_var.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Global variable \"{}\" has the #priv attribute, and is not accessable from this scope",
+								"Global variable \"{}\" has the `#priv` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -27794,9 +27558,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(ident_id.isPub == false){
+					if(ident_id.isPriv){
 						this->emit_error(
-							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Module \"{}\" has the `#priv` attribute", ident_str),
 							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
@@ -27811,7 +27575,7 @@ namespace pcit::panther{
 					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Module \"{}\" has the #priv attribute, "
+								"Module \"{}\" has the `#priv` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -27834,9 +27598,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::CFamilyModuleInfo>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(ident_id.isPub == false){
+					if(ident_id.isPriv){
 						this->emit_error(
-							std::format("Module \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Module \"{}\" has the `#priv` attribute", ident_str),
 							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
@@ -27851,7 +27615,7 @@ namespace pcit::panther{
 					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Module \"{}\" has the #priv attribute, "
+								"Module \"{}\" has the `#priv` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -27876,9 +27640,9 @@ namespace pcit::panther{
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(alias.isPub == false){
+					if(alias.isPriv){
 						this->emit_error(
-							std::format("Type alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Type alias \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Type alias declared here:",
@@ -27893,7 +27657,7 @@ namespace pcit::panther{
 					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Type alias \"{}\" has the #priv attribute, "
+								"Type alias \"{}\" has the `#priv` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -27942,9 +27706,9 @@ namespace pcit::panther{
 				const BaseType::DistinctAlias& alias = this->context.getTypeManager().getDistinctAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(alias.isPub == false){
+					if(alias.isPriv){
 						this->emit_error(
-							std::format("Distinct type alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Distinct type alias \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Distinct type alias declared here:",
@@ -27959,7 +27723,7 @@ namespace pcit::panther{
 					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Distinct type alias \"{}\" has the #priv attribute, "
+								"Distinct type alias \"{}\" has the `#priv` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -28016,9 +27780,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(struct_info.isPub == false){
+					if(struct_info.isPriv){
 						this->emit_error(
-							std::format("Struct \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Struct \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Struct declared here:",
@@ -28033,7 +27797,7 @@ namespace pcit::panther{
 					if(struct_info.isPriv && struct_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Struct \"{}\" has the #priv attribute, and is not accessable from this scope",
+								"Struct \"{}\" has the `#priv` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -28064,9 +27828,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(union_info.isPub == false){
+					if(union_info.isPriv){
 						this->emit_error(
-							std::format("Union \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Union \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Union declared here:",
@@ -28081,7 +27845,7 @@ namespace pcit::panther{
 					if(union_info.isPriv && union_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Union \"{}\" has the #priv attribute, and is not accessable from this scope",
+								"Union \"{}\" has the `#priv` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -28112,9 +27876,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(enum_info.isPub == false){
+					if(enum_info.isPriv){
 						this->emit_error(
-							std::format("Enum \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Enum \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Enum declared here:",
@@ -28129,7 +27893,7 @@ namespace pcit::panther{
 					if(enum_info.isPriv && enum_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Enum \"{}\" has the #priv attribute, and is not accessable from this scope",
+								"Enum \"{}\" has the `#priv` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -28160,9 +27924,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(interface_info.isPub == false){
+					if(interface_info.isPriv){
 						this->emit_error(
-							std::format("Interface \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Interface \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Interface declared here:",
@@ -28177,7 +27941,7 @@ namespace pcit::panther{
 					if(interface_info.isPriv && interface_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Interface \"{}\" has the #priv attribute, and is not accessable from this scope",
+								"Interface \"{}\" has the `#priv` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -28208,9 +27972,9 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getStructTemplateAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(struct_template_alias.isPub == false){
+					if(struct_template_alias.isPriv){
 						this->emit_error(
-							std::format("Alias \"{}\" does not have the #pub attribute", ident_str),
+							std::format("Alias \"{}\" has the `#priv` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Alias declared here:",
@@ -28228,7 +27992,7 @@ namespace pcit::panther{
 					){
 						this->emit_error(
 							std::format(
-								"Struct template alias \"{}\" has the #priv attribute, "
+								"Struct template alias \"{}\" has the `#priv` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -30412,9 +30176,9 @@ namespace pcit::panther{
 					const sema::Func& selected_func =
 						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
 
-					if(selected_func.attributes.isPub == false){
+					if(selected_func.attributes.isPriv){
 						this->emit_error(
-							"Selected function overload does not have the `#pub` attribute, "
+							"Selected function overload has the `#priv` attribute, "
 								"and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
@@ -30446,10 +30210,9 @@ namespace pcit::panther{
 
 					sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
-					if(sema_func.attributes.isPub == false){
+					if(sema_func.attributes.isPriv){
 						this->emit_error(
-							"Selected function overload does not have the `#pub` attribute, "
-								"and is not accessable in this scope",
+							"Selected function overload has the #priv attribute, and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
@@ -33949,13 +33712,11 @@ namespace pcit::panther{
 			return evo::Unexpected(Result::ERROR);
 		}
 
-		const Diagnostic::Location location = Diagnostic::Location::get(ast_infix, this->source);
 
 		return this->context.sema_buffer.createFuncCall(
 			selected_overload_id,
 			evo::SmallVector<sema::Expr>{lhs.getExpr(), rhs.getExpr()},
-			location.as<SourceLocation>().lineStart,
-			location.as<SourceLocation>().collumnStart
+			this->get_sema_location(Diagnostic::Location::get(ast_infix, this->source))
 		);
 	}
 
@@ -34037,8 +33798,6 @@ namespace pcit::panther{
 		const BaseType::Function& selected_overload_type =
 			this->context.getTypeManager().getFunction(selected_overload.typeID);
 
-		const Diagnostic::Location location = Diagnostic::Location::get(ast_prefix, this->source);
-
 		this->return_term_info(output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			expr.isComptime,
@@ -34048,8 +33807,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.createFuncCall(
 					selected_overload_id,
 					evo::SmallVector<sema::Expr>{expr.getExpr()},
-					location.as<SourceLocation>().lineStart,
-					location.as<SourceLocation>().collumnStart
+					this->get_sema_location(Diagnostic::Location::get(ast_prefix, this->source))
 				)
 			)
 		);
@@ -34929,7 +34687,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_global_var_attrs(
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<GlobalVarAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_global = Attribute(*this, "global");
 
@@ -34941,38 +34698,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35023,7 +34749,6 @@ namespace pcit::panther{
 
 
 		return GlobalVarAttrs{
-			.is_pub    = attr_pub.is_set(),
 			.is_priv   = attr_priv.is_set(),
 			.is_global = attr_global.is_set(),
 		};
@@ -35033,7 +34758,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_alias_attrs(
 		const AST::FuncAliasDef& func_alias_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAliasAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 
 
@@ -35045,37 +34769,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35113,7 +34807,6 @@ namespace pcit::panther{
 
 
 		return FuncAliasAttrs{
-			.is_pub  = attr_pub.is_set(),
 			.is_priv = attr_priv.is_set(),
 		};
 	}
@@ -35142,14 +34835,6 @@ namespace pcit::panther{
 
 				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
 
-			}else if(attribute_str == "pub"){
-				this->emit_error(
-					"Unknown variable attribute #pub",
-					attribute.attribute,
-					Diagnostic::Info("Note: attribute `#pub` is not allowed on local variables")
-				);
-				return evo::resultError;
-
 			}else if(attribute_str == "priv"){
 				this->emit_error(
 					"Unknown variable attribute #priv",
@@ -35173,7 +34858,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_alias_attrs(
 		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<AliasAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_distinct = Attribute(*this, "distinct");
 
@@ -35185,37 +34869,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35263,7 +34917,6 @@ namespace pcit::panther{
 		}
 
 		return AliasAttrs{
-			.is_pub      = attr_pub.is_set(),
 			.is_priv     = attr_priv.is_set(),
 			.is_distinct = attr_distinct.is_set(),
 		};
@@ -35309,11 +34962,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_struct_attrs(
 		const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<StructAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_packed = Attribute(*this, "packed");
 		auto attr_ordered = Attribute(*this, "ordered");
-		// auto attr_extern = Attribute(*this, "extern");
 
 		auto attr_alignment = Attribute(*this, "align");
 		auto alignment = std::optional<uint32_t>();
@@ -35327,37 +34978,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35519,7 +35140,6 @@ namespace pcit::panther{
 
 
 		return StructAttrs{
-			.is_pub     = attr_pub.is_set(),
 			.is_priv    = attr_priv.is_set(),
 			.is_ordered = attr_ordered.is_set(),
 			.is_packed  = attr_packed.is_set(),
@@ -35531,7 +35151,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_union_attrs(
 		const AST::UnionDef& union_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<UnionAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_untagged = Attribute(*this, "untagged");
 		auto attr_manual_lifetime = Attribute(*this, "manualLifetime");
@@ -35545,37 +35164,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35631,8 +35220,7 @@ namespace pcit::panther{
 
 
 		return UnionAttrs{
-			.is_pub             = attr_pub.is_set(),
-			.is_priv            = attr_pub.is_set(),
+			.is_priv            = attr_priv.is_set(),
 			.is_untagged        = attr_untagged.is_set(),
 			.is_manual_lifetime = attr_manual_lifetime.is_set(),
 		};
@@ -35643,7 +35231,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_enum_attrs(
 		const AST::EnumDef& enum_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<EnumAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 
 
@@ -35655,37 +35242,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info= this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -35695,7 +35252,7 @@ namespace pcit::panther{
 						return evo::Unexpected(Result::ERROR);
 					}
 
-					TypeCheckInfo type_check_info= this->type_check<true, true, true>(
+					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
 						"Condition in #priv",
@@ -35725,7 +35282,6 @@ namespace pcit::panther{
 
 
 		return EnumAttrs{
-			.is_pub  = attr_pub.is_set(),
 			.is_priv = attr_priv.is_set(),
 		};
 	}
@@ -35736,7 +35292,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAttrs, Result> {
-		auto attr_pub         = ConditionalAttribute(*this, "pub");
 		auto attr_priv        = ConditionalAttribute(*this, "priv");
 		auto attr_rt          = ConditionalAttribute(*this, "rt");
 		auto attr_ct          = ConditionalAttribute(*this, "ct");
@@ -35762,37 +35317,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
 					this->emit_error("Attribute #priv is not a valid extern function attribute", attribute.attribute);
 					return evo::Unexpected(Result::ERROR);
@@ -36241,7 +35766,6 @@ namespace pcit::panther{
 		}
 
 		return FuncAttrs{
-			.is_pub         = attr_pub.is_set(),
 			.is_priv        = attr_priv.is_set(),
 			.is_comptime    = attr_ct.is_set(),
 			.is_runtime     = attr_rt.is_set(),
@@ -36441,7 +35965,6 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_interface_attrs(
 		const AST::InterfaceDef& interface_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<InterfaceAttrs, Result> {
-		auto attr_pub = ConditionalAttribute(*this, "pub");
 		auto attr_priv = ConditionalAttribute(*this, "priv");
 		auto attr_non_polymorphic = Attribute(*this, "nonPolymorphic");
 
@@ -36454,37 +35977,7 @@ namespace pcit::panther{
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 
-			if(attribute_str == "pub"){
-				if(attribute_params_info[i].empty()){
-					if(attr_pub.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
-
-				}else if(attribute_params_info[i].size() == 1){
-					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
-					if(this->check_term_isnt_type(cond_term_info, attribute.args[0]).isError()){
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						this->context.getTypeManager().getTypeBool(),
-						cond_term_info,
-						"Condition in #pub",
-						this->get_location(attribute.args[0])
-					);
-					if(type_check_info.ok == false){
-						return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
-					}
-
-					const bool pub_cond = this->context.sema_buffer
-						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
-
-					if(attr_pub.set(attribute.attribute, pub_cond).isError()){ return evo::Unexpected(Result::ERROR); }
-
-				}else{
-					this->emit_error("Attribute #pub does not accept more than 1 argument", attribute.args[1]);
-					return evo::Unexpected(Result::ERROR);
-				}
-
-			}else if(attribute_str == "priv"){
+			if(attribute_str == "priv"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36532,7 +36025,6 @@ namespace pcit::panther{
 		}
 
 		return InterfaceAttrs{
-			.is_pub             = attr_pub.is_set(),
 			.is_priv            = attr_priv.is_set(),
 			.is_non_polymorphic = attr_non_polymorphic.is_set(),
 		};
@@ -37022,8 +36514,7 @@ namespace pcit::panther{
 											this->context.sema_buffer.createFuncCall(
 												instantiation_id,
 												evo::SmallVector<sema::Expr>{got_expr.getExpr(), false_value},
-												location.as<SourceLocation>().lineStart,
-												location.as<SourceLocation>().collumnStart
+												this->get_sema_location(location)
 											);
 
 										got_expr.getExpr() = sema::Expr(created_func_call_id);
@@ -37272,7 +36763,6 @@ namespace pcit::panther{
 				if(expected_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
 					if constexpr(MAY_EMIT_ERROR){
 						if(expected_type_info.baseTypeID().kind() == BaseType::Kind::TYPE_DEDUCER){
-							// TODO(FUTURE): better messaging
 							this->emit_error("Cannot deduce the type of a fluid value", location);
 
 						}else{
@@ -37828,8 +37318,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createFuncCall(
 							target_as_func_id,
 							evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-							location.as<SourceLocation>().lineStart,
-							location.as<SourceLocation>().collumnStart
+							this->get_sema_location(location)
 						)
 					);
 				}
@@ -38000,8 +37489,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createFuncCall(
 								*func_match,
 								evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(location)
 							)
 						);
 					}
@@ -38199,8 +37687,7 @@ namespace pcit::panther{
 							this->context.sema_buffer.createFuncCall(
 								selected_func_id,
 								evo::SmallVector<sema::Expr>{got_expr.getExpr()},
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(location)
 							)
 						);
 					}
@@ -38816,8 +38303,7 @@ namespace pcit::panther{
 					this->context.sema_buffer.createDelete(
 						lhs.getExpr(),
 						lhs.type_id.as<TypeInfo::ID>(),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(location)
 					)
 				);
 
@@ -38828,12 +38314,10 @@ namespace pcit::panther{
 							this->context.sema_buffer.createFuncCall(
 								conversion_target.func_id,
 								evo::SmallVector<sema::Expr>{value},
-								location.as<SourceLocation>().lineStart,
-								location.as<SourceLocation>().collumnStart
+								this->get_sema_location(location)
 							)
 						),
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(location)
 					)
 				);
 
@@ -38850,8 +38334,7 @@ namespace pcit::panther{
 					this->context.sema_buffer.createFuncCall(
 						conversion_target.func_id,
 						evo::SmallVector<sema::Expr>{lhs.getExpr(), value},
-						location.as<SourceLocation>().lineStart,
-						location.as<SourceLocation>().collumnStart
+						this->get_sema_location(location)
 					)
 				);
 
@@ -39466,7 +38949,6 @@ namespace pcit::panther{
 
 					const sema::Func& overload = this->context.sema_buffer.getFunc(overload_id.as<sema::Func::ID>());
 					if(attempted_decl_func.isEquivalentOverload(overload, this->context)){
-						// TODO(FUTURE): better messaging
 						infos.emplace_back(
 							"Overload collided with:", this->get_location(overload_id.as<sema::Func::ID>())
 						);
@@ -39624,6 +39106,16 @@ namespace pcit::panther{
 
 		this->emit_error("Scope is already terminated", location);
 		return evo::resultError;
+	}
+
+
+
+
+	auto SemanticAnalyzer::get_sema_location(const Diagnostic::Location& location) -> sema::Location {
+		return sema::Location{
+			location.as<SourceLocation>().lineStart,
+			location.as<SourceLocation>().collumnStart
+		};
 	}
 
 

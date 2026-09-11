@@ -104,7 +104,6 @@ namespace pcit::core{
 
 
 
-			// TODO(PERF): feel like there's a way to make this faster, but testing is needed
 			[[nodiscard]] auto isWorking() const -> bool {
 				for(const Worker& worker : this->priv.workers){
 					if(worker.is_working()){ return true; }
