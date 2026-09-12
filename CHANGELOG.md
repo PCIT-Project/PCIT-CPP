@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.387.2"></a>
+## v0.0.387.2
+
+### Panther
+- Fixed lowering of checked operations when used as a value in a `while` loop
+
+
+<!---------------------------------->
 <a name="v0.0.387.1"></a>
 ## v0.0.387.1
 
@@ -26,6 +34,9 @@
 	- Changed the default to public
 - Fixed lowering of checking indexers when adding debug information
 - Fixed lowering of switches when the condition is a checked expression
+
+### Misc
+- Updated to [Panther-std v0.0.58.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.58.0)
 
 
 <!---------------------------------->
@@ -86,6 +97,9 @@
 - Changed array reference `.data()` to return optional qualified pointer
 - Fixed getting comptime value of default initialized array reference
 - Fixed lowering of some runtime checks when in panic mode
+
+### Misc
+- Updated to [Panther-std v0.0.57.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.57.0)
 
 
 <!---------------------------------->

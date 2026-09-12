@@ -5019,9 +5019,9 @@ namespace pcit::panther{
 
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.FAIL"));
+					this->handler.createBasicBlockInline(this->name("EXTRACT_OPT.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
+					this->handler.createBasicBlockInline(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
@@ -5105,9 +5105,9 @@ namespace pcit::panther{
 		}else{
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.FAIL"));
+					this->handler.createBasicBlockInline(this->name("EXTRACT_OPT.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
+					this->handler.createBasicBlockInline(this->name("EXTRACT_OPT.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
@@ -5249,9 +5249,9 @@ namespace pcit::panther{
 		if(target_type_info.isPointer()){
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP.CHECKED.FAIL"));
+					this->handler.createBasicBlockInline(this->name("UNWRAP.CHECKED.FAIL"));
 				const pir::BasicBlock::ID end_block = 
-					this->handler.createBasicBlock(this->name("UNWRAP.CHECKED.SUCCESS"));
+					this->handler.createBasicBlockInline(this->name("UNWRAP.CHECKED.SUCCESS"));
 
 
 				const pir::Expr converted_ptr = this->handler.createBitCast(
@@ -6376,10 +6376,10 @@ namespace pcit::panther{
 			const pir::Expr length_num = get_length_num(i);
 
 			if(this->context.getConfig().checkedIndexing){
-				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+				const pir::BasicBlock::ID fail_block = this->handler.createBasicBlockInline(
 					this->name("ARRAY_REF_INDEXER.CHECKED_DIM_{}.FAIL", i)
 				);
-				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline(
 					this->name("ARRAY_REF_INDEXER.CHECKED_DIM_{}.END", i)
 				);
 
@@ -6412,10 +6412,10 @@ namespace pcit::panther{
 		}
 
 		if(this->context.getConfig().checkedIndexing){
-			const pir::BasicBlock::ID fail_block = this->handler.createBasicBlock(
+			const pir::BasicBlock::ID fail_block = this->handler.createBasicBlockInline(
 				this->name("ARRAY_REF_INDEXER.CHECKED_DIM_0.FAIL")
 			);
-			const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline(
 				this->name("ARRAY_REF_INDEXER.CHECKED_DIM_0.END")
 			);
 
