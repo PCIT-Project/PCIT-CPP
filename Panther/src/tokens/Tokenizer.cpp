@@ -1196,19 +1196,62 @@ namespace pcit::panther{
 
 			}else if(this->char_stream.peek() == '\\'){
 				switch(this->char_stream.peek(1)){
-					break; case '0': literal_value += '\0';
-					// break; case 'a': literal_value += '\a';
-					// break; case 'b': literal_value += '\b';
-					break; case 'e': literal_value += '\x1B';
-					// break; case 'f': literal_value += '\f';
-					break; case 't': literal_value += '\t';
-					break; case 'n': literal_value += '\n';
-					// break; case 'v': literal_value += '\v';
-					break; case 'r': literal_value += '\r';
+					break; case '0':  literal_value += '\0';   this->char_stream.skip(2);
+					break; case 'e':  literal_value += '\x1B'; this->char_stream.skip(2);
+					break; case 't':  literal_value += '\t';   this->char_stream.skip(2);
+					break; case 'n':  literal_value += '\n';   this->char_stream.skip(2);
+					break; case 'r':  literal_value += '\r';   this->char_stream.skip(2);
 
-					break; case '\'': literal_value += '\'';
-					break; case '"':  literal_value += '"';
-					break; case '\\': literal_value += '\\';
+					break; case '\'': literal_value += '\'';   this->char_stream.skip(2);
+					break; case '"':  literal_value += '"';    this->char_stream.skip(2);
+					break; case '\\': literal_value += '\\';   this->char_stream.skip(2);
+
+					break; case 'x': {
+						this->char_stream.skip(2);
+
+						evo::Result<Source::Location> current_location = this->get_current_location_point();
+						if(current_location.isError()){ return true; }
+
+
+						char first_hex_char = this->char_stream.next();
+						if(evo::isHexNumber(first_hex_char) == false){
+							this->emit_error("Invalid value for hexidecimal escape sequence", current_location.value());
+							return true;
+						}
+
+
+						current_location = this->get_current_location_point();
+						if(current_location.isError()){ return true; }
+
+						char second_hex_char = this->char_stream.next();
+						if(evo::isHexNumber(second_hex_char) == false){
+							this->emit_error(
+								"Invalid value for hexidecimal escape sequence",
+								current_location.value(),
+								Diagnostic::Info(std::format("Did you mean '\\x0{}'?", first_hex_char))
+							);
+							return true;
+						}
+
+
+						if(first_hex_char <= '9'){
+							first_hex_char -= '0';
+						}else if(first_hex_char <= 'F'){
+							first_hex_char -= 'A' - 10;
+						}else{
+							first_hex_char -= 'a' - 10;
+						}
+
+						if(second_hex_char <= '9'){
+							second_hex_char -= '0';
+						}else if(second_hex_char <= 'F'){
+							second_hex_char -= 'A' - 10;
+						}else{
+							second_hex_char -= 'a' - 10;
+						}
+
+						literal_value += (first_hex_char << 4) | second_hex_char;
+					} break;
 
 					break; default: {
 						this->char_stream.skip(2);
@@ -1219,8 +1262,17 @@ namespace pcit::panther{
 						const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
 						if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
 
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+
+						if(evo::isNumber(this->char_stream.peek_back())){
+							infos.emplace_back(
+								"Note: octal escape sequences are not allowed"
+									"- did you mean a hexidecimal escape sequence?"
+							);
+						}
+
 						this->emit_error(
-							std::format("Unknown string escape code '\\{}'", this->char_stream.peek_back()),
+							std::format("Unknown escape code '\\{}'", this->char_stream.peek_back()),
 							Source::Location(
 								this->source.getID(),
 								this->current_token_line_start, line_result.value(),
@@ -1230,8 +1282,6 @@ namespace pcit::panther{
 						return true;
 					}
 				}
-
-				this->char_stream.skip(2);
 
 			}else{
 				if(this->char_stream.peek() == '\n' || this->char_stream.peek() == '\t'){
