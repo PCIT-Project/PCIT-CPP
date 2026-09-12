@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.387.1"></a>
+## v0.0.387.1
+
+### Panther
+- Fixed call to operator `new` as a runtime value to comptime value if possible when the type isn't trivially deletable
+
+
+<!---------------------------------->
 <a name="v0.0.387.0"></a>
 ## v0.0.387.0
 

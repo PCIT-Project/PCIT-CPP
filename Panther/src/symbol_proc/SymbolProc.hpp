@@ -789,6 +789,7 @@ namespace pcit::panther{
 			const AST::Node call_node;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+			bool result_must_be_comptime;
 		};
 
 		enum class Language{

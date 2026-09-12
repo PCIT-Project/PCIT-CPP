@@ -3878,7 +3878,7 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						node, new_term_info_id, comptime_res_term_info_id
+						node, new_term_info_id, comptime_res_term_info_id, true
 					)
 				);
 				return comptime_res_term_info_id;
@@ -3905,7 +3905,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, false
 						)
 					);
 					
@@ -3947,7 +3947,7 @@ namespace pcit::panther{
 			const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 			this->add_instruction(
 				this->context.symbol_proc_manager.createComptimeFuncCallRun(
-					node, new_term_info_id, comptime_res_term_info_id
+					node, new_term_info_id, comptime_res_term_info_id, true
 				)
 			);
 			
@@ -3964,7 +3964,7 @@ namespace pcit::panther{
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						node, new_term_info_id, comptime_res_term_info_id
+						node, new_term_info_id, comptime_res_term_info_id, false
 					)
 				);
 				
@@ -4096,27 +4096,38 @@ namespace pcit::panther{
 							prefix, expr.value(), created_term_info_id
 						)
 					);
-				}else{
-					this->add_instruction(
-						this->context.symbol_proc_manager.createPrefixNegate(
-							prefix, expr.value(), created_term_info_id
-						)
-					);
-				}
-
-				if(this->context.getConfig().comptimeRunIfPossible){
+					
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, created_term_info_id, comptime_res_term_info_id
+							node, created_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
 					return comptime_res_term_info_id;
 
 				}else{
-					return created_term_info_id;
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNegate(
+							prefix, expr.value(), created_term_info_id
+						)
+					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, created_term_info_id, comptime_res_term_info_id, false
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return created_term_info_id;
+					}
 				}
+
 			} break;
 
 			case Token::lookupKind("!"): {
@@ -4131,25 +4142,36 @@ namespace pcit::panther{
 							prefix, expr.value(), created_term_info_id
 						)
 					);
-				}else{
-					this->add_instruction(
-						this->context.symbol_proc_manager.createPrefixNot(prefix, expr.value(), created_term_info_id)
-					);
-				}
 
-				if(this->context.getConfig().comptimeRunIfPossible){
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, created_term_info_id, comptime_res_term_info_id
+							node, created_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
 					return comptime_res_term_info_id;
 
 				}else{
-					return created_term_info_id;
+					this->add_instruction(
+						this->context.symbol_proc_manager.createPrefixNot(prefix, expr.value(), created_term_info_id)
+					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, created_term_info_id, comptime_res_term_info_id, false
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return created_term_info_id;
+					}
 				}
+
 			} break;
 
 			case Token::lookupKind("~"): {
@@ -4170,21 +4192,22 @@ namespace pcit::panther{
 							prefix, expr.value(), created_term_info_id
 						)
 					);
+
+					if(this->context.getConfig().comptimeRunIfPossible){
+						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createComptimeFuncCallRun(
+								node, created_term_info_id, comptime_res_term_info_id, false
+							)
+						);
+						
+						return comptime_res_term_info_id;
+
+					}else{
+						return created_term_info_id;
+					}
 				}
 
-				if(this->context.getConfig().comptimeRunIfPossible){
-					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
-					this->add_instruction(
-						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, created_term_info_id, comptime_res_term_info_id
-						)
-					);
-					
-					return comptime_res_term_info_id;
-
-				}else{
-					return created_term_info_id;
-				}
 			} break;
 		}
 
@@ -4240,7 +4263,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4257,7 +4280,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4287,7 +4310,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4304,7 +4327,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4340,7 +4363,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, true
 							)
 						);
 						
@@ -4357,7 +4380,7 @@ namespace pcit::panther{
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
-									node, new_term_info_id, comptime_res_term_info_id
+									node, new_term_info_id, comptime_res_term_info_id, false
 								)
 							);
 							
@@ -4383,7 +4406,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, true
 							)
 						);
 						
@@ -4400,7 +4423,7 @@ namespace pcit::panther{
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
-									node, new_term_info_id, comptime_res_term_info_id
+									node, new_term_info_id, comptime_res_term_info_id, false
 								)
 							);
 							
@@ -4432,7 +4455,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4449,7 +4472,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4479,7 +4502,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4496,7 +4519,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4527,7 +4550,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4544,7 +4567,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4575,7 +4598,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4592,7 +4615,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4623,7 +4646,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, true
 						)
 					);
 					
@@ -4640,7 +4663,7 @@ namespace pcit::panther{
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
-								node, new_term_info_id, comptime_res_term_info_id
+								node, new_term_info_id, comptime_res_term_info_id, false
 							)
 						);
 						
@@ -4777,7 +4800,7 @@ namespace pcit::panther{
 			}else{
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
-						node, new_term_info_id, comptime_res_term_info_id
+						node, new_term_info_id, comptime_res_term_info_id, true
 					)
 				);
 			}
@@ -4805,7 +4828,7 @@ namespace pcit::panther{
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
-							node, new_term_info_id, comptime_res_term_info_id
+							node, new_term_info_id, comptime_res_term_info_id, false
 						)
 					);
 					

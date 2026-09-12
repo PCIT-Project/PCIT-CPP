@@ -12886,6 +12886,16 @@ namespace pcit::panther{
 			return Result::SUCCESS;	
 		}
 
+		if(instr.result_must_be_comptime == false){
+			const sema::Func& target_func = this->context.getSemaBuffer().getFunc(*target_func_id);
+			const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
+			const TypeInfo::ID target_func_ret_type_id = target_func_type.returnTypes[0].asTypeID();
+			if(this->context.getTypeManager().isTriviallyDeletable(target_func_ret_type_id) == false){
+				this->return_term_info(instr.output, func_call_term);
+				return Result::SUCCESS;	
+			}
+		}
+
 		const evo::Expected<sema::Expr, Result> func_call_result = this->comptime_func_call_with_symbol_checking(
 			*target_func_id, sema_func_call.args, this->get_location(instr.call_node)
 		);
@@ -26691,7 +26701,7 @@ namespace pcit::panther{
 
 		if(this->context.getTypeManager().isTriviallyDeletable(target_func_type.returnTypes[0].asTypeID()) == false){
 			this->emit_error("Return type of comptime function call is not trivially deletable", location);
-			return evo::resultError;	
+			return evo::resultError;
 		}
 
 		auto arg_values = evo::SmallVector<core::GenericValue>();
@@ -29785,11 +29795,7 @@ namespace pcit::panther{
 			}();
 
 			if(type_check_info.ok == false){
-				const Result special_result = type_check_info.extractSpecialResultForReturning();
-					
-				evo::debugAssert(special_result == Result::NEED_TO_WAIT, "Should never error here");
-
-				return evo::Unexpected(Result::NEED_TO_WAIT);
+				return evo::Unexpected(type_check_info.extractSpecialResultForReturning());
 			}
 		}
 
