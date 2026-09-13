@@ -1823,7 +1823,7 @@ namespace pcit::panther{
 		}
 
 
-		this->emit_error("Building symbol process of this function call is unimplemented", stmt);
+		this->emit_error("Invalid function call", stmt);
 		return evo::resultError;
 	}
 

@@ -98,7 +98,7 @@ namespace pcit::panther::sema{
 		using ID = TemplateIntrinsicFuncInstantiationID;
 
 		TemplateIntrinsicFunc::Kind kind;
-		evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>> templateArgs;
+		evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>> templateArgs;
 	};
 
 	struct Copy{

@@ -777,7 +777,7 @@ namespace pcit::panther::sema{
 
 			[[nodiscard]] auto createTemplateIntrinsicFuncInstantiation(
 				TemplateIntrinsicFunc::Kind kind,
-				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>&& templateArgs
+				evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>&& templateArgs
 			) -> TemplateIntrinsicFuncInstantiation::ID;
 
 			[[nodiscard]] auto getTemplateIntrinsicFuncInstantiation(TemplateIntrinsicFuncInstantiation::ID id) const

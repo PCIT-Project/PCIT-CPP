@@ -11074,13 +11074,11 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
 				if constexpr(MODE == GetExprMode::REGISTER){
 					const pir::Type to_type =
-						this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+						this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 					if(
 						to_type.isPrimitive()
-						&& this->context.getTypeManager().isPrimitive(
-								instantiation.templateArgs[0].as<TypeInfo::VoidableID>()
-							)
+						&& this->context.getTypeManager().isPrimitive(instantiation.templateArgs[0].as<TypeInfo::ID>())
 					){
 						const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 						return this->handler.createBitCast(from_value, to_type, this->name("BIT_CAST"));
@@ -11104,7 +11102,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
 				const pir::Type to_type =
-					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->handler.createTrunc(from_value, to_type, this->name("TRUNC"));
@@ -11127,7 +11125,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
 				const pir::Type to_type =
-					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->handler.createFTrunc(from_value, to_type, this->name("FTRUNC"));
@@ -11150,7 +11148,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
 				const pir::Type to_type =
-					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->handler.createSExt(from_value, to_type, this->name("SEXT"));
@@ -11173,7 +11171,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
 				const pir::Type to_type =
-					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->handler.createZExt(from_value, to_type, this->name("ZEXT"));
@@ -11196,7 +11194,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
 				const pir::Type to_type =
-					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::VoidableID>()).type;
+					this->get_type<false, false>(instantiation.templateArgs[1].as<TypeInfo::ID>()).type;
 
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 				const pir::Expr register_value = this->handler.createFExt(from_value, to_type, this->name("FEXT"));
@@ -11219,13 +11217,13 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
 				const pir::Type to_type = this->get_type<false, false>(
-					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID()
+					instantiation.templateArgs[1].as<TypeInfo::ID>()
 				).type;
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 
 				const pir::Expr register_value = [&](){
 					const TypeInfo::ID from_type_id = 
-						instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+						instantiation.templateArgs[0].as<TypeInfo::ID>();
 
 					if(this->context.type_manager.isUnsignedIntegral(from_type_id)){
 						return this->handler.createUIToF(from_value, to_type, this->name("UI_TO_F"));
@@ -11252,7 +11250,7 @@ namespace pcit::panther{
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
 				const TypeInfo::VoidableID to_type_id =
-					instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+					instantiation.templateArgs[1].as<TypeInfo::ID>();
 				const pir::Type to_type = this->get_type<false, false>(to_type_id).type;
 				const pir::Expr from_value = this->get_expr_register(func_call.args[0]);
 
@@ -11281,7 +11279,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
@@ -11311,7 +11309,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_WRAP: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11351,7 +11349,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11392,7 +11390,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11407,7 +11405,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
@@ -11437,7 +11435,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_WRAP: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11477,7 +11475,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11518,7 +11516,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11533,7 +11531,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const bool may_wrap = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
@@ -11563,7 +11561,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_WRAP: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11603,7 +11601,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11644,7 +11642,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11659,7 +11657,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::DIV: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
 				const bool is_exact = instantiation.templateArgs[1].as<core::GenericValue>().getBool();
@@ -11702,7 +11700,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11717,7 +11715,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::REM: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -11738,7 +11736,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11761,7 +11759,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11776,7 +11774,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::EQ: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11794,7 +11792,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11809,7 +11807,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NEQ: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
@@ -11827,7 +11825,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11842,7 +11840,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -11863,7 +11861,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11878,7 +11876,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LTE: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -11899,7 +11897,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11914,7 +11912,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -11935,7 +11933,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11950,7 +11948,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GTE: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const bool is_float = this->context.type_manager.isFloatingPoint(arg_type_id);
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -11971,7 +11969,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -11996,7 +11994,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12020,7 +12018,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12044,7 +12042,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12059,7 +12057,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -12091,7 +12089,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL_SAT: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 
@@ -12133,7 +12131,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHR: {
-				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 				const pir::Type arg_pir_type = this->get_type<false, false>(arg_type_id).type;
 				const bool is_unsigned = this->context.type_manager.isUnsignedIntegral(arg_type_id);
 				const bool is_exact = !instantiation.templateArgs[2].as<core::GenericValue>().getBool();
@@ -12179,7 +12177,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12202,7 +12200,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12225,7 +12223,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12248,7 +12246,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12271,7 +12269,7 @@ namespace pcit::panther{
 					return register_value;
 
 				}else if constexpr(MODE == GetExprMode::POINTER){
-					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 					const pir::Type arg_pir_type = this->get_type<false, false>(type_id).type;
 					const pir::Expr pointer_alloca = this->handler.createAlloca(arg_pir_type);
 					this->handler.createStore(pointer_alloca, register_value);
@@ -12291,7 +12289,7 @@ namespace pcit::panther{
 				const pir::AtomicOrdering atomic_ordering =	
 					SemaToPIR::get_atomic_ordering(instantiation.templateArgs[2].as<core::GenericValue>());
 
-				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::ID>();
 				const pir::Type pir_type = this->get_type<false, false>(type_id).type;
 
 				std::string expr_name = [&]() -> std::string {
@@ -12416,7 +12414,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ATOMIC_RMW: {
-				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID type_id = instantiation.templateArgs[1].as<TypeInfo::ID>();
 
 				const pir::Type pir_type = this->get_type<false, false>(type_id).type;
 
@@ -12616,8 +12614,7 @@ namespace pcit::panther{
 				args.emplace_back(this->get_context_ptr());
 				args.emplace_back(this->get_expr_pointer(func_call.args[0]));
 
-				const TypeInfo::ID array_ref_type_id = 
-					instantiation.templateArgs[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID array_ref_type_id = instantiation.templateArgs[0].as<TypeInfo::ID>();
 
 				const BaseType::ArrayRef::ID array_ref_id =
 					this->context.getTypeManager().getTypeInfo(array_ref_type_id).baseTypeID().arrayRefID();

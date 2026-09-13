@@ -1396,6 +1396,11 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// type traits
 
+			[[nodiscard]] auto isComplete(TypeInfo::VoidableID id) const -> bool;
+			[[nodiscard]] auto isComplete(TypeInfo::ID id) const -> bool;
+			[[nodiscard]] static auto isComplete(BaseType::ID id) -> bool;
+
+
 			//////////////////
 			// size
 

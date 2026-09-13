@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.387.4"></a>
+## v0.0.387.4
+
+### Panther
+- Added missing checks for intrinsic template type arguments
+
+
+<!---------------------------------->
 <a name="v0.0.387.3"></a>
 ## v0.0.387.3
 

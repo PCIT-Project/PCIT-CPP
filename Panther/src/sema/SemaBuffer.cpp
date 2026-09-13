@@ -1227,7 +1227,7 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::createTemplateIntrinsicFuncInstantiation(
 		TemplateIntrinsicFunc::Kind kind,
-		evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>&& templateArgs
+		evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>&& templateArgs
 	) -> TemplateIntrinsicFuncInstantiation::ID {
 		return this->internal->templated_intrinsic_func_instantiations.emplace_back(kind, std::move(templateArgs));
 	}

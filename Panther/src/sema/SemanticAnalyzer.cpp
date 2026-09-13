@@ -4954,7 +4954,7 @@ namespace pcit::panther{
 
 
 					if(created_func_type.hasErrorReturn()){
-						this->emit_error("erroring indexer overload is unimplemented", instr.func_def);
+						this->emit_error("Erroring indexer overload is unimplemented", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -5159,7 +5159,7 @@ namespace pcit::panther{
 				this->scope.getCurrentInterfaceSymbolIfExists().has_value() && current_func.isMethod(this->context)
 			){
 				this->emit_error(
-					"Interface methods with [this] parameter with default implementation are unimplemented",
+					"Interface methods with [this] parameter cannot have a  default implementation",
 					instr.func_def
 				);
 				return Result::ERROR;
@@ -10116,7 +10116,7 @@ namespace pcit::panther{
 			}
 
 
-			this->emit_error("Operator [new] of this type is unimplemented", ast_new.type);
+			this->emit_error("This type has no operator [new]", ast_new.type);
 			return Result::ERROR;
 		}
 
@@ -13325,7 +13325,7 @@ namespace pcit::panther{
 
 
 
-		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
+		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>();
 		for(size_t i = 0; const SymbolProcTermInfoID& template_arg_id : instr.template_args){
 			TermInfo& template_arg = this->get_term_info(template_arg_id);
 
@@ -13349,14 +13349,45 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+				const TypeInfo::ID template_arg_type_id = template_arg.type_id.as<TypeInfo::VoidableID>().asTypeID();
+
+				if(this->context.getTypeManager().isComplete(template_arg_type_id) == false){
+					this->emit_error(
+						"This template argument must be a complete type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->context.getTypeManager().getTypeInfo(template_arg_type_id).baseTypeID().kind()
+						== BaseType::Kind::INTERFACE
+				){
+					this->emit_error(
+						"This template argument cannot be an interface type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+					);
+					return Result::ERROR;
+				}
+
+				template_args.emplace_back(template_arg_type_id);
 
 			}else{
 				if(template_param.isType()){
-					this->emit_error(
-						"This template argument must be a type",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
-					);
+					if(
+						template_arg.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
+						|| template_arg.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+					){
+						this->emit_error(
+							"Template argument types must be instantiated",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+						);
+					}else{
+						this->emit_error(
+							"This template argument must be a type",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+						);
+					}
 					return Result::ERROR;
 				}
 
@@ -13390,10 +13421,10 @@ namespace pcit::panther{
 
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::ATOMIC_STORE: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 				const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::ID>();
 				const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
 				if(target_type.isMutPointerNotOptional() == false){
@@ -13665,7 +13696,7 @@ namespace pcit::panther{
 
 
 
-		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>();
+		auto template_args = evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>();
 		for(size_t i = 0; const SymbolProcTermInfoID& template_arg_id : instr.template_args){
 			TermInfo& template_arg = this->get_term_info(template_arg_id);
 
@@ -13689,14 +13720,45 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				template_args.emplace_back(template_arg.type_id.as<TypeInfo::VoidableID>());
+				const TypeInfo::ID template_arg_type_id = template_arg.type_id.as<TypeInfo::VoidableID>().asTypeID();
+
+				if(this->context.getTypeManager().isComplete(template_arg_type_id) == false){
+					this->emit_error(
+						"This template argument must be a complete type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->context.getTypeManager().getTypeInfo(template_arg_type_id).baseTypeID().kind()
+						== BaseType::Kind::INTERFACE
+				){
+					this->emit_error(
+						"This template argument cannot be an interface type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+					);
+					return Result::ERROR;
+				}
+
+				template_args.emplace_back(template_arg_type_id);
 
 			}else{
 				if(template_param.isType()){
-					this->emit_error(
-						"This template argument must be a type",
-						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
-					);
+					if(
+						template_arg.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
+						|| template_arg.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
+					){
+						this->emit_error(
+							"Template argument types must be instantiated",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+						);
+					}else{
+						this->emit_error(
+							"This template argument must be a type",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[i]
+						);
+					}
 					return Result::ERROR;
 				}
 
@@ -13789,13 +13851,12 @@ namespace pcit::panther{
 		switch(target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()){
 			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID: {
 				this->return_term_info(
-					instr.output,
-					comptime_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::VoidableID>().asTypeID())
+					instr.output, comptime_intrinsic_evaluator.getTypeID(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID: {
-				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::ID>();
 				const TypeInfo& arg_t_type = this->context.getTypeManager().getTypeInfo(arg_t_type_id);
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY){
@@ -13815,7 +13876,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID: {
-				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::ID>();
 				const TypeInfo& arg_t_type = this->context.getTypeManager().getTypeInfo(arg_t_type_id);
 
 				if(arg_t_type.baseTypeID().kind() != BaseType::Kind::ARRAY_REF){
@@ -13838,8 +13899,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.numBytes(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().getBool()
+						template_args[0].as<TypeInfo::ID>(), template_args[1].as<core::GenericValue>().getBool()
 					)
 				);
 			} break;
@@ -13848,8 +13908,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.numBits(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
-						template_args[1].as<core::GenericValue>().getBool()
+						template_args[0].as<TypeInfo::ID>(), template_args[1].as<core::GenericValue>().getBool()
 					)
 				);
 			} break;
@@ -13857,9 +13916,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.numAlignBytes(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.numAlignBytes(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
@@ -13877,279 +13934,217 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isTriviallyDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isTriviallyDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComptimeDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComptimeDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isRuntimeDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isRuntimeDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isNoErrorDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isNoErrorDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isSafeDefaultInitializable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isSafeDefaultInitializable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DELETABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isTriviallyDeletable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isTriviallyDeletable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_DELETABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComptimeDeletable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComptimeDeletable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_DELETABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isRuntimeDeletable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isRuntimeDeletable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isTriviallyCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isTriviallyCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComptimeCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComptimeCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isRuntimeCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isRuntimeCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isNoErrorCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isNoErrorCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COPYABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isSafeCopyable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isSafeCopyable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isTriviallyMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isTriviallyMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComptimeMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComptimeMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isRuntimeMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isRuntimeMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isNoErrorMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isNoErrorMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_MOVABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isSafeMovable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isSafeMovable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isTriviallyComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isTriviallyComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_COMPTIME_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isComptimeComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isComptimeComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_RUNTIME_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isRuntimeComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isRuntimeComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_NO_ERROR_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isNoErrorComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isNoErrorComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SAFE_COMPARABLE: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isSafeComparable(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isSafeComparable(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_INTEGRAL: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isIntegral(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isIntegral(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_SIGNED_INTEGRAL: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isSignedIntegral(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isSignedIntegral(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_UNSIGNED_INTEGRAL: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isUnsignedIntegral(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isUnsignedIntegral(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::IS_FLOATING_POINT: {
 				this->return_term_info(
 					instr.output,
-					comptime_intrinsic_evaluator.isFloatingPoint(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
-					)
+					comptime_intrinsic_evaluator.isFloatingPoint(template_args[0].as<TypeInfo::ID>())
 				);
 			} break;
 
@@ -14157,7 +14152,7 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.isPointer(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID()
+						template_args[0].as<TypeInfo::ID>()
 					)
 				);
 			} break;
@@ -14165,8 +14160,8 @@ namespace pcit::panther{
 
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 				
 				if(
 					this->context.getTypeManager().numBytes(from_type_id)
@@ -14206,8 +14201,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::TRUNC: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
@@ -14239,7 +14234,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.trunc(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -14248,8 +14243,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FTRUNC: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
@@ -14281,7 +14276,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ftrunc(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
@@ -14290,8 +14285,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SEXT: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
@@ -14323,7 +14318,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.sext(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -14332,8 +14327,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ZEXT: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
@@ -14366,7 +14361,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.zext(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -14375,8 +14370,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FEXT: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
@@ -14408,7 +14403,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fext(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
@@ -14417,8 +14412,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::I_TO_F: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(from_type_id) == false){
 					this->emit_error(
@@ -14439,7 +14434,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.iToF(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -14448,8 +14443,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::F_TO_I: {
-				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID to_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(from_type_id) == false){
 					this->emit_error(
@@ -14470,7 +14465,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fToI(
-						template_args[1].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[1].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
@@ -14479,7 +14474,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14492,7 +14487,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.add(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14510,7 +14505,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_WRAP: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14525,7 +14520,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::ADD_SAT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14538,7 +14533,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.addSat(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -14548,7 +14543,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FADD: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
@@ -14561,7 +14556,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fadd(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
@@ -14571,7 +14566,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14584,7 +14579,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.sub(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14602,7 +14597,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_WRAP: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14616,7 +14611,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SUB_SAT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14629,7 +14624,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.subSat(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -14639,7 +14634,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FSUB: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
@@ -14652,7 +14647,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fsub(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
@@ -14662,7 +14657,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14675,7 +14670,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.mul(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14693,7 +14688,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_WRAP: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14708,7 +14703,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MUL_SAT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14721,7 +14716,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.mulSat(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -14731,7 +14726,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FMUL: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
@@ -14744,7 +14739,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fmul(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
@@ -14754,7 +14749,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::DIV: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -14767,7 +14762,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.div(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[1].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -14785,7 +14780,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FDIV: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
@@ -14798,7 +14793,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fdiv(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value,
 						this->context.sema_buffer.getFloatValue(args[1].floatValueID()).value
 					));
@@ -14808,7 +14803,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::REM: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(
 					this->context.getTypeManager().isIntegral(target_type_id) == false
@@ -14823,7 +14818,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.rem(
@@ -14845,7 +14840,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::FNEG: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isFloatingPoint(target_type_id) == false){
 					this->emit_error(
@@ -14858,7 +14853,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.fneg(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getFloatValue(args[0].floatValueID()).value
 					));
 				}else{
@@ -14867,7 +14862,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::EQ: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -14879,7 +14874,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.eq(
@@ -14900,7 +14895,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::NEQ: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -14912,7 +14907,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.neq(
@@ -14934,7 +14929,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -14961,7 +14956,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output,  comptime_intrinsic_evaluator.lt(
@@ -14982,7 +14977,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::LTE: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -15009,7 +15004,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.lte(
@@ -15030,7 +15025,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -15057,7 +15052,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gt(
@@ -15078,7 +15073,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GTE: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isPrimitive(target_type_id) == false){
 					this->emit_error(
@@ -15105,7 +15100,7 @@ namespace pcit::panther{
 
 
 				if constexpr(IS_COMPTIME){
-					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID arg_type = template_args[0].as<TypeInfo::ID>();
 
 					if(this->context.getTypeManager().isFloatingPoint(arg_type)){
 						this->return_term_info(instr.output, comptime_intrinsic_evaluator.gte(
@@ -15126,7 +15121,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::AND: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15139,7 +15134,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseAnd(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -15149,7 +15144,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::OR: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15162,7 +15157,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseOr(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -15172,7 +15167,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::XOR: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15185,7 +15180,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitwiseXor(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -15195,8 +15190,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15232,7 +15227,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.shl(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -15250,8 +15245,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHL_SAT: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15286,7 +15281,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.shlSat(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
 					));
@@ -15296,8 +15291,8 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::SHR: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
-				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID shift_type_id = template_args[1].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15333,7 +15328,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					evo::Result<TermInfo> result = comptime_intrinsic_evaluator.shr(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						template_args[2].as<core::GenericValue>().getBool(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value,
 						this->context.sema_buffer.getIntValue(args[1].intValueID()).value
@@ -15351,7 +15346,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_REVERSE: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15364,7 +15359,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.bitReverse(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -15373,7 +15368,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::BYTE_SWAP: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15386,7 +15381,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.byteSwap(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -15395,7 +15390,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTPOP: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15407,7 +15402,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ctPop(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -15416,7 +15411,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTLZ: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15429,7 +15424,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.ctlz(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -15438,7 +15433,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::CTTZ: {
-				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 
 				if(this->context.getTypeManager().isIntegral(target_type_id) == false){
 					this->emit_error(
@@ -15451,7 +15446,7 @@ namespace pcit::panther{
 
 				if constexpr(IS_COMPTIME){
 					this->return_term_info(instr.output, comptime_intrinsic_evaluator.cttz(
-						template_args[0].as<TypeInfo::VoidableID>().asTypeID(),
+						template_args[0].as<TypeInfo::ID>(),
 						this->context.sema_buffer.getIntValue(args[0].intValueID()).value
 					));
 				}else{
@@ -15465,10 +15460,10 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::ID>();
 					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
 					if(target_type.isPointerNotOptional() == false){
@@ -15551,10 +15546,10 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::ID>();
 					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
 					if(target_type.isPointerNotOptional() == false){
@@ -15665,10 +15660,10 @@ namespace pcit::panther{
 					return Result::ERROR;
 
 				}else{
-					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
 					const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
 
-					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::VoidableID>().asTypeID();
+					const TypeInfo::ID value_type_id = template_args[1].as<TypeInfo::ID>();
 					const TypeInfo& value_type = this->context.getTypeManager().getTypeInfo(value_type_id);
 
 					if(target_type.isPointerNotOptional() == false){
@@ -15753,7 +15748,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::MAKE_COMPTIME_BUFFER: {
-				const TypeInfo::ID buffer_type_id = template_args[0].as<TypeInfo::VoidableID>().asTypeID();
+				const TypeInfo::ID buffer_type_id = template_args[0].as<TypeInfo::ID>();
 				const TypeInfo& buffer_type = this->context.getTypeManager().getTypeInfo(buffer_type_id);
 
 				if(
@@ -16350,7 +16345,7 @@ namespace pcit::panther{
 					const InstantiationID instantiation_id =
 						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								expr.type_id.as<TypeInfo::ID>(), core::GenericValue(false)
 							}
 						);
@@ -16382,7 +16377,7 @@ namespace pcit::panther{
 					const InstantiationID instantiation_id =
 						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::FNEG,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								expr.type_id.as<TypeInfo::ID>()
 							}
 						);
@@ -16461,9 +16456,7 @@ namespace pcit::panther{
 			const InstantiationID instantiation_id =
 				this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 					TemplateIntrinsicFunc::Kind::XOR,
-					evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-						expr.type_id.as<TypeInfo::ID>()
-					}
+					evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{expr.type_id.as<TypeInfo::ID>()}
 				);
 
 			const sema::BoolValue::ID true_value = this->context.sema_buffer.createBoolValue(true, false);
@@ -16555,7 +16548,7 @@ namespace pcit::panther{
 				const InstantiationID instantiation_id =
 					this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 						TemplateIntrinsicFunc::Kind::XOR,
-						evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+						evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 							expr.type_id.as<TypeInfo::ID>()
 						}
 					);
@@ -16947,7 +16940,7 @@ namespace pcit::panther{
 				}
 			}
 
-			this->emit_error("Operator [new] of this type is unimplemented", instr.ast_new.type);
+			this->emit_error("This type has no operator [new]", instr.ast_new.type);
 			return Result::ERROR;
 		}
 
@@ -16955,7 +16948,7 @@ namespace pcit::panther{
 		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				if constexpr(ERRORS){
-					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -18321,12 +18314,12 @@ namespace pcit::panther{
 						const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
 							this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
 
-						auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+						auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::ID>>();
 						instantiation_args.reserve(instantiation.templateArgs.size());
-						using TemplateArg = evo::Variant<TypeInfo::VoidableID, core::GenericValue>;
+						using TemplateArg = evo::Variant<TypeInfo::ID, core::GenericValue>;
 						for(const TemplateArg& template_arg : instantiation.templateArgs){
-							if(template_arg.is<TypeInfo::VoidableID>()){
-								instantiation_args.emplace_back(template_arg.as<TypeInfo::VoidableID>());
+							if(template_arg.is<TypeInfo::ID>()){
+								instantiation_args.emplace_back(template_arg.as<TypeInfo::ID>());
 							}else{
 								instantiation_args.emplace_back();
 							}
@@ -20416,7 +20409,7 @@ namespace pcit::panther{
 						const InstantiationID instantiation_id =
 							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::ZEXT,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 									from_underlying_type_id, to_underlying_type_id
 								}
 							);
@@ -20449,8 +20442,8 @@ namespace pcit::panther{
 						const InstantiationID bitcast_instantiation_id =
 							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::BIT_CAST,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									from_underlying_type_id, TypeInfo::VoidableID(type_id_UI1)
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
+									from_underlying_type_id, type_id_UI1
 								}
 							);
 
@@ -20464,8 +20457,8 @@ namespace pcit::panther{
 						const InstantiationID conv_instantiation_id =
 							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::I_TO_F,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									TypeInfo::VoidableID(type_id_UI1), to_underlying_type_id
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
+									type_id_UI1, to_underlying_type_id
 								}
 							);
 
@@ -20653,7 +20646,7 @@ namespace pcit::panther{
 				const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
 					this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 						TemplateIntrinsicFunc::Kind::NEQ,
-						evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+						evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 							from_underlying_type_id
 						}
 					);
@@ -20866,7 +20859,7 @@ namespace pcit::panther{
 			using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
 			const InstantiationID instantiation_id = this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 				intrinsic_kind,
-				evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+				evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 					from_underlying_type_id, to_underlying_type_id
 				}
 			);
@@ -22007,9 +22000,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::EQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22018,9 +22009,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::NEQ,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22029,9 +22018,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22040,9 +22027,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::LTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22051,9 +22036,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22062,9 +22045,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::GTE,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22073,9 +22054,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::AND,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22084,9 +22063,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::OR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22095,9 +22072,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::XOR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22109,7 +22084,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, rhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
@@ -22123,7 +22098,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHL_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, rhs_decayed_type_id
 							}
 						);
@@ -22137,7 +22112,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SHR,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, rhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
@@ -22149,16 +22124,14 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::ADD,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FADD,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_decayed_type_id
-								}
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 							);
 						}
 					} break;
@@ -22168,7 +22141,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
@@ -22179,9 +22152,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::ADD_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22191,16 +22162,14 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::SUB,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FSUB,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_decayed_type_id
-								}
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 							);
 						}
 					} break;
@@ -22210,7 +22179,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
@@ -22221,9 +22190,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::SUB_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22233,16 +22200,14 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::MUL,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FMUL,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_decayed_type_id
-								}
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 							);
 						}
 					} break;
@@ -22252,7 +22217,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 								lhs_decayed_type_id, core::GenericValue(true)
 							}
 						);
@@ -22263,9 +22228,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::MUL_SAT,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22275,16 +22238,14 @@ namespace pcit::panther{
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::DIV,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 									lhs_decayed_type_id, core::GenericValue(false)
 								}
 							);
 						}else{
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::FDIV,
-								evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-									lhs_decayed_type_id
-								}
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 							);
 						}
 					} break;
@@ -22294,9 +22255,7 @@ namespace pcit::panther{
 
 						return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 							TemplateIntrinsicFunc::Kind::REM,
-							evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
-								lhs_decayed_type_id
-							}
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{lhs_decayed_type_id}
 						);
 					} break;
 
@@ -22580,13 +22539,16 @@ namespace pcit::panther{
 
 
 			case Token::Kind::TYPE_F16: {
-				// TODO(FUTURE): not supported on WASM
+				if(this->context.getConfig().target.architecture.isWasm()){
+					this->emit_error("Type `F80` is currenlty unimplemented on this platform", instr.ast_type);
+					return Result::ERROR;
+				}
+
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 			case Token::Kind::TYPE_F80: {
 				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
-					// yes, the compier only supports x86_64 right now (v0.0.208.0), but here for future proofing
 					this->emit_error("Type `F80` is currenlty unimplemented on this platform", instr.ast_type);
 					return Result::ERROR;
 				}
@@ -23984,7 +23946,7 @@ namespace pcit::panther{
 
 		if(decayed_lhs_type.qualifiers().empty() == false){
 			this->emit_error(
-				"Accessor operator of this LHS is unsupported",
+				"Accessor operator of this LHS is invalid",
 				instr.infix.lhs,
 				Diagnostic::Info("NOTE: LHS of a type accessor cannot be a type with qualifiers")
 			);
@@ -24085,7 +24047,7 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error("Accessor operator of the type of this LHS is unsupported", instr.infix.lhs);
+				this->emit_error("Accessor operator of the type of this LHS is invalid", instr.infix.lhs);
 				return Result::ERROR;
 			} break;
 		}
@@ -29971,14 +29933,14 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
-				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::VoidableID>>();
+				auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::ID>>();
 				for(const SymbolProc::TermInfoID& arg : template_args){
 					const TermInfo& arg_term_info = this->get_term_info(arg);
 
 					if(arg_term_info.value_category != TermInfo::ValueCategory::TYPE){
 						instantiation_args.emplace_back();
 					}else{
-						instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>());
+						instantiation_args.emplace_back(arg_term_info.type_id.as<TypeInfo::VoidableID>().asTypeID());
 					}
 				}
 
@@ -36507,7 +36469,7 @@ namespace pcit::panther{
 										const sema::TemplateIntrinsicFuncInstantiation::ID instantiation_id = 
 											this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 												TemplateIntrinsicFunc::Kind::NEQ,
-												evo::SmallVector<evo::Variant<TypeInfo::VoidableID, core::GenericValue>>{
+												evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
 													TypeManager::getTypeBool32()
 												}
 											);
@@ -39047,7 +39009,6 @@ namespace pcit::panther{
 				return "{BUILTIN TYPE METHOD}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::FuncOverloadList>()){
-				// TODO(FEATURE): actual name
 				return "{FUNCTION}";
 
 			}else if constexpr(std::is_same<TypeID, TypeInfo::VoidableID>()){
@@ -39057,46 +39018,36 @@ namespace pcit::panther{
 				return this->context.getTypeManager().printType(type_id[*multi_type_index], this->context);
 
 			}else if constexpr(std::is_same<TypeID, Source::ID>()){
-				// TODO(FEATURE): actual module name?
 				return "{MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, CFamilySource::ID>()){
-				// TODO(FEATURE): actual name?
 				return "{C FAMILY MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, BuiltinModule::ID>()){
-				// TODO(FEATURE): actual name?
 				return "{BUILTIN MODULE}";
 
 			}else if constexpr(std::is_same<TypeID, sema::TemplatedStruct::ID>()){
-				// TODO(FEATURE): actual name
 				return "{TEMPLATED STRUCT}";
 
 			}else if constexpr(std::is_same<TypeID, sema::StructTemplateAlias::ID>()){
-				// TODO(FEATURE): actual name
 				return "{STRUCT TEMPLATE ALIAS}";
 
 			}else if constexpr(std::is_same<TypeID, TemplateIntrinsicFunc::Kind>()){
-				// TODO(FEATURE): actual name
 				return "{TEMPLATE INTRINSIC FUNC}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::TemplateDeclInstantiationType>()){
-				// TODO(FEATURE): actual name?
 				return "{TEMPLATE DECL INSTANTIATION TYPE}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::ExceptParamPack>()){
 				return "{EXCEPT PARAM PACK}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::TaggedUnionFieldAccessor>()){
-				// TODO(FEATURE): actual name?
 				return "{TAGGED UNION FIELD ACCESSOR}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::VariadicParamTypes>()){
-				// TODO(FEATURE): actual name?
 				return "{VARIADIC PARAM}";
 
 			}else if constexpr(std::is_same<TypeID, TermInfo::ExpandedPackTypes>()){
-				// TODO(FEATURE): actual name?
 				return "{EXPANDED PACK}";
 
 			}else{

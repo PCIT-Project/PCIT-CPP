@@ -789,7 +789,7 @@ namespace pcit::panther{
 
 				
 				[[nodiscard]] auto getTypeInstantiation(
-					evo::ArrayProxy<std::optional<TypeInfo::VoidableID>> template_args// nullopt if is an expr argument
+					evo::ArrayProxy<std::optional<TypeInfo::ID>> template_args// nullopt if is an expr argument
 				) const -> BaseType::Function {
 					auto instantiated_params = evo::SmallVector<BaseType::Function::Param>();
 					instantiated_params.reserve(this->params.size());
@@ -798,7 +798,7 @@ namespace pcit::panther{
 							if constexpr(std::is_same<std::decay_t<decltype(param_type)>, TypeInfo::ID>()){
 								return param_type;
 							}else{
-								return template_args[param_type]->asTypeID();
+								return *template_args[param_type];
 							}
 						});
 
@@ -812,7 +812,7 @@ namespace pcit::panther{
 							if constexpr(std::is_same<std::decay_t<decltype(return_data)>, TypeInfo::VoidableID>()){
 								return return_data;
 							}else{
-								return *template_args[return_data];
+								return TypeInfo::VoidableID(*template_args[return_data]);
 							}
 						});
 

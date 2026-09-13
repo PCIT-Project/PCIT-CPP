@@ -2346,6 +2346,45 @@ namespace pcit::panther{
 	//////////////////////////////////////////////////////////////////////
 	// type traits
 
+
+	auto TypeManager::isComplete(TypeInfo::VoidableID id) const -> bool {
+		if(id.isVoid()){ return true; }
+		return this->isComplete(id.asTypeID());
+	}
+
+	auto TypeManager::isComplete(TypeInfo::ID id) const -> bool {
+		return this->isComplete(this->getTypeInfo(id).baseTypeID());
+	}
+
+	auto TypeManager::isComplete(BaseType::ID id) -> bool {
+		switch(id.kind()){
+			case BaseType::Kind::DUMMY:                   evo::debugFatalBreak("Invalid type");
+			case BaseType::Kind::PRIMITIVE:               return true;
+			case BaseType::Kind::FUNCTION:                return true;
+			case BaseType::Kind::ARRAY:                   return true;
+			case BaseType::Kind::ARRAY_DEDUCER:           return false;
+			case BaseType::Kind::ARRAY_REF:               return true;
+			case BaseType::Kind::ARRAY_REF_DEDUCER:       return false;
+			case BaseType::Kind::ALIAS:                   return true;
+			case BaseType::Kind::DISTINCT_ALIAS:          return true;
+			case BaseType::Kind::STRUCT:                  return true;
+			case BaseType::Kind::STRUCT_TEMPLATE:         return false;
+			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: return false;
+			case BaseType::Kind::UNION:                   return true;
+			case BaseType::Kind::ENUM:                    return true;
+			case BaseType::Kind::TYPE_DEDUCER:            return false;
+			case BaseType::Kind::INTERFACE:               return true;
+			case BaseType::Kind::POLY_INTERFACE_REF:      return true;
+			case BaseType::Kind::INTERFACE_MAP:           return true;
+			case BaseType::Kind::INTERFACE_PTR_MAP:       return true;
+		}
+
+		evo::unreachable();
+	}
+
+
+
+
 	auto TypeManager::numBytes(TypeInfo::ID id, bool include_end_padding) const -> size_t {
 		const TypeInfo& type_info = this->getTypeInfo(id);
 		if(type_info.qualifiers().empty()){ return this->numBytes(type_info.baseTypeID(), include_end_padding); }
@@ -2451,7 +2490,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of array deducer");
 			} break;
 
@@ -2467,7 +2505,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of array ref deducer");
 			} break;
 
@@ -2509,12 +2546,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of Struct Template");
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of Struct Template Deducer");
 			} break;
 
@@ -2565,12 +2600,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of type deducer");
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of interface");
 			} break;
 
@@ -2706,7 +2739,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of array deducer");
 			} break;
 
@@ -2722,7 +2754,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get size of array ref deducer");
 			} break;
 
@@ -2741,12 +2772,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of Struct Template");
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of Struct Template Deducer");
 			} break;
 
@@ -2760,12 +2789,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of type deducer");
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugAssert("Cannot get size of interface");
 			} break;
 
@@ -2950,7 +2977,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of array deducer");
 			} break;
 
@@ -2959,7 +2985,6 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of array ref deducer");
 			} break;
 
@@ -2986,12 +3011,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of Struct Template");
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of Struct Template Deducer");
 			} break;
 
@@ -3014,12 +3037,10 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of type deducer");
 			} break;
 
 			case BaseType::Kind::INTERFACE: {
-				// TODO(FUTURE): handle this better?
 				evo::debugFatalBreak("Cannot get alignment of interface");
 			} break;
 
