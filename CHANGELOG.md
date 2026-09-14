@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.387.5"></a>
+## v0.0.387.5
+
+### Panther
+- Fixed `in` parameters passed to executing comptime function calls
+
+
+<!---------------------------------->
 <a name="v0.0.387.4"></a>
 ## v0.0.387.4
 

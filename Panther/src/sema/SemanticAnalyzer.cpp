@@ -26685,7 +26685,10 @@ namespace pcit::panther{
 		comptime_ptr_arg_datas.reserve(num_actual_args);
 
 		for(size_t i = 0; core::GenericValue& arg_value : arg_values){
-			if(this->context.getTypeManager().isTriviallyParamReadable(target_func_type.params[i].typeID)){
+			if(
+				target_func_type.params[i].kind == BaseType::Function::Param::Kind::READ
+				&& this->context.getTypeManager().isTriviallyParamReadable(target_func_type.params[i].typeID)
+			){
 				actual_args.emplace_back(std::move(arg_value));
 
 
