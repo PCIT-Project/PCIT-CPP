@@ -276,8 +276,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_pack_expansion(const Instruction::PackExpansion& instr) -> Result;
 
 
-			template<bool IS_COMPTIME, bool ERRORS>
-			[[nodiscard]] auto instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result;
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result;
 
 			[[nodiscard]] auto instr_comptime_default_new_run(const Instruction::ComptimeDefaultNewRun& instr)
 				-> Result;

@@ -879,24 +879,32 @@ namespace pcit::panther{
 		};
 
 
+		enum class SpecialMemberMode{
+			NORMAL,
+			ERROR,
+			ERROR_ASSIGN,
+		};
 
 		template<bool IS_COMPTIME>
 		struct Copy{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+			SpecialMemberMode mode;
 		};
 
 		struct Move{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+			SpecialMemberMode mode;
 		};
 
 		struct Forward{
 			const AST::Prefix& prefix;
 			SymbolProcTermInfoID target;
 			SymbolProcTermInfoID output;
+			SpecialMemberMode mode;
 		};
 
 		struct AddrOf{
@@ -946,12 +954,13 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
-		template<bool IS_COMPTIME, bool ERRORS>
+		template<bool IS_COMPTIME>
 		struct New{
 			const AST::New& ast_new;
 			SymbolProcTypeID type_id;
 			SymbolProcTermInfoID output;
 			evo::SmallVector<SymbolProcTermInfoID> args;
+			SpecialMemberMode mode;
 		};
 
 		struct ComptimeDefaultNewRun{
@@ -1330,9 +1339,7 @@ namespace pcit::panther{
 			UNWRAP_COMPTIME,
 			UNWRAP,
 			PACK_EXPANSION,
-			NEW_COMPTIME_ERRORS,
 			NEW_COMPTIME,
-			NEW_ERRORS,
 			NEW,
 			COMPTIME_DEFAULT_NEW_RUN,
 			ARRAY_INIT_NEW_COMPTIME,

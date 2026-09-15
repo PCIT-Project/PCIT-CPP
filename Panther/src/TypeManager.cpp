@@ -1588,6 +1588,17 @@ namespace pcit::panther{
 							) == false){
 								return false;
 							}
+
+							if constexpr(
+								SPECIAL_MEMBER != SpecialMember::DELETE // only check for copy, move, compare
+								&& SPECIAL_MEMBER_PROP != SpecialMemberProp::NO_ERROR
+							){
+								if(this->special_member_prop_check<SPECIAL_MEMBER, SpecialMemberProp::NO_ERROR>(
+									field.typeID.asTypeID(), sema_buffer
+								) == false){
+									return false;
+								}
+							}
 						}
 
 						return true;
@@ -3276,6 +3287,264 @@ namespace pcit::panther{
 	auto TypeManager::isSafeMovable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
 		return this->special_member_prop_check<SpecialMember::MOVE, SpecialMemberProp::SAFE>(id, &sema_buffer);
 	}
+
+
+
+	///////////////////////////////////
+	// forwardable
+
+
+	auto TypeManager::isForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				return this->isNoErrorCopyable(id, sema_buffer) == this->isNoErrorMovable(id, sema_buffer);
+			}else{
+				return true;
+			}
+
+		}else{
+			return is_movable;
+		}
+	}
+
+
+	auto TypeManager::isForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				return this->isNoErrorCopyable(id, sema_buffer) == this->isNoErrorMovable(id, sema_buffer);
+			}else{
+				return true;
+			}
+
+		}else{
+			return is_movable;
+		}
+	}
+
+
+	auto TypeManager::isTriviallyForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isTriviallyCopyable(id) && this->isTriviallyMovable(id);
+			}else{
+				return this->isTriviallyCopyable(id);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isTriviallyMovable(id);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+	auto TypeManager::isTriviallyForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isTriviallyCopyable(id) && this->isTriviallyMovable(id);
+			}else{
+				return this->isTriviallyCopyable(id);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isTriviallyMovable(id);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+
+
+	auto TypeManager::isComptimeForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isComptimeCopyable(id, sema_buffer) && this->isComptimeMovable(id, sema_buffer);
+			}else{
+				return this->isComptimeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isComptimeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+	auto TypeManager::isComptimeForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isComptimeCopyable(id, sema_buffer) && this->isComptimeMovable(id, sema_buffer);
+			}else{
+				return this->isComptimeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isComptimeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+
+
+	auto TypeManager::isRuntimeForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isRuntimeCopyable(id, sema_buffer) && this->isRuntimeMovable(id, sema_buffer);
+			}else{
+				return this->isRuntimeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isRuntimeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+	auto TypeManager::isRuntimeForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isRuntimeCopyable(id, sema_buffer) && this->isRuntimeMovable(id, sema_buffer);
+			}else{
+				return this->isRuntimeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isRuntimeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+
+
+	auto TypeManager::isNoErrorForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				return this->isNoErrorCopyable(id, sema_buffer) && this->isNoErrorMovable(id, sema_buffer);
+			}else{
+				return this->isNoErrorCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isNoErrorMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+	auto TypeManager::isNoErrorForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				return this->isNoErrorCopyable(id, sema_buffer) && this->isNoErrorMovable(id, sema_buffer);
+			}else{
+				return this->isNoErrorCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isNoErrorMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+
+
+	auto TypeManager::isSafeForwardable(TypeInfo::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isSafeCopyable(id, sema_buffer) && this->isSafeMovable(id, sema_buffer);
+			}else{
+				return this->isSafeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isSafeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+	auto TypeManager::isSafeForwardable(BaseType::ID id, const sema::SemaBuffer& sema_buffer) const -> bool {
+		const bool is_copyable = this->isCopyable(id);
+		const bool is_movable = this->isMovable(id);
+
+		if(is_copyable){
+			if(is_movable){
+				if(this->isNoErrorCopyable(id, sema_buffer) != this->isNoErrorMovable(id, sema_buffer)){ return false; }
+				return this->isSafeCopyable(id, sema_buffer) && this->isSafeMovable(id, sema_buffer);
+			}else{
+				return this->isSafeCopyable(id, sema_buffer);
+			}
+
+		}else{
+			if(is_movable){
+				return this->isSafeMovable(id, sema_buffer);
+				
+			}else{
+				return false;
+			}
+		}
+	}
+
 
 
 

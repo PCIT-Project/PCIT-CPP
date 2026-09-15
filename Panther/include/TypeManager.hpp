@@ -1530,6 +1530,37 @@ namespace pcit::panther{
 			[[nodiscard]] auto isSafeMovable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
 
 
+			// forward
+
+			[[nodiscard]] auto isForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
+			[[nodiscard]] auto isForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;
+
+			[[nodiscard]] auto isTriviallyForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isTriviallyForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+
+			[[nodiscard]] auto isComptimeForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isComptimeForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+
+			[[nodiscard]] auto isRuntimeForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isRuntimeForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+
+			[[nodiscard]] auto isNoErrorForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isNoErrorForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+
+			[[nodiscard]] auto isSafeForwardable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+			[[nodiscard]] auto isSafeForwardable(BaseType::ID id, const class sema::SemaBuffer& sema_buffer) const
+				-> bool;
+
+
 			// compare
 			
 			[[nodiscard]] auto isComparable(TypeInfo::ID id, const class sema::SemaBuffer& sema_buffer) const -> bool;

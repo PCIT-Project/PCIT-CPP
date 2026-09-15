@@ -655,17 +655,11 @@ namespace pcit::panther{
 			case Instruction::Kind::PACK_EXPANSION:
 				return this->instr_pack_expansion(this->context.symbol_proc_manager.getPackExpansion(instr));
 
-			case Instruction::Kind::NEW_COMPTIME_ERRORS:
-				return this->instr_new<true, true>(this->context.symbol_proc_manager.getNewComptimeErrors(instr));
-
 			case Instruction::Kind::NEW_COMPTIME:
-				return this->instr_new<true, false>(this->context.symbol_proc_manager.getNewComptime(instr));
-
-			case Instruction::Kind::NEW_ERRORS:
-				return this->instr_new<false, true>(this->context.symbol_proc_manager.getNewErrors(instr));
+				return this->instr_new<true>(this->context.symbol_proc_manager.getNewComptime(instr));
 
 			case Instruction::Kind::NEW:
-				return this->instr_new<false, false>(this->context.symbol_proc_manager.getNew(instr));
+				return this->instr_new<false>(this->context.symbol_proc_manager.getNew(instr));
 
 			case Instruction::Kind::COMPTIME_DEFAULT_NEW_RUN:
 				return this->instr_comptime_default_new_run(
@@ -3452,6 +3446,15 @@ namespace pcit::panther{
 
 
 				if(param.kind == AST::FuncDef::Param::Kind::IN){
+					if(this->context.getTypeManager().isForwardable(
+						param_type_id, this->context.getSemaBuffer()
+					) == false){
+						this->emit_error(
+							"Type of function parameter that is `in` must be forwardable", *param.type
+						);
+						return Result::ERROR;
+					}
+
 					has_in_param = true;
 				}
 
@@ -4263,13 +4266,6 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.errorTypes.empty() == false){
-								this->emit_error(
-									"Erroring operator [copy] is unimplemented", instr.func_def.errorReturns[0]
-								);
-								return Result::ERROR;
-							}
-
 							auto expected = BaseType::Struct::DeletableOverload();
 							if(current_struct.copyInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
@@ -4331,12 +4327,6 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.errorTypes.empty() == false){
-								this->emit_error(
-									"Erroring operator [copy] is unimplemented", instr.func_def.errorReturns[0]
-								);
-								return Result::ERROR;
-							}
 
 							auto expected = std::optional<sema::FuncID>();
 							if(current_struct.copyAssignOverload.compare_exchange_strong(
@@ -4355,7 +4345,7 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(current_struct.copyInitOverload.load(std::memory_order::relaxed).wasDeleted()){
+							if(current_struct.copyInitOverload.load().wasDeleted()){
 								this->emit_error("Operator [copy] was already explicitly deleted", instr.func_def);
 								return Result::ERROR;
 							}
@@ -4446,13 +4436,6 @@ namespace pcit::panther{
 							}
 
 
-							if(created_func_type.errorTypes.empty() == false){
-								this->emit_error(
-									"Erroring operator [move] is unimplemented", instr.func_def.errorReturns[0]
-								);
-								return Result::ERROR;
-							}
-
 							auto expected = BaseType::Struct::DeletableOverload();
 							if(current_struct.moveInitOverload.compare_exchange_strong(
 								expected, BaseType::Struct::DeletableOverload(created_func_id)
@@ -4515,12 +4498,6 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.errorTypes.empty() == false){
-								this->emit_error(
-									"Erroring operator [move] is unimplemented", instr.func_def.errorReturns[0]
-								);
-								return Result::ERROR;
-							}
 
 							auto expected = std::optional<sema::FuncID>();
 							if(current_struct.moveAssignOverload.compare_exchange_strong(
@@ -10358,7 +10335,7 @@ namespace pcit::panther{
 
 				if(should_run_initialization){
 					if(target_struct.newInitOverloads.empty()){
-						if(target_struct.isTriviallyDefaultInitializable){
+						if(target_struct.isTriviallyDefaultInitializable && instr.args.empty()){
 							if(lhs.isUninitialized()){
 								if(this->set_ident_value_state_if_needed(
 									lhs.getExpr(), sema::ScopeLevel::ValueState::INIT, instr.infix.rhs
@@ -15809,6 +15786,11 @@ namespace pcit::panther{
 		auto target_type_id = std::optional<TypeInfo::ID>();
 
 		if(is_func){
+			if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				this->emit_error("Operator [copy] of functions cannot error", instr.prefix.rhs);
+				return Result::ERROR;
+			}
+
 			const TermInfo::FuncOverloadList& func_overload_list = target.type_id.as<TermInfo::FuncOverloadList>();
 
 			if(func_overload_list.size() != 1){
@@ -15859,12 +15841,10 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
 			}
 
-
-
 			target_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
 				TypeInfo(BaseType::ID(target_func.typeID))
 			);
-			
+
 		}else if(this->context.getTypeManager().isCopyable(target.type_id.as<TypeInfo::ID>()) == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
 			this->diagnostic_print_special_member_fail<SpecialMemberFailKind::COPY>(
@@ -15879,6 +15859,41 @@ namespace pcit::panther{
 
 		}else{
 			target_type_id = target.type_id.as<TypeInfo::ID>();
+
+			const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(*target_type_id);
+
+			if(target_type_info.qualifiers().empty() && target_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT){
+				const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
+					target_type_info.baseTypeID().structID()
+				);
+
+				const BaseType::Struct::DeletableOverload overload =
+					target_struct_type.copyInitOverload.load(std::memory_order::relaxed);
+				if(overload.wasExplicitlyDeclared()){
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(overload.funcID());
+					const BaseType::Function& copy_func_type =
+						this->context.getTypeManager().getFunction(copy_func.typeID);
+
+					if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+						if(copy_func_type.hasErrorReturn() == false){
+							this->emit_error("Operator [copy] of this type doesn't error", instr.prefix);
+							return Result::ERROR;
+						}
+
+					}else{
+						if(copy_func_type.hasErrorReturn()){
+							this->emit_error("Operator [copy] error not handled", instr.prefix);
+							return Result::ERROR;
+						}
+					}
+					
+				}else{
+					if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+						this->emit_error("Operator [copy] of this type doesn't error", instr.prefix);
+						return Result::ERROR;
+					}
+				}
+			}
 		}
 
 
@@ -15963,7 +15978,13 @@ namespace pcit::panther{
 					);
 
 				}else{
-					return sema::Expr(this->context.sema_buffer.createCopy(target.getExpr(), *target_type_id, true));
+					return sema::Expr(
+						this->context.sema_buffer.createCopy(
+							target.getExpr(),
+							*target_type_id,
+							instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+						)
+					);
 				}
 			}();
 
@@ -16088,6 +16109,46 @@ namespace pcit::panther{
 			} break;
 		}
 
+
+
+		const TypeInfo& target_type_info =
+			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		if(target_type_info.qualifiers().empty() && target_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
+				target_type_info.baseTypeID().structID()
+			);
+
+
+			const BaseType::Struct::DeletableOverload overload =
+				target_struct_type.moveInitOverload.load(std::memory_order::relaxed);
+			if(overload.wasExplicitlyDeclared()){
+				const sema::Func& move_func = this->context.getSemaBuffer().getFunc(overload.funcID());
+				const BaseType::Function& move_func_type = this->context.getTypeManager().getFunction(move_func.typeID);
+
+
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					if(move_func_type.hasErrorReturn() == false){
+						this->emit_error("Operator [move] of this type doesn't error", instr.prefix);
+						return Result::ERROR;
+					}
+
+				}else{
+					if(move_func_type.hasErrorReturn()){
+						this->emit_error("Operator [move] error not handled", instr.prefix);
+						return Result::ERROR;
+					}
+				}
+
+			}else{
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("Operator [move] of this type doesn't error", instr.prefix);
+					return Result::ERROR;
+				}
+			}
+		}
+
+
 		if(this->get_special_member_call_dependents<SpecialMemberKind::MOVE_INIT, true>(
 			target,
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
@@ -16101,7 +16162,13 @@ namespace pcit::panther{
 			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
-			sema::Expr(this->context.sema_buffer.createMove(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true))
+			sema::Expr(
+				this->context.sema_buffer.createMove(
+					target.getExpr(),
+					target.type_id.as<TypeInfo::ID>(),
+					instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+				)
+			)
 		);
 
 		if(target.value_state == TermInfo::ValueState::INIT){
@@ -16201,13 +16268,55 @@ namespace pcit::panther{
 		}
 
 
+		const TypeInfo& target_type_info =
+			this->context.getTypeManager().getTypeInfo(target.type_id.as<TypeInfo::ID>());
+
+		if(target_type_info.qualifiers().empty() && target_type_info.baseTypeID().kind() == BaseType::Kind::STRUCT){
+			const BaseType::Struct& target_struct_type = this->context.getTypeManager().getStruct(
+				target_type_info.baseTypeID().structID()
+			);
+
+			const BaseType::Struct::DeletableOverload overload =
+				target_struct_type.copyInitOverload.load(std::memory_order::relaxed);
+			if(overload.wasExplicitlyDeclared()){
+				const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(overload.funcID());
+				const BaseType::Function& copy_func_type =
+					this->context.getTypeManager().getFunction(copy_func.typeID);
+
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					if(copy_func_type.hasErrorReturn() == false){
+						this->emit_error("Operator [forward] of this type doesn't error", instr.prefix);
+						return Result::ERROR;
+					}
+
+				}else{
+					if(copy_func_type.hasErrorReturn()){
+						this->emit_error("Operator [forward] error not handled", instr.prefix);
+						return Result::ERROR;
+					}
+				}
+				
+			}else{
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("Operator [forward] of this type doesn't error", instr.prefix);
+					return Result::ERROR;
+				}
+			}
+		}
+
+
+
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
-				this->context.sema_buffer.createForward(target.getExpr(), target.type_id.as<TypeInfo::ID>(), true)
+				this->context.sema_buffer.createForward(
+					target.getExpr(),
+					target.type_id.as<TypeInfo::ID>(),
+					instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+				)
 			)
 		);
 
@@ -16836,8 +16945,8 @@ namespace pcit::panther{
 
 
 
-	template<bool IS_COMPTIME, bool ERRORS>
-	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME, ERRORS>& instr) -> Result {
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_new(const Instruction::New<IS_COMPTIME>& instr) -> Result {
 		const TypeInfo::VoidableID target_type_id = this->get_type(instr.type_id);
 		if(target_type_id.isVoid()){
 			this->emit_error("Operator [new] cannot accept type `Void`", instr.ast_new.type);
@@ -16851,8 +16960,8 @@ namespace pcit::panther{
 
 		if(decayed_target_type_info.qualifiers().empty() == false){
 			if(decayed_target_type_info.isOptional()){
-				if constexpr(ERRORS){
-					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -16947,7 +17056,7 @@ namespace pcit::panther{
 
 		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
-				if constexpr(ERRORS){
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
 					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
@@ -17008,8 +17117,8 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				if constexpr(ERRORS){
-					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -17161,8 +17270,8 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				if constexpr(ERRORS){
-					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -17436,9 +17545,9 @@ namespace pcit::panther{
 				const BaseType::Function& selected_func_type =
 					this->context.getTypeManager().getFunction(selected_func.typeID);
 
-				if constexpr(ERRORS){
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
 					if(selected_func_type.hasErrorReturn() == false){
-						this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+						this->emit_error("This operator [new] doesn't error", instr.ast_new.type);
 						return Result::ERROR;
 					}
 				}else{
@@ -17545,8 +17654,8 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
-				if constexpr(ERRORS){
-					this->emit_error("Operator [new] doesn't error", instr.ast_new.type);
+				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					this->emit_error("This operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
 				}else{
@@ -18287,57 +18396,144 @@ namespace pcit::panther{
 
 		
 		const BaseType::Function& attempt_func_type = [&]() -> const BaseType::Function& {
-			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::INTERFACE_CALL){
-				const sema::InterfaceCall& interface_call = 
-					this->context.getSemaBuffer().getInterfaceCall(attempt_expr.getExpr().interfaceCallID());
+			switch(attempt_expr.getExpr().kind()){
+				case sema::Expr::Kind::COPY: {
+					const sema::Copy& copy_expr = sema_buffer.getCopy(attempt_expr.getExpr().copyID());
 
-				return this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+					const TypeInfo& copy_target_type = this->context.getTypeManager().getTypeInfo(copy_expr.exprTypeID);
+					const BaseType::Struct& copy_target_struct_type = this->context.getTypeManager().getStruct(
+						copy_target_type.baseTypeID().structID()
+					);
 
-			}else{
-				const sema::FuncCall& attempt_func_call = sema_buffer.getFuncCall(attempt_expr.getExpr().funcCallID());
 
-				return *attempt_func_call.target.visit([&](const auto& target) -> const BaseType::Function* {
-					using Target = std::decay_t<decltype(target)>;
+					const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+						if(copy_expr.isInitialization){
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
 
-					if constexpr(std::is_same<Target, sema::Func::ID>()){
-						return &this->context.getTypeManager().getFunction(sema_buffer.getFunc(target).typeID);
-						
-					}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
-						const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
-						const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
-						return &this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
-						
-					}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
-						const sema::TemplateIntrinsicFuncInstantiation& instantiation =
-							this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload =
+								copy_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+							if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
 
-						const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
-							this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
-
-						auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::ID>>();
-						instantiation_args.reserve(instantiation.templateArgs.size());
-						using TemplateArg = evo::Variant<TypeInfo::ID, core::GenericValue>;
-						for(const TemplateArg& template_arg : instantiation.templateArgs){
-							if(template_arg.is<TypeInfo::ID>()){
-								instantiation_args.emplace_back(template_arg.as<TypeInfo::ID>());
-							}else{
-								instantiation_args.emplace_back();
-							}
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
 						}
+					}();
 
-						return &this->context.getTypeManager().getFunction(
-							this->context.type_manager.getOrCreateFunction(
-								template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
-							).funcID()
-						);
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+					return this->context.getTypeManager().getFunction(copy_func.typeID);
+				} break;
 
-					}else if constexpr(std::is_same<Target, sema::FuncCall::FuncPtr>()){
-						return &this->context.getTypeManager().getFunction(target.funcTypeID);
-						
-					}else{
-						static_assert(false, "Unsupported func call target");
-					}
-				});
+				case sema::Expr::Kind::MOVE: {
+					const sema::Move& move_expr = sema_buffer.getMove(attempt_expr.getExpr().moveID());
+
+					const TypeInfo& move_target_type = this->context.getTypeManager().getTypeInfo(move_expr.exprTypeID);
+					const BaseType::Struct& move_target_struct_type = this->context.getTypeManager().getStruct(
+						move_target_type.baseTypeID().structID()
+					);
+
+
+					const sema::Func::ID move_func_id = [&]() -> sema::Func::ID {
+						if(move_expr.isInitialization){
+							return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> move_assign_overload =
+								move_target_struct_type.moveAssignOverload.load(std::memory_order::relaxed);
+							if(move_assign_overload.has_value()){ return *move_assign_overload; }
+
+							return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+					const sema::Func& move_func = this->context.getSemaBuffer().getFunc(move_func_id);
+					return this->context.getTypeManager().getFunction(move_func.typeID);
+				} break;
+
+				case sema::Expr::Kind::FORWARD: {
+					const sema::Forward& forward_expr = sema_buffer.getForward(attempt_expr.getExpr().forwardID());
+
+					const TypeInfo& copy_target_type =
+						this->context.getTypeManager().getTypeInfo(forward_expr.exprTypeID);
+					const BaseType::Struct& copy_target_struct_type = this->context.getTypeManager().getStruct(
+						copy_target_type.baseTypeID().structID()
+					);
+
+
+					const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+						if(forward_expr.isInitialization){
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload =
+								copy_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+							if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
+
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+					return this->context.getTypeManager().getFunction(copy_func.typeID);
+				} break;
+
+				case sema::Expr::Kind::FUNC_CALL: {
+					const sema::FuncCall& attempt_func_call =
+						sema_buffer.getFuncCall(attempt_expr.getExpr().funcCallID());
+
+					return *attempt_func_call.target.visit([&](const auto& target) -> const BaseType::Function* {
+						using Target = std::decay_t<decltype(target)>;
+
+						if constexpr(std::is_same<Target, sema::Func::ID>()){
+							return &this->context.getTypeManager().getFunction(sema_buffer.getFunc(target).typeID);
+							
+						}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
+							const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
+							const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
+							return &this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
+							
+						}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
+							const sema::TemplateIntrinsicFuncInstantiation& instantiation =
+								this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
+
+							const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
+								this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
+
+							auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::ID>>();
+							instantiation_args.reserve(instantiation.templateArgs.size());
+							using TemplateArg = evo::Variant<TypeInfo::ID, core::GenericValue>;
+							for(const TemplateArg& template_arg : instantiation.templateArgs){
+								if(template_arg.is<TypeInfo::ID>()){
+									instantiation_args.emplace_back(template_arg.as<TypeInfo::ID>());
+								}else{
+									instantiation_args.emplace_back();
+								}
+							}
+
+							return &this->context.getTypeManager().getFunction(
+								this->context.type_manager.getOrCreateFunction(
+									template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
+								).funcID()
+							);
+
+						}else if constexpr(std::is_same<Target, sema::FuncCall::FuncPtr>()){
+							return &this->context.getTypeManager().getFunction(target.funcTypeID);
+							
+						}else{
+							static_assert(false, "Unsupported func call target");
+						}
+					});
+				} break;
+
+				case sema::Expr::Kind::INTERFACE_CALL: {
+					const sema::InterfaceCall& interface_call = 
+						this->context.getSemaBuffer().getInterfaceCall(attempt_expr.getExpr().interfaceCallID());
+
+					return this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Invalid attempt expr");
+				} break;
 			}
 		}();
 
@@ -18408,7 +18604,7 @@ namespace pcit::panther{
 
 		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
 			this->emit_error(
-				"Attempt in try/else expression is not function call", instr.try_else.attemptExpr
+				"Invalid attempt expression in try/else expression", instr.try_else.attemptExpr
 			);
 			return Result::ERROR;
 		}
@@ -18416,16 +18612,19 @@ namespace pcit::panther{
 		if(
 			attempt_expr.getExpr().kind() != sema::Expr::Kind::FUNC_CALL
 			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::INTERFACE_CALL
+			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::COPY
+			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::MOVE
+			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::FORWARD
 		){
 			this->emit_error(
-				"Attempt in try/else expression is not function call", instr.try_else.attemptExpr
+				"Invalid attempt expression in try/else expression", instr.try_else.attemptExpr
 			);
 			return Result::ERROR;
 		}
 
 		if(except_expr.is_ephemeral() == false){
 			this->emit_error(
-				"Except in try/else expression is not function call", instr.try_else.exceptExpr
+				"Invalid except expression in try/else expression", instr.try_else.exceptExpr
 			);
 			return Result::ERROR;
 		}
@@ -18479,9 +18678,9 @@ namespace pcit::panther{
 		
 
 		const sema::Expr try_else_expr = [&](){
-			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::FUNC_CALL){
+			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::INTERFACE_CALL){
 				return sema::Expr(
-					this->context.sema_buffer.createTryElseExpr(
+					this->context.sema_buffer.createTryElseInterfaceExpr(
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),
@@ -18490,7 +18689,7 @@ namespace pcit::panther{
 				);
 			}else{
 				return sema::Expr(
-					this->context.sema_buffer.createTryElseInterfaceExpr(
+					this->context.sema_buffer.createTryElseExpr(
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),

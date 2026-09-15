@@ -2361,26 +2361,7 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// New<true, true>
-
-			[[nodiscard]] auto createNewComptimeErrors(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::NEW_COMPTIME_ERRORS,
-					this->new_comptime_errors.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			[[nodiscard]] auto getNewComptimeErrors(Instruction instr) const
-			-> const Instruction::New<true, true>& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::NEW_COMPTIME_ERRORS, "Not a New<true, true>"
-				);
-				return this->new_comptime_errors[instr._index];
-			}
-
-
-			//////////////////
-			// New<true, false>
+			// New<true>
 
 			[[nodiscard]] auto createNewComptime(auto&&... args) -> Instruction {
 				return Instruction(
@@ -2390,46 +2371,24 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto getNewComptime(Instruction instr) const
-			-> const Instruction::New<true, false>& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::NEW_COMPTIME, "Not a New<true, false>"
-				);
+			-> const Instruction::New<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::NEW_COMPTIME, "Not a New<true>");
 				return this->new_comptimes[instr._index];
 			}
 
 
-			//////////////////
-			// New<false, true>
-
-			[[nodiscard]] auto createNewErrors(auto&&... args) -> Instruction {
-				return Instruction(
-					Instruction::Kind::NEW_ERRORS,
-					this->new_errors.emplace_back(std::forward<decltype(args)>(args)...)
-				);
-			}
-
-			[[nodiscard]] auto getNewErrors(Instruction instr) const -> const Instruction::New<false, true>& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::NEW_ERRORS, "Not a New<false, true>"
-				);
-				return this->new_errors[instr._index];
-			}
-
 
 			//////////////////
-			// New<false, false>
+			// New<false>
 
 			[[nodiscard]] auto createNew(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::NEW,
-					this->news.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::NEW, this->news.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			[[nodiscard]] auto getNew(Instruction instr) const -> const Instruction::New<false, false>& {
-				evo::debugAssert(
-					instr.kind() == Instruction::Kind::NEW, "Not a New<false, false>"
-				);
+			[[nodiscard]] auto getNew(Instruction instr) const -> const Instruction::New<false>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::NEW, "Not a New<false>");
 				return this->news[instr._index];
 			}
 
@@ -3578,10 +3537,8 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Unwrap<true>, uint32_t> unwrap_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::Unwrap<false>, uint32_t> unwraps{};
 			core::SyncLinearStepAlloc<Instruction::PackExpansion, uint32_t> pack_expansions{};
-			core::SyncLinearStepAlloc<Instruction::New<true, true>, uint32_t> new_comptime_errors{};
-			core::SyncLinearStepAlloc<Instruction::New<true, false>, uint32_t> new_comptimes{};
-			core::SyncLinearStepAlloc<Instruction::New<false, true>, uint32_t> new_errors{};
-			core::SyncLinearStepAlloc<Instruction::New<false, false>, uint32_t> news{};
+			core::SyncLinearStepAlloc<Instruction::New<true>, uint32_t> new_comptimes{};
+			core::SyncLinearStepAlloc<Instruction::New<false>, uint32_t> news{};
 			core::SyncLinearStepAlloc<Instruction::ComptimeDefaultNewRun, uint32_t> comptime_default_new_runs{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<true>, uint32_t> array_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};

@@ -412,8 +412,9 @@ namespace pcit::panther::sema{
 			BaseType::Function::ID funcTypeID;
 			sema::Expr funcPtr; 
 		};
+		using TargetType = evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncPtr>;
 
-		evo::Variant<FuncID, IntrinsicFunc::Kind, TemplateIntrinsicFuncInstantiationID, FuncPtr> target;
+		TargetType target;
 		evo::SmallVector<Expr> args;
 		Location location;
 	};

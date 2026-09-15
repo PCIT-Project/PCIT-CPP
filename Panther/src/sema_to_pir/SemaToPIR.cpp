@@ -6884,49 +6884,196 @@ namespace pcit::panther{
 		
 		const auto ssl = this->create_scoped_source_location(try_else_expr.location);
 
-		const sema::FuncCall& attempt_func_call =
-			this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
-
-		const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
-			if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
-				return attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
-			}else{
-				return this->context.getSemaBuffer().getFunc(
-					attempt_func_call.target.as<sema::Func::ID>()
-				).typeID;
-			}
-		}();
-
-		const BaseType::Function& target_type = this->context.getTypeManager().getFunction(target_type_id);
-
-		const Data::FuncTypeInfo& target_func_type_info = this->get_or_create_func_type_info(target_type_id);
 
 		auto args = evo::SmallVector<pir::Expr>();
-		for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
-			if(target_func_type_info.params[i].is_copy()){
-				args.emplace_back(this->get_expr_register(arg));
+		const BaseType::Function* target_type = nullptr;
+		const Data::FuncTypeInfo* target_func_type_info = nullptr;
 
-			}else if(target_type.params[i].kind == BaseType::Function::Param::Kind::IN){
-				if(arg.kind() == sema::Expr::Kind::COPY){
-					args.emplace_back(
-						this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
-					);
+		uint32_t target_in_param_bitmap = 0;
 
-				}else if(arg.kind() == sema::Expr::Kind::MOVE){
-					args.emplace_back(
-						this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
-					);
+		std::optional<sema::FuncCall::TargetType> target_id = std::nullopt;
+
+
+		switch(try_else_expr.attempt.kind()){
+			case sema::Expr::Kind::COPY: {
+				const sema::Copy& copy_expr = this->context.getSemaBuffer().getCopy(try_else_expr.attempt.copyID());
+
+				const TypeInfo& copy_target_type = this->context.getTypeManager().getTypeInfo(copy_expr.exprTypeID);
+				const BaseType::Struct& copy_target_struct_type = this->context.getTypeManager().getStruct(
+					copy_target_type.baseTypeID().structID()
+				);
+
+
+				const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+					if(copy_expr.isInitialization){
+						return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+
+					}else{
+						const std::optional<sema::Func::ID> copy_assign_overload =
+							copy_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+						if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
+
+						return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+					}
+				}();
+
+
+				const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+
+				target_id = copy_func_id;
+				target_type = &this->context.getTypeManager().getFunction(copy_func.typeID);
+				target_func_type_info = &this->get_or_create_func_type_info(copy_func.typeID);
+
+				args.emplace_back(this->get_expr_pointer(copy_expr.expr));
+			} break;
+
+			case sema::Expr::Kind::MOVE: {
+				const sema::Move& move_expr = this->context.getSemaBuffer().getMove(try_else_expr.attempt.moveID());
+
+				const TypeInfo& move_target_type = this->context.getTypeManager().getTypeInfo(move_expr.exprTypeID);
+				const BaseType::Struct& move_target_struct_type = this->context.getTypeManager().getStruct(
+					move_target_type.baseTypeID().structID()
+				);
+
+
+				const sema::Func::ID move_func_id = [&]() -> sema::Func::ID {
+					if(move_expr.isInitialization){
+						return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+
+					}else{
+						const std::optional<sema::Func::ID> move_assign_overload =
+							move_target_struct_type.moveAssignOverload.load(std::memory_order::relaxed);
+						if(move_assign_overload.has_value()){ return *move_assign_overload; }
+
+						return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+					}
+				}();
+
+
+				const sema::Func& move_func = this->context.getSemaBuffer().getFunc(move_func_id);
+
+				target_id = move_func_id;
+				target_type = &this->context.getTypeManager().getFunction(move_func.typeID);
+				target_func_type_info = &this->get_or_create_func_type_info(move_func.typeID);
+
+				args.emplace_back(this->get_expr_pointer(move_expr.expr));
+			} break;
+
+			case sema::Expr::Kind::FORWARD: {
+				const sema::Forward& forward_expr =
+					this->context.getSemaBuffer().getForward(try_else_expr.attempt.forwardID());
+
+				const TypeInfo& forward_target_type =
+					this->context.getTypeManager().getTypeInfo(forward_expr.exprTypeID);
+				const BaseType::Struct& forward_target_struct_type = this->context.getTypeManager().getStruct(
+					forward_target_type.baseTypeID().structID()
+				);
+
+
+				const sema::Param& target_param = 
+					this->context.getSemaBuffer().getParam(forward_expr.expr.paramID());
+				const uint32_t in_param_index =
+					*this->current_func_type_info->params[target_param.index].in_param_index;
+				const bool param_is_copy = bool((this->in_param_bitmap >> in_param_index) & 1);
+
+				if(param_is_copy){
+					const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+						if(forward_expr.isInitialization){
+							return forward_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload =
+								forward_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+							if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
+
+							return forward_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+
+					target_id = copy_func_id;
+					target_type = &this->context.getTypeManager().getFunction(copy_func.typeID);
+					target_func_type_info = &this->get_or_create_func_type_info(copy_func.typeID);
 					
 				}else{
-					args.emplace_back(this->get_expr_pointer(arg));
+					const sema::Func::ID move_func_id = [&]() -> sema::Func::ID {
+						if(forward_expr.isInitialization){
+							return forward_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> move_assign_overload =
+								forward_target_struct_type.moveAssignOverload.load(std::memory_order::relaxed);
+							if(move_assign_overload.has_value()){ return *move_assign_overload; }
+
+							return forward_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+
+					const sema::Func& move_func = this->context.getSemaBuffer().getFunc(move_func_id);
+
+					target_id = move_func_id;
+					target_type = &this->context.getTypeManager().getFunction(move_func.typeID);
+					target_func_type_info = &this->get_or_create_func_type_info(move_func.typeID);
 				}
 
-			}else{
-				args.emplace_back(this->get_expr_pointer(arg));
-			}
+				args.emplace_back(this->get_expr_pointer(forward_expr.expr));
+			} break;
 
-			i += 1;
+			case sema::Expr::Kind::FUNC_CALL: {
+				const sema::FuncCall& attempt_func_call =
+					this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
+
+				const BaseType::Function::ID target_type_id = [&]() -> BaseType::Function::ID {
+					if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+						return attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcTypeID;
+					}else{
+						return this->context.getSemaBuffer().getFunc(
+							attempt_func_call.target.as<sema::Func::ID>()
+						).typeID;
+					}
+				}();
+
+				target_id = attempt_func_call.target;
+				target_type = &this->context.getTypeManager().getFunction(target_type_id);
+				target_func_type_info = &this->get_or_create_func_type_info(target_type_id);
+
+				for(size_t i = 0; const sema::Expr& arg : attempt_func_call.args){
+					if(target_func_type_info->params[i].is_copy()){
+						args.emplace_back(this->get_expr_register(arg));
+
+					}else if(target_type->params[i].kind == BaseType::Function::Param::Kind::IN){
+						if(arg.kind() == sema::Expr::Kind::COPY){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getCopy(arg.copyID()).expr)
+							);
+
+						}else if(arg.kind() == sema::Expr::Kind::MOVE){
+							args.emplace_back(
+								this->get_expr_pointer(this->context.getSemaBuffer().getMove(arg.moveID()).expr)
+							);
+							
+						}else{
+							args.emplace_back(this->get_expr_pointer(arg));
+						}
+
+					}else{
+						args.emplace_back(this->get_expr_pointer(arg));
+					}
+
+					i += 1;
+				}
+
+				target_in_param_bitmap = this->calc_in_param_bitmap(*target_type, attempt_func_call.args);
+			} break;
+
+			default: {
+				evo::debugFatalBreak("Invalid expr target");
+			} break;
 		}
+
 
 
 		auto single_return_address = std::optional<pir::Expr>();
@@ -6938,16 +7085,16 @@ namespace pcit::panther{
 			
 		}else{
 			single_return_address = this->handler.createAlloca(
-				this->get_type<false, false>(target_type.returnTypes[0]).type
+				this->get_type<false, false>(target_type->returnTypes[0]).type
 			);
 			args.emplace_back(*single_return_address);
 		}
 
 
 
-		if(target_type.errorTypes[0].isVoid() == false){
+		if(target_type->errorTypes[0].isVoid() == false){
 			const pir::Expr error_value = this->handler.createAlloca(
-				*target_func_type_info.error_return_type, this->name("ERR.ALLOCA")
+				*target_func_type_info->error_return_type, this->name("ERR.ALLOCA")
 			);
 
 			for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
@@ -6956,7 +7103,7 @@ namespace pcit::panther{
 
 				const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
 					error_value,
-					*target_func_type_info.error_return_type,
+					*target_func_type_info->error_return_type,
 					evo::SmallVector<pir::CalcPtr::Index>{
 						pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
 					},
@@ -6973,22 +7120,22 @@ namespace pcit::panther{
 			args.emplace_back(error_value);
 		}
 
-		const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(target_type, attempt_func_call.args);
+		
 
 
 
 		const auto target = [&]() -> CallTarget {
-			if(attempt_func_call.target.is<sema::FuncCall::FuncPtr>()){
+			if(target_id->is<sema::FuncCall::FuncPtr>()){
 				return PtrCallTarget{
 					.target   = this->get_expr_register(
-						attempt_func_call.target.as<sema::FuncCall::FuncPtr>().funcPtr
+						target_id->as<sema::FuncCall::FuncPtr>().funcPtr
 					),
-					.funcType = this->get_function_pir_type(target_type),
+					.funcType = this->get_function_pir_type(*target_type),
 				};
 
 			}else{
 				const Data::FuncInfo& target_func_info =
-					this->data.get_func(attempt_func_call.target.as<sema::Func::ID>());
+					this->data.get_func(target_id->as<sema::Func::ID>());
 				return target_func_info.pir_ids[target_in_param_bitmap].visit(
 					[&](const auto& id) -> CallTarget {
 						using IDType = std::decay_t<decltype(id)>;
@@ -7022,7 +7169,7 @@ namespace pcit::panther{
 		this->handler.setTargetBasicBlock(end_block);
 
 		if constexpr(MODE == GetExprMode::REGISTER){
-			const pir::Type return_type = this->get_type<false, false>(target_type.returnTypes[0]).type;
+			const pir::Type return_type = this->get_type<false, false>(target_type->returnTypes[0]).type;
 			return this->handler.createLoad(*single_return_address, return_type);
 
 		}else if constexpr(MODE == GetExprMode::POINTER){
