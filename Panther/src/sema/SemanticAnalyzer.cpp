@@ -17503,9 +17503,11 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				const bool is_structurally_assignment_semantically_initialization = instr.mode.isAssignment()
+					&& this->get_term_info(*instr.assign_target).isUninitialized();
 
-				const bool should_run_initialization = instr.mode.isAssignment() == false
-					|| target_struct.newAssignOverloads.empty();
+				const bool should_run_initialization = is_structurally_assignment_semantically_initialization
+					|| (instr.mode.isAssignment() == false || target_struct.newAssignOverloads.empty());
 
 				const evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>* new_overloads = nullptr;
 
@@ -17716,6 +17718,25 @@ namespace pcit::panther{
 						);
 						return Result::ERROR;
 					}
+				}
+
+
+				if(is_structurally_assignment_semantically_initialization){
+					const TermInfo& lhs = this->get_term_info(*instr.assign_target);
+
+					if(this->get_special_member_call_dependents<SpecialMemberKind::DELETE, true>(
+						lhs,
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs,
+						instr.ast_new
+					).isError()){
+						return Result::ERROR;
+					}
+
+					this->get_current_scope_level().stmtBlock().emplace_back(
+						this->context.sema_buffer.createDelete(
+							lhs.getExpr(), lhs.type_id.as<TypeInfo::ID>(), this->get_sema_location(instr.ast_new)
+						)
+					);
 				}
 
 

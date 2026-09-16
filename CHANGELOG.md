@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.388.3"></a>
+## v0.0.388.3
+
+### Panther
+- Fixed assignment `new` when used in `try`/`else` that's semantically initialization
+
+
+<!---------------------------------->
 <a name="v0.0.388.2"></a>
 ## v0.0.388.2
 
