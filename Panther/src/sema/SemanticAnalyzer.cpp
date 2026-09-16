@@ -10386,7 +10386,7 @@ namespace pcit::panther{
 								overload_id.as<sema::TemplatedFunc::ID>(),
 								instr.args,
 								evo::ArrayProxy<SymbolProc::TermInfoID>(),
-								true,
+								!should_run_initialization,
 								this->get_location(ast_new.type)
 							);
 
@@ -15855,7 +15855,7 @@ namespace pcit::panther{
 		auto target_type_id = std::optional<TypeInfo::ID>();
 
 		if(is_func){
-			if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+			if(instr.mode.isError()){
 				this->emit_error("Operator [copy] of functions cannot error", instr.prefix.rhs);
 				return Result::ERROR;
 			}
@@ -15943,7 +15943,7 @@ namespace pcit::panther{
 					const BaseType::Function& copy_func_type =
 						this->context.getTypeManager().getFunction(copy_func.typeID);
 
-					if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					if(instr.mode.isError()){
 						if(copy_func_type.hasErrorReturn() == false){
 							this->emit_error("Operator [copy] of this type doesn't error", instr.prefix);
 							return Result::ERROR;
@@ -15957,7 +15957,7 @@ namespace pcit::panther{
 					}
 					
 				}else{
-					if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+					if(instr.mode.isError()){
 						this->emit_error("Operator [copy] of this type doesn't error", instr.prefix);
 						return Result::ERROR;
 					}
@@ -16051,7 +16051,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createCopy(
 							target.getExpr(),
 							*target_type_id,
-							instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+							instr.mode.isAssignment() == false
 						)
 					);
 				}
@@ -16196,7 +16196,7 @@ namespace pcit::panther{
 				const BaseType::Function& move_func_type = this->context.getTypeManager().getFunction(move_func.typeID);
 
 
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					if(move_func_type.hasErrorReturn() == false){
 						this->emit_error("Operator [move] of this type doesn't error", instr.prefix);
 						return Result::ERROR;
@@ -16210,7 +16210,7 @@ namespace pcit::panther{
 				}
 
 			}else{
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [move] of this type doesn't error", instr.prefix);
 					return Result::ERROR;
 				}
@@ -16235,7 +16235,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.createMove(
 					target.getExpr(),
 					target.type_id.as<TypeInfo::ID>(),
-					instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+					instr.mode.isAssignment() == false
 				)
 			)
 		);
@@ -16352,7 +16352,7 @@ namespace pcit::panther{
 				const BaseType::Function& copy_func_type =
 					this->context.getTypeManager().getFunction(copy_func.typeID);
 
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					if(copy_func_type.hasErrorReturn() == false){
 						this->emit_error("Operator [forward] of this type doesn't error", instr.prefix);
 						return Result::ERROR;
@@ -16366,7 +16366,7 @@ namespace pcit::panther{
 				}
 				
 			}else{
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [forward] of this type doesn't error", instr.prefix);
 					return Result::ERROR;
 				}
@@ -16384,7 +16384,7 @@ namespace pcit::panther{
 				this->context.sema_buffer.createForward(
 					target.getExpr(),
 					target.type_id.as<TypeInfo::ID>(),
-					instr.mode != Instruction::SpecialMemberMode::ERROR_ASSIGN
+					instr.mode.isAssignment() == false
 				)
 			)
 		);
@@ -17029,7 +17029,7 @@ namespace pcit::panther{
 
 		if(decayed_target_type_info.qualifiers().empty() == false){
 			if(decayed_target_type_info.isOptional()){
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
@@ -17125,7 +17125,7 @@ namespace pcit::panther{
 
 		switch(decayed_target_type_info.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
@@ -17186,7 +17186,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY: {
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
@@ -17339,7 +17339,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("Operator [new] of this type doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 
@@ -17504,16 +17504,29 @@ namespace pcit::panther{
 				}
 
 
+				const bool should_run_initialization = instr.mode.isAssignment() == false
+					|| target_struct.newAssignOverloads.empty();
+
+				const evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>* new_overloads = nullptr;
+
+				auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
+				if(should_run_initialization){
+					new_overloads = &target_struct.newInitOverloads;
+					args.reserve(instr.args.size());
+					
+				}else{
+					new_overloads = &target_struct.newAssignOverloads;
+					args.reserve(instr.args.size() + 1);
+					args.emplace_back(this->get_term_info(*instr.assign_target), instr.ast_new.type, std::nullopt);
+				}
+
 
 				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 				overloads.reserve(target_struct.newInitOverloads.size());
 
 				auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
 				auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
-				for(
-					const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> overload_id
-					: target_struct.newInitOverloads
-				){
+				for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> overload_id : *new_overloads){
 					if(overload_id.is<sema::Func::ID>()){
 						const sema::Func& overload =
 							this->context.getSemaBuffer().getFunc(overload_id.as<sema::Func::ID>());
@@ -17531,7 +17544,7 @@ namespace pcit::panther{
 								overload_id.as<sema::TemplatedFunc::ID>(),
 								instr.args,
 								evo::ArrayProxy<SymbolProcTermInfoID>(),
-								false,
+								!should_run_initialization,
 								this->get_location(instr.ast_new.type)
 							);
 
@@ -17549,7 +17562,7 @@ namespace pcit::panther{
 				{
 					evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
 						this->handle_results_of_get_select_func_overload_func_info_for_template(
-							target_struct.newInitOverloads,
+							*new_overloads,
 							overloads,
 							instantiation_infos,
 							template_overload_match_infos,
@@ -17568,8 +17581,6 @@ namespace pcit::panther{
 
 
 
-				auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
-				args.reserve(instr.args.size());
 				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 					args.emplace_back(
 						this->get_term_info(arg_id), instr.ast_new.args[i].value, instr.ast_new.args[i].label
@@ -17614,7 +17625,7 @@ namespace pcit::panther{
 				const BaseType::Function& selected_func_type =
 					this->context.getTypeManager().getFunction(selected_func.typeID);
 
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					if(selected_func_type.hasErrorReturn() == false){
 						this->emit_error("This operator [new] doesn't error", instr.ast_new.type);
 						return Result::ERROR;
@@ -17635,7 +17646,12 @@ namespace pcit::panther{
 				bool is_comptime = selected_func_type.attributes.isComptime;
 
 				auto output_args = evo::SmallVector<sema::Expr>();
-				output_args.reserve(selected_func.params.size());
+				output_args.reserve(selected_func.params.size() + size_t(!should_run_initialization));
+
+				if(!should_run_initialization){
+					output_args.emplace_back(this->get_term_info(*instr.assign_target).getExpr());
+				}
+
 				for(const SymbolProc::TermInfoID& arg_id : instr.args){
 					const TermInfo& arg_term_info = this->get_term_info(arg_id);
 
@@ -17644,7 +17660,11 @@ namespace pcit::panther{
 				}
 
 				// default values
-				for(size_t i = output_args.size(); i < selected_func.params.size(); i+=1){
+				for(
+					size_t i = output_args.size() + size_t(!should_run_initialization);
+					i < selected_func.params.size();
+					i+=1
+				){
 					output_args.emplace_back(*selected_func.params[i].defaultValue);
 					if(selected_func.params[i].defaultValueIsComptime == false){ is_comptime = false; }
 				}
@@ -17723,7 +17743,7 @@ namespace pcit::panther{
 			} break;
 
 			case BaseType::Kind::INTERFACE_MAP: {
-				if(instr.mode != Instruction::SpecialMemberMode::NORMAL){
+				if(instr.mode.isError()){
 					this->emit_error("This operator [new] doesn't error", instr.ast_new.type);
 					return Result::ERROR;
 

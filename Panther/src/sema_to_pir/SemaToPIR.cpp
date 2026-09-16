@@ -7079,8 +7079,22 @@ namespace pcit::panther{
 		auto single_return_address = std::optional<pir::Expr>();
 
 		if constexpr(MODE == GetExprMode::STORE){
-			for(pir::Expr store_location : store_locations){
-				args.emplace_back(store_location);
+			const bool is_assignment_new = [&]() -> bool {
+				if(try_else_expr.attempt.kind() != sema::Expr::Kind::FUNC_CALL){ return false; }
+				const sema::FuncCall& func_call =
+					this->context.getSemaBuffer().getFuncCall(try_else_expr.attempt.funcCallID());
+
+				if(func_call.target.is<sema::Func::ID>() == false){ return false; }
+				const sema::Func& sema_func =
+					this->context.getSemaBuffer().getFunc(func_call.target.as<sema::Func::ID>());
+				const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+				return func_type.returnsVoid();
+			}();
+
+			if(is_assignment_new == false){
+				for(pir::Expr store_location : store_locations){
+					args.emplace_back(store_location);
+				}
 			}
 			
 		}else{
@@ -15521,15 +15535,15 @@ namespace pcit::panther{
 				case Token::Kind::KEYWORD_NEW: {
 					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
-					if(func_type.returnTypes.size() == 1){
-						return std::format(
-							"PTHR.f{}-{}new-init",
-							func_id.get(),
-							this->get_parent_name<false>(func.parent, func.sourceID)
-						);	
-					}else{
+					if(func_type.returnsVoid()){
 						return std::format(
 							"PTHR.f{}-{}new-assign",
+							func_id.get(),
+							this->get_parent_name<false>(func.parent, func.sourceID)
+						);
+					}else{
+						return std::format(
+							"PTHR.f{}-{}new-init",
 							func_id.get(),
 							this->get_parent_name<false>(func.parent, func.sourceID)
 						);

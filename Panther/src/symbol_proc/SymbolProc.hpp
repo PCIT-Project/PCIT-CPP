@@ -879,11 +879,29 @@ namespace pcit::panther{
 		};
 
 
-		enum class SpecialMemberMode{
-			NORMAL,
-			ERROR,
-			ERROR_ASSIGN,
+		struct SpecialMemberMode{
+			enum class Value{
+				NORMAL,
+				NORMAL_ASSIGN,
+				ERROR,
+				ERROR_ASSIGN,
+			};
+			using enum class Value;
+
+			constexpr SpecialMemberMode(Value value) : _value(value) {};
+			[[nodiscard]] constexpr operator Value() { return this->_value; }
+
+			[[nodiscard]] constexpr auto isAssignment() const -> bool {
+				return this->_value == NORMAL_ASSIGN || this->_value == ERROR_ASSIGN;
+			}
+
+			[[nodiscard]] constexpr auto isError() const -> bool {
+				return this->_value == ERROR || this->_value == ERROR_ASSIGN;
+			}
+
+			Value _value;
 		};
+
 
 		template<bool IS_COMPTIME>
 		struct Copy{
@@ -960,6 +978,7 @@ namespace pcit::panther{
 			SymbolProcTypeID type_id;
 			SymbolProcTermInfoID output;
 			evo::SmallVector<SymbolProcTermInfoID> args;
+			std::optional<SymbolProcTermInfoID> assign_target;
 			SpecialMemberMode mode;
 		};
 

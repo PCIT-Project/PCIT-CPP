@@ -120,16 +120,19 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_term(const AST::Node& expr) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			[[nodiscard]] auto analyze_expr(const AST::Node& expr, bool is_assign = false)
-				-> evo::Result<SymbolProc::TermInfoID>;
+			[[nodiscard]] auto analyze_expr(
+				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
+			) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			[[nodiscard]] auto analyze_erroring_expr(const AST::Node& expr, bool is_assign = false)
-			-> evo::Result<SymbolProc::TermInfoID>;
+			[[nodiscard]] auto analyze_erroring_expr(
+				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
+			) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
-			[[nodiscard]] auto analyze_term_impl(const AST::Node& expr, bool is_assign = false)
-				-> evo::Result<SymbolProc::TermInfoID>;			
+			[[nodiscard]] auto analyze_term_impl(
+				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
+			) -> evo::Result<SymbolProc::TermInfoID>;			
 
 
 			template<bool IS_COMPTIME>
@@ -145,8 +148,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_expr_templated(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME, bool ERRORS>
-			[[nodiscard]] auto analyze_expr_prefix(const AST::Node& node, bool is_assign)
-				-> evo::Result<SymbolProc::TermInfoID>;
+			[[nodiscard]] auto analyze_expr_prefix(
+				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+			) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto analyze_expr_infix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
@@ -155,7 +159,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_expr_postfix(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME, bool ERRORS>
-			[[nodiscard]] auto analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
+			[[nodiscard]] auto analyze_expr_new(
+				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+			) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto analyze_expr_array_init_new(const AST::Node& node)
@@ -166,8 +172,9 @@ namespace pcit::panther{
 				-> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool IS_COMPTIME>
-			[[nodiscard]] auto analyze_expr_try_else(const AST::Node& node, bool is_assign)
-				-> evo::Result<SymbolProc::TermInfoID>;
+			[[nodiscard]] auto analyze_expr_try_else(
+				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+			) -> evo::Result<SymbolProc::TermInfoID>;
 
 			[[nodiscard]] auto analyze_expr_asm(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 

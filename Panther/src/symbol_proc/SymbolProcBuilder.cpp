@@ -3210,7 +3210,7 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<false>(infix.lhs);
 		if(lhs.isError()){ return evo::resultError; }
 
-		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs, true);
+		const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<false>(infix.rhs, lhs.value());
 		if(rhs.isError()){ return evo::resultError; }
 
 
@@ -3351,21 +3351,23 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr, bool is_assign)
+	auto SymbolProcBuilder::analyze_expr(const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target)
 	-> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_COMPTIME, true, false>(expr, is_assign);
+		return this->analyze_term_impl<IS_COMPTIME, true, false>(expr, assign_target);
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_erroring_expr(const AST::Node& expr, bool is_assign)
-	-> evo::Result<SymbolProc::TermInfoID> {
-		return this->analyze_term_impl<IS_COMPTIME, true, true>(expr, is_assign);
+	auto SymbolProcBuilder::analyze_erroring_expr(
+		const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
+		return this->analyze_term_impl<IS_COMPTIME, true, true>(expr, assign_target);
 	}
 
 
 	template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
-	auto SymbolProcBuilder::analyze_term_impl(const AST::Node& expr, bool is_assign)
-	-> evo::Result<SymbolProc::TermInfoID> {
+	auto SymbolProcBuilder::analyze_term_impl(
+		const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 
 		if constexpr(ERRORS){
@@ -3375,8 +3377,8 @@ namespace pcit::panther{
 				} break;
 
 				case AST::Kind::FUNC_CALL: return this->analyze_expr_func_call<IS_COMPTIME, true>(expr);
-				case AST::Kind::NEW:       return this->analyze_expr_new<IS_COMPTIME, true>(expr);
-				case AST::Kind::PREFIX:    return this->analyze_expr_prefix<IS_COMPTIME, true>(expr, is_assign);
+				case AST::Kind::NEW:       return this->analyze_expr_new<IS_COMPTIME, true>(expr, assign_target);
+				case AST::Kind::PREFIX:    return this->analyze_expr_prefix<IS_COMPTIME, true>(expr, assign_target);
 
 				default: {
 					this->emit_error("Invalid attempt expression in try", expr);
@@ -3396,14 +3398,16 @@ namespace pcit::panther{
 				case AST::Kind::TEMPLATED_EXPR:      return this->analyze_expr_templated<IS_COMPTIME>(expr);
 
 				case AST::Kind::PREFIX:
-					return this->analyze_expr_prefix<IS_COMPTIME, false>(expr, is_assign);
+					return this->analyze_expr_prefix<IS_COMPTIME, false>(expr, assign_target);
 
 				case AST::Kind::INFIX:               return this->analyze_expr_infix<IS_COMPTIME>(expr);
 				case AST::Kind::POSTFIX:             return this->analyze_expr_postfix<IS_COMPTIME>(expr);
-				case AST::Kind::NEW:                 return this->analyze_expr_new<IS_COMPTIME, false>(expr);
+				case AST::Kind::NEW:
+					return this->analyze_expr_new<IS_COMPTIME, false>(expr, assign_target);
 				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_COMPTIME>(expr);
-				case AST::Kind::TRY_ELSE:            return this->analyze_expr_try_else<IS_COMPTIME>(expr, is_assign);
+				case AST::Kind::TRY_ELSE:
+					return this->analyze_expr_try_else<IS_COMPTIME>(expr, assign_target);
 
 				case AST::Kind::ASM: {
 					if constexpr(IS_COMPTIME){
@@ -4034,8 +4038,9 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME, bool ERRORS>
-	auto SymbolProcBuilder::analyze_expr_prefix(const AST::Node& node, bool is_assign)
-	-> evo::Result<SymbolProc::TermInfoID> {
+	auto SymbolProcBuilder::analyze_expr_prefix(
+		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::Prefix& prefix = this->source.getASTBuffer().getPrefix(node);
 
 		switch(this->source.getTokenBuffer()[prefix.opTokenID].kind()){
@@ -4066,7 +4071,7 @@ namespace pcit::panther{
 
 				const Instruction::SpecialMemberMode mode = [&]() -> Instruction::SpecialMemberMode {
 					if constexpr(ERRORS){
-						if(is_assign){
+						if(assign_target.has_value()){
 							return Instruction::SpecialMemberMode::ERROR_ASSIGN;
 						}else{
 							return Instruction::SpecialMemberMode::ERROR;
@@ -4102,7 +4107,7 @@ namespace pcit::panther{
 
 				const Instruction::SpecialMemberMode mode = [&]() -> Instruction::SpecialMemberMode {
 					if constexpr(ERRORS){
-						if(is_assign){
+						if(assign_target.has_value()){
 							return Instruction::SpecialMemberMode::ERROR_ASSIGN;
 						}else{
 							return Instruction::SpecialMemberMode::ERROR;
@@ -4127,7 +4132,7 @@ namespace pcit::panther{
 
 				const Instruction::SpecialMemberMode mode = [&]() -> Instruction::SpecialMemberMode {
 					if constexpr(ERRORS){
-						if(is_assign){
+						if(assign_target.has_value()){
 							return Instruction::SpecialMemberMode::ERROR_ASSIGN;
 						}else{
 							return Instruction::SpecialMemberMode::ERROR;
@@ -4829,7 +4834,9 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME, bool ERRORS>
-	auto SymbolProcBuilder::analyze_expr_new(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID> {
+	auto SymbolProcBuilder::analyze_expr_new(
+		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::New& ast_new = this->source.getASTBuffer().getNew(node);
 
 		const evo::Result<SymbolProc::TypeID> type_id = this->analyze_type<true>(
@@ -4851,7 +4858,12 @@ namespace pcit::panther{
 		if constexpr(IS_COMPTIME){
 			this->add_instruction(
 				this->context.symbol_proc_manager.createNewComptime(
-					ast_new, type_id.value(), new_term_info_id, std::move(args), Instruction::SpecialMemberMode::NORMAL
+					ast_new,
+					type_id.value(),
+					new_term_info_id,
+					std::move(args),
+					std::nullopt,
+					Instruction::SpecialMemberMode::NORMAL
 				)
 			);
 
@@ -4881,7 +4893,10 @@ namespace pcit::panther{
 						type_id.value(),
 						new_term_info_id,
 						std::move(args),
-						Instruction::SpecialMemberMode::ERROR
+						assign_target,
+						assign_target.has_value()
+							? Instruction::SpecialMemberMode::ERROR_ASSIGN
+							: Instruction::SpecialMemberMode::ERROR
 					)
 				);
 
@@ -4894,7 +4909,10 @@ namespace pcit::panther{
 						type_id.value(),
 						new_term_info_id,
 						std::move(args),
-						Instruction::SpecialMemberMode::NORMAL
+						assign_target,
+						assign_target.has_value()
+							? Instruction::SpecialMemberMode::NORMAL_ASSIGN
+							: Instruction::SpecialMemberMode::NORMAL
 					)
 				);
 
@@ -4992,12 +5010,13 @@ namespace pcit::panther{
 	}
 
 	template<bool IS_COMPTIME>
-	auto SymbolProcBuilder::analyze_expr_try_else(const AST::Node& node, bool is_assign)
-	-> evo::Result<SymbolProc::TermInfoID> {
+	auto SymbolProcBuilder::analyze_expr_try_else(
+		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::TryElse& try_else = this->source.getASTBuffer().getTryElse(node);
  
 		const evo::Result<SymbolProc::TermInfoID> attempt_expr =
-			this->analyze_erroring_expr<IS_COMPTIME>(try_else.attemptExpr, is_assign);
+			this->analyze_erroring_expr<IS_COMPTIME>(try_else.attemptExpr, assign_target);
 		if(attempt_expr.isError()){ return evo::resultError; }
 
 		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
@@ -5008,7 +5027,7 @@ namespace pcit::panther{
 		);
 
 		const evo::Result<SymbolProc::TermInfoID> except_expr =
-			this->analyze_expr<IS_COMPTIME>(try_else.exceptExpr);
+			this->analyze_expr<IS_COMPTIME>(try_else.exceptExpr, assign_target);
 		if(except_expr.isError()){ return evo::resultError; }
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
