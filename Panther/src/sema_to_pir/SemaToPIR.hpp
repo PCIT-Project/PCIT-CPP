@@ -89,7 +89,6 @@ namespace pcit::panther{
 
 			auto lowerGlobalDecl(sema::GlobalVar::ID global_var_id) -> std::optional<pir::GlobalVar::ID>;
 			auto lowerGlobalDef(sema::GlobalVar::ID global_var_id) -> void;
-			[[nodiscard]] auto lowerFuncDeclComptime(sema::Func::ID func_id) -> pir::Function::ID;
 			auto lowerFuncDecl(sema::Func::ID func_id) -> void;
 			auto lowerFuncDefComptime(sema::Func::ID func_id) -> void;
 			auto lowerFuncDef(sema::Func::ID func_id) -> void;
@@ -115,6 +114,9 @@ namespace pcit::panther{
 			[[nodiscard]] auto createFuncJITInterface(sema::Func::ID func_id, pir::Function::ID pir_func_id)
 				-> pir::Function::ID;
 
+			[[nodiscard]] auto lookupPIRFunc(sema::Func::ID func_id, evo::ArrayProxy<sema::Expr> args) const
+				-> pir::Function::ID;
+
 
 			[[nodiscard]] auto mangleName(sema::Func::ID func_id) -> std::string {
 				return this->mangle_name(func_id);
@@ -122,6 +124,8 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto createGlobalBuffer(sema::Expr expr, TypeInfo::ID type_id) -> pir::GlobalVar::ID;
+
+
 
 
 
@@ -134,9 +138,6 @@ namespace pcit::panther{
 
 			template<bool MAY_LOWER_DEPENDENCY>
 			auto lower_enum(BaseType::Enum::ID enum_id) -> void;
-
-			// see definition for explanation
-			auto lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID>;
 
 			auto lower_func_def_detail(sema::Func::ID func_id, bool lower_comptime) -> void;
 

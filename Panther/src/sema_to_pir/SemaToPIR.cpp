@@ -240,20 +240,7 @@ namespace pcit::panther{
 
 
 
-	auto SemaToPIR::lowerFuncDeclComptime(sema::Func::ID func_id) -> pir::Function::ID {
-		return *this->lower_func_decl(func_id);
-
-	}
-
 	auto SemaToPIR::lowerFuncDecl(sema::Func::ID func_id) -> void {
-		this->lower_func_decl(func_id);
-	}
-
-
-	// This is a separete function as the return for a non-constexpr func decl may be not useful as functions
-	// 	 with in-params will have multiple funcs created, so the one returned is the one used for constexpr
-	// Returns nullopt if is a c family func
-	auto SemaToPIR::lower_func_decl(sema::Func::ID func_id) -> std::optional<pir::Function::ID> {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
 		evo::debugAssert(
@@ -607,7 +594,7 @@ namespace pcit::panther{
 					std::ignore = this->get_or_create_func_type_info(func.typeID);
 				}
 
-				return std::nullopt;
+				return;
 				
 			}else{
 				auto meta_id = std::optional<pir::meta::Function::ID>();
@@ -719,20 +706,9 @@ namespace pcit::panther{
 		}
 
 
-		const pir::Function::ID new_func_id = [&](){
-			using PIRFuncID = evo::Variant<std::monostate, pir::Function::ID, pir::ExternalFunction::ID>;
-			for(const PIRFuncID& pir_func : pir_funcs | std::views::reverse){
-				if(pir_func.is<pir::Function::ID>()){ return pir_func.as<pir::Function::ID>(); }
-			}
-			evo::unreachable();
-		}();
-
-
 		this->data.create_func(func_id, std::move(pir_funcs));
 
 		std::ignore = this->get_or_create_func_type_info(func.typeID);
-
-		return new_func_id;
 	}
 
 
@@ -1507,6 +1483,17 @@ namespace pcit::panther{
 
 		return jit_interface_func_id;
 	}
+
+
+	auto SemaToPIR::lookupPIRFunc(sema::Func::ID func_id, evo::ArrayProxy<sema::Expr> args) const -> pir::Function::ID {
+		const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+		const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
+
+		const uint32_t target_in_param_bitmap = this->calc_in_param_bitmap(func_type, args);
+
+		return this->data.get_func(func_id).pir_ids[size_t(target_in_param_bitmap)].as<pir::Function::ID>();
+	}
+
 
 
 

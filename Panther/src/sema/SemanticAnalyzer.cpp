@@ -2727,12 +2727,7 @@ namespace pcit::panther{
 
 
 		const auto lower_func = [&](sema::Func::ID target_func_id) -> evo::Result<> {
-			sema::Func& target_func = this->context.sema_buffer.getFunc(target_func_id);
-
-
-			target_func.value.as<sema::Func::DefValue>().comptimePIRFunc =
-				sema_to_pir.lowerFuncDeclComptime(target_func_id);
-
+			sema_to_pir.lowerFuncDecl(target_func_id);
 			sema_to_pir.lowerFuncDefComptime(target_func_id);
 
 			return evo::Result<>();
@@ -5286,15 +5281,11 @@ namespace pcit::panther{
 
 		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-		current_func.value.as<sema::Func::DefValue>().comptimePIRFunc =
-			sema_to_pir.lowerFuncDeclComptime(current_func_id);
+		sema_to_pir.lowerFuncDecl(current_func_id);
 
 
 		if(func_info.flipped_version.has_value()){
-			sema::Func& flipped_version = this->context.sema_buffer.getFunc(*func_info.flipped_version);
-
-			flipped_version.value.as<sema::Func::DefValue>().comptimePIRFunc =
-				sema_to_pir.lowerFuncDeclComptime(*func_info.flipped_version);
+			sema_to_pir.lowerFuncDecl(*func_info.flipped_version);
 		}
 
 		this->propagate_finished_pir_decl();
@@ -27052,11 +27043,11 @@ namespace pcit::panther{
 
 
 		evo::debugAssert(actual_args.size() == num_actual_args, "Number of arguments is incorrect");
+
+		const auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 		
 		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.execution_engine.runFunction(
-				*target_func.value.as<sema::Func::DefValue>().comptimePIRFunc, actual_args
-			);
+			this->context.execution_engine.runFunction(sema_to_pir.lookupPIRFunc(func_id, args), actual_args);
 
 		ContextComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
 

@@ -783,7 +783,6 @@ namespace pcit::panther::sema{
 		struct DefValue{
 			sema::StmtBlock stmtBlock{};
 			sema::StmtBlock stmtBlockRT{};
-			std::optional<pir::Function::ID> comptimePIRFunc{};
 		};
 
 		struct ExternValue{};

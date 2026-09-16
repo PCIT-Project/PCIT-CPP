@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.388.4"></a>
+## v0.0.388.4
+
+### Panther
+- Fixed comptime function calls with in parameters always calling the copy version
+
+
+<!---------------------------------->
 <a name="v0.0.388.3"></a>
 ## v0.0.388.3
 
