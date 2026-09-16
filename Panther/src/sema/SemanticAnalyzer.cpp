@@ -10323,7 +10323,6 @@ namespace pcit::panther{
 					this->context.getTypeManager().getStruct(decayed_target_type_info.baseTypeID().structID());
 
 
-				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 				auto args = evo::SmallVector<SelectFuncOverloadArgInfo>();
 
 				const bool is_semantically_initialization = lhs.isUninitialized();
@@ -10364,17 +10363,40 @@ namespace pcit::panther{
 				}
 
 
+				auto overloads = evo::SmallVector<SelectFuncOverloadFuncInfo>();
 				overloads.reserve(new_overloads->size());
+
+				auto instantiation_infos = evo::SmallVector<sema::TemplatedFunc::InstantiationInfo>();
+				auto template_overload_match_infos = evo::SmallVector<std::optional<TemplateOverloadMatchFail>>();
 				for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> overload_id : *new_overloads){
-					if(overload_id.is<sema::TemplatedFunc::ID>()){ continue; }
+					if(overload_id.is<sema::Func::ID>()){
+						const sema::Func& overload =
+							this->context.getSemaBuffer().getFunc(overload_id.as<sema::Func::ID>());
 
-					const sema::Func& overload =
-						this->context.getSemaBuffer().getFunc(overload_id.as<sema::Func::ID>());
+						overloads.emplace_back(
+							overload_id.as<sema::Func::ID>(),
+							this->context.getTypeManager().getFunction(overload.typeID)
+						);
+						
+					}else{
+						evo::debugAssert(overload_id.is<sema::TemplatedFunc::ID>(), "Unknown overload kind");
 
-					overloads.emplace_back(
-						overload_id.as<sema::Func::ID>(),
-						this->context.getTypeManager().getFunction(overload.typeID)
-					);
+						evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
+							this->get_select_func_overload_func_info_for_template(
+								overload_id.as<sema::TemplatedFunc::ID>(),
+								instr.args,
+								evo::ArrayProxy<SymbolProc::TermInfoID>(),
+								true,
+								this->get_location(ast_new.type)
+							);
+
+						if(template_res.has_value() == false){
+							template_overload_match_infos.emplace_back(template_res.error());
+							continue;
+						}
+						template_overload_match_infos.emplace_back(std::nullopt);
+						instantiation_infos.emplace_back(std::move(template_res.value()));
+					}
 				}
 
 
@@ -10385,13 +10407,60 @@ namespace pcit::panther{
 				}
 
 
+
+				auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
+				{
+					evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> handle_results = 
+						this->handle_results_of_get_select_func_overload_func_info_for_template(
+							*new_overloads,
+							overloads,
+							instantiation_infos,
+							template_overload_match_infos,
+							instr.args,
+							std::nullopt,
+							ast_new.args,
+							this->get_location(ast_new.type)
+						);
+
+					if(handle_results.has_value() == false){
+						return handle_results.error();
+					}
+
+					instantiation_error_infos = std::move(handle_results.value());
+				}
+
+
+
 				const evo::Expected<size_t, Result> selected_overload = this->select_func_overload(
-					overloads, args, ast_new, !should_run_initialization, false, evo::SmallVector<Diagnostic::Info>()
+					overloads, args, ast_new, !should_run_initialization, false, std::move(instantiation_error_infos)
 				);
 				if(selected_overload.has_value() == false){ return selected_overload.error(); }
 
-				const sema::Func::ID selected_func_id =
-					overloads[selected_overload.value()].func_id.as<sema::Func::ID>();
+				const SelectFuncOverloadFuncInfo& selected_func_info = overloads[*selected_overload];
+
+
+				if(selected_func_info.func_id.is<sema::TemplatedFunc::InstantiationInfo>()){
+					const evo::Result unsuspend_result = this->unsuspend_template_func_if_needed(
+						selected_func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>(),
+						"function",
+						this->get_location(ast_new)
+					);
+
+					if(unsuspend_result.isError()){ return Result::ERROR; }
+				}
+
+				const sema::Func::ID selected_func_id = [&]() -> sema::Func::ID {
+					if(selected_func_info.func_id.is<sema::Func::ID>()){
+						return selected_func_info.func_id.as<sema::Func::ID>();
+
+					}else{
+						const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+							selected_func_info.func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+						return *instantiation_info.instantiation.funcID;
+					}
+				}();
+
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
 
 				const BaseType::Function& selected_func_type =
