@@ -269,12 +269,20 @@ namespace pcit::panther::AST{
 
 			[[nodiscard]] auto createTryElse(
 				Node attemptExpr,
-				Node exceptExpr,
+				Node exceptBlock,
 				evo::SmallVector<Token::ID>&& exceptParams,
-				Token::ID elseTokenID,
-				std::optional<Token::ID> semicolonTokenID // nullopt of expr
+				Token::ID elseTokenID
 			) -> Node;
 			[[nodiscard]] auto getTryElse(const Node& node) const -> const TryElse&;
+
+
+			[[nodiscard]] auto createTryCatch(
+				Node attemptExpr,
+				Node exceptExpr,
+				evo::SmallVector<Token::ID>&& exceptParams,
+				Token::ID catchTokenID
+			) -> Node;
+			[[nodiscard]] auto getTryCatch(const Node& node) const -> const TryCatch&;
 
 
 			[[nodiscard]] auto createUnsafe(Token::ID keyword, Node block) -> Node;

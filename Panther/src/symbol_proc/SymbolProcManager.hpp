@@ -2492,6 +2492,39 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginTryElseExpr
+
+			[[nodiscard]] auto createBeginTryElseExpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_TRY_ELSE_EXPR,
+					this->begin_try_else_expr.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getBeginTryElseExpr(Instruction instr) const -> const Instruction::BeginTryElseExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_TRY_ELSE_EXPR, "Not a BeginTryElseExpr");
+				return this->begin_try_else_expr[instr._index];
+			}
+
+
+			//////////////////
+			// EndTryElseExpr
+
+			[[nodiscard]] auto createEndTryElseExpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_TRY_ELSE_EXPR,
+					this->end_try_else_expr.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getEndTryElseExpr(Instruction instr) const -> const Instruction::EndTryElseExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_TRY_ELSE_EXPR, "Not a EndTryElseExpr");
+				return this->end_try_else_expr[instr._index];
+			}
+
+
+
+			//////////////////
 			// PrepareTryHandler
 
 			[[nodiscard]] auto createPrepareTryHandler(auto&&... args) -> Instruction {
@@ -2509,18 +2542,18 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// TryElseExpr
+			// TryCatchExpr
 
-			[[nodiscard]] auto createTryElseExpr(auto&&... args) -> Instruction {
+			[[nodiscard]] auto createTryCatchExpr(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::TRY_ELSE_EXPR,
-					this->try_else_exprs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::TRY_CATCH_EXPR,
+					this->try_catch_exprs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			[[nodiscard]] auto getTryElseExpr(Instruction instr) const -> const Instruction::TryElseExpr& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_ELSE_EXPR, "Not a TryElseExpr");
-				return this->try_else_exprs[instr._index];
+			[[nodiscard]] auto getTryCatchExpr(Instruction instr) const -> const Instruction::TryCatchExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TRY_CATCH_EXPR, "Not a TryCatchExpr");
+				return this->try_catch_exprs[instr._index];
 			}
 
 
@@ -3544,8 +3577,10 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::ArrayInitNew<false>, uint32_t> array_init_news{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<true>, uint32_t> designated_init_new_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::DesignatedInitNew<false>, uint32_t> designated_init_news{};
+			core::SyncLinearStepAlloc<Instruction::BeginTryElseExpr, uint32_t> begin_try_else_expr{};
+			core::SyncLinearStepAlloc<Instruction::EndTryElseExpr, uint32_t> end_try_else_expr{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
-			core::SyncLinearStepAlloc<Instruction::TryElseExpr, uint32_t> try_else_exprs{};
+			core::SyncLinearStepAlloc<Instruction::TryCatchExpr, uint32_t> try_catch_exprs{};
 			core::SyncLinearStepAlloc<Instruction::AsmExpr, uint32_t> asm_exprs{};
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};

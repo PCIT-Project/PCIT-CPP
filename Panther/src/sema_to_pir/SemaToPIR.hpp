@@ -335,7 +335,12 @@ namespace pcit::panther{
 			) -> std::optional<pir::Expr>;
 
 			template<GetExprMode MODE>
-			[[nodiscard]] auto get_expr_impl_try_interface_expr(
+			[[nodiscard]] auto get_expr_impl_try_catch_expr(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_try_catch_interface_expr(
 				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;
 
@@ -361,11 +366,6 @@ namespace pcit::panther{
 
 			template<GetExprMode MODE>
 			[[nodiscard]] auto get_expr_impl_except_param(
-				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
-			) -> std::optional<pir::Expr>;
-
-			template<GetExprMode MODE>
-			[[nodiscard]] auto get_expr_impl_try_else_interface_expr(
 				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;
 

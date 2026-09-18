@@ -230,13 +230,23 @@ namespace pcit::panther::sema{
 		using ID = TryElseExprID;
 
 		Expr attempt;
+		StmtBlock elseBlock{};
+		evo::SmallVector<ExceptParamID> exceptParams;
+		Location location;
+	};
+
+
+	struct TryCatchExpr{
+		using ID = TryCatchExprID;
+
+		Expr attempt;
 		Expr except;
 		evo::SmallVector<ExceptParamID> exceptParams;
 		Location location;
 	};
 
-	struct TryElseInterfaceExpr{
-		using ID = TryElseInterfaceExprID;
+	struct TryCatchInterfaceExpr{
+		using ID = TryCatchInterfaceExprID;
 
 		Expr attempt;
 		Expr except;

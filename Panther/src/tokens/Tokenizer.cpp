@@ -238,6 +238,7 @@ namespace pcit::panther{
 
 		{"unsafe",      Token::Kind::KEYWORD_UNSAFE},
 		{"try",         Token::Kind::KEYWORD_TRY},
+		{"catch",       Token::Kind::KEYWORD_CATCH},
 		{"asm",         Token::Kind::KEYWORD_ASM},
 
 		// discard

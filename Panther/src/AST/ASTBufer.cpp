@@ -59,6 +59,7 @@ namespace pcit::panther::AST{
 		core::LinearStepAlloc<DesignatedInitNew, uint32_t> designated_init_news{};
 
 		core::LinearStepAlloc<TryElse, uint32_t> try_elses{};
+		core::LinearStepAlloc<TryCatch, uint32_t> try_catches{};
 		core::LinearStepAlloc<Unsafe, uint32_t> unsafes{};
 		core::LinearStepAlloc<Asm, uint32_t> asms{};
 
@@ -653,20 +654,37 @@ namespace pcit::panther::AST{
 
 	auto ASTBuffer::createTryElse(
 		Node attemptExpr,
-		Node exceptExpr,
+		Node exceptBlock,
 		evo::SmallVector<Token::ID>&& exceptParams,
-		Token::ID elseTokenID,
-		std::optional<Token::ID> semicolonTokenID
+		Token::ID elseTokenID
 	) -> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 		const uint32_t node_index = this->internal->try_elses.emplace_back(
-			attemptExpr, exceptExpr, std::move(exceptParams), elseTokenID, semicolonTokenID
+			attemptExpr, exceptBlock, std::move(exceptParams), elseTokenID
 		);
 		return Node(Kind::TRY_ELSE, node_index);
 	}
 	auto ASTBuffer::getTryElse(const Node& node) const -> const TryElse& {
 		evo::debugAssert(node.kind() == Kind::TRY_ELSE, "Node is not a TryElse");
 		return this->internal->try_elses[node._value.node_index];
+	}
+
+
+	auto ASTBuffer::createTryCatch(
+		Node attemptExpr,
+		Node exceptExpr,
+		evo::SmallVector<Token::ID>&& exceptParams,
+		Token::ID catchTokenID
+	) -> Node {
+		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+		const uint32_t node_index = this->internal->try_catches.emplace_back(
+			attemptExpr, exceptExpr, std::move(exceptParams), catchTokenID
+		);
+		return Node(Kind::TRY_CATCH, node_index);
+	}
+	auto ASTBuffer::getTryCatch(const Node& node) const -> const TryCatch& {
+		evo::debugAssert(node.kind() == Kind::TRY_CATCH, "Node is not a TryCatch");
+		return this->internal->try_catches[node._value.node_index];
 	}
 
 

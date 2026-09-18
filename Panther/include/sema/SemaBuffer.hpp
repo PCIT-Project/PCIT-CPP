@@ -591,26 +591,39 @@ namespace pcit::panther::sema{
 
 			[[nodiscard]] auto createTryElseExpr(
 				Expr attempt,
-				Expr except,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
-				Location location
+				Location location,
+				StmtBlock&& block = StmtBlock{}
 			) -> TryElseExpr::ID;
 
 			[[nodiscard]] auto getTryElseExpr(TryElseExpr::ID id) const -> const TryElseExpr&;
 
 
 			///////////////////////////////////
-			// try/else interface expr
+			// try/catch expr
 
-			[[nodiscard]] auto createTryElseInterfaceExpr(
+			[[nodiscard]] auto createTryCatchExpr(
 				Expr attempt,
 				Expr except,
 				evo::SmallVector<ExceptParamID>&& exceptParams,
 				Location location
-			) -> TryElseInterfaceExpr::ID;
+			) -> TryCatchExpr::ID;
 
-			[[nodiscard]] auto getTryElseInterfaceExpr(TryElseInterfaceExpr::ID id) const
-				-> const TryElseInterfaceExpr&;
+			[[nodiscard]] auto getTryCatchExpr(TryCatchExpr::ID id) const -> const TryCatchExpr&;
+
+
+			///////////////////////////////////
+			// try/catch interface expr
+
+			[[nodiscard]] auto createTryCatchInterfaceExpr(
+				Expr attempt,
+				Expr except,
+				evo::SmallVector<ExceptParamID>&& exceptParams,
+				Location location
+			) -> TryCatchInterfaceExpr::ID;
+
+			[[nodiscard]] auto getTryCatchInterfaceExpr(TryCatchInterfaceExpr::ID id) const
+				-> const TryCatchInterfaceExpr&;
 
 
 			///////////////////////////////////
@@ -888,6 +901,8 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto getTemplatedFunc(sema::TemplatedFunc::ID templated_func_id) -> TemplatedFunc&;
 			[[nodiscard]] auto getGlobalVar(sema::GlobalVar::ID global_var_id) -> GlobalVar&;
 			[[nodiscard]] auto getTryElse(sema::TryElse::ID try_else_id) -> TryElse&;
+			[[nodiscard]] auto getTryElseInterface(sema::TryElseInterface::ID try_else_interface_id)
+				-> TryElseInterface&;
 			[[nodiscard]] auto getBlockScope(sema::BlockScope::ID block_scope_id) -> BlockScope&;
 			[[nodiscard]] auto getConditional(sema::Conditional::ID cond_id) -> Conditional&;
 			[[nodiscard]] auto getWhile(sema::While::ID while_id) -> While&;
@@ -895,8 +910,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto getForUnroll(sema::ForUnroll::ID for_unroll_id) -> ForUnroll&;
 			[[nodiscard]] auto getSwitch(sema::Switch::ID switch_id) -> Switch&;
 			[[nodiscard]] auto getDefer(sema::Defer::ID defer_id) -> Defer&;
-			[[nodiscard]] auto getTryElseInterface(sema::TryElseInterface::ID try_else_interface_id)
-				-> TryElseInterface&;
+			[[nodiscard]] auto getTryElseExpr(sema::TryElseExpr::ID try_else_expr_id) -> TryElseExpr&;
 			[[nodiscard]] auto getBlockExpr(sema::BlockExpr::ID block_expr_id) -> BlockExpr&;
 			[[nodiscard]] auto getCopy(sema::Copy::ID copy_id) -> Copy&;
 			[[nodiscard]] auto getMove(sema::Move::ID move_id) -> Move&;

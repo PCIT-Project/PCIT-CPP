@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.389.0"></a>
+## v0.0.389.0
+
+### Panther
+- Changed `try`/`else` expressions to `try`/`catch`
+- Added `try`/`else` expressions
+	- Else is a block that's required to terminate
+	
+
+<!---------------------------------->
 <a name="v0.0.388.4"></a>
 ## v0.0.388.4
 

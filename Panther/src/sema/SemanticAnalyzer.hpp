@@ -291,8 +291,10 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_designated_init_new(const Instruction::DesignatedInitNew<IS_COMPTIME>& instr)
 				-> Result;
 
+			[[nodiscard]] auto instr_begin_try_else_expr(const Instruction::BeginTryElseExpr& instr) -> Result;
+			[[nodiscard]] auto instr_end_try_else_expr(const Instruction::EndTryElseExpr& instr) -> Result;
 			[[nodiscard]] auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
-			[[nodiscard]] auto instr_try_else_expr(const Instruction::TryElseExpr& instr) -> Result;
+			[[nodiscard]] auto instr_try_catch_expr(const Instruction::TryCatchExpr& instr) -> Result;
 			[[nodiscard]] auto instr_asm_expr(const Instruction::AsmExpr& instr) -> Result;
 			[[nodiscard]] auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			[[nodiscard]] auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;

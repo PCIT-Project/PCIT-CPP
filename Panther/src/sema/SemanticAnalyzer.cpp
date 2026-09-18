@@ -686,11 +686,17 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getDesignatedInitNew(instr)
 				);
 
+			case Instruction::Kind::BEGIN_TRY_ELSE_EXPR:
+				return this->instr_begin_try_else_expr(this->context.symbol_proc_manager.getBeginTryElseExpr(instr));
+
+			case Instruction::Kind::END_TRY_ELSE_EXPR:
+				return this->instr_end_try_else_expr(this->context.symbol_proc_manager.getEndTryElseExpr(instr));
+
 			case Instruction::Kind::PREPARE_TRY_HANDLER:
 				return this->instr_prepare_try_handler(this->context.symbol_proc_manager.getPrepareTryHandler(instr));
 
-			case Instruction::Kind::TRY_ELSE_EXPR:
-				return this->instr_try_else_expr(this->context.symbol_proc_manager.getTryElseExpr(instr));
+			case Instruction::Kind::TRY_CATCH_EXPR:
+				return this->instr_try_catch_expr(this->context.symbol_proc_manager.getTryCatchExpr(instr));
 
 			case Instruction::Kind::ASM_EXPR:
 				return this->instr_asm_expr(this->context.symbol_proc_manager.getAsmExpr(instr));
@@ -11662,9 +11668,9 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_try_else_end(const Instruction::TryElseEnd& instr) -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
-		if(this->end_sub_scopes(this->get_location(*instr.try_else.semicolonTokenID)).isError()){
-			return Result::ERROR;
-		}
+
+		const AST::Block& except_block = this->source.getASTBuffer().getBlock(instr.try_else.exceptBlock);
+		if(this->end_sub_scopes(this->get_location(except_block.closeBrace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -18488,6 +18494,246 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_begin_try_else_expr(const Instruction::BeginTryElseExpr& instr) -> Result {
+		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
+
+
+		const BaseType::Function& attempt_func_type = [&]() -> const BaseType::Function& {
+			switch(attempt_expr.getExpr().kind()){
+				case sema::Expr::Kind::COPY: {
+					const sema::Copy& copy_expr =
+						this->context.getSemaBuffer().getCopy(attempt_expr.getExpr().copyID());
+
+					const TypeInfo& copy_target_type = this->context.getTypeManager().getTypeInfo(copy_expr.exprTypeID);
+					const BaseType::Struct& copy_target_struct_type = this->context.getTypeManager().getStruct(
+						copy_target_type.baseTypeID().structID()
+					);
+
+
+					const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+						if(copy_expr.isInitialization){
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload =
+								copy_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+							if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
+
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+					return this->context.getTypeManager().getFunction(copy_func.typeID);
+				} break;
+
+				case sema::Expr::Kind::MOVE: {
+					const sema::Move& move_expr =
+						this->context.getSemaBuffer().getMove(attempt_expr.getExpr().moveID());
+
+					const TypeInfo& move_target_type = this->context.getTypeManager().getTypeInfo(move_expr.exprTypeID);
+					const BaseType::Struct& move_target_struct_type = this->context.getTypeManager().getStruct(
+						move_target_type.baseTypeID().structID()
+					);
+
+
+					const sema::Func::ID move_func_id = [&]() -> sema::Func::ID {
+						if(move_expr.isInitialization){
+							return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> move_assign_overload =
+								move_target_struct_type.moveAssignOverload.load(std::memory_order::relaxed);
+							if(move_assign_overload.has_value()){ return *move_assign_overload; }
+
+							return move_target_struct_type.moveInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+					const sema::Func& move_func = this->context.getSemaBuffer().getFunc(move_func_id);
+					return this->context.getTypeManager().getFunction(move_func.typeID);
+				} break;
+
+				case sema::Expr::Kind::FORWARD: {
+					const sema::Forward& forward_expr = this->context.getSemaBuffer().getForward(
+						attempt_expr.getExpr().forwardID()
+					);
+
+					const TypeInfo& copy_target_type =
+						this->context.getTypeManager().getTypeInfo(forward_expr.exprTypeID);
+					const BaseType::Struct& copy_target_struct_type = this->context.getTypeManager().getStruct(
+						copy_target_type.baseTypeID().structID()
+					);
+
+
+					const sema::Func::ID copy_func_id = [&]() -> sema::Func::ID {
+						if(forward_expr.isInitialization){
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+
+						}else{
+							const std::optional<sema::Func::ID> copy_assign_overload =
+								copy_target_struct_type.copyAssignOverload.load(std::memory_order::relaxed);
+							if(copy_assign_overload.has_value()){ return *copy_assign_overload; }
+
+							return copy_target_struct_type.copyInitOverload.load(std::memory_order::relaxed).funcID();
+						}
+					}();
+
+					const sema::Func& copy_func = this->context.getSemaBuffer().getFunc(copy_func_id);
+					return this->context.getTypeManager().getFunction(copy_func.typeID);
+				} break;
+
+				case sema::Expr::Kind::FUNC_CALL: {
+					const sema::FuncCall& attempt_func_call =
+						this->context.getSemaBuffer().getFuncCall(attempt_expr.getExpr().funcCallID());
+
+					return *attempt_func_call.target.visit([&](const auto& target) -> const BaseType::Function* {
+						using Target = std::decay_t<decltype(target)>;
+
+						if constexpr(std::is_same<Target, sema::Func::ID>()){
+							return &this->context.getTypeManager().getFunction(
+								this->context.getSemaBuffer().getFunc(target).typeID
+							);
+							
+						}else if constexpr(std::is_same<Target, IntrinsicFunc::Kind>()){
+							const TypeInfo::ID type_info_id = this->context.getIntrinsicFuncInfo(target).typeID;
+							const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_info_id);
+							return &this->context.getTypeManager().getFunction(type_info.baseTypeID().funcID());
+							
+						}else if constexpr(std::is_same<Target, sema::TemplateIntrinsicFuncInstantiation::ID>()){
+							const sema::TemplateIntrinsicFuncInstantiation& instantiation =
+								this->context.getSemaBuffer().getTemplateIntrinsicFuncInstantiation(target);
+
+							const Context::TemplateIntrinsicFuncInfo& template_intrinsic_func_info = 
+								this->context.getTemplateIntrinsicFuncInfo(instantiation.kind);
+
+							auto instantiation_args = evo::SmallVector<std::optional<TypeInfo::ID>>();
+							instantiation_args.reserve(instantiation.templateArgs.size());
+							using TemplateArg = evo::Variant<TypeInfo::ID, core::GenericValue>;
+							for(const TemplateArg& template_arg : instantiation.templateArgs){
+								if(template_arg.is<TypeInfo::ID>()){
+									instantiation_args.emplace_back(template_arg.as<TypeInfo::ID>());
+								}else{
+									instantiation_args.emplace_back();
+								}
+							}
+
+							return &this->context.getTypeManager().getFunction(
+								this->context.type_manager.getOrCreateFunction(
+									template_intrinsic_func_info.getTypeInstantiation(instantiation_args)
+								).funcID()
+							);
+
+						}else if constexpr(std::is_same<Target, sema::FuncCall::FuncPtr>()){
+							return &this->context.getTypeManager().getFunction(target.funcTypeID);
+							
+						}else{
+							static_assert(false, "Unsupported func call target");
+						}
+					});
+				} break;
+
+				case sema::Expr::Kind::INTERFACE_CALL: {
+					const sema::InterfaceCall& interface_call = 
+						this->context.getSemaBuffer().getInterfaceCall(attempt_expr.getExpr().interfaceCallID());
+
+					return this->context.getTypeManager().getFunction(interface_call.funcTypeID);
+				} break;
+
+				default: {
+					evo::debugFatalBreak("Invalid attempt expr");
+				} break;
+			}
+		}();
+
+		
+		if(attempt_func_type.errorTypes[0].isVoid()){
+			if(instr.except_params.size() != 0){
+				this->emit_error(
+					"Number of except parameters does not match attempt function call",
+					instr.handler_kind_token_id,
+					Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
+				);
+				return Result::ERROR;
+			}
+
+		}else if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
+			this->emit_error(
+				"Number of except parameters does not match attempt function call",
+				instr.handler_kind_token_id,
+				Diagnostic::Info(
+					std::format(
+						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size()
+					)
+				)
+			);
+			return Result::ERROR;
+		}
+		
+
+		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
+		except_params.reserve(instr.except_params.size());
+		for(size_t i = 0; i < instr.except_params.size(); i+=1){
+			const Token& except_param_token = this->source.getTokenBuffer()[instr.except_params[i]];
+
+			if(except_param_token.kind() == Token::lookupKind("_")){ continue; }
+
+			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
+				instr.except_params[i], uint32_t(i), attempt_func_type.errorTypes[i].asTypeID()
+			);
+			except_params.emplace_back(except_param_id);
+
+			if(this->add_ident_to_scope(
+				except_param_ident_str, instr.except_params[i], true, except_param_id
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
+		}
+
+
+
+		const sema::TryElseExpr::ID created_try_else_expr_id = this->context.sema_buffer.createTryElseExpr(
+			attempt_expr.getExpr(), std::move(except_params), this->get_sema_location(instr.try_else)
+		);
+
+		sema::TryElseExpr& created_try_else_expr =
+			this->context.sema_buffer.getTryElseExpr(created_try_else_expr_id);
+
+		this->get_current_scope_level().addSubScope(); // handle the success case
+
+		this->push_scope_level(&created_try_else_expr.elseBlock);
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			false,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			attempt_expr.type_id.as<TypeInfo::ID>(),
+			sema::Expr(created_try_else_expr_id)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_try_else_expr(const Instruction::EndTryElseExpr& instr) -> Result {
+		const AST::Block& except_block = this->source.getASTBuffer().getBlock(instr.try_else.exceptBlock);
+
+		if(this->get_current_scope_level().isTerminated() == false){
+			this->emit_error("Try/else expression block not terminated", except_block.closeBrace);
+			return Result::ERROR;
+		}
+
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+
+		if(this->end_sub_scopes(this->get_location(except_block.closeBrace)).isError()){ return Result::ERROR; }
+		return Result::SUCCESS;
+	}
+
+
+
 	auto SemanticAnalyzer::instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result {
 		this->push_scope_level();
 
@@ -18699,13 +18945,13 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_try_else_expr(const Instruction::TryElseExpr& instr) -> Result {
+	auto SemanticAnalyzer::instr_try_catch_expr(const Instruction::TryCatchExpr& instr) -> Result {
 		const TermInfo& attempt_expr = this->get_term_info(instr.attempt_expr);
 		TermInfo& except_expr = this->get_term_info(instr.except_expr);
 
 		if(attempt_expr.value_category != TermInfo::ValueCategory::EPHEMERAL){
 			this->emit_error(
-				"Invalid attempt expression in try/else expression", instr.try_else.attemptExpr
+				"Invalid attempt expression in try/catch expression", instr.try_catch.attemptExpr
 			);
 			return Result::ERROR;
 		}
@@ -18718,14 +18964,14 @@ namespace pcit::panther{
 			&& attempt_expr.getExpr().kind() != sema::Expr::Kind::FORWARD
 		){
 			this->emit_error(
-				"Invalid attempt expression in try/else expression", instr.try_else.attemptExpr
+				"Invalid attempt expression in try/catch expression", instr.try_catch.attemptExpr
 			);
 			return Result::ERROR;
 		}
 
 		if(except_expr.is_ephemeral() == false){
 			this->emit_error(
-				"Invalid except expression in try/else expression", instr.try_else.exceptExpr
+				"Invalid except expression in try/catch expression", instr.try_catch.exceptExpr
 			);
 			return Result::ERROR;
 		}
@@ -18739,8 +18985,8 @@ namespace pcit::panther{
 				if(this->type_check<true, true, false>(
 					attempt_expr_type_id,
 					except_expr,
-					"Except in try/else expression",
-					this->get_location(instr.try_else.exceptExpr),
+					"Except in try/catch expression",
+					this->get_location(instr.try_catch.exceptExpr),
 					true,
 					i
 				).ok == false){
@@ -18754,8 +19000,8 @@ namespace pcit::panther{
 			if(this->type_check<true, true, false>(
 				attempt_expr.type_id.as<TypeInfo::ID>(),
 				except_expr,
-				"Except in try/else expression",
-				this->get_location(instr.try_else.exceptExpr)
+				"Except in try/catch expression",
+				this->get_location(instr.try_catch.exceptExpr)
 			).ok == false){
 				return Result::ERROR;
 			}
@@ -18775,26 +19021,26 @@ namespace pcit::panther{
 
 
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
-		if(this->end_sub_scopes(this->get_location(instr.try_else.exceptExpr)).isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.try_catch.exceptExpr)).isError()){ return Result::ERROR; }
 		
 
-		const sema::Expr try_else_expr = [&](){
+		const sema::Expr try_catch_expr = [&](){
 			if(attempt_expr.getExpr().kind() == sema::Expr::Kind::INTERFACE_CALL){
 				return sema::Expr(
-					this->context.sema_buffer.createTryElseInterfaceExpr(
+					this->context.sema_buffer.createTryCatchInterfaceExpr(
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),
-						this->get_sema_location(Diagnostic::Location::get(instr.try_else.attemptExpr, this->source))
+						this->get_sema_location(Diagnostic::Location::get(instr.try_catch.attemptExpr, this->source))
 					)
 				);
 			}else{
 				return sema::Expr(
-					this->context.sema_buffer.createTryElseExpr(
+					this->context.sema_buffer.createTryCatchExpr(
 						attempt_expr.getExpr(),
 						except_expr.getExpr(),
 						std::move(except_params),
-						this->get_sema_location(Diagnostic::Location::get(instr.try_else.attemptExpr, this->source))
+						this->get_sema_location(Diagnostic::Location::get(instr.try_catch.attemptExpr, this->source))
 					)
 				);
 			}
@@ -18805,7 +19051,7 @@ namespace pcit::panther{
 			attempt_expr.isComptime && except_expr.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
-			try_else_expr
+			try_catch_expr
 		);
 		return Result::SUCCESS;
 	}
@@ -28850,30 +29096,30 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                     case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                  case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                 case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:            case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::RAW_PTR_VALUE:              case sema::Expr::Kind::GLOBAL_PTR_OFFSET:
+			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                    case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                 case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:           case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::RAW_PTR_VALUE:             case sema::Expr::Kind::GLOBAL_PTR_OFFSET:
 			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
-			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:     case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::OPTIONAL_EXTRACT:           case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::UNION_ACCESSOR:             case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:                 case sema::Expr::Kind::TRY_ELSE_EXPR:
-			case sema::Expr::Kind::TRY_ELSE_INTERFACE_EXPR:    case sema::Expr::Kind::BLOCK_EXPR:
-			case sema::Expr::Kind::FAKE_TERM_INFO:             case sema::Expr::Kind::MAKE_INTERFACE_PTR:
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::DEFAULT_NEW:
-			case sema::Expr::Kind::INIT_ARRAY_REF:             case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                       case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:    case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:          case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
+			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE_EXPR:
+			case sema::Expr::Kind::TRY_CATCH_EXPR:            case sema::Expr::Kind::TRY_CATCH_INTERFACE_EXPR:
+			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
+			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::DEFAULT_NEW:               case sema::Expr::Kind::INIT_ARRAY_REF:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::GLOBAL_VAR:                case sema::Expr::Kind::FUNC: {
 				return evo::Result<>();
 			} break;
 		}

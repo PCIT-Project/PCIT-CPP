@@ -2058,6 +2058,10 @@ namespace pthr{
 						this->print_try_else(this->ast_buffer.getTryElse(node));
 					} break;
 
+					case panther::AST::Kind::TRY_CATCH: {
+						this->print_try_catch(this->ast_buffer.getTryCatch(node));
+					} break;
+
 					case panther::AST::Kind::ASM: {
 						this->print_asm(this->ast_buffer.getAsm(node));
 					} break;
@@ -2703,7 +2707,30 @@ namespace pthr{
 				this->print_minor_header("Except");
 				this->printer.println();
 				this->indenter.push();
-				this->print_expr(try_else_expr.exceptExpr);
+				this->print_block(this->source.getASTBuffer().getBlock(try_else_expr.exceptBlock));
+				this->indenter.pop();
+
+				this->indenter.pop();
+			}
+
+			auto print_try_catch(const panther::AST::TryCatch& try_catch_expr) -> void {
+				this->indenter.print();
+				this->print_major_header("Try/Catch");
+
+				this->indenter.push();
+
+				this->indenter.print_arrow();
+				this->print_minor_header("Attempt");
+				this->printer.println();
+				this->indenter.push();
+				this->print_expr(try_catch_expr.attemptExpr);
+				this->indenter.pop();
+				
+				this->indenter.print_end();
+				this->print_minor_header("Except");
+				this->printer.println();
+				this->indenter.push();
+				this->print_expr(try_catch_expr.exceptExpr);
 				this->indenter.pop();
 
 				this->indenter.pop();

@@ -171,8 +171,12 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_expr_designated_init_new(const AST::Node& node)
 				-> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME>
 			[[nodiscard]] auto analyze_expr_try_else(
+				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+			) -> evo::Result<SymbolProc::TermInfoID>;
+
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto analyze_expr_try_catch(
 				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
 			) -> evo::Result<SymbolProc::TermInfoID>;
 

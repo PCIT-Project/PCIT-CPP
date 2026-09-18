@@ -136,6 +136,7 @@ namespace pcit::panther{
 
 				KEYWORD_UNSAFE,
 				KEYWORD_TRY,
+				KEYWORD_CATCH,
 				KEYWORD_ASM,
 
 
@@ -517,6 +518,7 @@ namespace pcit::panther{
 
 					break; case Kind::KEYWORD_UNSAFE:         return "unsafe";
 					break; case Kind::KEYWORD_TRY:            return "try";
+					break; case Kind::KEYWORD_CATCH:          return "catch";
 					break; case Kind::KEYWORD_ASM:            return "asm";
 
 

@@ -1004,6 +1004,18 @@ namespace pcit::panther{
 			evo::SmallVector<SymbolProcTermInfoID> member_init_exprs;
 		};
 
+		struct BeginTryElseExpr{
+			const AST::TryElse& try_else;
+			evo::ArrayProxy<Token::ID> except_params;
+			SymbolProcTermInfoID attempt_expr;
+			SymbolProcTermInfoID output;
+			Token::ID handler_kind_token_id;
+		};
+
+		struct EndTryElseExpr{
+			const AST::TryElse& try_else;
+		};
+
 		struct PrepareTryHandler{
 			evo::ArrayProxy<Token::ID> except_params;
 			SymbolProcTermInfoID attempt_expr;
@@ -1011,8 +1023,8 @@ namespace pcit::panther{
 			Token::ID handler_kind_token_id;
 		};
 
-		struct TryElseExpr{
-			const AST::TryElse& try_else;
+		struct TryCatchExpr{
+			const AST::TryCatch& try_catch;
 			SymbolProcTermInfoID attempt_expr;
 			SymbolProcTermInfoID except_params;
 			SymbolProcTermInfoID except_expr;
@@ -1365,8 +1377,10 @@ namespace pcit::panther{
 			ARRAY_INIT_NEW,
 			DESIGNATED_INIT_NEW_COMPTIME,
 			DESIGNATED_INIT_NEW,
+			BEGIN_TRY_ELSE_EXPR,
+			END_TRY_ELSE_EXPR,
 			PREPARE_TRY_HANDLER,
-			TRY_ELSE_EXPR,
+			TRY_CATCH_EXPR,
 			ASM_EXPR,
 			BEGIN_EXPR_BLOCK,
 			END_EXPR_BLOCK,

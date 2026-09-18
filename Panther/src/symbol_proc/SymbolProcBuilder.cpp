@@ -578,20 +578,21 @@ namespace pcit::panther{
 				return std::string_view();
 			} break;
 
-			case AST::Kind::RETURN:              case AST::Kind::ERROR:           case AST::Kind::BREAK:
-			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:          case AST::Kind::CONDITIONAL:
-			case AST::Kind::WHILE:               case AST::Kind::FOR:             case AST::Kind::SWITCH:
-			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:     case AST::Kind::BLOCK:
-			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:   case AST::Kind::TEMPLATED_EXPR:
-			case AST::Kind::PREFIX:              case AST::Kind::INFIX:           case AST::Kind::POSTFIX:
-			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:             case AST::Kind::ARRAY_INIT_NEW:
-			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:        case AST::Kind::UNSAFE:
-			case AST::Kind::ASM:                 case AST::Kind::DEDUCER:         case AST::Kind::ARRAY_TYPE:
-			case AST::Kind::FUNC_TYPE:           case AST::Kind::INTERFACE_MAP:   case AST::Kind::TYPE:
-			case AST::Kind::TYPEID_CONVERTER:    case AST::Kind::ATTRIBUTE_BLOCK: case AST::Kind::ATTRIBUTE:
-			case AST::Kind::PRIMITIVE_TYPE:      case AST::Kind::IDENT:           case AST::Kind::TYPE_THIS:
-			case AST::Kind::INTRINSIC:           case AST::Kind::LITERAL:         case AST::Kind::UNINIT:
-			case AST::Kind::ZEROINIT:            case AST::Kind::THIS:            case AST::Kind::DISCARD: {
+			case AST::Kind::RETURN:              case AST::Kind::ERROR:            case AST::Kind::BREAK:
+			case AST::Kind::CONTINUE:            case AST::Kind::DELETE:           case AST::Kind::CONDITIONAL:
+			case AST::Kind::WHILE:               case AST::Kind::FOR:              case AST::Kind::SWITCH:
+			case AST::Kind::DEFER:               case AST::Kind::UNREACHABLE:      case AST::Kind::BLOCK:
+			case AST::Kind::INDEXER:             case AST::Kind::TEMPLATE_PACK:    case AST::Kind::TEMPLATED_EXPR:
+			case AST::Kind::PREFIX:              case AST::Kind::INFIX:            case AST::Kind::POSTFIX:
+			case AST::Kind::MULTI_ASSIGN:        case AST::Kind::NEW:              case AST::Kind::ARRAY_INIT_NEW:
+			case AST::Kind::DESIGNATED_INIT_NEW: case AST::Kind::TRY_ELSE:         case AST::Kind::TRY_CATCH:
+			case AST::Kind::UNSAFE:              case AST::Kind::ASM:              case AST::Kind::DEDUCER:
+			case AST::Kind::ARRAY_TYPE:          case AST::Kind::FUNC_TYPE:        case AST::Kind::INTERFACE_MAP:
+			case AST::Kind::TYPE:                case AST::Kind::TYPEID_CONVERTER: case AST::Kind::ATTRIBUTE_BLOCK:
+			case AST::Kind::ATTRIBUTE:           case AST::Kind::PRIMITIVE_TYPE:   case AST::Kind::IDENT:
+			case AST::Kind::TYPE_THIS:           case AST::Kind::INTRINSIC:        case AST::Kind::LITERAL:
+			case AST::Kind::UNINIT:              case AST::Kind::ZEROINIT:         case AST::Kind::THIS:
+			case AST::Kind::DISCARD: {
 				this->context.emitError("Invalid global statement", Diagnostic::Location::get(stmt, this->source));
 				return evo::resultError;
 			};
@@ -2285,6 +2286,7 @@ namespace pcit::panther{
 			case AST::Kind::ARRAY_INIT_NEW:      evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::DESIGNATED_INIT_NEW: evo::debugFatalBreak("Invalid statment");
 			case AST::Kind::TRY_ELSE:            return this->analyze_try_else(ast_buffer.getTryElse(stmt));
+			case AST::Kind::TRY_CATCH:           evo::debugFatalBreak("Invalid statement");
 			case AST::Kind::UNSAFE:              return this->analyze_unsafe(ast_buffer.getUnsafe(stmt));
 			case AST::Kind::ASM:                 return this->analyze_asm(ast_buffer.getAsm(stmt));
 			case AST::Kind::DEDUCER:             evo::debugFatalBreak("Invalid statment");
@@ -3250,6 +3252,11 @@ namespace pcit::panther{
 
 
 	auto SymbolProcBuilder::analyze_try_else(const AST::TryElse& try_else) -> evo::Result<> {
+		if(try_else.attemptExpr.kind() != AST::Kind::FUNC_CALL){
+			this->emit_error("Invalid try statement in try/else statement", try_else.attemptExpr);
+			return evo::resultError;
+		}
+
 		const AST::FuncCall& func_call = this->source.getASTBuffer().getFuncCall(try_else.attemptExpr);
 
 		auto template_args = evo::SmallVector<SymbolProc::TermInfoID>();
@@ -3288,7 +3295,7 @@ namespace pcit::panther{
 			)
 		);
 
-		for(const AST::Node& stmt : this->source.getASTBuffer().getBlock(try_else.exceptExpr).statements){
+		for(const AST::Node& stmt : this->source.getASTBuffer().getBlock(try_else.exceptBlock).statements){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
 
@@ -3406,8 +3413,19 @@ namespace pcit::panther{
 					return this->analyze_expr_new<IS_COMPTIME, false>(expr, assign_target);
 				case AST::Kind::ARRAY_INIT_NEW:      return this->analyze_expr_array_init_new<IS_COMPTIME>(expr);
 				case AST::Kind::DESIGNATED_INIT_NEW: return this->analyze_expr_designated_init_new<IS_COMPTIME>(expr);
-				case AST::Kind::TRY_ELSE:
-					return this->analyze_expr_try_else<IS_COMPTIME>(expr, assign_target);
+
+				case AST::Kind::TRY_ELSE: {
+					if constexpr(IS_COMPTIME){
+						this->emit_error("Try/else expression cannot be comptime", expr);
+						return evo::resultError;
+
+					}else{
+						return this->analyze_expr_try_else(expr, assign_target);
+					}
+				} break;
+
+				case AST::Kind::TRY_CATCH:
+					return this->analyze_expr_try_catch<IS_COMPTIME>(expr, assign_target);
 
 				case AST::Kind::ASM: {
 					if constexpr(IS_COMPTIME){
@@ -4229,7 +4247,9 @@ namespace pcit::panther{
 
 					}else{
 						this->add_instruction(
-							this->context.symbol_proc_manager.createPrefixNot(prefix, expr.value(), created_term_info_id)
+							this->context.symbol_proc_manager.createPrefixNot(
+								prefix, expr.value(), created_term_info_id
+							)
 						);
 
 						if(this->context.getConfig().comptimeRunIfPossible){
@@ -4266,6 +4286,8 @@ namespace pcit::panther{
 								prefix, expr.value(), created_term_info_id
 							)
 						);
+						return created_term_info_id;
+
 					}else{
 						this->add_instruction(
 							this->context.symbol_proc_manager.createPrefixBitwiseNot(
@@ -4289,9 +4311,9 @@ namespace pcit::panther{
 					}
 				}
 			} break;
-		}
 
-		evo::debugFatalBreak("Unknown or unsupported prefix operator");
+			default: evo::debugFatalBreak("Unknown or unsupported prefix operator");
+		}
 	}
 
 	template<bool IS_COMPTIME>
@@ -5009,31 +5031,60 @@ namespace pcit::panther{
 		return new_term_info_id;
 	}
 
-	template<bool IS_COMPTIME>
+
+
 	auto SymbolProcBuilder::analyze_expr_try_else(
 		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
 	) -> evo::Result<SymbolProc::TermInfoID> {
 		const AST::TryElse& try_else = this->source.getASTBuffer().getTryElse(node);
+		
+		const evo::Result<SymbolProc::TermInfoID> attempt_expr =
+			this->analyze_erroring_expr<false>(try_else.attemptExpr, assign_target);
+		if(attempt_expr.isError()){ return evo::resultError; }
+
+
+		const SymbolProc::TermInfoID output_term_info = this->create_term_info();
+		this->add_instruction(
+			this->context.symbol_proc_manager.createBeginTryElseExpr(
+				try_else, try_else.exceptParams, attempt_expr.value(), output_term_info, try_else.elseTokenID
+			)
+		);
+
+		for(const AST::Node& stmt : this->source.getASTBuffer().getBlock(try_else.exceptBlock).statements){
+			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+		}
+
+		this->add_instruction(this->context.symbol_proc_manager.createEndTryElseExpr(try_else));
+		return output_term_info;
+	}
+
+
+
+	template<bool IS_COMPTIME>
+	auto SymbolProcBuilder::analyze_expr_try_catch(
+		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
+		const AST::TryCatch& try_catch = this->source.getASTBuffer().getTryCatch(node);
  
 		const evo::Result<SymbolProc::TermInfoID> attempt_expr =
-			this->analyze_erroring_expr<IS_COMPTIME>(try_else.attemptExpr, assign_target);
+			this->analyze_erroring_expr<IS_COMPTIME>(try_catch.attemptExpr, assign_target);
 		if(attempt_expr.isError()){ return evo::resultError; }
 
 		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
 		this->add_instruction(
 			this->context.symbol_proc_manager.createPrepareTryHandler(
-				try_else.exceptParams, attempt_expr.value(), except_params_term_info_id, try_else.elseTokenID
+				try_catch.exceptParams, attempt_expr.value(), except_params_term_info_id, try_catch.catchTokenID
 			)
 		);
 
 		const evo::Result<SymbolProc::TermInfoID> except_expr =
-			this->analyze_expr<IS_COMPTIME>(try_else.exceptExpr, assign_target);
+			this->analyze_expr<IS_COMPTIME>(try_catch.exceptExpr, assign_target);
 		if(except_expr.isError()){ return evo::resultError; }
 		
 		const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
 		this->add_instruction(
-			this->context.symbol_proc_manager.createTryElseExpr(
-				try_else, attempt_expr.value(), except_params_term_info_id, except_expr.value(), new_term_info_id
+			this->context.symbol_proc_manager.createTryCatchExpr(
+				try_catch, attempt_expr.value(), except_params_term_info_id, except_expr.value(), new_term_info_id
 			)
 		);
 		return new_term_info_id;

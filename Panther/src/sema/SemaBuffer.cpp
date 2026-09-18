@@ -70,7 +70,8 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<LogicalAnd, LogicalAnd::ID> logical_ands{};
 		core::SyncLinearStepAlloc<LogicalOr, LogicalOr::ID> logical_ors{};
 		core::SyncLinearStepAlloc<TryElseExpr, TryElseExpr::ID> try_else_exprs{};
-		core::SyncLinearStepAlloc<TryElseInterfaceExpr, TryElseInterfaceExpr::ID> try_else_interface_exprs{};
+		core::SyncLinearStepAlloc<TryCatchExpr, TryCatchExpr::ID> try_catch_exprs{};
+		core::SyncLinearStepAlloc<TryCatchInterfaceExpr, TryCatchInterfaceExpr::ID> try_catch_interface_exprs{};
 		core::SyncLinearStepAlloc<BlockExpr, BlockExpr::ID> block_exprs{};
 		core::SyncLinearStepAlloc<FakeTermInfo, FakeTermInfo::ID> fake_term_infos{};
 		core::SyncLinearStepAlloc<MakeInterfacePtr, MakeInterfacePtr::ID> make_interface_ptrs{};
@@ -977,28 +978,50 @@ namespace pcit::panther::sema{
 	// try/else expr
 
 	auto SemaBuffer::createTryElseExpr(
-		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
+		Expr attempt, evo::SmallVector<ExceptParamID>&& exceptParams, Location location, StmtBlock&& block
 	) -> TryElseExpr::ID {
-		return this->internal->try_else_exprs.emplace_back(attempt, except, std::move(exceptParams), location);
+		return this->internal->try_else_exprs.emplace_back(
+			attempt, std::move(block), std::move(exceptParams), location
+		);
 	}
 
 	auto SemaBuffer::getTryElseExpr(TryElseExpr::ID id) const -> const TryElseExpr& {
 		return this->internal->try_else_exprs[id];
 	}
 
-
-	///////////////////////////////////
-	// try/else interface expr
-
-	auto SemaBuffer::createTryElseInterfaceExpr(
-		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
-	) -> TryElseInterfaceExpr::ID {
-		return this->internal->try_else_interface_exprs.emplace_back(attempt, except, std::move(exceptParams), location);
+	auto SemaBuffer::getTryElseExpr(TryElseExpr::ID id) -> TryElseExpr& {
+		return this->internal->try_else_exprs[id];
 	}
 
-	auto SemaBuffer::getTryElseInterfaceExpr(TryElseInterfaceExpr::ID id) const
-	-> const TryElseInterfaceExpr& {
-		return this->internal->try_else_interface_exprs[id];
+
+	///////////////////////////////////
+	// try/catch expr
+
+	auto SemaBuffer::createTryCatchExpr(
+		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
+	) -> TryCatchExpr::ID {
+		return this->internal->try_catch_exprs.emplace_back(attempt, except, std::move(exceptParams), location);
+	}
+
+	auto SemaBuffer::getTryCatchExpr(TryCatchExpr::ID id) const -> const TryCatchExpr& {
+		return this->internal->try_catch_exprs[id];
+	}
+
+
+	///////////////////////////////////
+	// try/catch interface expr
+
+	auto SemaBuffer::createTryCatchInterfaceExpr(
+		Expr attempt, Expr except, evo::SmallVector<ExceptParamID>&& exceptParams, Location location
+	) -> TryCatchInterfaceExpr::ID {
+		return this->internal->try_catch_interface_exprs.emplace_back(
+			attempt, except, std::move(exceptParams), location
+		);
+	}
+
+	auto SemaBuffer::getTryCatchInterfaceExpr(TryCatchInterfaceExpr::ID id) const
+	-> const TryCatchInterfaceExpr& {
+		return this->internal->try_catch_interface_exprs[id];
 	}
 
 

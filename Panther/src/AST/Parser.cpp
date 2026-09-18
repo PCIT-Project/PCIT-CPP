@@ -1647,8 +1647,7 @@ namespace pcit::panther{
 				attempt_expr.value(),
 				except_block.value(),
 				std::move(except_params),
-				else_token_id,
-				this->reader.peek(-1)
+				else_token_id
 			);
 		}
 
@@ -3161,64 +3160,121 @@ namespace pcit::panther{
 
 
 
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
-			const Token::ID else_token_id = this->reader.next();
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::Kind::KEYWORD_ELSE: {
+				const Token::ID else_token_id = this->reader.next();
 
-			auto except_params = evo::SmallVector<Token::ID>();
+				auto except_params = evo::SmallVector<Token::ID>();
 
-			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
-				if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
 
-				while(true){
-					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
-						if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
-						break;
-					}
-
-
-					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
-						except_params.emplace_back(this->reader.next());
-
-					}else{
-						const Result ident = this->parse_ident();
-						if(this->check_result(ident, "identifier in except parameter block").isError()){
-							return Result::Code::ERROR;
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+							if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
+							break;
 						}
 
-						except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
-					}
 
-					// check if ending or should continue
-					const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
-					if(after_arg_next_token_kind != Token::lookupKind(",")){
-						if(after_arg_next_token_kind != Token::lookupKind(">")){
-							this->expected_but_got(
-								"[,] at end of except parameter or [>] at end of except parameter block",
-								this->reader.peek(-1)
-							);
-							return Result::Code::ERROR;
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+							except_params.emplace_back(this->reader.next());
+
+						}else{
+							const Result ident = this->parse_ident();
+							if(this->check_result(ident, "identifier in except parameter block").isError()){
+								return Result::Code::ERROR;
+							}
+
+							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
 						}
 
-						break;
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind(">")){
+								this->expected_but_got(
+									"[,] at end of except parameter or [>] at end of except parameter block",
+									this->reader.peek(-1)
+								);
+								return Result::Code::ERROR;
+							}
+
+							break;
+						}
 					}
 				}
-			}
 
-			const Result except_expr = this->parse_expr();
-			if(this->check_result(except_expr, "except expression in try/else expression").isError()){
+				const Result except_block = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+				if(this->check_result(except_block, "except block in try/else expression").isError()){
+					return Result::Code::ERROR;
+				}
+
+				return this->source.ast_buffer.createTryElse(
+					attempt_expr.value(), except_block.value(), std::move(except_params), else_token_id
+				);
+			} break;
+
+			case Token::Kind::KEYWORD_CATCH: {
+				const Token::ID catch_token_id = this->reader.next();
+
+				auto except_params = evo::SmallVector<Token::ID>();
+
+				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
+
+					while(true){
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
+							if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
+							break;
+						}
+
+
+						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
+							except_params.emplace_back(this->reader.next());
+
+						}else{
+							const Result ident = this->parse_ident();
+							if(this->check_result(ident, "identifier in except parameter block").isError()){
+								return Result::Code::ERROR;
+							}
+
+							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
+						}
+
+						// check if ending or should continue
+						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
+						if(after_arg_next_token_kind != Token::lookupKind(",")){
+							if(after_arg_next_token_kind != Token::lookupKind(">")){
+								this->expected_but_got(
+									"[,] at end of except parameter or [>] at end of except parameter block",
+									this->reader.peek(-1)
+								);
+								return Result::Code::ERROR;
+							}
+
+							break;
+						}
+					}
+				}
+
+				const Result except_expr = this->parse_expr();
+				if(this->check_result(except_expr, "except expression in try/else expression").isError()){
+					return Result::Code::ERROR;
+				}
+
+				return this->source.ast_buffer.createTryCatch(
+					attempt_expr.value(), except_expr.value(), std::move(except_params), catch_token_id
+				);
+			} break;
+
+			default: {
+				this->context.emitError(
+					"[try] expressions without [else] or [catch] are currently unsupported",
+					Diagnostic::Location::get(attempt_expr.value(), this->source)
+				);
 				return Result::Code::ERROR;
-			}
-
-			return this->source.ast_buffer.createTryElse(
-				attempt_expr.value(), except_expr.value(), std::move(except_params), else_token_id, std::nullopt
-			);
+			} break;
 		}
-
-		this->context.emitError(
-			"[try] expressions without [else] are currently unsupported",
-			Diagnostic::Location::get(attempt_expr.value(), this->source)
-		);
-		return Result::Code::ERROR;
 	}
 
 

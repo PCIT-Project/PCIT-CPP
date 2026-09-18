@@ -67,6 +67,7 @@ namespace pcit::panther::AST{
 		DESIGNATED_INIT_NEW,
 
 		TRY_ELSE,
+		TRY_CATCH,
 		UNSAFE,
 		ASM,
 
@@ -495,10 +496,16 @@ namespace pcit::panther::AST{
 
 	struct TryElse{
 		Node attemptExpr;
-		Node exceptExpr;
+		Node exceptBlock;
 		evo::SmallVector<Token::ID> exceptParams;
 		Token::ID elseTokenID;
-		std::optional<Token::ID> semicolonTokenID; // nullopt if expr
+	};
+
+	struct TryCatch{
+		Node attemptExpr;
+		Node exceptExpr;
+		evo::SmallVector<Token::ID> exceptParams;
+		Token::ID catchTokenID;
 	};
 
 	struct Unsafe{
