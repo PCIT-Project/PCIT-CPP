@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.390.1"></a>
+## v0.0.390.1
+
+### Panther
+- Fixed upredictable extranous memory allocation in semantic analysis / comptime execution of pointers to global data in comptime function calls
+
+
+<!---------------------------------->
 <a name="v0.0.390.0"></a>
 ## v0.0.390.0
 

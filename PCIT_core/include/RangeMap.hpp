@@ -23,117 +23,98 @@ namespace pcit::core{
 		public:
 			RangeMap() = default;
 			~RangeMap() = default;
-
-
+			
 			auto emplace(RangeBound first, RangeBound last, auto&&... value_args) -> void {
-				evo::debugAssert(first <= last, "first must be <= last");
+				RangeInfo& new_range_info = this->range_infos.emplace_back(
+					first, last, std::forward<decltype(value_args)>(value_args)...
+				);
 
-				///////////////////////////////////
-				// find location
+				if(this->range_infos.size() == 1){ return; }
 
-				size_t target_index = 0;
-
-				if(this->range_infos_bst.empty() == false){
-					while(true){
-						if(target_index >= this->range_infos_bst.size()){
-							if(this->range_infos_bst.empty()){
-								this->range_infos_bst.resize(3);
-							}else{
-								this->range_infos_bst.resize(this->range_infos_bst.size() * 2 + 1);
-							}
-							break;
+				RangeInfo* target_range_info = &this->range_infos.front();
+				while(true){
+					RangeInfo** next_target_range_info_ptr = [&]() -> RangeInfo** {
+						if(new_range_info.first < target_range_info->first){
+							return &target_range_info->less_than;
+						}else{
+							return &target_range_info->greater_than_or_equal_to;
 						}
+					}();
 
-						std::optional<RangeInfo>& target = this->range_infos_bst[target_index];
-
-						if(target.has_value() == false){ break; }
-
-						// <  : left
-						// >= : right
-						target_index = (2 * target_index) + 1 + size_t(first >= target->first);
+					if(*next_target_range_info_ptr == nullptr){
+						*next_target_range_info_ptr = &new_range_info;
+						return;
 					}
 
-				}else{
-					this->range_infos_bst.resize(3);
+					target_range_info = *next_target_range_info_ptr;
 				}
-
-
-				///////////////////////////////////
-				// emplace
-
-				const uint32_t value_index = this->values_step_alloc.emplace_back(
-					std::forward<decltype(value_args)>(value_args)...
-				);
-				this->range_infos_bst[target_index].emplace(first, last, value_index);
 			}
-
 
 			struct CLookupResult{
 				const Value& value;
 				RangeBound offset;
 			};
 			[[nodiscard]] auto lookup(RangeBound value) const -> std::optional<CLookupResult> {
-				size_t target_index = 0;
+				if(this->range_infos.empty()){ return std::nullopt; }
 
-				while(true){
-					if(target_index >= this->range_infos_bst.size()){ return std::nullopt; }
-
-					const std::optional<RangeInfo>& target = this->range_infos_bst[target_index];
-
-					if(target.has_value() == false){ return std::nullopt; }
-
-					if(value >= target->first){
-						if(value <= target->last){
-							return CLookupResult{
-								.value = this->values_step_alloc[target->value_index],
-								.offset = value - target->first,
-							};
-
-						}else{ // go right
-							target_index = 2 * target_index + 2;
+				const RangeInfo* target_range_info = &this->range_infos.front();
+				while(target_range_info != nullptr){
+					if(value >= target_range_info->first){
+						if(value <= target_range_info->last){
+							return CLookupResult(target_range_info->value, value - target_range_info->first);
 						}
 
-					}else{ // go left
-						target_index = 2 * target_index + 1;
+						target_range_info = target_range_info->greater_than_or_equal_to;
+						
+					}else{ // value < target_range_info->first
+						target_range_info = target_range_info->less_than;
 					}
 				}
+
+				return std::nullopt;
 			}
+
 
 			struct LookupResult{
 				Value& value;
 				RangeBound offset;
 			};
 			[[nodiscard]] auto lookup(RangeBound value) -> std::optional<LookupResult> {
-				size_t target_index = 0;
+				if(this->range_infos.empty()){ return std::nullopt; }
 
-				while(true){
-					if(target_index >= this->range_infos_bst.size()){ return std::nullopt; }
+				RangeInfo* target_range_info = &this->range_infos.front();
+				while(target_range_info != nullptr){
+					if(value >= target_range_info->first){
+						if(value <= target_range_info->last){
+							return CLookupResult(target_range_info->value, value - target_range_info->first);
+						}
 
-					std::optional<RangeInfo>& target = this->range_infos_bst[target_index];
-
-					if(target.has_value() == false){ return std::nullopt; }
-
-					if(value >= target->first && value <= target->last){
-						return LookupResult{
-							.value = this->values_step_alloc[target->value_index],
-							.offset = value - target->first,
-						};
+						target_range_info = target_range_info->greater_than_or_equal_to;
+						
+					}else{ // value < target_range_info->first
+						target_range_info = target_range_info->less_than;
 					}
-
-					target_index = (2 * target_index) + 1 + size_t(value > target->first);
 				}
+
+				return std::nullopt;
 			}
 
 	
 		private:
 			struct RangeInfo{
+				Value value;
+
 				RangeBound first;
 				RangeBound last;
-				uint32_t value_index;
-			};
-			evo::SmallVector<std::optional<RangeInfo>> range_infos_bst{};
 
-			core::StepAlloc<Value, uint32_t> values_step_alloc{};
+				RangeInfo* less_than = nullptr;
+				RangeInfo* greater_than_or_equal_to = nullptr;
+
+				RangeInfo(RangeBound _first, RangeBound _last, auto&&... value_args)
+					: first(_first), last(_last), value(std::forward<decltype(value_args)>(value_args)...) {}
+			};
+
+			evo::StepVector<RangeInfo> range_infos{};
 	};
 
 
