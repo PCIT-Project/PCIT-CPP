@@ -1059,11 +1059,9 @@ namespace pcit::panther{
 				}
 
 				// Checking of validity of param type if is valid before instantiation
-				// TODO(FUTURE): make more granular (checking only parts of the type)
+				// TODO(PERF): make more granular (checking only parts of the type)
 				if(is_deducer == false && uses_template_param == false){
-					const evo::Result<SymbolProc::TypeID> symbol_proc_type_id =
-						this->analyze_type<false>(param_type);
-					if(symbol_proc_type_id.isError()){ return evo::resultError; }
+					if(this->analyze_type<false>(param_type).isError()){ return evo::resultError; }
 				}
 			}
 
@@ -2843,6 +2841,15 @@ namespace pcit::panther{
 			this->context.symbol_proc_manager.for_unroll_conds[cond_instr._index].end_index =
 				SymbolProc::InstructionIndex(uint32_t(this->get_current_symbol().symbol_proc.instructions.size() - 1));
 
+			if(for_stmt.elseBlock.has_value()){
+				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*for_stmt.elseBlock);
+				for(const AST::Node& stmt : else_block.statements){
+					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+				}
+
+				this->add_instruction(this->context.symbol_proc_manager.createEndForUnrollElse(else_block.closeBrace));
+			}
+
 			return evo::Result<>();
 
 		}else{
@@ -2855,7 +2862,19 @@ namespace pcit::panther{
 				if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 			}
 
-			this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
+			if(for_stmt.elseBlock.has_value()){
+				this->add_instruction(this->context.symbol_proc_manager.createEndFor(std::nullopt));
+
+				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*for_stmt.elseBlock);
+				for(const AST::Node& stmt : else_block.statements){
+					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
+				}
+
+				this->add_instruction(this->context.symbol_proc_manager.createEndForElse(else_block.closeBrace));
+
+			}else{
+				this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
+			}
 
 			return evo::Result<>();
 		}
@@ -2970,7 +2989,6 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): deduplicate with `analyze_expr_func_call`?
 	auto SymbolProcBuilder::analyze_func_call(const AST::FuncCall& func_call) -> evo::Result<> {
 		if(func_call.target.kind() == AST::Kind::INTRINSIC){
 			const Token::ID intrin_tok_id = this->source.getASTBuffer().getIntrinsic(func_call.target);

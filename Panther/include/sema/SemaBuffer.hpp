@@ -408,6 +408,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto createForUnroll(
 				Token::ID forToken,
 				std::optional<Token::ID> label,
+				bool hasElse,
 				evo::SmallVector<StmtBlock>&& stmtBlocks = evo::SmallVector<StmtBlock>{}
 			) -> ForUnroll::ID;
 

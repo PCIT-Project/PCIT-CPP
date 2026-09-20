@@ -408,6 +408,9 @@ namespace pcit::panther{
 			case Instruction::Kind::END_FOR:
 				return this->instr_end_for(this->context.symbol_proc_manager.getEndFor(instr));
 
+			case Instruction::Kind::END_FOR_ELSE:
+				return this->instr_end_for_else(this->context.symbol_proc_manager.getEndForElse(instr));
+
 			case Instruction::Kind::BEGIN_FOR_UNROLL:
 				return this->instr_begin_for_unroll(this->context.symbol_proc_manager.getBeginForUnroll(instr));
 
@@ -416,6 +419,9 @@ namespace pcit::panther{
 
 			case Instruction::Kind::FOR_UNROLL_CONTINUE:
 				return this->instr_for_unroll_continue(this->context.symbol_proc_manager.getForUnrollContinue(instr));
+
+			case Instruction::Kind::END_FOR_UNROLL_ELSE:
+				return this->instr_end_for_unroll_else(this->context.symbol_proc_manager.getEndForUnrollElse(instr));
 
 			case Instruction::Kind::BEGIN_SWITCH:
 				return this->instr_begin_switch(this->context.symbol_proc_manager.getBeginSwitch(instr));
@@ -4680,9 +4686,7 @@ namespace pcit::panther{
 
 
 					if(created_func_type.hasErrorReturn()){
-						this->emit_error(
-							"Infix operator overload that error are unimplemented", instr.func_def.errorReturns[0]
-						);
+						this->emit_error("This operator may not error", instr.func_def.errorReturns[0]);
 						return Result::ERROR;
 					}
 
@@ -4932,7 +4936,7 @@ namespace pcit::panther{
 
 
 					if(created_func_type.hasErrorReturn()){
-						this->emit_error("Erroring indexer overload is unimplemented", instr.func_def);
+						this->emit_error("This operator may not error", instr.func_def);
 						return Result::ERROR;
 					}
 
@@ -6424,7 +6428,7 @@ namespace pcit::panther{
 				} break;
 
 				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
-					evo::debugFatalBreak( // TODO(FUTURE): is this still true?
+					evo::debugFatalBreak(
 						"Sema doesn't have completed info for decl despite SymbolProc saying it should"
 					);
 				} break;
@@ -7399,7 +7403,7 @@ namespace pcit::panther{
 
 		const sema::Break::ID new_break_id = this->context.sema_buffer.createBreak(instr.break_stmt.label);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_break_id);
-		this->get_current_scope_level().setTerminated();
+		this->get_current_scope_level().setLoopTerminated();
 
 		return Result::SUCCESS;
 	}
@@ -7459,7 +7463,7 @@ namespace pcit::panther{
 
 		const sema::Continue::ID new_continue_id = this->context.sema_buffer.createContinue(instr.continue_stmt.label);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_continue_id);
-		this->get_current_scope_level().setTerminated();
+		this->get_current_scope_level().setLoopTerminated();
 
 		return Result::SUCCESS;
 	}
@@ -8366,6 +8370,7 @@ namespace pcit::panther{
 			std::move(iterables), instr.for_stmt.keyword, for_block.label, index_type_id.has_value()
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_id);
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.emplace(sema_for_id);
 
 		sema::For& sema_for = this->context.sema_buffer.getFor(sema_for_id);
 		if(for_block.label.has_value()){
@@ -8420,7 +8425,28 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::instr_end_for(const Instruction::EndFor& instr) -> Result {
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+
+		if(instr.has_else()){
+			const sema::For::ID current_for_id =
+				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top().forID();
+
+			sema::For& current_for = this->context.sema_buffer.getFor(current_for_id);
+
+			this->push_scope_level(&current_for.elseBlock.emplace());
+
+		}else{
+			if(this->end_sub_scopes(this->get_location(*instr.close_brace)).isError()){ return Result::ERROR; }
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
+		}
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_end_for_else(const Instruction::EndForElse& instr) -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
+		this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
 		return Result::SUCCESS;
 	}
 
@@ -8488,7 +8514,10 @@ namespace pcit::panther{
 		const AST::Block& for_block = this->source.getASTBuffer().getBlock(instr.for_stmt.block);
 
 		const sema::ForUnroll::ID sema_for_unroll_id = this->context.sema_buffer.createForUnroll(
-			instr.for_stmt.keyword, for_block.label, evo::SmallVector<sema::StmtBlock>(*iterables_size)
+			instr.for_stmt.keyword,
+			for_block.label,
+			instr.for_stmt.elseBlock.has_value(),
+			evo::SmallVector<sema::StmtBlock>(*iterables_size + size_t(instr.for_stmt.elseBlock.has_value()))
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_for_unroll_id);
 
@@ -8499,6 +8528,15 @@ namespace pcit::panther{
 		const TermInfo& first_iterable = this->get_term_info(instr.iterables[0]);
 		if(first_iterable.type_id.as<TermInfo::VariadicParamTypes>().type_ids.size() == instr.get_index()){
 			this->symbol_proc.setInstructionIndex(instr.end_index);
+
+			const sema::Stmt current_for_unroll_stmt = this->get_current_scope_level().stmtBlock().back();
+			sema::ForUnroll& current_for_unroll =
+				this->context.sema_buffer.getForUnroll(current_for_unroll_stmt.forUnrollID());
+
+			this->get_current_scope_level().addSubScope();
+
+			this->push_scope_level(&current_for_unroll.stmtBlocks.back());
+
 			return Result::SUCCESS;
 		}
 
@@ -8715,6 +8753,17 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::instr_end_for_unroll_else(const Instruction::EndForUnrollElse& instr) -> Result {
+		if(this->pop_scope_level().isError()){ return Result::ERROR; }
+		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
+
+		return Result::SUCCESS;
+	}
+
+
+
+
+
 	auto SemanticAnalyzer::instr_begin_switch(const Instruction::BeginSwitch& instr) -> Result {
 		const TermInfo& cond = this->get_term_info(instr.cond);
 
@@ -8743,7 +8792,8 @@ namespace pcit::panther{
 		const TypeInfo::ID cond_type_id = cond.type_id.as<TypeInfo::ID>();
 
 		if(instr.is_no_jump){
-			// TODO(FUTURE): when structs can delete ==
+			this->emit_error("Swtich attribute `#noJump` is unimplemented", instr.switch_stmt.cond);
+			return Result::ERROR;
 
 		}else{
 			if(this->type_is_valid_jump_switch_cond(cond_type_id, instr.switch_stmt).isError()){ return Result::ERROR; }
@@ -18711,7 +18761,7 @@ namespace pcit::panther{
 			TermInfo::ValueCategory::EPHEMERAL,
 			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
-			attempt_expr.type_id.as<TypeInfo::ID>(),
+			attempt_expr.type_id,
 			sema::Expr(created_try_else_expr_id)
 		);
 		return Result::SUCCESS;
@@ -26465,6 +26515,7 @@ namespace pcit::panther{
 			sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 			const bool current_scope_is_terminated = current_scope_level.isTerminated();
 			const bool current_scope_is_label_terminated = current_scope_level.isLabelTerminated();
+			const bool current_scope_is_loop_terminated = current_scope_level.isLoopTerminated();
 
 			if(
 				current_scope_level.hasStmtBlock()
@@ -26507,10 +26558,16 @@ namespace pcit::panther{
 				this->scope.popLevel(); // `current_scope_level` is now invalid
 
 				if(current_scope_is_terminated && this->scope.inEncapsulatingSymbol()){
-					this->get_current_scope_level().setSubScopeTerminated();
+					sema::ScopeLevel& new_current_scope_level = this->get_current_scope_level();
+
+					new_current_scope_level.setSubScopeTerminated();
 
 					if(current_scope_is_label_terminated){
-						this->get_current_scope_level().setSubScopeLabelTerminated();
+						new_current_scope_level.setSubScopeLabelTerminated();
+					}
+
+					if(current_scope_is_loop_terminated){
+						new_current_scope_level.setSubScopeLoopTerminated();
 					}
 				}
 			}
@@ -26518,6 +26575,31 @@ namespace pcit::panther{
 
 		return evo::Result<>();
 	}
+
+
+
+	auto SemanticAnalyzer::currently_in_loop() const -> bool {
+		bool found_loop = false;
+
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+			EVO_DEFER([&](){ i -= 1; });
+
+			const sema::ScopeLevel& scope_level =
+				this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
+
+			if(scope_level.isLoopMainScope()){
+				found_loop = true;
+				break;
+
+			}else if(i == this->scope.getCurrentEncapsulatingSymbolIndex()){
+				break;
+			}
+		}
+
+		return found_loop;
+	}
+
+
 
 
 
@@ -27575,8 +27657,8 @@ namespace pcit::panther{
 		const Token::ID& ident,
 		std::string_view ident_str,
 		const sema::ScopeLevel& scope_level,
-		bool variables_in_scope, // TODO(FUTURE): make this template argument?
-		bool is_global_scope, // TODO(FUTURE): make this template argumnet?
+		bool variables_in_scope,
+		bool is_global_scope,
 		const Source* source_module
 	) -> evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> {
 		if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
@@ -28621,6 +28703,12 @@ namespace pcit::panther{
 		if(current_scope_level.isTerminated() && current_scope_level.stmtBlock().isTerminated() == false){
 			if(current_scope_level.allTerminatedSubScopesAreLabelTerminated()){
 				current_scope_level.stmtBlock().setLabelTerminated();
+
+			}else if(current_scope_level.anySubScopesAreLoopTerminated()){
+				if(this->currently_in_loop()){
+					current_scope_level.stmtBlock().setLoopTerminated();
+				}
+				
 			}else{
 				current_scope_level.stmtBlock().setTerminated();
 			}
@@ -34118,7 +34206,7 @@ namespace pcit::panther{
 		}
 
 		if(created_func_type.hasErrorReturn()){
-			this->emit_error("Prefix operator overload that error are unimplemented", ast_func_def.errorReturns[0]);
+			this->emit_error("This operator may not error", ast_func_def.errorReturns[0]);
 			return evo::resultError;
 		}
 
@@ -35932,7 +36020,6 @@ namespace pcit::panther{
 
 			}else if(attribute_str == "rt"){
 				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					// TODO(FEATURE): add warning (in attributes as well)
 					this->emit_warning("Attribute #rt is implicitly set on extern functions", attribute.attribute);
 				}
 

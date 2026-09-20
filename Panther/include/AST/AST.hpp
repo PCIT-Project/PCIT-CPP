@@ -370,6 +370,7 @@ namespace pcit::panther::AST{
 		evo::SmallVector<Param> values;
 		Node attributeBlock;
 		Node block;
+		std::optional<Node> elseBlock;
 	};
 
 	struct Switch{

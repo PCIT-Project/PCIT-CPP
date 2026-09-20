@@ -281,11 +281,18 @@ namespace pcit::panther::sema{
 			auto addSubScope() -> void;
 			auto setSubScopeTerminated() -> void;
 			auto setSubScopeLabelTerminated() -> void;
+			auto setSubScopeLoopTerminated() -> void;
+
 			auto setTerminated() -> void;
 			auto setLabelTerminated() -> void;
+			auto setLoopTerminated() -> void;
+
 			[[nodiscard]] auto isTerminated() const -> bool;
 			[[nodiscard]] auto isLabelTerminated() const -> bool;
+			[[nodiscard]] auto isLoopTerminated() const -> bool;
+
 			[[nodiscard]] auto allTerminatedSubScopesAreLabelTerminated() const -> bool;
+			[[nodiscard]] auto anySubScopesAreLoopTerminated() const -> bool;
 
 			[[nodiscard]] auto numUnterminatedSubScopes() const -> unsigned;
 
@@ -412,9 +419,10 @@ namespace pcit::panther::sema{
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 			bool is_unsafe = false;
 
-			unsigned num_sub_scopes = false;
+			unsigned num_sub_scopes = 0;
 			unsigned num_sub_scopes_terminated = 0;
 			unsigned num_sub_scopes_label_terminated = 0;
+			unsigned num_sub_scopes_loop_terminated = 0;
 			mutable evo::SpinLock sub_scopes_and_stmt_block_lock{};
 
 

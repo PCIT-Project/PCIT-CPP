@@ -436,11 +436,12 @@ namespace pcit::panther::AST{
 		std::optional<For::Param> index, // nullopt means `_`
 		evo::SmallVector<For::Param>&& values,
 		Node attributeBlock,
-		Node block
+		Node block,
+		std::optional<Node> elseBlock
 	) -> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
 		const uint32_t node_index = this->internal->fors.emplace_back(
-			keyword, std::move(iterables), index, std::move(values), attributeBlock, block
+			keyword, std::move(iterables), index, std::move(values), attributeBlock, block, elseBlock
 		);
 		return Node(Kind::FOR, node_index);
 	}

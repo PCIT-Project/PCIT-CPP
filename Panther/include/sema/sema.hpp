@@ -593,6 +593,7 @@ namespace pcit::panther::sema{
 		bool hasIndex;
 		evo::SmallVector<Param> params{};
 		StmtBlock block{};
+		std::optional<StmtBlock> elseBlock{};
 	};
 
 	struct ForUnroll{
@@ -601,6 +602,7 @@ namespace pcit::panther::sema{
 		Token::ID forToken;
 		std::optional<Token::ID> label;
 		evo::SmallVector<StmtBlock> stmtBlocks{};
+		bool hasElse;
 	};
 
 

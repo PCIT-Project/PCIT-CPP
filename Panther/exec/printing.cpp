@@ -1467,9 +1467,18 @@ namespace pthr{
 					this->indenter.set_arrow();
 					this->print_attribute_block(this->ast_buffer.getAttributeBlock(for_loop.attributeBlock));
 
-					this->indenter.print_end();
+					this->indenter.print_arrow();
 					this->print_minor_header("Block");
 					this->print_block(this->source.getASTBuffer().getBlock(for_loop.block));
+
+					this->indenter.print_end();
+					this->print_minor_header("Else Block");
+					if(for_loop.elseBlock.has_value()){
+						this->print_block(this->source.getASTBuffer().getBlock(*for_loop.elseBlock));
+					}else{
+						this->printer.printlnGray(" {NONE}");
+					}
+
 
 					this->indenter.pop();
 				}

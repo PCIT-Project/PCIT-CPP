@@ -1181,6 +1181,23 @@ namespace pcit::panther{
 			}
 
 
+
+			//////////////////
+			// EndForElse
+
+			[[nodiscard]] auto createEndForElse(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_FOR_ELSE,
+					this->end_for_elses.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getEndForElse(Instruction instr) const -> const Instruction::EndForElse& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_FOR_ELSE, "Not a EndForElse");
+				return this->end_for_elses[instr._index];
+			}
+
+
 			//////////////////
 			// BeginForUnroll
 
@@ -1226,6 +1243,23 @@ namespace pcit::panther{
 			[[nodiscard]] auto getForUnrollContinue(Instruction instr) const -> const Instruction::ForUnrollContinue& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::FOR_UNROLL_CONTINUE, "Not a ForUnrollContinue");
 				return this->for_unroll_continues[instr._index];
+			}
+
+
+
+			//////////////////
+			// EndForUnrollElse
+
+			[[nodiscard]] auto createEndForUnrollElse(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::END_FOR_UNROLL_ELSE,
+					this->end_for_unroll_elses.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getEndForUnrollElse(Instruction instr) const -> const Instruction::EndForUnrollElse& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::END_FOR_UNROLL_ELSE, "Not a EndForUnrollElse");
+				return this->end_for_unroll_elses[instr._index];
 			}
 
 
@@ -3493,9 +3527,11 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndWhile, uint32_t> end_whiles{};
 			core::SyncLinearStepAlloc<Instruction::BeginFor, uint32_t> begin_fors{};
 			core::SyncLinearStepAlloc<Instruction::EndFor, uint32_t> end_fors{};
+			core::SyncLinearStepAlloc<Instruction::EndForElse, uint32_t> end_for_elses{};
 			core::SyncLinearStepAlloc<Instruction::BeginForUnroll, uint32_t> begin_for_unrolls{};
 			core::SyncLinearStepAlloc<Instruction::ForUnrollCond, uint32_t> for_unroll_conds{};
 			core::SyncLinearStepAlloc<Instruction::ForUnrollContinue, uint32_t> for_unroll_continues{};
+			core::SyncLinearStepAlloc<Instruction::EndForUnrollElse, uint32_t> end_for_unroll_elses{};
 			core::SyncLinearStepAlloc<Instruction::BeginSwitch, uint32_t> begin_switches{};
 			core::SyncLinearStepAlloc<Instruction::BeginCase, uint32_t> begin_cases{};
 			core::SyncLinearStepAlloc<Instruction::EndSwitch, uint32_t> end_switches{};

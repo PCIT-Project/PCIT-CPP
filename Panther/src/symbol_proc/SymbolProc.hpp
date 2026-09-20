@@ -588,6 +588,12 @@ namespace pcit::panther{
 		};
 
 		struct EndFor{
+			std::optional<Token::ID> close_brace;
+
+			[[nodiscard]] auto has_else() const -> bool { return this->close_brace.has_value() == false; }
+		};
+
+		struct EndForElse{
 			Token::ID close_brace;
 		};
 
@@ -622,6 +628,10 @@ namespace pcit::panther{
 		struct ForUnrollContinue{
 			Token::ID close_brace;
 			SymbolProcInstructionIndex cond_index;
+		};
+
+		struct EndForUnrollElse{
+			Token::ID close_brace;
 		};
 
 
@@ -1299,9 +1309,11 @@ namespace pcit::panther{
 			END_WHILE,
 			BEGIN_FOR,
 			END_FOR,
+			END_FOR_ELSE,
 			BEGIN_FOR_UNROLL,
 			FOR_UNROLL_COND,
 			FOR_UNROLL_CONTINUE,
+			END_FOR_UNROLL_ELSE,
 			BEGIN_SWITCH,
 			BEGIN_CASE,
 			END_CASE,
@@ -1512,7 +1524,7 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto isDeclDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(PERF): needed to take all of these locks?
 					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
 				);
 				return this->decl_done;
@@ -1524,7 +1536,7 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto isDefDone() const -> bool {
-				const auto lock = std::scoped_lock( // TODO(FUTURE): needed to take all of these locks?
+				const auto lock = std::scoped_lock( // TODO(PERF): needed to take all of these locks?
 					this->waiting_for_lock, this->decl_waited_on_lock, this->def_waited_on_lock
 				);
 				return this->def_done;
@@ -1832,7 +1844,7 @@ namespace pcit::panther{
 			};
 
 			struct FuncInfo{
-				std::stack<sema::Stmt, evo::SmallVector<sema::Stmt, 4>> subscopes{};
+				std::stack<sema::Stmt, evo::SmallVector<sema::Stmt, 16>> subscopes{};
 
 				size_t num_members_of_initializing_are_uninit = 0;
 

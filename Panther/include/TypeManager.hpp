@@ -734,7 +734,7 @@ namespace pcit::panther{
 			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type
 			sema::ScopeLevel* scopeLevel; // nullptr if not pthr src type (although temporarily nullptr during creation)
 			bool isPriv;
-			bool isOrdered; // TODO(FUTURE): is this needed here?
+			bool isOrdered;
 			bool isPacked;
 
 			std::optional<uint32_t> alignment = std::nullopt;

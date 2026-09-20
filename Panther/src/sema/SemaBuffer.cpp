@@ -697,9 +697,9 @@ namespace pcit::panther::sema{
 	// for unrolls
 
 	auto SemaBuffer::createForUnroll(
-		Token::ID forToken, std::optional<Token::ID> label, evo::SmallVector<StmtBlock>&& stmtBlocks
+		Token::ID forToken, std::optional<Token::ID> label, bool hasElse, evo::SmallVector<StmtBlock>&& stmtBlocks
 	) -> ForUnroll::ID {
-		return this->internal->for_unrolls.emplace_back(forToken, label, std::move(stmtBlocks));
+		return this->internal->for_unrolls.emplace_back(forToken, label, std::move(stmtBlocks), hasElse);
 	}
 
 	auto SemaBuffer::getForUnroll(ForUnroll::ID id) const -> const ForUnroll& {

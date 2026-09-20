@@ -60,6 +60,17 @@ namespace pcit::panther::sema{
 		this->num_sub_scopes_label_terminated += 1;
 	}
 
+	auto ScopeLevel::setSubScopeLoopTerminated() -> void {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+
+		evo::debugAssert(
+			this->num_sub_scopes_terminated >= this->num_sub_scopes_loop_terminated,
+			"Cannot have more loop-terminated sub-scopes than terminated sub-scopes"
+		);
+
+		this->num_sub_scopes_loop_terminated += 1;
+	}
+
 
 	auto ScopeLevel::setTerminated() -> void {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
@@ -69,6 +80,11 @@ namespace pcit::panther::sema{
 	auto ScopeLevel::setLabelTerminated() -> void {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		this->_stmt_block->setLabelTerminated();
+	}
+
+	auto ScopeLevel::setLoopTerminated() -> void {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		this->_stmt_block->setLoopTerminated();
 	}
 
 	auto ScopeLevel::isTerminated() const -> bool {
@@ -83,10 +99,20 @@ namespace pcit::panther::sema{
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		return this->hasStmtBlock() && this->_stmt_block->isLabelTerminated();
 	}
+
+	auto ScopeLevel::isLoopTerminated() const -> bool {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		return this->hasStmtBlock() && this->_stmt_block->isLoopTerminated();
+	}
 	
 	auto ScopeLevel::allTerminatedSubScopesAreLabelTerminated() const -> bool {
 		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
 		return this->num_sub_scopes_terminated == this->num_sub_scopes_label_terminated;
+	}
+
+	auto ScopeLevel::anySubScopesAreLoopTerminated() const -> bool {
+		const auto lock = std::scoped_lock(this->sub_scopes_and_stmt_block_lock);
+		return this->num_sub_scopes_loop_terminated != 0;
 	}
 
 	auto ScopeLevel::numUnterminatedSubScopes() const -> unsigned {
@@ -99,6 +125,7 @@ namespace pcit::panther::sema{
 	auto ScopeLevel::resetSubScopes() -> void {
 		this->num_sub_scopes = 0;
 		this->num_sub_scopes_terminated = 0;
+		this->num_sub_scopes_loop_terminated = 0;
 	}
 
 

@@ -253,16 +253,12 @@ namespace pcit::panther::sema{
 
 			TERMINATED,
 			LABEL_TERMINATED, // for example, through `return->label 12;`
+			LOOP_TERMINATED, // `break` / `continue`
 			NOT_TERMINATED,
 		};
 
 		public:
 			StmtBlock() : stmts(), terminated_kind(TerminatedKind::NOT_TERMINATED){}
-
-			// TODO(FUTURE): is this constructor needed?
-			// StmtBlock(evo::SmallVector<Stmt>&& statements, bool is_terminated = false)
-			// 	: stmts(std::move(statements)), terminated_kind(is_terminated) {}
-
 			~StmtBlock() = default;
 
 			
@@ -272,6 +268,10 @@ namespace pcit::panther::sema{
 
 			[[nodiscard]] auto isLabelTerminated() const -> bool {
 				return this->terminated_kind == TerminatedKind::LABEL_TERMINATED;
+			}
+
+			[[nodiscard]] auto isLoopTerminated() const -> bool {
+				return this->terminated_kind == TerminatedKind::LOOP_TERMINATED;
 			}
 			
 
@@ -283,6 +283,11 @@ namespace pcit::panther::sema{
 			auto setLabelTerminated() -> void {
 				evo::debugAssert(this->isTerminated() == false, "already terminated");
 				this->terminated_kind = TerminatedKind::LABEL_TERMINATED;
+			}
+
+			auto setLoopTerminated() -> void {
+				evo::debugAssert(this->isTerminated() == false, "already terminated");
+				this->terminated_kind = TerminatedKind::LOOP_TERMINATED;
 			}
 
 

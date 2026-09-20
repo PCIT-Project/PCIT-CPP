@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.390.0"></a>
+## v0.0.390.0
+
+### Panther
+- Added `for` / `else`
+- Fixed semantic analysis of scope termination with `break` and `continue`
+- Fixed `try`/`else` when the function call has multiple returns
+
+
+<!---------------------------------->
 <a name="v0.0.389.0"></a>
 ## v0.0.389.0
 

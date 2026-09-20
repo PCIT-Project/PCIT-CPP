@@ -1430,10 +1430,26 @@ namespace pcit::panther{
 
 
 		//////////////////
+		// else block
+
+		auto else_block = std::optional<AST::Node>();
+		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
+			this->reader.skip();
+
+			const Result else_block_result = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
+			if(this->check_result(else_block_result, "else statement block in for loop").isError()){
+				return Result::Code::ERROR;
+			}
+
+			else_block = else_block_result.value();
+		}
+
+
+		//////////////////
 		// done
 
 		return this->source.ast_buffer.createFor(
-			keyword, std::move(iterables), index, std::move(values), attributes.value(), block.value()
+			keyword, std::move(iterables), index, std::move(values), attributes.value(), block.value(), else_block
 		);
 	}
 

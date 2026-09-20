@@ -182,7 +182,8 @@ namespace pcit::panther::AST{
 				std::optional<For::Param> index, // nullopt means `_`
 				evo::SmallVector<For::Param>&& values,
 				Node attributeBlock,
-				Node block
+				Node block,
+				std::optional<Node> elseBlock
 			) -> Node;
 			[[nodiscard]] auto getFor(const Node& node) const -> const For&;
 

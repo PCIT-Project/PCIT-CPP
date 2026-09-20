@@ -3296,6 +3296,15 @@ namespace pcit::panther{
 
 				const pir::BasicBlock::ID cond_block = this->handler.createBasicBlock(this->name("FOR.COND"));
 				const pir::BasicBlock::ID body_block = this->handler.createBasicBlock(this->name("FOR.BODY"));
+
+				const std::optional<pir::BasicBlock::ID> else_block = [&]() -> std::optional<pir::BasicBlock::ID> {
+					if(for_stmt.elseBlock.has_value()){
+						return this->handler.createBasicBlock(this->name("FOR.ELSE"));
+					}else{
+						return std::nullopt;
+					}
+				}();
+
 				const pir::BasicBlock::ID end_block  = this->handler.createBasicBlock(this->name("FOR.END"));
 
 
@@ -3317,7 +3326,11 @@ namespace pcit::panther{
 						this->name("FOR.at_end")
 					);
 
-					this->handler.createBranch(cond_value, end_block, body_block);
+					if(else_block.has_value()){
+						this->handler.createBranch(cond_value, *else_block, body_block);
+					}else{
+						this->handler.createBranch(cond_value, end_block, body_block);
+					}
 				}
 
 
@@ -3439,12 +3452,27 @@ namespace pcit::panther{
 				}
 
 				this->pop_scope_level();
+
+				if(for_stmt.elseBlock.has_value()){
+					this->handler.setTargetBasicBlock(*else_block);
+					this->push_scope_level();
+
+					for(const sema::Stmt& else_block_stmt : *for_stmt.elseBlock){
+						this->lower_stmt(else_block_stmt);
+					}
+
+					this->pop_scope_level();
+
+					if(for_stmt.elseBlock->isTerminated() == false){
+						this->handler.createJump(end_block);
+					}
+				}
+
 				this->handler.setTargetBasicBlock(end_block);
 
 				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
 					this->delete_expr(iterator_alloca, iterator_type_ids[i]);
 				}
-
 
 				if(this->data.getConfig().includeDebugInfo){
 					this->handler.popSourceLocation();
@@ -3460,9 +3488,15 @@ namespace pcit::panther{
 				auto basic_blocks = evo::SmallVector<pir::BasicBlock::ID>();
 				basic_blocks.reserve(for_unroll_stmt.stmtBlocks.size());
 				for(size_t i = 1; i < for_unroll_stmt.stmtBlocks.size(); i+=1){ // yes, skip index 0
-					basic_blocks.emplace_back(this->handler.createBasicBlock(this->name("FOR_UNROLL.LOOP_{}", i)));
+					if(for_unroll_stmt.hasElse && i + 1 == for_unroll_stmt.stmtBlocks.size()){
+						basic_blocks.emplace_back(this->handler.createBasicBlock(this->name("FOR_UNROLL.ELSE")));
+					}else{
+						basic_blocks.emplace_back(this->handler.createBasicBlock(this->name("FOR_UNROLL.LOOP_{}", i)));
+					}
 				}
-				basic_blocks.emplace_back(this->handler.createBasicBlock(this->name("FOR_UNROLL.END")));
+
+				const pir::BasicBlock::ID end_block = this->handler.createBasicBlock(this->name("FOR_UNROLL.END"));
+				basic_blocks.emplace_back(end_block);
 
 				const std::string_view label_name_str = [&]() -> std::string_view {
 					if(for_unroll_stmt.label.has_value()){
@@ -3483,6 +3517,8 @@ namespace pcit::panther{
 					}
 				}();
 
+
+
 				for(size_t i = 0; const sema::StmtBlock& stmt_block : for_unroll_stmt.stmtBlocks){
 					EVO_DEFER([&](){ i += 1; });
 
@@ -3500,7 +3536,7 @@ namespace pcit::panther{
 
 
 					this->push_scope_level(
-						label_name_str, evo::SmallVector<pir::Expr>(), basic_blocks[i], basic_blocks.back(), true
+						label_name_str, evo::SmallVector<pir::Expr>(), basic_blocks[i], end_block, true
 					);
 
 					for(const sema::Stmt& block_stmt : stmt_block){
@@ -13678,22 +13714,18 @@ namespace pcit::panther{
 					case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid base type");
 
 					case BaseType::Kind::PRIMITIVE: {
-						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY: {
-						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::ARRAY_REF: {
-						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 
 					case BaseType::Kind::STRUCT: {
-						// TODO(FUTURE): more specific?
 						return pir::GlobalVar::Value(pir::GlobalVar::Zeroinit());
 					} break;
 

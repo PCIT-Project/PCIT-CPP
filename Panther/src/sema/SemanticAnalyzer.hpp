@@ -162,9 +162,11 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_end_while(const Instruction::EndWhile& instr) -> Result;
 			[[nodiscard]] auto instr_begin_for(const Instruction::BeginFor& instr) -> Result;
 			[[nodiscard]] auto instr_end_for(const Instruction::EndFor& instr) -> Result;
+			[[nodiscard]] auto instr_end_for_else(const Instruction::EndForElse& instr) -> Result;
 			[[nodiscard]] auto instr_begin_for_unroll(const Instruction::BeginForUnroll& instr) -> Result;
 			[[nodiscard]] auto instr_for_unroll_cond(const Instruction::ForUnrollCond& instr) -> Result;
 			[[nodiscard]] auto instr_for_unroll_continue(const Instruction::ForUnrollContinue& instr) -> Result;
+			[[nodiscard]] auto instr_end_for_unroll_else(const Instruction::EndForUnrollElse& instr) -> Result;
 			[[nodiscard]] auto instr_begin_switch(const Instruction::BeginSwitch& instr) -> Result;
 			[[nodiscard]] auto instr_begin_case(const Instruction::BeginCase& instr) -> Result;
 			[[nodiscard]] auto instr_end_case() -> Result;
@@ -479,6 +481,8 @@ namespace pcit::panther{
 			};
 			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
 			[[nodiscard]] auto pop_scope_level() -> evo::Result<>;
+
+			[[nodiscard]] auto currently_in_loop() const -> bool;
 
 
 			enum class SpecialMemberKind{
