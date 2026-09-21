@@ -541,6 +541,11 @@ namespace pcit::panther{
 				this->num_errors += 1;
 				if(this->encountered_fatal.exchange(true)){ return; }
 				this->emit_diagnostic_impl(Diagnostic(Diagnostic::Level::FATAL, std::forward<decltype(args)>(args)...));
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					evo::breakpoint();
+				#endif
+
 				this->clear_work_queue_if_needed();
 			}
 

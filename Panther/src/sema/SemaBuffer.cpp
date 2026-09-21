@@ -1316,15 +1316,19 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// strings
 
-	auto SemaBuffer::createStringValue(std::string&& value) -> StringValue::ID {
-		return this->internal->string_values.emplace_back(std::move(value));
+	auto SemaBuffer::createStringValue(std::string&& value, bool isDataPtr) -> StringValue::ID {
+		return this->internal->string_values.emplace_back(std::move(value), isDataPtr);
 	}
 
-	auto SemaBuffer::createStringValue(const std::string& value) -> StringValue::ID {
-		return this->internal->string_values.emplace_back(value);
+	auto SemaBuffer::createStringValue(const std::string& value, bool isDataPtr) -> StringValue::ID {
+		return this->internal->string_values.emplace_back(value, isDataPtr);
 	}
 
 	auto SemaBuffer::getStringValue(StringValue::ID id) const -> const StringValue& {
+		return this->internal->string_values[id];
+	}
+
+	auto SemaBuffer::getStringValue(StringValue::ID id) -> StringValue& {
 		return this->internal->string_values[id];
 	}
 

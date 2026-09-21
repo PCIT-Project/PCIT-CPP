@@ -12299,7 +12299,9 @@ namespace pcit::panther{
 							sema::Expr(
 								this->context.sema_buffer.createInitArrayRef(
 									sema::Expr(
-										this->context.sema_buffer.createStringValue(std::move(executable_path_str))
+										this->context.sema_buffer.createStringValue(
+											std::move(executable_path_str), false
+										)
 									),
 									str_ref_type_info.baseTypeID().arrayRefID(),
 									evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>{executable_path_str_size}
@@ -12329,7 +12331,7 @@ namespace pcit::panther{
 							sema::Expr(
 								this->context.sema_buffer.createInitArrayRef(
 									sema::Expr(
-										this->context.sema_buffer.createStringValue(std::move(working_dir_str))
+										this->context.sema_buffer.createStringValue(std::move(working_dir_str), false)
 									),
 									str_ref_type_info.baseTypeID().arrayRefID(),
 									evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>{working_dir_str_size}
@@ -12724,11 +12726,12 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA: {
-				if constexpr(IS_COMPTIME){
+				if(IS_COMPTIME){
 					this->emit_error(
 						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
 					);
 					return Result::ERROR;
+
 				}else{
 					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
 						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
@@ -12748,11 +12751,33 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE: {
-				if constexpr(IS_COMPTIME){
-					this->emit_error(
-						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				if(may_be_comptime){
+					const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+						fake_term_info.expr.initArrayRefID()
 					);
-					return Result::ERROR;
+
+					uint64_t size_value = 1;
+
+					for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
+						size_value *= dimension.as<uint64_t>();
+					}
+
+					const sema::IntValue::ID int_value_id = this->context.sema_buffer.createIntValue(
+						core::GenericInt::create<uint64_t>(size_value),
+						this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+					);
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeUSize(),
+						sema::Expr(int_value_id)
+					);
+					return Result::SUCCESS;
+
 				}else{
 					const BaseType::ArrayRef::ID array_ref_type_id = 
 						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
@@ -12762,7 +12787,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						fake_term_info.isComptime,
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
 						sema::Expr(created_array_ref_size)
@@ -12802,11 +12827,32 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA: {
-				if constexpr(IS_COMPTIME){
-					this->emit_error(
-						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+
+				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+				if(may_be_comptime){
+					const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+						fake_term_info.expr.initArrayRefID()
 					);
-					return Result::ERROR;
+
+					if(init_array_ref.expr.kind() == sema::Expr::Kind::STRING_VALUE){
+						this->context.sema_buffer.getStringValue(init_array_ref.expr.stringValueID()).isDataPtr = true;
+					}
+
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						return_type,
+						init_array_ref.expr
+					);
+					return Result::SUCCESS;
+
 				}else{
 					const BaseType::ArrayRef::ID array_ref_type_id = 
 						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
@@ -12814,15 +12860,9 @@ namespace pcit::panther{
 					const sema::ArrayRefData::ID created_array_ref_data =
 						this->context.sema_buffer.createArrayRefData(fake_term_info.expr, array_ref_type_id);
 
-					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
-						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
-					);
-
-					const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
-
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						fake_term_info.isComptime,
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
 						sema::Expr(created_array_ref_data)
@@ -12921,30 +12961,10 @@ namespace pcit::panther{
 			return Result::SUCCESS;	
 		}
 
-		switch(func_call_term.getExpr().kind()){
-			case sema::Expr::Kind::INT_VALUE:       case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:      case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE: case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::DEFAULT_NEW: {
-				this->return_term_info(instr.output, func_call_term);
-				return Result::SUCCESS;	
-			} break;
 
-			case sema::Expr::Kind::FUNC_CALL: break; // body is the rest of the function
-
-			case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA: {
-				// TODO(FUTURE): comptime?
-				this->return_term_info(instr.output, func_call_term);
-				return Result::SUCCESS;
-			} break;
-
-			default: {
-				evo::debugFatalBreak("Invalid comptime func call");
-			} break;
+		if(func_call_term.getExpr().kind() != sema::Expr::Kind::FUNC_CALL){
+			this->return_term_info(instr.output, func_call_term);
+			return Result::SUCCESS;	
 		}
 
 
@@ -12996,13 +13016,11 @@ namespace pcit::panther{
 		if(func_call_result.has_value() == false){ return func_call_result.error(); }
 
 		this->return_term_info(instr.output,
-			TermInfo(
-				TermInfo::ValueCategory::EPHEMERAL,
-				true,
-				TermInfo::ValueState::NOT_APPLICABLE,
-				func_call_term.type_id,
-				func_call_result.value()
-			)
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			func_call_term.type_id,
+			func_call_result.value()
 		);
 
 		return Result::SUCCESS;
@@ -13140,7 +13158,7 @@ namespace pcit::panther{
 		const CFamilySource& c_family_module = 
 			this->context.source_manager[c_family_module_term_info.type_id.as<CFamilySourceID>()];
 
-		const sema::StringValue macro_name = 
+		const sema::StringValue& macro_name = 
 			this->context.getSemaBuffer().getStringValue(macro_name_term_info.getExpr().stringValueID());
 
 		const bool is_macro_defined = c_family_module.getDefine(macro_name.value).has_value();
@@ -16488,7 +16506,7 @@ namespace pcit::panther{
 			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
-			sema::Expr(this->context.sema_buffer.createAddrOf(target.getExpr()))
+			this->create_addr_of_expr(target.getExpr())
 		);
 
 		return Result::SUCCESS;
@@ -16875,6 +16893,20 @@ namespace pcit::panther{
 		if constexpr(IS_COMPTIME){
 			auto output_value = std::optional<sema::Expr>();
 			switch(target.getExpr().kind()){
+				case sema::Expr::Kind::STRING_VALUE: {
+					const sema::StringValue& string_value = this->context.sema_buffer.getStringValue(
+						target.getExpr().stringValueID()
+					);
+
+					if(string_value.isDataPtr){
+						output_value = sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[0]));
+					}else{
+						output_value = sema::Expr(
+							this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id)
+						);
+					}
+				} break;
+
 				case sema::Expr::Kind::ADDR_OF: {
 					output_value = this->context.getSemaBuffer().getAddrOf(target.getExpr().addrOfID());
 				} break;
@@ -16895,6 +16927,14 @@ namespace pcit::panther{
 			return Result::SUCCESS;
 
 		}else{
+			const sema::Expr output_expr = [&]() -> sema::Expr {
+				if(target.getExpr().kind() == sema::Expr::Kind::ADDR_OF){
+					return this->context.getSemaBuffer().getAddrOf(target.getExpr().addrOfID());
+				}else{
+					return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id));
+				}
+			}();
+
 			this->return_term_info(instr.output,
 				target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
 				target.isComptime,
@@ -16902,7 +16942,7 @@ namespace pcit::panther{
 					? TermInfo::ValueState::UNINIT
 					: TermInfo::ValueState::NOT_APPLICABLE,
 				resultant_type_id,
-				sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), resultant_type_id))
+				output_expr
 			);
 			return Result::SUCCESS;
 		}
@@ -16952,17 +16992,17 @@ namespace pcit::panther{
 		}();
 
 		
-		if(
-			this->currently_in_func()
-				&& this->context.getConfig().checkedOptionals
-				&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
-		){
-			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
-		}
-
 
 		if constexpr(IS_COMPTIME == false){
 			if(target.isComptime == false){
+				if(
+					this->currently_in_func()
+						&& this->context.getConfig().checkedOptionals
+						&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
+				){
+					this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+				}
+
 				this->return_term_info(instr.output,
 					target.is_mutable()
 						? TermInfo::ValueCategory::CONCRETE_MUT
@@ -16987,6 +17027,21 @@ namespace pcit::panther{
 		bool continue_looking = true;
 		while(continue_looking){
 			switch(target_expr.kind()){
+				case sema::Expr::Kind::STRING_VALUE: {
+					#if defined(PCIT_CONFIG_DEBUG)
+						const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+							target_expr.stringValueID()
+						);
+						evo::debugAssert(string_value.isDataPtr, "Invalid value to unwrap");
+					#endif
+
+					continue_looking = false;
+				} break;
+
+				case sema::Expr::Kind::ADDR_OF: {
+					continue_looking = false;
+				} break;
+
 				case sema::Expr::Kind::CONVERSION_TO_OPTIONAL: {
 					const sema::ConversionToOptional& conversion_to_optional =
 						this->context.getSemaBuffer().getConversionToOptional(
@@ -20249,7 +20304,6 @@ namespace pcit::panther{
 				templated_type_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
 			);
 
-			// TODO(FUTURE): better way of doing this?
 			while(instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed).has_value() == false){
 				std::this_thread::yield();
 			}
@@ -20781,7 +20835,7 @@ namespace pcit::panther{
 
 			const sema::Expr created_array_to_array_ref = sema::Expr(
 				this->context.sema_buffer.createInitArrayRef(
-					sema::Expr(this->context.sema_buffer.createAddrOf(expr.getExpr())),
+					this->create_addr_of_expr(expr.getExpr()),
 					to_underlying_type.baseTypeID().arrayRefID(),
 					std::move(dimensions)
 				)
@@ -21302,31 +21356,32 @@ namespace pcit::panther{
 
 			switch(from_data.kind){
 				case TypeConversionData::Kind::INTEGER: {
+					const core::GenericInt int_value = [&]() -> core::GenericInt {
+						if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+							return this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value;
+						}else{
+							return core::GenericInt::create<char>(
+								this->context.sema_buffer.getCharValue(expr.getExpr().charValueID()).value
+							);
+						}
+					}();
+
 					switch(to_data.kind){
 						case TypeConversionData::Kind::INTEGER: case TypeConversionData::Kind::UNSIGNED_INTEGER: {
 							if(from_data.width < to_data.width){
-								this->return_term_info(instr.output,
-									comptime_intrinsic_evaluator.sext(
-										target_type.asTypeID(),
-										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
-									)
+								this->return_term_info(
+									instr.output, comptime_intrinsic_evaluator.sext(target_type.asTypeID(), int_value)
 								);
 							}else{
-								this->return_term_info(instr.output,
-									comptime_intrinsic_evaluator.trunc(
-										target_type.asTypeID(),
-										this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
-									)
+								this->return_term_info(
+									instr.output, comptime_intrinsic_evaluator.trunc(target_type.asTypeID(), int_value)
 								);
 							}
 						} break;
 
 						case TypeConversionData::Kind::FLOAT: {
-							this->return_term_info(instr.output,
-								comptime_intrinsic_evaluator.iToF(
-									target_type.asTypeID(),
-									this->context.sema_buffer.getIntValue(expr.getExpr().intValueID()).value
-								)
+							this->return_term_info(
+								instr.output, comptime_intrinsic_evaluator.iToF(target_type.asTypeID(), int_value)
 							);
 						} break;
 					}
@@ -24267,7 +24322,9 @@ namespace pcit::panther{
 							evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
 						)
 					),
-					sema::Expr(this->context.sema_buffer.createStringValue(std::string(literal_token.getString())))
+					sema::Expr(
+						this->context.sema_buffer.createStringValue(std::string(literal_token.getString()), false)
+					)
 				);
 				return Result::SUCCESS;
 			} break;
@@ -24919,7 +24976,7 @@ namespace pcit::panther{
 								evo::SmallVector<TypeInfo::Qualifier>{TypeInfo::Qualifier::createPtr()}
 							)
 						),
-						sema::Expr(this->context.sema_buffer.createStringValue(std::string(value)))
+						sema::Expr(this->context.sema_buffer.createStringValue(std::string(value), false))
 					);
 
 				}else{
@@ -25209,8 +25266,12 @@ namespace pcit::panther{
 
 			const sema::FakeTermInfo::ValueCategory value_category = [&]() -> sema::FakeTermInfo::ValueCategory {
 				if(is_mut){
-					// TODO(FUTURE): need to check if lhs is `EPHEMERAL` when `InterfaceMap`?
-					return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+					if(lhs.is_ephemeral()){
+						return sema::FakeTermInfo::ValueCategory::EPHEMERAL;
+					}else{
+						return sema::FakeTermInfo::ValueCategory::CONCRETE_MUT;
+					}
+
 				}else{
 					return sema::FakeTermInfo::ValueCategory::CONCRETE_CONST;
 				}
@@ -29533,6 +29594,16 @@ namespace pcit::panther{
 			this->context.add_task_to_work_manager(target_id);
 		}
 	}
+
+
+	auto SemanticAnalyzer::create_addr_of_expr(sema::Expr expr) -> sema::Expr {
+		if(expr.kind() == sema::Expr::Kind::DEREF){
+			return this->context.getSemaBuffer().getDeref(expr.derefID()).expr;
+		}else{
+			return sema::Expr(this->context.sema_buffer.createAddrOf(expr));
+		}
+	}
+
 
 
 
@@ -38657,7 +38728,7 @@ namespace pcit::panther{
 				if(got_is_ptr){
 					return got_expr.getExpr();
 				}else{
-					return sema::Expr(this->context.sema_buffer.createAddrOf(got_expr.getExpr()));
+					return this->create_addr_of_expr(got_expr.getExpr());
 				}
 			}();
 

@@ -63,6 +63,7 @@ namespace pcit::panther::sema{
 		using ID = StringValueID;
 
 		std::string value;
+		bool isDataPtr;
 	};
 
 	struct AggregateValue{

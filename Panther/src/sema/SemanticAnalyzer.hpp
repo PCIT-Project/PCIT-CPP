@@ -657,6 +657,8 @@ namespace pcit::panther{
 
 
 
+			[[nodiscard]] auto create_addr_of_expr(sema::Expr expr) -> sema::Expr;
+
 			[[nodiscard]] auto expand_func_call_args(evo::ArrayProxy<SymbolProc::TermInfoID> args)
 				-> evo::SmallVector<SymbolProc::TermInfoID>;
 

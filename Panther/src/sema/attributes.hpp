@@ -38,7 +38,6 @@ namespace pcit::panther{
 				}
 
 				if(this->implicitly_set_location.has_value()){
-					// TODO(FEATURE): make this warning turn-off-able in settings (in #rt / extern too)
 					this->sema.emit_warning(
 						std::format("Attribute #{} was already implicitly set", this->name),
 						location,
@@ -56,7 +55,6 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto implicitly_set(Token::ID location) -> void {
 				if(this->set_location.has_value()){
-					// TODO(FEATURE): make this warning turn-off-able in settings (in #rt / extern too)
 					this->sema.emit_warning(
 						std::format("Attribute #{} was implicitly set", this->name),
 						this->set_location.value(),
@@ -108,7 +106,6 @@ namespace pcit::panther{
 				}
 
 				if(this->implicitly_set_location.has_value()){
-					// TODO(FEATURE): make this warning turn-off-able in settings (in #rt / extern too)
 					this->sema.emit_warning(
 						std::format("Attribute #{} was already implicitly set", this->name),
 						location,
@@ -128,7 +125,6 @@ namespace pcit::panther{
 			[[nodiscard]] auto implicitly_set(Token::ID location, bool cond) -> void {
 				if(this->set_location.has_value()){
 					if(this->is_set_true){
-						// TODO(FEATURE): make this warning turn-off-able in settings (in #rt / extern too)
 						this->sema.emit_warning(
 							std::format("Attribute #{} was implicitly set", this->name),
 							this->set_location.value(),

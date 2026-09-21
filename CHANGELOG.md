@@ -1,11 +1,26 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.391.0"></a>
+## v0.0.391.0
+
+### Panther
+- Added comptime operations:
+	- Array reference `.size()`
+	- Array reference `.data()`
+- Fixed comptime operations:
+	- Dereference of string literal
+	- Unwrap of address-of
+- Fixed comptime dereference causing a requirement for a `@panic` implementation
+- Fixed comptime `Char as Integral` 
+
+
+<!---------------------------------->
 <a name="v0.0.390.1"></a>
 ## v0.0.390.1
 
 ### Panther
-- Fixed upredictable extranous memory allocation in semantic analysis / comptime execution of pointers to global data in comptime function calls
+- Fixed upredictable extranous memory allocation in semantic analysis / comptime execution of pointers to global data in comptime function call
 
 
 <!---------------------------------->

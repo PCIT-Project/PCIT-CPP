@@ -608,7 +608,7 @@ namespace pcit::pir{
 			[[nodiscard]] auto getOrCreateArrayType(Type elem_type, uint64_t length) -> Type {
 				const auto lock = std::scoped_lock(array_types_lock);
 
-				// TODO(FUTURE): lookup with a hash map
+				// TODO(PERF): lookup with a hash map
 				for(uint32_t i = 0; const ArrayType& array_type : this->array_types){
 					EVO_DEFER([&](){ i += 1; });
 

@@ -828,9 +828,9 @@ namespace pcit::panther::sema{
 			///////////////////////////////////
 			// strings
 
-			[[nodiscard]] auto createStringValue(std::string&& value) -> StringValue::ID;
+			[[nodiscard]] auto createStringValue(std::string&& value, bool isDataPtr) -> StringValue::ID;
 
-			[[nodiscard]] auto createStringValue(const std::string& value) -> StringValue::ID;
+			[[nodiscard]] auto createStringValue(const std::string& value, bool isDataPtr) -> StringValue::ID;
 
 			[[nodiscard]] auto getStringValue(StringValue::ID id) const -> const StringValue&;
 
@@ -920,6 +920,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto getIntValue(sema::IntValue::ID int_value_id) -> IntValue&;
 			[[nodiscard]] auto getFloatValue(sema::FloatValue::ID float_value_id) -> FloatValue&;
 			[[nodiscard]] auto getBoolValue(sema::BoolValue::ID bool_value_id) -> BoolValue&;
+			[[nodiscard]] auto getStringValue(sema::StringValue::ID string_value_id) -> StringValue&;
 
 	
 		private:

@@ -4115,10 +4115,7 @@ namespace pcit::panther{
 			case sema::Expr::Kind::FOR_PARAM:    return this->get_expr_impl_for_param<MODE>(expr, store_locations);
 			case sema::Expr::Kind::VAR:          return this->get_expr_impl_var<MODE>(expr, store_locations);
 			case sema::Expr::Kind::GLOBAL_VAR:   return this->get_expr_impl_global_var<MODE>(expr, store_locations);
-
-			case sema::Expr::Kind::FUNC: {
-				evo::unimplemented("lower sema::Expr::Kind::FUNC");
-			} break;
+			case sema::Expr::Kind::FUNC:         evo::debugFatalBreak("Invalid expr");
 		}
 
 		evo::unreachable();

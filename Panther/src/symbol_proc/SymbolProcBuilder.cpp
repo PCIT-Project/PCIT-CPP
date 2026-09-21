@@ -2225,7 +2225,6 @@ namespace pcit::panther{
 			} break;
 
 
-			// TODO(FUTURE): separate out into more kinds to be more specific (errors vs fatal)
 			default: {
 				this->emit_error("Invalid base type", ast_type_base);
 				return evo::resultError;
