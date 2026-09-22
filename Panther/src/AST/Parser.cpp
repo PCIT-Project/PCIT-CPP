@@ -15,6 +15,9 @@ namespace pcit::panther{
 	
 
 	auto Parser::parse() -> evo::Result<> {
+		auto timer = this->context.getTimers().parsing.start();
+		EVO_DEFER([&](){ timer.stop(); });
+
 		EVO_DEFER([&](){ this->source.ast_buffer.lock(); });
 
 		while(this->reader.at_end() == false){

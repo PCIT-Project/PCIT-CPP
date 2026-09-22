@@ -33,8 +33,21 @@ namespace pcit::pir{
 			OptMode opt_mode,
 			bool add_debug_info,
 			llvm::LLVMContext* llvm_context,
-			evo::SmallVector<llvm::Module*>&& modules
+			evo::SmallVector<llvm::Module*>&& modules,
+			core::TimerNS* lower_to_llvmir_timer,
+			core::TimerNS* optimize_timer,
+			core::TimerNS* link_timer
 		){
+			std::optional<core::TimerNS::Runner> lower_to_llvmir_timer_runner =
+				[&]() -> std::optional<core::TimerNS::Runner> {
+					if(lower_to_llvmir_timer != nullptr){
+						return lower_to_llvmir_timer->start();
+					}else{
+						return std::nullopt;
+					}
+				}();
+
+
 			this->context.init(llvm_context);
 			EVO_DEFER([&](){ if(llvm_context != nullptr){ this->context.steal(); } });
 
@@ -80,6 +93,19 @@ namespace pcit::pir{
 
 			lowerer.lower();
 
+			if(lower_to_llvmir_timer_runner.has_value()){
+				lower_to_llvmir_timer_runner->stop();
+			}
+
+
+			std::optional<core::TimerNS::Runner> optimize_timer_runner = [&]() -> std::optional<core::TimerNS::Runner> {
+				if(optimize_timer != nullptr){
+					return optimize_timer->start();
+				}else{
+					return std::nullopt;
+				}
+			}();
+
 			switch(opt_mode){
 				break; case OptMode::NONE:            // do nothing...
 				break; case OptMode::SPEED_MINOR:     this->module.optimize(llvmint::Module::OptMode::O1);
@@ -90,12 +116,29 @@ namespace pcit::pir{
 			}
 
 
+			if(optimize_timer_runner.has_value()){
+				optimize_timer_runner->stop();
+			}
+
+
 
 			///////////////////////////////////
 			// link
 
+			std::optional<core::TimerNS::Runner> link_timer_runner = [&]() -> std::optional<core::TimerNS::Runner> {
+				if(link_timer != nullptr){
+					return link_timer->start();
+				}else{
+					return std::nullopt;
+				}
+			}();
+
 			for(llvm::Module* llvm_module : modules){
 				this->module.merge(llvm_module);
+			}
+
+			if(link_timer_runner.has_value()){
+				link_timer_runner->stop();
 			}
 		}
 
@@ -114,9 +157,21 @@ namespace pcit::pir{
 		OptMode opt_mode,
 		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
-		evo::SmallVector<llvm::Module*>&& modules
+		evo::SmallVector<llvm::Module*>&& modules,
+		core::TimerNS* lower_to_llvmir_timer,
+		core::TimerNS* optimize_timer,
+		core::TimerNS* link_timer
 	) -> std::string {
-		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(
+			module,
+			opt_mode,
+			add_debug_info,
+			llvm_context,
+			std::move(modules),
+			lower_to_llvmir_timer,
+			optimize_timer,
+			link_timer
+		);
 		return lowering_data.module.print();
 	}
 
@@ -126,9 +181,34 @@ namespace pcit::pir{
 		OptMode opt_mode,
 		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
-		evo::SmallVector<llvm::Module*>&& modules
+		evo::SmallVector<llvm::Module*>&& modules,
+		core::TimerNS* lower_to_llvmir_timer,
+		core::TimerNS* optimize_timer,
+		core::TimerNS* link_timer,
+		core::TimerNS* lower_to_assembly_timer
 	) -> evo::Result<std::string> {
-		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(
+			module,
+			opt_mode,
+			add_debug_info,
+			llvm_context,
+			std::move(modules),
+			lower_to_llvmir_timer,
+			optimize_timer,
+			link_timer
+		);
+
+		std::optional<core::TimerNS::Runner> lower_to_assembly_timer_runner =
+			[&]() -> std::optional<core::TimerNS::Runner> {
+				if(lower_to_assembly_timer != nullptr){
+					return lower_to_assembly_timer->start();
+				}else{
+					return std::nullopt;
+				}
+			}();
+
+		EVO_DEFER([&](){ if(lower_to_assembly_timer_runner.has_value()){ lower_to_assembly_timer_runner->stop(); } });
+
 		return lowering_data.module.lowerToAssembly();
 	}
 
@@ -137,9 +217,34 @@ namespace pcit::pir{
 		OptMode opt_mode,
 		bool add_debug_info,
 		llvm::LLVMContext* llvm_context,
-		evo::SmallVector<llvm::Module*>&& modules
+		evo::SmallVector<llvm::Module*>&& modules,
+		core::TimerNS* lower_to_llvmir_timer,
+		core::TimerNS* optimize_timer,
+		core::TimerNS* link_timer,
+		core::TimerNS* lower_to_object_timer
 	) -> evo::Result<std::vector<evo::byte>> {
-		auto lowering_data = LoweringData(module, opt_mode, add_debug_info, llvm_context, std::move(modules));
+		auto lowering_data = LoweringData(
+			module,
+			opt_mode,
+			add_debug_info,
+			llvm_context,
+			std::move(modules),
+			lower_to_llvmir_timer,
+			optimize_timer,
+			link_timer
+		);
+
+		std::optional<core::TimerNS::Runner> lower_to_object_timer_runner =
+			[&]() -> std::optional<core::TimerNS::Runner> {
+				if(lower_to_object_timer != nullptr){
+					return lower_to_object_timer->start();
+				}else{
+					return std::nullopt;
+				}
+			}();
+
+		EVO_DEFER([&](){ if(lower_to_object_timer_runner.has_value()){ lower_to_object_timer_runner->stop(); } });
+
 		return lowering_data.module.lowerToObject();
 	}
 	

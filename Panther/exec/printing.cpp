@@ -2994,5 +2994,167 @@ namespace pthr{
 		ast_printer.print_globals();
 	}
 
+
+
+	auto print_timers(
+		core::Printer& printer,
+		const panther::Context& context,
+		const core::TimerNS& total_timer,
+		const TimerOptions& timer_options
+	) -> void {
+		struct ItemInfo{
+			std::string_view name;
+			std::string real;
+			std::string user;
+
+			ItemInfo(
+				std::string_view item_str,
+				const core::TimerNS& timer,
+				const panther::Context::NumThreads* num_threads // nullptr user == real
+			) : name(item_str) {
+				const auto num_user_ns = timer.getTotalAsRep();
+
+				if(num_user_ns < 1'000'000'000){ // < 1 second
+					this->user = std::format("{:.3}ms", double(num_user_ns / 1'000) / 1000);
+
+				}else if(num_user_ns < 10'000'000'000){ // < 10 seconds
+					this->user = std::format("{:.2}s", double(num_user_ns / 10'000'000) / 100);
+
+				}else{
+					this->user = std::format("{}s", num_user_ns / 1'000'000'000);
+				}
+
+				if(num_threads != nullptr){
+					const auto num_real_ns = [&]() -> auto {
+						if(num_threads->isSingle() || num_threads->getNum() == 1){
+							return num_user_ns;
+						}else{
+							return num_user_ns / num_threads->getNum();
+						}
+					}();
+
+					if(num_real_ns < 1'000'000'000){ // < 1 second
+						this->real = std::format("{:.3}ms", double(num_real_ns / 1'000) / 1000);
+
+					}else if(num_real_ns < 10'000'000'000){ // < 10 seconds
+						this->real = std::format("{:.2}s", double(num_real_ns / 10'000'000) / 100);
+
+					}else{
+						this->real = std::format("{}s", num_real_ns / 1'000'000'000);
+					}
+
+				}else{
+					this->real = std::move(this->user);
+				}
+			}
+		};
+
+		auto item_infos = evo::StaticVector<ItemInfo, 12>();
+
+
+		if(timer_options.tokenization){
+			item_infos.emplace_back(
+				"Tokenization", context.getTimers().tokenization, &context.getConfig().numThreads
+			);
+		}
+
+		if(timer_options.parsing){
+			item_infos.emplace_back(
+				"Parsing", context.getTimers().parsing, &context.getConfig().numThreads
+			);
+		}
+
+		if(timer_options.semantic_analysis){
+			item_infos.emplace_back(
+				"Semantic Analysis", context.getTimers().semantic_analysis, &context.getConfig().numThreads
+			);
+		}
+
+		if(timer_options.lower_to_pir_comptime){
+			item_infos.emplace_back(
+				"Lowering to PIR (comptime)",
+				context.getTimers().lower_to_pir_comptime,
+				&context.getConfig().numThreads
+			);
+		}
+
+		if(timer_options.lower_to_pir_runtime){
+			item_infos.emplace_back("Lowering to PIR (runtime)", context.getTimers().lower_to_pir_runtime, nullptr);
+		}
+
+		if(timer_options.pir_optimize){
+			item_infos.emplace_back(
+				"Optimizing PIR", context.getTimers().pir_optimize, &context.getConfig().numThreads
+			);
+		}
+
+		if(timer_options.lower_to_llvmir){
+			item_infos.emplace_back("Lowering to LLVM IR", context.getTimers().lower_to_llvmir, nullptr);
+		}
+
+		if(timer_options.llvmir_optimize){
+			item_infos.emplace_back("Optimizing LLVM IR", context.getTimers().llvmir_optimize, nullptr);
+		}
+
+		if(timer_options.lower_to_aseembly){
+			item_infos.emplace_back("Lowering to Assembly", context.getTimers().lower_to_object_or_assembly, nullptr);
+		}else if(timer_options.lower_to_object){
+			item_infos.emplace_back("Lowering to Object", context.getTimers().lower_to_object_or_assembly, nullptr);
+		}
+
+		if(timer_options.link){
+			item_infos.emplace_back("Linking", context.getTimers().link, nullptr);
+		}
+
+		if(timer_options.execution){
+			item_infos.emplace_back("Execution", context.getTimers().execution, nullptr);
+		}
+
+		item_infos.emplace_back("Total", total_timer, nullptr);
+
+
+		size_t max_name_length = 0;
+		size_t max_user_length = 4;
+		size_t max_real_length = 0;
+		for(const ItemInfo& item_info : item_infos){
+			max_name_length = std::max(item_info.name.size(), max_name_length);
+			max_user_length = std::max(item_info.user.size(), max_user_length);
+			max_real_length = std::max(item_info.real.size(), max_real_length);
+		}
+
+
+		auto print_string = std::string(" Timings");
+		print_string.append(max_name_length - print_string.size(), ' ');
+
+		print_string += "  | real";
+		print_string.append(max_real_length - 4, ' ');
+
+		print_string += " | user";
+		print_string.append(max_user_length - 4, ' ');
+		print_string += '\n';
+
+		print_string.append(print_string.size(), '-');
+		print_string += '\n';
+
+		for(const ItemInfo& item_info : item_infos){
+			print_string += " ";
+			print_string += item_info.name;
+			print_string.append(max_name_length - item_info.name.size(), ' ');
+			print_string += " | ";
+
+			print_string.append(max_real_length - item_info.real.size(), ' ');
+			print_string += item_info.real;
+
+			print_string += " | ";
+
+			print_string.append(max_user_length - item_info.user.size(), ' ');
+			print_string += item_info.user;
+
+			print_string += '\n';
+		}
+
+		printer.printGray(print_string);
+	}
+
 	
 }

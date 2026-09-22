@@ -793,10 +793,16 @@ namespace pcit::panther{
 			return evo::resultError;
 		}
 
+		auto pir_timer = this->timers.lower_to_pir_runtime.start();
+
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
 
+		pir_timer.stop();
+
 		if(this->_config.optMode != pir::OptMode::NONE){
+			auto optimize_timer = this->timers.pir_optimize.start();
+
 			unsigned num_threads = 0;
 			if(this->_config.numThreads.isMulti()){
 				num_threads = this->_config.numThreads.getNum();
@@ -816,6 +822,8 @@ namespace pcit::panther{
 			}else{
 				pass_manager.runSingleThreaded();
 			}
+
+			optimize_timer.stop();
 		}
 
 		this->deinit_comptime_execution_engine_funcs();
@@ -1015,8 +1023,12 @@ namespace pcit::panther{
 		);
 
 
+		auto pir_timer = this->timers.lower_to_pir_runtime.start();
+
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
+
+		pir_timer.stop();
 
 		this->deinit_comptime_execution_engine_funcs();
 
@@ -1067,8 +1079,12 @@ namespace pcit::panther{
 					*this->entry.load(std::memory_order::relaxed)
 				);
 
+				auto execution_timer = this->timers.execution.start();
+
 				evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
 					this->execution_engine.runFunction(entry_func_pir_id, std::span<core::GenericValue>());
+
+				execution_timer.stop();
 
 				if(run_result.has_value() == false){
 					this->interpreter_result_emit_diagnostic(run_result.error());
@@ -1151,6 +1167,9 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// run
 
+				auto execution_timer = this->timers.execution.start();
+				EVO_DEFER([&](){ execution_timer.stop(); });
+
 				return jit_engine.getSymbol<uint8_t(*)(void)>("PTHR.entry")();
 			} break;
 		}
@@ -1181,13 +1200,15 @@ namespace pcit::panther{
 			"Can only run entry if target is native or Panther"
 		);
 
+		auto pir_timer = this->timers.lower_to_pir_runtime.start();
 
 		sema_to_pir_data.createJITBuildFuncDecls(this->pir_module);
-
 
 		auto sema_to_pir = SemaToPIR(*this, this->pir_module, this->sema_to_pir_data);
 		sema_to_pir.lowerRuntime();
 		const pir::Function::ID pir_entry = sema_to_pir.createJITEntry(*this->entry.load(std::memory_order::relaxed));
+
+		pir_timer.stop();
 
 
 		this->_create_panther_build_callback = &create_panther_build_callback;
@@ -1306,6 +1327,9 @@ namespace pcit::panther{
 
 
 	auto Context::lowerToLLVMIR() -> evo::Result<std::string> {
+		auto llvmir_timer = this->timers.lower_to_llvmir.start();
+		EVO_DEFER([&](){ llvmir_timer.stop(); });
+
 		auto llvm_context = llvmint::LLVMContext();
 		llvm_context.init();
 		EVO_DEFER([&](){ llvm_context.deinit(); });
@@ -1321,7 +1345,10 @@ namespace pcit::panther{
 			this->_config.optMode,
 			true,
 			llvm_context.native(),
-			std::move(clang_modules.value())
+			std::move(clang_modules.value()),
+			&this->timers.lower_to_llvmir,
+			&this->timers.llvmir_optimize,
+			&this->timers.link
 		);
 	}
 
@@ -1341,7 +1368,11 @@ namespace pcit::panther{
 			this->_config.optMode,
 			true,
 			llvm_context.native(),
-			std::move(clang_modules.value())
+			std::move(clang_modules.value()),
+			&this->timers.lower_to_llvmir,
+			&this->timers.llvmir_optimize,
+			&this->timers.link,
+			&this->timers.lower_to_object_or_assembly
 		);
 	}
 
@@ -1361,7 +1392,11 @@ namespace pcit::panther{
 			this->_config.optMode,
 			true,
 			llvm_context.native(),
-			std::move(clang_modules.value())
+			std::move(clang_modules.value()),
+			&this->timers.lower_to_llvmir,
+			&this->timers.llvmir_optimize,
+			&this->timers.link,
+			&this->timers.lower_to_object_or_assembly
 		);
 	}
 

@@ -25,6 +25,7 @@ namespace pthr{
 	auto print_logo(core::Printer& printer) -> void;
 	auto print_version(core::Printer& printer) -> void;
 
+
 	auto print_tokens(core::Printer& printer, const panther::Source& source, const fs::path& relative_dir) -> void;
 
 	auto print_ast(
@@ -32,4 +33,26 @@ namespace pthr{
 	) -> void;
 
 	
+	struct TimerOptions{
+		bool tokenization = false;
+		bool parsing = false;
+		bool semantic_analysis = false;
+		bool lower_to_pir_comptime = false;
+		bool lower_to_pir_runtime = false;
+		bool pir_optimize = false;
+		bool lower_to_llvmir = false;
+		bool llvmir_optimize = false;
+		bool lower_to_aseembly = false;
+		bool lower_to_object = false;
+		bool link = false;
+		bool execution = false;
+	};
+
+	auto print_timers(
+		core::Printer& printer,
+		const panther::Context& context,
+		const core::TimerNS& total_timer,
+		const TimerOptions& timer_options
+	) -> void;
+
 }

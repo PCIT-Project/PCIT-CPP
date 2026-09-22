@@ -27,6 +27,7 @@
 #include "./Target.hpp"
 #include "./ThreadPool.hpp"
 #include "./ThreadQueue.hpp"
+#include "./Timer.hpp"
 #include "./UniqueID.hpp"
 #include "./version.hpp"
 #include "./windows.hpp"

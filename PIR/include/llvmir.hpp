@@ -29,7 +29,10 @@ namespace pcit::pir{
 		OptMode opt_mode = OptMode::NONE,
 		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
-		evo::SmallVector<llvm::Module*>&& modules = {}
+		evo::SmallVector<llvm::Module*>&& modules = {},
+		core::TimerNS* lower_to_llvmir_timer = nullptr,
+		core::TimerNS* optimize_timer = nullptr,
+		core::TimerNS* link_timer = nullptr
 	) -> std::string;
 
 	auto lowerToAssembly(
@@ -37,7 +40,11 @@ namespace pcit::pir{
 		OptMode opt_mode = OptMode::NONE,
 		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
-		evo::SmallVector<llvm::Module*>&& modules = {}
+		evo::SmallVector<llvm::Module*>&& modules = {},
+		core::TimerNS* lower_to_llvmir_timer = nullptr,
+		core::TimerNS* optimize_timer = nullptr,
+		core::TimerNS* link_timer = nullptr,
+		core::TimerNS* lower_to_assembly_timer = nullptr
 	) -> evo::Result<std::string>;
 
 	auto lowerToObject(
@@ -45,7 +52,11 @@ namespace pcit::pir{
 		OptMode opt_mode = OptMode::NONE,
 		bool add_debug_info = true,
 		llvm::LLVMContext* llvm_context = nullptr,
-		evo::SmallVector<llvm::Module*>&& modules = {}
+		evo::SmallVector<llvm::Module*>&& modules = {},
+		core::TimerNS* lower_to_llvmir_timer = nullptr,
+		core::TimerNS* optimize_timer = nullptr,
+		core::TimerNS* link_timer = nullptr,
+		core::TimerNS* lower_to_object_timer = nullptr
 	) -> evo::Result<std::vector<evo::byte>>;
 
 }

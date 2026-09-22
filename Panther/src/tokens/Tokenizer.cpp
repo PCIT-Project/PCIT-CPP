@@ -56,6 +56,9 @@ namespace pcit::panther{
 
 	
 	auto Tokenizer::tokenize() -> evo::Result<> {
+		auto timer = this->context.getTimers().tokenization.start();
+		EVO_DEFER([&](){ timer.stop(); });
+
 		EVO_DEFER([&](){ this->source.token_buffer.lock(); });
 
 		while(

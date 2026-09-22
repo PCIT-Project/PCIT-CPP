@@ -464,6 +464,26 @@ namespace pcit::panther{
 			[[nodiscard]] auto getConfig() const -> const Config& { return this->_config; }
 
 
+
+			// Timers represent user time, not real time
+			struct Timers{
+				core::TimerNS tokenization{};
+				core::TimerNS parsing{};
+				core::TimerNS semantic_analysis{};
+				core::TimerNS lower_to_pir_comptime{};
+				core::TimerNS lower_to_pir_runtime{};
+				core::TimerNS pir_optimize{};
+				core::TimerNS lower_to_llvmir{};
+				core::TimerNS llvmir_optimize{};
+				core::TimerNS lower_to_object_or_assembly{};
+				core::TimerNS link{};
+				core::TimerNS execution{};
+			};
+
+			[[nodiscard]] auto getTimers() const -> const Timers& { return this->timers; };
+			[[nodiscard]] auto getTimers()       ->       Timers& { return this->timers; };
+
+
 			///////////////////////////////////
 			// build targets
 
@@ -923,6 +943,7 @@ namespace pcit::panther{
 			
 
 			ContextComptimeContext comptime_context{};
+			Timers timers{};
 
 
 			const CreatePantherBuildCallback* _create_panther_build_callback = nullptr;

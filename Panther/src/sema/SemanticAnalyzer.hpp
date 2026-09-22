@@ -43,8 +43,6 @@ namespace pcit::panther{
 			auto analyze() -> void;
 
 
-
-
 			[[nodiscard]] auto genericValueToSemaExpr(
 				const core::GenericValue& value,
 				TypeInfo::ID target_type_id,
@@ -1823,6 +1821,35 @@ namespace pcit::panther{
 			Source& source;
 			SymbolProc& symbol_proc;
 			sema::ScopeManager::Scope& scope;
+
+			std::optional<core::TimerNS::Runner> timer{std::nullopt};
+
+
+			struct PIRTimer{
+				PIRTimer(
+					core::TimerNS& _sema_timer,
+					core::TimerNS::Runner& _sema_runner,
+					core::TimerNS::Runner&& _pir_runner
+				) : sema_timer(_sema_timer), sema_runner(_sema_runner), pir_runner(std::move(_pir_runner)) {}
+
+				~PIRTimer(){
+					this->pir_runner.stop();
+					this->sema_runner = this->sema_timer.start();
+				}
+
+				core::TimerNS& sema_timer;
+				core::TimerNS::Runner& sema_runner;
+				core::TimerNS::Runner pir_runner;
+			};
+
+			[[nodiscard]] auto set_scope_pir_timer() -> PIRTimer {
+				this->timer->stop();
+				return PIRTimer(
+					this->context.getTimers().semantic_analysis,
+					*this->timer,
+					this->context.getTimers().lower_to_pir_comptime.start()
+				);
+			}
 
 
 			friend class Attribute;

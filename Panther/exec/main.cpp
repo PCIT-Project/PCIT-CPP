@@ -149,6 +149,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	panther::Context::PantherBuildConfig& config,
 	core::Printer& printer
 ) -> evo::Result<> {
+	auto total_timer = core::TimerNS();
+	auto total_timer_runner = total_timer.start();
+
+
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::SOME){
 		printer.println();
 		printer.printlnMagenta("Running compile");
@@ -190,7 +194,6 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			break; case panther::Context::Config::Mode::FAST:  printer.printlnMagenta("Mode:               FAST");
 			break; case panther::Context::Config::Mode::SMALL: printer.printlnMagenta("Mode:               SMALL");
 			break; case panther::Context::Config::Mode::SAFE:  printer.printlnMagenta("Mode:               SAFE");
-
 		}
 
 		switch(config.optMode){
@@ -724,6 +727,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.print(printer_for_tokens.getString());
 			}
 
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = false,
+					.semantic_analysis     = false,
+					.lower_to_pir_comptime = false,
+					.lower_to_pir_runtime  = false,
+					.pir_optimize          = false,
+					.lower_to_llvmir       = false,
+					.llvmir_optimize       = false,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -775,6 +796,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.print(printer_for_ast.getString());
 			}
 
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = false,
+					.lower_to_pir_comptime = false,
+					.lower_to_pir_runtime  = false,
+					.pir_optimize          = false,
+					.lower_to_llvmir       = false,
+					.llvmir_optimize       = false,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -782,6 +821,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			if(context->analyzeSemantics().isError()){
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
+			}
+
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = false,
+					.pir_optimize          = false,
+					.lower_to_llvmir       = false,
+					.llvmir_optimize       = false,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
 			}
 
 			return evo::Result<>();
@@ -830,6 +887,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.print(printer_for_pir_module.getString());
 			}
 
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = false,
+					.llvmir_optimize       = false,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -872,6 +947,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}else{
 				if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){ printer.println(); }
 				printer.print(llvmir_string.value());
+			}
+
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = true,
+					.llvmir_optimize       = config.optMode != pir::OptMode::NONE,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
 			}
 
 			return evo::Result<>();
@@ -924,6 +1017,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.print(asm_result.value());
 			}
 
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = true,
+					.llvmir_optimize       = config.optMode != pir::OptMode::NONE,
+					.lower_to_aseembly     = true,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = false,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -972,6 +1083,24 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.printlnMagenta("Created object file: \"{}\"", object_path.string());
 			}
 
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = true,
+					.llvmir_optimize       = config.optMode != pir::OptMode::NONE,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = true,
+					.link                  = false,
+					.execution             = false,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -984,6 +1113,25 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			const evo::Result<uint8_t> entry_res = context->runEntry(panther::Context::ExecutionMode::JIT, true);
 			if(entry_res.isError()){ return evo::resultError; }
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
+
+			total_timer_runner.stop();
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = true,
+					.llvmir_optimize       = config.optMode != pir::OptMode::NONE,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = false,
+					.link                  = false,
+					.execution             = true,
+				});
+			}
+
 			return evo::Result<>();
 		} break;
 
@@ -1045,6 +1193,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+			auto link_timer = context->getTimers().link.start();
 
 			const plnk::Options plnk_options = [&]() -> plnk::Options {
 				switch(config.platform){
@@ -1106,6 +1255,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 			const plnk::LinkResult link_result = plnk::link(link_file_paths, plnk_options);
 
+			link_timer.stop();
 
 			if(link_result.messages.empty() == false){
 				printer.printlnCyan("<Info> Linker messages");
@@ -1171,8 +1321,29 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				return evo::resultError;
 			}
 
+
+
 			if(cmd_args_config.verbosity >= pthr::CmdArgsConfig::Verbosity::SOME){
 				printer.printlnMagenta("Created executable: \"{}\"", exec_path.string());
+			}
+
+			total_timer_runner.stop();
+
+			if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
+				pthr::print_timers(printer, *context, total_timer, pthr::TimerOptions{
+					.tokenization          = true,
+					.parsing               = true,
+					.semantic_analysis     = true,
+					.lower_to_pir_comptime = true,
+					.lower_to_pir_runtime  = true,
+					.pir_optimize          = config.optMode != pir::OptMode::NONE,
+					.lower_to_llvmir       = true,
+					.llvmir_optimize       = config.optMode != pir::OptMode::NONE,
+					.lower_to_aseembly     = false,
+					.lower_to_object       = true,
+					.link                  = true,
+					.execution             = false,
+				});
 			}
 
 			return evo::Result<>();

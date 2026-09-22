@@ -32,6 +32,9 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::analyze() -> void {
+		this->timer = this->context.getTimers().semantic_analysis.start();
+		EVO_DEFER([&](){ this->timer->stop(); });
+
 		if(this->symbol_proc.passedOnByWhen()){ return; }
 
 		{
@@ -923,6 +926,8 @@ namespace pcit::panther{
 			this->symbol_proc.extra_info.emplace<SymbolProc::NonLocalVarInfo>(new_sema_var);
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
+				auto pir_timer = this->set_scope_pir_timer();
+
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
@@ -1043,6 +1048,8 @@ namespace pcit::panther{
 			sema_var.defCompleted = true;
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
+				auto pir_timer = this->set_scope_pir_timer();
+
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 				sema_to_pir.lowerGlobalDef(sema_var_id);
 			}
@@ -1249,6 +1256,8 @@ namespace pcit::panther{
 
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
+				auto pir_timer = this->set_scope_pir_timer();
+
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
@@ -1630,8 +1639,12 @@ namespace pcit::panther{
 			}
 		);
 
-		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-		sema_to_pir.forwardDeclStruct(created_struct.structID());
+		{
+			auto pir_timer = this->set_scope_pir_timer();
+
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.forwardDeclStruct(created_struct.structID());
+		}
 
 		struct_info.struct_id = created_struct.structID();
 
@@ -1910,7 +1923,10 @@ namespace pcit::panther{
 
 		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
-		sema_to_pir.lowerStruct(created_struct_id);
+		{
+			auto pir_timer = this->set_scope_pir_timer();
+			sema_to_pir.lowerStruct(created_struct_id);
+		}
 
 
 
@@ -2107,6 +2123,7 @@ namespace pcit::panther{
 					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().init_func = 
 						created_default_init_new_id;
 				}else{
+					auto pir_timer = this->set_scope_pir_timer();
 					sema_to_pir.lowerFuncDecl(created_default_init_new_id);
 				}
 			}
@@ -2275,6 +2292,7 @@ namespace pcit::panther{
 					this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
 						created_default_delete_id;
 				}else{
+					auto pir_timer = this->set_scope_pir_timer();
 					sema_to_pir.lowerFuncDecl(created_default_delete_id);
 				}
 			}
@@ -2474,6 +2492,7 @@ namespace pcit::panther{
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().move_func = 
 							created_default_move_id;
 					}else{
+						auto pir_timer = this->set_scope_pir_timer();
 						sema_to_pir.lowerFuncDecl(created_default_move_id);
 					}
 				}
@@ -2688,6 +2707,7 @@ namespace pcit::panther{
 						this->symbol_proc.data_stack.top().as<SymbolProc::StructSpecialMemberFuncs>().copy_func = 
 							created_default_copy_id;
 					}else{
+						auto pir_timer = this->set_scope_pir_timer();
 						sema_to_pir.lowerFuncDecl(created_default_copy_id);
 					}
 				}
@@ -2739,6 +2759,8 @@ namespace pcit::panther{
 
 
 		const auto lower_func = [&](sema::Func::ID target_func_id) -> evo::Result<> {
+			auto pir_timer = this->set_scope_pir_timer();
+
 			sema_to_pir.lowerFuncDecl(target_func_id);
 			sema_to_pir.lowerFuncDefComptime(target_func_id);
 
@@ -3045,9 +3067,12 @@ namespace pcit::panther{
 		union_type.defCompleted = true;
 
 
-		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		{
+			auto pir_timer = this->set_scope_pir_timer();
 
-		sema_to_pir.lowerUnion(union_info.union_id);
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerUnion(union_info.union_id);
+		}
 
 		this->propagate_finished_def();
 
@@ -3224,8 +3249,12 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_enum_def() -> Result {
 		SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
 
-		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-		sema_to_pir.lowerEnum(enum_info.enum_id);
+		{
+			auto pir_timer = this->set_scope_pir_timer();
+
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerEnum(enum_info.enum_id);
+		}
 
 		BaseType::Enum& enum_type = this->context.type_manager.getEnum(enum_info.enum_id);
 		enum_type.defCompleted = true;
@@ -5097,8 +5126,12 @@ namespace pcit::panther{
 		//////////////////
 		// prepare pir
 
-		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-		sema_to_pir.lowerFuncDecl(current_func_id);
+		{
+			auto pir_timer = this->set_scope_pir_timer();
+
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerFuncDecl(current_func_id);
+		}
 
 		this->propagate_finished_pir_decl();
 
@@ -5289,14 +5322,18 @@ namespace pcit::panther{
 		//////////////////
 		// prepare pir
 
-		auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+		{
+			auto pir_timer = this->set_scope_pir_timer();
 
-		sema_to_pir.lowerFuncDecl(current_func_id);
+			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+			sema_to_pir.lowerFuncDecl(current_func_id);
 
-
-		if(func_info.flipped_version.has_value()){
-			sema_to_pir.lowerFuncDecl(*func_info.flipped_version);
+			if(func_info.flipped_version.has_value()){
+				sema_to_pir.lowerFuncDecl(*func_info.flipped_version);
+			}
 		}
+
+
 
 		this->propagate_finished_pir_decl();
 
@@ -5643,8 +5680,12 @@ namespace pcit::panther{
 		if(this->func_scope_current_value_stage().requiresComptime()){
 			const sema::Func::ID sema_func_id = this->scope.getCurrentEncapsulatingSymbol().as<sema::Func::ID>();
 
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-			sema_to_pir.lowerFuncDefComptime(sema_func_id);
+			{
+				auto pir_timer = this->set_scope_pir_timer();
+
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+				sema_to_pir.lowerFuncDefComptime(sema_func_id);
+			}
 
 
 			bool any_waiting = false;
@@ -6125,8 +6166,12 @@ namespace pcit::panther{
 			}
 
 
-			auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
-			sema_to_pir.lowerInterface(current_interface_id);
+			{
+				auto pir_timer = this->set_scope_pir_timer();
+
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+				sema_to_pir.lowerInterface(current_interface_id);
+			}
 		}
 
 		this->propagate_finished_decl();
@@ -6541,8 +6586,9 @@ namespace pcit::panther{
 			}();
 
 			if(should_comptime_lower){
-				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
+				auto pir_timer = this->set_scope_pir_timer();
 
+				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 				sema_to_pir.lowerInterfaceVTableComptime(
 					info.target_interface_id, current_type_id, interface_impl.methods
 				);
@@ -6747,6 +6793,8 @@ namespace pcit::panther{
 
 
 			if(instr.var_def.kind == AST::VarDef::Kind::CONST){
+				auto pir_timer = this->set_scope_pir_timer();
+
 				auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 
 				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
@@ -25003,6 +25051,8 @@ namespace pcit::panther{
 			if constexpr(std::is_same<SymbolType, BaseType::ID>()){
 				switch(symbol.kind()){
 					case BaseType::Kind::STRUCT: {
+						auto pir_timer = this->set_scope_pir_timer();
+
 						auto sema_to_pir = SemaToPIR(
 							this->context, this->context.pir_module, this->context.sema_to_pir_data
 						);
@@ -25010,6 +25060,8 @@ namespace pcit::panther{
 					} break;
 
 					case BaseType::Kind::UNION: {
+						auto pir_timer = this->set_scope_pir_timer();
+
 						auto sema_to_pir = SemaToPIR(
 							this->context, this->context.pir_module, this->context.sema_to_pir_data
 						);
@@ -25017,6 +25069,8 @@ namespace pcit::panther{
 					} break;
 
 					case BaseType::Kind::ENUM: {
+						auto pir_timer = this->set_scope_pir_timer();
+
 						auto sema_to_pir = SemaToPIR(
 							this->context, this->context.pir_module, this->context.sema_to_pir_data
 						);
@@ -27435,8 +27489,10 @@ namespace pcit::panther{
 
 		const auto sema_to_pir = SemaToPIR(this->context, this->context.pir_module, this->context.sema_to_pir_data);
 		
-		evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> run_result = 
-			this->context.execution_engine.runFunction(sema_to_pir.lookupPIRFunc(func_id, args), actual_args);
+		auto run_result = [&]() -> evo::Expected<core::GenericValue, pir::ExecutionEngine::FuncRunError> {
+			auto pir_timer = this->set_scope_pir_timer();
+			return this->context.execution_engine.runFunction(sema_to_pir.lookupPIRFunc(func_id, args), actual_args);
+		}();
 
 		ContextComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
 
