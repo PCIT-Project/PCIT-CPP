@@ -10869,7 +10869,8 @@ namespace pcit::panther{
 
 		auto target_copy = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -11075,7 +11076,8 @@ namespace pcit::panther{
 
 		auto target_move = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -11312,7 +11314,8 @@ namespace pcit::panther{
 
 		auto target_forward = TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -12291,6 +12294,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeBool(),
 							sema::Expr(
@@ -12342,6 +12346,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeStringRef(),
 							sema::Expr(
@@ -12373,6 +12378,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeStringRef(),
@@ -12408,6 +12414,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						IS_COMPTIME,
+						IS_COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						selected_func_type_return_params[0].asTypeID(),
 						sema::Expr(sema_func_call_id)
@@ -12422,6 +12429,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						IS_COMPTIME,
 						IS_COMPTIME,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						std::move(return_types),
@@ -12498,6 +12506,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						false,
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						selected_func_type_return_params[0].asTypeID(),
 						sema::Expr(sema_func_call_id)
@@ -12512,6 +12521,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						std::move(return_types),
@@ -12548,7 +12558,7 @@ namespace pcit::panther{
 			this->get_sema_location(Diagnostic::Location::get(instr.func_call, this->source))
 		);
 
-		const bool output_is_comptime = [&](){
+		const bool output_may_be_comptime = [&](){
 			if constexpr(IS_COMPTIME){
 				return true;
 
@@ -12569,7 +12579,8 @@ namespace pcit::panther{
 		if(selected_func_type_return_params.size() == 1){ // single return
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				output_is_comptime,
+				IS_COMPTIME,
+				output_may_be_comptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				selected_func_type_return_params[0].asTypeID(),
 				sema::Expr(sema_func_call_id)
@@ -12584,7 +12595,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				output_is_comptime,
+				IS_COMPTIME,
+				output_may_be_comptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(return_types),
 				sema::Expr(sema_func_call_id)
@@ -12605,7 +12617,7 @@ namespace pcit::panther{
 			}
 
 
-			evo::debugAssert(output_is_comptime, "Comptime func call must be comptime");
+			evo::debugAssert(output_may_be_comptime, "Comptime func call must be comptime");
 
 			return Result::SUCCESS;
 
@@ -12695,7 +12707,8 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						fake_term_info.isComptime,
+						false,
+						fake_term_info.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						held_type_id,
 						sema::Expr(
@@ -12728,7 +12741,8 @@ namespace pcit::panther{
 
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					fake_term_info.isComptime,
+					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeUSize(),
 					sema::Expr(created_int_value)
@@ -12765,7 +12779,8 @@ namespace pcit::panther{
 				
 				this->return_term_info(output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					fake_term_info.isComptime,
+					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_type_id,
 					sema::Expr(created_aggregate_value)
@@ -12790,6 +12805,7 @@ namespace pcit::panther{
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						fake_term_info.isComptime,
+						fake_term_info.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type_id,
 						sema::Expr(this->context.sema_buffer.createAddrOf(fake_term_info.expr))
@@ -12819,6 +12835,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						IS_COMPTIME,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
@@ -12835,6 +12852,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
@@ -12865,7 +12883,8 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						fake_term_info.isComptime,
+						false,
+						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
 						sema::Expr(created_array_ref_dimensions)
@@ -12895,6 +12914,7 @@ namespace pcit::panther{
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
 						init_array_ref.expr
@@ -12910,6 +12930,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						return_type,
@@ -12967,7 +12988,8 @@ namespace pcit::panther{
 				if(selected_func_type.returnTypes.size() == 1){ // single return
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						target_term_info.isComptime,
+						IS_COMPTIME,
+						target_term_info.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						selected_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(interface_call_id)
@@ -12982,7 +13004,8 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						target_term_info.isComptime,
+						IS_COMPTIME,
+						target_term_info.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						std::move(return_types),
 						sema::Expr(interface_call_id)
@@ -13065,6 +13088,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
+			true,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			func_call_term.type_id,
@@ -13214,6 +13238,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TypeManager::getTypeBool(),
 			sema::Expr(this->context.sema_buffer.createBoolValue(is_macro_defined, false))
@@ -13279,6 +13304,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
+			true,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			output_type_id,
@@ -13981,6 +14007,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					false,
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					return_types[0],
 					expr
@@ -13989,6 +14016,7 @@ namespace pcit::panther{
 			}else{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
+					false,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(return_types),
@@ -14348,6 +14376,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL, 
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						to_type_id,
@@ -16107,7 +16136,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				target.isComptime,
+				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				*target_type_id,
 				output_value
@@ -16172,7 +16202,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				target.isComptime,
+				false,
+				target.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				*target_type_id,
 				output_value
@@ -16341,7 +16372,8 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -16490,7 +16522,8 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			target.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target.type_id,
 			sema::Expr(
@@ -16552,6 +16585,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			target.isComptime,
+			target.ableToBeComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			this->create_addr_of_expr(target.getExpr())
@@ -16655,7 +16689,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						expr.isComptime,
+						false,
+						expr.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
@@ -16682,7 +16717,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						expr.isComptime,
+						false,
+						expr.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						expr.type_id.as<TypeInfo::ID>(),
 						sema::Expr(created_func_call_id)
@@ -16761,7 +16797,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
+				false,
+				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TypeManager::getTypeBool(),
 				sema::Expr(created_func_call_id)
@@ -16858,7 +16895,8 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					expr.isComptime,
+					false,
+					expr.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					expr.type_id.as<TypeInfo::ID>(),
 					sema::Expr(created_func_call_id)
@@ -16968,6 +17006,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
 				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				resultant_type_id,
 				*output_value
@@ -16985,7 +17024,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				target_type.qualifiers().back().isMut ? ValueCategory::CONCRETE_MUT : ValueCategory::CONCRETE_CONST,
-				target.isComptime,
+				false,
+				target.ableToBeComptime,
 				target_type.qualifiers().back().isUninit
 					? TermInfo::ValueState::UNINIT
 					: TermInfo::ValueState::NOT_APPLICABLE,
@@ -17056,6 +17096,7 @@ namespace pcit::panther{
 						? TermInfo::ValueCategory::CONCRETE_MUT
 						: TermInfo::ValueCategory::CONCRETE_CONST,
 					false,
+					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					resultant_type_id,
 					sema::Expr(
@@ -17121,6 +17162,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			target.is_mutable() ? TermInfo::ValueCategory::CONCRETE_MUT : TermInfo::ValueCategory::CONCRETE_CONST,
 			true,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
 			target_expr
@@ -17156,6 +17198,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EXPANDED_PACK,
 			false,
+			false,
 			TermInfo::ExpandedPackTypes{target.type_id.as<TermInfo::VariadicParamTypes>().type_ids},
 			std::move(exprs)
 		);
@@ -17188,6 +17231,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -17209,6 +17253,7 @@ namespace pcit::panther{
 						if(arg.value_category == TermInfo::ValueCategory::NULL_VALUE){
 							this->return_term_info(instr.output,
 								TermInfo::ValueCategory::EPHEMERAL,
+								true,
 								true,
 								TermInfo::ValueState::NOT_APPLICABLE,
 								target_type_id.asTypeID(),
@@ -17244,6 +17289,7 @@ namespace pcit::panther{
 
 							this->return_term_info(instr.output,
 								TermInfo::ValueCategory::EPHEMERAL,
+								true,
 								true,
 								TermInfo::ValueState::NOT_APPLICABLE,
 								target_type_id.asTypeID(),
@@ -17295,6 +17341,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
@@ -17377,6 +17424,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
@@ -17498,6 +17546,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id.asTypeID(), true))
@@ -17586,6 +17635,7 @@ namespace pcit::panther{
 					}
 
 					bool is_comptime = target_term_info.isComptime;
+					bool able_to_be_comptime = target_term_info.ableToBeComptime;
 
 					auto dimensions = evo::SmallVector<evo::Variant<uint64_t, sema::Expr>>();
 					dimensions.reserve(array_ref.dimensions.size());
@@ -17596,15 +17646,15 @@ namespace pcit::panther{
 
 							dimensions.emplace_back(dimension_term_info.getExpr());
 
-							if(dimension_term_info.isComptime == false){
-								is_comptime = false;
-							}
+							if(dimension_term_info.isComptime == false){ is_comptime = false; }
+							if(dimension_term_info.ableToBeComptime == false){ able_to_be_comptime = false; }
 						}
 					}
 
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						is_comptime,
 						is_comptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
@@ -17626,6 +17676,7 @@ namespace pcit::panther{
 					if(target_struct.isTriviallyDefaultInitializable){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							this->currently_in_func(),
 							this->currently_in_func(),
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type_id.asTypeID(),
@@ -17796,6 +17847,7 @@ namespace pcit::panther{
 
 
 				bool is_comptime = selected_func_type.attributes.isComptime;
+				bool able_to_be_comptime = selected_func_type.attributes.isComptime;
 
 				auto output_args = evo::SmallVector<sema::Expr>();
 				output_args.reserve(selected_func.params.size() + size_t(!should_run_initialization));
@@ -17809,6 +17861,7 @@ namespace pcit::panther{
 
 					output_args.emplace_back(arg_term_info.getExpr());
 					if(arg_term_info.isComptime == false){ is_comptime = false; }
+					if(arg_term_info.ableToBeComptime == false){ able_to_be_comptime = false; }
 				}
 
 				// default values
@@ -17818,7 +17871,9 @@ namespace pcit::panther{
 					i+=1
 				){
 					output_args.emplace_back(*selected_func.params[i].defaultValue);
-					if(selected_func.params[i].defaultValueIsComptime == false){ is_comptime = false; }
+					if(selected_func.params[i].defaultValueIsComptime == false){
+						is_comptime = false; able_to_be_comptime = false;
+					}
 				}
 
 				if constexpr(IS_COMPTIME){
@@ -17900,6 +17955,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					is_comptime,
+					able_to_be_comptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					sema::Expr(created_func_call_id)
@@ -17955,6 +18011,7 @@ namespace pcit::panther{
 				
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type_id.asTypeID(),
@@ -18121,6 +18178,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type_id.asTypeID(),
 					output_expr
@@ -18166,6 +18224,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo(
 				TermInfo::ValueCategory::EPHEMERAL,
+				true,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				default_new_expr.targetTypeID,
@@ -18352,6 +18411,7 @@ namespace pcit::panther{
 		values.reserve(instr.values.size() + size_t(target_type.terminator.has_value()));
 
 		bool is_comptime = true;
+		bool able_to_be_comptime = true;
 
 		for(size_t i = 0; const SymbolProc::TermInfoID value_id : instr.values){
 			TermInfo& value = this->get_term_info(value_id);
@@ -18374,9 +18434,8 @@ namespace pcit::panther{
 
 			values.emplace_back(value.getExpr());
 
-			if(value.isComptime == false){
-				is_comptime = false;
-			}
+			if(value.isComptime == false){ is_comptime = false; }
+			if(value.ableToBeComptime == false){ able_to_be_comptime = false; }
 
 			i += 1;
 		}
@@ -18398,6 +18457,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			is_comptime,
+			able_to_be_comptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -18487,6 +18547,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_id.asTypeID(),
 				sema::Expr(created_aggregate_value)
@@ -18511,6 +18572,7 @@ namespace pcit::panther{
 		values.reserve(target_type.memberVars.size());
 
 		bool is_comptime = true;
+		bool able_to_be_comptime = true;
 
 		size_t member_init_i = 0;
 		for(const BaseType::Struct::MemberVar* member_var : target_type.memberVarsABI){
@@ -18522,6 +18584,7 @@ namespace pcit::panther{
 					values.emplace_back(member_var->defaultValue->value);
 					if(member_var->defaultValue->isComptime == false){
 						is_comptime = false;
+						able_to_be_comptime = false;
 					}
 					continue;
 				}
@@ -18556,6 +18619,7 @@ namespace pcit::panther{
 						values.emplace_back(member_var->defaultValue->value);
 						if(member_var->defaultValue->isComptime == false){
 							is_comptime = false;
+							able_to_be_comptime = false;
 						}
 						continue;
 					}
@@ -18605,9 +18669,8 @@ namespace pcit::panther{
 
 				values.emplace_back(member_init_expr.getExpr());
 
-				if(member_init_expr.isComptime == false){
-					is_comptime = false;
-				}
+				if(member_init_expr.isComptime == false){ is_comptime = false; }
+				if(member_init_expr.ableToBeComptime == false){ able_to_be_comptime = false; }
 
 				member_init_i += 1;
 			}
@@ -18639,6 +18702,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
 			is_comptime,
+			able_to_be_comptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			target_type_id.asTypeID(),
 			sema::Expr(created_aggregate_value)
@@ -18862,6 +18926,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
+			false,
 			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
@@ -19091,6 +19156,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
 			false,
+			false,
 			TermInfo::ExceptParamPack{},
 			std::move(except_params)
 		);
@@ -19201,7 +19267,8 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			attempt_expr.isComptime && except_expr.isComptime,
+			false,
+			false,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			attempt_expr.type_id,
 			try_catch_expr
@@ -19350,6 +19417,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				false,
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				ret_param_types[0],
 				sema::Expr(asm_expr)
@@ -19358,6 +19426,7 @@ namespace pcit::panther{
 		}else{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
+				false,
 				false,
 				std::move(ret_param_types),
 				sema::Expr(asm_expr)
@@ -19461,6 +19530,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				false,
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				sema_block_expr.outputs[0].typeID,
 				sema::Expr(sema_block_expr_id)
@@ -19474,6 +19544,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
+				false,
 				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(types),
@@ -19722,12 +19793,14 @@ namespace pcit::panther{
 
 
 				bool is_comptime = selected_func_type.attributes.isComptime;
+				bool able_to_be_comptime = selected_func_type.attributes.isComptime;
 
 				auto sema_args = evo::SmallVector<sema::Expr>();
 				sema_args.reserve(arg_infos.size());
 				for(const SelectFuncOverloadArgInfo& arg_info : arg_infos){
 					sema_args.emplace_back(arg_info.term_info.getExpr());
 					if(arg_info.term_info.isComptime == false){ is_comptime = false; }
+					if(arg_info.term_info.ableToBeComptime == false){ able_to_be_comptime = false; }
 				}
 
 				if constexpr(IS_COMPTIME){
@@ -19736,7 +19809,8 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					is_comptime,
+					IS_COMPTIME,
+					able_to_be_comptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					selected_overload_info.func_type.returnTypes[0].asTypeID(),
 					sema::Expr(
@@ -19884,6 +19958,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
+			IS_COMPTIME,
 			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
@@ -20505,6 +20580,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						expr.getExpr()
@@ -20523,6 +20599,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_float_value)
@@ -20539,6 +20616,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
@@ -20571,6 +20649,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
 						sema::Expr(new_int_value)
@@ -20586,6 +20665,7 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
@@ -20611,6 +20691,7 @@ namespace pcit::panther{
 				){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_type.asTypeID(),
@@ -20760,10 +20841,10 @@ namespace pcit::panther{
 			}
 
 
-			const bool output_is_comptime = selected_func_type.attributes.isComptime && expr.isComptime;
+			const bool able_to_be_comptime = selected_func_type.attributes.isComptime && expr.ableToBeComptime;
 
 			if constexpr(IS_COMPTIME){
-				evo::debugAssert(output_is_comptime, "This output must be comptime");
+				evo::debugAssert(able_to_be_comptime, "This output must be comptime");
 			}
 
 
@@ -20775,7 +20856,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				output_is_comptime,
+				IS_COMPTIME,
+				able_to_be_comptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(conversion_call)
@@ -20891,7 +20973,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
+				IS_COMPTIME,
+				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				created_array_to_array_ref
@@ -20958,7 +21041,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
+				IS_COMPTIME,
+				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				expr.getExpr()
@@ -20978,7 +21062,8 @@ namespace pcit::panther{
 		if(from_underlying_type_id == to_underlying_type_id){
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
+				IS_COMPTIME,
+				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				expr.getExpr()
@@ -20995,6 +21080,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_I_N: case Token::Kind::TYPE_UI_N: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
@@ -21014,6 +21100,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -21030,6 +21117,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F32: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
@@ -21048,6 +21136,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -21065,6 +21154,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(this->context.sema_buffer.createFloatValue(
@@ -21081,6 +21171,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F128: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
@@ -21120,7 +21211,8 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							expr.isComptime,
+							IS_COMPTIME,
+							expr.ableToBeComptime,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(created_func_call_id)
@@ -21168,7 +21260,8 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
-							expr.isComptime,
+							IS_COMPTIME,
+							expr.ableToBeComptime,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							target_type.asTypeID(),
 							sema::Expr(conversion_call)
@@ -21259,6 +21352,7 @@ namespace pcit::panther{
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
 							true,
+							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeBool(),
 							sema::Expr(
@@ -21273,6 +21367,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_BOOL32: {
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							TypeManager::getTypeBool(),
@@ -21357,7 +21452,8 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					expr.isComptime,
+					IS_COMPTIME,
+					expr.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_type.asTypeID(),
 					sema::Expr(created_func_call_id)
@@ -21572,7 +21668,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				expr.isComptime,
+				IS_COMPTIME,
+				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
 				sema::Expr(created_func_call_id)
@@ -21684,7 +21781,8 @@ namespace pcit::panther{
 
 				this->return_term_info(output_id,
 					TermInfo::ValueCategory::EPHEMERAL,
-					from_expr.isComptime,
+					IS_COMPTIME,
+					from_expr.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					sema::Expr(make_interface_ptr_id)
@@ -21712,7 +21810,8 @@ namespace pcit::panther{
 
 				this->return_term_info(output_id,
 					from_expr.value_category,
-					from_expr.isComptime,
+					IS_COMPTIME,
+					from_expr.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					from_expr.getExpr()
@@ -21760,7 +21859,8 @@ namespace pcit::panther{
 
 				this->return_term_info(output_id,
 					TermInfo::ValueCategory::EPHEMERAL,
-					from_expr.isComptime,
+					IS_COMPTIME,
+					from_expr.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					to_type_id,
 					sema::Expr(output_expr)
@@ -21821,6 +21921,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
 				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TypeManager::getTypeBool(),
 				sema::Expr(this->context.sema_buffer.createBoolValue(has_value ^ !is_equal, false))
@@ -21830,7 +21931,8 @@ namespace pcit::panther{
 		}else{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				lhs.isComptime,
+				IS_COMPTIME,
+				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TypeManager::getTypeBool(),
 				sema::Expr(
@@ -21941,7 +22043,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						target_func_type.attributes.isComptime && lhs.isComptime,
+						IS_COMPTIME,
+						target_func_type.attributes.isComptime && lhs.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -21981,7 +22084,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						rhs.isComptime,
+						IS_COMPTIME,
+						target_func_type.attributes.isComptime && rhs.ableToBeComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -22054,9 +22158,16 @@ namespace pcit::panther{
 									op_kind == Token::lookupKind("==")
 								);
 
+								const bool able_to_be_comptime = lhs.ableToBeComptime
+									&& rhs.ableToBeComptime
+									&& this->context.getTypeManager().isComptimeComparable(
+										lhs_decayed_type_id, this->context.getSemaBuffer()
+									);
+
 								this->return_term_info(instr.output,
 									TermInfo::ValueCategory::EPHEMERAL,
-									lhs.isComptime,
+									IS_COMPTIME,
+									able_to_be_comptime,
 									TermInfo::ValueState::NOT_APPLICABLE,
 									TypeManager::getTypeBool(),
 									sema::Expr(same_type_cmp)
@@ -22108,9 +22219,16 @@ namespace pcit::panther{
 											op_kind == Token::lookupKind("==")
 										);
 
+									const bool able_to_be_comptime = lhs.ableToBeComptime
+										&& rhs.ableToBeComptime
+										&& this->context.getTypeManager().isComptimeComparable(
+											lhs_decayed_type_id, this->context.getSemaBuffer()
+										);
+
 									this->return_term_info(instr.output,
 										TermInfo::ValueCategory::EPHEMERAL,
-										lhs.isComptime,
+										IS_COMPTIME,
+										able_to_be_comptime,
 										TermInfo::ValueState::NOT_APPLICABLE,
 										TypeManager::getTypeBool(),
 										sema::Expr(same_type_cmp)
@@ -22344,7 +22462,8 @@ namespace pcit::panther{
 
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						lhs.isComptime,
+						IS_COMPTIME,
+						lhs.ableToBeComptime && target_func_type.attributes.isComptime,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						target_func_type.returnTypes[0].asTypeID(),
 						sema::Expr(infix_overload_result.value())
@@ -22421,10 +22540,12 @@ namespace pcit::panther{
 								if constexpr(IS_COMPTIME){
 									this->emit_error("Comptime comparison of union tag is unimplemented", instr.infix);
 									return Result::ERROR;
+
 								}else{
 									this->return_term_info(instr.output,
 										TermInfo::ValueCategory::EPHEMERAL,
-										lhs.isComptime,
+										false,
+										lhs.ableToBeComptime,
 										TermInfo::ValueState::NOT_APPLICABLE,
 										TypeManager::getTypeBool(),
 										sema::Expr(
@@ -22510,7 +22631,8 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					rhs.isComptime,
+					IS_COMPTIME,
+					rhs.ableToBeComptime && target_func_type.attributes.isComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					target_func_type.returnTypes[0].asTypeID(),
 					sema::Expr(infix_overload_result.value())
@@ -22645,6 +22767,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createBoolValue(bool_value, false))
@@ -22673,7 +22796,8 @@ namespace pcit::panther{
 			if(op_kind == Token::lookupKind("&&")){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					lhs.isComptime,
+					false,
+					lhs.ableToBeComptime && rhs.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createLogicalAnd(lhs.getExpr(), rhs.getExpr()))
@@ -22683,7 +22807,8 @@ namespace pcit::panther{
 			}else if(op_kind == Token::lookupKind("||")){
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
-					lhs.isComptime,
+					false,
+					lhs.ableToBeComptime && rhs.ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TypeManager::getTypeBool(),
 					sema::Expr(this->context.sema_buffer.createLogicalOr(lhs.getExpr(), rhs.getExpr()))
@@ -22973,7 +23098,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				lhs.isComptime,
+				false,
+				lhs.ableToBeComptime && rhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				*resultant_type,
 				sema::Expr(created_func_call_id)
@@ -24194,6 +24320,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTRINSIC_FUNC,
 				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				intrinsic_type,
 				sema::Expr(*intrinsic_kind)
@@ -24320,6 +24447,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createIntValue(
@@ -24332,6 +24460,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_FLOAT: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
+					true,
 					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
@@ -24346,6 +24475,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL_FLUID,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::FluidType{},
 					sema::Expr(this->context.sema_buffer.createBoolValue(literal_token.getBool(), false))
@@ -24356,6 +24486,7 @@ namespace pcit::panther{
 			case Token::Kind::LITERAL_STRING: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
+					true,
 					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.type_manager.getOrCreateTypeInfo(
@@ -24381,6 +24512,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::EPHEMERAL,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					this->context.getTypeManager().getTypeChar(),
 					sema::Expr(this->context.sema_buffer.createCharValue(literal_token.getChar()))
@@ -24391,6 +24523,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_NULL: {
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::NULL_VALUE,
+					true,
 					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					TermInfo::NullType(),
@@ -24408,6 +24541,7 @@ namespace pcit::panther{
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
 			true,
+			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
 			sema::Expr(this->context.sema_buffer.createUninit(instr.uninit_token))
@@ -24418,6 +24552,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_zeroinit(const Instruction::Zeroinit& instr) -> Result {
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::INITIALIZER,
+			true,
 			true,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			TermInfo::InitializerType(),
@@ -24464,6 +24599,7 @@ namespace pcit::panther{
 
 		this->return_term_info(instr.output,
 			value_category,
+			false,
 			false,
 			TermInfo::ValueState::INIT,
 			param.typeID,
@@ -24605,6 +24741,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
 						global_var.value.as<sema::Expr>()
@@ -24615,6 +24752,7 @@ namespace pcit::panther{
 						global_var.kind == AST::VarDef::Kind::CONST 
 							? TermInfo::ValueCategory::CONCRETE_CONST
 							: TermInfo::ValueCategory::CONCRETE_MUT,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
@@ -24726,6 +24864,7 @@ namespace pcit::panther{
 					if(lhs_enum.getEnumeratorName(enumerator, this->context.getSourceManager()) == rhs_ident_str){
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							decayed_lhs_type_id,
@@ -24862,6 +25001,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeBool(),
 						sema::Expr(this->context.sema_buffer.createBoolValue(value, false))
@@ -24870,6 +25010,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, uint8_t>()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUI8(),
@@ -24885,6 +25026,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUI16(),
 						sema::Expr(
@@ -24898,6 +25040,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, uint32_t>()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUI32(),
@@ -24913,6 +25056,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUI64(),
 						sema::Expr(
@@ -24926,6 +25070,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, int8_t>()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeI8(),
@@ -24941,6 +25086,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeI16(),
 						sema::Expr(
@@ -24954,6 +25100,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, int32_t>()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeI32(),
@@ -24969,6 +25116,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeI64(),
 						sema::Expr(
@@ -24982,6 +25130,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, float32_t>()){
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeF32(),
@@ -24997,6 +25146,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeF64(),
 						sema::Expr(
@@ -25010,6 +25160,7 @@ namespace pcit::panther{
 				}else if constexpr(std::is_same<ValueType, std::string_view>()){					
 					this->return_term_info(instr.output,
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						this->context.type_manager.getOrCreateTypeInfo(
@@ -25107,6 +25258,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						category,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
 						global_var.value.as<sema::Expr>()
@@ -25115,6 +25267,7 @@ namespace pcit::panther{
 				}else{
 					this->return_term_info(instr.output,
 						category,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						*global_var.typeID,
@@ -25247,12 +25400,14 @@ namespace pcit::panther{
 				TermInfo::convertValueState(lhs.value_state),
 				lhs.type_id.as<TypeInfo::ID>(),
 				lhs.getExpr(),
-				lhs.isComptime
+				lhs.isComptime,
+				lhs.ableToBeComptime
 			);
 
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::POLY_INTERFACE_CALL,
+				false,
 				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(methods),
@@ -25357,11 +25512,13 @@ namespace pcit::panther{
 				TermInfo::convertValueState(lhs.value_state),
 				this_type_id,
 				this_expr,
-				lhs.isComptime
+				lhs.isComptime,
+				lhs.ableToBeComptime
 			);
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::INTERFACE_CALL,
+				true,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				std::move(func_overload_list),
@@ -25407,7 +25564,8 @@ namespace pcit::panther{
 					TermInfo::convertValueState(lhs.value_state),
 					optional_type_id,
 					lhs_expr,
-					lhs.isComptime
+					lhs.isComptime,
+					lhs.ableToBeComptime
 				)
 			);
 		}();
@@ -25445,6 +25603,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				true,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(
@@ -25561,6 +25720,7 @@ namespace pcit::panther{
 					this->return_term_info(instr.output,
 						value_category,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						member_var->typeID,
 						this->genericValueToSemaExpr(
@@ -25577,6 +25737,7 @@ namespace pcit::panther{
 
 						this->return_term_info(instr.output,
 							TermInfo::ValueCategory::EPHEMERAL,
+							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
 							member_var->typeID,
@@ -25638,7 +25799,7 @@ namespace pcit::panther{
 						}();
 
 						this->return_term_info(instr.output,
-							value_category, IS_COMPTIME, value_state, member_var->typeID, sema_expr
+							value_category, IS_COMPTIME, IS_COMPTIME, value_state, member_var->typeID, sema_expr
 						);
 
 						return Result::SUCCESS;
@@ -25731,7 +25892,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
 							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 						
 					}else{
@@ -25740,7 +25902,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
 							lhs.getExpr(),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 					}
 				}();
@@ -25748,6 +25911,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
 					expr_ident.value().isComptime,
+					expr_ident.value().ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -25898,6 +26062,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					value_category,
 					true,
+					true,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[selected_field_index].typeID.asTypeID(),
 					target_expr
@@ -25933,6 +26098,7 @@ namespace pcit::panther{
 
 				this->return_term_info(instr.output,
 					value_category,
+					false,
 					false,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					lhs_type_union.fields[selected_field_index].typeID.asTypeID(),
@@ -26026,7 +26192,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
 							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 						
 					}else{
@@ -26035,7 +26202,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
 							lhs.getExpr(),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 					}
 				}();
@@ -26043,6 +26211,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
 					expr_ident.value().isComptime,
+					expr_ident.value().ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -26218,7 +26387,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							resultant_type_id,
 							sema::Expr(this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id)),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 						
 					}else{
@@ -26227,7 +26397,8 @@ namespace pcit::panther{
 							TermInfo::convertValueState(lhs.value_state),
 							decayed_lhs_type_id,
 							lhs.getExpr(),
-							lhs.isComptime
+							lhs.isComptime,
+							lhs.ableToBeComptime
 						);
 					}
 				}();
@@ -26235,6 +26406,7 @@ namespace pcit::panther{
 				this->return_term_info(instr.output,
 					TermInfo::ValueCategory::METHOD_CALL,
 					expr_ident.value().isComptime,
+					expr_ident.value().ableToBeComptime,
 					TermInfo::ValueState::NOT_APPLICABLE,
 					std::move(expr_ident.value().type_id),
 					sema::Expr(method_this)
@@ -26283,7 +26455,8 @@ namespace pcit::panther{
 			TermInfo::convertValueState(lhs.value_state),
 			decayed_lhs_type_id,
 			lhs.getExpr(),
-			lhs.isComptime
+			lhs.isComptime,
+			lhs.ableToBeComptime
 		);
 
 		if(rhs_ident_str == "size"){
@@ -26311,6 +26484,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				true,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_SIZE),
@@ -26357,6 +26531,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				true,
 				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS),
@@ -26407,6 +26582,7 @@ namespace pcit::panther{
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
 				true,
+				true,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_DATA),
 				sema::Expr(method_this)
@@ -26451,7 +26627,8 @@ namespace pcit::panther{
 					TermInfo::convertValueState(lhs.value_state),
 					array_ref_target_type,
 					lhs_expr,
-					lhs.isComptime
+					lhs.isComptime,
+					lhs.ableToBeComptime
 				)
 			);
 		}();
@@ -26481,7 +26658,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				true,
+				lhs.isComptime && this->context.getConfig().comptimeRunIfPossible,
+				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
 				sema::Expr(method_this)
@@ -26527,7 +26705,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				true,
+				false,
+				false,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS),
 				sema::Expr(method_this)
@@ -26571,7 +26750,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				true,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA),
 				sema::Expr(method_this)
@@ -27887,6 +28067,7 @@ namespace pcit::panther{
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
 							false,
+							false,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -27896,6 +28077,7 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::CONST: {
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
+							false,
 							false,
 							this->get_ident_value_state(ident_id),
 							*sema_var.typeID,
@@ -27908,6 +28090,7 @@ namespace pcit::panther{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
 								true,
+								true,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								sema_var.expr
@@ -27915,6 +28098,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
+								true,
 								true,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
@@ -27997,6 +28181,7 @@ namespace pcit::panther{
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_MUT,
 							false,
+							false,
 							ValueState::NOT_APPLICABLE, 
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -28038,6 +28223,7 @@ namespace pcit::panther{
 						return ReturnType(TermInfo(
 							ValueCategory::CONCRETE_CONST,
 							true,
+							true,
 							ValueState::NOT_APPLICABLE,
 							*sema_var.typeID,
 							sema::Expr(ident_id)
@@ -28064,6 +28250,7 @@ namespace pcit::panther{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL,
 								true,
+								true,
 								ValueState::NOT_APPLICABLE,
 								*sema_var.typeID,
 								sema_var.value.as<sema::Expr>()
@@ -28071,6 +28258,7 @@ namespace pcit::panther{
 						}else{
 							return ReturnType(TermInfo(
 								ValueCategory::EPHEMERAL_FLUID,
+								true,
 								true,
 								ValueState::NOT_APPLICABLE,
 								TermInfo::FluidType{},
@@ -28130,6 +28318,7 @@ namespace pcit::panther{
 					TermInfo(
 						value_category,
 						false,
+						false,
 						this->get_ident_value_state(ident_id),
 						param.typeID,
 						sema::Expr(ident_id)
@@ -28156,6 +28345,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::VARIADIC_PARAM,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TermInfo::VariadicParamTypes(std::move(variadic_param_types)),
@@ -28193,6 +28383,7 @@ namespace pcit::panther{
 					TermInfo(
 						value_category,
 						false,
+						false,
 						this->get_ident_value_state(ident_id.param_id),
 						ident_id.type_id,
 						sema::Expr(ident_id.param_id)
@@ -28212,6 +28403,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						false,
+						false,
 						this->get_ident_value_state(ident_id),
 						return_type.asTypeID(),
 						sema::Expr(ident_id)
@@ -28230,6 +28422,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						false,
+						false,
 						this->get_ident_value_state(ident_id),
 						error_param.asTypeID(),
 						sema::Expr(ident_id)
@@ -28244,6 +28437,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
 						false,
+						false,
 						this->get_ident_value_state(ident_id),
 						sema_block_expr_output.typeID,
 						sema::Expr(ident_id)
@@ -28255,6 +28449,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::CONCRETE_MUT,
+						false,
 						false,
 						this->get_ident_value_state(ident_id),
 						except_param.typeID,
@@ -28269,6 +28464,7 @@ namespace pcit::panther{
 						for_param.isMut
 							? TermInfo::ValueCategory::CONCRETE_MUT
 							: TermInfo::ValueCategory::CONCRETE_CONST,
+						false,
 						false,
 						this->get_ident_value_state(ident_id),
 						for_param.typeID,
@@ -28310,6 +28506,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::MODULE,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.sourceID,
 						sema::Expr::createModuleIdent(ident_id.tokenID)
@@ -28349,6 +28546,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::C_FAMILY_MODULE,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.cFamilySourceID,
@@ -28737,6 +28935,7 @@ namespace pcit::panther{
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
 						true,
+						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
 						ident_id.value
@@ -28750,6 +28949,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
@@ -28799,6 +28999,7 @@ namespace pcit::panther{
 				return ReturnType(
 					TermInfo(
 						TermInfo::ValueCategory::EPHEMERAL,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						ident_id.typeID,
@@ -29700,6 +29901,7 @@ namespace pcit::panther{
 					this->symbol_proc.term_infos.emplace_back(
 						std::in_place,
 						value_category,
+						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						expanded_pack_types.type_ids[expanded_pack_param_i],
@@ -34532,7 +34734,8 @@ namespace pcit::panther{
 
 		this->return_term_info(output,
 			TermInfo::ValueCategory::EPHEMERAL,
-			expr.isComptime,
+			false,
+			expr.ableToBeComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			selected_overload_type.returnTypes[0].asTypeID(),
 			sema::Expr(
@@ -35013,7 +35216,8 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				init_value.isComptime,
+				IS_COMPTIME,
+				init_value.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type_info_id,
 				sema::Expr(
@@ -37032,6 +37236,14 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::return_term_info(SymbolProc::TermInfoID symbol_proc_term_info_id, auto&&... args) -> void {
 		this->symbol_proc.term_infos[symbol_proc_term_info_id.get()].emplace(std::forward<decltype(args)>(args)...);
+
+		evo::debugAssert(
+			!(
+				this->symbol_proc.term_infos[symbol_proc_term_info_id.get()]->isComptime
+				&& this->symbol_proc.term_infos[symbol_proc_term_info_id.get()]->ableToBeComptime == false
+			),
+			"if isComptime, then ableToBeComptime"
+		);
 	}
 
 

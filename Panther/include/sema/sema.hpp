@@ -295,6 +295,7 @@ namespace pcit::panther::sema{
 		TypeInfo::ID typeID;
 		Expr expr;
 		bool isComptime;
+		bool ableToBeComptime;
 	};
 
 

@@ -647,7 +647,8 @@ namespace pcit::panther::sema{
 				FakeTermInfo::ValueState valueState,
 				TypeInfo::ID typeID,
 				Expr expr,
-				bool isComptime
+				bool isComptime,
+				bool ableToBeComptime
 			) -> FakeTermInfo::ID;
 
 			[[nodiscard]] auto getFakeTermInfo(FakeTermInfo::ID id) const -> const FakeTermInfo&;

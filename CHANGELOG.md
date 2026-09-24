@@ -1,6 +1,12 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.392.1"></a>
+## v0.0.392.1
+- Fixed lowering of aggregate values when the aggregate could be a comptime value but isn't due to `comptimeRunIfPossible` option being off
+
+
+<!---------------------------------->
 <a name="v0.0.392.0"></a>
 ## v0.0.392.0
 

@@ -1051,9 +1051,12 @@ namespace pcit::panther::sema{
 		FakeTermInfo::ValueState valueState,
 		TypeInfo::ID typeID,
 		Expr expr,
-		bool isComptime
+		bool isComptime,
+		bool ableToBeComptime
 	) -> FakeTermInfo::ID {
-		return this->internal->fake_term_infos.emplace_back(valueCategory, valueState, typeID, expr, isComptime);
+		return this->internal->fake_term_infos.emplace_back(
+			valueCategory, valueState, typeID, expr, isComptime, ableToBeComptime
+		);
 	}
 
 	auto SemaBuffer::getFakeTermInfo(FakeTermInfo::ID id) const -> const FakeTermInfo& {

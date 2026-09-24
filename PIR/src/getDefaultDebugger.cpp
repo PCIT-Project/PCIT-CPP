@@ -679,16 +679,23 @@ namespace pcit::pir{
 					ModulePrinter(this->module, printer).printType(type);
 					printer.println("{");
 
-					size_t offset = 0;
-
 					for(size_t i = 0; Type field : struct_type.fields){
 						const size_t field_type_size = this->module.numBytes(field);
 
-						const core::GenericValue generic_value = core::GenericValue::fromData(
-							value.dataRange().subarr(offset, field_type_size)
-						);
+						if(field_type_size != 0){
+							const core::GenericValue generic_value = core::GenericValue::fromData(
+								value.dataRange().subarr(0, field_type_size)
+							);
 
-						this->print_expr_value(generic_value, field, printer, indentation + 1);
+							this->print_expr_value(generic_value, field, printer, indentation + 1);
+							
+						}else{
+							for(size_t j = 0; j < indentation + 1; j+=1){
+								printer.print("\t");
+							}
+							printer.printCyan("Void");
+						}
+
 
 						if(i + 1 < struct_type.fields.size()){
 							printer.println(",");
@@ -696,7 +703,6 @@ namespace pcit::pir{
 							printer.println();
 						}
 						
-						offset += field_type_size;
 						i += 1;
 					}
 

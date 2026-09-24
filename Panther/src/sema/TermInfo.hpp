@@ -124,21 +124,28 @@ namespace pcit::panther{
 		ValueState value_state;
 		TypeID type_id;
 		bool isComptime;
+		bool ableToBeComptime;
 
 
 		///////////////////////////////////
 		// constructors
 
 		TermInfo(
-			ValueCategory cat, bool is_comptime, evo::SmallVector<TypeInfo::ID>&& _type_id, const sema::Expr& _expr
+			ValueCategory cat,
+			bool is_comptime,
+			bool able_to_be_comptime,
+			evo::SmallVector<TypeInfo::ID>&& _type_id,
+			const sema::Expr& _expr
 		) :
 			value_category(cat),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType()),
 			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
 			exprs{_expr}
 		{
 			evo::debugAssert(this->value_category == ValueCategory::EPHEMERAL);
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
 
 			// This is to get around the MSVC bug
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(_type_id));
@@ -148,13 +155,22 @@ namespace pcit::panther{
 			#endif
 		}
 
-		TermInfo(ValueCategory cat, bool is_comptime, ValueState state, auto&& _type_id, const sema::Expr& _expr) :
+		TermInfo(
+			ValueCategory cat,
+			bool is_comptime,
+			bool able_to_be_comptime,
+			ValueState state,
+			auto&& _type_id,
+			const sema::Expr& _expr
+		) :
 			value_category(cat),
 			value_state(state),
 			type_id(std::forward<decltype(_type_id)>(_type_id)),
 			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
 			exprs{_expr}
 		{
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
@@ -164,8 +180,22 @@ namespace pcit::panther{
 			);
 		}
 
-		TermInfo(ValueCategory cat, bool is_comptime, ValueState state, const auto& _type_id, const sema::Expr& _expr)
-			: value_category(cat), value_state(state), type_id(_type_id), isComptime(is_comptime), exprs{_expr} {
+		TermInfo(
+			ValueCategory cat,
+			bool is_comptime,
+			bool able_to_be_comptime,
+			ValueState state,
+			const auto& _type_id,
+			const sema::Expr& _expr
+		) : 
+			value_category(cat),
+			value_state(state),
+			type_id(_type_id),
+			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
+			exprs{_expr}
+		{
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
 			#if defined(PCIT_CONFIG_DEBUG)
 				this->check_single_expr_construction();
 			#endif
@@ -181,6 +211,7 @@ namespace pcit::panther{
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(std::forward<decltype(_type_id)>(_type_id)),
 			isComptime(true),
+			ableToBeComptime(true),
 			exprs()
 		{
 			#if defined(PCIT_CONFIG_DEBUG)
@@ -194,6 +225,7 @@ namespace pcit::panther{
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType()),
 			isComptime(true),
+			ableToBeComptime(true),
 			exprs()
 		{
 			// This is to get around the MSVC bug
@@ -208,6 +240,7 @@ namespace pcit::panther{
 		TermInfo(
 			ValueCategory cat,
 			bool is_comptime,
+			bool able_to_be_comptime,
 			evo::SmallVector<TypeInfo::ID>&& type_ids,
 			evo::SmallVector<sema::Expr>&& expr_list
 		) : 
@@ -215,8 +248,10 @@ namespace pcit::panther{
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(InitializerType{}),
 			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
 			exprs(std::move(expr_list))
 		{
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
 			// TODO(FUTURE): remove this and move directly into `type_id` when the MSVC bug is fixed
 			this->type_id.emplace<evo::SmallVector<TypeInfo::ID>>(std::move(type_ids));
 
@@ -227,17 +262,27 @@ namespace pcit::panther{
 		}
 
 
-		TermInfo(ValueCategory cat, bool is_comptime, ExceptParamPack, evo::SmallVector<sema::Expr>&& expr_list) :
+		TermInfo(
+			ValueCategory cat,
+			bool is_comptime,
+			bool able_to_be_comptime,
+			ExceptParamPack,
+			evo::SmallVector<sema::Expr>&& expr_list
+		) :
 			value_category(cat),
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(ExceptParamPack{}),
 			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
 			exprs(std::move(expr_list))
-		{}
+		{
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
+		}
 
 		TermInfo(
 			ValueCategory cat,
 			bool is_comptime,
+			bool able_to_be_comptime,
 			ExpandedPackTypes&& expanded_pack_types,
 			evo::SmallVector<sema::Expr>&& expr_list
 		) :
@@ -245,8 +290,11 @@ namespace pcit::panther{
 			value_state(ValueState::NOT_APPLICABLE),
 			type_id(std::move(expanded_pack_types)),
 			isComptime(is_comptime),
+			ableToBeComptime(able_to_be_comptime),
 			exprs(std::move(expr_list))
-		{}
+		{
+			evo::debugAssert(!(is_comptime && able_to_be_comptime == false), "if isComptime, then ableToBeComptime");
+		}
 
 		
 		#if defined(PCIT_CONFIG_DEBUG)
@@ -384,7 +432,12 @@ namespace pcit::panther{
 			const ValueState value_state = convertValueState(fake_term_info.valueState);
 
 			return TermInfo(
-				value_category, fake_term_info.isComptime, value_state, fake_term_info.typeID, fake_term_info.expr
+				value_category,
+				fake_term_info.isComptime,
+				fake_term_info.ableToBeComptime,
+				value_state,
+				fake_term_info.typeID,
+				fake_term_info.expr
 			);
 		}
 
