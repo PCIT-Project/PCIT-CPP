@@ -13073,10 +13073,12 @@ namespace pcit::panther{
 		if(instr.result_must_be_comptime == false){
 			const sema::Func& target_func = this->context.getSemaBuffer().getFunc(*target_func_id);
 			const BaseType::Function& target_func_type = this->context.getTypeManager().getFunction(target_func.typeID);
-			const TypeInfo::ID target_func_ret_type_id = target_func_type.returnTypes[0].asTypeID();
-			if(this->context.getTypeManager().isTriviallyDeletable(target_func_ret_type_id) == false){
-				this->return_term_info(instr.output, func_call_term);
-				return Result::SUCCESS;	
+
+			for(const TypeInfo::VoidableID return_type_id : target_func_type.returnTypes){
+				if(this->context.getTypeManager().isTriviallyDeletable(return_type_id.asTypeID()) == false){
+					this->return_term_info(instr.output, func_call_term);
+					return Result::SUCCESS;	
+				}
 			}
 		}
 

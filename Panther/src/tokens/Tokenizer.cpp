@@ -64,95 +64,578 @@ namespace pcit::panther{
 		while(
 			this->char_stream.at_end() == false && this->context.hasHitFailCondition() == false && this->can_continue
 		){
-			const evo::Result<uint32_t> line_result = this->char_stream.get_line();
-			if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
-
-			const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
-			if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
-
-			this->current_token_line_start = line_result.value();
-			this->current_token_collumn_start = collumn_result.value();
-
-
-			// TODO(PERF): switch to a state machine or something to cut down on number of conditionals needed per token
-			if(this->tokenize_whitespace()    ){ continue; }
-			if(this->tokenize_comment()       ){ continue; }
-			if(this->tokenize_identifier()    ){ continue; }
-			if(this->tokenize_operators()     ){ continue; }
-			if(this->tokenize_punctuation()   ){ continue; }
-			if(this->tokenize_number_literal()){ continue; }
-			if(this->tokenize_string_literal()){ continue; }
-			
-			this->error_unrecognized_character();
-			return evo::resultError;
+			if(this->token_start().isError()){ return evo::resultError; }
 		}
 
 		return evo::Result<>::fromBool(this->can_continue);
 	}
 
 
-	auto Tokenizer::tokenize_whitespace() -> bool {
-		if(evo::isWhitespace(this->char_stream.peek())){
-			this->char_stream.skip(1);
-			return true;
-		}
-		return false;
-	}
+	auto Tokenizer::token_start() -> evo::Result<> {
+		const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+		if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
 
-	auto Tokenizer::tokenize_comment() -> bool {
-		if(this->char_stream.ammount_left() < 2 || this->char_stream.peek() != '/'){
-			return false;
-		}
+		const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+		if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
 
-		if(this->char_stream.peek(1) == '/'){ // line comment
-			this->char_stream.skip(2);
+		this->current_token_line_start = line_result.value();
+		this->current_token_collumn_start = collumn_result.value();
 
-			while(
-				this->char_stream.at_end() == false && 
-				this->char_stream.peek() != '\n' && this->char_stream.peek() != '\r'
-			){
+
+		switch(this->char_stream.peek()){
+			case ' ': case '\n': case '\r': case '\t': {
 				this->char_stream.skip(1);
-			}
+				return evo::Result<>();
+			} break;
 
-			return true;
+			case '!': {
+				if(this->char_stream.ammount_left() > 2 && this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("!="));
+					this->create_token(Token::lookupKind("!="));
+					return evo::Result<>();
+				}else{
+					this->char_stream.skip(evo::stringSize("!"));
+					this->create_token(Token::lookupKind("!"));
+					return evo::Result<>();
+				}
+			} break;
 
-		}else if(this->char_stream.peek(1) == '*'){ // multi-line comment
-			this->char_stream.skip(2);
+			case '\"': {
+				return this->tokenize_string_literal();
+			} break;
 
-			unsigned num_closes_needed = 1;
-			while(num_closes_needed > 0){
-				if(this->char_stream.ammount_left() < 2){
-					const evo::Result<Source::Location> current_location = this->get_current_location_token();
-					if(current_location.isError()){ return true; }
+			case '#': {
+				this->char_stream.skip(1);
+				return this->tokenize_identifier(Token::Kind::ATTRIBUTE);
+			} break;
 
-					this->emit_error(
-						"Unterminated multi-line comment",
-						current_location.value(),
-						Diagnostic::Info("Expected a \"*/\" before the end of the file")
-					);
-
-					return true;
+			case '$': {
+				if(this->char_stream.ammount_left() == 1){
+					this->error_unrecognized_character();
+					return evo::resultError;
 				}
 
+				if(this->char_stream.peek(1) == '$'){
+					this->char_stream.skip(evo::stringSize("$$"));
+					this->create_token(Token::lookupKind("$$"));
+					return evo::Result<>();
+				}
 
-				if(this->char_stream.peek() == '/' && this->char_stream.peek(1) == '*'){
-					this->char_stream.skip(2);
-					num_closes_needed += 1;
+				this->char_stream.skip(1);
+				return this->tokenize_identifier(Token::Kind::DEDUCER);
+			} break;
 
-				}else if(this->char_stream.peek() == '*' && this->char_stream.peek(1) == '/'){
-					this->char_stream.skip(2);
-					num_closes_needed -= 1;
+			case '%': {
+				if(this->char_stream.ammount_left() > 2 && this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("%="));
+					this->create_token(Token::lookupKind("%="));
+					return evo::Result<>();
+				}else{
+					this->char_stream.skip(evo::stringSize("%"));
+					this->create_token(Token::lookupKind("%"));
+					return evo::Result<>();
+				}
+			} break;
+
+			case '&': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("&="));
+							this->create_token(Token::lookupKind("&="));
+							return evo::Result<>();
+						} break;
+
+						case '&': {
+							this->char_stream.skip(evo::stringSize("&&"));
+							this->create_token(Token::lookupKind("&&"));
+							return evo::Result<>();
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("&"));
+				this->create_token(Token::lookupKind("&"));
+				return evo::Result<>();
+			} break;
+
+			case '\'': {
+				return this->tokenize_string_literal();
+			} break;
+
+			case '(': {
+				this->char_stream.skip(evo::stringSize("("));
+				this->create_token(Token::lookupKind("("));
+				return evo::Result<>();
+			} break;
+
+			case ')': {
+				this->char_stream.skip(evo::stringSize(")"));
+				this->create_token(Token::lookupKind(")"));
+				return evo::Result<>();
+			} break;
+
+			case '*': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("*="));
+							this->create_token(Token::lookupKind("*="));
+							return evo::Result<>();
+						} break;
+
+						case '%': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("*%="));
+								this->create_token(Token::lookupKind("*%="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("*%"));
+								this->create_token(Token::lookupKind("*%"));
+								return evo::Result<>();
+							}
+						} break;
+
+						case '|': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("*|="));
+								this->create_token(Token::lookupKind("*|="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("*|"));
+								this->create_token(Token::lookupKind("*|"));
+								return evo::Result<>();
+							}
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("*"));
+				this->create_token(Token::lookupKind("*"));
+				return evo::Result<>();
+			} break;
+
+
+			case '+': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("+="));
+							this->create_token(Token::lookupKind("+="));
+							return evo::Result<>();
+						} break;
+
+						case '%': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("+%="));
+								this->create_token(Token::lookupKind("+%="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("+%"));
+								this->create_token(Token::lookupKind("+%"));
+								return evo::Result<>();
+							}
+						} break;
+
+						case '|': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("+|="));
+								this->create_token(Token::lookupKind("+|="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("+|"));
+								this->create_token(Token::lookupKind("+|"));
+								return evo::Result<>();
+							}
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("+"));
+				this->create_token(Token::lookupKind("+"));
+				return evo::Result<>();
+			} break;
+
+			case ',': {
+				this->char_stream.skip(evo::stringSize(","));
+				this->create_token(Token::lookupKind(","));
+				return evo::Result<>();
+			} break;
+
+			case '-': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '>': {
+							this->char_stream.skip(evo::stringSize("->"));
+							this->create_token(Token::lookupKind("->"));
+							return evo::Result<>();
+						} break;
+
+						case '=': {
+							this->char_stream.skip(evo::stringSize("-="));
+							this->create_token(Token::lookupKind("-="));
+							return evo::Result<>();
+						} break;
+
+						case '%': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("-%="));
+								this->create_token(Token::lookupKind("-%="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("-%"));
+								this->create_token(Token::lookupKind("-%"));
+								return evo::Result<>();
+							}
+						} break;
+
+						case '|': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize("-|="));
+								this->create_token(Token::lookupKind("-|="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize("-|"));
+								this->create_token(Token::lookupKind("-|"));
+								return evo::Result<>();
+							}
+						} break;
+
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("-"));
+				this->create_token(Token::lookupKind("-"));
+				return evo::Result<>();
+			} break;
+
+			case '.': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '*': {
+							this->char_stream.skip(evo::stringSize(".*"));
+							this->create_token(Token::lookupKind(".*"));
+							return evo::Result<>();
+						} break;
+
+						case '?': {
+							this->char_stream.skip(evo::stringSize(".?"));
+							this->create_token(Token::lookupKind(".?"));
+							return evo::Result<>();
+						} break;
+
+						case '.': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '.'){
+								this->char_stream.skip(evo::stringSize("..."));
+								this->create_token(Token::lookupKind("..."));
+								return evo::Result<>();	
+							}
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("."));
+				this->create_token(Token::lookupKind("."));
+				return evo::Result<>();
+			} break;
+
+			case '/': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '*': {
+							this->char_stream.skip(2);
+
+							unsigned num_closes_needed = 1;
+							while(num_closes_needed > 0){
+								if(this->char_stream.ammount_left() < 2){
+									const evo::Result<Source::Location> current_location =
+										this->get_current_location_token();
+									if(current_location.isError()){ return evo::resultError; }
+
+									this->emit_error(
+										"Unterminated multi-line comment",
+										current_location.value(),
+										Diagnostic::Info("Expected a \"*/\" before the end of the file")
+									);
+
+									return evo::resultError;
+								}
+
+
+								if(this->char_stream.peek() == '/' && this->char_stream.peek(1) == '*'){
+									this->char_stream.skip(2);
+									num_closes_needed += 1;
+
+								}else if(this->char_stream.peek() == '*' && this->char_stream.peek(1) == '/'){
+									this->char_stream.skip(2);
+									num_closes_needed -= 1;
+
+								}else{
+									this->char_stream.skip(1);
+								}
+							}
+
+							return evo::Result<>();
+						} break;
+
+						case '/': {
+							while(
+								this->char_stream.at_end() == false && 
+								this->char_stream.peek() != '\n' && this->char_stream.peek() != '\r'
+							){
+								this->char_stream.skip(1);
+							}
+
+							return evo::Result<>();
+						} break;
+
+						case '=': {
+							this->char_stream.skip(evo::stringSize("/="));
+							this->create_token(Token::lookupKind("/="));
+							return evo::Result<>();
+
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("/"));
+				this->create_token(Token::lookupKind("/"));
+				return evo::Result<>();
+			} break;
+
+			case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
+				return this->tokenize_number_literal();
+				// if(this->tokenize_number_literal()){ return evo::Result<>(); }
+			} break;
+
+			case ':': {
+				this->char_stream.skip(evo::stringSize(":"));
+				this->create_token(Token::lookupKind(":"));
+				return evo::Result<>();
+			} break;
+
+			case ';': {
+				this->char_stream.skip(evo::stringSize(";"));
+				this->create_token(Token::lookupKind(";"));
+				return evo::Result<>();
+			} break;
+
+			case '<': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '<': {
+							if(ammount_left > 2){
+								switch(this->char_stream.peek(2)){
+									case '=': {
+										this->char_stream.skip(evo::stringSize("<<="));
+										this->create_token(Token::lookupKind("<<="));
+										return evo::Result<>();
+									} break;
+
+									case '|': {
+										if(ammount_left > 3 && this->char_stream.peek(3) == '='){
+											this->char_stream.skip(evo::stringSize("<<|="));
+											this->create_token(Token::lookupKind("<<|="));
+											return evo::Result<>();
+										}else{
+											this->char_stream.skip(evo::stringSize("<<|"));
+											this->create_token(Token::lookupKind("<<|"));
+											return evo::Result<>();
+										}
+									} break;
+								}
+
+								this->char_stream.skip(evo::stringSize("<<"));
+								this->create_token(Token::lookupKind("<<"));
+								return evo::Result<>();
+							}
+						} break;
+
+						case '=': {
+							this->char_stream.skip(evo::stringSize("<="));
+							this->create_token(Token::lookupKind("<="));
+							return evo::Result<>();
+						} break;
+
+						case '{': {
+							this->char_stream.skip(evo::stringSize("<{"));
+							this->create_token(Token::lookupKind("<{"));
+							return evo::Result<>();
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("<"));
+				this->create_token(Token::lookupKind("<"));
+				return evo::Result<>();
+			} break;
+
+			case '=': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("=="));
+					this->create_token(Token::lookupKind("=="));
+					return evo::Result<>();
+				}else{
+					this->char_stream.skip(evo::stringSize("="));
+					this->create_token(Token::lookupKind("="));
+					return evo::Result<>();
+				}
+			} break;
+
+			case '>': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '>': {
+							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
+								this->char_stream.skip(evo::stringSize(">>="));
+								this->create_token(Token::lookupKind(">>="));
+								return evo::Result<>();
+							}else{
+								this->char_stream.skip(evo::stringSize(">>"));
+								this->create_token(Token::lookupKind(">>"));
+								return evo::Result<>();
+							}
+						} break;
+
+						case '=': {
+							this->char_stream.skip(evo::stringSize(">="));
+							this->create_token(Token::lookupKind(">="));
+							return evo::Result<>();
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize(">"));
+				this->create_token(Token::lookupKind(">"));
+				return evo::Result<>();
+			} break;
+
+			case '?': {
+				this->char_stream.skip(evo::stringSize("?"));
+				this->create_token(Token::lookupKind("?"));
+				return evo::Result<>();
+			} break;
+
+			case '@': {
+				this->char_stream.skip(1);
+				return this->tokenize_identifier(Token::Kind::INTRINSIC);
+			} break;
+
+			case 'A': case 'B': case 'C': case 'D': case 'E': case 'F': case 'G': case 'H': case 'I': case 'J':
+			case 'K': case 'L': case 'M': case 'N': case 'O': case 'P': case 'Q': case 'R': case 'S': case 'T':
+			case 'U': case 'V': case 'W': case 'X': case 'Y': case 'Z': case 'a': case 'b': case 'c': case 'd':
+			case 'e': case 'f': case 'g': case 'h': case 'i': case 'j': case 'k': case 'l': case 'm': case 'n':
+			case 'o': case 'p': case 'q': case 'r': case 's': case 't': case 'u': case 'v': case 'w': case 'x':
+			case 'y': case 'z': case '_': {
+				return this->tokenize_identifier(Token::Kind::IDENT);
+			} break;
+
+			case '[': {
+				this->char_stream.skip(evo::stringSize("["));
+				this->create_token(Token::lookupKind("["));
+				return evo::Result<>();
+			} break;
+
+			case '\\': break;
+
+			case ']': {
+				this->char_stream.skip(evo::stringSize("]"));
+				this->create_token(Token::lookupKind("]"));
+				return evo::Result<>();
+			} break;
+
+			case '^': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
+					this->char_stream.skip(evo::stringSize("^="));
+					this->create_token(Token::lookupKind("^="));
+					return evo::Result<>();
 
 				}else{
-					this->char_stream.skip(1);
+					this->char_stream.skip(evo::stringSize("^"));
+					this->create_token(Token::lookupKind("^"));
+					return evo::Result<>();
 				}
-			}
+			} break;
+			
+			case '`': break;
 
-			return true;
+			case '{': {
+				this->char_stream.skip(evo::stringSize("{"));
+				this->create_token(Token::lookupKind("{"));
+				return evo::Result<>();
+			} break;
+
+			case '|': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1){
+					switch(this->char_stream.peek(1)){
+						case '=': {
+							this->char_stream.skip(evo::stringSize("|="));
+							this->create_token(Token::lookupKind("|="));
+							return evo::Result<>();
+						} break;
+
+						case '|': {
+							this->char_stream.skip(evo::stringSize("||"));
+							this->create_token(Token::lookupKind("||"));
+							return evo::Result<>();
+						} break;
+					}
+				}
+
+				this->char_stream.skip(evo::stringSize("|"));
+				this->create_token(Token::lookupKind("|"));
+				return evo::Result<>();
+			} break;
+
+			case '}': {
+				const size_t ammount_left = this->char_stream.ammount_left();
+
+				if(ammount_left > 1 && this->char_stream.peek(1) == '>'){
+					this->char_stream.skip(evo::stringSize("}>"));
+					this->create_token(Token::lookupKind("}>"));
+					return evo::Result<>();
+
+				}else{
+					this->char_stream.skip(evo::stringSize("}"));
+					this->create_token(Token::lookupKind("}"));
+					return evo::Result<>();
+				}
+			} break;
+
+			case '~': {
+				this->char_stream.skip(evo::stringSize("~"));
+				this->create_token(Token::lookupKind("~"));
+				return evo::Result<>();
+			} break;
 		}
 
-		return false;
+		this->error_unrecognized_character();
+		return evo::resultError;
 	}
+
+
 
 
 	// TODO(FUTURE): change to not use global initialization
@@ -222,6 +705,7 @@ namespace pcit::panther{
 		{"in",          Token::Kind::KEYWORD_IN},
 
 		{"copy",        Token::Kind::KEYWORD_COPY},
+		{"move",        Token::Kind::KEYWORD_MOVE},
 		{"forward",     Token::Kind::KEYWORD_FORWARD},
 		{"new",         Token::Kind::KEYWORD_NEW},
 		{"delete",      Token::Kind::KEYWORD_DELETE},
@@ -251,39 +735,10 @@ namespace pcit::panther{
 	const static auto keyword_end = keyword_map.end();
 
 
-	auto Tokenizer::tokenize_identifier() -> bool {
-		auto kind = Token::Kind::NONE;
-
-		char peeked_char = this->char_stream.peek();
-		if(evo::isLetter(peeked_char) || peeked_char == '_'){
-			kind = Token::Kind::IDENT;
-
-		}else if(
-			this->char_stream.ammount_left() >= 2
-			&& (evo::isLetter(this->char_stream.peek(1)) || this->char_stream.peek(1) == '_')
-		){
-			if(this->char_stream.peek() == '@'){
-				kind = Token::Kind::INTRINSIC;
-				this->char_stream.skip(1);
-
-			}else if(this->char_stream.peek() == '#'){
-				kind = Token::Kind::ATTRIBUTE;
-				this->char_stream.skip(1);
-
-			}else if(this->char_stream.peek() == '$'){
-				kind = Token::Kind::DEDUCER;
-				this->char_stream.skip(1);
-
-			}else{
-				return false;
-			}
-		}else{
-			return false;	
-		}
-
-
+	auto Tokenizer::tokenize_identifier(Token::Kind ident_kind) -> evo::Result<> {
 		const char* string_start_ptr = this->char_stream.peek_raw_ptr();
 
+		char peeked_char = this->char_stream.peek();
 		do{
 			this->char_stream.skip(1);
 
@@ -294,36 +749,47 @@ namespace pcit::panther{
 
 		auto ident_name = std::string_view(string_start_ptr, this->char_stream.peek_raw_ptr() - string_start_ptr);
 
-		if(kind == Token::Kind::IDENT){
+		if(ident_kind == Token::Kind::IDENT){
 			if(ident_name == "true") [[unlikely]] {
 				this->create_token(Token::Kind::LITERAL_BOOL, true);
+				return evo::Result<>();
 
 			}else if(ident_name == "false") [[unlikely]] {
 				this->create_token(Token::Kind::LITERAL_BOOL, false);
-
-			}else if(ident_name == "move") [[unlikely]] {
-				this->create_token(Token::Kind::KEYWORD_MOVE);
+				return evo::Result<>();
 
 			}else{
-				bool is_integer = false;
+				{
+					const auto keyword_map_iter = keyword_map.find(ident_name);
 
-				auto parse_integer = [&](Token::Kind kind, size_t bitwidth_start_index) -> void {
+					if(keyword_map_iter != keyword_end){
+						this->create_token(keyword_map_iter->second);
+						return evo::Result<>();
+					}
+				}
+
+
+				enum class GetIntTypeResult{
+					NOT_INT_TYPE,
+					SUCCESS,
+					ERROR,
+				};
+
+				auto get_int_type = [&](Token::Kind kind, size_t bitwidth_start_index) -> GetIntTypeResult {
 					const std::string_view bitwidth_str = ident_name.substr(bitwidth_start_index);
 					
 					for(char character : bitwidth_str){
 						if(evo::isNumber(character) == false){
-							return;
+							return GetIntTypeResult::NOT_INT_TYPE;
 						}
 					}
-
-					is_integer = true;
 
 					const evo::Expected<uint32_t, StrToNumError> bitwidth = str_to_num<uint32_t>(bitwidth_str, 10);
 
 					if(bitwidth.has_value()){
 						if(bitwidth.value() > std::pow(2, 23)){
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
-							if(current_location.isError()){ return; }
+							if(current_location.isError()){ return GetIntTypeResult::ERROR; }
 
 							this->emit_error(
 								"Integer bit-width is too large",
@@ -333,474 +799,76 @@ namespace pcit::panther{
 
 						}else if(bitwidth.value() == 0){
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
-							if(current_location.isError()){ return; }
+							if(current_location.isError()){ return GetIntTypeResult::ERROR; }
 
 							this->emit_error("Integer bit-width cannot be 0", current_location.value());
 						}
 
 						this->create_token(kind, uint64_t(bitwidth.value()));
-						return;
+						return GetIntTypeResult::SUCCESS;
 					}
 
 					switch(bitwidth.error()){
 						case StrToNumError::OUT_OF_RANGE: {
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
-							if(current_location.isError()){ return; }
+							if(current_location.isError()){ return GetIntTypeResult::ERROR; }
 
 							this->emit_error(
 								"Integer bit-width is too large",
 								current_location.value(),
 								Diagnostic::Info("Maximum bitwidth is 2^23 (8,388,608)")
 							);
+							return GetIntTypeResult::ERROR;
 						} break;
 
 						case StrToNumError::INVALID: {
 							const evo::Result<Source::Location> current_location = this->get_current_location_token();
-							if(current_location.isError()){ return; }
+							if(current_location.isError()){ return GetIntTypeResult::ERROR; }
 
 							this->emit_fatal(
 								Diagnostic::createFatalMessage("Attempted to tokenize invalid integer bit-width"),
 								current_location.value()
 							);
+							return GetIntTypeResult::ERROR;
 						} break;
 					}
+					evo::unreachable();
 				};
 
 				if(ident_name.size() > 1){
-					if(ident_name[0] == 'I'){
-						parse_integer(Token::Kind::TYPE_I_N, 1);
-					}else if(ident_name.size() > 2 && ident_name[0] == 'U' && ident_name[1] == 'I'){
-						parse_integer(Token::Kind::TYPE_UI_N, 2);
+					const GetIntTypeResult get_int_type_result = [&]() -> GetIntTypeResult {
+						if(ident_name[0] == 'I'){
+							return get_int_type(Token::Kind::TYPE_I_N, 1);
+
+						}else if(ident_name.size() > 2 && ident_name[0] == 'U' && ident_name[1] == 'I'){
+							return get_int_type(Token::Kind::TYPE_UI_N, 2);
+
+						}else{
+							return GetIntTypeResult::NOT_INT_TYPE;
+						}
+					}();
+
+					switch(get_int_type_result){
+						case GetIntTypeResult::NOT_INT_TYPE: break;
+						case GetIntTypeResult::SUCCESS:      return evo::Result<>();
+						case GetIntTypeResult::ERROR:        return evo::resultError;
 					}
 				}
 
-				if(this->can_continue == false){ return false; }
-
-				// TODO(PERF): should keyword lookup be earlier?
-				if(is_integer == false){
-					const auto keyword_map_iter = keyword_map.find(ident_name);
-
-					if(keyword_map_iter == keyword_end){
-						this->create_token(Token::Kind::IDENT, ident_name);
-
-					}else{
-						this->create_token(keyword_map_iter->second);
-					}
-				}
+				// default ident
+				this->create_token(Token::Kind::IDENT, ident_name);
+				return evo::Result<>();
 			}
 
 		}else{
-			this->create_token(kind, ident_name);
+			this->create_token(ident_kind, ident_name);
+			return evo::Result<>();
 		}
-		
-
-		return true;
-	}
-
-	auto Tokenizer::tokenize_punctuation() -> bool {
-		const char peeked_char = this->char_stream.peek();
-		Token::Kind tok_kind = Token::Kind::NONE;
-
-		switch(peeked_char){
-			break; case '(': tok_kind = Token::Kind::OPEN_PAREN;
-			break; case ')': tok_kind = Token::Kind::CLOSE_PAREN;
-			break; case '[': tok_kind = Token::Kind::OPEN_BRACKET;
-			break; case ']': tok_kind = Token::Kind::CLOSE_BRACKET;
-			break; case '{': tok_kind = Token::Kind::OPEN_BRACE;
-			break; case '}': tok_kind = Token::Kind::CLOSE_BRACE;
-
-			break; case ',': tok_kind = Token::Kind::COMMA;
-			break; case ';': tok_kind = Token::Kind::SEMICOLON;
-			break; case ':': tok_kind = Token::Kind::COLON;
-			break; case '?': tok_kind = Token::Kind::QUESTION_MARK;
-		}
-
-		if(tok_kind == Token::Kind::NONE){ return false; }
-
-		this->char_stream.skip(1);
-
-		this->create_token(tok_kind);
-
-		return true;
-	}
-
-	// TODO(PERF): improve the perf of this by having separate lookups based on the ammount left
-		//   (no need to check length 3 ops if it's known to only have 1 char left)
-	auto Tokenizer::tokenize_operators() -> bool {
-		const size_t ammount_left = this->char_stream.ammount_left();
-
-		switch(this->char_stream.peek()){
-			case '=': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
-					this->char_stream.skip(evo::stringSize("=="));
-					this->create_token(Token::lookupKind("=="));
-					return true;
-				}else{
-					this->char_stream.skip(evo::stringSize("="));
-					this->create_token(Token::lookupKind("="));
-					return true;
-				}
-			} break;
-
-			case '+': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '=': {
-							this->char_stream.skip(evo::stringSize("+="));
-							this->create_token(Token::lookupKind("+="));
-							return true;
-						} break;
-
-						case '%': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("+%="));
-								this->create_token(Token::lookupKind("+%="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("+%"));
-								this->create_token(Token::lookupKind("+%"));
-								return true;
-							}
-						} break;
-
-						case '|': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("+|="));
-								this->create_token(Token::lookupKind("+|="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("+|"));
-								this->create_token(Token::lookupKind("+|"));
-								return true;
-							}
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("+"));
-				this->create_token(Token::lookupKind("+"));
-				return true;
-			} break;
-
-			case '-': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '>': {
-							this->char_stream.skip(evo::stringSize("->"));
-							this->create_token(Token::lookupKind("->"));
-							return true;
-						} break;
-
-						case '=': {
-							this->char_stream.skip(evo::stringSize("-="));
-							this->create_token(Token::lookupKind("-="));
-							return true;
-						} break;
-
-						case '%': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("-%="));
-								this->create_token(Token::lookupKind("-%="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("-%"));
-								this->create_token(Token::lookupKind("-%"));
-								return true;
-							}
-						} break;
-
-						case '|': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("-|="));
-								this->create_token(Token::lookupKind("-|="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("-|"));
-								this->create_token(Token::lookupKind("-|"));
-								return true;
-							}
-						} break;
-
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("-"));
-				this->create_token(Token::lookupKind("-"));
-				return true;
-			} break;
-
-			case '*': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '=': {
-							this->char_stream.skip(evo::stringSize("*="));
-							this->create_token(Token::lookupKind("*="));
-							return true;
-						} break;
-
-						case '%': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("*%="));
-								this->create_token(Token::lookupKind("*%="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("*%"));
-								this->create_token(Token::lookupKind("*%"));
-								return true;
-							}
-						} break;
-
-						case '|': {
-							if(this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize("*|="));
-								this->create_token(Token::lookupKind("*|="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize("*|"));
-								this->create_token(Token::lookupKind("*|"));
-								return true;
-							}
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("*"));
-				this->create_token(Token::lookupKind("*"));
-				return true;
-			} break;
-
-
-			case '/': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
-					this->char_stream.skip(evo::stringSize("/="));
-					this->create_token(Token::lookupKind("/="));
-					return true;
-				}else{
-					this->char_stream.skip(evo::stringSize("/"));
-					this->create_token(Token::lookupKind("/"));
-					return true;
-				}
-			} break;
-
-			case '%': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
-					this->char_stream.skip(evo::stringSize("%="));
-					this->create_token(Token::lookupKind("%="));
-					return true;
-				}else{
-					this->char_stream.skip(evo::stringSize("%"));
-					this->create_token(Token::lookupKind("%"));
-					return true;
-				}
-			} break;
-
-			case '<': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '<': {
-							if(ammount_left > 2){
-								switch(this->char_stream.peek(2)){
-									case '=': {
-										this->char_stream.skip(evo::stringSize("<<="));
-										this->create_token(Token::lookupKind("<<="));
-										return true;
-									} break;
-
-									case '|': {
-										if(ammount_left > 3 && this->char_stream.peek(3) == '='){
-											this->char_stream.skip(evo::stringSize("<<|="));
-											this->create_token(Token::lookupKind("<<|="));
-											return true;
-										}else{
-											this->char_stream.skip(evo::stringSize("<<|"));
-											this->create_token(Token::lookupKind("<<|"));
-											return true;
-										}
-									} break;
-								}
-
-								this->char_stream.skip(evo::stringSize("<<"));
-								this->create_token(Token::lookupKind("<<"));
-								return true;
-							}
-						} break;
-
-						case '=': {
-							this->char_stream.skip(evo::stringSize("<="));
-							this->create_token(Token::lookupKind("<="));
-							return true;
-						} break;
-
-						case '{': {
-							this->char_stream.skip(evo::stringSize("<{"));
-							this->create_token(Token::lookupKind("<{"));
-							return true;
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("<"));
-				this->create_token(Token::lookupKind("<"));
-				return true;
-			} break;
-
-			case '>': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '>': {
-							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
-								this->char_stream.skip(evo::stringSize(">>="));
-								this->create_token(Token::lookupKind(">>="));
-								return true;
-							}else{
-								this->char_stream.skip(evo::stringSize(">>"));
-								this->create_token(Token::lookupKind(">>"));
-								return true;
-							}
-						} break;
-
-						case '=': {
-							this->char_stream.skip(evo::stringSize(">="));
-							this->create_token(Token::lookupKind(">="));
-							return true;
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize(">"));
-				this->create_token(Token::lookupKind(">"));
-				return true;
-			} break;
-
-			case '&': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '=': {
-							this->char_stream.skip(evo::stringSize("&="));
-							this->create_token(Token::lookupKind("&="));
-							return true;
-						} break;
-
-						case '&': {
-							this->char_stream.skip(evo::stringSize("&&"));
-							this->create_token(Token::lookupKind("&&"));
-							return true;
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("&"));
-				this->create_token(Token::lookupKind("&"));
-				return true;
-			} break;
-
-			case '|': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '=': {
-							this->char_stream.skip(evo::stringSize("|="));
-							this->create_token(Token::lookupKind("|="));
-							return true;
-						} break;
-
-						case '|': {
-							this->char_stream.skip(evo::stringSize("||"));
-							this->create_token(Token::lookupKind("||"));
-							return true;
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("|"));
-				this->create_token(Token::lookupKind("|"));
-				return true;
-			} break;
-
-			case '^': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
-					this->char_stream.skip(evo::stringSize("^="));
-					this->create_token(Token::lookupKind("^="));
-					return true;
-
-				}else{
-					this->char_stream.skip(evo::stringSize("^"));
-					this->create_token(Token::lookupKind("^"));
-					return true;
-				}
-			} break;
-
-			case '!': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '='){
-					this->char_stream.skip(evo::stringSize("!="));
-					this->create_token(Token::lookupKind("!="));
-					return true;
-				}else{
-					this->char_stream.skip(evo::stringSize("!"));
-					this->create_token(Token::lookupKind("!"));
-					return true;
-				}
-			} break;
-
-			case '.': {
-				if(ammount_left > 1){
-					switch(this->char_stream.peek(1)){
-						case '*': {
-							this->char_stream.skip(evo::stringSize(".*"));
-							this->create_token(Token::lookupKind(".*"));
-							return true;
-						} break;
-
-						case '?': {
-							this->char_stream.skip(evo::stringSize(".?"));
-							this->create_token(Token::lookupKind(".?"));
-							return true;
-						} break;
-
-						case '.': {
-							if(ammount_left > 2 && this->char_stream.peek(2) == '.'){
-								this->char_stream.skip(evo::stringSize("..."));
-								this->create_token(Token::lookupKind("..."));
-								return true;	
-							}
-						} break;
-					}
-				}
-
-				this->char_stream.skip(evo::stringSize("."));
-				this->create_token(Token::lookupKind("."));
-				return true;
-			} break;
-
-			case '~': {
-				this->char_stream.skip(evo::stringSize("~"));
-				this->create_token(Token::lookupKind("~"));
-				return true;
-			} break;
-
-			case '}': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '>'){
-					this->char_stream.skip(evo::stringSize("}>"));
-					this->create_token(Token::lookupKind("}>"));
-					return true;
-				}
-			} break;
-
-			case '$': {
-				if(ammount_left > 1 && this->char_stream.peek(1) == '$'){
-					this->char_stream.skip(evo::stringSize("$$"));
-					this->create_token(Token::lookupKind("$$"));
-					return true;
-				}
-			} break;
-		}
-		
-		return false;
 	}
 
 
-	auto Tokenizer::tokenize_number_literal() -> bool {
-		if(evo::isNumber(this->char_stream.peek()) == false){ return false; }
 
+	auto Tokenizer::tokenize_number_literal() -> evo::Result<> {
 		int base = 10;
 		auto number_string = std::string();
 		bool has_decimal_point = false;
@@ -824,7 +892,7 @@ namespace pcit::panther{
 
 			}else if(evo::isNumber(second_peek)){
 				const evo::Result<Source::Location> current_location = this->get_current_location_point();
-				if(current_location.isError()){ return true; }
+				if(current_location.isError()){ return evo::Result<>(); }
 
 				this->emit_error(
 					"Leading zeros in literal numbers are not supported",
@@ -832,7 +900,7 @@ namespace pcit::panther{
 					Diagnostic::Info("Note: the literal integer prefix for base-8 is \"0o\"")
 				);
 
-				return true;
+				return evo::resultError;
 			}
 		}
 
@@ -850,12 +918,12 @@ namespace pcit::panther{
 			}else if(peeked_char == '.'){
 				if(has_decimal_point){
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error(
 						"Cannot have multiple decimal points in a floating-point literal", current_location.value()
 					);
-					return true;
+					return evo::resultError;
 				}
 
 				if(base == 2){
@@ -867,7 +935,7 @@ namespace pcit::panther{
 							this->current_token_collumn_start, this->current_token_collumn_start + 1
 						)
 					);
-					return true;
+					return evo::resultError;
 
 				}else if(base == 8){
 					this->emit_error(
@@ -878,7 +946,7 @@ namespace pcit::panther{
 							this->current_token_collumn_start, this->current_token_collumn_start + 1
 						)
 					);
-					return true;
+					return evo::resultError;
 				}
 
 				has_decimal_point = true;
@@ -895,10 +963,10 @@ namespace pcit::panther{
 
 				}else if(evo::isHexNumber(peeked_char)){
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error("Base-2 numbers should only have digits 0 and 1", current_location.value());
-					return true;
+					return evo::resultError;
 
 				}else{
 					break;
@@ -910,10 +978,10 @@ namespace pcit::panther{
 
 				}else if(evo::isHexNumber(peeked_char)){
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error("Base-8 numbers should only have digits 0-7", current_location.value());
-					return true;
+					return evo::resultError;
 
 				}else{
 					break;
@@ -928,14 +996,14 @@ namespace pcit::panther{
 
 				}else if(evo::isHexNumber(peeked_char)){
 					const evo::Result<Source::Location> current_location = this->get_current_location_point();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error(
 						"Base-10 numbers should only have digits 0-9",
 						current_location.value(),
 						Diagnostic::Info("Note: The prefix for hexidecimal numbers (base-16) is \"0x\"")
 					);
-					return true;
+					return evo::resultError;
 
 				}else{
 					break;
@@ -954,14 +1022,14 @@ namespace pcit::panther{
 
 		if(number_string.back() == '.'){
 			const evo::Result<Source::Location> current_location = this->get_current_location_token();
-			if(current_location.isError()){ return true; }
+			if(current_location.isError()){ return evo::resultError; }
 
 			this->emit_error(
 				"Float literal cannot end in a [.]",
 				current_location.value(),
 				Diagnostic::Info("Maybe add a [0] to the end")
 			);
-			return true;
+			return evo::resultError;
 		}
 
 
@@ -987,10 +1055,10 @@ namespace pcit::panther{
 
 				}else if(evo::isHexNumber(peeked_char)){
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error("Literal number exponents should only have digits 0-9", current_location.value());
-					return true;
+					return evo::resultError;
 
 				}else{
 					break;
@@ -1015,24 +1083,25 @@ namespace pcit::panther{
 				switch(converted_exponent_number.error()){
 					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_error(
 							"Literal number exponent too large to fit into a I64."
 								"This limitation will be removed when the compiler is self hosted.",
 							current_location.value()
 						);
-						return true;
+						return evo::resultError;
 					} break;
 
 					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_fatal(
 							Diagnostic::createFatalMessage("Tried to convert invalid integer string for exponent"),
 							current_location.value()
 						);
+						return evo::resultError;
 					} break;
 				}
 			}
@@ -1050,14 +1119,14 @@ namespace pcit::panther{
 
 				if(floating_point_exponent_number > max_float_exp){
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error(
 						"Literal floating-point number too large to fit into an F64",
 						current_location.value(),
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 					);
-					return true;
+					return evo::resultError;
 				}
 
 			}else{
@@ -1065,14 +1134,14 @@ namespace pcit::panther{
 
 				if(floating_point_exponent_number > max_int_exp){
 					const evo::Result<Source::Location> current_location = this->get_current_location_token();
-					if(current_location.isError()){ return true; }
+					if(current_location.isError()){ return evo::resultError; }
 
 					this->emit_error(
 						"Literal number integer too large to fit into a UI64",
 						current_location.value(),
 						Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 					);
-					return true;
+					return evo::resultError;
 				}
 			}
 		}
@@ -1090,24 +1159,25 @@ namespace pcit::panther{
 				switch(converted_parsed_number.error()){
 					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_error(
 							"Literal floating-point too large to fit into an F64",
 							current_location.value(),
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 						);
-						return true;
+						return evo::resultError;
 					} break;
 
 					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_fatal(
 							Diagnostic::createFatalMessage("Tried to convert invalid literal floating-point number"),
 							current_location.value()
 						);
+						return evo::resultError;
 					} break;
 				}
 			}
@@ -1120,14 +1190,14 @@ namespace pcit::panther{
 				std::numeric_limits<evo::float64_t>::max() / parsed_number < std::pow(10, exponent_number)
 			){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
-				if(current_location.isError()){ return true; }
+				if(current_location.isError()){ return evo::resultError; }
 
 				this->emit_error(
 					"Literal number integer too large to fit into an F64",
 					current_location.value(),
 					Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 				);
-				return true;
+				return evo::resultError;
 			}
 
 
@@ -1147,25 +1217,25 @@ namespace pcit::panther{
 				switch(converted_parsed_number.error()){
 					case StrToNumError::OUT_OF_RANGE: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_error(
 							"Literal integer too large to fit into a UI64",
 							current_location.value(),
 							Diagnostic::Info("This limitation will be removed when the compiler is self hosted")
 						);
-						return true;
+						return evo::resultError;
 					} break;
 
 					case StrToNumError::INVALID: {
 						const evo::Result<Source::Location> current_location = this->get_current_location_token();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						this->emit_fatal(
 							Diagnostic::createFatalMessage("Tried to convert invalid literal integer"),
 							current_location.value()
 						);
-						return true;
+						return evo::resultError;
 					} break;
 				}
 			}
@@ -1179,13 +1249,11 @@ namespace pcit::panther{
 			this->create_token(Token::Kind::LITERAL_INT, output_number);
 		}
 
-		return true;
+		return evo::Result<>();
 	}
 
 
-	auto Tokenizer::tokenize_string_literal() -> bool {
-		if(this->char_stream.peek() != '"' && this->char_stream.peek() != '\''){ return false; }
-
+	auto Tokenizer::tokenize_string_literal() -> evo::Result<> {
 		const char delimiter = this->char_stream.next();
 
 		auto literal_value = std::string();
@@ -1214,18 +1282,18 @@ namespace pcit::panther{
 						this->char_stream.skip(2);
 
 						evo::Result<Source::Location> current_location = this->get_current_location_point();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 
 						char first_hex_char = this->char_stream.next();
 						if(evo::isHexNumber(first_hex_char) == false){
 							this->emit_error("Invalid value for hexidecimal escape sequence", current_location.value());
-							return true;
+							return evo::resultError;
 						}
 
 
 						current_location = this->get_current_location_point();
-						if(current_location.isError()){ return true; }
+						if(current_location.isError()){ return evo::resultError; }
 
 						char second_hex_char = this->char_stream.next();
 						if(evo::isHexNumber(second_hex_char) == false){
@@ -1234,7 +1302,7 @@ namespace pcit::panther{
 								current_location.value(),
 								Diagnostic::Info(std::format("Did you mean '\\x0{}'?", first_hex_char))
 							);
-							return true;
+							return evo::resultError;
 						}
 
 
@@ -1261,10 +1329,10 @@ namespace pcit::panther{
 						this->char_stream.skip(2);
 						
 						const evo::Result<uint32_t> line_result = this->char_stream.get_line();
-						if(line_result.isError()){ this->error_line_too_big(); return true; }
+						if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
 
 						const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
-						if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
+						if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
 
 						auto infos = evo::SmallVector<Diagnostic::Info>();
 
@@ -1283,7 +1351,7 @@ namespace pcit::panther{
 								this->current_token_collumn_start + 1, collumn_result.value() - 1
 							)
 						);
-						return true;
+						return evo::resultError;
 					}
 				}
 
@@ -1308,10 +1376,10 @@ namespace pcit::panther{
 				}();
 
 				const evo::Result<uint32_t> line_result = this->char_stream.get_line();
-				if(line_result.isError()){ this->error_line_too_big(); return true; }
+				if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
 
 				const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
-				if(collumn_result.isError()){ this->error_collumn_too_big(); return true; }
+				if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
 
 				this->emit_error(
 					std::format("Unterminated {} literal", string_type_name),
@@ -1322,7 +1390,7 @@ namespace pcit::panther{
 					),
 					Diagnostic::Info(std::format("Expected a {} before the end of the file", delimiter))
 				);
-				return true;	
+				return evo::resultError;	
 			}
 
 		}
@@ -1333,27 +1401,27 @@ namespace pcit::panther{
 		if(delimiter == '\''){
 			if(literal_value.empty()){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
-				if(current_location.isError()){ return true; }
+				if(current_location.isError()){ return evo::resultError; }
 
 				this->emit_error("Literal character cannot be empty", current_location.value());
-				return true;
+				return evo::resultError;
 
 			}
 
 			if(literal_value.size() > 1){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
-				if(current_location.isError()){ return true; }
+				if(current_location.isError()){ return evo::resultError; }
 
 				this->emit_error("Literal character must be only 1 character", current_location.value());
-				return true;
+				return evo::resultError;
 			}
 
 			if(contains_illegal_character_literal_character){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
-				if(current_location.isError()){ return true; }
+				if(current_location.isError()){ return evo::resultError; }
 
 				this->emit_error("Illegal character literal character", current_location.value());
-				return true;
+				return evo::resultError;
 			}
 
 			this->create_token(Token::Kind::LITERAL_CHAR, literal_value[0]);
@@ -1362,7 +1430,7 @@ namespace pcit::panther{
 		}
 
 
-		return true;
+		return evo::Result<>();
 	}
 
 

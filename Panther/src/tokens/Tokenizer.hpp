@@ -24,10 +24,7 @@ namespace pcit::panther{
 	class Tokenizer{
 		public:
 			Tokenizer(Context& _context, Source& _source) :
-				context(_context),
-				source(_source),
-				char_stream(_source.getData())
-				{}
+				context(_context), source(_source), char_stream(_source.getData()) {}
 
 			~Tokenizer() = default;
 
@@ -35,14 +32,11 @@ namespace pcit::panther{
 
 			
 		private:
-			// these functions return true if they consumed any of the source file
-			[[nodiscard]] auto tokenize_whitespace() -> bool;
-			[[nodiscard]] auto tokenize_comment() -> bool;
-			[[nodiscard]] auto tokenize_identifier() -> bool;
-			[[nodiscard]] auto tokenize_punctuation() -> bool;
-			[[nodiscard]] auto tokenize_operators() -> bool;
-			[[nodiscard]] auto tokenize_number_literal() -> bool;
-			[[nodiscard]] auto tokenize_string_literal() -> bool;
+			[[nodiscard]] auto token_start() -> evo::Result<>;
+
+			[[nodiscard]] auto tokenize_identifier(Token::Kind ident_kind) -> evo::Result<>;
+			[[nodiscard]] auto tokenize_number_literal() -> evo::Result<>;
+			[[nodiscard]] auto tokenize_string_literal() -> evo::Result<>;
 
 			auto create_token(Token::Kind kind, auto&&... value) -> void;
 
