@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.394.1"></a>
+## v0.0.394.1
+
+### Panther
+- Fixed check for all allocations made in a comptime function call happening before the check if an error happend
+
+### pthr
+- Fixed total time timer not ending on error
+
+
+<!---------------------------------->
 <a name="v0.0.394.0"></a>
 ## v0.0.394.0
 

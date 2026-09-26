@@ -27678,28 +27678,6 @@ namespace pcit::panther{
 
 		ContextComptimeContext::Data& comptime_context_data =  this->context.comptime_context.get_data();
 
-		if(comptime_context_data.num_allocations_allocated != 0){
-			auto infos = evo::SmallVector<Diagnostic::Info>();
-
-			if(comptime_context_data.num_allocations_allocated == 1){
-				infos.emplace_back("Missing 1 allocation");
-			}else{
-				infos.emplace_back( 
-					std::format("Missing {} allocations", comptime_context_data.num_allocations_allocated)
-				);
-			}
-
-			this->emit_error(
-				"After comptime execution of function call, not all allocations from `@ctAlloc` were not deallocated",
-				location,
-				std::move(infos)
-			);
-			comptime_context_data.reset();
-			return evo::resultError;
-		}
-
-		comptime_context_data.reset();
-
 
 		if(run_result.has_value() == false){
 			auto infos = evo::SmallVector<Diagnostic::Info>();
@@ -27765,10 +27743,35 @@ namespace pcit::panther{
 
 				i -= 1;
 			}
+			
+			comptime_context_data.reset();
 
 			this->emit_error("Error occured while running comptime function call", location, std::move(infos));
 			return evo::resultError;
 		}
+
+
+		if(comptime_context_data.num_allocations_allocated != 0){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+
+			if(comptime_context_data.num_allocations_allocated == 1){
+				infos.emplace_back("Missing 1 allocation");
+			}else{
+				infos.emplace_back( 
+					std::format("Missing {} allocations", comptime_context_data.num_allocations_allocated)
+				);
+			}
+
+			this->emit_error(
+				"After comptime execution of function call, not all allocations from `@ctAlloc` were not deallocated",
+				location,
+				std::move(infos)
+			);
+			comptime_context_data.reset();
+			return evo::resultError;
+		}
+
+		comptime_context_data.reset();
 
 
 		if(target_func_type.hasErrorReturn()){

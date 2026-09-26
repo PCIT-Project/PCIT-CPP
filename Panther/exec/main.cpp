@@ -213,6 +213,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 	const auto target = core::Target(config.architecture, config.platform);
 	if(target.isValid() == false){
+		total_timer_runner.stop();
 		panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 			panther::Diagnostic::Level::ERROR,
 			"Invalid compile target",
@@ -229,6 +230,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		config.platform == core::Target::Platform::PANTHER_VM
 			&& config.output.getTag() != panther::Context::PantherBuildConfig::Output::Tag::RUN
 	){
+		total_timer_runner.stop();
+
 		auto infos = evo::SmallVector<panther::Diagnostic::Info>();
 		infos.emplace_back("Platform:      PantherVM");
 
@@ -677,6 +680,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 	if(num_errors > 0){
+		total_timer_runner.stop();
+
 		print_num_errors(num_errors, printer);
 		return evo::resultError;
 	}
@@ -685,6 +690,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 	switch(config.output.getTag()){
 		case PantherBuildConfig::Output::Tag::TOKENS: {
 			if(context->tokenize().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
@@ -706,10 +712,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				);
 
 				if(create_directories(tokens_path.parent_path(), printer).isError()){
+					total_timer_runner.stop();
 					return evo::resultError;
 				}
 
 				if(evo::fs::writeFile(tokens_path.string(), printer_for_tokens.getString()) == false){
+					total_timer_runner.stop();
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write tokens file",
@@ -750,6 +758,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::AST: {
 			if(context->parse().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
@@ -775,10 +784,13 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				);
 
 				if(create_directories(ast_path.parent_path(), printer).isError()){
+					total_timer_runner.stop();
+
 					return evo::resultError;
 				}
 
 				if(evo::fs::writeFile(ast_path.string(), printer_for_ast.getString()) == false){
+					total_timer_runner.stop();
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write AST file",
@@ -819,6 +831,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::SEMANTIC_ANALYSIS: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
@@ -846,6 +859,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::PIR: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
@@ -855,7 +869,10 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				printer.isPrintingColor() && config.output.pirData().path.has_value() == false
 			);
 
-			if(context->lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){
+				total_timer_runner.stop();
+				return evo::resultError;
+			}
 			pir::printModule(context->getPIRModule(), printer_for_pir_module);
 
 
@@ -866,10 +883,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				);
 
 				if(create_directories(pir_path.parent_path(), printer).isError()){
+					total_timer_runner.stop();
 					return evo::resultError;
 				}
 
 				if(evo::fs::writeFile(pir_path.string(), printer_for_pir_module.getString()) == false){
+					total_timer_runner.stop();
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write PIR code file",
@@ -910,15 +929,22 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::LLVMIR: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
 			
-			if(context->lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){
+				total_timer_runner.stop();
+				return evo::resultError;
+			}
 
 			const evo::Result<std::string> llvmir_string = context->lowerToLLVMIR();
-			if(llvmir_string.isError()){ return evo::resultError; }
+			if(llvmir_string.isError()){
+				total_timer_runner.stop();
+				return evo::resultError;
+			}
 
 
 			if(config.output.llvmirData().path.has_value()){
@@ -928,10 +954,12 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				);
 
 				if(create_directories(llvm_ir_path.parent_path(), printer).isError()){
+					total_timer_runner.stop();
 					return evo::resultError;
 				}
 
 				if(evo::fs::writeFile(llvm_ir_path.string(), llvmir_string.value()) == false){
+					total_timer_runner.stop();
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write LLVM IR code file",
@@ -972,6 +1000,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::ASSEMBLY: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
@@ -980,6 +1009,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 			const evo::Result<std::string> asm_result = context->lowerToAssembly();
 			if(asm_result.isError()){
+				total_timer_runner.stop();
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to create assembly code data",
@@ -995,11 +1025,13 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 				);
 
 				if(create_directories(assembly_path.parent_path(), printer).isError()){
+					total_timer_runner.stop();
 					return evo::resultError;
 				}
 
 
 				if(evo::fs::writeFile(assembly_path.string(), asm_result.value()) == false){
+					total_timer_runner.stop();
 					panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 						panther::Diagnostic::Level::ERROR,
 						"Failed to write assembly code file",
@@ -1040,15 +1072,20 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::OBJECT: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
-			if(context->lowerToPIR().isError()){ return evo::resultError; }
+			if(context->lowerToPIR().isError()){
+				total_timer_runner.stop();
+				return evo::resultError;
+			}
 
 
 			const evo::Result<std::vector<evo::byte>> object_data = context->lowerToObject();
 			if(object_data.isError()){
+				total_timer_runner.stop();
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to create object file data",
@@ -1064,6 +1101,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			);
 
 			if(create_directories(object_path.parent_path(), printer).isError()){
+				total_timer_runner.stop();
 				return evo::resultError;
 			}
 
@@ -1071,6 +1109,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			if(evo::fs::writeBinaryFile(
 				static_cast<std::string>(config.output.objectData().path), object_data.value()
 			) == false){
+				total_timer_runner.stop();
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to write object file",
@@ -1106,12 +1145,16 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::RUN: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
 			const evo::Result<uint8_t> entry_res = context->runEntry(panther::Context::ExecutionMode::JIT, true);
-			if(entry_res.isError()){ return evo::resultError; }
+			if(entry_res.isError()){
+				total_timer_runner.stop();
+				return evo::resultError;
+			}
 			printer.printlnSuccess("Value returned from entry: {}", entry_res.value());
 
 			total_timer_runner.stop();
@@ -1137,16 +1180,19 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		case PantherBuildConfig::Output::Tag::EXECUTABLE: {
 			if(context->analyzeSemantics().isError()){
+				total_timer_runner.stop();
 				print_num_context_errors(*context, printer);
 				return evo::resultError;
 			}
 
 			if(context->lowerToPIR().isError()){
+				total_timer_runner.stop();
 				return evo::resultError;
 			}
 
 			const evo::Result<std::vector<evo::byte>> object_data = context->lowerToObject();
 			if(object_data.isError()){
+				total_timer_runner.stop();
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to output object file",
@@ -1164,11 +1210,13 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 			if(create_directories(object_path.parent_path(), printer).isError()){
+				total_timer_runner.stop();
 				return evo::resultError;
 			}
 
 
 			if(evo::fs::writeBinaryFile(object_path.string(), object_data.value()) == false){
+				total_timer_runner.stop();
 				panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
 					panther::Diagnostic::Level::ERROR,
 					"Failed to output obj",
@@ -1190,6 +1238,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 
 			if(create_directories(exec_path.parent_path(), printer).isError()){
+				total_timer_runner.stop();
 				return evo::resultError;
 			}
 
@@ -1265,6 +1314,8 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 			}
 
 			if(link_result.errMessages.empty() == false){
+				total_timer_runner.stop();
+
 				// OLD PRINTING VERSION:
 				// if(link_result.errMessages.size() == 1){
 				// 	printer.printlnRed("<Error:L> Linking failed with 1 error:");
