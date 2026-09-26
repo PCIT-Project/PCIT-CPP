@@ -496,6 +496,7 @@ namespace pcit::panther{
 			std::unordered_map<pir::GlobalVar::ID, sema::GlobalVar::ID> reverse_global_vars{};
 			mutable evo::SpinLock global_vars_lock{};
 
+			core::MapAlloc<std::string_view, pir::GlobalVar::ID> unique_string_map{};
 			std::unordered_map<sema::StringValue::ID, pir::GlobalVar::ID> global_strings{};
 			std::unordered_map<pir::GlobalVar::ID, sema::StringValue::ID> reverse_global_strings{};
 			mutable evo::SpinLock global_strings_lock{};

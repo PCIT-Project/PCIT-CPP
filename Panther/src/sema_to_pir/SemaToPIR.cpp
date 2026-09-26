@@ -4225,25 +4225,38 @@ namespace pcit::panther{
 		const sema::StringValue& string_value =
 			this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
-		const pir::GlobalVar::String::ID string_value_id = 
-			this->module.createGlobalString(string_value.value + '\0');
+		const pir::GlobalVar::ID string_id = [&]() -> pir::GlobalVar::ID {
+			const auto unique_string_handle = this->data.unique_string_map.get(std::string_view(string_value.value));
+			if(unique_string_handle.needsToBeSet() == false){ return unique_string_handle.getValue(); }
 
-		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
-			std::format("PTHR.str{}", this->data.get_string_literal_id()),
-			this->module.getGlobalString(string_value_id).type,
-			pir::Linkage::PRIVATE,
-			string_value_id,
-			true
-		);
+			const pir::GlobalVar::String::ID string_value_id = 
+				this->module.createGlobalString(string_value.value + '\0');
 
-		this->data.create_global_string(expr.stringValueID(), string_id);
+			const pir::GlobalVar::ID created_string_id = this->module.createGlobalVar(
+				std::format("PTHR.str{}", this->data.get_string_literal_id()),
+				this->module.getGlobalString(string_value_id).type,
+				pir::Linkage::PRIVATE,
+				string_value_id,
+				true
+			);
+
+			unique_string_handle.emplaceValue(created_string_id);
+
+			this->data.create_global_string(expr.stringValueID(), created_string_id);
+
+			return created_string_id;
+		}();
+
 
 		if constexpr(MODE == GetExprMode::REGISTER){
 			return this->handler.createGlobalValue(string_id);
 
 		}else if constexpr(MODE == GetExprMode::POINTER){
 			const pir::Expr alloca = this->handler.createAlloca(
-				this->module.getGlobalString(string_value_id).type, this->name(".STR.ALLOCA")
+				this->module.getGlobalString(
+					this->module.getGlobalVar(string_id).value.as<pir::GlobalVar::String::ID>()
+				).type,
+				this->name(".STR.ALLOCA")
 			);
 			this->handler.createStore(alloca, this->handler.createGlobalValue(string_id));
 			return alloca;
@@ -13356,16 +13369,30 @@ namespace pcit::panther{
 
 	auto SemaToPIR::create_panic(std::string_view message) -> void {
 		evo::debugAssert(this->handler.hasSourceLocation(), "Must have source location to create a panic");
-		
-		const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(std::string(message) + '\0');
 
-		const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
-			std::format("PTHR.str{}", this->data.get_string_literal_id()),
-			this->module.getGlobalString(string_value_id).type,
-			pir::Linkage::PRIVATE,
-			string_value_id,
-			true
-		);
+		const pir::GlobalVar::ID string_id = [&]() -> pir::GlobalVar::ID {
+			const auto unique_string_handle = this->data.unique_string_map.get(message);
+			if(unique_string_handle.needsToBeSet() == false){ return unique_string_handle.getValue(); }
+
+			std::string created_string_data = std::string(message);
+			created_string_data += '\0';
+
+			const pir::GlobalVar::String::ID string_value_id = this->module.createGlobalString(
+				std::move(created_string_data)
+			);
+
+			const pir::GlobalVar::ID created_string_id = this->module.createGlobalVar(
+				std::format("PTHR.str{}", this->data.get_string_literal_id()),
+				this->module.getGlobalString(string_value_id).type,
+				pir::Linkage::PRIVATE,
+				string_value_id,
+				true
+			);
+
+			unique_string_handle.emplaceValue(created_string_id);
+
+			return created_string_id;
+		}();
 
 		const pir::Type array_ref_type = this->data.getArrayRefType(
 			this->module,
@@ -13460,10 +13487,17 @@ namespace pcit::panther{
 				const sema::StringValue& string_value =
 					this->context.getSemaBuffer().getStringValue(expr.stringValueID());
 
+				const auto unique_string_handle =
+					this->data.unique_string_map.get(std::string_view(string_value.value));
+				if(unique_string_handle.needsToBeSet() == false){
+					return this->handler.createGlobalValue(unique_string_handle.getValue());
+				}
+
+
 				const pir::GlobalVar::String::ID string_value_id = 
 					this->module.createGlobalString(string_value.value + '\0');
 
-				const pir::GlobalVar::ID string_id = this->module.createGlobalVar(
+				const pir::GlobalVar::ID created_string_id = this->module.createGlobalVar(
 					std::format("PTHR.str{}", this->data.get_string_literal_id()),
 					this->module.getGlobalString(string_value_id).type,
 					pir::Linkage::PRIVATE,
@@ -13471,9 +13505,10 @@ namespace pcit::panther{
 					true
 				);
 
-				this->data.create_global_string(expr.stringValueID(), string_id);
+				unique_string_handle.emplaceValue(created_string_id);
+				this->data.create_global_string(expr.stringValueID(), created_string_id);
 
-				return this->handler.createGlobalValue(string_id);
+				return this->handler.createGlobalValue(created_string_id);
 			} break;
 
 			case sema::Expr::Kind::AGGREGATE_VALUE: {

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.394.0"></a>
+## v0.0.394.0
+
+### Panther
+- Improved lowering by removing duplicate strings
+
+
+<!---------------------------------->
 <a name="v0.0.393.0"></a>
 ## v0.0.393.0
 
